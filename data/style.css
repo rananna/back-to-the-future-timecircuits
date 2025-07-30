@@ -1,0 +1,980 @@
+/* Define base CSS variables for colors */
+:root,
+body.theme-time-circuits {
+    --bg-color: #1a1a1a;
+    --container-bg-color: #2a2a2a;
+    --border-color: #00ff00;
+    --shadow-color: rgba(0, 255, 0, 0.7);
+    --heading-color: #00ffff;
+    --heading-shadow-color: rgba(0, 255, 255, 0.7);
+    --text-color: #00ff00;
+    --highlight-text-color: #ffcc00;
+    --main-time-color: #ff00ff;
+    --main-time-shadow-color: rgba(255, 0, 255, 0.7);
+    --button-bg: #006600;
+    --button-color: #00ff00;
+    --button-border: #00ff00;
+    --button-hover-bg: #009900;
+    --button-hover-shadow: rgba(0, 255, 0, 0.9);
+    --tab-bg: #1a1a1a;
+    --tab-active-bg: #3a3a3a;
+    --tab-active-border: var(--border-color);
+}
+body.theme-outatime {
+    --bg-color: #1a0000;
+    --container-bg-color: #2a0000;
+    --border-color: #ff0000;
+    --shadow-color: rgba(255, 0, 0, 0.7);
+    --heading-color: #ffdd00;
+    --heading-shadow-color: rgba(255, 221, 0, 0.7);
+    --text-color: #ff8888;
+    --highlight-text-color: #ffffff;
+    --main-time-color: #ffcc00;
+    --main-time-shadow-color: rgba(255, 204, 0, 0.7);
+    --button-bg: #880000;
+    --button-color: #ffaaaa;
+    --button-border: #ff0000;
+    --button-hover-bg: #aa0000;
+    --button-hover-shadow: rgba(255, 0, 0, 0.9);
+    --tab-bg: #2a0000;
+    --tab-active-bg: #4a0000;
+    --tab-active-border: var(--border-color);
+}
+body.theme-88mph {
+    --bg-color: #0f1c2d;
+    --container-bg-color: #1c2b3e;
+    --border-color: #7df9ff;
+    --shadow-color: rgba(125, 249, 255, 0.7);
+    --heading-color: #ffffff;
+    --heading-shadow-color: rgba(255, 255, 255, 0.7);
+    --text-color: #b0e0e6;
+    --highlight-text-color: #ffffff;
+    --main-time-color: #ffdf00;
+    --main-time-shadow-color: rgba(255, 223, 0, 0.7);
+    --button-bg: #005f73;
+    --button-color: #94d2bd;
+    --button-border: #7df9ff;
+    --button-hover-bg: #0a9396;
+    --button-hover-shadow: rgba(125, 249, 255, 0.9);
+    --tab-bg: #1c2b3e;
+    --tab-active-bg: #2c3b4e;
+    --tab-active-border: var(--border-color);
+}
+body.theme-plutonium-glow {
+    --bg-color: #102010;
+    --container-bg-color: #183018;
+    --border-color: #a0ffa0;
+    --shadow-color: rgba(160, 255, 160, 0.7);
+    --heading-color: #ffffaa;
+    --heading-shadow-color: rgba(255, 255, 170, 0.7);
+    --text-color: #d0ffd0;
+    --highlight-text-color: #ffffff;
+    --main-time-color: #ffaa00;
+    --main-time-shadow-color: rgba(255, 170, 0, 0.7);
+    --button-bg: #005000;
+    --button-color: #a0ffa0;
+    --button-border: #a0ffa0;
+    --button-hover-bg: #007000;
+    --button-hover-shadow: rgba(160, 255, 160, 0.9);
+    --tab-bg: #183018;
+    --tab-active-bg: #284028;
+    --tab-active-border: var(--border-color);
+}
+body.theme-mr-fusion {
+    --bg-color: #1a1a1a;
+    --container-bg-color: #2c2c2c;
+    --border-color: #ff6a00;
+    --shadow-color: rgba(255, 106, 0, 0.7);
+    --heading-color: #ffffff;
+    --heading-shadow-color: rgba(255, 255, 255, 0.5);
+    --text-color: #cccccc;
+    --highlight-text-color: #ff8c00;
+    --main-time-color: #ffffff;
+    --main-time-shadow-color: rgba(255, 255, 255, 0.7);
+    --button-bg: #ff6a00;
+    --button-color: #ffffff;
+    --button-border: #ff8c00;
+    --button-hover-bg: #ff8c00;
+    --button-hover-shadow: rgba(255, 140, 0, 0.9);
+    --tab-bg: #2c2c2c;
+    --tab-active-bg: #3c3c3c;
+    --tab-active-border: var(--border-color);
+}
+body.theme-clock-tower {
+    --bg-color: #3b2f2f;
+    --container-bg-color: #5d4a4a;
+    --border-color: #daa520;
+    --shadow-color: rgba(218, 165, 32, 0.7);
+    --heading-color: #f5deb3;
+    --heading-shadow-color: rgba(245, 222, 179, 0.7);
+    --text-color: #f5f5dc;
+    --highlight-text-color: #ffffff;
+    --main-time-color: #ffd700;
+    --main-time-shadow-color: rgba(255, 215, 0, 0.7);
+    --button-bg: #8b4513;
+    --button-color: #f5deb3;
+    --button-border: #daa520;
+    --button-hover-bg: #a0522d;
+    --button-hover-shadow: rgba(218, 165, 32, 0.9);
+    --tab-bg: #5d4a4a;
+    --tab-active-bg: #6d5a5a;
+    --tab-active-border: var(--border-color);
+}
+
+body {
+    --setting-group-bg: #3a3a3a;
+    --setting-group-border: #008800;
+    --setting-group-shadow: rgba(0, 255, 0, 0.3);
+    --input-bg: #111;
+    --input-color: #ffcc00;
+    --input-border: #008800;
+    --invalid-input-border: #ff0000;
+    --invalid-input-shadow: rgba(255, 0, 0, 0.7);
+    --slider-thumb-color: #00ffff;
+    --slider-thumb-shadow: rgba(0, 255, 255, 0.8);
+    --slider-track-color: #005500;
+    --slider-track-border: #00ff00;
+    --visual-bar-color-1: #ffcc00; /* Brightness */
+    --visual-bar-shadow-1: rgba(255, 204, 0, 0.7);
+    --visual-bar-color-2: #ff00ff; /* Volume */
+    --visual-bar-shadow-2: rgba(255, 0, 255, 0.7);
+    --toggle-slider-bg: #444;
+    --toggle-slider-border: #00ff00;
+    --toggle-slider-before: #00ffff;
+    --toggle-slider-checked-bg: #00ff00;
+    --reset-button-bg: #660000;
+    --reset-button-border: #ff0000;
+    --reset-button-color: #ffcc00;
+    --reset-button-shadow: rgba(255, 0, 0, 0.5);
+    --reset-button-hover-bg: #990000;
+    --reset-button-hover-shadow: rgba(255, 0, 0, 0.9);
+    --message-banner-bg: #333;
+    --message-banner-color: white;
+    --success-banner-bg: #008800;
+    --success-banner-color: #e0ffe0;
+    --success-banner-border: #00ff00;
+    --error-banner-bg: #880000;
+    --error-banner-color: #ffe0e0;
+    --error-banner-border: #ff0000;
+    font-family: 'Share Tech Mono', monospace;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    box-sizing: border-box;
+    transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+.container {
+    background-color: var(--container-bg-color);
+    border: 2px solid var(--border-color);
+    box-shadow: 0 0 15px var(--shadow-color);
+    padding: 30px;
+    border-radius: 10px;
+    max-width: 600px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: background-color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+    /* Added subtle horizontal centering and vertical margin */
+    margin: 20px auto; 
+}
+
+/* FINAL: Styles for the real-time header with a robust flexbox layout. */
+.header-circuits {
+    background-color: #000;
+    border: 2px solid #555;
+    border-radius: 8px;
+    padding: 20px; /* Increased padding */
+    margin-bottom: 30px; /* Increased bottom margin */
+    font-family: 'Orbitron', sans-serif;
+    visibility: hidden; /* Initially hidden to prevent FOUC */
+    /* Changed to CSS Grid for better responsiveness on larger screens */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Auto-fit columns, min 300px wide */
+    gap: 20px; /* Gap between grid items */
+}
+.header-circuits.visible {
+    visibility: visible; /* Made visible by JavaScript after data loads */
+}
+.circuit-row {
+    display: flex;
+    flex-direction: column; /* Stack label and content vertically */
+    align-items: flex-start; /* Align contents to the start */
+    margin-bottom: 0; /* Managed by grid gap */
+    padding-bottom: 15px; /* Increased padding */
+    border-bottom: 1px solid #444;
+}
+.circuit-row:last-child {
+    border-bottom: none; /* No border for the last item */
+}
+/* On wider screens, remove bottom border for grid items that are not in the last row of the grid flow */
+@media (min-width: 900px) { /* Example breakpoint for multi-column layout */
+    .header-circuits .circuit-row:nth-last-child(-n+2) { /* Adjust based on desired columns, e.g., -n+2 for 2 columns */
+        border-bottom: none;
+    }
+    .header-circuits .circuit-row:nth-child(2n+1) { /* For 2-column layout, remove border on every other */
+        /* If 2 columns, remove border from odd elements on second row, etc. */
+    }
+}
+
+
+.circuit-label {
+    /* flex: 0 0 140px; Removed fixed flex-basis for better responsiveness */
+    font-size: 0.7em; /* Slightly adjusted font size */
+    color: #fff;
+    text-align: left; /* Aligned left for stacked layout */
+    margin-right: 0; /* Removed fixed margin-right */
+    margin-bottom: 5px; /* Space between label and content */
+    letter-spacing: 1px;
+    width: 100%; /* Take full width of its grid cell */
+}
+.circuit-content {
+    flex-grow: 1; /* Allow content to fill remaining space */
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Aligned left for stacked layout */
+    gap: 8px; /* Slightly increased space between date and time parts */
+    font-size: 1.15em; /* Slightly larger font size */
+    font-weight: bold;
+    width: 100%; /* Take full width of its grid cell */
+}
+.circuit-display, .circuit-time {
+    display: flex;
+    align-items: center;
+    gap: 4px; /* Slightly increased space between time components */
+}
+.circuit-time {
+    margin-left: 0; /* Removed fixed margin-left */
+}
+/* Added for a more subtle colon effect */
+.colon {
+    opacity: 0.8;
+}
+
+/* More specific rules to ensure colors are applied correctly */
+.circuit-row.destination, .circuit-row.destination span { color: #ff0000 !important; }
+.circuit-row.present, .circuit-row.present span { color: #00ff00 !important; }
+.circuit-row.last-departed, .circuit-row.last-departed span { color: #ffff00 !important; }
+.circuit-label { color: #fff !important; }
+/* Ensure the ampm-text has the correct inherited color */
+.ampm-text {
+    font-size: 0.8em;
+}
+
+
+
+.tab-nav {
+    display: flex;
+    margin-bottom: 25px; /* Increased bottom margin for tabs */
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tab-link {
+    background-color: var(--tab-bg);
+    color: var(--text-color);
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 16px 20px; /* Increased padding */
+    transition: background-color 0.3s;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.05em; /* Slightly larger font */
+    flex-grow: 1;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    margin: 0;
+}
+
+.tab-link:hover {
+    background-color: var(--tab-active-bg);
+}
+
+.tab-link.active {
+    background-color: var(--setting-group-bg);
+    border: 2px solid var(--border-color);
+    border-bottom: none;
+    box-shadow: 0 -5px 10px var(--shadow-color);
+    color: var(--heading-color);
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+h1, h2 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--heading-color);
+    text-align: center;
+    text-shadow: 0 0 8px var(--heading-shadow-color);
+    margin-bottom: 30px; /* Increased bottom margin for headings */
+}
+
+h1 { margin-bottom: 35px; } /* Slightly more for H1 */
+h2 { margin-top: 15px; } /* Increased top margin for H2 */
+
+hr {
+    border: none;
+    border-top: 1px dashed var(--border-color);
+    margin: 35px 0; /* Increased vertical margin for hr */
+}
+
+p {
+    margin: 10px 0; /* Slightly increased vertical margin for paragraphs */
+    line-height: 1.6; /* Slightly increased line height for readability */
+}
+
+span {
+    font-weight: bold;
+    color: var(--highlight-text-color);
+}
+
+.setting-group {
+    background-color: var(--setting-group-bg);
+    border: 1px solid var(--setting-group-border);
+    padding: 25px; /* Increased padding */
+    border-radius: 8px;
+    margin-bottom: 35px; /* Increased bottom margin for setting groups */
+    box-shadow: inset 0 0 5px var(--setting-group-shadow);
+}
+
+.setting-group h3 {
+    color: var(--text-color);
+    text-shadow: 0 0 5px var(--shadow-color);
+    margin-top: 0;
+    margin-bottom: 25px; /* Increased bottom margin for subheadings */
+    text-align: center;
+}
+
+label {
+    display: block;
+    margin-bottom: 12px; /* Increased bottom margin for labels */
+    color: var(--text-color);
+}
+
+input[type="number"],
+input[type="range"],
+input[type="date"],
+input[type="time"],
+select {
+    width: 100%;
+    padding: 10px; /* Increased padding for inputs and selects */
+    margin-top: 5px;
+    margin-bottom: 15px; /* Increased bottom margin for inputs and selects */
+    border: 1px solid var(--input-border);
+    background-color: var(--input-bg);
+    color: var(--input-color);
+    border-radius: 4px;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+select {
+    padding-right: 35px; /* Adjusted padding for dropdown arrow */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24"><path fill="%2300ff00" d="M7 10l5 5 5-5z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center; /* Adjusted position for dropdown arrow */
+    background-size: 24px;
+    cursor: pointer;
+}
+select::-ms-expand {
+    display: none;
+}
+
+input[type="number"].invalid,
+input[type="date"].invalid,
+input[type="time"].invalid {
+    border-color: var(--invalid-input-border);
+    box-shadow: 0 0 5px var(--invalid-input-shadow);
+}
+
+.validation-message {
+    color: var(--invalid-input-border);
+    font-size: 0.85em; /* Slightly larger font for validation messages */
+    margin-top: -10px; /* Adjusted to sit closer to input */
+    margin-bottom: 12px; /* Consistent margin */
+    display: block;
+    min-height: 1em; /* Prevent layout shift */
+}
+
+/* Custom range slider styling */
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 20px; /* Slightly larger thumb */
+    width: 20px; /* Slightly larger thumb */
+    border-radius: 50%;
+    background: var(--slider-thumb-color);
+    cursor: pointer;
+    box-shadow: 0 0 5px var(--slider-thumb-shadow);
+    margin-top: -6px; /* Adjusted to center with track */
+}
+
+input[type="range"]::-moz-range-thumb {
+    height: 20px; /* Slightly larger thumb */
+    width: 20px; /* Slightly larger thumb */
+    border-radius: 50%;
+    background: var(--slider-thumb-color);
+    cursor: pointer;
+    box-shadow: 0 0 5px var(--slider-thumb-shadow);
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 10px; /* Slightly thicker track */
+    cursor: pointer;
+    background: var(--slider-track-color);
+    border-radius: 5px; /* Adjusted border radius */
+    border: 0.5px solid var(--slider-track-border);
+}
+
+input[type="range"]::-moz-range-track {
+    width: 100%;
+    height: 10px; /* Slightly thicker track */
+    cursor: pointer;
+    background: var(--slider-track-color);
+    border-radius: 5px; /* Adjusted border radius */
+    border: 0.5px solid var(--slider-track-border);
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Increased gap */
+    margin-bottom: 18px; /* Increased bottom margin */
+}
+
+.slider-container input[type="range"] {
+    flex-grow: 1;
+    margin-bottom: 0;
+}
+
+.incrementer-btn {
+    flex-shrink: 0;
+    width: 35px; /* Slightly larger buttons */
+    height: 35px; /* Slightly larger buttons */
+    padding: 0;
+    font-size: 1.3em; /* Slightly larger font */
+    line-height: 35px;
+    text-align: center;
+    margin: 0;
+}
+
+/* Toggle Switch Styling */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 65px; /* Slightly wider switch */
+    height: 38px; /* Slightly taller switch */
+    margin-left: 15px; /* Increased left margin */
+    vertical-align: middle;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--toggle-slider-bg);
+    -webkit-transition: .4s;
+    transition: .4s;
+    border: 1px solid var(--toggle-slider-border);
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 30px; /* Adjusted size */
+    width: 30px; /* Adjusted size */
+    left: 4px;
+    bottom: 4px;
+    background-color: var(--toggle-slider-before);
+    -webkit-transition: .4s;
+    transition: .4s;
+    border: 1px solid var(--toggle-slider-border);
+    -webkit-transform: translateX(0);
+    -ms-transform: translateX(0);
+    transform: translateX(0);
+}
+
+input:checked + .slider {
+    background-color: var(--toggle-slider-checked-bg);
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px var(--toggle-slider-checked-bg);
+}
+
+input:checked + .slider:before {
+    -webkit-transform: translateX(27px); /* Adjusted for new width */
+    -ms-transform: translateX(27px); /* Adjusted for new width */
+    transform: translateX(27px); /* Adjusted for new width */
+}
+
+.slider.round {
+    border-radius: 38px; /* Adjusted for new height */
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+button {
+    background-color: var(--button-bg);
+    color: var(--button-color);
+    border: 1px solid var(--button-border);
+    padding: 12px 18px; /* Increased padding */
+    border-radius: 6px; /* Slightly more rounded corners */
+    cursor: pointer;
+    font-size: 1.05em; /* Slightly larger font */
+    font-family: 'Share Tech Mono', monospace;
+    margin-top: 25px; /* Increased top margin for buttons */
+    width: 100%;
+    box-sizing: border-box;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
+    text-shadow: 0 0 3px var(--shadow-color);
+}
+
+button:hover {
+    background-color: var(--button-hover-bg);
+    box-shadow: 0 0 12px var(--button-hover-shadow); /* Slightly larger shadow */
+}
+
+button:active {
+    transform: translateY(2px); /* Slightly more active effect */
+    box-shadow: 0 0 8px var(--button-hover-shadow);
+}
+
+button:disabled {
+    background-color: #555;
+    color: #aaa;
+    border-color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Style for glowing save button */
+@keyframes glow {
+    0% { box-shadow: 0 0 5px var(--button-hover-shadow); }
+    50% { box-shadow: 0 0 20px var(--button-hover-shadow), 0 0 30px var(--button-hover-shadow); }
+    100% { box-shadow: 0 0 5px var(--button-hover-shadow); }
+}
+button:not(:disabled).needs-save {
+    animation: glow 1.5s infinite ease-in-out;
+}
+
+.reset-button, .delete-button {
+    background-color: var(--reset-button-bg);
+    border-color: var(--reset-button-border);
+    color: var(--reset-button-color);
+    text-shadow: 0 0 3px var(--reset-button-shadow);
+}
+
+.reset-button:hover, .delete-button:hover {
+    background-color: #990000;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.9);
+}
+
+.delete-button {
+    margin-top: 15px; /* Increased top margin for delete button */
+}
+
+.message-banner.error {
+    background-color: var(--error-banner-bg);
+    color: var(--error-banner-color);
+    border: 1px solid var(--error-banner-border);
+}
+
+.time-circuit-display {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* Slightly increased gap */
+    margin-top: 20px; /* Increased top margin */
+}
+
+p.static-time-display {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.6em; /* Slightly larger font */
+    color: var(--main-time-color);
+    text-shadow: 0 0 10px var(--main-time-shadow-color);
+    text-align: center;
+    margin: 20px 0 25px 0; /* Increased vertical margin */
+    min-height: 1.5em; /* Prevent layout shift */
+}
+
+.time-circuit-row {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Increased gap */
+}
+
+.time-circuit-label {
+    flex-basis: 90px; /* Slightly wider label */
+    flex-shrink: 0;
+    font-weight: bold;
+    color: var(--highlight-text-color);
+}
+
+/* Style for the direct year input */
+.time-circuit-input {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.6em; /* Slightly larger font */
+    color: var(--main-time-color);
+    text-shadow: 0 0 10px var(--main-time-shadow-color);
+    text-align: center;
+    flex-grow: 1;
+    width: auto;
+    padding: 8px; /* Increased padding */
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 12px; /* Slightly larger indicator */
+    height: 12px; /* Slightly larger indicator */
+    border-radius: 50%;
+    margin-right: 6px; /* Slightly increased margin */
+    background-color: red;
+}
+
+.status-indicator.synced {
+    background-color: green;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 25px; /* Increased padding */
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px; /* Added max-width for modals */
+    color: black;
+}
+#themeSelector {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* Increased gap */
+}
+.theme-option {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Increased gap */
+    cursor: pointer;
+    padding: 8px; /* Added padding for theme options */
+    border-radius: 6px; /* Added border-radius */
+    transition: background-color 0.2s ease;
+}
+.theme-option:hover {
+    background-color: var(--tab-active-bg); /* Highlight on hover */
+}
+.theme-swatch {
+    width: 35px; /* Slightly larger swatch */
+    height: 35px; /* Slightly larger swatch */
+    border: 2px solid var(--border-color);
+}
+.theme-swatch.selected {
+    border-color: var(--highlight-text-color);
+    box-shadow: 0 0 12px var(--highlight-text-color); /* Slightly larger shadow */
+}
+.theme-name {
+    color: var(--text-color);
+}
+
+.setting-group.highlight-saved {
+    animation: highlight 2s;
+}
+
+.wifi-signal-line {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px; /* Slightly increased gap */
+    margin-top: 15px; /* Increased top margin */
+    padding-bottom: 10px; /* Added padding to align with other sections */
+    border-bottom: 1px dashed var(--input-border); /* Added separator */
+    margin-bottom: 20px; /* Added bottom margin */
+}
+
+.wifi-indicator {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 3px; /* Slightly increased gap between bars */
+    margin-left: 8px; /* Increased margin */
+    height: 15px; /* Made taller for better visual */
+}
+
+.wifi-bar {
+    width: 5px; /* Slightly wider bars */
+    background-color: grey;
+    border-radius: 1px;
+}
+
+.wifi-indicator.strength-1 .wifi-bar:nth-child(-n+1) { background-color: var(--button-color); }
+.wifi-indicator.strength-2 .wifi-bar:nth-child(-n+2) { background-color: var(--button-color); }
+.wifi-indicator.strength-3 .wifi-bar:nth-child(-n+3) { background-color: var(--button-color); }
+.wifi-indicator.strength-4 .wifi-bar:nth-child(-n+4) { background-color: var(--button-color); }
+
+body.time-travel-active {
+    animation: flashing 0.1s infinite;
+}
+
+@keyframes flashing {
+    0% { background-color: var(--bg-color); }
+    50% { background-color: #fff; }
+    100% { background-color: var(--bg-color); }
+}
+.sleep-schedule-visual {
+    width: 100%;
+    height: 25px; /* Slightly taller visualizer */
+    background-color: #444;
+    border-radius: 12px; /* More rounded corners */
+    margin-top: 15px; /* Increased top margin */
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 8px; /* Increased horizontal padding */
+    box-sizing: border-box;
+    border: 1px solid var(--input-border); /* Added a border for definition */
+}
+.sleep-schedule-bar {
+    position: absolute;
+    height: 100%;
+    background-color: var(--highlight-text-color);
+    opacity: 0.7;
+    top: 0;
+    left: 0;
+}
+.sleep-time-display {
+    position: relative;
+    z-index: 1;
+    font-size: 0.85em; /* Slightly larger font */
+    color: var(--bg-color);
+    font-weight: bold;
+    text-shadow: none;
+    pointer-events: none;
+}
+.preset-adder {
+    margin-top: 30px; /* Increased top margin */
+    padding-top: 20px; /* Increased padding */
+    border-top: 1px dashed var(--input-border);
+}
+.preset-adder h4 {
+    margin-top: 0;
+    margin-bottom: 15px; /* Added bottom margin */
+    text-align: center;
+}
+.preset-date-inputs {
+    display: flex;
+    gap: 10px; /* Increased gap */
+    margin-bottom: 15px; /* Added bottom margin */
+}
+.preset-date-inputs input {
+    width: 100%; /* Flex will handle sizing */
+    text-align: center;
+}
+.preset-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px; /* Increased gap */
+}
+.preset-buttons .delete-button {
+    grid-column: 1 / -1;
+}
+.preset-buttons button {
+    margin-top: 0;
+    width: 100%;
+}
+.feedback-check {
+    color: var(--border-color);
+    margin-left: 12px; /* Increased margin */
+    opacity: 0;
+}
+.feedback-check.show {
+    animation: fadeInOut 1.5s ease-in-out;
+}
+@keyframes fadeInOut {
+    0%, 100% { opacity: 0; }
+    20%, 80% { opacity: 1; }
+}
+.hidden {
+    display: none !important;
+}
+
+.contextual-control-group {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Increased gap */
+    margin-bottom: 15px; /* Added bottom margin for the group */
+}
+
+.contextual-control-group select {
+    flex-grow: 1;
+    margin-bottom: 0;
+}
+
+.contextual-actions {
+    display: flex;
+    gap: 8px; /* Slightly increased gap */
+    margin-top: 5px; /* Adjusted to fit the flow */
+}
+
+.action-button {
+    padding: 10px 15px; /* Increased padding */
+    margin-top: 0;
+    width: auto;
+}
+
+#currentTimeMarker {
+    position: absolute;
+    width: 4px; /* Slightly wider marker */
+    height: 100%;
+    background-color: #ff0000; /* A distinct, bright color */
+    box-shadow: 0 0 6px #ff0000, 0 0 12px #ff0000; /* Slightly larger shadow */
+    top: 0;
+    z-index: 2; /* Ensure it is displayed on top of the sleep bar */
+    transition: left 1s linear; /* Animate its movement smoothly */
+}
+
+/* =================================================================
+   == MOBILE RESPONSIVENESS                                       ==
+   ================================================================= */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 15px;
+        border-width: 1px;
+        margin: 10px auto; /* Reduced margin for mobile */
+    }
+
+    h1 {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+
+    .tab-link {
+        padding: 12px 8px;
+        font-size: 0.8em;
+    }
+    
+    /* Header adjustments for mobile */
+    .header-circuits {
+        padding: 10px;
+        grid-template-columns: 1fr; /* Force single column on mobile */
+        gap: 10px; /* Reduced gap for mobile */
+    }
+    .circuit-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #444; /* Ensure border on mobile for all but last */
+    }
+    .circuit-row:last-child {
+        border-bottom: none;
+    }
+    .circuit-label {
+        text-align: left;
+        margin-right: 0;
+        font-size: 0.6em;
+        width: 100%;
+        margin-bottom: 2px;
+    }
+    .circuit-content {
+        width: 100%;
+        justify-content: flex-start; /* Align content to the left */
+        gap: 10px;
+    }
+    .circuit-display, .circuit-time {
+        font-size: 1em;
+    }
+
+    .setting-group {
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .setting-group h3 {
+        font-size: 1.1em;
+        margin-bottom: 15px;
+    }
+
+    .preset-date-inputs {
+        flex-direction: column;
+        gap: 8px; /* Reduced gap for mobile */
+    }
+
+    .slider-container {
+        gap: 8px; /* Reduced gap for mobile */
+    }
+
+    button, .reset-button, .delete-button {
+        padding: 12px;
+        font-size: 0.9em;
+    }
+
+    /* Make the contextual preset buttons stack */
+    .contextual-control-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px; /* Reduced gap for mobile */
+    }
+    .contextual-actions {
+        margin-top: 8px; /* Reduced margin for mobile */
+        gap: 8px; /* Reduced gap for mobile */
+    }
+    .action-button {
+        flex-grow: 1; /* Make edit/delete buttons fill space */
+    }
+
+    .modal-content {
+        width: 90%;
+        margin: 30% auto;
+        padding: 15px;
+    }
+
+    #themeSelector {
+        gap: 8px; /* Reduced gap for mobile */
+    }
+    .theme-option {
+        padding: 6px; /* Reduced padding for mobile */
+    }
+    .theme-swatch {
+        width: 30px; /* Adjusted size for mobile */
+        height: 30px; /* Adjusted size for mobile */
+    }
+}
