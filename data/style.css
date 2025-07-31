@@ -891,7 +891,7 @@ body.time-travel-active {
     .circuit-content {
         width: 100%;
         justify-content: flex-start;
-        gap: 10px;
+        gap: 8px;
     }
     .circuit-display, .circuit-time {
         font-size: 1em;

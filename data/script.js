@@ -115,27 +115,21 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
     });
 
-    document.getElementById('destinationYear').addEventListener('input', (e) => {
-        setSettingsChanged(true);
-        if (document.getElementById('livePreviewToggle').checked) {
-            handlePreview('destinationYear', e.target.value);
-            showFeedback('destinationYear');
-        }
-    });
-
-    document.getElementById('destinationTimezoneSelect').addEventListener('change', (e) => {
-        setSettingsChanged(true);
-        if (document.getElementById('livePreviewToggle').checked) {
-            handlePreview('destinationTimezoneIndex', e.target.value);
-            showFeedback('destinationTimezoneSelect');
-        }
-    });
-
-    document.getElementById('presentTimezoneSelect').addEventListener('change', (e) => {
-        setSettingsChanged(true);
-        if (document.getElementById('livePreviewToggle').checked) {
-            handlePreview('presentTimezoneIndex', e.target.value);
-            showFeedback('presentTimezoneSelect');
+    // Replaced redundant event listeners with a single loop
+    ['destinationYear', 'destinationTimezoneSelect', 'presentTimezoneSelect'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            const eventType = element.tagName === 'SELECT' ? 'change' : 'input';
+            element.addEventListener(eventType, (e) => {
+                setSettingsChanged(true);
+                if (document.getElementById('livePreviewToggle').checked) {
+                    const settingName = id === 'destinationTimezoneSelect' ? 'destinationTimezoneIndex' :
+                                      id === 'presentTimezoneSelect' ? 'presentTimezoneIndex' :
+                                      id;
+                    handlePreview(settingName, e.target.value);
+                    showFeedback(id);
+                }
+            });
         }
     });
 
@@ -158,7 +152,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             .then(data => {
                 document.getElementById('powerOfLoveBtn').classList.toggle('button-active', data.state);
                 setSettingsChanged(true);
-            });
+            })
+            .catch(error => showMessage('Error toggling Great Scott sound!', 'error'));
     });
 
     document.getElementById('displayFormat24h').addEventListener('change', (e) => {
@@ -201,7 +196,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const actions = document.getElementById('presetActions');
         if (selectedOption.parentElement.label === 'Custom Jumps') {
             actions.classList.remove('hidden');
+            const [year, month, day, hour, minute] = selectedOption.value.split('-');
+            document.getElementById('presetName').value = selectedOption.textContent;
+            document.getElementById('presetDate').value = `${year}-${month}-${day}`;
+            document.getElementById('presetTime').value = `${hour}:${minute}`;
+            document.getElementById('editingPresetValue').value = selectedOption.value;
+            document.getElementById('addPresetBtn').textContent = 'Update Preset';
         } else {
+            resetPresetForm();
             actions.classList.add('hidden');
         }
 
@@ -226,12 +228,20 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         fetchTime();
                         showFeedback('presetDateSelect');
                     } else {
-                        response.text().then(text => console.error(`Preview error for setLastDeparted: ${text}`));
+                        response.text().then(text => {
+                            console.error(`Preview error for setLastDeparted: ${text}`);
+                            showMessage(`Live preview failed: ${text}`, 'error');
+                        });
                     }
                 })
-                .catch(error => console.error('Error in live preview setLastDeparted:', error));
+                .catch(error => {
+                    console.error('Error in live preview setLastDeparted:', error);
+                    showMessage('Live preview connection error.', 'error');
+                });
         }
     });
+
+    document.getElementById('editPresetBtn').addEventListener('click', editPreset);
 
     setupIncrementerButtons();
     validateAllNumberInputs();
@@ -261,7 +271,6 @@ function handlePreview(settingName, value) {
             showMessage(`Live preview connection error for ${settingName}.`, 'error');
         });
 }
-
 
 function setupIncrementerButtons() {
     document.querySelectorAll('.incrementer-btn').forEach(button => {
@@ -324,8 +333,7 @@ function addPreset() {
     fetch('/api/addPreset', { method: 'POST', body: new URLSearchParams(formData) })
         .then(response => {
             if (!response.ok) {
-                response.text().then(text => showMessage(`Error: ${text}`, 'error'));
-                throw new Error('Network response was not ok');
+                return response.text().then(text => { throw new Error(text); });
             }
             return response.text();
         })
@@ -334,7 +342,7 @@ function addPreset() {
             resetPresetForm();
             fetchAndApplyPresets();
         })
-        .catch(error => console.error('Error adding preset:', error));
+        .catch(error => showMessage(`Error adding preset: ${error.message}`, 'error'));
 }
 
 function editPreset() {
@@ -381,15 +389,19 @@ function updatePreset(originalValue) {
     formData.append('newValue', newValue);
 
     fetch('/api/updatePreset', { method: 'POST', body: new URLSearchParams(formData) })
-        .then(response => response.text())
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text); });
+            }
+            return response.text();
+        })
         .then(data => {
             showMessage(data, 'success');
             resetPresetForm();
             fetchAndApplyPresets();
         })
-        .catch(error => showMessage('Error updating preset', 'error'));
+        .catch(error => showMessage(`Error updating preset: ${error.message}`, 'error'));
 }
-
 
 function resetPresetForm() {
     document.getElementById('presetName').value = '';
@@ -415,28 +427,32 @@ function deletePreset() {
 
         fetch('/api/deletePreset', { method: 'POST', body: new URLSearchParams(formData) })
             .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text); });
+                }
                 return response.text();
             })
             .then(data => {
                 showMessage(data, 'success');
                 fetchAndApplyPresets().then(fetchSettings);
             })
-            .catch(error => showMessage('Error deleting preset!', 'error'));
+            .catch(error => showMessage(`Error deleting preset: ${error.message}`, 'error'));
     });
 }
 
 function clearPresets() {
     fetch('/api/clearPresets', { method: 'POST' })
         .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text); });
+            }
             return response.text();
         })
         .then(data => {
             showMessage(data, 'success');
             fetchAndApplyPresets().then(fetchSettings);
         })
-        .catch(error => showMessage('Error clearing presets!', 'error'));
+        .catch(error => showMessage(`Error clearing presets: ${error.message}`, 'error'));
 }
 
 function syncNtp() {
@@ -635,7 +651,7 @@ function fetchStatus() {
             updateWifiStrengthIndicator(data.rssi);
             document.getElementById('wifiSSID').textContent = data.ssid || 'N/A';
         })
-        .catch(error => console.error('Error fetching status:', error));
+        .catch(error => showMessage('Error fetching status!', 'error'));
 }
 
 function fetchTime() {
@@ -670,7 +686,7 @@ function fetchTime() {
                 document.getElementById('currentTimeMarker').style.left = `${markerPosition}%`;
             }
         })
-        .catch(error => console.error('Error fetching time:', error));
+        .catch(error => showMessage('Error fetching time!', 'error'));
 }
 
 function fetchTimezones() {
@@ -822,7 +838,12 @@ function saveSettings() {
     formData.append('animationStyle', document.getElementById('animationStyleSelect').value);
 
     fetch('/api/saveSettings', { method: 'POST', body: new URLSearchParams(formData) })
-        .then(response => response.text())
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text); });
+            }
+            return response.text();
+        })
         .then(data => {
             showMessage(data, 'success');
             setSettingsChanged(false);
@@ -835,14 +856,14 @@ function saveSettings() {
             });
             startTimeTravelSequence();
         })
-        .catch(error => showMessage('Error saving settings!', 'error'))
+        .catch(error => showMessage(`Error saving settings: ${error.message}`, 'error'))
         .finally(() => {
             showLoading('saveSettingsBtn', false);
         });
 }
 
 function startTimeTravelSequence() {
-    fetch('/api/timeTravel');
+    fetch('/api/timeTravel').catch(error => showMessage('Error initiating time travel sequence!', 'error'));
     document.body.classList.add('time-travel-active');
     setTimeout(() => {
         document.body.classList.remove('time-travel-active');
@@ -863,21 +884,31 @@ function showCustomConfirm(msg, callback) {
 function resetToDefaults() {
     showLoading('resetDefaultsBtn', true);
     fetch('/api/resetSettings', { method: 'POST' })
-        .then(response => { if (!response.ok) throw new Error('Network response was not ok'); return response.text(); })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text); });
+            }
+            return response.text();
+        })
         .then(() => {
             showMessage('Settings reset to defaults!', 'success');
             fetchAndApplyPresets().then(fetchSettings);
         })
-        .catch(error => showMessage('Error resetting settings!', 'error'))
+        .catch(error => showMessage(`Error resetting settings: ${error.message}`, 'error'))
         .finally(() => showLoading('resetDefaultsBtn', false));
 }
 
 function resetWifi() {
     showLoading('resetWifiBtn', true);
     fetch('/api/resetWifi', { method: 'POST' })
-        .then(response => { if (!response.ok) throw new Error('Network response was not ok'); return response.text(); })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text); });
+            }
+            return response.text();
+        })
         .then(() => showMessage('WiFi credentials reset. Device restarting...', 'success', 10000))
-        .catch(error => showMessage('Error resetting WiFi!', 'error'))
+        .catch(error => showMessage(`Error resetting WiFi: ${error.message}`, 'error'))
         .finally(() => showLoading('resetWifiBtn', false));
 }
 
@@ -969,7 +1000,7 @@ function clearPreferences() {
             fetch('/api/clearPreferences', { method: 'POST' })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                        return response.text().then(text => { throw new Error(text); });
                     }
                     return response.text();
                 })
@@ -980,8 +1011,7 @@ function clearPreferences() {
                     }, 1000);
                 })
                 .catch(error => {
-                    showMessage('Error clearing preferences!', 'error');
-                    console.error('Error:', error);
+                    showMessage(`Error clearing preferences: ${error.message}`, 'error');
                 });
         }
     );

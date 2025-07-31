@@ -8,7 +8,25 @@
 #include <TM1637Display.h>
 #include <DFRobotDFPlayerMini.h>
 #include <LittleFS.h>
+#include <vector>
+#include <algorithm>
 #include <time.h>
+#include <map>
+
+// --- ADDED CONSTANT DEFINITIONS TO FIX COMPILE ERRORS ---
+#define THEME_TIME_CIRCUITS 0
+#define ANIMATION_SEQUENTIAL_FLICKER 0
+
+#define SOUND_TIME_TRAVEL "TIME_TRAVEL"
+#define SOUND_EASTER_EGG "EASTER_EGG"
+#define SOUND_SLEEP_ON "SLEEP_ON"
+#define SOUND_CONFIRM_ON "CONFIRM_ON"
+#define SOUND_CONFIRM_OFF "CONFIRM_OFF"
+#define SOUND_ACCELERATION "ACCELERATION"
+#define SOUND_WARP_WHOOSH "WARP_WHOOSH"
+#define SOUND_ARRIVAL_THUD "ARRIVAL_THUD"
+#define SOUND_NOT_FOUND "NOT_FOUND" // New macro for the fallback sound
+// --------------------------------------------------------
 
 // Structs are fully defined here so both files can access them
 struct ClockSettings {
@@ -28,6 +46,7 @@ struct ClockSettings {
   int presentTimezoneIndex;
   int timeTravelAnimationDuration;
   int animationStyle;
+  bool timeTravelVolumeFade; // NEW SETTING
 };
 struct DisplayRow {
   Adafruit_7segment ht16k33;
@@ -38,8 +57,7 @@ struct DisplayRow {
   const uint8_t pmPin;
 };
 struct SoundFile {
-  const char *name;
-  uint8_t index;
+  String name;
 };
 struct TimeZoneEntry {
   const char *tzString;
@@ -51,10 +69,8 @@ struct TimeZoneEntry {
 // Global declarations using 'extern'
 extern ClockSettings currentSettings;
 extern DisplayRow destRow, presRow, lastRow;
-extern DFRobotDFPlayerMini myDFPlayer;
-extern HardwareSerial dfpSerial;
-extern const SoundFile SOUND_FILES[];
-extern const int NUM_SOUND_FILES;
+extern DFRobotDFPlayerMini myDFPlayer; extern HardwareSerial dfpSerial;
+extern std::map<String, int> soundFiles; // Changed from vector to map
 extern const bool ENABLE_HARDWARE;
 extern const bool ENABLE_I2C_HARDWARE;
 extern const TimeZoneEntry TZ_DATA[];
@@ -80,8 +96,11 @@ extern const int NUM_TIMEZONE_OPTIONS;
 #define DIO_LAST_TIME 13
 #define LED_LAST_AM 2
 #define LED_LAST_PM 4
-#define DFP_RX_PIN 17
-#define DFP_TX_PIN 16
+
+// Corrected pin assignments for DFP
+#define DFP_TX_PIN 21
+#define DFP_RX_PIN 22
+//
 
 // Function prototypes
 void setupPhysicalDisplay();
@@ -96,6 +115,7 @@ void animateTimeDisplay(DisplayRow &row);
 void animateAmPmDisplay(DisplayRow &row);
 void display88MphSpeed(float currentSpeed);
 void playSound(const char *soundName);
+void setupSoundFiles();
 void validateSoundFiles();
 
 #endif // HARDWARE_CONTROL_H

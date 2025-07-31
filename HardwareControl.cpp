@@ -3,6 +3,7 @@
 #include <LittleFS.h>
 #include <time.h>
 #include <WString.h>
+#include <map>
 
 // Definitions for global variables
 const bool ENABLE_HARDWARE = false;
@@ -10,19 +11,8 @@ const bool ENABLE_I2C_HARDWARE = false;
 DisplayRow destRow = { Adafruit_7segment(), TM1637Display(CLK_PIN, DIO_DEST_DAY), TM1637Display(CLK_PIN, DIO_DEST_YEAR), TM1637Display(CLK_PIN, DIO_DEST_TIME), LED_DEST_AM, LED_DEST_PM };
 DisplayRow presRow = { Adafruit_7segment(), TM1637Display(CLK_PIN, DIO_PRES_DAY), TM1637Display(CLK_PIN, DIO_PRES_YEAR), TM1637Display(CLK_PIN, DIO_PRES_TIME), LED_PRES_AM, LED_PRES_PM };
 DisplayRow lastRow = { Adafruit_7segment(), TM1637Display(CLK_PIN, DIO_LAST_DAY), TM1637Display(CLK_PIN, DIO_LAST_YEAR), TM1637Display(CLK_PIN, DIO_LAST_TIME), LED_LAST_AM, LED_LAST_PM };
-HardwareSerial dfpSerial(2);
-DFRobotDFPlayerMini myDFPlayer;
-const SoundFile SOUND_FILES[] = {
-  {"TIME_TRAVEL", 2},
-  {"EASTER_EGG", 8},
-  {"SLEEP_ON", 10},
-  {"CONFIRM_ON", 13},
-  {"CONFIRM_OFF", 14},
-  {"ACCELERATION", 1},
-  {"WARP_WHOOSH", 3},
-  {"ARRIVAL_THUD", 4}
-};
-const int NUM_SOUND_FILES = sizeof(SOUND_FILES) / sizeof(SOUND_FILES[0]);
+HardwareSerial dfpSerial(2); DFRobotDFPlayerMini myDFPlayer;
+std::map<String, int> soundFiles; // Changed from vector to map
 
 // Function implementations
 void setupPhysicalDisplay() {
@@ -103,7 +93,7 @@ void updateDisplayRow(DisplayRow &row, struct tm &timeinfo, int year) {
   for (int i = 0; i < 3; i++) monthStr[i] = toupper(monthStr[i]);
   if (ENABLE_I2C_HARDWARE) {
     row.ht16k33.clear();
-    row.ht16k33.print(' ');
+    row.ht16k33.print(" ");
     row.ht16k33.writeDisplay();
   }
   row.day.showNumberDec(timeinfo.tm_mday, false, 2, 0);
@@ -186,34 +176,50 @@ void playSound(const char *soundName) {
     ESP_LOGI("Sound (Disabled)", "Attempted to play sound: %s", soundName);
     return;
   }
-  for (int i = 0; i < NUM_SOUND_FILES; i++) {
-    if (strcmp(SOUND_FILES[i].name, soundName) == 0) {
-      myDFPlayer.playMp3Folder(SOUND_FILES[i].index);
-      return;
+  
+  auto it = soundFiles.find(soundName);
+  if (it != soundFiles.end()) {
+    myDFPlayer.playMp3Folder(it->second);
+    ESP_LOGI("Sound", "Playing sound: %s (Index: %d)", soundName, it->second);
+  } else {
+    // Play fallback sound if not found
+    ESP_LOGE("Sound", "ERROR: Sound file '%s' not found. Playing fallback sound.", soundName);
+    auto fallbackIt = soundFiles.find("CONFIRM_OFF");
+    if (fallbackIt != soundFiles.end()) {
+      myDFPlayer.playMp3Folder(fallbackIt->second);
+    } else {
+      ESP_LOGE("Sound", "Fallback sound 'CONFIRM_OFF' not found either. No sound played.");
     }
   }
-  ESP_LOGE("Sound", "ERROR: Sound file '%s' not found.", soundName);
 }
-void validateSoundFiles() {
-  if (!ENABLE_HARDWARE) {
-    ESP_LOGI("Sound (Disabled)", "Sound file validation skipped.");
+
+// New function to dynamically load sound files from LittleFS
+void setupSoundFiles() {
+  soundFiles.clear();
+  ESP_LOGI("Sound", "Scanning for sound files in /mp3...");
+  File root = LittleFS.open("/mp3");
+  if (!root || !root.isDirectory()) {
+    ESP_LOGE("Sound", "Failed to open /mp3 directory");
     return;
   }
-  ESP_LOGI("Sound", "Validating Sound Files on Storage...");
-  bool allFound = true;
-  for (int i = 0; i < NUM_SOUND_FILES; i++) {
-    char filePath[16];
-    sprintf(filePath, "/mp3/%04d.mp3", SOUND_FILES[i].index);
-    if (!LittleFS.exists(filePath)) {
-      ESP_LOGE("Sound", "ERROR: Required sound file '%s' (%s) not found!", SOUND_FILES[i].name, filePath);
-      allFound = false;
-    } else {
-      ESP_LOGD("Sound", "Found: '%s' (%s)", SOUND_FILES[i].name, filePath);
+
+  File file = root.openNextFile();
+  int fileIndex = 1;
+  while (file) {
+    if (!file.isDirectory() && String(file.name()).endsWith(".mp3")) {
+      String fileName = String(file.name());
+      String descriptiveName = fileName.substring(0, fileName.lastIndexOf("."));
+      descriptiveName.toUpperCase();
+      soundFiles[descriptiveName] = fileIndex;
+      ESP_LOGI("Sound", "Found sound file: %s (Mapped to index: %d)", descriptiveName.c_str(), fileIndex);
+      fileIndex++;
     }
+    file = root.openNextFile();
   }
-  if (allFound) {
-    ESP_LOGI("Sound", "All required sound files found.");
-  } else {
-    ESP_LOGW("Sound", "WARNING: Some sound files are missing. Audio functionality may be incomplete.");
-  }
+}
+
+void validateSoundFiles() {
+    // This function is no longer needed with the new map-based approach
+    // as sound lookup and validation happens directly in playSound
+    // and missing files are handled by the fallback.
 }

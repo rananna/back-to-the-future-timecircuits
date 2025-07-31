@@ -18,14 +18,16 @@
 // Global instances and non-hardware-specific variables
 ClockSettings currentSettings = {
   .destinationYear = 1955, .destinationTimezoneIndex = 4, .departureHour = 22, .departureMinute = 0, .arrivalHour = 7, .arrivalMinute = 0, .lastTimeDepartedHour = 1, .lastTimeDepartedMinute = 21, .lastTimeDepartedYear = 1985, .lastTimeDepartedMonth = 10, .lastTimeDepartedDay = 26, .brightness = 5, .notificationVolume = 15, .timeTravelSoundToggle 
-= true, .greatScottSoundToggle = true, .timeTravelAnimationInterval = 15, .presetCycleInterval = 10, .displayFormat24h = false, .theme = 0, .presentTimezoneIndex = 1,
+= true, .greatScottSoundToggle = true, .timeTravelAnimationInterval = 15, .presetCycleInterval = 10, .displayFormat24h = false, .theme = THEME_TIME_CIRCUITS, .presentTimezoneIndex = 1,
   .timeTravelAnimationDuration = 4000,
-  .animationStyle = 0
+  .animationStyle = ANIMATION_SEQUENTIAL_FLICKER,
+  .timeTravelVolumeFade = true // NEW SETTING
 };
 ClockSettings defaultSettings = {
-  .destinationYear = 1955, .destinationTimezoneIndex = 4, .departureHour = 22, .departureMinute = 0, .arrivalHour = 7, .arrivalMinute = 0, .lastTimeDepartedHour = 1, .lastTimeDepartedMinute = 21, .lastTimeDepartedYear = 1985, .lastTimeDepartedMonth = 10, .lastTimeDepartedDay = 26, .brightness = 5, .notificationVolume = 15, .timeTravelSoundToggle = true, .greatScottSoundToggle = true, .timeTravelAnimationInterval = 15, .presetCycleInterval = 10, .displayFormat24h = false, .theme = 0, .presentTimezoneIndex = 1,
+  .destinationYear = 1955, .destinationTimezoneIndex = 4, .departureHour = 22, .departureMinute = 0, .arrivalHour = 7, .arrivalMinute = 0, .lastTimeDepartedHour = 1, .lastTimeDepartedMinute = 21, .lastTimeDepartedYear = 1985, .lastTimeDepartedMonth = 10, .lastTimeDepartedDay = 26, .brightness = 5, .notificationVolume = 15, .timeTravelSoundToggle = true, .greatScottSoundToggle = true, .timeTravelAnimationInterval = 15, .presetCycleInterval = 10, .displayFormat24h = false, .theme = THEME_TIME_CIRCUITS, .presentTimezoneIndex = 1,
   .timeTravelAnimationDuration = 4000,
-  .animationStyle = 0
+  .animationStyle = ANIMATION_SEQUENTIAL_FLICKER,
+  .timeTravelVolumeFade = true // NEW SETTING
 };
 const TimeZoneEntry TZ_DATA[] = {
   { "UTC0", "UTC", "Etc/UTC", "Global" },
@@ -59,16 +61,16 @@ Preferences preferences;
 bool isAnimating = false;
 unsigned long animationStartTime = 0;
 unsigned long lastAnimationFrameTime = 0;
-enum AnimationPhase { ANIM_INACTIVE, ANIM_DIM_IN, ANIM_PRE_FLICKER_88MPH, ANIM_FLICKER, ANIM_DIM_OUT, ANIM_COMPLETE };
+enum AnimationPhase { ANIM_INACTIVE, ANIM_VOLUME_FADE_IN, ANIM_DIM_IN, ANIM_PRE_FLICKER_88MPH, ANIM_FLICKER, ANIM_DIM_OUT, ANIM_VOLUME_FADE_OUT, ANIM_COMPLETE }; // NEW ENUM
 AnimationPhase currentPhase = ANIM_INACTIVE;
 bool isDisplayAsleep = false;
 byte initialBrightness = 0;
 struct tm currentTimeInfo;
 struct tm destinationTimeInfo;
+int currentVolume = 0;
+// NEW GLOBAL
 #define MDNS_HOSTNAME "timecircuits"
 const char* ANIMATION_STYLE_NAMES[] = { "Sequential Flicker", "Random Flicker", "All Displays Random Flicker", "Counting Up" };
-
-
 // =================================================================
 // == FUNCTION IMPLEMENTATIONS                                    ==
 // =================================================================
@@ -100,24 +102,48 @@ void handleDisplayAnimation() {
   unsigned long currentTime = millis();
 unsigned long elapsed = currentTime - animationStartTime;
   const unsigned long TOTAL_ANIMATION_DURATION = currentSettings.timeTravelAnimationDuration;
+  
+  // Refactored "magic numbers" into constants for readability
+  const float VOLUME_FADE_IN_PERCENTAGE = 0.10;
   const float DIM_IN_PERCENTAGE = 0.10;
-const float PRE_FLICKER_88MPH_PERCENTAGE = 0.30;
+  const float PRE_FLICKER_88MPH_PERCENTAGE = 0.30;
   const float FLICKER_PERCENTAGE = 0.50;
   const float DIM_OUT_PERCENTAGE = 0.10;
-const unsigned long ANIMATION_FLICKER_UPDATE_INTERVAL_MS = 50;
-  const unsigned long DIM_IN_DURATION = TOTAL_ANIMATION_DURATION * DIM_IN_PERCENTAGE;
-const unsigned long PRE_FLICKER_88MPH_DURATION = TOTAL_ANIMATION_DURATION * PRE_FLICKER_88MPH_PERCENTAGE;
-  const unsigned long FLICKER_DURATION = TOTAL_ANIMATION_DURATION * FLICKER_PERCENTAGE;
-const unsigned long DIM_OUT_DURATION = TOTAL_ANIMATION_DURATION * DIM_OUT_PERCENTAGE;
+  const float VOLUME_FADE_OUT_PERCENTAGE = 0.10;
+
+  const unsigned long VOLUME_FADE_IN_DURATION = TOTAL_ANIMATION_DURATION * VOLUME_FADE_IN_PERCENTAGE;
+const unsigned long DIM_IN_DURATION = TOTAL_ANIMATION_DURATION * DIM_IN_PERCENTAGE;
+  const unsigned long PRE_FLICKER_88MPH_DURATION = TOTAL_ANIMATION_DURATION * PRE_FLICKER_88MPH_PERCENTAGE;
+const unsigned long FLICKER_DURATION = TOTAL_ANIMATION_DURATION * FLICKER_PERCENTAGE;
+  const unsigned long DIM_OUT_DURATION = TOTAL_ANIMATION_DURATION * DIM_OUT_PERCENTAGE;
+const unsigned long VOLUME_FADE_OUT_DURATION = TOTAL_ANIMATION_DURATION * VOLUME_FADE_OUT_PERCENTAGE;
+
   switch (currentPhase) {
+    case ANIM_VOLUME_FADE_IN:
+      if (currentSettings.timeTravelSoundToggle) {
+        // Start playing the sound effect at zero volume
+        myDFPlayer.volume(0);
+playSound(SOUND_TIME_TRAVEL);
+      }
+      currentPhase = ANIM_DIM_IN;
+      animationStartTime = currentTime;
+// Fallthrough to the next phase to start fading immediately
     case ANIM_DIM_IN: {
       if (elapsed < DIM_IN_DURATION) {
         byte currentBrightness = map(elapsed, 0, DIM_IN_DURATION, 0, initialBrightness);
 setDisplayBrightness(currentBrightness);
+        // Fade in the volume
+        if (currentSettings.timeTravelVolumeFade) {
+          int newVolume = map(elapsed, 0, DIM_IN_DURATION, 0, currentSettings.notificationVolume);
+if (newVolume != currentVolume) {
+            currentVolume = newVolume;
+            myDFPlayer.volume(currentVolume);
+}
+        }
       } else {
         setDisplayBrightness(initialBrightness);
-        blankAllDisplays();
-if (currentSettings.timeTravelSoundToggle) {
+blankAllDisplays();
+        if (currentSettings.timeTravelSoundToggle && !currentSettings.timeTravelVolumeFade) {
           playSound("ACCELERATION");
 }
         currentPhase = ANIM_PRE_FLICKER_88MPH;
@@ -140,7 +166,7 @@ float progress = (float)elapsed / PRE_FLICKER_88MPH_DURATION;
 }
       } else {
         blankAllDisplays();
-if (currentSettings.timeTravelSoundToggle) {
+if (currentSettings.timeTravelSoundToggle && !currentSettings.timeTravelVolumeFade) {
           playSound("WARP_WHOOSH");
 }
         currentPhase = ANIM_FLICKER;
@@ -150,7 +176,7 @@ if (currentSettings.timeTravelSoundToggle) {
     }
     case ANIM_FLICKER:
       if (elapsed < FLICKER_DURATION) {
-        if (currentTime - lastAnimationFrameTime > ANIMATION_FLICKER_UPDATE_INTERVAL_MS) {
+        if (currentTime - lastAnimationFrameTime > 50) {
           lastAnimationFrameTime = currentTime;
 switch (currentSettings.animationStyle) {
             case 0: { // Sequential Flicker (Default)
@@ -283,13 +309,29 @@ currentPhase = ANIM_DIM_OUT;
       break;
 case ANIM_DIM_OUT: {
       if (elapsed < DIM_OUT_DURATION) {
-        byte currentBrightness = map(elapsed, 0, DIM_IN_DURATION, initialBrightness, 0);
+        byte currentBrightness = map(elapsed, 0, DIM_OUT_DURATION, initialBrightness, 0);
 setDisplayBrightness(currentBrightness);
       } else {
         setDisplayBrightness(0);
-if (currentSettings.timeTravelSoundToggle) {
-          playSound("ARRIVAL_THUD");
+        currentPhase = ANIM_VOLUME_FADE_OUT;
+        animationStartTime = currentTime;
 }
+      break;
+    }
+    case ANIM_VOLUME_FADE_OUT: {
+      if (elapsed < VOLUME_FADE_OUT_DURATION) {
+        if (currentSettings.timeTravelVolumeFade) {
+          int newVolume = map(elapsed, 0, VOLUME_FADE_OUT_DURATION, currentSettings.notificationVolume, 0);
+if (newVolume != currentVolume) {
+            currentVolume = newVolume;
+            myDFPlayer.volume(currentVolume);
+}
+        }
+      } else {
+        if (currentSettings.timeTravelSoundToggle) {
+          myDFPlayer.volume(currentSettings.notificationVolume);
+playSound("ARRIVAL_THUD");
+        }
         currentPhase = ANIM_COMPLETE;
         animationStartTime = currentTime;
 }
@@ -303,6 +345,10 @@ isAnimating = false;
         currentPhase = ANIM_INACTIVE;
         isDisplayAsleep = false;
         setDisplayBrightness(currentSettings.brightness);
+// Reset volume to normal after animation finishes
+        if (currentSettings.timeTravelSoundToggle) {
+          myDFPlayer.volume(currentSettings.notificationVolume);
+}
       }
       break;
 case ANIM_INACTIVE:
@@ -391,9 +437,9 @@ void startTimeTravelAnimation() {
   animationStartTime = millis();
 lastAnimationFrameTime = millis();
   initialBrightness = currentSettings.brightness;
-  currentPhase = ANIM_DIM_IN;
+  currentPhase = ANIM_VOLUME_FADE_IN; // Start with the new fade-in phase
   ESP_LOGI("Animation", "Starting physical time travel animation.");
-  blankAllDisplays();
+blankAllDisplays();
 }
 
 void sendNTPpacket(IPAddress &ntpServerIp) {
@@ -447,7 +493,7 @@ void handleSleepSchedule() {
 struct tm *now_tm = localtime(&now_t);
   int now_minutes = now_tm->tm_hour * 60 + now_tm->tm_min;
 int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
-  int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
+  int wake_minutes = currentSettings.arrivalHour * 60 + now_tm->tm_min;
   bool shouldBeAsleep = false;
 if (sleep_minutes < wake_minutes) {
     shouldBeAsleep = (now_minutes >= sleep_minutes && now_minutes < wake_minutes);
@@ -456,11 +502,11 @@ if (sleep_minutes < wake_minutes) {
 }
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
-    playSound("SLEEP_ON");
+    playSound(SOUND_SLEEP_ON);
     ESP_LOGI("Sleep", "Entering sleep mode.");
 } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
-    playSound("CONFIRM_ON");
+    playSound(SOUND_CONFIRM_ON);
     ESP_LOGI("Sleep", "Exiting sleep mode.");
 }
 }
@@ -523,9 +569,10 @@ doc["greatScottSoundToggle"] = currentSettings.greatScottSoundToggle;
     doc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
 doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
     doc["animationStyle"] = currentSettings.animationStyle;
+    doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade; // NEW SETTING
     String jsonString;
     serializeJson(doc, jsonString);
-    request->send(200, "application/json", jsonString);
+request->send(200, "application/json", jsonString);
   });
 server.on("/api/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request){
     ESP_LOGI("WebUI", "Received Settings from UI");
@@ -539,7 +586,8 @@ server.on("/api/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request){
         currentSettings.departureHour = request->getParam("departureHour", true)->value().toInt(); 
     }
     if (request->hasParam("departureMinute", true)) { 
-        currentSettings.departureMinute 
+     
+    currentSettings.departureMinute 
 = request->getParam("departureMinute", true)->value().toInt();
     }
     if (request->hasParam("arrivalHour", true)) { 
@@ -598,8 +646,12 @@ if (ENABLE_HARDWARE) myDFPlayer.volume(currentSettings.notificationVolume);
     if (request->hasParam("displayFormat24h", true)) { 
         currentSettings.displayFormat24h = (request->getParam("displayFormat24h", true)->value() == "true");
 }
+    if (request->hasParam("timeTravelVolumeFade", true)) { // NEW
+        currentSettings.timeTravelVolumeFade = (request->getParam("timeTravelVolumeFade", true)->value() == "true");
+// NEW
+    }
     saveSettings();
-    playSound("CONFIRM_ON");
+    playSound(SOUND_CONFIRM_ON);
     request->send(200, "text/plain", "Settings Saved!");
   });
 server.on("/api/resetWifi", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -643,19 +695,21 @@ server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "application/json", jsonString);
   });
 server.on("/api/testSound", HTTP_GET, [](AsyncWebServerRequest *request) {
-    playSound("CONFIRM_ON");
+    if (currentSettings.timeTravelSoundToggle) {
+      playSound(SOUND_CONFIRM_ON);
+    }
     request->send(200, "text/plain", "Sound test initiated.");
   });
 server.on("/api/timeTravelSound", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (currentSettings.timeTravelSoundToggle) {
-      playSound("TIME_TRAVEL");
+      playSound(SOUND_TIME_TRAVEL);
     }
     request->send(200, "text/plain", "Time travel sound initiated.");
   });
 server.on("/api/toggleGreatScottSound", HTTP_POST, [](AsyncWebServerRequest *request) {
     currentSettings.greatScottSoundToggle = !currentSettings.greatScottSoundToggle;
     if (currentSettings.greatScottSoundToggle) {
-      playSound("EASTER_EGG");
+      playSound(SOUND_EASTER_EGG);
     }
     request->send(200, "application/json", currentSettings.greatScottSoundToggle ? "{\"state\":true}" : "{\"state\":false}");
   });
@@ -675,7 +729,8 @@ server.on("/api/previewSetting", HTTP_GET, [](AsyncWebServerRequest *request) {
         if (brightness >= 0 && brightness <= 7) {
           setDisplayBrightness(brightness);
           currentSettings.brightness = brightness;
-        } else {
+   
+      } else {
           request->send(400, "text/plain", "Invalid brightness value.");
           return;
         }
@@ -683,11 +738,12 @@ server.on("/api/previewSetting", HTTP_GET, [](AsyncWebServerRequest *request) {
         int volume = value.toInt();
         if (volume >= 0 && volume <= 30) {
           currentSettings.notificationVolume = volume;
-           if (ENABLE_HARDWARE) myDFPlayer.volume(volume);
+         
+  if (ENABLE_HARDWARE) myDFPlayer.volume(volume);
        
   } else {
             request->send(400, "text/plain", "Invalid volume value.");
-          return;
+return;
         }
       } else if (setting == "displayFormat24h") {
           currentSettings.displayFormat24h = (value == "true");
@@ -713,17 +769,20 @@ if (duration >=1000 && duration <= 10000) {
           currentSettings.destinationTimezoneIndex = value.toInt();
 } else if (setting == "presentTimezoneIndex") {
           currentSettings.presentTimezoneIndex = value.toInt();
-}
+} else if (setting == "timeTravelVolumeFade") { // NEW
+        currentSettings.timeTravelVolumeFade = (value == "true");
+// NEW
+      }
       else {
         request->send(400, "text/plain", "Unknown setting.");
-        return;
+return;
 }
       request->send(200, "text/plain", "OK");
-    } else {
+} else {
       request->send(400, "text/plain", "Missing parameters.");
 }
   });
-  server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
+server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "application/json", preferences.getString("customPresets", "[]"));
   });
 server.on("/api/addPreset", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -750,6 +809,7 @@ JsonArray array = doc.as<JsonArray>();
       newPreset["value"] = value;
      
 String newPresetsJson;
+ 
       serializeJson(doc, newPresetsJson);
       preferences.putString("customPresets", newPresetsJson);
       request->send(200, "text/plain", "Preset saved!");
@@ -792,7 +852,7 @@ serializeJson(doc, newPresetsJson);
       request->send(400, "text/plain", "Missing parameters for update.");
 }
   });
-  server.on("/api/clearPresets", HTTP_POST, [](AsyncWebServerRequest *request) {
+server.on("/api/clearPresets", HTTP_POST, [](AsyncWebServerRequest *request) {
     preferences.remove("customPresets");
     request->send(200, "text/plain", "All custom presets cleared!");
   });
@@ -868,7 +928,7 @@ if (ENABLE_HARDWARE && !myDFPlayer.begin(dfpSerial, true, false)) {
 } else if (ENABLE_HARDWARE) {
     ESP_LOGI("Sound", "DFPlayer Mini online.");
     myDFPlayer.volume(currentSettings.notificationVolume);
-    validateSoundFiles();
+    setupSoundFiles();
 } else {
     ESP_LOGI("Sound (Disabled)", "DFPlayer Mini initialization skipped.");
   }
@@ -890,79 +950,78 @@ ESP_LOGI("mDNS", "mDNS started: http://%s.local/", MDNS_HOSTNAME);
 void loop() {
   ArduinoOTA.handle();
   static unsigned long lastWifiCheck = 0;
-  if (millis() - lastWifiCheck > 10000) {
+if (millis() - lastWifiCheck > 10000) {
     lastWifiCheck = millis();
-    if (WiFi.status() != WL_CONNECTED) {
+if (WiFi.status() != WL_CONNECTED) {
       ESP_LOGW("WiFi", "WiFi Disconnected. Attempting to reconnect...");
       WiFi.reconnect();
-    }
+}
   }
   if (WiFi.status() == WL_CONNECTED && (millis() - lastNtpRequestSent >= currentNtpInterval)) {
     processNTPresponse();
-  }
+}
   handleSleepSchedule();
   handleDisplayAnimation();
   if (!isAnimating) {
     updateNormalClockDisplay();
   }
   static unsigned long lastSerialReport = 0;
-  if (timeSynchronized && millis() - lastSerialReport > 30000) {
+if (timeSynchronized && millis() - lastSerialReport > 30000) {
     lastSerialReport = millis();
     char destBuffer[30], presentBuffer[30], lastBuffer[30];
-
-    time_t now_t;
+time_t now_t;
     time(&now_t);
     localtime_r(&now_t, &currentTimeInfo);
 
     // Build the destination time struct using the saved settings, not the current time
     struct tm destinationTimeInfo = { 0 };
-    destinationTimeInfo.tm_year = currentSettings.destinationYear - 1900;
+destinationTimeInfo.tm_year = currentSettings.destinationYear - 1900;
     destinationTimeInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1; // tm_mon is 0-11
     destinationTimeInfo.tm_mday = currentSettings.lastTimeDepartedDay;
-    destinationTimeInfo.tm_hour = currentSettings.departureHour; // Assuming this is the hour to display
-    destinationTimeInfo.tm_min = currentSettings.departureMinute; // Assuming this is the minute to display
+destinationTimeInfo.tm_hour = currentSettings.departureHour; // Assuming this is the hour to display
+    destinationTimeInfo.tm_min = currentSettings.departureMinute;
+// Assuming this is the minute to display
     
     // Set the timezone for the destination time
     setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-    tzset();
+tzset();
 
     // Re-create the last departed time struct for consistency
     struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
-
-    // Format the strings for display in the serial monitor
+// Format the strings for display in the serial monitor
     strftime(destBuffer, sizeof(destBuffer), "%b %d %Y %I:%M %p", &destinationTimeInfo);
-    strftime(presentBuffer, sizeof(presentBuffer), "%b %d %Y %I:%M %p", &currentTimeInfo);
+strftime(presentBuffer, sizeof(presentBuffer), "%b %d %Y %I:%M %p", &currentTimeInfo);
     strftime(lastBuffer, sizeof(lastBuffer), "%b %d %Y %I:%M %p", &lastTimeDepartedInfo);
-    
-    ESP_LOGI("Status", "\n--- TIME CIRCUITS STATUS ---");
+ESP_LOGI("Status", "\n--- TIME CIRCUITS STATUS ---");
     ESP_LOGI("Status", " Display Asleep: %s", isDisplayAsleep ? "Yes" : "No");
-    ESP_LOGI("Status", "DESTINATION TIME  : %s", destBuffer);
+ESP_LOGI("Status", "DESTINATION TIME  : %s", destBuffer);
     ESP_LOGI("Status", "PRESENT TIME      : %s", presentBuffer);
-    ESP_LOGI("Status", "LAST TIME DEPARTED: %s", lastBuffer);
+ESP_LOGI("Status", "LAST TIME DEPARTED: %s", lastBuffer);
     ESP_LOGI("Status", "--------------------------");
     ESP_LOGI("Status", "--- CURRENT SETTINGS ---");
     ESP_LOGI("Status", " Destination Year: %d", currentSettings.destinationYear);
-    ESP_LOGI("Status", " Destination Timezone: %s", TZ_DATA[currentSettings.destinationTimezoneIndex].displayName);
+ESP_LOGI("Status", " Destination Timezone: %s", TZ_DATA[currentSettings.destinationTimezoneIndex].displayName);
     ESP_LOGI("Status", " Present Timezone: %s", TZ_DATA[currentSettings.presentTimezoneIndex].displayName);
-    ESP_LOGI("Status", " Last Departed: %02d/%02d/%d %02d:%02d", currentSettings.lastTimeDepartedMonth, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedYear, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedMinute);
-    ESP_LOGI("Status", " Departure Time (Sleep): %02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
-    ESP_LOGI("Status", " Arrival Time (Wake): %02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
+ESP_LOGI("Status", " Last Departed: %02d/%02d/%d %02d:%02d", currentSettings.lastTimeDepartedMonth, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedYear, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedMinute);
+ESP_LOGI("Status", " Departure Time (Sleep): %02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
+ESP_LOGI("Status", " Arrival Time (Wake): %02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
     ESP_LOGI("Status", " Brightness: %d/7", currentSettings.brightness);
     ESP_LOGI("Status", " Volume: %d/30", currentSettings.notificationVolume);
-    ESP_LOGI("Status", " 24h Format: %s", currentSettings.displayFormat24h ? "On" : "Off");
-    ESP_LOGI("Status", " Time Travel FX: %s", currentSettings.timeTravelSoundToggle ? "On" : "Off");
-    ESP_LOGI("Status", " Great Scott Sound: %s", currentSettings.greatScottSoundToggle ? "On" : "Off");
+ESP_LOGI("Status", " 24h Format: %s", currentSettings.displayFormat24h ? "On" : "Off");
+ESP_LOGI("Status", " Time Travel FX: %s", currentSettings.timeTravelSoundToggle ? "On" : "Off");
+ESP_LOGI("Status", " Great Scott Sound: %s", currentSettings.greatScottSoundToggle ? "On" : "Off");
     ESP_LOGI("Status", " Time Travel Animation Interval: %d min", currentSettings.timeTravelAnimationInterval);
-    ESP_LOGI("Status", " Preset Cycle: %d min", currentSettings.presetCycleInterval);
+ESP_LOGI("Status", " Preset Cycle: %d min", currentSettings.presetCycleInterval);
     ESP_LOGI("Status", " Animation Duration: %d ms", currentSettings.timeTravelAnimationDuration);
-    ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
+ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
     ESP_LOGI("Status", " Theme: %d", currentSettings.theme);
+ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off"); // NEW
     ESP_LOGI("Status", "------------------------");
-  } else if (!timeSynchronized) {
+} else if (!timeSynchronized) {
     static unsigned long lastNtpStatusReport = 0;
-    if (millis() - lastNtpStatusReport > 5000) {
+if (millis() - lastNtpStatusReport > 5000) {
       lastNtpStatusReport = millis();
-      ESP_LOGW("Status", "Time not synchronized. NTP Sync status: Retrying with %s (current interval: %lu ms).", NTP_SERVERS[currentNtpServerIndex], currentNtpInterval);
+ESP_LOGW("Status", "Time not synchronized. NTP Sync status: Retrying with %s (current interval: %lu ms).", NTP_SERVERS[currentNtpServerIndex], currentNtpInterval);
     }
   }
 }
