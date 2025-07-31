@@ -204,7 +204,9 @@
                     <select id="animationStyleSelect">
                         <option value="0">Sequential Flicker</option>
                         <option value="1">Random Flicker</option>
-                        <option value="2">All Displays Random Flicker</option> <option value="3">Counting Up</option>                 </select>
+                        <option value="2">All Displays Random Flicker</option>
+                        <option value="3">Counting Up</option>
+                    </select>
                 </div>
                 <label for="themeSelect">Theme:</label>
                 <div id="themeSelector"></div>
@@ -244,6 +246,8 @@
              <div class="setting-group">
                 <h3>Device Actions</h3>
                 <button id="powerOfLoveBtn">Great Scott, This Is Heavy!</button>
+                <button id="resetDefaultsBtn" onclick="resetToDefaults()" class="reset-button">Reset All Settings to Default</button>
+                <button id="clearPreferencesBtn" onclick="showCustomConfirm('This will clear ALL saved settings and presets from the device. Are you sure?', clearPreferences)" class="delete-button">Clear Saved Settings</button>
              </div>
         </div>
 
