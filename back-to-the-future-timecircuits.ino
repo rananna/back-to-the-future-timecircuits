@@ -102,23 +102,20 @@ void handleDisplayAnimation() {
   unsigned long currentTime = millis();
 unsigned long elapsed = currentTime - animationStartTime;
   const unsigned long TOTAL_ANIMATION_DURATION = currentSettings.timeTravelAnimationDuration;
-  
-  // Refactored "magic numbers" into constants for readability
+// Refactored "magic numbers" into constants for readability
   const float VOLUME_FADE_IN_PERCENTAGE = 0.10;
   const float DIM_IN_PERCENTAGE = 0.10;
-  const float PRE_FLICKER_88MPH_PERCENTAGE = 0.30;
+const float PRE_FLICKER_88MPH_PERCENTAGE = 0.30;
   const float FLICKER_PERCENTAGE = 0.50;
   const float DIM_OUT_PERCENTAGE = 0.10;
   const float VOLUME_FADE_OUT_PERCENTAGE = 0.10;
-
-  const unsigned long VOLUME_FADE_IN_DURATION = TOTAL_ANIMATION_DURATION * VOLUME_FADE_IN_PERCENTAGE;
+const unsigned long VOLUME_FADE_IN_DURATION = TOTAL_ANIMATION_DURATION * VOLUME_FADE_IN_PERCENTAGE;
 const unsigned long DIM_IN_DURATION = TOTAL_ANIMATION_DURATION * DIM_IN_PERCENTAGE;
-  const unsigned long PRE_FLICKER_88MPH_DURATION = TOTAL_ANIMATION_DURATION * PRE_FLICKER_88MPH_PERCENTAGE;
+const unsigned long PRE_FLICKER_88MPH_DURATION = TOTAL_ANIMATION_DURATION * PRE_FLICKER_88MPH_PERCENTAGE;
 const unsigned long FLICKER_DURATION = TOTAL_ANIMATION_DURATION * FLICKER_PERCENTAGE;
-  const unsigned long DIM_OUT_DURATION = TOTAL_ANIMATION_DURATION * DIM_OUT_PERCENTAGE;
+const unsigned long DIM_OUT_DURATION = TOTAL_ANIMATION_DURATION * DIM_OUT_PERCENTAGE;
 const unsigned long VOLUME_FADE_OUT_DURATION = TOTAL_ANIMATION_DURATION * VOLUME_FADE_OUT_PERCENTAGE;
-
-  switch (currentPhase) {
+switch (currentPhase) {
     case ANIM_VOLUME_FADE_IN:
       if (currentSettings.timeTravelSoundToggle) {
         // Start playing the sound effect at zero volume
@@ -949,79 +946,99 @@ ESP_LOGI("mDNS", "mDNS started: http://%s.local/", MDNS_HOSTNAME);
 
 void loop() {
   ArduinoOTA.handle();
-  static unsigned long lastWifiCheck = 0;
-if (millis() - lastWifiCheck > 10000) {
-    lastWifiCheck = millis();
-if (WiFi.status() != WL_CONNECTED) {
-      ESP_LOGW("WiFi", "WiFi Disconnected. Attempting to reconnect...");
-      WiFi.reconnect();
-}
+  
+  // Handle continuous animation logic
+  if (isAnimating) {
+    handleDisplayAnimation();
   }
-  if (WiFi.status() == WL_CONNECTED && (millis() - lastNtpRequestSent >= currentNtpInterval)) {
-    processNTPresponse();
-}
-  handleSleepSchedule();
-  handleDisplayAnimation();
-  if (!isAnimating) {
-    updateNormalClockDisplay();
-  }
-  static unsigned long lastSerialReport = 0;
-if (timeSynchronized && millis() - lastSerialReport > 30000) {
-    lastSerialReport = millis();
-    char destBuffer[30], presentBuffer[30], lastBuffer[30];
-time_t now_t;
-    time(&now_t);
-    localtime_r(&now_t, &currentTimeInfo);
 
-    // Build the destination time struct using the saved settings, not the current time
-    struct tm destinationTimeInfo = { 0 };
-destinationTimeInfo.tm_year = currentSettings.destinationYear - 1900;
-    destinationTimeInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1; // tm_mon is 0-11
-    destinationTimeInfo.tm_mday = currentSettings.lastTimeDepartedDay;
-destinationTimeInfo.tm_hour = currentSettings.departureHour; // Assuming this is the hour to display
-    destinationTimeInfo.tm_min = currentSettings.departureMinute;
-// Assuming this is the minute to display
+  static unsigned long lastOneSecondUpdate = 0;
+  if (millis() - lastOneSecondUpdate >= 1000) {
+    lastOneSecondUpdate = millis();
+
+    // Check Wi-Fi connection and reconnect if needed
+    static unsigned long lastWifiCheck = 0;
+    if (millis() - lastWifiCheck > 10000) {
+      lastWifiCheck = millis();
+      if (WiFi.status() != WL_CONNECTED) {
+        ESP_LOGW("WiFi", "WiFi Disconnected. Attempting to reconnect...");
+        WiFi.reconnect();
+      }
+    }
+
+    // Check if it's time to perform an NTP sync
+    if (WiFi.status() == WL_CONNECTED && (millis() - lastNtpRequestSent >= currentNtpInterval)) {
+      processNTPresponse();
+    }
     
-    // Set the timezone for the destination time
-    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-tzset();
+    // Handle the sleep schedule logic
+    handleSleepSchedule();
 
-    // Re-create the last departed time struct for consistency
-    struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
-// Format the strings for display in the serial monitor
-    strftime(destBuffer, sizeof(destBuffer), "%b %d %Y %I:%M %p", &destinationTimeInfo);
-strftime(presentBuffer, sizeof(presentBuffer), "%b %d %Y %I:%M %p", &currentTimeInfo);
-    strftime(lastBuffer, sizeof(lastBuffer), "%b %d %Y %I:%M %p", &lastTimeDepartedInfo);
-ESP_LOGI("Status", "\n--- TIME CIRCUITS STATUS ---");
-    ESP_LOGI("Status", " Display Asleep: %s", isDisplayAsleep ? "Yes" : "No");
-ESP_LOGI("Status", "DESTINATION TIME  : %s", destBuffer);
-    ESP_LOGI("Status", "PRESENT TIME      : %s", presentBuffer);
-ESP_LOGI("Status", "LAST TIME DEPARTED: %s", lastBuffer);
-    ESP_LOGI("Status", "--------------------------");
-    ESP_LOGI("Status", "--- CURRENT SETTINGS ---");
-    ESP_LOGI("Status", " Destination Year: %d", currentSettings.destinationYear);
-ESP_LOGI("Status", " Destination Timezone: %s", TZ_DATA[currentSettings.destinationTimezoneIndex].displayName);
-    ESP_LOGI("Status", " Present Timezone: %s", TZ_DATA[currentSettings.presentTimezoneIndex].displayName);
-ESP_LOGI("Status", " Last Departed: %02d/%02d/%d %02d:%02d", currentSettings.lastTimeDepartedMonth, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedYear, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedMinute);
-ESP_LOGI("Status", " Departure Time (Sleep): %02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
-ESP_LOGI("Status", " Arrival Time (Wake): %02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
-    ESP_LOGI("Status", " Brightness: %d/7", currentSettings.brightness);
-    ESP_LOGI("Status", " Volume: %d/30", currentSettings.notificationVolume);
-ESP_LOGI("Status", " 24h Format: %s", currentSettings.displayFormat24h ? "On" : "Off");
-ESP_LOGI("Status", " Time Travel FX: %s", currentSettings.timeTravelSoundToggle ? "On" : "Off");
-ESP_LOGI("Status", " Great Scott Sound: %s", currentSettings.greatScottSoundToggle ? "On" : "Off");
-    ESP_LOGI("Status", " Time Travel Animation Interval: %d min", currentSettings.timeTravelAnimationInterval);
-ESP_LOGI("Status", " Preset Cycle: %d min", currentSettings.presetCycleInterval);
-    ESP_LOGI("Status", " Animation Duration: %d ms", currentSettings.timeTravelAnimationDuration);
-ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
-    ESP_LOGI("Status", " Theme: %d", currentSettings.theme);
-ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off"); // NEW
-    ESP_LOGI("Status", "------------------------");
-} else if (!timeSynchronized) {
-    static unsigned long lastNtpStatusReport = 0;
-if (millis() - lastNtpStatusReport > 5000) {
-      lastNtpStatusReport = millis();
-ESP_LOGW("Status", "Time not synchronized. NTP Sync status: Retrying with %s (current interval: %lu ms).", NTP_SERVERS[currentNtpServerIndex], currentNtpInterval);
+    // Update the clock displays only if an animation is not active
+    if (!isAnimating) {
+      updateNormalClockDisplay();
+    }
+
+    // Periodically report status to the serial monitor every 30 seconds
+    static unsigned long lastSerialReport = 0;
+    if (timeSynchronized && millis() - lastSerialReport > 30000) {
+      lastSerialReport = millis();
+      char destBuffer[30], presentBuffer[30], lastBuffer[30];
+      time_t now_t;
+      time(&now_t);
+      localtime_r(&now_t, &currentTimeInfo);
+
+      // Build the destination time struct using the saved settings, not the current time
+      struct tm destinationTimeInfo = { 0 };
+      destinationTimeInfo.tm_year = currentSettings.destinationYear - 1900;
+      destinationTimeInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1; // tm_mon is 0-11
+      destinationTimeInfo.tm_mday = currentSettings.lastTimeDepartedDay;
+      destinationTimeInfo.tm_hour = currentSettings.departureHour; // Assuming this is the hour to display
+      destinationTimeInfo.tm_min = currentSettings.departureMinute;
+      // Assuming this is the minute to display
+      
+      // Set the timezone for the destination time
+      setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+      tzset();
+
+      // Re-create the last departed time struct for consistency
+      struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
+      // Format the strings for display in the serial monitor
+      strftime(destBuffer, sizeof(destBuffer), "%b %d %Y %I:%M %p", &destinationTimeInfo);
+      strftime(presentBuffer, sizeof(presentBuffer), "%b %d %Y %I:%M %p", &currentTimeInfo);
+      strftime(lastBuffer, sizeof(lastBuffer), "%b %d %Y %I:%M %p", &lastTimeDepartedInfo);
+      ESP_LOGI("Status", "\n--- TIME CIRCUITS STATUS ---");
+      ESP_LOGI("Status", " Display Asleep: %s", isDisplayAsleep ? "Yes" : "No");
+      ESP_LOGI("Status", "DESTINATION TIME  : %s", destBuffer);
+      ESP_LOGI("Status", "PRESENT TIME      : %s", presentBuffer);
+      ESP_LOGI("Status", "LAST TIME DEPARTED: %s", lastBuffer);
+      ESP_LOGI("Status", "--------------------------");
+      ESP_LOGI("Status", "--- CURRENT SETTINGS ---");
+      ESP_LOGI("Status", " Destination Year: %d", currentSettings.destinationYear);
+      ESP_LOGI("Status", " Destination Timezone: %s", TZ_DATA[currentSettings.destinationTimezoneIndex].displayName);
+      ESP_LOGI("Status", " Present Timezone: %s", TZ_DATA[currentSettings.presentTimezoneIndex].displayName);
+      ESP_LOGI("Status", " Last Departed: %02d/%02d/%d %02d:%02d", currentSettings.lastTimeDepartedMonth, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedYear, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedMinute);
+      ESP_LOGI("Status", " Departure Time (Sleep): %02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
+      ESP_LOGI("Status", " Arrival Time (Wake): %02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
+      ESP_LOGI("Status", " Brightness: %d/7", currentSettings.brightness);
+      ESP_LOGI("Status", " Volume: %d/30", currentSettings.notificationVolume);
+      ESP_LOGI("Status", " 24h Format: %s", currentSettings.displayFormat24h ? "On" : "Off");
+      ESP_LOGI("Status", " Time Travel FX: %s", currentSettings.timeTravelSoundToggle ? "On" : "Off");
+      ESP_LOGI("Status", " Great Scott Sound: %s", currentSettings.greatScottSoundToggle ? "On" : "Off");
+      ESP_LOGI("Status", " Time Travel Animation Interval: %d min", currentSettings.timeTravelAnimationInterval);
+      ESP_LOGI("Status", " Preset Cycle: %d min", currentSettings.presetCycleInterval);
+      ESP_LOGI("Status", " Animation Duration: %d ms", currentSettings.timeTravelAnimationDuration);
+      ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
+      ESP_LOGI("Status", " Theme: %d", currentSettings.theme);
+      ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off"); // NEW
+      ESP_LOGI("Status", "------------------------");
+    } else if (!timeSynchronized) {
+      // Show NTP error status if not synchronized
+      static unsigned long lastNtpStatusReport = 0;
+      if (millis() - lastNtpStatusReport > 5000) {
+        lastNtpStatusReport = millis();
+        ESP_LOGW("Status", "Time not synchronized. NTP Sync status: Retrying with %s (current interval: %lu ms).", NTP_SERVERS[currentNtpServerIndex], currentNtpInterval);
+      }
     }
   }
 }

@@ -182,13 +182,13 @@ void playSound(const char *soundName) {
     myDFPlayer.playMp3Folder(it->second);
     ESP_LOGI("Sound", "Playing sound: %s (Index: %d)", soundName, it->second);
   } else {
-    // Play fallback sound if not found
-    ESP_LOGE("Sound", "ERROR: Sound file '%s' not found. Playing fallback sound.", soundName);
-    auto fallbackIt = soundFiles.find("CONFIRM_OFF");
+    ESP_LOGW("Sound", "WARNING: Sound file '%s' not found. Playing fallback sound.", soundName);
+    auto fallbackIt = soundFiles.find(SOUND_NOT_FOUND); // Check for the dedicated fallback sound
     if (fallbackIt != soundFiles.end()) {
       myDFPlayer.playMp3Folder(fallbackIt->second);
+      ESP_LOGW("Sound", "Playing fallback sound: %s", SOUND_NOT_FOUND);
     } else {
-      ESP_LOGE("Sound", "Fallback sound 'CONFIRM_OFF' not found either. No sound played.");
+      ESP_LOGE("Sound", "Fallback sound '%s' not found either. No sound played.", SOUND_NOT_FOUND);
     }
   }
 }
