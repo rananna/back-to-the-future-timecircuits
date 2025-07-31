@@ -1,5 +1,5 @@
 // final_ui/final_ui.ino
-#include "esp_log.h" // For ESP_LOG macros
+#include "esp_log.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_LEDBackpack.h>
@@ -40,7 +40,6 @@ struct DisplayRow {
   const uint8_t amPin;
   const uint8_t pmPin;
 };
-
 // --- Destination Time Row ---
 #define I2C_ADDR_DEST 0x70
 #define DIO_DEST_DAY 19
@@ -56,7 +55,6 @@ DisplayRow destRow = {
   LED_DEST_AM,
   LED_DEST_PM
 };
-
 // --- Present Time Row ---
 #define I2C_ADDR_PRES 0x71
 #define DIO_PRES_DAY 26
@@ -72,7 +70,6 @@ DisplayRow presRow = {
   LED_PRES_AM,
   LED_PRES_PM
 };
-
 // --- Last Departed Row ---
 #define I2C_ADDR_LAST 0x72
 #define DIO_LAST_DAY 14
@@ -88,11 +85,9 @@ DisplayRow lastRow = {
   LED_LAST_AM,
   LED_LAST_PM
 };
-
 // --- Sound Configuration ---
 HardwareSerial dfpSerial(2);  // Use UART2 for DFPlayer Mini
 DFRobotDFPlayerMini myDFPlayer;
-
 #define DFP_RX_PIN 17 // ESP32 TX2 (connects to DFPlayer RX)
 #define DFP_TX_PIN 16 // ESP32 RX2 (connects to DFPlayer TX)
 
@@ -151,7 +146,6 @@ AsyncWebServer server(80);
 Preferences preferences;
 struct tm currentTimeInfo;
 struct tm destinationTimeInfo;
-
 // --- State Management ---
 bool isAnimating = false;
 unsigned long animationStartTime = 0;
@@ -161,11 +155,11 @@ enum AnimationPhase { ANIM_INACTIVE,
                       ANIM_PRE_FLICKER_88MPH,
                       ANIM_FLICKER,
                       ANIM_DIM_OUT,
+         
                       ANIM_COMPLETE };
 AnimationPhase currentPhase = ANIM_INACTIVE;
 bool isDisplayAsleep = false; // Tracks sleep state for displays and sounds
 byte initialBrightness = 0;
-
 // --- Timezone Data ---
 struct TimeZoneEntry {
   const char *tzString;
@@ -185,7 +179,6 @@ const TimeZoneEntry TZ_DATA[] = {
   { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe/Africa" },
   { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe/Africa" }
 };
-
 // --- Settings Struct ---
 struct ClockSettings {
   int destinationYear;
@@ -206,7 +199,6 @@ struct ClockSettings {
   int animationStyle;
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
-
 ClockSettings defaultSettings = {
   .destinationYear = 1955, .destinationTimezoneIndex = 4, .departureHour = 22, .departureMinute = 0, .arrivalHour = 7, .arrivalMinute = 0, .lastTimeDepartedHour = 1, .lastTimeDepartedMinute = 21, .lastTimeDepartedYear = 1985, .lastTimeDepartedMonth = 10, .lastTimeDepartedDay = 26, .brightness = 5, .notificationVolume = 15, .timeTravelSoundToggle = true, .greatScottSoundToggle = true, .timeTravelAnimationInterval = 15, .presetCycleInterval = 10, .displayFormat24h = false, .theme = 0, .presentTimezoneIndex = 1,
   .timeTravelAnimationDuration = 4000,
@@ -412,7 +404,6 @@ const float DIM_IN_PERCENTAGE = 0.10;
 const float PRE_FLICKER_88MPH_PERCENTAGE = 0.30;
 const float FLICKER_PERCENTAGE = 0.50;
 const float DIM_OUT_PERCENTAGE = 0.10;
-
 const unsigned long ANIMATION_FLICKER_UPDATE_INTERVAL_MS = 50;
 
 
@@ -427,7 +418,6 @@ void handleDisplayAnimation() {
   const unsigned long PRE_FLICKER_88MPH_DURATION = TOTAL_ANIMATION_DURATION * PRE_FLICKER_88MPH_PERCENTAGE;
   const unsigned long FLICKER_DURATION = TOTAL_ANIMATION_DURATION * FLICKER_PERCENTAGE;
   const unsigned long DIM_OUT_DURATION = TOTAL_ANIMATION_DURATION * DIM_OUT_PERCENTAGE;
-  
   switch (currentPhase) {
     case ANIM_DIM_IN: {
       if (elapsed < DIM_IN_DURATION) {
@@ -514,7 +504,6 @@ void handleDisplayAnimation() {
               if (random(0, 100) < 30) animateYearDisplay(presRow);
               if (random(0, 100) < 80) animateTimeDisplay(presRow);
               if (random(0, 100) < 70) animateAmPmDisplay(presRow);
-
               if (random(0, 100) < 90) animateMonthDisplay(lastRow);
               if (random(0, 100) < 60) animateDayDisplay(lastRow);
               if (random(0, 100) < 30) animateYearDisplay(lastRow);
@@ -545,7 +534,6 @@ void handleDisplayAnimation() {
                 static int counter = 0;
                 static unsigned long lastCountUpdateTime = 0;
                 const unsigned long COUNT_UPDATE_INTERVAL_MS = 20;
-
                 if (currentTime - lastCountUpdateTime > COUNT_UPDATE_INTERVAL_MS) {
                     lastCountUpdateTime = currentTime;
                     counter = (counter + 1) % 10000;
@@ -670,15 +658,15 @@ void updateNormalClockDisplay() {
   }
 
   bool presentTimeNeedsUpdate = (millis() - lastDisplayUpdate > 1000) ||
-                                (currentSettings.displayFormat24h != lastDisplayFormat24h);
+  (currentSettings.displayFormat24h != lastDisplayFormat24h);
   bool destinationTimeNeedsUpdate = (currentSettings.destinationTimezoneIndex != lastDestinationTimezoneIndex) || presentTimeNeedsUpdate;
   bool lastDepartedNeedsUpdate = (currentSettings.lastTimeDepartedHour != lastLastTimeDepartedHour ||
                                   currentSettings.lastTimeDepartedMinute != lastLastTimeDepartedMinute ||
                                   currentSettings.lastTimeDepartedYear != lastLastTimeDepartedYear ||
+                    
                                   currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
                                   currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
                                   presentTimeNeedsUpdate);
-  
   if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate)) {
     lastDisplayUpdate = millis();
     lastDisplayFormat24h = currentSettings.displayFormat24h;
@@ -901,6 +889,7 @@ void setupWebRoutes() {
     }
     doc["lastNtpServer"] = currentNtpServerUsed;
   
+  
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -957,8 +946,8 @@ void setupWebRoutes() {
         ESP_LOGD("WebUI", "  arrivalHour: %d", currentSettings.arrivalHour);
     }
     if (request->hasParam("arrivalMinute", true)) { 
-        currentSettings.arrivalMinute = request->getParam("arrivalMinute", true)->value().toInt();
-        ESP_LOGD("WebUI", "  arrivalMinute: %d", currentSettings.arrivalMinute);
+        currentSettings.arrivalHour = request->getParam("arrivalMinute", true)->value().toInt();
+        ESP_LOGD("WebUI", "  arrivalMinute: %d", currentSettings.arrivalHour);
     }
     if (request->hasParam("lastTimeDepartedHour", true)) { 
         currentSettings.lastTimeDepartedHour = request->getParam("lastTimeDepartedHour", true)->value().toInt();
@@ -982,6 +971,7 @@ void setupWebRoutes() {
     }
     if (request->hasParam("brightness", true)) { 
         currentSettings.brightness = request->getParam("brightness", true)->value().toInt();
+        setDisplayBrightness(currentSettings.brightness); // FIX: Apply brightness change immediately
         ESP_LOGD("WebUI", "  brightness: %d", currentSettings.brightness);
     }
     if (request->hasParam("notificationVolume", true)) { 
@@ -1058,6 +1048,7 @@ void setupWebRoutes() {
       obj["text"] = TZ_DATA[i].displayName;
       obj["ianaTzName"] = TZ_DATA[i].ianaTzName;
     
+  
     }
     String jsonString;
     serializeJson(doc, jsonString);
@@ -1094,7 +1085,6 @@ void setupWebRoutes() {
     saveSettings();
     request->send(200, "text/plain", "Settings have been reset to default.");
   });
-  
   // Generic preview endpoint for live updates without saving
   server.on("/api/previewSetting", HTTP_GET, [](AsyncWebServerRequest *request) {
     ESP_LOGI("WebUI", "Live preview request received");
@@ -1106,7 +1096,8 @@ void setupWebRoutes() {
       if (setting == "brightness") {
         int brightness = value.toInt();
         if (brightness >= 0 && brightness <= 7) {
-          setDisplayBrightness(brightness);
+   
+        setDisplayBrightness(brightness);
         } else {
             request->send(400, "text/plain", "Invalid brightness value.");
           return;
@@ -1114,7 +1105,8 @@ void setupWebRoutes() {
       } else if (setting == "notificationVolume") {
         int volume = value.toInt();
         if (volume >= 0 && volume <= 30) {
-           currentSettings.notificationVolume = volume; // FIX: Ensure live preview updates the settings variable
+          
+        currentSettings.notificationVolume = volume; // FIX: Ensure live preview updates the settings variable
            if (ENABLE_HARDWARE) myDFPlayer.volume(volume);
         } else {
             request->send(400, "text/plain", "Invalid volume value.");
@@ -1122,29 +1114,29 @@ void setupWebRoutes() {
         }
       } else if (setting == "displayFormat24h") {
           currentSettings.displayFormat24h = (value == "true");
-      } else if (setting == "animationStyle") {
+        } else if (setting == "animationStyle") {
           int style = value.toInt();
-          if (style >=0 && style <=3) {
+        if (style >=0 && style <=3) {
             currentSettings.animationStyle = style;
-          } else {
+        } else {
             request->send(400, "text/plain", "Invalid animation style.");
             return;
-          }
+        }
       } else if (setting == "timeTravelAnimationDuration") {
           int duration = value.toInt();
-          if (duration >=1000 && duration <= 10000) {
+        if (duration >=1000 && duration <= 10000) {
             currentSettings.timeTravelAnimationDuration = duration;
-          } else {
+        } else {
             request->send(400, "text/plain", "Invalid animation duration.");
             return;
-          }
+        }
       } else if (setting == "destinationYear") {
           currentSettings.destinationYear = value.toInt();
-      } else if (setting == "destinationTimezoneIndex") {
+        } else if (setting == "destinationTimezoneIndex") {
           currentSettings.destinationTimezoneIndex = value.toInt();
-      } else if (setting == "presentTimezoneIndex") {
+        } else if (setting == "presentTimezoneIndex") {
           currentSettings.presentTimezoneIndex = value.toInt();
-      }
+        }
       else {
         request->send(400, "text/plain", "Unknown setting.");
         return;
@@ -1184,6 +1176,7 @@ void setupWebRoutes() {
       newPreset["name"] = name;
       newPreset["value"] = value;
 
+ 
       String newPresetsJson;
       serializeJson(doc, newPresetsJson);
       preferences.putString("customPresets", newPresetsJson);
@@ -1192,7 +1185,6 @@ void setupWebRoutes() {
       request->send(400, "text/plain", "Missing name or value.");
     }
   });
-
   server.on("/api/updatePreset", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("originalValue", true) && request->hasParam("newName", true) && request->hasParam("newValue", true)) {
       String originalValue = request->getParam("originalValue", true)->value();
@@ -1206,6 +1198,7 @@ void setupWebRoutes() {
 
       bool updated = false;
       
+     
       for (JsonObject preset : array) {
         if (preset["value"].as<String>() == originalValue) {
           preset["name"] = newName;
@@ -1215,6 +1208,7 @@ void setupWebRoutes() {
         }
         
         if (preset["value"].as<String>() == newValue && preset["value"].as<String>() != originalValue) {
+    
           request->send(400, "text/plain", "Preset with this value already exists.");
           return;
         }
@@ -1252,6 +1246,7 @@ void setupWebRoutes() {
       for (JsonObject preset : oldArray) {
         if (preset["value"].as<String>() != valueToDelete) {
        
+ 
            newArray.add(preset);
         }
       }
@@ -1265,7 +1260,6 @@ void setupWebRoutes() {
       request->send(400, "text/plain", "Missing preset value.");
     }
   });
-  
   server.on("/api/setLastDeparted", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("value", true)) {
       String value = request->getParam("value", true)->value();
@@ -1277,7 +1271,8 @@ void setupWebRoutes() {
              &currentSettings.lastTimeDepartedMinute);
     }
  
-     request->send(200, "text/plain", "OK");
+  
+    request->send(200, "text/plain", "OK");
   });
   server.on("/api/clearPreferences", HTTP_POST, [](AsyncWebServerRequest *request) {
     ESP_LOGI("WebUI", "Clearing all preferences...");
@@ -1380,7 +1375,6 @@ void loop() {
     localtime_r(&now_t, &destinationTimeInfo);
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
-
     struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
     strftime(destBuffer, sizeof(destBuffer), "%b %d %Y %I:%M %p", &destinationTimeInfo);
     strftime(presentBuffer, sizeof(presentBuffer), "%b %d %Y %I:%M %p", &currentTimeInfo);
