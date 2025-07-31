@@ -726,8 +726,9 @@ function fetchSettings() {
             document.getElementById('lastTimeDepartedMonth').textContent = data.lastTimeDepartedMonth.toString().padStart(2, '0');
             document.getElementById('lastTimeDepartedDay').textContent = data.lastTimeDepartedDay.toString().padStart(2, '0');
             document.getElementById('lastTimeDepartedYear').textContent = data.lastTimeDepartedYear;
+            
             updateLastDepartedDisplay();
-
+            
             const depHour = data.departureHour.toString().padStart(2, '0');
             const depMin = data.departureMinute.toString().padStart(2, '0');
             document.getElementById('departureTime').value = `${depHour}:${depMin}`;
