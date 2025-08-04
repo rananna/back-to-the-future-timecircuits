@@ -69,7 +69,6 @@ struct tm destinationTimeInfo;
 int currentVolume = 0;
 #define MDNS_HOSTNAME "timecircuits"
 const char* ANIMATION_STYLE_NAMES[] = { "Sequential Flicker", "Random Flicker", "All Displays Random Flicker", "Counting Up" };
-
 // =================================================================
 // == FUNCTION IMPLEMENTATIONS                                    ==
 // =================================================================
@@ -107,7 +106,6 @@ void handleDisplayAnimation() {
   unsigned long currentTime = millis();
   unsigned long elapsed = currentTime - animationStartTime;
   const unsigned long TOTAL_ANIMATION_DURATION = currentSettings.timeTravelAnimationDuration;
-  
   const float VOLUME_FADE_IN_PERCENTAGE = 0.10;
   const float DIM_IN_PERCENTAGE = 0.10;
   const float PRE_FLICKER_88MPH_PERCENTAGE = 0.30;
@@ -720,8 +718,7 @@ void setupWebRoutes() {
         int brightness = value.toInt();
         if (brightness >= 0 && brightness <= 7) {
           setDisplayBrightness(brightness);
-          currentSettings.brightness = brightness;
-      } else {
+        } else {
           request->send(400, "text/plain", "Invalid brightness value.");
           return;
         }
@@ -729,7 +726,8 @@ void setupWebRoutes() {
         int volume = value.toInt();
         if (volume >= 0 && volume <= 30) {
           currentSettings.notificationVolume = volume;
-          if (ENABLE_HARDWARE) myDFPlayer.volume(volume);
+          if (ENABLE_HARDWARE) 
+            myDFPlayer.volume(volume);
         } else {
             request->send(400, "text/plain", "Invalid volume value.");
             return;
@@ -795,9 +793,8 @@ void setupWebRoutes() {
       JsonObject newPreset = array.createNestedObject();
       newPreset["name"] = name;
       newPreset["value"] = value;
-     
-      String newPresetsJson;
  
+      String newPresetsJson;
       serializeJson(doc, newPresetsJson);
       preferences.putString("customPresets", newPresetsJson);
       request->send(200, "text/plain", "Preset saved!");
@@ -815,7 +812,8 @@ void setupWebRoutes() {
       deserializeJson(doc, presetsJson);
       JsonArray array = doc.as<JsonArray>();
       bool updated = false;
-      for (JsonObject preset : array) {
+      for (JsonObject preset : array) 
+      {
         if (preset["value"].as<String>() == originalValue) {
           preset["name"] = newName;
           preset["value"] = newValue;
@@ -906,7 +904,6 @@ void runBootSequence() {
     destRow.time.writeDisplay();
   }
   delay(3000);
-
   // 3. Display "RELAY SELF TEST" on the second row
   if (ENABLE_HARDWARE) {
     presRow.month.print("REL");
@@ -1031,7 +1028,6 @@ void loop() {
       
       // Correctly build the last departed time struct for consistency
       struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
-      
       // Set the timezone for the destination time for proper formatting in the log
       setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
       tzset();
