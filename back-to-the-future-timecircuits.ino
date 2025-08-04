@@ -21,13 +21,13 @@ ClockSettings currentSettings = {
 = true, .greatScottSoundToggle = true, .timeTravelAnimationInterval = 15, .presetCycleInterval = 10, .displayFormat24h = false, .theme = THEME_TIME_CIRCUITS, .presentTimezoneIndex = 1,
   .timeTravelAnimationDuration = 4000,
   .animationStyle = ANIMATION_SEQUENTIAL_FLICKER,
-  .timeTravelVolumeFade = true // NEW SETTING
+  .timeTravelVolumeFade = true
 };
 ClockSettings defaultSettings = {
   .destinationYear = 1955, .destinationTimezoneIndex = 4, .departureHour = 22, .departureMinute = 0, .arrivalHour = 7, .arrivalMinute = 0, .lastTimeDepartedHour = 1, .lastTimeDepartedMinute = 21, .lastTimeDepartedYear = 1985, .lastTimeDepartedMonth = 10, .lastTimeDepartedDay = 26, .brightness = 5, .notificationVolume = 15, .timeTravelSoundToggle = true, .greatScottSoundToggle = true, .timeTravelAnimationInterval = 15, .presetCycleInterval = 10, .displayFormat24h = false, .theme = THEME_TIME_CIRCUITS, .presentTimezoneIndex = 1,
   .timeTravelAnimationDuration = 4000,
   .animationStyle = ANIMATION_SEQUENTIAL_FLICKER,
-  .timeTravelVolumeFade = true // NEW SETTING
+  .timeTravelVolumeFade = true
 };
 const TimeZoneEntry TZ_DATA[] = {
   { "UTC0", "UTC", "Etc/UTC", "Global" },
@@ -61,7 +61,7 @@ Preferences preferences;
 bool isAnimating = false;
 unsigned long animationStartTime = 0;
 unsigned long lastAnimationFrameTime = 0;
-enum AnimationPhase { ANIM_INACTIVE, ANIM_VOLUME_FADE_IN, ANIM_DIM_IN, ANIM_PRE_FLICKER_88MPH, ANIM_FLICKER, ANIM_DIM_OUT, ANIM_VOLUME_FADE_OUT, ANIM_COMPLETE }; // NEW ENUM
+enum AnimationPhase { ANIM_INACTIVE, ANIM_VOLUME_FADE_IN, ANIM_DIM_IN, ANIM_PRE_FLICKER_88MPH, ANIM_FLICKER, ANIM_DIM_OUT, ANIM_VOLUME_FADE_OUT, ANIM_COMPLETE };
 AnimationPhase currentPhase = ANIM_INACTIVE;
 bool isDisplayAsleep = false;
 byte initialBrightness = 0;
@@ -99,12 +99,12 @@ currentSettings = defaultSettings;
 
 void handleDisplayAnimation() {
   if (!isAnimating) return;
-  // Log animation phase transitions
+// Log animation phase transitions
   static AnimationPhase lastPhase = ANIM_INACTIVE;
-  if (currentPhase != lastPhase) {
+if (currentPhase != lastPhase) {
     ESP_LOGI("Animation", "Transitioning to phase: %d", currentPhase);
     lastPhase = currentPhase;
-  }
+}
   unsigned long currentTime = millis();
 unsigned long elapsed = currentTime - animationStartTime;
   const unsigned long TOTAL_ANIMATION_DURATION = currentSettings.timeTravelAnimationDuration;
@@ -130,7 +130,6 @@ playSound(SOUND_TIME_TRAVEL);
       }
       currentPhase = ANIM_DIM_IN;
       animationStartTime = currentTime;
-// Fallthrough to the next phase to start fading immediately
     case ANIM_DIM_IN: {
       if (elapsed < DIM_IN_DURATION) {
         byte currentBrightness = map(elapsed, 0, DIM_IN_DURATION, 0, initialBrightness);
@@ -140,7 +139,7 @@ setDisplayBrightness(currentBrightness);
           int newVolume = map(elapsed, 0, DIM_IN_DURATION, 0, currentSettings.notificationVolume);
 if (newVolume != currentVolume) {
             currentVolume = newVolume;
-            if (ENABLE_HARDWARE) myDFPlayer.volume(currentVolume);
+if (ENABLE_HARDWARE) myDFPlayer.volume(currentVolume);
 }
         }
       } else {
@@ -252,26 +251,19 @@ counter = (counter + 1) % 10000;
                     if (!ENABLE_HARDWARE) {
                         ESP_LOGD("Display (Disabled)", "Counting Up animation skipped. Counter: %d", counter);
 } else {
-                        if (ENABLE_I2C_HARDWARE) {
-                            destRow.ht16k33.clear();
-destRow.ht16k33.print(random(0, 1000));
-                            destRow.ht16k33.writeDisplay();
-                            presRow.ht16k33.clear();
-                            presRow.ht16k33.print(random(0, 1000));
-                            presRow.ht16k33.writeDisplay();
-                            lastRow.ht16k33.clear();
-                            lastRow.ht16k33.print(random(0, 1000));
-                            lastRow.ht16k33.writeDisplay();
-}
-                        destRow.day.showNumberDec(random(0, 100));
-destRow.year.showNumberDec(random(0, 10000));
-                        destRow.time.showNumberDecEx(counter, 0b01000000, true);
-                        presRow.day.showNumberDec(random(0, 100));
-                        presRow.year.showNumberDec(random(0, 10000));
-                        presRow.time.showNumberDecEx(counter, 0b01000000, true);
-                        lastRow.day.showNumberDec(random(0, 100));
-                        lastRow.year.showNumberDec(random(0, 10000));
-                        lastRow.time.showNumberDecEx(counter, 0b01000000, true);
+                        // All display segments are now Adafruit_7segment, so we can use `print`
+                        destRow.month.print("---"); destRow.month.writeDisplay();
+                        destRow.day.print(random(0, 100)); destRow.day.writeDisplay();
+                        destRow.year.print(random(0, 10000)); destRow.year.writeDisplay();
+                        destRow.time.print(counter); destRow.time.writeDisplay();
+                        presRow.month.print("---"); presRow.month.writeDisplay();
+                        presRow.day.print(random(0, 100)); presRow.day.writeDisplay();
+                        presRow.year.print(random(0, 10000)); presRow.year.writeDisplay();
+                        presRow.time.print(counter); presRow.time.writeDisplay();
+                        lastRow.month.print("---"); lastRow.month.writeDisplay();
+                        lastRow.day.print(random(0, 100)); lastRow.day.writeDisplay();
+                        lastRow.year.print(random(0, 10000)); lastRow.year.writeDisplay();
+                        lastRow.time.print(counter); lastRow.time.writeDisplay();
 }
                     animateAmPmDisplay(destRow);
 animateAmPmDisplay(presRow);
@@ -327,7 +319,7 @@ setDisplayBrightness(currentBrightness);
           int newVolume = map(elapsed, 0, VOLUME_FADE_OUT_DURATION, currentSettings.notificationVolume, 0);
 if (newVolume != currentVolume) {
             currentVolume = newVolume;
-            if (ENABLE_HARDWARE) myDFPlayer.volume(currentVolume);
+if (ENABLE_HARDWARE) myDFPlayer.volume(currentVolume);
 }
         }
       } else {
@@ -388,7 +380,7 @@ bool lastDepartedNeedsUpdate = (currentSettings.lastTimeDepartedHour != lastLast
                                   currentSettings.lastTimeDepartedMinute != lastLastTimeDepartedMinute ||
                                   currentSettings.lastTimeDepartedYear != lastLastTimeDepartedYear ||
                     
-              currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
+currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
                                   currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
                                   presentTimeNeedsUpdate);
 if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate)) {
@@ -425,10 +417,10 @@ clearDisplayRow(destRow);
       clearDisplayRow(presRow);
       clearDisplayRow(lastRow);
       if (ENABLE_I2C_HARDWARE) {
-        destRow.ht16k33.print("NTP");
-        destRow.ht16k33.writeDisplay();
-        presRow.ht16k33.print("ERR");
-        presRow.ht16k33.writeDisplay();
+        destRow.month.print("NTP");
+        destRow.month.writeDisplay();
+        presRow.month.print("ERR");
+        presRow.month.writeDisplay();
 }
     }
   }
@@ -572,7 +564,7 @@ doc["greatScottSoundToggle"] = currentSettings.greatScottSoundToggle;
     doc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
 doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
     doc["animationStyle"] = currentSettings.animationStyle;
-    doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade; // NEW SETTING
+    doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade;
     String jsonString;
     serializeJson(doc, jsonString);
 request->send(200, "application/json", jsonString);
@@ -649,9 +641,8 @@ if (ENABLE_HARDWARE) myDFPlayer.volume(currentSettings.notificationVolume);
     if (request->hasParam("displayFormat24h", true)) { 
         currentSettings.displayFormat24h = (request->getParam("displayFormat24h", true)->value() == "true");
 }
-    if (request->hasParam("timeTravelVolumeFade", true)) { // NEW
+    if (request->hasParam("timeTravelVolumeFade", true)) {
         currentSettings.timeTravelVolumeFade = (request->getParam("timeTravelVolumeFade", true)->value() == "true");
-// NEW
     }
     saveSettings();
     playSound(SOUND_CONFIRM_ON);
@@ -772,9 +763,8 @@ if (duration >=1000 && duration <= 10000) {
           currentSettings.destinationTimezoneIndex = value.toInt();
 } else if (setting == "presentTimezoneIndex") {
           currentSettings.presentTimezoneIndex = value.toInt();
-} else if (setting == "timeTravelVolumeFade") { // NEW
+} else if (setting == "timeTravelVolumeFade") {
         currentSettings.timeTravelVolumeFade = (value == "true");
-// NEW
       }
       else {
         request->send(400, "text/plain", "Unknown setting.");
@@ -902,6 +892,36 @@ server.on("/api/setLastDeparted", HTTP_POST, [](AsyncWebServerRequest *request) 
   });
 }
 
+// New function to run a post-boot display sequence
+void runBootSequence() {
+  if (ENABLE_HARDWARE) {
+    // 1. Run the 88MPH animation
+    startTimeTravelAnimation();
+    delay(currentSettings.timeTravelAnimationDuration + 500); // Wait for animation to finish
+  }
+
+  // 2. Display "RECALIBRATING" on the first row for 3 seconds
+  if (ENABLE_HARDWARE) {
+    destRow.month.print("RECALIBRAT");
+    destRow.month.writeDisplay();
+  }
+  delay(3000);
+
+  // 3. Display "RELAY SELF TEST" on the second row
+  if (ENABLE_HARDWARE) {
+    presRow.month.print("RELAY SELF");
+    presRow.month.writeDisplay();
+  }
+  delay(3000);
+
+  // 4. Display "CAPACITOR FULL" on the third row
+  if (ENABLE_HARDWARE) {
+    lastRow.month.print("CAPACITOR");
+    lastRow.month.writeDisplay();
+  }
+  delay(3000);
+}
+
 void setup() {
   Serial.begin(115200);
   esp_log_level_set("*", ESP_LOG_DEBUG);
@@ -948,6 +968,9 @@ ESP_LOGI("mDNS", "mDNS started: http://%s.local/", MDNS_HOSTNAME);
   setupWebRoutes();
   server.begin();
   ESP_LOGI("Web", "HTTP server started");
+
+  // Run the post-boot animation sequence
+  runBootSequence();
 }
 
 void loop() {
@@ -1036,7 +1059,7 @@ ESP_LOGI("Status", " Preset Cycle: %d min", currentSettings.presetCycleInterval)
       ESP_LOGI("Status", " Animation Duration: %d ms", currentSettings.timeTravelAnimationDuration);
 ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
       ESP_LOGI("Status", " Theme: %d", currentSettings.theme);
-ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off"); // NEW
+ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off");
       ESP_LOGI("Status", "------------------------");
 } else if (!timeSynchronized) {
       // Show NTP error status if not synchronized

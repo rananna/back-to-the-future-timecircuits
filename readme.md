@@ -1,3 +1,5 @@
+### back-to-the-future-timecircuits/readme.md
+
 # Back to the Future - ESP32 Time Circuits Display
 
 <p align="center">
@@ -90,9 +92,7 @@ For experienced makers in a hurry to get back to the future:
 | **Audio** | [DFPlayer Mini MP3 Module](https://www.aliexpress.com/item/1005008228039985.html) | 1 |
 | | [MicroSD Card (1GB+)](https://www.aliexpress.com/item/1005008978876553.html) | 1 |
 | | [Small 8 Ohm Speaker](https://www.aliexpress.com/item/1005006682079525.html) | 1 |
-| **Displays** | [TM1637 7-Segment (4-Digit)](https://www.aliexpress.com/item/1005001582129952.html) | 6 |
-| | [TM1637 7-Segment (2-Digit)](https://www.aliexpress.com/item/1005001582129952.html) | 3 |
-| | [Adafruit AlphaNum4 (HT16K33)](https://www.aliexpress.com/item/1005001593666162.html) | 3 |
+| **Displays** | **Adafruit HT16K33 14-Segment Alphanumeric Displays** | **12** |
 | **Indicators** | [5mm LEDs (Any Color)](https://www.aliexpress.com/item/1005003912454852.html) | 6 |
 | **Passive Comp.** | [220-330Ω Resistors](https://www.aliexpress.com/item/1005002091320103.html) | 6 |
 | **Prototyping** | [Dupont Jumper Wires](https://www.aliexpress.com/item/1005003641187997.html) | 1 set |
@@ -108,54 +108,53 @@ Install these libraries via the Arduino IDE Library Manager.
 | :------------------------- | :------------ | :--------------------------- |
 | `WiFiManager` | tzapu | WiFi connection portal. |
 | `Adafruit GFX Library` | Adafruit | Core graphics library. |
-| `Adafruit LED Backpack Library` | Adafruit | Drives the AlphaNum4 displays. |
+| `Adafruit LED Backpack Library` | Adafruit | Drives the 7-segment displays. |
 | `DFRobotDFPlayerMini` | DFRobot | Controls the MP3 player module. |
 | `ESPAsyncWebServer` | me-no-dev | Hosts the web interface. |
 | `AsyncTCP` | me-no-dev | Required by ESPAsyncWebServer. |
 | `arduinoJson` | bblanchon | Handles data for the web API. |
-| `TM1637` | Avishay Orpaz | Drives the 7-segment displays. |
 
 ---
 
 ## Time Circuit Schematics (Wiring)
 
-**A visual wiring diagram will go here soon!** For now, please follow the detailed textual descriptions below.
+**NOTE:** This project now uses an all-I2C display architecture. This significantly simplifies wiring by eliminating the need for many individual data pins, but requires careful I2C address configuration.
 
-*You can imagine a Fritzing diagram or a clear CAD schematic image here that visually represents all connections.*
-
----
-
-**NOTE:** This project involves wiring numerous components. It's highly recommended to build and test one display row at a time on a breadboard before final assembly. The pinout below is a functional suggestion that matches the provided sketch and avoids known conflicts.
+The project utilizes two separate I2C buses on the ESP32 to support all 12 display modules. All displays on a single bus share the same SDA and SCL pins but must have a unique I2C address set via solder jumpers on the back of the display backpack.
 
 ### Power Distribution
-
 A stable 5V source is crucial.
 * **5V Power**: Connect the **VIN** pin of the ESP32, all display VCC pins, and the DFPlayer Mini VCC pin to your 5V/2A power source.
 * **GND**: Create a common ground rail. Connect a **GND** pin from the ESP32 and all component GND pins to this rail.
 
-### I2C Displays (Month)
+### I2C Bus 1 (Destination & Present Displays)
 
-The three alphanumeric month displays are the easiest to wire. They share the same two data lines but need unique addresses.
-* **SDA**: All three displays connect to ESP32 **GPIO 21**.
-* **SCL**: All three displays connect to ESP32 **GPIO 22**.
-* **Addresses**: Set them to `0x70` (Destination), `0x71` (Present), and `0x72` (Last Departed).
+This bus controls all eight displays for the Destination and Present rows.
+* **SDA**: All eight displays connect to ESP32 **GPIO 21**.
+* **SCL**: All eight displays connect to ESP32 **GPIO 22**.
+* **I2C Addresses**: Set each display's address using the solder jumpers according to this table.
+    * **Destination Row**:
+        * Month: `0x70`
+        * Day: `0x71`
+        * Year: `0x72`
+        * Time: `0x73`
+    * **Present Row**:
+        * Month: `0x74`
+        * Day: `0x75`
+        * Year: `0x76`
+        * Time: `0x77`
 
-### TM1637 Displays (Day, Year, Time)
+### I2C Bus 2 (Last Departed Displays)
 
-These nine displays share one **CLK** (clock) pin to save on wiring, but each requires its own unique **DIO** (data) pin.
-
-| Row | Display | Pin | ESP32 GPIO |
-| :-------------- | :------ | :---: | :--------: |
-| **(All TM1637s)** | **(Shared)** | **CLK** | **23** |
-| Destination | Day | DIO | 19 |
-| | Year | DIO | 18 |
-| | Time | DIO | 5 |
-| Present | Day | DIO | 26 |
-| | Year | DIO | 25 |
-| | Time | DIO | 33 |
-| Last Departed | Day | DIO | 14 |
-| | Year | DIO | 12 |
-| | Time | DIO | 13 |
+This bus controls the four displays for the Last Departed row.
+* **SDA**: All four displays connect to ESP32 **GPIO 25**.
+* **SCL**: All four displays connect to ESP32 **GPIO 26**.
+* **I2C Addresses**: Set each display's address using the solder jumpers according to this table.
+    * **Last Departed Row**:
+        * Month: `0x78`
+        * Day: `0x79`
+        * Year: `0x7A`
+        * Time: `0x7B`
 
 ### AM/PM Indicators
 
@@ -195,13 +194,13 @@ The housing for this project can be 3D printed. You may need to print three of t
 
 ### 3. Hardware Assembly
 
-Solder all components together as per the schematics. Double-check all connections before applying power.
+Solder all components together as per the schematics. **Pay close attention to the I2C bus wiring and jumper settings for each display.** Double-check all connections before applying power.
 
 ### 4. Prepare the LittleFS Partition
 
-1. Create a folder named `mp3` in the root of your project's `data` folder.
-2. Copy your sound files into the `mp3` folder. You can now use descriptive names like `time_travel.mp3` or `acceleration.mp3`. The firmware will automatically find them on boot.
-3. Upload the `data` folder to your ESP32 using the "ESP32 Sketch Data Upload" tool in the Arduino IDE.
+1.  Create a folder named `mp3` in the root of your project's `data` folder.
+2.  Copy your sound files into the `mp3` folder. You can now use descriptive names like `time_travel.mp3` or `acceleration.mp3`. The firmware will automatically find them on boot.
+3.  Upload the `data` folder to your ESP32 using the "ESP32 Sketch Data Upload" tool in the Arduino IDE.
 
 ### 5. Flash the Firmware
 
@@ -210,7 +209,7 @@ Upload the main sketch (`back-to-the-future-timecircuits.ino`) to your ESP32 usi
 ### 6. WiFi Configuration
 
 1.  On first boot, connect to the `timecircuits` WiFi network.
-2.  A captive portal should open. If not, go to `192.168.4.1`.
+2.  A captive portal window should automatically appear. If it doesn't, manually navigate to `http://192.168.4.1` in your browser.
 3.  Use the portal to connect the device to your home WiFi network.
 
 ---
@@ -246,7 +245,6 @@ The interface is organized into three tabs:
 #### Time Circuits Tab
 
 * **Last Time Departed (Custom Presets)**: When you select a custom preset from the "Custom Jumps" group, the "Add or Edit" form fields (`Preset Name`, `Date`, and `Time`) will automatically populate. The `Add to Presets` button will change to `Update Preset` to signal that you are editing the selected entry.
-
 * **Destination Year**: Directly type in the four-digit year for the top "Destination Time" display.
 * **Destination Time Zone**: Select a timezone for the "Destination Time" display.
 * **Last Time Departed**: Use the dropdown to select a famous date or a custom preset. Manage your custom presets here.
@@ -279,8 +277,7 @@ The interface is organized into three tabs:
 
 * **My displays aren't working or are flickering.**
     * Ensure all power connections (5V and GND) are securely connected to **every individual display module**. Weak power can cause displays to flicker or not light up at all. A 5V/2A power supply is recommended.
-    * For TM1637 displays, double-check that the shared **CLK** pin is connected to all displays and that each display has its own unique **DIO** pin connection as per the wiring table.
-    * For the Adafruit AlphaNum4 (month) displays, verify that the **SDA** and **SCL** lines are correctly connected and that each display has a unique I2C address (0x70, 0x71, and 0x72) set by soldering the jumpers on its back.
+    * Verify that each display has a unique I2C address set via the solder jumpers and that the address in the code matches the physical hardware.
 * **I can't connect to the captive portal, or `timecircuits.local` doesn't work.**
     * After flashing the firmware, the ESP32 will create a temporary WiFi access point named `timecircuits`. Connect to this network on your computer or phone.
     * A captive portal window should automatically appear. If it doesn't, manually navigate to `http://192.168.4.1` in your browser.
@@ -328,6 +325,9 @@ Here’s how you would configure this using the web interface:
 ## Developer Notes
 
 For those looking to dive deeper into the code or contribute to the project, here are some technical considerations:
+
+### **Display Architecture (All-I2C)**
+The project now exclusively uses Adafruit HT16K33 14-segment alphanumeric displays for all time circuit displays (month, day, year, and time). This was a significant refactoring that simplifies the wiring by leveraging the I2C protocol. Instead of a mix of I2C and individual GPIO pins, the project now utilizes two I2C buses on the ESP32. This approach greatly reduces the number of data pins required, making the hardware assembly cleaner and more robust. The old `TM1637` library has been completely removed.
 
 ### Firmware Logging
 The firmware (`back-to-the-future-timecircuits.ino`) extensively uses `ESP_LOG` macros (e.g., `ESP_LOGI`, `ESP_LOGD`, `ESP_LOGW`, `ESP_LOGE`) instead of `Serial.print`. This allows for runtime control of logging verbosity. Additionally, live preview updates from the web UI and a comprehensive status report of current settings are logged to the Serial Monitor every 30 seconds for easy monitoring.

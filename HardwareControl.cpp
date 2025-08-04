@@ -5,42 +5,73 @@
 #include <WString.h>
 #include <map>
 
+// Create two TwoWire objects for the two I2C buses
+TwoWire I2C_Bus_1(0);
+TwoWire I2C_Bus_2(1);
+
 // Definitions for global variables
 const bool ENABLE_HARDWARE = false;
 const bool ENABLE_I2C_HARDWARE = false;
-DisplayRow destRow = { Adafruit_7segment(), TM1637Display(CLK_PIN, DIO_DEST_DAY), TM1637Display(CLK_PIN, DIO_DEST_YEAR), TM1637Display(CLK_PIN, DIO_DEST_TIME), LED_DEST_AM, LED_DEST_PM };
-DisplayRow presRow = { Adafruit_7segment(), TM1637Display(CLK_PIN, DIO_PRES_DAY), TM1637Display(CLK_PIN, DIO_PRES_YEAR), TM1637Display(CLK_PIN, DIO_PRES_TIME), LED_PRES_AM, LED_PRES_PM };
-DisplayRow lastRow = { Adafruit_7segment(), TM1637Display(CLK_PIN, DIO_LAST_DAY), TM1637Display(CLK_PIN, DIO_LAST_YEAR), TM1637Display(CLK_PIN, DIO_LAST_TIME), LED_LAST_AM, LED_LAST_PM };
-HardwareSerial dfpSerial(2); DFRobotDFPlayerMini myDFPlayer;
-std::map<String, int> soundFiles; // Changed from vector to map
 
+// Initialize all displays using the new I2C bus and addresses
+DisplayRow destRow = {
+    Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), LED_DEST_AM, LED_DEST_PM
+};
+DisplayRow presRow = {
+    Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), LED_PRES_AM, LED_PRES_PM
+};
+DisplayRow lastRow = {
+    Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), LED_LAST_AM, LED_LAST_PM
+};
+
+HardwareSerial dfpSerial(2); DFRobotDFPlayerMini myDFPlayer;
+std::map<String, int> soundFiles;
 // Function implementations
 void setupPhysicalDisplay() {
   if (!ENABLE_HARDWARE) {
     ESP_LOGI("Display (Disabled)", "Physical displays setup skipped.");
     return;
   }
+
   if (ENABLE_I2C_HARDWARE) {
-    Wire.begin();
-    destRow.ht16k33.begin(I2C_ADDR_DEST);
-    presRow.ht16k33.begin(I2C_ADDR_PRES);
-    lastRow.ht16k33.begin(I2C_ADDR_LAST);
-    ESP_LOGI("Display", "I2C displays initialized.");
+    // Initialize both I2C buses with their respective pins
+    I2C_Bus_1.begin(I2C_SDA_1, I2C_SCL_1);
+    I2C_Bus_2.begin(I2C_SDA_2, I2C_SCL_2);
+    
+    // Begin all displays on the two buses with their unique addresses
+    destRow.month.begin(ADDR_DEST_MONTH, &I2C_Bus_1);
+    destRow.day.begin(ADDR_DEST_DAY, &I2C_Bus_1);
+    destRow.year.begin(ADDR_DEST_YEAR, &I2C_Bus_1);
+    destRow.time.begin(ADDR_DEST_TIME, &I2C_Bus_1);
+
+    presRow.month.begin(ADDR_PRES_MONTH, &I2C_Bus_1);
+    presRow.day.begin(ADDR_PRES_DAY, &I2C_Bus_1);
+    presRow.year.begin(ADDR_PRES_YEAR, &I2C_Bus_1);
+    presRow.time.begin(ADDR_PRES_TIME, &I2C_Bus_1);
+
+    lastRow.month.begin(ADDR_LAST_MONTH, &I2C_Bus_2);
+    lastRow.day.begin(ADDR_LAST_DAY, &I2C_Bus_2);
+    lastRow.year.begin(ADDR_LAST_YEAR, &I2C_Bus_2);
+    lastRow.time.begin(ADDR_LAST_TIME, &I2C_Bus_2);
+    
+    ESP_LOGI("Display", "I2C displays initialized on two buses.");
   } else {
     ESP_LOGI("Display (Disabled)", "I2C displays initialization skipped.");
   }
+
+  // Rest of the setup for brightness and LEDs
   DisplayRow *rows[] = { &destRow, &presRow, &lastRow };
   for (auto &row : rows) {
     if (ENABLE_I2C_HARDWARE) {
-      row->ht16k33.setBrightness(currentSettings.brightness);
+      row->month.setBrightness(currentSettings.brightness);
+      row->day.setBrightness(currentSettings.brightness);
+      row->year.setBrightness(currentSettings.brightness);
+      row->time.setBrightness(currentSettings.brightness);
     }
-    row->day.setBrightness(currentSettings.brightness);
-    row->year.setBrightness(currentSettings.brightness);
-    row->time.setBrightness(currentSettings.brightness);
     pinMode(row->amPin, OUTPUT);
     pinMode(row->pmPin, OUTPUT);
   }
-  ESP_LOGI("Display", "TM1637 displays and LEDs initialized.");
+  ESP_LOGI("Display", "All I2C displays and LEDs initialized.");
 }
 void setDisplayBrightness(byte intensity) {
   if (!ENABLE_HARDWARE) {
@@ -52,25 +83,28 @@ void setDisplayBrightness(byte intensity) {
   DisplayRow *rows[] = { &destRow, &presRow, &lastRow };
   for (auto &row : rows) {
     if (ENABLE_I2C_HARDWARE) {
-      row->ht16k33.setBrightness(intensity);
+      row->month.setBrightness(intensity);
+      row->day.setBrightness(intensity);
+      row->year.setBrightness(intensity);
+      row->time.setBrightness(intensity);
     }
-    row->day.setBrightness(intensity);
-    row->year.setBrightness(intensity);
-    row->time.setBrightness(intensity);
   }
 }
 void clearDisplayRow(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
-    ESP_LOGD("Display (Disabled)", "clearDisplayRow skipped for row (HT16K33 ID: [unknown])");
+    ESP_LOGD("Display (Disabled)", "clearDisplayRow skipped for row (I2C)");
     return;
   }
   if (ENABLE_I2C_HARDWARE) {
-    row.ht16k33.clear();
-    row.ht16k33.writeDisplay();
+    row.month.clear();
+    row.month.writeDisplay();
+    row.day.clear();
+    row.day.writeDisplay();
+    row.year.clear();
+    row.year.writeDisplay();
+    row.time.clear();
+    row.time.writeDisplay();
   }
-  row.day.clear();
-  row.year.clear();
-  row.time.clear();
   digitalWrite(row.amPin, LOW);
   digitalWrite(row.pmPin, LOW);
 }
@@ -85,60 +119,81 @@ void blankAllDisplays() {
 }
 void updateDisplayRow(DisplayRow &row, struct tm &timeinfo, int year) {
   if (!ENABLE_HARDWARE) {
-    ESP_LOGD("Display (Disabled)", "updateDisplayRow skipped for row (HT16K33 ID: [unknown])");
+    ESP_LOGD("Display (Disabled)", "updateDisplayRow skipped for row (I2C)");
     return;
   }
   char monthStr[4];
   strftime(monthStr, sizeof(monthStr), "%b", &timeinfo);
   for (int i = 0; i < 3; i++) monthStr[i] = toupper(monthStr[i]);
   if (ENABLE_I2C_HARDWARE) {
-    row.ht16k33.clear();
-    row.ht16k33.print(" ");
-    row.ht16k33.writeDisplay();
+    row.month.clear();
+    row.month.print(monthStr);
+    row.month.writeDisplay();
+
+    row.day.clear();
+    row.day.print(timeinfo.tm_mday);
+    row.day.writeDisplay();
+
+    row.year.clear();
+    row.year.print(year);
+    row.year.writeDisplay();
+    
+    int hour = timeinfo.tm_hour;
+    if (!currentSettings.displayFormat24h) {
+      if (hour == 0) hour = 12;
+      else if (hour > 12) hour -= 12;
+    }
+    
+    row.time.clear();
+    row.time.print(hour * 100 + timeinfo.tm_min);
+    row.time.writeDisplay();
   }
-  row.day.showNumberDec(timeinfo.tm_mday, false, 2, 0);
-  row.year.showNumberDec(year, false, 4, 0);
-  int hour = timeinfo.tm_hour;
-  if (!currentSettings.displayFormat24h) {
-    if (hour == 0) hour = 12;
-    else if (hour > 12) hour -= 12;
-  }
-  uint16_t timeData = (hour * 100) + timeinfo.tm_min;
-  row.time.showNumberDecEx(timeData, 0b01000000, true);
   digitalWrite(row.amPin, (timeinfo.tm_hour < 12));
   digitalWrite(row.pmPin, (timeinfo.tm_hour >= 12));
 }
 void animateMonthDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
-    ESP_LOGD("Display (Disabled)", "animateMonthDisplay skipped (HT16K33 ID: [unknown])");
+    ESP_LOGD("Display (Disabled)", "animateMonthDisplay skipped (I2C)");
     return;
   }
   if (ENABLE_I2C_HARDWARE) {
-    row.ht16k33.clear();
-    row.ht16k33.print(" ---");
-    row.ht16k33.writeDisplay();
+    row.month.clear();
+    row.month.print("---");
+    row.month.writeDisplay();
   }
 }
 void animateDayDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
-    ESP_LOGD("Display (Disabled)", "animateDayDisplay skipped (TM1637 DIO: [unknown])");
+    ESP_LOGD("Display (Disabled)", "animateDayDisplay skipped (I2C)");
     return;
   }
-  row.day.showNumberDec(random(1, 32));
+  if (ENABLE_I2C_HARDWARE) {
+    row.day.clear();
+    row.day.print(random(1, 32));
+    row.day.writeDisplay();
+  }
 }
 void animateYearDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
-    ESP_LOGD("Display (Disabled)", "animateYearDisplay skipped (TM1637 DIO: [unknown])");
+    ESP_LOGD("Display (Disabled)", "animateYearDisplay skipped (I2C)");
     return;
   }
-  row.year.showNumberDec(random(1000, 10000));
+  if (ENABLE_I2C_HARDWARE) {
+    row.year.clear();
+    row.year.print(random(1000, 10000));
+    row.year.writeDisplay();
+  }
 }
 void animateTimeDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
-    ESP_LOGD("Display (Disabled)", "animateTimeDisplay skipped (TM1637 DIO: [unknown])");
+    ESP_LOGD("Display (Disabled)", "animateTimeDisplay skipped (I2C)");
     return;
   }
-  row.time.showNumberDec(random(0, 2400), true);
+  if (ENABLE_I2C_HARDWARE) {
+    row.time.clear();
+    row.time.print(random(0, 2400));
+    row.time.writeDisplay();
+  }
 }
 void animateAmPmDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
@@ -156,17 +211,18 @@ void display88MphSpeed(float currentSpeed) {
     clearDisplayRow(destRow);
     clearDisplayRow(presRow);
     if (ENABLE_I2C_HARDWARE) {
-      lastRow.ht16k33.clear();
-      lastRow.ht16k33.print("MPH");
-      lastRow.ht16k33.writeDisplay();
-    }
-    int speedInt = (int)currentSpeed;
-    if (speedInt < 10) {
-        lastRow.time.showNumberDec(speedInt, false, 1, 3);
-    } else if (speedInt <= 99) {
-        lastRow.time.showNumberDec(speedInt, false, 2, 2);
-    } else {
-        lastRow.time.showNumberDec(speedInt, false, 4, 0);
+      lastRow.month.clear();
+      lastRow.month.print("MPH");
+      lastRow.month.writeDisplay();
+
+      lastRow.day.clear();
+      lastRow.day.writeDisplay();
+      lastRow.year.clear();
+      lastRow.year.writeDisplay();
+      
+      lastRow.time.clear();
+      lastRow.time.print((int)currentSpeed);
+      lastRow.time.writeDisplay();
     }
     digitalWrite(lastRow.amPin, LOW);
     digitalWrite(lastRow.pmPin, LOW);
@@ -192,8 +248,6 @@ void playSound(const char *soundName) {
     }
   }
 }
-
-// New function to dynamically load sound files from LittleFS
 void setupSoundFiles() {
   soundFiles.clear();
   ESP_LOGI("Sound", "Scanning for sound files in /mp3...");
@@ -217,7 +271,6 @@ void setupSoundFiles() {
     file = root.openNextFile();
   }
 }
-
 void validateSoundFiles() {
     // This function is no longer needed with the new map-based approach
     // as sound lookup and validation happens directly in playSound

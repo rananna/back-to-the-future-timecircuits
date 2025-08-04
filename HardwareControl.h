@@ -5,7 +5,6 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_LEDBackpack.h>
-#include <TM1637Display.h>
 #include <DFRobotDFPlayerMini.h>
 #include <LittleFS.h>
 #include <vector>
@@ -49,10 +48,10 @@ struct ClockSettings {
   bool timeTravelVolumeFade; // NEW SETTING
 };
 struct DisplayRow {
-  Adafruit_7segment ht16k33;
-  TM1637Display day;
-  TM1637Display year;
-  TM1637Display time;
+  Adafruit_7segment month;
+  Adafruit_7segment day;
+  Adafruit_7segment year;
+  Adafruit_7segment time;
   const uint8_t amPin;
   const uint8_t pmPin;
 };
@@ -70,37 +69,45 @@ struct TimeZoneEntry {
 extern ClockSettings currentSettings;
 extern DisplayRow destRow, presRow, lastRow;
 extern DFRobotDFPlayerMini myDFPlayer; extern HardwareSerial dfpSerial;
-extern std::map<String, int> soundFiles; // Changed from vector to map
+extern std::map<String, int> soundFiles;
 extern const bool ENABLE_HARDWARE;
 extern const bool ENABLE_I2C_HARDWARE;
 extern const TimeZoneEntry TZ_DATA[];
 extern const int NUM_TIMEZONE_OPTIONS;
 
-// Hardware Pin Definitions
-#define CLK_PIN 23
-#define I2C_ADDR_DEST 0x70
-#define DIO_DEST_DAY 19
-#define DIO_DEST_YEAR 18
-#define DIO_DEST_TIME 5
+// Hardware Pin Definitions for I2C
+#define I2C_SDA_1 21
+#define I2C_SCL_1 22
+#define I2C_SDA_2 25
+#define I2C_SCL_2 26
+
+// I2C Addresses for all 12 displays (you must configure these with solder jumpers)
+#define ADDR_DEST_MONTH 0x70
+#define ADDR_DEST_DAY   0x71
+#define ADDR_DEST_YEAR  0x72
+#define ADDR_DEST_TIME  0x73
+
+#define ADDR_PRES_MONTH 0x74
+#define ADDR_PRES_DAY   0x75
+#define ADDR_PRES_YEAR  0x76
+#define ADDR_PRES_TIME  0x77
+
+#define ADDR_LAST_MONTH 0x78
+#define ADDR_LAST_DAY   0x79
+#define ADDR_LAST_YEAR  0x7A
+#define ADDR_LAST_TIME  0x7B
+
+// LED Pin Definitions (These can be kept or changed)
 #define LED_DEST_AM 17
 #define LED_DEST_PM 16
-#define I2C_ADDR_PRES 0x71
-#define DIO_PRES_DAY 26
-#define DIO_PRES_YEAR 25
-#define DIO_PRES_TIME 33
 #define LED_PRES_AM 32
 #define LED_PRES_PM 27
-#define I2C_ADDR_LAST 0x72
-#define DIO_LAST_DAY 14
-#define DIO_LAST_YEAR 12
-#define DIO_LAST_TIME 13
 #define LED_LAST_AM 2
 #define LED_LAST_PM 4
 
 // Corrected pin assignments for DFP
-#define DFP_TX_PIN 21
-#define DFP_RX_PIN 22
-//
+#define DFP_TX_PIN 17
+#define DFP_RX_PIN 16
 
 // Function prototypes
 void setupPhysicalDisplay();
@@ -117,5 +124,4 @@ void display88MphSpeed(float currentSpeed);
 void playSound(const char *soundName);
 void setupSoundFiles();
 void validateSoundFiles();
-
 #endif // HARDWARE_CONTROL_H
