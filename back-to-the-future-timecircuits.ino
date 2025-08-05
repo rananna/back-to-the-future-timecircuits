@@ -24,7 +24,7 @@
 
 // --- Timing and Interval Constants ---
 #define WIFI_RECONNECT_INTERVAL_MS 20000
-#define NTP_INITIAL_RETRY_INTERVAL_MS 5000 
+#define NTP_INITIAL_RETRY_INTERVAL_MS 5000
 #define NTP_RETRY_INTERVAL_MS 30000
 #define NTP_SUCCESS_INTERVAL_MS 3600000
 #define SERIAL_REPORT_INTERVAL_MS 30000
@@ -117,11 +117,9 @@ unsigned long glitchStartTime = 0;
 DisplayRow* glitchedRow = nullptr;
 struct tm originalGlitchedTimeInfo;
 int originalGlitchedYear;
-
 // *** NEW: Preset Cycling State Variables ***
 unsigned long lastPresetCycleTime = 0;
 int currentPresetIndex = 0;
-
 // Helper function to display scrolling text
 void displayScrollingText(DisplayRow &row, const char* text) {
   if (!ENABLE_HARDWARE || !ENABLE_I2C_HARDWARE) return;
@@ -484,12 +482,14 @@ void handleGlitchEffect() {
       int rowNum = random(0, 3);
       if (rowNum == 0) {
         glitchedRow = &destRow;
-        localtime_r((time_t*) &lastNtpSyncTime, &originalGlitchedTimeInfo); // Use current time as base
+        // CORRECTED: Use the existing destinationTimeInfo struct, which holds the correct displayed time
+        originalGlitchedTimeInfo = destinationTimeInfo;
         originalGlitchedYear = currentSettings.destinationYear;
       } else if (rowNum == 1) {
         glitchedRow = &presRow;
-        localtime_r((time_t*) &lastNtpSyncTime, &originalGlitchedTimeInfo);
-        originalGlitchedYear = originalGlitchedTimeInfo.tm_year + 1900;
+        // CORRECTED: Use the existing currentTimeInfo struct
+        originalGlitchedTimeInfo = currentTimeInfo;
+        originalGlitchedYear = currentTimeInfo.tm_year + 1900;
       } else {
         glitchedRow = &lastRow;
         originalGlitchedTimeInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
@@ -506,7 +506,6 @@ void handleGlitchEffect() {
 
 void restoreDisplayAfterGlitch() {
   if (!isGlitching || !glitchedRow) return;
-
   if (millis() - glitchStartTime > 75) { // 75ms glitch duration
     ESP_LOGD("Glitch", "Glitch effect finished. Restoring display.");
     updateDisplayRow(*glitchedRow, originalGlitchedTimeInfo, originalGlitchedYear);
@@ -539,7 +538,7 @@ void updateNormalClockDisplay() {
   }
   
   bool presentTimeNeedsUpdate = (millis() - lastDisplayUpdate > 1000) ||
-    (currentSettings.displayFormat24h != lastDisplayFormat24h);
+                                (currentSettings.displayFormat24h != lastDisplayFormat24h);
   bool destinationTimeNeedsUpdate = (currentSettings.destinationTimezoneIndex != lastDestinationTimezoneIndex) || presentTimeNeedsUpdate;
   bool lastDepartedNeedsUpdate = (!currentSettings.windSpeedModeEnabled && (
                                   currentSettings.lastTimeDepartedHour != lastLastTimeDepartedHour ||
@@ -548,6 +547,7 @@ void updateNormalClockDisplay() {
                                   currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
                                   currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
                                   presentTimeNeedsUpdate));
+
   if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate || currentSettings.windSpeedModeEnabled)) {
     lastDisplayUpdate = millis();
     lastDisplayFormat24h = currentSettings.displayFormat24h;
@@ -681,12 +681,10 @@ void handlePresetCycling() {
         unsigned long intervalMillis = (unsigned long)currentSettings.presetCycleInterval * 60 * 1000;
         if (millis() - lastPresetCycleTime >= intervalMillis) {
             ESP_LOGI("Presets", "Cycling to next preset.");
-
             String presetsJson = preferences.getString("customPresets", "[]");
             DynamicJsonDocument doc(2048);
             deserializeJson(doc, presetsJson);
             JsonArray presets = doc.as<JsonArray>();
-
             if (presets.size() > 0) {
                 currentPresetIndex = (currentPresetIndex + 1) % presets.size();
                 JsonObject preset = presets[currentPresetIndex];
@@ -698,7 +696,6 @@ void handlePresetCycling() {
                        &currentSettings.lastTimeDepartedDay,
                        &currentSettings.lastTimeDepartedHour,
                        &currentSettings.lastTimeDepartedMinute);
-
                 ESP_LOGI("Presets", "Cycled to: %s", preset["name"].as<String>());
             }
             lastPresetCycleTime = millis();
@@ -932,7 +929,7 @@ void setupWebRoutes() {
         if (brightness >= 0 && brightness <= 7) {
           setDisplayBrightness(brightness);
         } else {
-           request->send(400, "text/plain", "Invalid brightness value.");
+            request->send(400, "text/plain", "Invalid brightness value.");
             return;
         }
       } else if (setting == "notificationVolume") {
@@ -1080,7 +1077,7 @@ void setupWebRoutes() {
       JsonArray newArray = newDoc.to<JsonArray>();
       for (JsonObject preset : oldArray) {
         if (preset["value"].as<String>() != valueToDelete) {
-           newArray.add(preset);
+            newArray.add(preset);
         }
       }
       String newPresetsJson;
@@ -1101,8 +1098,7 @@ void setupWebRoutes() {
              &currentSettings.lastTimeDepartedHour,
              &currentSettings.lastTimeDepartedMinute);
     }
-   
-     request->send(200, "text/plain", "OK");
+    request->send(200, "text/plain", "OK");
   });
   server.on("/api/clearPreferences", HTTP_POST, [](AsyncWebServerRequest *request) {
     ESP_LOGI("WebUI", "Clearing all preferences...");
@@ -1275,7 +1271,7 @@ void loop() {
     if (bootState != BOOT_COMPLETE) {
         handleBootSequence();
         return;
-        // Don't run the rest of the loop until boot is complete
+    // Don't run the rest of the loop until boot is complete
     }
 
     // Handle continuous animation logic
@@ -1285,7 +1281,6 @@ void loop() {
     
     // *** BUG FIX: Call the function to handle glitch restoration ***
     restoreDisplayAfterGlitch();
-    
     // Automatic time travel animation trigger
     if (currentSettings.timeTravelAnimationInterval > 0 && !isAnimating) {
         unsigned long intervalMillis = (unsigned long)currentSettings.timeTravelAnimationInterval * 60 * 1000;
@@ -1308,7 +1303,6 @@ void loop() {
     
     // *** FEATURE IMPLEMENTATION: Handle preset cycling ***
     handlePresetCycling();
-
     static unsigned long lastOneSecondUpdate = 0;
     if (millis() - lastOneSecondUpdate >= 1000) {
         lastOneSecondUpdate = millis();
