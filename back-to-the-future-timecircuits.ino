@@ -121,7 +121,6 @@ int originalGlitchedYear;
 // *** NEW: Preset Cycling State Variables ***
 unsigned long lastPresetCycleTime = 0;
 int currentPresetIndex = 0;
-
 // =================================================================
 // == FUNCTION IMPLEMENTATIONS                                    ==
 // =================================================================
@@ -881,7 +880,6 @@ void setupWebRoutes() {
       obj["text"] = TZ_DATA[i].displayName;
       obj["ianaTzName"] = TZ_DATA[i].ianaTzName;
     }
-  
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -940,7 +938,7 @@ void setupWebRoutes() {
       } else if (setting == "notificationVolume") {
         int volume = value.toInt();
         if (volume >= 0 && volume <= 30) {
-          #if ENABLE_HARDWARE
+           #if ENABLE_HARDWARE
           myDFPlayer.volume(volume);
           #endif
         } else {
@@ -962,7 +960,8 @@ void setupWebRoutes() {
           if (duration >=1000 && duration <= 10000) {
             currentSettings.timeTravelAnimationDuration = duration;
             #if ENABLE_HARDWARE
-            playSound(SOUND_CONFIRM_ON); // Audible feedback for this change
+            playSound(SOUND_CONFIRM_ON);
+            // Audible feedback for this change
             #endif
           } else {
             request->send(400, "text/plain", "Invalid animation duration.");
@@ -981,7 +980,8 @@ void setupWebRoutes() {
           if (interval >= 0 && interval <= 60) {
               currentSettings.presetCycleInterval = interval;
               #if ENABLE_HARDWARE
-              playSound(SOUND_CONFIRM_ON); // Provide audible feedback
+              playSound(SOUND_CONFIRM_ON);
+              // Provide audible feedback
               #endif
           } else {
               request->send(400, "text/plain", "Invalid preset cycle interval.");
@@ -992,7 +992,8 @@ void setupWebRoutes() {
           if (interval >= 0 && interval <= 120) {
               currentSettings.timeTravelAnimationInterval = interval;
               #if ENABLE_HARDWARE
-              playSound(SOUND_CONFIRM_ON); // Provide audible feedback
+              playSound(SOUND_CONFIRM_ON);
+              // Provide audible feedback
               #endif
           } else {
               request->send(400, "text/plain", "Invalid animation interval.");
@@ -1021,7 +1022,6 @@ void setupWebRoutes() {
       String presetsJson = preferences.getString("customPresets", "[]");
       DynamicJsonDocument doc(2048);
       deserializeJson(doc, presetsJson);
-    
       JsonArray array = doc.as<JsonArray>();
       for (JsonObject existingPreset : array) {
         if (existingPreset["value"].as<String>() == value) {
@@ -1032,7 +1032,6 @@ void setupWebRoutes() {
       JsonObject newPreset = array.createNestedObject();
       newPreset["name"] = name;
       newPreset["value"] = value;
- 
       String newPresetsJson;
       serializeJson(doc, newPresetsJson);
       preferences.putString("customPresets", newPresetsJson);
@@ -1090,7 +1089,7 @@ void setupWebRoutes() {
       JsonArray newArray = newDoc.to<JsonArray>();
       for (JsonObject preset : oldArray) {
         if (preset["value"].as<String>() != valueToDelete) {
-           newArray.add(preset);
+            newArray.add(preset);
         }
       }
       String newPresetsJson;
@@ -1111,7 +1110,6 @@ void setupWebRoutes() {
              &currentSettings.lastTimeDepartedHour,
              &currentSettings.lastTimeDepartedMinute);
     }
-   
     request->send(200, "text/plain", "OK");
   });
   server.on("/api/clearPreferences", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -1294,10 +1292,8 @@ void loop() {
 
     // Handle continuous animation logic
     handleDisplayAnimation();
-    
     // *** BUG FIX: Call the function to handle glitch restoration ***
     restoreDisplayAfterGlitch();
-    
     // Automatic time travel animation trigger
     if (currentSettings.timeTravelAnimationInterval > 0 && !isAnimating) {
         unsigned long intervalMillis = (unsigned long)currentSettings.timeTravelAnimationInterval * 60 * 1000;
@@ -1320,11 +1316,9 @@ void loop() {
     
     // *** FEATURE IMPLEMENTATION: Handle preset cycling ***
     handlePresetCycling();
-    
     static unsigned long lastOneSecondUpdate = 0;
     if (millis() - lastOneSecondUpdate >= 1000) {
         lastOneSecondUpdate = millis();
-        
         // Check Wi-Fi connection and handle reconnection with backoff
         static unsigned long lastWifiCheck = 0;
         static bool isReconnecting = false;
