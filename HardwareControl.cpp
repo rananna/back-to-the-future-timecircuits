@@ -15,16 +15,17 @@ const bool ENABLE_I2C_HARDWARE = false;
 
 // Initialize all displays using the new I2C bus and addresses
 DisplayRow destRow = {
-    Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), LED_DEST_AM, LED_DEST_PM
+    Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), 13, 14
 };
 DisplayRow presRow = {
-    Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), LED_PRES_AM, LED_PRES_PM
+    Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), 32, 27
 };
 DisplayRow lastRow = {
-    Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), LED_LAST_AM, LED_LAST_PM
+    Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), Adafruit_7segment(), 2, 4
 };
 
-HardwareSerial dfpSerial(2); DFRobotDFPlayerMini myDFPlayer;
+HardwareSerial dfpSerial(2); 
+DFRobotDFPlayerMini myDFPlayer;
 std::map<String, int> soundFiles;
 
 // Function implementations
@@ -59,6 +60,7 @@ void setupPhysicalDisplay() {
     presRow.year.begin(ADDR_PRES_YEAR, &I2C_Bus_1);
     presRow.time.begin(ADDR_PRES_TIME, &I2C_Bus_1);
 
+    // *** CORRECTED I2C BUS INITIALIZATION ***
     lastRow.month.begin(ADDR_LAST_MONTH, &I2C_Bus_2);
     lastRow.day.begin(ADDR_LAST_DAY, &I2C_Bus_2);
     lastRow.year.begin(ADDR_LAST_YEAR, &I2C_Bus_2);
@@ -83,6 +85,7 @@ void setupPhysicalDisplay() {
   }
   ESP_LOGI("Display", "All I2C displays and LEDs initialized.");
 }
+
 void setDisplayBrightness(byte intensity) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGD("Display (Disabled)", "setDisplayBrightness skipped. Desired: %d", intensity);
@@ -100,6 +103,7 @@ void setDisplayBrightness(byte intensity) {
     }
   }
 }
+
 void clearDisplayRow(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGD("Display (Disabled)", "clearDisplayRow skipped for row (I2C)");
@@ -118,6 +122,7 @@ void clearDisplayRow(DisplayRow &row) {
   digitalWrite(row.amPin, LOW);
   digitalWrite(row.pmPin, LOW);
 }
+
 void blankAllDisplays() {
   if (!ENABLE_HARDWARE) {
     ESP_LOGI("Display (Disabled)", "blankAllDisplays skipped.");
@@ -127,6 +132,7 @@ void blankAllDisplays() {
   clearDisplayRow(presRow);
   clearDisplayRow(lastRow);
 }
+
 void updateDisplayRow(DisplayRow &row, struct tm &timeinfo, int year) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGD("Display (Disabled)", "updateDisplayRow skipped for row (I2C)");
@@ -161,6 +167,7 @@ void updateDisplayRow(DisplayRow &row, struct tm &timeinfo, int year) {
   digitalWrite(row.amPin, (timeinfo.tm_hour < 12));
   digitalWrite(row.pmPin, (timeinfo.tm_hour >= 12));
 }
+
 void animateMonthDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGD("Display (Disabled)", "animateMonthDisplay skipped (I2C)");
@@ -172,6 +179,7 @@ void animateMonthDisplay(DisplayRow &row) {
     row.month.writeDisplay();
   }
 }
+
 void animateDayDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGD("Display (Disabled)", "animateDayDisplay skipped (I2C)");
@@ -183,6 +191,7 @@ void animateDayDisplay(DisplayRow &row) {
     row.day.writeDisplay();
   }
 }
+
 void animateYearDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGD("Display (Disabled)", "animateYearDisplay skipped (I2C)");
@@ -194,6 +203,7 @@ void animateYearDisplay(DisplayRow &row) {
     row.year.writeDisplay();
   }
 }
+
 void animateTimeDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGD("Display (Disabled)", "animateTimeDisplay skipped (I2C)");
@@ -205,6 +215,7 @@ void animateTimeDisplay(DisplayRow &row) {
     row.time.writeDisplay();
   }
 }
+
 void animateAmPmDisplay(DisplayRow &row) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGD("Display (Disabled)", "animateAmPmDisplay skipped (AM Pin: %d)", row.amPin);
@@ -213,6 +224,7 @@ void animateAmPmDisplay(DisplayRow &row) {
   digitalWrite(row.amPin, random(0, 2));
   digitalWrite(row.pmPin, random(0, 2));
 }
+
 void display88MphSpeed(float currentSpeed) {
     if (!ENABLE_HARDWARE) {
       ESP_LOGI("Display (Disabled)", "display88MphSpeed skipped.");
@@ -262,6 +274,7 @@ void displayWindSpeed(float currentSpeed) {
     digitalWrite(lastRow.pmPin, LOW);
 }
 
+// *** CORRECTED FUNCTION: Added fallback for missing sounds ***
 void playSound(const char *soundName) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGI("Sound (Disabled)", "Attempted to play sound: %s", soundName);
@@ -283,6 +296,7 @@ void playSound(const char *soundName) {
     }
   }
 }
+
 void setupSoundFiles() {
   soundFiles.clear();
   ESP_LOGI("Sound", "Scanning for sound files in /mp3...");

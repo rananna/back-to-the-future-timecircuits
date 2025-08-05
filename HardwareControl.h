@@ -69,7 +69,8 @@ struct TimeZoneEntry {
 // Global declarations using 'extern'
 extern ClockSettings currentSettings;
 extern DisplayRow destRow, presRow, lastRow;
-extern DFRobotDFPlayerMini myDFPlayer; extern HardwareSerial dfpSerial;
+extern DFRobotDFPlayerMini myDFPlayer; 
+extern HardwareSerial dfpSerial;
 extern std::map<String, int> soundFiles;
 extern const bool ENABLE_HARDWARE;
 extern const bool ENABLE_I2C_HARDWARE;
@@ -93,18 +94,10 @@ extern const int NUM_TIMEZONE_OPTIONS;
 #define ADDR_PRES_YEAR  0x76
 #define ADDR_PRES_TIME  0x77
 
-#define ADDR_LAST_MONTH 0x70 // Corrected to use address range 0x70-0x73 on a separate bus
-#define ADDR_LAST_DAY   0x71 // Corrected
-#define ADDR_LAST_YEAR  0x72 // Corrected
-#define ADDR_LAST_TIME  0x73 // Corrected
-
-// LED Pin Definitions (These can be kept or changed)
-#define LED_DEST_AM 13 // Corrected pin assignment
-#define LED_DEST_PM 14 // Corrected pin assignment
-#define LED_PRES_AM 32
-#define LED_PRES_PM 27
-#define LED_LAST_AM 2
-#define LED_LAST_PM 4
+#define ADDR_LAST_MONTH 0x70 
+#define ADDR_LAST_DAY   0x71 
+#define ADDR_LAST_YEAR  0x72 
+#define ADDR_LAST_TIME  0x73 
 
 // Corrected pin assignments for DFP
 #define DFP_TX_PIN 17

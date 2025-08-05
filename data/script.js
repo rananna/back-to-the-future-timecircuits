@@ -57,6 +57,7 @@ function showFeedback(elementId) {
     }
 }
 
+// *** CORRECTED FUNCTION: Now clears the previous interval ***
 function setupPresetCycler() {
     if (presetCycleTimer) {
         clearInterval(presetCycleTimer);
@@ -101,48 +102,52 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     }
 
-    // Updated sliders array to include timeTravelAnimationDuration
+    // *** REFACTORED/IMPROVED: Consolidated event listeners ***
     const sliders = [
         { id: 'brightness', valueSpanId: 'brightnessValue' },
         { id: 'notificationVolume', valueSpanId: 'volumeValue' },
         { id: 'timeTravelAnimationInterval', valueSpanId: 'timeTravelAnimationIntervalValue' },
         { id: 'presetCycleInterval', valueSpanId: 'presetCycleIntervalValue' },
-        { id: 'timeTravelAnimationDuration', valueSpanId: 'timeTravelAnimationDurationValue' } // NEW
+        { id: 'timeTravelAnimationDuration', valueSpanId: 'timeTravelAnimationDurationValue' }
     ];
 
     sliders.forEach(sliderInfo => {
         const sliderElement = document.getElementById(sliderInfo.id);
         if (sliderElement) {
             sliderElement.addEventListener('input', (e) => {
-                const valueSpanElement = document.getElementById(sliderInfo.valueSpanId);
-                if (valueSpanElement) valueSpanElement.textContent = e.target.value;
+                document.getElementById(sliderInfo.valueSpanId).textContent = e.target.value;
                 setSettingsChanged(true);
-                // NEW: Call handlePreview for sliders that support it live
                 if (document.getElementById('livePreviewToggle').checked) {
                     handlePreview(sliderInfo.id, e.target.value);
                 }
             });
         }
     });
+    
+    // Attach preview handlers to selects and checkboxes
+    const previewElements = [
+        { id: 'destinationTimezoneSelect', setting: 'destinationTimezoneIndex', event: 'change' },
+        { id: 'presentTimezoneSelect', setting: 'presentTimezoneIndex', event: 'change' },
+        { id: 'animationStyleSelect', setting: 'animationStyle', event: 'change' },
+        { id: 'displayFormat24h', setting: 'displayFormat24h', event: 'change', isCheckbox: true },
+        { id: 'timeTravelSoundToggle', setting: 'timeTravelSoundToggle', event: 'change', isCheckbox: true },
+        { id: 'timeTravelVolumeFade', setting: 'timeTravelVolumeFade', event: 'change', isCheckbox: true },
+        { id: 'destinationYear', setting: 'destinationYear', event: 'input' }
+    ];
 
-    // Replaced redundant event listeners with a single loop
-    ['destinationYear', 'destinationTimezoneSelect', 'presentTimezoneSelect'].forEach(id => {
-        const element = document.getElementById(id);
+    previewElements.forEach(item => {
+        const element = document.getElementById(item.id);
         if (element) {
-            const eventType = element.tagName === 'SELECT' ? 'change' : 'input';
-            element.addEventListener(eventType, (e) => {
+            element.addEventListener(item.event, (e) => {
                 setSettingsChanged(true);
                 if (document.getElementById('livePreviewToggle').checked) {
-                    const settingName = id === 'destinationTimezoneSelect' ? 'destinationTimezoneIndex' :
-                                      id === 'presentTimezoneSelect' ? 'presentTimezoneIndex' :
-                                      id;
-                    handlePreview(settingName, e.target.value);
-                    showFeedback(id);
+                    const value = item.isCheckbox ? e.target.checked : e.target.value;
+                    handlePreview(item.setting, value);
+                    showFeedback(item.id);
                 }
             });
         }
     });
-
 
     document.getElementById('departureTime').addEventListener('input', () => {
         setSettingsChanged(true);
@@ -153,39 +158,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
         updateSleepScheduleVisual();
     });
 
-    const presetCycleSlider = document.getElementById('presetCycleInterval');
-    presetCycleSlider.addEventListener('change', setupPresetCycler);
+    document.getElementById('presetCycleInterval').addEventListener('change', setupPresetCycler);
 
     document.getElementById('powerOfLoveBtn').addEventListener('click', () => {
         fetch('/api/greatScott', { method: 'POST' })
             .catch(error => showMessage('Error toggling Great Scott sound!', 'error'));
     });
-
-    document.getElementById('displayFormat24h').addEventListener('change', (e) => {
-        setSettingsChanged(true);
-        if (document.getElementById('livePreviewToggle').checked) {
-            handlePreview('displayFormat24h', e.target.checked);
-        }
-        showFeedback('displayFormat24h');
-    });
-
-    document.getElementById('timeTravelSoundToggle').addEventListener('change', (e) => {
-        setSettingsChanged(true);
-        showFeedback('timeTravelSoundToggle');
-    });
-
-    const animationStyleSelect = document.getElementById('animationStyleSelect');
-    if (animationStyleSelect) {
-        animationStyleSelect.addEventListener('change', (e) => {
-            setSettingsChanged(true);
-            if (document.getElementById('livePreviewToggle').checked) {
-                handlePreview('animationStyle', e.target.value);
-            }
-            showFeedback('animationStyleSelect');
-        });
-    }
-
-
+    
     document.querySelectorAll('.container input, .container select').forEach(element => {
         element.addEventListener('input', (e) => {
             setSettingsChanged(true);
@@ -227,23 +206,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         updateLastDepartedDisplay();
         setSettingsChanged(true);
-        if (document.getElementById('livePreviewToggle').checked) {
-            fetch(`/api/setLastDeparted?value=${selectedValue}`, { method: 'POST' })
-                .then(response => {
-                    if (response.ok) {
-                        showFeedback('presetDateSelect');
-                    } else {
-                        response.text().then(text => {
-                            console.error(`Preview error for setLastDeparted: ${text}`);
-                            showMessage(`Live preview failed: ${text}`, 'error');
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Error in live preview setLastDeparted:', error);
-                    showMessage('Live preview connection error.', 'error');
-                });
-        }
     });
 
     document.getElementById('editPresetBtn').addEventListener('click', editPreset);
@@ -305,12 +267,28 @@ function setupIncrementerButtons() {
 
 function addOrUpdatePreset() {
     const btn = document.getElementById('addPresetBtn');
+    const name = document.getElementById('presetName').value.trim();
+    const date = document.getElementById('presetDate').value;
+    const time = document.getElementById('presetTime').value;
+
+    if (!name || !date || !time) {
+        showMessage('All preset fields (Name, Date, Time) are required!', 'error');
+        return;
+    }
+    
+    // Basic format validation
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+        showMessage('Invalid date or time format. Please use YYYY-MM-DD and HH:MM.', 'error');
+        return;
+    }
+
     if (document.getElementById('editingPresetValue').value) {
         updatePreset(document.getElementById('editingPresetValue').value);
     } else {
         addPreset();
     }
 }
+
 
 function addPreset() {
     const name = document.getElementById('presetName').value;
@@ -629,11 +607,13 @@ function validateAllNumberInputs() {
 function applyTheme(themeIndex) {
     const themeClasses = ['theme-time-circuits', 'theme-outatime', 'theme-88mph', 'theme-plutonium-glow', 'theme-mr-fusion', 'theme-clock-tower'];
     document.body.classList.remove(...themeClasses);
-    if(themeIndex >= 0 && themeIndex < themeClasses.length) {
-        document.body.classList.add(themeClasses[themeIndex]);
+    const index = parseInt(themeIndex, 10);
+    if(index >= 0 && index < themeClasses.length) {
+        document.body.classList.add(themeClasses[index]);
     }
     setSettingsChanged(true);
 }
+
 
 function updateWifiStrengthIndicator(rssi) {
     const wifiIndicator = document.getElementById('wifiStrength');
@@ -870,11 +850,17 @@ function saveSettings() {
 }
 
 function startTimeTravelSequence() {
-    fetch('/api/timeTravel').catch(error => showMessage('Error initiating time travel sequence!', 'error'));
-    document.body.classList.add('time-travel-active');
-    setTimeout(() => {
-        document.body.classList.remove('time-travel-active');
-    }, 3000);
+    fetch('/api/timeTravel', { method: 'POST' })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text); });
+            }
+            document.body.classList.add('time-travel-active');
+            setTimeout(() => {
+                document.body.classList.remove('time-travel-active');
+            }, 3000);
+        })
+        .catch(error => showMessage(`Error initiating time travel sequence: ${error.message}`, 'error'));
 }
 
 function showCustomConfirm(msg, callback) {

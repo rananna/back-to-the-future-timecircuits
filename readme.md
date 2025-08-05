@@ -28,8 +28,8 @@
 - [Operating the Time Circuits](#operating-the-time-circuits)
   - [The Web-Based Temporal Control Panel](#the-web-based-temporal-control-panel)
     - [Time Circuits Tab](#time-circuits-tab)
-    - [Display & Sound Tab](#display--sound-tab)
-    - [System Tab](#system-tab)
+    - [Temporal Controls Tab](#temporal-controls-tab)
+    - [Onboard Systems Tab](#onboard-systems-tab)
 - [When Things Go Wrong...](#when-things-go-wrong)
 - [Example Usage](#example-usage)
 - [Developer Notes](#developer-notes)
@@ -69,7 +69,7 @@ For experienced makers in a hurry to get back to the future:
     * **Full Time Zone Support**: Includes automatic Daylight Saving Time adjustments based on a predefined list of timezones, which are configurable from the web UI.
 * **Complete Web Interface**:
     * **Thematic Header**: The web UI now features a screen-accurate header that displays all three times, just like in the movies.
-    * **Tabbed Interface**: Settings are neatly organized into three tabs: "Time Circuits," "Display & Sound," and "System."
+    * **Tabbed Interface**: Settings are neatly organized into three tabs: "Time Circuits," "Temporal Controls," and "Onboard Systems."
     * **Live Preview Mode**: A "Live Preview" toggle allows you to see changes on the physical clock in real-time as you adjust settings.
     * **WiFi Manager**: Simple initial WiFi setup using a captive portal.
     * **Improved UI Spacing and Responsiveness**: The web interface uses CSS Grid for adaptive layouts on wider screens and is optimized for responsive display on different devices.
@@ -110,7 +110,7 @@ Install these libraries via the Arduino IDE Library Manager.
 | :------------------------- | :------------ | :--------------------------- |
 | `WiFiManager` | tzapu | WiFi connection portal. |
 | `Adafruit GFX Library` | Adafruit | Core graphics library. |
-| `Adafruit LED Backpack Library` | Adafruit | Drives the 7-segment displays. |
+| `Adafruit LED Backpack Library`| Adafruit | Drives the 7-segment displays. |
 | `DFRobotDFPlayerMini` | DFRobot | Controls the MP3 player module. |
 | `ESPAsyncWebServer` | me-no-dev | Hosts the web interface. |
 | `AsyncTCP` | me-no-dev | Required by ESPAsyncWebServer. |
@@ -254,7 +254,7 @@ The interface is organized into three tabs:
 * **Last Time Departed**: Use the dropdown to select a famous date or a custom preset. Manage your custom presets here.
 * **Cycle Presets**: Set an interval for the "Last Time Departed" display to automatically cycle through presets.
 
-#### Display & Sound Tab
+#### Temporal Controls Tab
 
 * **Live Preview**: When enabled, changes to settings like brightness and volume will be sent to the physical clock in real-time, with updates visible in the Serial Monitor.
 * **Departure/Arrival (Sleep) Times**: These settings define a "sleep" period where the displays will turn off.
@@ -271,7 +271,7 @@ The interface is organized into three tabs:
     * **Wave Flicker**: The flicker effect travels from the top display down to the bottom.
     * **Glitch Effect**: Enables an occasional, random single-digit flicker on the displays during normal operation for added realism.
 
-#### System Tab
+#### Onboard Systems Tab
 
 * **Present Time**: Configure the timezone for the "Present Time" display and toggle 24-hour format.
 * **Network Status**: View the current WiFi network and signal strength.
@@ -288,14 +288,14 @@ The interface is organized into three tabs:
     * After flashing the firmware, the ESP32 will create a temporary WiFi access point named `timecircuits`. Connect to this network on your computer or phone.
     * A captive portal window should automatically appear. If it doesn't, manually navigate to `http://192.168.4.1` in your browser.
     * If you've already configured your WiFi but can't access the web UI, check your router's client list for the device's IP address. You can also monitor the Arduino IDE's Serial Monitor on boot, where the device will log its assigned IP address.
-    * If all else fails, use the "Network Re-route (Reset WiFi Credentials)" button in the `System` tab to erase the saved WiFi settings and return to the captive portal mode.
+    * If all else fails, use the "Network Re-route (Reset WiFi Credentials)" button in the `Onboard Systems` tab to erase the saved WiFi settings and return to the captive portal mode.
 * **There is no sound from the DFPlayer Mini.**
     * The DFPlayer uses a serial connection. Ensure the **TX** pin from the DFPlayer is connected to the ESP32's **RX2** (GPIO 16) and the DFPlayer **RX** is connected to the ESP32's **TX2** (GPIO 17).
     * Verify that your sound files are in an `mp3` folder in the root of the LittleFS partition. The new firmware will log which sound files it finds on boot in the Serial Monitor.
     * Check that the speaker is correctly wired to the DFPlayer's `SPK_1` and `SPK_2` pins.
 * **The time is incorrect.**
     * The clock gets its time from NTP servers. The displays will show "NTP ERR" if it can't synchronize. Check your internet connection and router settings to ensure the ESP32 has access to the internet.
-    * Verify that you have selected the correct timezone in the `System` tab of the web interface.
+    * Verify that you have selected the correct timezone in the `Onboard Systems` tab of the web interface.
 * **My custom presets form fields are not working as expected.**
     * The new feature for editing presets only works for items in the "Custom Jumps" section of the dropdown. It will not work for the hardcoded movie presets.
 
@@ -318,11 +318,11 @@ Here’s how you would configure this using the web interface:
 1.  **Navigate to the "Time Circuits" Tab**:
     * **Set the Destination Year**: In the "Destination Time & Year" section, type `1955` into the **YEAR** input field.
     * **Set the Last Time Departed**: In the "Last Time Departed" section, select `Future Arrival (2015)` from the dropdown.
-2.  **Navigate to the "Display & Sound" Tab**:
+2.  **Navigate to the "Temporal Controls" Tab**:
     * **Set the Sleep Period**: In "Departure/Arrival," set Departure to `23:00` and Arrival to `07:00`.
     * **Set Animation Duration**: In "Time Travel Animations," set "Total Animation Duration" to `5000` (for 5 seconds).
     * **Set Animation Style**: In "Time Travel Animations," select `Random Flicker` from the "Animation Style" dropdown.
-3.  **Navigate to the "System" Tab**:
+3.  **Navigate to the "Onboard Systems" Tab**:
     * **Set the Present Timezone**: In "Present Time," select `Americas/New_York`.
 4.  **Save Your Settings**: Click the glowing **Engage Time Circuits (Save All Settings)** button at the bottom of the page. Your physical displays will now reflect this classic configuration, and time travel animations will feature the 88 MPH countdown, random flicker, and dynamic sound effects!
 
@@ -346,6 +346,7 @@ The `setupWebRoutes()` function in `back-to-the-future-timecircuits.ino` defines
 * `/api/saveSettings` (HTTP POST): Receives and saves new settings from the web interface.
 * `/api/previewSetting` (HTTP GET): Allows live previewing of individual settings like brightness and animation style.
 * `/api/timezones` (HTTP GET): Provides a JSON list of available time zones for the dropdown menus.
+* `/api/timeTravel` (HTTP POST): Initiates the time travel animation sequence.
 
 ---
 

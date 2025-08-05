@@ -23,7 +23,8 @@
 // =================================================================
 
 // --- Timing and Interval Constants ---
-#define WIFI_CHECK_INTERVAL_MS 10000
+#define WIFI_RECONNECT_INTERVAL_MS 20000
+#define NTP_INITIAL_RETRY_INTERVAL_MS 5000 
 #define NTP_RETRY_INTERVAL_MS 30000
 #define NTP_SUCCESS_INTERVAL_MS 3600000
 #define SERIAL_REPORT_INTERVAL_MS 30000
@@ -74,7 +75,7 @@ const int NUM_NTP_SERVERS = sizeof(NTP_SERVERS) / sizeof(NTP_SERVERS[0]);
 int currentNtpServerIndex = 0;
 WiFiUDP Udp;
 unsigned long lastNtpRequestSent = 0;
-unsigned long currentNtpInterval = NTP_RETRY_INTERVAL_MS;
+unsigned long lastNtpAttempt = 0;
 bool timeSynchronized = false;
 time_t lastNtpSyncTime = 0;
 char currentNtpServerUsed[32] = "N/A";
@@ -105,7 +106,6 @@ unsigned long ntpRequestSentTime = 0;
 // New state for NTP sync animation
 bool isNtpSyncAnimating = false;
 unsigned long ntpSyncAnimStartTime = 0;
-
 // NEW: Variables for Wind Speed and Glitch Effect
 unsigned long lastWindSpeedFetch = 0;
 float currentWindSpeed = 0.0;
@@ -146,7 +146,6 @@ void fetchWindSpeed() {
   
   HTTPClient http;
   String apiURL = "http://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 2) + "&longitude=" + String(currentSettings.longitude, 2) + "&current_weather=true";
-  
   http.begin(apiURL);
   int httpCode = http.GET();
 
@@ -462,39 +461,47 @@ void handleDisplayAnimation() {
   }
 }
 
-// NEW: Function to handle the occasional glitch effect
+// *** CORRECTED FUNCTION ***
+// Function to handle the occasional glitch effect. It is now self-contained.
 void handleGlitchEffect() {
   if (isAnimating || isDisplayAsleep || currentSettings.animationStyle != 5) return;
 
   if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
     if (random(0, 100) < 25) { // 25% chance of a glitch every minute
       ESP_LOGD("Glitch", "Triggering glitch effect!");
-      
-      // Select a random row and display to glitch
+
+      // Select a random row to glitch
       int rowNum = random(0, 3);
-      int displayNum = random(0, 4);
-
       DisplayRow* rowToGlitch = (rowNum == 0) ? &destRow : (rowNum == 1) ? &presRow : &lastRow;
-      Adafruit_7segment* displayToGlitch;
 
-      switch(displayNum) {
-        case 0: displayToGlitch = &(rowToGlitch->month); break;
-        case 1: displayToGlitch = &(rowToGlitch->day); break;
-        case 2: displayToGlitch = &(rowToGlitch->year); break;
-        default: displayToGlitch = &(rowToGlitch->time); break;
+      // Apply the glitch to the entire row for a more noticeable effect
+      if (ENABLE_HARDWARE && ENABLE_I2C_HARDWARE) {
+          animateDisplayRowRandomly(*rowToGlitch); // Use an existing animation function for the glitch
+          delay(75); // Keep the glitch on screen for a short time
       }
 
-      if (ENABLE_HARDWARE && ENABLE_I2C_HARDWARE) {
-        displayToGlitch->clear();
-        // Print some random garbage
-        for (int i=0; i<4; i++) {
-          displayToGlitch->writeDigitRaw(i, random(0, 255));
-        }
-        displayToGlitch->writeDisplay();
+      // Immediately restore the correct display for the glitched row
+      time_t now;
+      time(&now);
 
-        // After a short delay, restore the display
-        delay(75);
-        // The main updateNormalClockDisplay function will restore it on its next run
+      if (rowToGlitch == &presRow) {
+        localtime_r(&now, &currentTimeInfo);
+        updateDisplayRow(presRow, currentTimeInfo, currentTimeInfo.tm_year + 1900);
+      } else if (rowToGlitch == &destRow) {
+        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now, &destinationTimeInfo);
+        updateDisplayRow(destRow, destinationTimeInfo, currentSettings.destinationYear);
+        // Reset to present timezone
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+      } else if (rowToGlitch == &lastRow) {
+        if (currentSettings.windSpeedModeEnabled) {
+          displayWindSpeed(currentWindSpeed);
+        } else {
+          struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
+          updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
+        }
       }
     }
     lastGlitchTime = millis();
@@ -507,7 +514,7 @@ void updateNormalClockDisplay() {
   static int lastDestinationTimezoneIndex = -1;
   static bool lastDisplayFormat24h = false;
   static int lastLastTimeDepartedHour = -1, lastLastTimeDepartedMinute = -1, lastLastTimeDepartedYear = -1, lastLastTimeDepartedMonth = -1, lastLastTimeDepartedDay = -1;
-  
+
   if (currentSettings.presentTimezoneIndex != lastPresentTimezoneIndex) {
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
@@ -560,7 +567,7 @@ void updateNormalClockDisplay() {
     if (currentSettings.windSpeedModeEnabled) {
       displayWindSpeed(currentWindSpeed);
       // Clear the saved last departed time to force an update when switching back
-      lastLastTimeDepartedHour = -1; 
+      lastLastTimeDepartedHour = -1;
     } else if (lastDepartedNeedsUpdate) {
       struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
       updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
@@ -601,7 +608,10 @@ void showNtpSyncAnimation() {
 }
 
 void startTimeTravelAnimation() {
-  if (isAnimating) return;
+  if (isAnimating) {
+    ESP_LOGW("Animation", "Animation already in progress. Ignoring new request.");
+    return;
+  }
   isAnimating = true;
   animationStartTime = millis();
   lastAnimationFrameTime = millis();
@@ -632,6 +642,7 @@ void sendNTPrequest() {
   }
 }
 
+// *** CORRECTED FUNCTION ***
 void handleSleepSchedule() {
   if (!timeSynchronized) return;
   time_t now_t;
@@ -644,9 +655,10 @@ void handleSleepSchedule() {
   bool shouldBeAsleep = false;
   if (sleep_minutes < wake_minutes) { // Same-day sleep period (e.g., sleep at 08:00, wake at 17:00)
     shouldBeAsleep = (now_minutes >= sleep_minutes && now_minutes < wake_minutes);
-  } else { // Overnight sleep period (e.g., sleep at 22:00, wake at 07:00)
+  } else if (sleep_minutes > wake_minutes) { // Overnight sleep period (e.g., sleep at 22:00, wake at 07:00)
     shouldBeAsleep = (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
   }
+  // If sleep_minutes == wake_minutes, sleep is disabled, shouldBeAsleep remains false.
   
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
@@ -795,9 +807,11 @@ void setupWebRoutes() {
         currentSettings.timeTravelVolumeFade = (request->getParam("timeTravelVolumeFade", true)->value() == "true");
     }
     if (request->hasParam("windSpeedModeEnabled", true)) {
+        bool justEnabled = !currentSettings.windSpeedModeEnabled && (request->getParam("windSpeedModeEnabled", true)->value() == "true");
         currentSettings.windSpeedModeEnabled = (request->getParam("windSpeedModeEnabled", true)->value() == "true");
-        if (currentSettings.windSpeedModeEnabled) {
-          fetchWindSpeed(); // Fetch immediately when enabled
+        if (justEnabled) {
+          ESP_LOGI("WebUI", "Wind Speed Mode enabled. Fetching speed immediately.");
+          fetchWindSpeed();
         }
     }
     if (request->hasParam("latitude", true)) {
@@ -820,7 +834,7 @@ void setupWebRoutes() {
     ntpSyncRequested = true;
     request->send(200, "text/plain", "NTP Sync Requested!");
   });
-  server.on("/api/timeTravel", HTTP_GET, [](AsyncWebServerRequest *request) {
+  server.on("/api/timeTravel", HTTP_POST, [](AsyncWebServerRequest *request) {
     startTimeTravelAnimation();
     request->send(200, "text/plain", "Time Travel Sequence Initiated!");
   });
@@ -837,7 +851,7 @@ void setupWebRoutes() {
       obj["text"] = TZ_DATA[i].displayName;
       obj["ianaTzName"] = TZ_DATA[i].ianaTzName;
     }
-  
+    
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -882,8 +896,8 @@ void setupWebRoutes() {
         if (brightness >= 0 && brightness <= 7) {
           setDisplayBrightness(brightness);
         } else {
-          request->send(400, "text/plain", "Invalid brightness value.");
-          return;
+            request->send(400, "text/plain", "Invalid brightness value.");
+            return;
         }
       } else if (setting == "notificationVolume") {
         int volume = value.toInt();
@@ -961,7 +975,7 @@ void setupWebRoutes() {
       String presetsJson = preferences.getString("customPresets", "[]");
       DynamicJsonDocument doc(2048);
       deserializeJson(doc, presetsJson);
-    
+      
       JsonArray array = doc.as<JsonArray>();
       for (JsonObject existingPreset : array) {
         if (existingPreset["value"].as<String>() == value) {
@@ -972,7 +986,7 @@ void setupWebRoutes() {
       JsonObject newPreset = array.createNestedObject();
       newPreset["name"] = name;
       newPreset["value"] = value;
- 
+      
       String newPresetsJson;
       serializeJson(doc, newPresetsJson);
       preferences.putString("customPresets", newPresetsJson);
@@ -1163,6 +1177,7 @@ void setup() {
   if (!LittleFS.begin(true)) {
     ESP_LOGE("FS", "CRITICAL ERROR: An Error has occurred while mounting LittleFS.");
     while(1) {
+        ESP_LOGE("FS", "LittleFS mount failed. Halting execution.");
         digitalWrite(LED_BUILTIN, HIGH);
         delay(100);
         digitalWrite(LED_BUILTIN, LOW);
@@ -1186,12 +1201,15 @@ void setup() {
   preferences.begin("bttf-clock", false);
   loadSettings();
   ESP_LOGI("Sound", "Initializing DFPlayer... (May take 3-5 seconds)");
-  if (ENABLE_HARDWARE && !myDFPlayer.begin(dfpSerial, true, false)) {
-    ESP_LOGE("Sound", "Unable to begin DFPlayer");
-  } else if (ENABLE_HARDWARE) {
-    ESP_LOGI("Sound", "DFPlayer Mini online.");
-    myDFPlayer.volume(currentSettings.notificationVolume);
-    setupSoundFiles();
+  if (ENABLE_HARDWARE) {
+    dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
+    if (!myDFPlayer.begin(dfpSerial, true, false)) {
+      ESP_LOGE("Sound", "Unable to begin DFPlayer. Check wiring and SD card.");
+    } else {
+      ESP_LOGI("Sound", "DFPlayer Mini online.");
+      myDFPlayer.volume(currentSettings.notificationVolume);
+      setupSoundFiles();
+    }
   } else {
     ESP_LOGI("Sound (Disabled)", "DFPlayer Mini initialization skipped.");
   }
@@ -1207,7 +1225,6 @@ void setup() {
   setupPhysicalDisplay();
 
   Udp.begin(123);
-  sendNTPrequest();
   setupWebRoutes();
   server.begin();
   ESP_LOGI("Web", "HTTP server started");
@@ -1217,18 +1234,19 @@ void setup() {
 }
 
 void loop() {
-  ArduinoOTA.handle();
-  if (bootState != BOOT_COMPLETE) {
-    handleBootSequence();
-  }
+    ArduinoOTA.handle();
+    if (bootState != BOOT_COMPLETE) {
+        handleBootSequence();
+        return;
+        // Don't run the rest of the loop until boot is complete
+    }
 
-  // Handle continuous animation logic
-  if (isAnimating) {
-    handleDisplayAnimation();
-  }
+    // Handle continuous animation logic
+    if (isAnimating) {
+        handleDisplayAnimation();
+    }
 
-  if (bootState == BOOT_COMPLETE) {
-    // Handle automatic time travel animation trigger
+    // Automatic time travel animation trigger
     if (currentSettings.timeTravelAnimationInterval > 0 && !isAnimating) {
         unsigned long intervalMillis = (unsigned long)currentSettings.timeTravelAnimationInterval * 60 * 1000;
         if (millis() - lastTimeTravelAnimationTime >= intervalMillis) {
@@ -1236,130 +1254,141 @@ void loop() {
         }
     }
     
+    // Glitch effect handler
     if (currentSettings.animationStyle == 5) {
-      handleGlitchEffect();
+        handleGlitchEffect();
     }
 
-    if (currentSettings.windSpeedModeEnabled && (millis() - lastWindSpeedFetch >= WIND_SPEED_FETCH_INTERVAL_MS)) {
-      fetchWindSpeed();
+    // Wind speed fetching
+    if (currentSettings.windSpeedModeEnabled &&
+        (millis() - lastWindSpeedFetch >= WIND_SPEED_FETCH_INTERVAL_MS) &&
+        (ntpRequestSentTime == 0)) {
+        fetchWindSpeed();
     }
 
     static unsigned long lastOneSecondUpdate = 0;
     if (millis() - lastOneSecondUpdate >= 1000) {
-      lastOneSecondUpdate = millis();
-      // Check Wi-Fi connection and reconnect if needed
-      static unsigned long lastWifiCheck = 0;
-      if (millis() - lastWifiCheck > WIFI_CHECK_INTERVAL_MS) {
-        lastWifiCheck = millis();
-        if (WiFi.status() != WL_CONNECTED) {
-          ESP_LOGW("WiFi", "WiFi Disconnected. Attempting to reconnect...");
-          WiFi.reconnect();
+        lastOneSecondUpdate = millis();
+        // Check Wi-Fi connection and handle reconnection with backoff
+        static unsigned long lastWifiCheck = 0;
+        static bool isReconnecting = false;
+        if (millis() - lastWifiCheck > WIFI_RECONNECT_INTERVAL_MS) {
+            lastWifiCheck = millis();
+            if (WiFi.status() != WL_CONNECTED) {
+                if (!isReconnecting) {
+                    ESP_LOGW("WiFi", "WiFi Disconnected. Attempting to reconnect...");
+                    WiFi.reconnect();
+                    isReconnecting = true;
+                }
+            } else {
+                if (isReconnecting) {
+                    ESP_LOGI("WiFi", "WiFi Reconnected. IP: %s", WiFi.localIP().toString().c_str());
+                    isReconnecting = false;
+                }
+            }
         }
-      }
 
-      // Check for NTP response if a request was sent
-      if (ntpRequestSentTime > 0 && millis() - ntpRequestSentTime < NTP_TIMEOUT_MS) {
-        int packetSize = Udp.parsePacket();
-        if (packetSize >= 48) {
-          byte packetBuffer[48];
-          Udp.read(packetBuffer, 48);
-          unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-          unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-          time_t epoch = (highWord << 16 | lowWord) - 2208988800UL;
-          struct timeval tv;
-          tv.tv_sec = epoch;
-          tv.tv_usec = 0;
-          settimeofday(&tv, NULL);
-          ESP_LOGI("NTP", "NTP Time Sync Successful!");
-          timeSynchronized = true;
-          lastNtpSyncTime = epoch;
-          currentNtpInterval = NTP_SUCCESS_INTERVAL_MS;
-          ntpRequestSentTime = 0;
-          // Reset the request time
+        // NTP response handling
+        if (ntpRequestSentTime > 0 && millis() - ntpRequestSentTime < NTP_TIMEOUT_MS) {
+            int packetSize = Udp.parsePacket();
+            if (packetSize >= 48) {
+                byte packetBuffer[48];
+                Udp.read(packetBuffer, 48);
+                unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+                unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
+                time_t epoch = (highWord << 16 | lowWord) - 2208988800UL;
+                struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
+                settimeofday(&tv, NULL);
+                ESP_LOGI("NTP", "NTP Time Sync Successful!");
+                timeSynchronized = true;
+                lastNtpSyncTime = epoch;
+                ntpRequestSentTime = 0;
+                isNtpSyncAnimating = false;
+                // Stop animation on success
+            }
+        } else if (ntpRequestSentTime > 0) { // Timeout
+            ESP_LOGW("NTP", "Sync failed. Retrying with next server.");
+            timeSynchronized = false;
+            currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
+            ntpRequestSentTime = 0;
+            isNtpSyncAnimating = false;
+            // Stop animation on failure
         }
-      } else if (ntpRequestSentTime > 0) {
-        // Timeout
-        timeSynchronized = false;
-        currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
-        currentNtpInterval = NTP_RETRY_INTERVAL_MS;
-        ESP_LOGW("NTP", "Sync failed. Retrying with %s in 30s.", NTP_SERVERS[currentNtpServerIndex]);
-        ntpRequestSentTime = 0;
-      }
       
-      // Check if it's time to send a new NTP sync request
-      if ( (WiFi.status() == WL_CONNECTED && (timeSynchronized && millis() - lastNtpSyncTime * 1000 >= currentNtpInterval)) || ntpSyncRequested) {
-        sendNTPrequest();
-        ntpSyncRequested = false; // Reset the flag
-      }
+        // NTP sync trigger logic
+        if (WiFi.status() == WL_CONNECTED) {
+            bool timeToSync = false;
+            if (!timeSynchronized) {
+                if (millis() - lastNtpAttempt >= NTP_INITIAL_RETRY_INTERVAL_MS) timeToSync = true;
+            } else {
+                if (millis() - lastNtpSyncTime * 1000 >= NTP_SUCCESS_INTERVAL_MS) timeToSync = true;
+            }
 
-      // Handle the sleep schedule logic
-      handleSleepSchedule();
-      // Update the clock displays only if an animation is not active
-      if (!isAnimating) {
-        updateNormalClockDisplay();
-      }
-      
-      // Periodically report status to the serial monitor every 30 seconds
-      static unsigned long lastSerialReport = 0;
-      if (timeSynchronized && millis() - lastSerialReport > SERIAL_REPORT_INTERVAL_MS) {
-        lastSerialReport = millis();
-        char destBuffer[30], presentBuffer[30], lastBuffer[30];
-        time_t now_t;
-        time(&now_t);
-        localtime_r(&now_t, &currentTimeInfo);
-
-        // Correctly build the destination time struct based on live time and destination year
-        struct tm destinationTimeInfo_local = *localtime(&now_t);
-        destinationTimeInfo_local.tm_year = currentSettings.destinationYear - 1900;
-        
-        // Correctly build the last departed time struct for consistency
-        struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
-        // Set the timezone for the destination time for proper formatting in the log
-        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-        tzset();
-
-        strftime(destBuffer, sizeof(destBuffer), "%b %d %Y %I:%M %p", &destinationTimeInfo_local);
-        strftime(presentBuffer, sizeof(presentBuffer), "%b %d %Y %I:%M %p", &currentTimeInfo);
-        strftime(lastBuffer, sizeof(lastBuffer), "%b %d %Y %I:%M %p", &lastTimeDepartedInfo);
-        
-        // Restore the timezone
-        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-        tzset();
-        
-        ESP_LOGI("Status", "\n--- TIME CIRCUITS STATUS ---");
-        ESP_LOGI("Status", " Display Asleep: %s", isDisplayAsleep ? "Yes" : "No");
-        ESP_LOGI("Status", "DESTINATION TIME  : %s", destBuffer);
-        ESP_LOGI("Status", "PRESENT TIME      : %s", presentBuffer);
-        ESP_LOGI("Status", "LAST TIME DEPARTED: %s", lastBuffer);
-        ESP_LOGI("Status", "--------------------------");
-        ESP_LOGI("Status", "--- CURRENT SETTINGS ---");
-        ESP_LOGI("Status", " Destination Year: %d", currentSettings.destinationYear);
-        ESP_LOGI("Status", " Destination Timezone: %s", TZ_DATA[currentSettings.destinationTimezoneIndex].displayName);
-        ESP_LOGI("Status", " Present Timezone: %s", TZ_DATA[currentSettings.presentTimezoneIndex].displayName);
-        ESP_LOGI("Status", " Last Departed: %02d/%02d/%d %02d:%02d", currentSettings.lastTimeDepartedMonth, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedYear, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedMinute);
-        ESP_LOGI("Status", " Departure Time (Sleep): %02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
-        ESP_LOGI("Status", " Arrival Time (Wake): %02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
-        ESP_LOGI("Status", " Brightness: %d/7", currentSettings.brightness);
-        ESP_LOGI("Status", " Volume: %d/30", currentSettings.notificationVolume);
-        ESP_LOGI("Status", " 24h Format: %s", currentSettings.displayFormat24h ? "On" : "Off");
-        ESP_LOGI("Status", " Time Travel FX: %s", currentSettings.timeTravelSoundToggle ? "On" : "Off");
-        ESP_LOGI("Status", " Time Travel Animation Interval: %d min", currentSettings.timeTravelAnimationInterval);
-        ESP_LOGI("Status", " Preset Cycle: %d min", currentSettings.presetCycleInterval);
-        ESP_LOGI("Status", " Animation Duration: %d ms", currentSettings.timeTravelAnimationDuration);
-        ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
-        ESP_LOGI("Status", " Theme: %d", currentSettings.theme);
-        ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off");
-        ESP_LOGI("Status", " Wind Speed Mode: %s", currentSettings.windSpeedModeEnabled ? "On" : "Off");
-        ESP_LOGI("Status", " Location: %.2f, %.2f", currentSettings.latitude, currentSettings.longitude);
-        ESP_LOGI("Status", "------------------------");
-      } else if (!timeSynchronized) {
-        // Show NTP error status if not synchronized
-        static unsigned long lastNtpStatusReport = 0;
-        if (millis() - lastNtpStatusReport > 5000) {
-          lastNtpStatusReport = millis();
-          ESP_LOGW("Status", "Time not synchronized. NTP Sync status: Retrying with %s (current interval: %lu ms).", NTP_SERVERS[currentNtpServerIndex], currentNtpInterval);
+            if (timeToSync || ntpSyncRequested) {
+                sendNTPrequest();
+                lastNtpAttempt = millis();
+                ntpSyncRequested = false; 
+            }
         }
-      }
+
+        // Sleep schedule and display updates
+        handleSleepSchedule();
+        if (!isAnimating && !isNtpSyncAnimating) {
+            updateNormalClockDisplay();
+        }
+      
+        // Serial status reporting
+        static unsigned long lastSerialReport = 0;
+        if (millis() - lastSerialReport > SERIAL_REPORT_INTERVAL_MS) {
+            lastSerialReport = millis();
+            if (timeSynchronized) {
+                char destBuffer[30], presentBuffer[30], lastBuffer[30];
+                time_t now_t;
+                time(&now_t);
+                localtime_r(&now_t, &currentTimeInfo);
+                struct tm destinationTimeInfo_local = *localtime(&now_t);
+                destinationTimeInfo_local.tm_year = currentSettings.destinationYear - 1900;
+                struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
+
+                setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+                tzset();
+                strftime(destBuffer, sizeof(destBuffer), "%b %d %Y %I:%M %p", &destinationTimeInfo_local);
+                
+                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                tzset();
+                strftime(presentBuffer, sizeof(presentBuffer), "%b %d %Y %I:%M %p", &currentTimeInfo);
+                strftime(lastBuffer, sizeof(lastBuffer), "%b %d %Y %I:%M %p", &lastTimeDepartedInfo);
+            
+                ESP_LOGI("Status", "\n--- TIME CIRCUITS STATUS ---");
+                ESP_LOGI("Status", " Time Synchronized: Yes");
+                ESP_LOGI("Status", " Display Asleep: %s", isDisplayAsleep ? "Yes" : "No");
+                ESP_LOGI("Status", "DESTINATION TIME  : %s", destBuffer);
+                ESP_LOGI("Status", "PRESENT TIME      : %s", presentBuffer);
+                ESP_LOGI("Status", "LAST TIME DEPARTED: %s", lastBuffer);
+                ESP_LOGI("Status", "--------------------------");
+                ESP_LOGI("Status", "--- CURRENT SETTINGS ---");
+                ESP_LOGI("Status", " Destination Year: %d", currentSettings.destinationYear);
+                ESP_LOGI("Status", " Destination Timezone: %s", TZ_DATA[currentSettings.destinationTimezoneIndex].displayName);
+                ESP_LOGI("Status", " Present Timezone: %s", TZ_DATA[currentSettings.presentTimezoneIndex].displayName);
+                ESP_LOGI("Status", " Last Departed: %02d/%02d/%d %02d:%02d", currentSettings.lastTimeDepartedMonth, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedYear, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedMinute);
+                ESP_LOGI("Status", " Departure Time (Sleep): %02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
+                ESP_LOGI("Status", " Arrival Time (Wake): %02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
+                ESP_LOGI("Status", " Brightness: %d/7", currentSettings.brightness);
+                ESP_LOGI("Status", " Volume: %d/30", currentSettings.notificationVolume);
+                ESP_LOGI("Status", " 24h Format: %s", currentSettings.displayFormat24h ? "On" : "Off");
+                ESP_LOGI("Status", " Time Travel FX: %s", currentSettings.timeTravelSoundToggle ? "On" : "Off");
+                ESP_LOGI("Status", " Time Travel Animation Interval: %d min", currentSettings.timeTravelAnimationInterval);
+                ESP_LOGI("Status", " Preset Cycle: %d min", currentSettings.presetCycleInterval);
+                ESP_LOGI("Status", " Animation Duration: %d ms", currentSettings.timeTravelAnimationDuration);
+                ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
+                ESP_LOGI("Status", " Theme: %d", currentSettings.theme);
+                ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off");
+                ESP_LOGI("Status", " Wind Speed Mode: %s", currentSettings.windSpeedModeEnabled ? "On" : "Off");
+                ESP_LOGI("Status", " Location: %.2f, %.2f", currentSettings.latitude, currentSettings.longitude);
+                ESP_LOGI("Status", "------------------------");
+            } else {
+                ESP_LOGW("Status", "Time not synchronized. NTP Sync status: Retrying with %s in %dms.", NTP_SERVERS[currentNtpServerIndex], NTP_INITIAL_RETRY_INTERVAL_MS);
+            }
+        }
     }
-  }
 }
