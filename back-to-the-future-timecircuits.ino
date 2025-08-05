@@ -114,7 +114,6 @@ unsigned long lastGlitchTime = 0;
 // NEW: Glitch Effect State Variables
 bool isGlitching = false;
 unsigned long glitchStartTime = 0;
-
 // Helper function to display scrolling text
 void displayScrollingText(DisplayRow &row, const char* text) {
   if (!ENABLE_HARDWARE || !ENABLE_I2C_HARDWARE) return;
@@ -466,21 +465,24 @@ void handleDisplayAnimation() {
 }
 
 // *** CORRECTED FUNCTION ***
-// This function is now non-blocking. It initiates the glitch.
+// This function is now non-blocking.
+//It initiates the glitch.
 void handleGlitchEffect() {
   if (isAnimating || isDisplayAsleep || isGlitching || currentSettings.animationStyle != 5) return;
   if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
     if (random(0, 100) < 25) { // 25% chance of a glitch every minute
       ESP_LOGD("Glitch", "Triggering glitch effect!");
       isGlitching = true; // Set the glitching flag
-      glitchStartTime = millis(); // Record the start time
+      glitchStartTime = millis();
+      // Record the start time
 
       // Select a random row to glitch
       int rowNum = random(0, 3);
       DisplayRow* rowToGlitch = (rowNum == 0) ? &destRow : (rowNum == 1) ? &presRow : &lastRow;
       // Apply the glitch to the entire row for a more noticeable effect
       if (ENABLE_HARDWARE && ENABLE_I2C_HARDWARE) {
-          animateDisplayRowRandomly(*rowToGlitch); // Use an existing animation function for the glitch
+          animateDisplayRowRandomly(*rowToGlitch);
+          // Use an existing animation function for the glitch
           // The blocking delay(75) has been removed from here.
       }
     }
@@ -502,14 +504,12 @@ void restoreDisplayAfterGlitch() {
     // For this fix, we'll just refresh all rows to ensure consistency.
     localtime_r(&now, &currentTimeInfo);
     updateDisplayRow(presRow, currentTimeInfo, currentTimeInfo.tm_year + 1900);
-
     setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
     tzset();
     localtime_r(&now, &destinationTimeInfo);
     updateDisplayRow(destRow, destinationTimeInfo, currentSettings.destinationYear);
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
-
     if (currentSettings.windSpeedModeEnabled) {
       displayWindSpeed(currentWindSpeed);
     } else {
@@ -517,7 +517,8 @@ void restoreDisplayAfterGlitch() {
       updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
     }
     
-    isGlitching = false; // Reset the glitching flag
+    isGlitching = false;
+    // Reset the glitching flag
     ESP_LOGD("Glitch", "Glitch effect finished. Restoring display.");
   }
 }
@@ -546,15 +547,17 @@ void updateNormalClockDisplay() {
   }
   
   bool presentTimeNeedsUpdate = (millis() - lastDisplayUpdate > 1000) ||
-                                (currentSettings.displayFormat24h != lastDisplayFormat24h);
+  (currentSettings.displayFormat24h != lastDisplayFormat24h);
   bool destinationTimeNeedsUpdate = (currentSettings.destinationTimezoneIndex != lastDestinationTimezoneIndex) || presentTimeNeedsUpdate;
   bool lastDepartedNeedsUpdate = (!currentSettings.windSpeedModeEnabled && (
                                   currentSettings.lastTimeDepartedHour != lastLastTimeDepartedHour ||
                                   currentSettings.lastTimeDepartedMinute != lastLastTimeDepartedMinute ||
                      
+ 
                                  currentSettings.lastTimeDepartedYear != lastLastTimeDepartedYear ||
                                   currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
-                                  currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
+                           
+       currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
           
                                   presentTimeNeedsUpdate));
   if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate || currentSettings.windSpeedModeEnabled)) {
@@ -919,7 +922,7 @@ void setupWebRoutes() {
         if (volume >= 0 && volume <= 30) {
           if (ENABLE_HARDWARE) myDFPlayer.volume(volume);
         } else {
-          
+    
         request->send(400, "text/plain", "Invalid volume value.");
             return;
         }
@@ -927,15 +930,15 @@ void setupWebRoutes() {
           currentSettings.displayFormat24h = (value == "true");
       } else if (setting == "animationStyle") {
           int style = value.toInt();
-        if (style >=0 && style <=5) {
+          if (style >=0 && style <=5) {
             currentSettings.animationStyle = style;
-        } else {
+          } else {
             request->send(400, "text/plain", "Invalid animation style.");
             return;
-        }
+          }
       } else if (setting == "timeTravelAnimationDuration") {
           int duration = value.toInt();
-        if (duration >=1000 && duration <= 10000) {
+          if (duration >=1000 && duration <= 10000) {
             currentSettings.timeTravelAnimationDuration = duration;
             playSound(SOUND_CONFIRM_ON); // Audible feedback for this change
           } else {
@@ -952,7 +955,7 @@ void setupWebRoutes() {
         currentSettings.timeTravelVolumeFade = (value == "true");
       } else if (setting == "presetCycleInterval") {
           int interval = value.toInt();
-        if (interval >= 0 && interval <= 60) {
+          if (interval >= 0 && interval <= 60) {
               currentSettings.presetCycleInterval = interval;
               playSound(SOUND_CONFIRM_ON); // Provide audible feedback
           } else {
@@ -961,7 +964,7 @@ void setupWebRoutes() {
           }
       } else if (setting == "timeTravelAnimationInterval") {
           int interval = value.toInt();
-        if (interval >= 0 && interval <= 120) {
+          if (interval >= 0 && interval <= 120) {
               currentSettings.timeTravelAnimationInterval = interval;
               playSound(SOUND_CONFIRM_ON); // Provide audible feedback
           } else {
@@ -1002,7 +1005,7 @@ void setupWebRoutes() {
       JsonObject newPreset = array.createNestedObject();
       newPreset["name"] = name;
       newPreset["value"] = value;
-      
+ 
       String newPresetsJson;
       serializeJson(doc, newPresetsJson);
       preferences.putString("customPresets", newPresetsJson);
@@ -1030,6 +1033,7 @@ void setupWebRoutes() {
           break;
         }
         if (preset["value"].as<String>() == newValue && preset["value"].as<String>() != originalValue) {
+        
           request->send(400, "text/plain", "Preset with this value already exists.");
           return;
         }
@@ -1256,7 +1260,8 @@ void loop() {
     ArduinoOTA.handle();
     if (bootState != BOOT_COMPLETE) {
         handleBootSequence();
-        return; // Don't run the rest of the loop until boot is complete
+        return;
+        // Don't run the rest of the loop until boot is complete
     }
 
     // Handle continuous animation logic
@@ -1266,7 +1271,6 @@ void loop() {
     
     // *** NEW: Call the function to handle glitch restoration ***
     restoreDisplayAfterGlitch();
-
     // Automatic time travel animation trigger
     if (currentSettings.timeTravelAnimationInterval > 0 && !isAnimating) {
         unsigned long intervalMillis = (unsigned long)currentSettings.timeTravelAnimationInterval * 60 * 1000;
@@ -1324,14 +1328,16 @@ void loop() {
                 timeSynchronized = true;
                 lastNtpSyncTime = epoch;
                 ntpRequestSentTime = 0;
-                isNtpSyncAnimating = false; // Stop animation on success
+                isNtpSyncAnimating = false;
+                // Stop animation on success
             }
         } else if (ntpRequestSentTime > 0) { // Timeout
             ESP_LOGW("NTP", "Sync failed. Retrying with next server.");
             timeSynchronized = false;
             currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
             ntpRequestSentTime = 0;
-            isNtpSyncAnimating = false; // Stop animation on failure
+            isNtpSyncAnimating = false;
+            // Stop animation on failure
         }
       
         // NTP sync trigger logic
