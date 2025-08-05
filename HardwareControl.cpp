@@ -10,8 +10,8 @@ TwoWire I2C_Bus_1(0);
 TwoWire I2C_Bus_2(1);
 
 // Definitions for global variables
-const bool ENABLE_HARDWARE = true;
-const bool ENABLE_I2C_HARDWARE = true;
+const bool ENABLE_HARDWARE = false;
+const bool ENABLE_I2C_HARDWARE = false;
 
 // Initialize all displays using the new I2C bus and addresses
 DisplayRow destRow = {

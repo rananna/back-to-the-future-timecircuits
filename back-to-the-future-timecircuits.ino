@@ -145,7 +145,7 @@ void fetchWindSpeed() {
   }
   
   HTTPClient http;
-  String apiURL = "[http://api.open-meteo.com/v1/forecast?latitude=](http://api.open-meteo.com/v1/forecast?latitude=)" + String(currentSettings.latitude, 2) + "&longitude=" + String(currentSettings.longitude, 2) + "&current_weather=true";
+  String apiURL = "http://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 2) + "&longitude=" + String(currentSettings.longitude, 2) + "&current_weather=true";
   
   http.begin(apiURL);
   int httpCode = http.GET();
@@ -924,9 +924,18 @@ void setupWebRoutes() {
           int interval = value.toInt();
           if (interval >= 0 && interval <= 60) {
               currentSettings.presetCycleInterval = interval;
-              playSound(SOUND_CONFIRM_ON);
+              playSound(SOUND_CONFIRM_ON); // Provide audible feedback
           } else {
               request->send(400, "text/plain", "Invalid preset cycle interval.");
+              return;
+          }
+      } else if (setting == "timeTravelAnimationInterval") {
+          int interval = value.toInt();
+          if (interval >= 0 && interval <= 120) {
+              currentSettings.timeTravelAnimationInterval = interval;
+              playSound(SOUND_CONFIRM_ON); // Provide audible feedback
+          } else {
+              request->send(400, "text/plain", "Invalid animation interval.");
               return;
           }
       } else {
