@@ -462,22 +462,22 @@ void handleDisplayAnimation() {
 }
 
 // *** CORRECTED FUNCTION ***
-// Function to handle the occasional glitch effect. It is now self-contained.
+// Function to handle the occasional glitch effect.
+// It is now self-contained.
 void handleGlitchEffect() {
   if (isAnimating || isDisplayAsleep || currentSettings.animationStyle != 5) return;
-
   if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
     if (random(0, 100) < 25) { // 25% chance of a glitch every minute
       ESP_LOGD("Glitch", "Triggering glitch effect!");
-
       // Select a random row to glitch
       int rowNum = random(0, 3);
       DisplayRow* rowToGlitch = (rowNum == 0) ? &destRow : (rowNum == 1) ? &presRow : &lastRow;
-
       // Apply the glitch to the entire row for a more noticeable effect
       if (ENABLE_HARDWARE && ENABLE_I2C_HARDWARE) {
-          animateDisplayRowRandomly(*rowToGlitch); // Use an existing animation function for the glitch
-          delay(75); // Keep the glitch on screen for a short time
+          animateDisplayRowRandomly(*rowToGlitch);
+          // Use an existing animation function for the glitch
+          delay(75);
+          // Keep the glitch on screen for a short time
       }
 
       // Immediately restore the correct display for the glitched row
@@ -514,7 +514,6 @@ void updateNormalClockDisplay() {
   static int lastDestinationTimezoneIndex = -1;
   static bool lastDisplayFormat24h = false;
   static int lastLastTimeDepartedHour = -1, lastLastTimeDepartedMinute = -1, lastLastTimeDepartedYear = -1, lastLastTimeDepartedMonth = -1, lastLastTimeDepartedDay = -1;
-
   if (currentSettings.presentTimezoneIndex != lastPresentTimezoneIndex) {
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
@@ -533,7 +532,7 @@ void updateNormalClockDisplay() {
   }
   
   bool presentTimeNeedsUpdate = (millis() - lastDisplayUpdate > 1000) ||
-                                (currentSettings.displayFormat24h != lastDisplayFormat24h);
+  (currentSettings.displayFormat24h != lastDisplayFormat24h);
   bool destinationTimeNeedsUpdate = (currentSettings.destinationTimezoneIndex != lastDestinationTimezoneIndex) || presentTimeNeedsUpdate;
   bool lastDepartedNeedsUpdate = (!currentSettings.windSpeedModeEnabled && (
                                   currentSettings.lastTimeDepartedHour != lastLastTimeDepartedHour ||
@@ -542,7 +541,6 @@ void updateNormalClockDisplay() {
                                   currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
                                   currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
                                   presentTimeNeedsUpdate));
-
   if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate || currentSettings.windSpeedModeEnabled)) {
     lastDisplayUpdate = millis();
     lastDisplayFormat24h = currentSettings.displayFormat24h;
@@ -659,7 +657,6 @@ void handleSleepSchedule() {
     shouldBeAsleep = (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
   }
   // If sleep_minutes == wake_minutes, sleep is disabled, shouldBeAsleep remains false.
-  
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     playSound(SOUND_SLEEP_ON);
@@ -851,7 +848,7 @@ void setupWebRoutes() {
       obj["text"] = TZ_DATA[i].displayName;
       obj["ianaTzName"] = TZ_DATA[i].ianaTzName;
     }
-    
+  
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -896,7 +893,7 @@ void setupWebRoutes() {
         if (brightness >= 0 && brightness <= 7) {
           setDisplayBrightness(brightness);
         } else {
-            request->send(400, "text/plain", "Invalid brightness value.");
+          request->send(400, "text/plain", "Invalid brightness value.");
             return;
         }
       } else if (setting == "notificationVolume") {
@@ -904,7 +901,7 @@ void setupWebRoutes() {
         if (volume >= 0 && volume <= 30) {
           if (ENABLE_HARDWARE) myDFPlayer.volume(volume);
         } else {
-            request->send(400, "text/plain", "Invalid volume value.");
+          request->send(400, "text/plain", "Invalid volume value.");
             return;
         }
       } else if (setting == "displayFormat24h") {
