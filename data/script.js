@@ -2,7 +2,6 @@
 // Global variable to track if any input is invalid
 let anyInputInvalid = false;
 let settingsChanged = false;
-let presetCycleTimer = null;
 let timezoneOptions = [];
 let statusFetchInterval = null;
 
@@ -56,29 +55,6 @@ function showFeedback(elementId) {
         }
     }
 }
-
-// *** CORRECTED FUNCTION: Now clears the previous interval ***
-function setupPresetCycler() {
-    if (presetCycleTimer) {
-        clearInterval(presetCycleTimer);
-    }
-    const intervalMinutes = parseInt(document.getElementById('presetCycleInterval').value, 10);
-    if (intervalMinutes > 0) {
-        const intervalMillis = intervalMinutes * 60 * 1000;
-        presetCycleTimer = setInterval(() => {
-            const select = document.getElementById('presetDateSelect');
-            if (!select || select.options.length <= 1) return;
-
-            let nextIndex = select.selectedIndex + 1;
-            if (nextIndex >= select.options.length || !select.options[nextIndex].parentElement || select.options[nextIndex].parentElement.tagName !== 'OPTGROUP') {
-                nextIndex = 1;
-            }
-            select.selectedIndex = nextIndex;
-            select.dispatchEvent(new Event('change'));
-        }, intervalMillis);
-    }
-}
-
 
 document.addEventListener('DOMContentLoaded', (event) => {
     fetchTimezones().then(() => {
@@ -157,8 +133,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         setSettingsChanged(true);
         updateSleepScheduleVisual();
     });
-
-    document.getElementById('presetCycleInterval').addEventListener('change', setupPresetCycler);
 
     document.getElementById('powerOfLoveBtn').addEventListener('click', () => {
         fetch('/api/greatScott', { method: 'POST' })
@@ -782,7 +756,7 @@ function fetchSettings() {
             buildThemeSelector(data.theme);
             updateSleepScheduleVisual();
             validateAllNumberInputs();
-            setupPresetCycler();
+            // setupPresetCycler(); // This function call is removed
 
             setSettingsChanged(false);
         })
