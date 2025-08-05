@@ -3,7 +3,7 @@
 <p align="center">
   <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg">
   <img alt="Platform" src="https://img.shields.io/badge/Platform-ESP32-purple.svg">
-  <img alt="Framework"src="https://img.shields.io/badge/Framework-Arduino-00979D.svg">
+  <img alt="Framework" src="https://img.shields.io/badge/Framework-Arduino-00979D.svg">
   <img alt="Power" src="https://img.shields.io/badge/Power-1.21_Gigawatts!-orange.svg">
 </p>
 
@@ -15,7 +15,7 @@
 
 ---
 
-## Who is This Project For?
+### Who is this for?
 
 * **BTTF Fans & Prop Makers**: If you love the movies and want a highly accurate and interactive prop, this is for you.
 * **Electronics Hobbyists**: A fantastic project to practice soldering, wiring, and ESP32 programming.
@@ -67,6 +67,6 @@
 
 ## Time Circuit Schematics (Wiring)
 
-**This project uses two separate I2C buses to manage all 12 displays.** This simplifies wiring but requires careful attention to the I2C addresses.
+This project uses two separate I2C buses to manage all 12 displays. This simplifies wiring but requires careful attention to the I2C addresses.
 
 ### Visual Component Overview
