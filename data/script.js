@@ -304,9 +304,14 @@ function setupIncrementerButtons() {
 }
 
 function addOrUpdatePreset() {
-    const editingValue = document.getElementById('editingPresetValue').value;
-    if (editingValue) {
-        updatePreset(editingValue);
+    const btn = document.getElementById('addPresetBtn');
+    if (btn.textContent === 'Update Preset') {
+        const originalValue = document.getElementById('editingPresetValue').value;
+        if (originalValue) {
+            updatePreset(originalValue);
+        } else {
+            showMessage('Could not determine which preset to update.', 'error');
+        }
     } else {
         addPreset();
     }

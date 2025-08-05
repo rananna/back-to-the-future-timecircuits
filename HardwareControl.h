@@ -92,14 +92,14 @@ extern const int NUM_TIMEZONE_OPTIONS;
 #define ADDR_PRES_YEAR  0x76
 #define ADDR_PRES_TIME  0x77
 
-#define ADDR_LAST_MONTH 0x78
-#define ADDR_LAST_DAY   0x79
-#define ADDR_LAST_YEAR  0x7A
-#define ADDR_LAST_TIME  0x7B
+#define ADDR_LAST_MONTH 0x70 // Corrected to use address range 0x70-0x73 on a separate bus
+#define ADDR_LAST_DAY   0x71 // Corrected
+#define ADDR_LAST_YEAR  0x72 // Corrected
+#define ADDR_LAST_TIME  0x73 // Corrected
 
 // LED Pin Definitions (These can be kept or changed)
-#define LED_DEST_AM 17
-#define LED_DEST_PM 16
+#define LED_DEST_AM 13 // Corrected pin assignment
+#define LED_DEST_PM 14 // Corrected pin assignment
 #define LED_PRES_AM 32
 #define LED_PRES_PM 27
 #define LED_LAST_AM 2
@@ -123,5 +123,5 @@ void animateAmPmDisplay(DisplayRow &row);
 void display88MphSpeed(float currentSpeed);
 void playSound(const char *soundName);
 void setupSoundFiles();
-void validateSoundFiles();
+
 #endif // HARDWARE_CONTROL_H

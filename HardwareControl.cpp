@@ -236,7 +236,7 @@ void playSound(const char *soundName) {
   auto it = soundFiles.find(soundName);
   if (it != soundFiles.end()) {
     myDFPlayer.playMp3Folder(it->second);
-    ESP_LOGI("Sound", "Playing sound: %s (Index: %d)", soundName, it->second);
+    ESP_LOGI("Sound", "Playing sound: %s (Index: %d)", it->first.c_str(), it->second);
   } else {
     ESP_LOGW("Sound", "WARNING: Sound file '%s' not found. Playing fallback sound.", soundName);
     auto fallbackIt = soundFiles.find(SOUND_NOT_FOUND); // Check for the dedicated fallback sound
@@ -270,9 +270,4 @@ void setupSoundFiles() {
     }
     file = root.openNextFile();
   }
-}
-void validateSoundFiles() {
-    // This function is no longer needed with the new map-based approach
-    // as sound lookup and validation happens directly in playSound
-    // and missing files are handled by the fallback.
 }

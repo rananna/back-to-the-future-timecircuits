@@ -1,4 +1,4 @@
-### back-to-the-future-timecircuits/readme.md
+### `back-to-the-future-timecircuits/readme.md`
 
 # Back to the Future - ESP32 Time Circuits Display
 
@@ -57,7 +57,7 @@ For experienced makers in a hurry to get back to the future:
 <p align="center">
   <img src="webui.png" alt="Web UI Screenshot" width="800">
 </p>
-*This is a placeholder image. Replace `webui.png` with an actual screenshot of the Web UI.*
+*[Image: A screenshot of the web interface showing the three time circuit displays and various settings tabs.]*
 
 * **Three-Row BTTF Display Layout**: Three full rows of displays work in concert to show the iconic time circuits panel.
     * **Destination Time**: Shows the present time/date in a user-selected timezone, with a configurable destination year.
@@ -125,6 +125,7 @@ The project utilizes two separate I2C buses on the ESP32 to support all 12 displ
 ### Power Distribution
 A stable 5V source is crucial.
 * **5V Power**: Connect the **VIN** pin of the ESP32, all display VCC pins, and the DFPlayer Mini VCC pin to your 5V/2A power source.
+* **3.3V Power (Logic Level)**: Connect the **3.3V** output pin from the ESP32 to the **VI2C** pin on **all 12 of the Adafruit HT16K33 display backpacks**. This ensures that the I2C logic levels are matched correctly to the ESP32's 3.3V logic, which is essential for stable communication.
 * **GND**: Create a common ground rail. Connect a **GND** pin from the ESP32 and all component GND pins to this rail.
 
 ### I2C Bus 1 (Destination & Present Displays)
@@ -151,10 +152,10 @@ This bus controls the four displays for the Last Departed row.
 * **SCL**: All four displays connect to ESP32 **GPIO 26**.
 * **I2C Addresses**: Set each display's address using the solder jumpers according to this table.
     * **Last Departed Row**:
-        * Month: `0x78`
-        * Day: `0x79`
-        * Year: `0x7A`
-        * Time: `0x7B`
+        * Month: `0x70`
+        * Day: `0x71`
+        * Year: `0x72`
+        * Time: `0x73`
 
 ### AM/PM Indicators
 
@@ -162,8 +163,8 @@ Each of the six LEDs needs a current-limiting resistor (220-330Ω) on its connec
 
 | Row | LED | ESP32 GPIO |
 | :------------ | :--: | :--------: |
-| Destination | AM | 17 |
-| | PM | 16 |
+| Destination | AM | 13 |
+| | PM | 14 |
 | Present | AM | 32 |
 | | PM | 27 |
 | Last Departed | AM | 2 |
@@ -236,9 +237,9 @@ In essence, the LittleFS partition acts as a miniature hard drive on your ESP32,
 Once connected to your WiFi, access the full configuration panel at **http://timecircuits.local/**. If that doesn't work, find the device's IP address from your router or the Serial Monitor and use it directly.
 
 <p align="center">
-  <img src="webui_configured_example.png" alt="Screenshot of Web UI with Example Settings" width="800">
+  <img src="webui.png" alt="Web UI Screenshot" width="800">
 </p>
-*This is a placeholder image. Replace `webui_configured_example.png` with an actual screenshot of the web UI with the example settings applied.*
+*[Image: A screenshot of the web interface showing the three time circuit displays and various settings tabs.]*
 
 The interface is organized into three tabs:
 
@@ -282,7 +283,7 @@ The interface is organized into three tabs:
     * After flashing the firmware, the ESP32 will create a temporary WiFi access point named `timecircuits`. Connect to this network on your computer or phone.
     * A captive portal window should automatically appear. If it doesn't, manually navigate to `http://192.168.4.1` in your browser.
     * If you've already configured your WiFi but can't access the web UI, check your router's client list for the device's IP address. You can also monitor the Arduino IDE's Serial Monitor on boot, where the device will log its assigned IP address.
-    * If all else fails, use the "Network Re-Route (Reset WiFi Credentials)" button in the `System` tab to erase the saved WiFi settings and return to the captive portal mode.
+    * If all else fails, use the "Network Re-route (Reset WiFi Credentials)" button in the `System` tab to erase the saved WiFi settings and return to the captive portal mode.
 * **There is no sound from the DFPlayer Mini.**
     * The DFPlayer uses a serial connection. Ensure the **TX** pin from the DFPlayer is connected to the ESP32's **RX2** (GPIO 16) and the DFPlayer **RX** is connected to the ESP32's **TX2** (GPIO 17).
     * Verify that your sound files are in an `mp3` folder in the root of the LittleFS partition. The new firmware will log which sound files it finds on boot in the Serial Monitor.
@@ -340,15 +341,6 @@ The `setupWebRoutes()` function in `back-to-the-future-timecircuits.ino` defines
 * `/api/saveSettings` (HTTP POST): Receives and saves new settings from the web interface.
 * `/api/previewSetting` (HTTP GET): Allows live previewing of individual settings like brightness and animation style.
 * `/api/timezones` (HTTP GET): Provides a JSON list of available time zones for the dropdown menus.
-
-### Web UI Responsiveness and Spacing
-The web interface is designed to be responsive on different devices. The `style.css` file uses CSS Grid (`display: grid`) for the header and other layout elements, which helps it adapt to screen size. The `script.js` file handles the theme changes by applying and removing CSS classes on the `<body>` element, allowing for a consistent look and feel across themes.
-
-### Display Update Optimization
-The `updateNormalClockDisplay()` function is optimized to reduce unnecessary writes to the physical displays. It uses static variables to track the last applied timezone and display format settings, only updating the displays when a relevant setting changes.
-
-### Animation Phasing and Brightness Control
-The time travel animation sequence (`handleDisplayAnimation()`) implements distinct phases (`ANIM_DIM_IN`, `ANIM_PRE_FLICKER_88MPH`, `ANIM_FLICKER`, `ANIM_DIM_OUT`, `ANIM_COMPLETE`) for precise timing and visual effects. The `ANIM_DIM_IN` and `ANIM_DIM_OUT` phases dynamically adjust the display brightness using `map()` and `setDisplayBrightness()` to create a smooth transition effect.
 
 ---
 
