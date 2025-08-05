@@ -20,7 +20,6 @@
 #define SOUND_EASTER_EGG "EASTER_EGG"
 #define SOUND_SLEEP_ON "SLEEP_ON"
 #define SOUND_CONFIRM_ON "CONFIRM_ON"
-#define SOUND_CONFIRM_OFF "CONFIRM_OFF"
 #define SOUND_ACCELERATION "ACCELERATION"
 #define SOUND_WARP_WHOOSH "WARP_WHOOSH"
 #define SOUND_ARRIVAL_THUD "ARRIVAL_THUD"
@@ -37,7 +36,6 @@ struct ClockSettings {
   int brightness;
   int notificationVolume;
   bool timeTravelSoundToggle;
-  bool greatScottSoundToggle;
   int timeTravelAnimationInterval;
   int presetCycleInterval;
   bool displayFormat24h;

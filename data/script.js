@@ -4,6 +4,7 @@ let anyInputInvalid = false;
 let settingsChanged = false;
 let presetCycleTimer = null;
 let timezoneOptions = [];
+let statusFetchInterval = null;
 
 function openTab(evt, tabName) {
     var i, tabcontent, tablinks;
@@ -85,6 +86,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 document.querySelector('.header-circuits').classList.add('visible');
                 fetchTime(); // Initial time fetch
                 setInterval(fetchTime, 1000); // Fetch time every second
+                statusFetchInterval = setInterval(fetchStatus, 5000); // Fetch status every 5 seconds
             });
         });
     });
@@ -107,9 +109,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 setSettingsChanged(true);
                 // NEW: Call handlePreview for sliders that support it live
                 if (document.getElementById('livePreviewToggle').checked) {
-                    if (sliderInfo.id === 'brightness' || sliderInfo.id === 'notificationVolume' || sliderInfo.id === 'timeTravelAnimationDuration') { // Include duration here
-                        handlePreview(sliderInfo.id, e.target.value);
-                    }
+                    handlePreview(sliderInfo.id, e.target.value);
                 }
             });
         }
@@ -147,19 +147,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
     presetCycleSlider.addEventListener('change', setupPresetCycler);
 
     document.getElementById('powerOfLoveBtn').addEventListener('click', () => {
-        fetch('/api/toggleGreatScottSound', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('powerOfLoveBtn').classList.toggle('button-active', data.state);
-                setSettingsChanged(true);
-            })
+        fetch('/api/greatScott', { method: 'POST' })
             .catch(error => showMessage('Error toggling Great Scott sound!', 'error'));
     });
 
     document.getElementById('displayFormat24h').addEventListener('change', (e) => {
         setSettingsChanged(true);
-        fetchTime(); // To update header clocks immediately with new format
-        handlePreview('displayFormat24h', e.target.checked); // Live preview for 24h format
+        if (document.getElementById('livePreviewToggle').checked) {
+            handlePreview('displayFormat24h', e.target.checked);
+        }
         showFeedback('displayFormat24h');
     });
 
@@ -225,7 +221,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
             fetch(`/api/setLastDeparted?value=${selectedValue}`, { method: 'POST' })
                 .then(response => {
                     if (response.ok) {
-                        fetchTime();
                         showFeedback('presetDateSelect');
                     } else {
                         response.text().then(text => {
@@ -258,12 +253,7 @@ function handlePreview(settingName, value) {
                     showMessage(`Live preview failed for ${settingName}: ${text}`, 'error');
                 });
             } else {
-                if (settingName !== 'brightness' && settingName !== 'notificationVolume' && settingName !== 'timeTravelAnimationDuration' && settingName !== 'displayFormat24h' && settingName !== 'animationStyle') {
-                     showFeedback(settingName);
-                }
-                if (settingName === 'displayFormat24h' || settingName === 'destinationYear' || settingName === 'destinationTimezoneIndex' || settingName === 'presentTimezoneIndex') {
-                    fetchTime();
-                }
+                showFeedback(settingName);
             }
         })
         .catch(error => {
@@ -305,13 +295,8 @@ function setupIncrementerButtons() {
 
 function addOrUpdatePreset() {
     const btn = document.getElementById('addPresetBtn');
-    if (btn.textContent === 'Update Preset') {
-        const originalValue = document.getElementById('editingPresetValue').value;
-        if (originalValue) {
-            updatePreset(originalValue);
-        } else {
-            showMessage('Could not determine which preset to update.', 'error');
-        }
+    if (document.getElementById('editingPresetValue').value) {
+        updatePreset(document.getElementById('editingPresetValue').value);
     } else {
         addPreset();
     }
@@ -660,7 +645,6 @@ function fetchStatus() {
 }
 
 function fetchTime() {
-    fetchStatus();
     fetch('/api/time')
         .then(response => response.json())
         .then(data => {
@@ -766,13 +750,12 @@ function fetchSettings() {
                 }
             });
 
-            ['timeTravelSoundToggle', 'displayFormat24h'].forEach(id => {
+            ['timeTravelSoundToggle', 'displayFormat24h', 'timeTravelVolumeFade'].forEach(id => {
                 const element = document.getElementById(id);
                 if (element) {
                     element.checked = data[id];
                 }
             });
-            document.getElementById('powerOfLoveBtn').classList.toggle('button-active', data.greatScottSoundToggle);
 
             document.getElementById('presentTimezoneSelect').value = data.presentTimezoneIndex;
             document.getElementById('destinationTimezoneSelect').value = data.destinationTimezoneIndex;
@@ -833,10 +816,9 @@ function saveSettings() {
     ['brightness', 'notificationVolume', 'timeTravelAnimationInterval', 'presetCycleInterval', 'timeTravelAnimationDuration'].forEach(id => {
         formData.append(id, document.getElementById(id).value);
     });
-    ['timeTravelSoundToggle', 'displayFormat24h'].forEach(id => {
+    ['timeTravelSoundToggle', 'displayFormat24h', 'timeTravelVolumeFade'].forEach(id => {
         formData.append(id, document.getElementById(id).checked);
     });
-    formData.append('greatScottSoundToggle', document.getElementById('powerOfLoveBtn').classList.contains('button-active'));
     formData.append('theme', document.querySelector('.theme-swatch.selected').parentElement.dataset.themeIndex);
     formData.append('presentTimezoneIndex', document.getElementById('presentTimezoneSelect').value);
 
