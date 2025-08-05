@@ -1,3 +1,4 @@
+// --- Include header files ---
 #include "esp_log.h"
 #include <WiFi.h>
 #include <ArduinoOTA.h>
@@ -120,27 +121,6 @@ int originalGlitchedYear;
 // *** NEW: Preset Cycling State Variables ***
 unsigned long lastPresetCycleTime = 0;
 int currentPresetIndex = 0;
-// Helper function to display scrolling text
-void displayScrollingText(DisplayRow &row, const char* text) {
-  if (!ENABLE_HARDWARE || !ENABLE_I2C_HARDWARE) return;
-  static int position = 0;
-  static unsigned long lastScrollTime = 0;
-  if (millis() - lastScrollTime > SCROLL_INTERVAL_MS) {
-    lastScrollTime = millis();
-    char buffer[5];
-    strncpy(buffer, text + position, 4);
-    buffer[4] = '\0';
-    
-    row.month.print(buffer);
-    row.month.writeDisplay();
-    
-    position++;
-    if (position >= strlen(text)) {
-      position = 0;
-    }
-  }
-}
-
 
 // =================================================================
 // == FUNCTION IMPLEMENTATIONS                                    ==
@@ -203,6 +183,7 @@ void loadSettings() {
   tzset();
 }
 
+#if ENABLE_HARDWARE
 void animateDisplayRowRandomly(DisplayRow &row) {
     if (random(0, 100) < 90) animateMonthDisplay(row);
     if (random(0, 100) < 60) animateDayDisplay(row);
@@ -210,8 +191,10 @@ void animateDisplayRowRandomly(DisplayRow &row) {
     if (random(0, 100) < 80) animateTimeDisplay(row);
     if (random(0, 100) < 70) animateAmPmDisplay(row);
 }
+#endif
 
 void handleDisplayAnimation() {
+  #if ENABLE_HARDWARE
   if (!isAnimating) return;
   
   static AnimationPhase lastPhase = ANIM_INACTIVE;
@@ -240,12 +223,11 @@ void handleDisplayAnimation() {
   switch (currentPhase) {
     case ANIM_VOLUME_FADE_IN:
       if (currentSettings.timeTravelSoundToggle) {
-        if (ENABLE_HARDWARE) myDFPlayer.volume(0);
+        myDFPlayer.volume(0);
         playSound(SOUND_TIME_TRAVEL);
       }
       currentPhase = ANIM_DIM_IN;
       animationStartTime = currentTime;
-      // Intentionally fall-through to the next case to start the fade immediately
     case ANIM_DIM_IN: {
       if (elapsed < DIM_IN_DURATION) {
         byte currentBrightness = map(elapsed, 0, DIM_IN_DURATION, 0, initialBrightness);
@@ -254,7 +236,7 @@ void handleDisplayAnimation() {
           int newVolume = map(elapsed, 0, DIM_IN_DURATION, 0, currentSettings.notificationVolume);
           if (newVolume != currentVolume) {
             currentVolume = newVolume;
-            if (ENABLE_HARDWARE) myDFPlayer.volume(currentVolume);
+            myDFPlayer.volume(currentVolume);
           }
         }
       } else {
@@ -272,7 +254,6 @@ void handleDisplayAnimation() {
         const unsigned long displayDuration = 3000;
         if (millis() - textDisplayTime < displayDuration) {
           // A simple text animation, maybe scrolling or flickering
-          displayScrollingText(destRow, chargingText);
         } else {
           // Transition to the next phase after the text has been displayed for a while
           blankAllDisplays();
@@ -294,7 +275,7 @@ void handleDisplayAnimation() {
           speed = map(elapsed, PRE_FLICKER_88MPH_DURATION / 2, PRE_FLICKER_88MPH_DURATION, 80, 88);
         }
         
-        if (ENABLE_HARDWARE && ENABLE_I2C_HARDWARE) {
+        if (ENABLE_I2C_HARDWARE) {
           // Display "ACCELERATING" on the middle row as speed increases
           presRow.month.clear();
           presRow.day.clear();
@@ -360,24 +341,20 @@ void handleDisplayAnimation() {
                 if (currentTime - lastCountUpdateTime > COUNT_UPDATE_INTERVAL_MS) {
                     lastCountUpdateTime = currentTime;
                     counter = (counter + 1) % 10000;
-                    if (!ENABLE_HARDWARE) {
-                        ESP_LOGD("Display (Disabled)", "Counting Up animation skipped. Counter: %d", counter);
-                    } else {
-                        destRow.month.print("---");
-                        destRow.month.writeDisplay();
-                        destRow.day.print(random(0, 100)); destRow.day.writeDisplay();
-                        destRow.year.print(random(0, 10000)); destRow.year.writeDisplay();
-                        destRow.time.print(counter); destRow.time.writeDisplay();
-                        presRow.month.print("---"); presRow.month.writeDisplay();
-                        presRow.day.print(random(0, 100)); presRow.day.writeDisplay();
-                        presRow.year.print(random(0, 10000)); presRow.year.writeDisplay();
-                        presRow.time.print(counter); presRow.time.writeDisplay();
-                        lastRow.month.print("---");
-                        lastRow.month.writeDisplay();
-                        lastRow.day.print(random(0, 100)); lastRow.day.writeDisplay();
-                        lastRow.year.print(random(0, 10000)); lastRow.year.writeDisplay();
-                        lastRow.time.print(counter); lastRow.time.writeDisplay();
-                    }
+                    destRow.month.print("---");
+                    destRow.month.writeDisplay();
+                    destRow.day.print(random(0, 100)); destRow.day.writeDisplay();
+                    destRow.year.print(random(0, 10000)); destRow.year.writeDisplay();
+                    destRow.time.print(counter); destRow.time.writeDisplay();
+                    presRow.month.print("---"); presRow.month.writeDisplay();
+                    presRow.day.print(random(0, 100)); presRow.day.writeDisplay();
+                    presRow.year.print(random(0, 10000)); presRow.year.writeDisplay();
+                    presRow.time.print(counter); presRow.time.writeDisplay();
+                    lastRow.month.print("---");
+                    lastRow.month.writeDisplay();
+                    lastRow.day.print(random(0, 100)); lastRow.day.writeDisplay();
+                    lastRow.year.print(random(0, 10000)); lastRow.year.writeDisplay();
+                    lastRow.time.print(counter); lastRow.time.writeDisplay();
                     animateAmPmDisplay(destRow);
                     animateAmPmDisplay(presRow);
                     animateAmPmDisplay(lastRow);
@@ -439,12 +416,12 @@ void handleDisplayAnimation() {
           int newVolume = map(elapsed, 0, VOLUME_FADE_OUT_DURATION, currentSettings.notificationVolume, 0);
           if (newVolume != currentVolume) {
             currentVolume = newVolume;
-            if (ENABLE_HARDWARE) myDFPlayer.volume(currentVolume);
+            myDFPlayer.volume(currentVolume);
           }
         }
       } else {
         if (currentSettings.timeTravelSoundToggle) {
-          if (ENABLE_HARDWARE) myDFPlayer.volume(currentSettings.notificationVolume);
+          myDFPlayer.volume(currentSettings.notificationVolume);
           playSound(SOUND_ARRIVAL_THUD);
         }
         currentPhase = ANIM_COMPLETE;
@@ -461,17 +438,18 @@ void handleDisplayAnimation() {
         isDisplayAsleep = false;
         setDisplayBrightness(currentSettings.brightness);
         if (currentSettings.timeTravelSoundToggle) {
-          if (ENABLE_HARDWARE) myDFPlayer.volume(currentSettings.notificationVolume);
+          myDFPlayer.volume(currentSettings.notificationVolume);
         }
       }
       break;
     case ANIM_INACTIVE:
       break;
   }
+  #endif
 }
 
-// *** BUG FIX: Corrected glitch effect logic ***
 void handleGlitchEffect() {
+  #if ENABLE_HARDWARE
   if (isAnimating || isDisplayAsleep || isGlitching || currentSettings.animationStyle != 5) return;
   if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
     if (random(0, 100) < 25) { // 25% chance of a glitch every minute
@@ -482,12 +460,10 @@ void handleGlitchEffect() {
       int rowNum = random(0, 3);
       if (rowNum == 0) {
         glitchedRow = &destRow;
-        // CORRECTED: Use the existing destinationTimeInfo struct, which holds the correct displayed time
         originalGlitchedTimeInfo = destinationTimeInfo;
         originalGlitchedYear = currentSettings.destinationYear;
       } else if (rowNum == 1) {
         glitchedRow = &presRow;
-        // CORRECTED: Use the existing currentTimeInfo struct
         originalGlitchedTimeInfo = currentTimeInfo;
         originalGlitchedYear = currentTimeInfo.tm_year + 1900;
       } else {
@@ -496,15 +472,17 @@ void handleGlitchEffect() {
         originalGlitchedYear = currentSettings.lastTimeDepartedYear;
       }
       
-      if (ENABLE_HARDWARE && ENABLE_I2C_HARDWARE) {
+      if (ENABLE_I2C_HARDWARE) {
           animateDisplayRowRandomly(*glitchedRow);
       }
     }
     lastGlitchTime = millis();
   }
+  #endif
 }
 
 void restoreDisplayAfterGlitch() {
+  #if ENABLE_HARDWARE
   if (!isGlitching || !glitchedRow) return;
   if (millis() - glitchStartTime > 75) { // 75ms glitch duration
     ESP_LOGD("Glitch", "Glitch effect finished. Restoring display.");
@@ -512,6 +490,7 @@ void restoreDisplayAfterGlitch() {
     isGlitching = false;
     glitchedRow = nullptr;
   }
+  #endif
 }
 
 void updateNormalClockDisplay() {
@@ -528,12 +507,14 @@ void updateNormalClockDisplay() {
   }
   
   if (isDisplayAsleep) {
+    #if ENABLE_HARDWARE
     if (millis() - lastDisplayUpdate > 1000) {
       lastDisplayUpdate = millis();
       clearDisplayRow(destRow);
       clearDisplayRow(presRow);
       clearDisplayRow(lastRow);
     }
+    #endif
     return;
   }
   
@@ -547,13 +528,13 @@ void updateNormalClockDisplay() {
                                   currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
                                   currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
                                   presentTimeNeedsUpdate));
-
   if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate || currentSettings.windSpeedModeEnabled)) {
     lastDisplayUpdate = millis();
     lastDisplayFormat24h = currentSettings.displayFormat24h;
     time_t now;
     time(&now);
     
+    #if ENABLE_HARDWARE
     if (presentTimeNeedsUpdate) {
       localtime_r(&now, &currentTimeInfo);
       updateDisplayRow(presRow, currentTimeInfo, currentTimeInfo.tm_year + 1900);
@@ -582,7 +563,9 @@ void updateNormalClockDisplay() {
       lastLastTimeDepartedMonth = currentSettings.lastTimeDepartedMonth;
       lastLastTimeDepartedDay = currentSettings.lastTimeDepartedDay;
     }
+    #endif
   } else if (!timeSynchronized) {
+    #if ENABLE_HARDWARE
     if (millis() - lastDisplayUpdate > 1000) {
       lastDisplayUpdate = millis();
       clearDisplayRow(destRow);
@@ -595,11 +578,13 @@ void updateNormalClockDisplay() {
         presRow.month.writeDisplay();
       }
     }
+    #endif
   }
 }
 
 void showNtpSyncAnimation() {
-  if (!ENABLE_HARDWARE || !ENABLE_I2C_HARDWARE) return;
+  #if ENABLE_HARDWARE
+  if (!ENABLE_I2C_HARDWARE) return;
   isNtpSyncAnimating = true;
   ntpSyncAnimStartTime = millis();
   blankAllDisplays();
@@ -610,6 +595,7 @@ void showNtpSyncAnimation() {
   presRow.day.print("ING");
   presRow.day.writeDisplay();
   ESP_LOGI("NTP", "Displaying NTP sync animation.");
+  #endif
 }
 
 void startTimeTravelAnimation() {
@@ -623,7 +609,9 @@ void startTimeTravelAnimation() {
   initialBrightness = currentSettings.brightness;
   currentPhase = ANIM_VOLUME_FADE_IN;
   ESP_LOGI("Animation", "Starting physical time travel animation.");
+  #if ENABLE_HARDWARE
   blankAllDisplays();
+  #endif
   lastTimeTravelAnimationTime = millis();
   // Reset the timer for the automatic animation
 }
@@ -647,7 +635,6 @@ void sendNTPrequest() {
   }
 }
 
-// *** CORRECTED FUNCTION ***
 void handleSleepSchedule() {
   if (!timeSynchronized) return;
   time_t now_t;
@@ -666,11 +653,15 @@ void handleSleepSchedule() {
   // If sleep_minutes == wake_minutes, sleep is disabled, shouldBeAsleep remains false.
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
+    #if ENABLE_HARDWARE
     playSound(SOUND_SLEEP_ON);
+    #endif
     ESP_LOGI("Sleep", "Entering sleep mode.");
   } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
+    #if ENABLE_HARDWARE
     playSound(SOUND_CONFIRM_ON);
+    #endif
     ESP_LOGI("Sleep", "Exiting sleep mode.");
   }
 }
@@ -806,11 +797,15 @@ void setupWebRoutes() {
     }
     if (request->hasParam("brightness", true)) { 
         currentSettings.brightness = request->getParam("brightness", true)->value().toInt();
+        #if ENABLE_HARDWARE
         setDisplayBrightness(currentSettings.brightness);
+        #endif
     }
     if (request->hasParam("notificationVolume", true)) { 
         currentSettings.notificationVolume = request->getParam("notificationVolume", true)->value().toInt();
-        if (ENABLE_HARDWARE) myDFPlayer.volume(currentSettings.notificationVolume);
+        #if ENABLE_HARDWARE
+        myDFPlayer.volume(currentSettings.notificationVolume);
+        #endif
     }
     if (request->hasParam("timeTravelAnimationInterval", true)) { 
         currentSettings.timeTravelAnimationInterval = request->getParam("timeTravelAnimationInterval", true)->value().toInt();
@@ -854,7 +849,9 @@ void setupWebRoutes() {
         currentSettings.longitude = request->getParam("longitude", true)->value().toFloat();
     }
     saveSettings();
+    #if ENABLE_HARDWARE
     playSound(SOUND_CONFIRM_ON);
+    #endif
     request->send(200, "text/plain", "Settings Saved!");
   });
   server.on("/api/resetWifi", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -898,19 +895,25 @@ void setupWebRoutes() {
     request->send(200, "application/json", jsonString);
   });
   server.on("/api/testSound", HTTP_GET, [](AsyncWebServerRequest *request) {
+    #if ENABLE_HARDWARE
     if (currentSettings.timeTravelSoundToggle) {
       playSound(SOUND_CONFIRM_ON);
     }
+    #endif
     request->send(200, "text/plain", "Sound test initiated.");
   });
   server.on("/api/timeTravelSound", HTTP_GET, [](AsyncWebServerRequest *request) {
+    #if ENABLE_HARDWARE
     if (currentSettings.timeTravelSoundToggle) {
       playSound(SOUND_TIME_TRAVEL);
     }
+    #endif
     request->send(200, "text/plain", "Time travel sound initiated.");
   });
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request) {
+    #if ENABLE_HARDWARE
     playSound(SOUND_EASTER_EGG);
+    #endif
     request->send(200, "text/plain", "Great Scott!");
   });
   server.on("/api/resetSettings", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -927,7 +930,9 @@ void setupWebRoutes() {
       if (setting == "brightness") {
         int brightness = value.toInt();
         if (brightness >= 0 && brightness <= 7) {
+          #if ENABLE_HARDWARE
           setDisplayBrightness(brightness);
+          #endif
         } else {
             request->send(400, "text/plain", "Invalid brightness value.");
             return;
@@ -935,9 +940,11 @@ void setupWebRoutes() {
       } else if (setting == "notificationVolume") {
         int volume = value.toInt();
         if (volume >= 0 && volume <= 30) {
-          if (ENABLE_HARDWARE) myDFPlayer.volume(volume);
+          #if ENABLE_HARDWARE
+          myDFPlayer.volume(volume);
+          #endif
         } else {
-        request->send(400, "text/plain", "Invalid volume value.");
+            request->send(400, "text/plain", "Invalid volume value.");
             return;
         }
       } else if (setting == "displayFormat24h") {
@@ -954,7 +961,9 @@ void setupWebRoutes() {
           int duration = value.toInt();
           if (duration >=1000 && duration <= 10000) {
             currentSettings.timeTravelAnimationDuration = duration;
+            #if ENABLE_HARDWARE
             playSound(SOUND_CONFIRM_ON); // Audible feedback for this change
+            #endif
           } else {
             request->send(400, "text/plain", "Invalid animation duration.");
             return;
@@ -971,7 +980,9 @@ void setupWebRoutes() {
           int interval = value.toInt();
           if (interval >= 0 && interval <= 60) {
               currentSettings.presetCycleInterval = interval;
+              #if ENABLE_HARDWARE
               playSound(SOUND_CONFIRM_ON); // Provide audible feedback
+              #endif
           } else {
               request->send(400, "text/plain", "Invalid preset cycle interval.");
               return;
@@ -980,7 +991,9 @@ void setupWebRoutes() {
           int interval = value.toInt();
           if (interval >= 0 && interval <= 120) {
               currentSettings.timeTravelAnimationInterval = interval;
+              #if ENABLE_HARDWARE
               playSound(SOUND_CONFIRM_ON); // Provide audible feedback
+              #endif
           } else {
               request->send(400, "text/plain", "Invalid animation interval.");
               return;
@@ -1077,7 +1090,7 @@ void setupWebRoutes() {
       JsonArray newArray = newDoc.to<JsonArray>();
       for (JsonObject preset : oldArray) {
         if (preset["value"].as<String>() != valueToDelete) {
-            newArray.add(preset);
+           newArray.add(preset);
         }
       }
       String newPresetsJson;
@@ -1098,6 +1111,7 @@ void setupWebRoutes() {
              &currentSettings.lastTimeDepartedHour,
              &currentSettings.lastTimeDepartedMinute);
     }
+   
     request->send(200, "text/plain", "OK");
   });
   server.on("/api/clearPreferences", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -1123,11 +1137,11 @@ void handleBootSequence() {
   static unsigned long lastUpdate = 0;
   switch (bootState) {
     case BOOT_ANIMATION_START:
+      #if ENABLE_HARDWARE
       blankAllDisplays();
       // Ensure displays are blank at the start of the sequence
-      if (ENABLE_HARDWARE) {
-        startTimeTravelAnimation();
-      }
+      startTimeTravelAnimation();
+      #endif
       bootState = BOOT_ANIMATION_WAIT;
       bootStateStartTime = currentTime;
       break;
@@ -1138,61 +1152,63 @@ void handleBootSequence() {
       }
       break;
     case BOOT_88MPH_DISPLAY:
-      if (ENABLE_HARDWARE) {
-        static int speed = 0;
-        if (currentTime - lastUpdate > 50 && speed <= 88) { // Update every 50ms
-            display88MphSpeed(speed);
-            speed++;
-            lastUpdate = currentTime;
-        }
-        if (speed > 88 && (currentTime - bootStateStartTime > 1000)) { // Pause for 1 second when 88 is reached
-            bootState = BOOT_RECALIBRATING_DISPLAY;
-            bootStateStartTime = currentTime;
-        }
-      } else { // Skip this state if hardware is disabled
+      #if ENABLE_HARDWARE
+      static int speed = 0;
+      if (currentTime - lastUpdate > 50 && speed <= 88) { // Update every 50ms
+          display88MphSpeed(speed);
+          speed++;
+          lastUpdate = currentTime;
+      }
+      if (speed > 88 && (currentTime - bootStateStartTime > 1000)) { // Pause for 1 second when 88 is reached
+          bootState = BOOT_RECALIBRATING_DISPLAY;
+          bootStateStartTime = currentTime;
+      }
+      #else // Skip this state if hardware is disabled
         if (currentTime - bootStateStartTime > 1000) {
             bootState = BOOT_RECALIBRATING_DISPLAY;
             bootStateStartTime = currentTime;
         }
-      }
+      #endif
       break;
     case BOOT_RECALIBRATING_DISPLAY:
-      if (ENABLE_HARDWARE) {
-        destRow.month.print("REC"); destRow.month.writeDisplay();
-        destRow.day.print("AL");
-        destRow.day.writeDisplay();
-        destRow.year.print("IBRA"); destRow.year.writeDisplay();
-        destRow.time.print("TING"); destRow.time.writeDisplay();
-      }
+      #if ENABLE_HARDWARE
+      destRow.month.print("REC"); destRow.month.writeDisplay();
+      destRow.day.print("AL");
+      destRow.day.writeDisplay();
+      destRow.year.print("IBRA"); destRow.year.writeDisplay();
+      destRow.time.print("TING"); destRow.time.writeDisplay();
+      #endif
       if (currentTime - bootStateStartTime > BOOT_STATE_CHANGE_INTERVAL_MS) {
         bootState = BOOT_RELAY_TEST_DISPLAY;
         bootStateStartTime = currentTime;
       }
       break;
     case BOOT_RELAY_TEST_DISPLAY:
-      if (ENABLE_HARDWARE) {
-        presRow.month.print("REL"); presRow.month.writeDisplay();
-        presRow.day.print("AY");
-        presRow.day.writeDisplay();
-        presRow.year.print("SELF"); presRow.year.writeDisplay();
-        presRow.time.print("TEST"); presRow.time.writeDisplay();
-      }
+      #if ENABLE_HARDWARE
+      presRow.month.print("REL"); presRow.month.writeDisplay();
+      presRow.day.print("AY");
+      presRow.day.writeDisplay();
+      presRow.year.print("SELF"); presRow.year.writeDisplay();
+      presRow.time.print("TEST"); presRow.time.writeDisplay();
+      #endif
       if (currentTime - bootStateStartTime > BOOT_STATE_CHANGE_INTERVAL_MS) {
         bootState = BOOT_CAPACITOR_FULL_DISPLAY;
         bootStateStartTime = currentTime;
       }
       break;
     case BOOT_CAPACITOR_FULL_DISPLAY:
-      if (ENABLE_HARDWARE) {
-        lastRow.month.print("CAP"); lastRow.month.writeDisplay();
-        lastRow.day.print("AC");
-        lastRow.day.writeDisplay();
-        lastRow.year.print("ITOR"); lastRow.year.writeDisplay();
-        lastRow.time.print("FULL"); lastRow.time.writeDisplay();
-      }
+      #if ENABLE_HARDWARE
+      lastRow.month.print("CAP"); lastRow.month.writeDisplay();
+      lastRow.day.print("AC");
+      lastRow.day.writeDisplay();
+      lastRow.year.print("ITOR"); lastRow.year.writeDisplay();
+      lastRow.time.print("FULL"); lastRow.time.writeDisplay();
+      #endif
       if (currentTime - bootStateStartTime > BOOT_STATE_CHANGE_INTERVAL_MS) {
         bootState = BOOT_COMPLETE;
+        #if ENABLE_HARDWARE
         blankAllDisplays();
+        #endif
         ESP_LOGI("Boot", "Boot sequence complete.");
       }
       break;
@@ -1234,18 +1250,18 @@ void setup() {
   preferences.begin("bttf-clock", false);
   loadSettings();
   ESP_LOGI("Sound", "Initializing DFPlayer... (May take 3-5 seconds)");
-  if (ENABLE_HARDWARE) {
-    dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
-    if (!myDFPlayer.begin(dfpSerial, true, false)) {
+  #if ENABLE_HARDWARE
+  dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
+  if (!myDFPlayer.begin(dfpSerial, true, false)) {
       ESP_LOGE("Sound", "Unable to begin DFPlayer. Check wiring and SD card.");
-    } else {
+  } else {
       ESP_LOGI("Sound", "DFPlayer Mini online.");
       myDFPlayer.volume(currentSettings.notificationVolume);
       setupSoundFiles();
-    }
-  } else {
-    ESP_LOGI("Sound (Disabled)", "DFPlayer Mini initialization skipped.");
   }
+  #else
+    ESP_LOGI("Sound (Disabled)", "DFPlayer Mini initialization skipped.");
+  #endif
   wifiManager.autoConnect(MDNS_HOSTNAME);
   ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
   ArduinoOTA.begin();
@@ -1255,7 +1271,9 @@ void setup() {
   }
 
   // ***** FIX: INITIALIZE HARDWARE *BEFORE* USING IT *****
+  #if ENABLE_HARDWARE
   setupPhysicalDisplay();
+  #endif
 
   Udp.begin(123);
   setupWebRoutes();
@@ -1271,16 +1289,15 @@ void loop() {
     if (bootState != BOOT_COMPLETE) {
         handleBootSequence();
         return;
-    // Don't run the rest of the loop until boot is complete
+        // Don't run the rest of the loop until boot is complete
     }
 
     // Handle continuous animation logic
-    if (isAnimating) {
-        handleDisplayAnimation();
-    }
+    handleDisplayAnimation();
     
     // *** BUG FIX: Call the function to handle glitch restoration ***
     restoreDisplayAfterGlitch();
+    
     // Automatic time travel animation trigger
     if (currentSettings.timeTravelAnimationInterval > 0 && !isAnimating) {
         unsigned long intervalMillis = (unsigned long)currentSettings.timeTravelAnimationInterval * 60 * 1000;
@@ -1303,9 +1320,11 @@ void loop() {
     
     // *** FEATURE IMPLEMENTATION: Handle preset cycling ***
     handlePresetCycling();
+    
     static unsigned long lastOneSecondUpdate = 0;
     if (millis() - lastOneSecondUpdate >= 1000) {
         lastOneSecondUpdate = millis();
+        
         // Check Wi-Fi connection and handle reconnection with backoff
         static unsigned long lastWifiCheck = 0;
         static bool isReconnecting = false;

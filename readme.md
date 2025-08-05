@@ -122,7 +122,7 @@ Install these libraries via the Arduino IDE Library Manager.
 
 **NOTE:** This project now uses an all-I2C display architecture. This significantly simplifies wiring by eliminating the need for many individual data pins, but requires careful I2C address configuration.
 
-The project utilizes two separate I2C buses on the ESP32 to support all 12 display modules. All displays on a single bus share the same SDA and SCL pins but must have a unique I2C address set via solder jumpers on the back of the display backpack.
+The project utilizes **two separate I2C buses** on the ESP32 to support all 12 display modules. All displays on a single bus share the same SDA and SCL pins but must have a unique I2C address set via solder jumpers on the back of the display backpack.
 
 ### Power Distribution
 A stable 5V source is crucial.
@@ -149,7 +149,7 @@ This bus controls all eight displays for the Destination and Present rows.
 
 ### I2C Bus 2 (Last Departed Displays)
 
-This bus controls the four displays for the Last Departed row. Note: It is possible to reuse the same I2C addresses (0x70, 0x71, 0x72, 0x73) because this bus uses a completely separate set of physical SDA and SCL pins (GPIO 25 and GPIO 26), preventing any conflicts with I2C Bus 1.
+This bus controls the four displays for the Last Departed row.
 * **SDA**: All four displays connect to ESP32 **GPIO 25**.
 * **SCL**: All four displays connect to ESP32 **GPIO 26**.
 * **I2C Addresses**: Set each display's address using the solder jumpers according to this table.
@@ -158,6 +158,8 @@ This bus controls the four displays for the Last Departed row. Note: It is possi
         * Day: `0x71`
         * Year: `0x72`
         * Time: `0x73`
+
+**IMPORTANT WIRING NOTE:** It is intentional that the I2C addresses (0x70, 0x71, etc.) are reused between Bus 1 and Bus 2. This works **only because the buses use physically separate SDA/SCL pins** on the ESP32 (GPIO 21/22 vs. GPIO 25/26). You cannot have two devices with the same address on the same bus. Please double-check that your wiring for the two buses goes to the correct, distinct sets of GPIO pins.
 
 ### AM/PM Indicators
 
@@ -189,7 +191,13 @@ Before you begin, you need to configure the Arduino IDE to work with the ESP32 a
 
 1.  **Install ESP32 Board Manager**: Go to `File > Preferences` and add the following URL to the "Additional Board Manager URLs" field: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`. Then go to `Tools > Board > Boards Manager`, search for "esp32," and click install.
 2.  **Install Required Libraries**: Go to `Sketch > Include Library > Manage Libraries...` and install all the libraries listed in the [Required Lab Software (Libraries)](#required-lab-software-libraries) section.
-3.  **Install ESP32 Sketch Data Upload Tool**: Download and install the tool from its GitHub repository to easily upload the web UI files to the ESP32's LittleFS partition. This tool will appear under the `Tools` menu after installation.
+3.  **Install ESP32 Sketch Data Upload Tool**: This tool is required to upload the web interface files (`HTML`, `CSS`, `JS`) and sounds to the ESP32's internal storage.
+    * Navigate to the [ESP32-FS tool's GitHub releases page](https://github.com/espressif/arduino-esp32fs/releases).
+    * Download the `ESP32FS-1.0.zip` file.
+    * Go to your Arduino sketchbook directory (you can find the path in `File > Preferences`).
+    * Create a new directory named `tools` if it doesn't already exist.
+    * Unzip the downloaded file into the `tools` directory.
+    * Restart the Arduino IDE. You should now see "ESP32 Sketch Data Upload" under the `Tools` menu.
 
 ### 2. 3D Print the Housing
 
@@ -199,19 +207,18 @@ The housing for this project can be 3D printed. You may need to print three of t
 
 Solder all components together as per the schematics. **Pay close attention to the I2C bus wiring and jumper settings for each display.** Double-check all connections before applying power.
 
-### 4. Prepare the LittleFS Partition
+### 4. Prepare and Upload the Web Files (LittleFS)
 
-1.  Create a folder named `mp3` in the root of your project's `data` folder.
-2.  Copy your sound files into the `mp3` folder. You can now use descriptive names like `time_travel.mp3` or `acceleration.mp3`. The firmware will automatically find them on boot.
-3.  Upload the `data` folder to your ESP32 using the "ESP32 Sketch Data Upload" tool in the Arduino IDE.
+1.  Place your MP3 sound files inside the `data/mp3` directory in the project folder. The firmware will automatically find them on boot.
+2.  With your ESP32 connected, go to `Tools > ESP32 Sketch Data Upload`. This will upload the entire `data` folder (containing the web UI and sounds) to the ESP32's LittleFS partition.
 
 ### 5. Flash the Firmware
 
-Upload the main sketch (`back-to-the-future-timecircuits.ino`) to your ESP32 using the Arduino IDE.
+Upload the main sketch (`back-to-the-future-timecircuits.ino`) to your ESP32 using the standard "Upload" button in the Arduino IDE.
 
 ### 6. WiFi Configuration
 
-1.  On first boot, connect to the `timecircuits` WiFi network.
+1.  On first boot, connect your computer or phone to the `timecircuits` WiFi network.
 2.  A captive portal window should automatically appear. If it doesn't, manually navigate to `http://192.168.4.1` in your browser.
 3.  Use the portal to connect the device to your home WiFi network.
 

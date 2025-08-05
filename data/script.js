@@ -57,16 +57,25 @@ function showFeedback(elementId) {
 }
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    fetchTimezones().then(() => {
-        fetchAndApplyPresets().then(() => {
-            fetchSettings().then(() => {
-                document.querySelector('.header-circuits').classList.add('visible');
-                fetchTime(); // Initial time fetch
-                setInterval(fetchTime, 1000); // Fetch time every second
-                statusFetchInterval = setInterval(fetchStatus, 5000); // Fetch status every 5 seconds
-            });
+    // FIX: Use Promise.all to fetch initial data concurrently and robustly.
+    // This prevents a failure in one request from blocking others.
+    Promise.all([
+        fetchTimezones(),
+        fetchAndApplyPresets()
+    ]).then(() => {
+        // Fetch settings only after presets and timezones are loaded.
+        fetchSettings().then(() => {
+            document.querySelector('.header-circuits').classList.add('visible');
+            fetchTime(); // Initial time fetch
+            setInterval(fetchTime, 1000); // Fetch time every second
+            statusFetchInterval = setInterval(fetchStatus, 5000); // Fetch status every 5 seconds
+        }).catch(error => {
+            showMessage('Critical error loading initial settings. Please refresh.', 'error');
         });
+    }).catch(error => {
+        showMessage('Could not load initial device data. Check connection and refresh.', 'error');
     });
+
 
     const windSpeedToggle = document.getElementById('windSpeedModeToggle');
     if (windSpeedToggle) {
@@ -78,7 +87,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     }
 
-    // *** REFACTORED/IMPROVED: Consolidated event listeners ***
     const sliders = [
         { id: 'brightness', valueSpanId: 'brightnessValue' },
         { id: 'notificationVolume', valueSpanId: 'volumeValue' },
@@ -100,7 +108,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
     });
     
-    // Attach preview handlers to selects and checkboxes
     const previewElements = [
         { id: 'destinationTimezoneSelect', setting: 'destinationTimezoneIndex', event: 'change' },
         { id: 'presentTimezoneSelect', setting: 'presentTimezoneIndex', event: 'change' },
@@ -136,7 +143,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     document.getElementById('powerOfLoveBtn').addEventListener('click', () => {
         fetch('/api/greatScott', { method: 'POST' })
-            .catch(error => showMessage('Error toggling Great Scott sound!', 'error'));
+            .catch(error => showMessage('Error: Could not connect to device!', 'error'));
     });
     
     document.querySelectorAll('.container input, .container select').forEach(element => {
@@ -159,6 +166,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             document.getElementById('presetName').value = selectedOption.textContent;
             document.getElementById('presetDate').value = `${year}-${month}-${day}`;
             document.getElementById('presetTime').value = `${hour}:${minute}`;
+            // FIX: Store the original value in the hidden input for reliable updates.
             document.getElementById('editingPresetValue').value = selectedOption.value;
             document.getElementById('addPresetBtn').textContent = 'Update Preset';
         } else {
@@ -191,12 +199,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
 function handlePreview(settingName, value) {
     if (!document.getElementById('livePreviewToggle').checked) return;
 
+    // FIX: Added .catch() for user feedback on network errors.
     fetch(`/api/previewSetting?setting=${settingName}&value=${value}`)
         .then(response => {
             if (!response.ok) {
                 response.text().then(text => {
                     console.error(`Preview error for ${settingName}: ${text}`);
-                    showMessage(`Live preview failed for ${settingName}: ${text}`, 'error');
+                    showMessage(`Live preview failed: ${text}`, 'error');
                 });
             } else {
                 showFeedback(settingName);
@@ -204,7 +213,7 @@ function handlePreview(settingName, value) {
         })
         .catch(error => {
             console.error('Error in handlePreview:', error)
-            showMessage(`Live preview connection error for ${settingName}.`, 'error');
+            showMessage(`Live preview connection error.`, 'error');
         });
 }
 
@@ -250,14 +259,15 @@ function addOrUpdatePreset() {
         return;
     }
     
-    // Basic format validation
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
         showMessage('Invalid date or time format. Please use YYYY-MM-DD and HH:MM.', 'error');
         return;
     }
 
-    if (document.getElementById('editingPresetValue').value) {
-        updatePreset(document.getElementById('editingPresetValue').value);
+    // If the hidden input has a value, we are updating an existing preset.
+    const originalValue = document.getElementById('editingPresetValue').value;
+    if (originalValue) {
+        updatePreset(originalValue);
     } else {
         addPreset();
     }
@@ -314,11 +324,12 @@ function editPreset() {
     document.getElementById('presetName').value = name;
     document.getElementById('presetDate').value = `${year}-${month}-${day}`;
     document.getElementById('presetTime').value = `${hour}:${minute}`;
+    // FIX: Reliably set the original value for the update operation.
     document.getElementById('editingPresetValue').value = value;
 
     const btn = document.getElementById('addPresetBtn');
     btn.textContent = 'Update Preset';
-    showMessage('Editing preset. Click "Update Preset" to save changes.', 'success');
+    showMessage('Editing preset. Click "Update Preset" to save changes.', 'info');
 }
 
 function updatePreset(originalValue) {
@@ -410,27 +421,30 @@ function clearPresets() {
 function syncNtp() {
     const btn = document.getElementById('syncNtpBtn');
     showLoading('syncNtpBtn', true);
+    // FIX: Added .catch() for user feedback on network errors.
     fetch('/api/syncNtp', { method: 'POST' })
         .then(response => response.text())
         .then(data => {
             showMessage(data, 'success');
             setTimeout(fetchTime, 1000);
         })
-        .catch(error => showMessage('Error requesting NTP sync!', 'error'))
+        .catch(error => showMessage('Error: Could not request NTP sync!', 'error'))
         .finally(() => showLoading('syncNtpBtn', false));
 }
 
 function fetchAndApplyPresets() {
+    // FIX: Added .catch() for user feedback on network errors.
     return fetch('/api/getPresets')
         .then(response => response.json())
         .then(presets => {
             const select = document.getElementById('presetDateSelect');
+            // Clear existing custom presets before adding new ones
             const existingGroup = select.querySelector('optgroup[label="Custom Jumps"]');
             if (existingGroup) {
                 existingGroup.remove();
             }
 
-            if (presets.length > 0) {
+            if (presets && presets.length > 0) {
                 const optgroup = document.createElement('optgroup');
                 optgroup.label = 'Custom Jumps';
                 presets.forEach(preset => {
@@ -442,7 +456,10 @@ function fetchAndApplyPresets() {
                 select.appendChild(optgroup);
             }
         })
-        .catch(error => showMessage('Error loading custom presets!', 'error'));
+        .catch(error => {
+            showMessage('Error loading custom presets!', 'error');
+            throw error; // Re-throw error for Promise.all to catch
+        });
 }
 
 function updateLastDepartedDisplay() {
@@ -520,14 +537,20 @@ function updateHeaderClocks(presentTimeRaw, destinationTimeHeader, lastDepartedT
     populateHeaderRow('last', formattedLastDepartedTime);
 }
 
-function showMessage(message, type = 'success', duration = 3000) {
+function showMessage(message, type = 'info', duration = 3000) {
     const banner = document.getElementById('messageBanner');
     if (!banner) return;
     banner.textContent = message;
     banner.className = 'message-banner ' + type;
     banner.style.visibility = 'visible';
     banner.style.opacity = '1';
-    setTimeout(() => {
+
+    // Clear any existing timer
+    if (banner.timer) {
+        clearTimeout(banner.timer);
+    }
+
+    banner.timer = setTimeout(() => {
         banner.style.opacity = '0';
         setTimeout(() => {
             banner.style.visibility = 'hidden';
@@ -542,7 +565,7 @@ function showLoading(buttonId, isLoading) {
     if (!button) return;
     if (isLoading) {
         button.dataset.originalText = button.textContent;
-        button.textContent = 'Saving...';
+        button.innerHTML = '<span class="loading-spinner"></span> Saving...';
         button.disabled = true;
     } else {
         button.textContent = button.dataset.originalText || 'Submit';
@@ -580,7 +603,7 @@ function validateAllNumberInputs() {
 
 function applyTheme(themeIndex) {
     const themeClasses = ['theme-time-circuits', 'theme-outatime', 'theme-88mph', 'theme-plutonium-glow', 'theme-mr-fusion', 'theme-clock-tower'];
-    document.body.classList.remove(...themeClasses);
+    document.body.className = ''; // Clear all existing classes first
     const index = parseInt(themeIndex, 10);
     if(index >= 0 && index < themeClasses.length) {
         document.body.classList.add(themeClasses[index]);
@@ -605,7 +628,7 @@ function fetchStatus() {
             updateWifiStrengthIndicator(data.rssi);
             document.getElementById('wifiSSID').textContent = data.ssid || 'N/A';
         })
-        .catch(error => showMessage('Error fetching status!', 'error'));
+        .catch(error => console.error('Error fetching status! It may be temporarily disconnected.', error));
 }
 
 function fetchTime() {
@@ -639,10 +662,11 @@ function fetchTime() {
                 document.getElementById('currentTimeMarker').style.left = `${markerPosition}%`;
             }
         })
-        .catch(error => showMessage('Error fetching time!', 'error'));
+        .catch(error => console.error('Error fetching time!', error));
 }
 
 function fetchTimezones() {
+    // FIX: Added .catch() for user feedback on network errors.
     return fetch('/api/timezones')
         .then(response => response.json())
         .then(data => {
@@ -650,6 +674,7 @@ function fetchTimezones() {
             const presentSelect = document.getElementById('presentTimezoneSelect');
             const destinationSelect = document.getElementById('destinationTimezoneSelect');
             [presentSelect, destinationSelect].forEach(sel => { if(sel) sel.innerHTML = ''; });
+            
             for (const country in data) {
                 const optgroup = document.createElement('optgroup');
                 optgroup.label = country;
@@ -664,7 +689,10 @@ function fetchTimezones() {
                 if(destinationSelect) destinationSelect.appendChild(optgroup.cloneNode(true));
             }
         })
-        .catch(error => showMessage('Error loading time zones!', 'error'));
+        .catch(error => {
+            showMessage('Error loading time zones!', 'error');
+            throw error; // Re-throw error for Promise.all to catch
+        });
 }
 
 function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) {
@@ -685,6 +713,7 @@ function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) 
 }
 
 function fetchSettings() {
+    // FIX: Added .catch() for user feedback on network errors.
     return fetch('/api/settings')
         .then(response => response.json())
         .then(data => {
@@ -742,25 +771,24 @@ function fetchSettings() {
             const ltdMinute = data.lastTimeDepartedMinute.toString().padStart(2, '0');
             const savedValue = `${ltdYear}-${ltdMonth}-${ltdDay}-${ltdHour}-${ltdMinute}`;
             const select = document.getElementById('presetDateSelect');
-            let found = false;
-            for (let i = 0; i < select.options.length; i++) {
-                if (select.options[i].value === savedValue) {
-                    select.selectedIndex = i;
-                    found = true;
-                    break;
-                }
+            select.value = savedValue;
+            // If the value was found and set, dispatch the change event
+            if (select.value === savedValue) {
+                select.dispatchEvent(new Event('change'));
+            } else {
+                select.selectedIndex = 0; // Fallback to the first option
             }
-            if(!found) select.selectedIndex = 0;
-            select.dispatchEvent(new Event('change'));
 
             buildThemeSelector(data.theme);
             updateSleepScheduleVisual();
             validateAllNumberInputs();
-            // setupPresetCycler(); // This function call is removed
 
             setSettingsChanged(false);
         })
-        .catch(error => showMessage('Error loading settings!', 'error'));
+        .catch(error => {
+            showMessage('Error loading settings!', 'error');
+            throw error; // Re-throw so Promise.all can catch it
+        });
 }
 
 function saveSettings() {
@@ -789,7 +817,10 @@ function saveSettings() {
     ['timeTravelSoundToggle', 'displayFormat24h', 'timeTravelVolumeFade'].forEach(id => {
         formData.append(id, document.getElementById(id).checked);
     });
-    formData.append('theme', document.querySelector('.theme-swatch.selected').parentElement.dataset.themeIndex);
+    const selectedTheme = document.querySelector('.theme-swatch.selected');
+    if (selectedTheme) {
+        formData.append('theme', selectedTheme.parentElement.dataset.themeIndex);
+    }
     formData.append('presentTimezoneIndex', document.getElementById('presentTimezoneSelect').value);
 
     formData.append('windSpeedModeEnabled', document.getElementById('windSpeedModeToggle').checked);
@@ -798,6 +829,7 @@ function saveSettings() {
 
     formData.append('animationStyle', document.getElementById('animationStyleSelect').value);
 
+    // FIX: Added .catch() for user feedback on network errors.
     fetch('/api/saveSettings', { method: 'POST', body: new URLSearchParams(formData) })
         .then(response => {
             if (!response.ok) {
@@ -949,11 +981,12 @@ function buildThemeSelector(selectedTheme) {
         option.appendChild(name);
         if (index === selectedTheme) swatch.classList.add('selected');
         option.onclick = () => {
-            if (!swatch.classList.contains('selected')) {
-                document.querySelector('.theme-swatch.selected').classList.remove('selected');
-                swatch.classList.add('selected');
-                applyTheme(index);
+            const currentSelected = document.querySelector('.theme-swatch.selected');
+            if (currentSelected) {
+                currentSelected.classList.remove('selected');
             }
+            swatch.classList.add('selected');
+            applyTheme(index);
         };
         themeSelector.appendChild(option);
     });
@@ -973,6 +1006,7 @@ function clearPreferences() {
                 })
                 .then(text => {
                     showMessage(text, 'success', 5000);
+                    // Reload settings after a short delay
                     setTimeout(() => {
                         fetchAndApplyPresets().then(fetchSettings);
                     }, 1000);
