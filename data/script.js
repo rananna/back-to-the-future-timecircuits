@@ -91,6 +91,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     });
 
+    const windSpeedToggle = document.getElementById('windSpeedModeToggle');
+    if (windSpeedToggle) {
+        windSpeedToggle.addEventListener('change', (e) => {
+            const isEnabled = e.target.checked;
+            document.getElementById('geolocationSettings').style.display = isEnabled ? 'block' : 'none';
+            document.getElementById('lastDepartedDateSection').style.display = isEnabled ? 'none' : 'block';
+            setSettingsChanged(true);
+        });
+    }
+
     // Updated sliders array to include timeTravelAnimationDuration
     const sliders = [
         { id: 'brightness', valueSpanId: 'brightnessValue' },
@@ -759,6 +769,12 @@ function fetchSettings() {
 
             document.getElementById('presentTimezoneSelect').value = data.presentTimezoneIndex;
             document.getElementById('destinationTimezoneSelect').value = data.destinationTimezoneIndex;
+            
+            const windSpeedToggle = document.getElementById('windSpeedModeToggle');
+            windSpeedToggle.checked = data.windSpeedModeEnabled;
+            document.getElementById('latitude').value = data.latitude;
+            document.getElementById('longitude').value = data.longitude;
+            windSpeedToggle.dispatchEvent(new Event('change'));
 
             const animationStyleSelect = document.getElementById('animationStyleSelect');
             if (animationStyleSelect) {
@@ -821,6 +837,10 @@ function saveSettings() {
     });
     formData.append('theme', document.querySelector('.theme-swatch.selected').parentElement.dataset.themeIndex);
     formData.append('presentTimezoneIndex', document.getElementById('presentTimezoneSelect').value);
+
+    formData.append('windSpeedModeEnabled', document.getElementById('windSpeedModeToggle').checked);
+    formData.append('latitude', document.getElementById('latitude').value);
+    formData.append('longitude', document.getElementById('longitude').value);
 
     formData.append('animationStyle', document.getElementById('animationStyleSelect').value);
 

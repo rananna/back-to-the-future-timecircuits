@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>ESP32 BTTF Clock</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="[https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap](https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap)" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
@@ -80,48 +80,67 @@
 
             <div class="setting-group">
                 <h3>Last Time Departed</h3>
-                <p id="lastTimeDepartedDisplay" class="static-time-display">-- -- ---- --:-- --</p>
-                <div style="display:none;">
-                    <span id="lastTimeDepartedYear"></span><span id="lastTimeDepartedMonth"></span><span id="lastTimeDepartedDay"></span>
-                    <span id="lastTimeDepartedHour"></span><span id="lastTimeDepartedMinute"></span>
-                </div>
                 
-                <label for="presetDateSelect">Famous Time Jumps:</label>
-                <div class="contextual-control-group">
-                    <select id="presetDateSelect">
-                        <optgroup label="From the Movies">
-                            <option value="">-- Select a Famous Date --</option>
-                            <option value="1985-10-26-01-21">The First Time Travel (1985)</option>
-                            <option value="1955-11-05-06-00">Lightning Strike (1955)</option>
-                            <option value="2015-10-21-16-29">Future Arrival (2015)</option>
-                            <option value="1885-01-01-00-00">Arrival in the Old West (1885)</option>
-                        </optgroup>
-                    </select>
-                    <div id="presetActions" class="contextual-actions hidden">
-                        <button id="editPresetBtn" class="action-button" onclick="editPreset()">Edit</button>
-                        <button id="deletePresetBtn" class="action-button delete-button" onclick="deletePreset()">Delete</button>
-                    </div>
-                </div>
-
-                <label for="presetCycleInterval">
-                    Cycle Presets Every (min, 0=Off): <span id="presetCycleIntervalValue">10</span>
+                <label for="windSpeedModeToggle">
+                    Enable Live Wind Speedometer
                 </label>
-                <div class="slider-container">
-                    <button class="incrementer-btn" data-target="presetCycleInterval" data-action="decrement">-</button>
-                    <input type="range" id="presetCycleInterval" min="0" max="60">
-                    <button class="incrementer-btn" data-target="presetCycleInterval" data-action="increment">+</button>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="windSpeedModeToggle">
+                    <span class="slider round"></span>
+                </label>
+                
+                <div id="geolocationSettings" style="display:none;">
+                    <p>Enter your location for accurate wind speed. You can use a site like <a href="[https://www.latlong.net/](https://www.latlong.net/)" target="_blank">latlong.net</a>.</p>
+                    <label for="latitude">Latitude:</label>
+                    <input type="number" id="latitude" step="any" placeholder="e.g., 43.47">
+                    <label for="longitude">Longitude:</label>
+                    <input type="number" id="longitude" step="any" placeholder="e.g., -80.52">
                 </div>
 
-                <div class="preset-adder">
-                    <h4>Add or Edit a Custom Time Jump</h4>
-                    <input type="text" id="presetName" placeholder="Preset Name (e.g., My Birthday)">
-                    <div class="preset-date-inputs">
-                        <input type="date" id="presetDate">
-                        <input type="time" id="presetTime">
+                <div id="lastDepartedDateSection">
+                    <p id="lastTimeDepartedDisplay" class="static-time-display">-- -- ---- --:-- --</p>
+                    <div style="display:none;">
+                        <span id="lastTimeDepartedYear"></span><span id="lastTimeDepartedMonth"></span><span id="lastTimeDepartedDay"></span>
+                        <span id="lastTimeDepartedHour"></span><span id="lastTimeDepartedMinute"></span>
                     </div>
-                    <input type="hidden" id="editingPresetValue">
-                    <button id="addPresetBtn" onclick="addOrUpdatePreset()">Add to Presets</button>
-                    <button id="clearPresetsBtn" class="delete-button" onclick="showCustomConfirm('Delete ALL custom presets? This cannot be undone.', clearPresets)">Clear All Custom Presets</button>
+                    
+                    <label for="presetDateSelect">Famous Time Jumps:</label>
+                    <div class="contextual-control-group">
+                        <select id="presetDateSelect">
+                            <optgroup label="From the Movies">
+                                <option value="">-- Select a Famous Date --</option>
+                                <option value="1985-10-26-01-21">The First Time Travel (1985)</option>
+                                <option value="1955-11-05-06-00">Lightning Strike (1955)</option>
+                                <option value="2015-10-21-16-29">Future Arrival (2015)</option>
+                                <option value="1885-01-01-00-00">Arrival in the Old West (1885)</option>
+                            </optgroup>
+                        </select>
+                        <div id="presetActions" class="contextual-actions hidden">
+                            <button id="editPresetBtn" class="action-button" onclick="editPreset()">Edit</button>
+                            <button id="deletePresetBtn" class="action-button delete-button" onclick="deletePreset()">Delete</button>
+                        </div>
+                    </div>
+
+                    <label for="presetCycleInterval">
+                        Cycle Presets Every (min, 0=Off): <span id="presetCycleIntervalValue">10</span>
+                    </label>
+                    <div class="slider-container">
+                        <button class="incrementer-btn" data-target="presetCycleInterval" data-action="decrement">-</button>
+                        <input type="range" id="presetCycleInterval" min="0" max="60">
+                        <button class="incrementer-btn" data-target="presetCycleInterval" data-action="increment">+</button>
+                    </div>
+
+                    <div class="preset-adder">
+                        <h4>Add or Edit a Custom Time Jump</h4>
+                        <input type="text" id="presetName" placeholder="Preset Name (e.g., My Birthday)">
+                        <div class="preset-date-inputs">
+                            <input type="date" id="presetDate">
+                            <input type="time" id="presetTime">
+                        </div>
+                        <input type="hidden" id="editingPresetValue">
+                        <button id="addPresetBtn" onclick="addOrUpdatePreset()">Add to Presets</button>
+                        <button id="clearPresetsBtn" class="delete-button" onclick="showCustomConfirm('Delete ALL custom presets? This cannot be undone.', clearPresets)">Clear All Custom Presets</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -185,8 +204,10 @@
                     <select id="animationStyleSelect">
                         <option value="0">Sequential Flicker</option>
                         <option value="1">Random Flicker</option>
-                        <option value="2">All Displays Random Flicker</option>
+                        <option value="2">All Displays Random</option>
                         <option value="3">Counting Up</option>
+                        <option value="4">Wave Flicker</option>
+                        <option value="5">Glitch Effect</option>
                     </select>
                 </div>
                 

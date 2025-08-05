@@ -43,7 +43,10 @@ struct ClockSettings {
   int presentTimezoneIndex;
   int timeTravelAnimationDuration;
   int animationStyle;
-  bool timeTravelVolumeFade; // NEW SETTING
+  bool timeTravelVolumeFade;
+  bool windSpeedModeEnabled; // NEW
+  float longitude; // NEW
+  float latitude; // NEW
 };
 struct DisplayRow {
   Adafruit_7segment month;
@@ -119,6 +122,7 @@ void animateYearDisplay(DisplayRow &row);
 void animateTimeDisplay(DisplayRow &row);
 void animateAmPmDisplay(DisplayRow &row);
 void display88MphSpeed(float currentSpeed);
+void displayWindSpeed(float currentSpeed); // NEW
 void playSound(const char *soundName);
 void setupSoundFiles();
 

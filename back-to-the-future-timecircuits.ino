@@ -9,6 +9,7 @@
 #include <time.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
+#include <HTTPClient.h> // Required for making API requests
 
 #include "HardwareControl.h"
 
@@ -32,20 +33,27 @@
 #define BOOT_STATE_CHANGE_INTERVAL_MS 3000
 #define BOOT_ANIMATION_WAIT_MS 500
 #define NTP_TIMEOUT_MS 2000
+#define WIND_SPEED_FETCH_INTERVAL_MS 900000 // 15 minutes
+#define GLITCH_EFFECT_INTERVAL_MS 60000 // 1 minute
 
 // Global instances and non-hardware-specific variables
 ClockSettings currentSettings = {
-  1955, 4, 22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15,
+  1955, 4,
+  22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15,
   true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
   4000,
   ANIMATION_SEQUENTIAL_FLICKER,
-  true
+  true,
+  false, // windSpeedModeEnabled
+  -80.52, 43.47 // Default coordinates (Kitchener, ON, Canada)
 };
 ClockSettings defaultSettings = {
   1955, 4, 22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15, true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
   4000,
   ANIMATION_SEQUENTIAL_FLICKER,
-  true
+  true,
+  false, // windSpeedModeEnabled
+  -80.52, 43.47
 };
 const TimeZoneEntry TZ_DATA[] = {
   { "UTC0", "UTC", "Etc/UTC", "Global" },
@@ -88,7 +96,7 @@ struct tm currentTimeInfo;
 struct tm destinationTimeInfo;
 int currentVolume = 0;
 #define MDNS_HOSTNAME "timecircuits"
-const char* const ANIMATION_STYLE_NAMES[] = { "Sequential Flicker", "Random Flicker", "All Displays Random Flicker", "Counting Up" };
+const char* const ANIMATION_STYLE_NAMES[] = { "Sequential Flicker", "Random Flicker", "All Displays Random", "Counting Up", "Wave Flicker", "Glitch Effect" };
 // New enums and variables to manage the non-blocking boot sequence
 enum BootSequenceState { BOOT_INACTIVE, BOOT_ANIMATION_START, BOOT_ANIMATION_WAIT, BOOT_88MPH_DISPLAY, BOOT_RECALIBRATING_DISPLAY, BOOT_RELAY_TEST_DISPLAY, BOOT_CAPACITOR_FULL_DISPLAY, BOOT_COMPLETE };
 BootSequenceState bootState = BOOT_INACTIVE;
@@ -97,6 +105,11 @@ unsigned long ntpRequestSentTime = 0;
 // New state for NTP sync animation
 bool isNtpSyncAnimating = false;
 unsigned long ntpSyncAnimStartTime = 0;
+
+// NEW: Variables for Wind Speed and Glitch Effect
+unsigned long lastWindSpeedFetch = 0;
+float currentWindSpeed = 0.0;
+unsigned long lastGlitchTime = 0;
 
 // Helper function to display scrolling text
 void displayScrollingText(DisplayRow &row, const char* text) {
@@ -123,6 +136,42 @@ void displayScrollingText(DisplayRow &row, const char* text) {
 // =================================================================
 // == FUNCTION IMPLEMENTATIONS                                    ==
 // =================================================================
+
+// NEW: Function to fetch wind speed from Open-Meteo API
+void fetchWindSpeed() {
+  if (WiFi.status() != WL_CONNECTED) {
+    ESP_LOGW("Weather", "Cannot fetch wind speed, WiFi not connected.");
+    return;
+  }
+  
+  HTTPClient http;
+  String apiURL = "[http://api.open-meteo.com/v1/forecast?latitude=](http://api.open-meteo.com/v1/forecast?latitude=)" + String(currentSettings.latitude, 2) + "&longitude=" + String(currentSettings.longitude, 2) + "&current_weather=true";
+  
+  http.begin(apiURL);
+  int httpCode = http.GET();
+
+  if (httpCode > 0) {
+    if (httpCode == HTTP_CODE_OK) {
+      String payload = http.getString();
+      DynamicJsonDocument doc(1024);
+      deserializeJson(doc, payload);
+      
+      if (doc.containsKey("current_weather")) {
+        currentWindSpeed = doc["current_weather"]["windspeed"];
+        ESP_LOGI("Weather", "Successfully fetched wind speed: %.2f km/h", currentWindSpeed);
+      } else {
+        ESP_LOGW("Weather", "API response did not contain current_weather object.");
+      }
+    } else {
+      ESP_LOGW("Weather", "API request failed, error: %s", http.errorToString(httpCode).c_str());
+    }
+  } else {
+    ESP_LOGE("Weather", "API request failed, error: %s", http.errorToString(httpCode).c_str());
+  }
+  http.end();
+  lastWindSpeedFetch = millis();
+}
+
 void saveSettings() {
   ESP_LOGI("Settings", "Saving settings to preferences...");
   preferences.putBytes("settings", &currentSettings, sizeof(currentSettings));
@@ -327,6 +376,23 @@ void handleDisplayAnimation() {
                 }
                 break;
             }
+            case 4: { // Wave Flicker
+              unsigned long currentPhaseElapsed = currentTime - animationStartTime;
+              int phaseDuration = FLICKER_DURATION / 5; // 5 phases for a wave effect
+              if (currentPhaseElapsed < phaseDuration) {
+                animateDisplayRowRandomly(destRow);
+              } else if (currentPhaseElapsed < (phaseDuration * 2)) {
+                clearDisplayRow(destRow);
+                animateDisplayRowRandomly(presRow);
+              } else if (currentPhaseElapsed < (phaseDuration * 3)) {
+                clearDisplayRow(presRow);
+                animateDisplayRowRandomly(lastRow);
+              } else if (currentPhaseElapsed < (phaseDuration * 4)) {
+                clearDisplayRow(lastRow);
+              }
+              // Last phase is blank before dim out
+              break;
+            }
             default:
                 // Default to sequential flicker
                 unsigned long currentPhaseElapsed = currentTime - animationStartTime;
@@ -396,6 +462,45 @@ void handleDisplayAnimation() {
   }
 }
 
+// NEW: Function to handle the occasional glitch effect
+void handleGlitchEffect() {
+  if (isAnimating || isDisplayAsleep || currentSettings.animationStyle != 5) return;
+
+  if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
+    if (random(0, 100) < 25) { // 25% chance of a glitch every minute
+      ESP_LOGD("Glitch", "Triggering glitch effect!");
+      
+      // Select a random row and display to glitch
+      int rowNum = random(0, 3);
+      int displayNum = random(0, 4);
+
+      DisplayRow* rowToGlitch = (rowNum == 0) ? &destRow : (rowNum == 1) ? &presRow : &lastRow;
+      Adafruit_7segment* displayToGlitch;
+
+      switch(displayNum) {
+        case 0: displayToGlitch = &(rowToGlitch->month); break;
+        case 1: displayToGlitch = &(rowToGlitch->day); break;
+        case 2: displayToGlitch = &(rowToGlitch->year); break;
+        default: displayToGlitch = &(rowToGlitch->time); break;
+      }
+
+      if (ENABLE_HARDWARE && ENABLE_I2C_HARDWARE) {
+        displayToGlitch->clear();
+        // Print some random garbage
+        for (int i=0; i<4; i++) {
+          displayToGlitch->writeDigitRaw(i, random(0, 255));
+        }
+        displayToGlitch->writeDisplay();
+
+        // After a short delay, restore the display
+        delay(75);
+        // The main updateNormalClockDisplay function will restore it on its next run
+      }
+    }
+    lastGlitchTime = millis();
+  }
+}
+
 void updateNormalClockDisplay() {
   static unsigned long lastDisplayUpdate = 0;
   static int lastPresentTimezoneIndex = -1;
@@ -419,25 +524,29 @@ void updateNormalClockDisplay() {
     }
     return;
   }
+  
   bool presentTimeNeedsUpdate = (millis() - lastDisplayUpdate > 1000) ||
                                 (currentSettings.displayFormat24h != lastDisplayFormat24h);
   bool destinationTimeNeedsUpdate = (currentSettings.destinationTimezoneIndex != lastDestinationTimezoneIndex) || presentTimeNeedsUpdate;
-  bool lastDepartedNeedsUpdate = (currentSettings.lastTimeDepartedHour != lastLastTimeDepartedHour ||
+  bool lastDepartedNeedsUpdate = (!currentSettings.windSpeedModeEnabled && (
+                                  currentSettings.lastTimeDepartedHour != lastLastTimeDepartedHour ||
                                   currentSettings.lastTimeDepartedMinute != lastLastTimeDepartedMinute ||
                                   currentSettings.lastTimeDepartedYear != lastLastTimeDepartedYear ||
                                   currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
                                   currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
-                                  presentTimeNeedsUpdate);
-  
-  if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate)) {
+                                  presentTimeNeedsUpdate));
+
+  if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate || currentSettings.windSpeedModeEnabled)) {
     lastDisplayUpdate = millis();
     lastDisplayFormat24h = currentSettings.displayFormat24h;
     time_t now;
     time(&now);
+    
     if (presentTimeNeedsUpdate) {
       localtime_r(&now, &currentTimeInfo);
       updateDisplayRow(presRow, currentTimeInfo, currentTimeInfo.tm_year + 1900);
     }
+    
     if (destinationTimeNeedsUpdate) {
       setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
       tzset();
@@ -447,7 +556,12 @@ void updateNormalClockDisplay() {
       setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
       tzset();
     }
-    if (lastDepartedNeedsUpdate) {
+
+    if (currentSettings.windSpeedModeEnabled) {
+      displayWindSpeed(currentWindSpeed);
+      // Clear the saved last departed time to force an update when switching back
+      lastLastTimeDepartedHour = -1; 
+    } else if (lastDepartedNeedsUpdate) {
       struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
       updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
       lastLastTimeDepartedHour = currentSettings.lastTimeDepartedHour;
@@ -603,6 +717,9 @@ void setupWebRoutes() {
     doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
     doc["animationStyle"] = currentSettings.animationStyle;
     doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade;
+    doc["windSpeedModeEnabled"] = currentSettings.windSpeedModeEnabled;
+    doc["latitude"] = currentSettings.latitude;
+    doc["longitude"] = currentSettings.longitude;
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -677,6 +794,18 @@ void setupWebRoutes() {
     if (request->hasParam("timeTravelVolumeFade", true)) {
         currentSettings.timeTravelVolumeFade = (request->getParam("timeTravelVolumeFade", true)->value() == "true");
     }
+    if (request->hasParam("windSpeedModeEnabled", true)) {
+        currentSettings.windSpeedModeEnabled = (request->getParam("windSpeedModeEnabled", true)->value() == "true");
+        if (currentSettings.windSpeedModeEnabled) {
+          fetchWindSpeed(); // Fetch immediately when enabled
+        }
+    }
+    if (request->hasParam("latitude", true)) {
+        currentSettings.latitude = request->getParam("latitude", true)->value().toFloat();
+    }
+    if (request->hasParam("longitude", true)) {
+        currentSettings.longitude = request->getParam("longitude", true)->value().toFloat();
+    }
     saveSettings();
     playSound(SOUND_CONFIRM_ON);
     request->send(200, "text/plain", "Settings Saved!");
@@ -708,7 +837,7 @@ void setupWebRoutes() {
       obj["text"] = TZ_DATA[i].displayName;
       obj["ianaTzName"] = TZ_DATA[i].ianaTzName;
     }
-    
+  
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -768,7 +897,7 @@ void setupWebRoutes() {
           currentSettings.displayFormat24h = (value == "true");
       } else if (setting == "animationStyle") {
           int style = value.toInt();
-          if (style >=0 && style <=3) {
+          if (style >=0 && style <=5) {
             currentSettings.animationStyle = style;
           } else {
             request->send(400, "text/plain", "Invalid animation style.");
@@ -791,8 +920,16 @@ void setupWebRoutes() {
           currentSettings.presentTimezoneIndex = value.toInt();
       } else if (setting == "timeTravelVolumeFade") {
         currentSettings.timeTravelVolumeFade = (value == "true");
-      }
-      else {
+      } else if (setting == "presetCycleInterval") {
+          int interval = value.toInt();
+          if (interval >= 0 && interval <= 60) {
+              currentSettings.presetCycleInterval = interval;
+              playSound(SOUND_CONFIRM_ON);
+          } else {
+              request->send(400, "text/plain", "Invalid preset cycle interval.");
+              return;
+          }
+      } else {
         request->send(400, "text/plain", "Unknown setting.");
         return;
       }
@@ -815,7 +952,7 @@ void setupWebRoutes() {
       String presetsJson = preferences.getString("customPresets", "[]");
       DynamicJsonDocument doc(2048);
       deserializeJson(doc, presetsJson);
-      
+    
       JsonArray array = doc.as<JsonArray>();
       for (JsonObject existingPreset : array) {
         if (existingPreset["value"].as<String>() == value) {
@@ -905,7 +1042,6 @@ void setupWebRoutes() {
              &currentSettings.lastTimeDepartedHour,
              &currentSettings.lastTimeDepartedMinute);
     }
-    
     request->send(200, "text/plain", "OK");
   });
   server.on("/api/clearPreferences", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -929,7 +1065,6 @@ void handleBootSequence() {
 
   unsigned long currentTime = millis();
   static unsigned long lastUpdate = 0;
-  
   switch (bootState) {
     case BOOT_ANIMATION_START:
       blankAllDisplays();
@@ -1016,7 +1151,6 @@ void setup() {
   randomSeed(analogRead(0));
   ESP_LOGI("Boot", "--- BOOTING UP ---");
   pinMode(LED_BUILTIN, OUTPUT);
-  
   if (!LittleFS.begin(true)) {
     ESP_LOGE("FS", "CRITICAL ERROR: An Error has occurred while mounting LittleFS.");
     while(1) {
@@ -1075,7 +1209,6 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
-  
   if (bootState != BOOT_COMPLETE) {
     handleBootSequence();
   }
@@ -1093,11 +1226,18 @@ void loop() {
             startTimeTravelAnimation();
         }
     }
+    
+    if (currentSettings.animationStyle == 5) {
+      handleGlitchEffect();
+    }
+
+    if (currentSettings.windSpeedModeEnabled && (millis() - lastWindSpeedFetch >= WIND_SPEED_FETCH_INTERVAL_MS)) {
+      fetchWindSpeed();
+    }
 
     static unsigned long lastOneSecondUpdate = 0;
     if (millis() - lastOneSecondUpdate >= 1000) {
       lastOneSecondUpdate = millis();
-      
       // Check Wi-Fi connection and reconnect if needed
       static unsigned long lastWifiCheck = 0;
       if (millis() - lastWifiCheck > WIFI_CHECK_INTERVAL_MS) {
@@ -1145,7 +1285,6 @@ void loop() {
 
       // Handle the sleep schedule logic
       handleSleepSchedule();
-      
       // Update the clock displays only if an animation is not active
       if (!isAnimating) {
         updateNormalClockDisplay();
@@ -1166,7 +1305,6 @@ void loop() {
         
         // Correctly build the last departed time struct for consistency
         struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
-        
         // Set the timezone for the destination time for proper formatting in the log
         setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
         tzset();
@@ -1202,6 +1340,8 @@ void loop() {
         ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
         ESP_LOGI("Status", " Theme: %d", currentSettings.theme);
         ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off");
+        ESP_LOGI("Status", " Wind Speed Mode: %s", currentSettings.windSpeedModeEnabled ? "On" : "Off");
+        ESP_LOGI("Status", " Location: %.2f, %.2f", currentSettings.latitude, currentSettings.longitude);
         ESP_LOGI("Status", "------------------------");
       } else if (!timeSynchronized) {
         // Show NTP error status if not synchronized
