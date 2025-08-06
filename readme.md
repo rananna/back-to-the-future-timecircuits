@@ -85,36 +85,36 @@ For those who want to dive deeper or modify the code, here’s a brief overview 
 
 ## 🔌 Wiring & Schematics
 
-This project uses two separate I2C buses to manage all 12 displays without address conflicts. Pay close attention to the I2C addresses, which must be set on the display modules using the solder jumpers on their backs.
-
-**
-
-#### I2C Bus and Display Addresses
-
-* **I2C Bus 1**: Connected to `SDA: 21`, `SCL: 22`
-    * **Destination Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
-    * **Present Row**: `0x74` (Month), `0x75` (Day), `0x76` (Year), `0x77` (Time)
-* **I2C Bus 2**: Connected to `SDA: 25`, `SCL: 26`
-    * **Last Time Departed Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
+This project uses two separate I2C buses to manage all 12 displays without address conflicts. The connection table below is the definitive guide for wiring your components.
 
 #### Component Wiring Table
 
-| Component           | ESP32 Pin                                | Connection / Notes                                  |
-| :------------------ | :--------------------------------------- | :-------------------------------------------------- |
-| **I2C Bus 1 (SDA)** | `GPIO 21`                                | Connect to the SDA pin of the 8 "Destination" and "Present" row displays. |
-| **I2C Bus 1 (SCL)** | `GPIO 22`                                | Connect to the SCL pin of the 8 "Destination" and "Present" row displays. |
-| **I2C Bus 2 (SDA)** | `GPIO 25`                                | Connect to the SDA pin of the 4 "Last Time Departed" row displays. |
-| **I2C Bus 2 (SCL)** | `GPIO 26`                                | Connect to the SCL pin of the 4 "Last Time Departed" row displays. |
-| **DFPlayer Mini (RX)**| `GPIO 17` (DFP\_TX\_PIN)               | Connects to the TX pin of the DFPlayer.             |
-| **DFPlayer Mini (TX)**| `GPIO 16` (DFP\_RX\_PIN)               | Connects to the RX pin of the DFPlayer.             |
-| **Destination AM LED**| `GPIO 13`                                | Connect to the anode of the AM LED for the Destination row. |
-| **Destination PM LED**| `GPIO 14`                                | Connect to the anode of the PM LED for the Destination row. |
-| **Present AM LED** | `GPIO 32`                                | Connect to the anode of the AM LED for the Present row. |
-| **Present PM LED** | `GPIO 27`                                | Connect to the anode of the PM LED for the Present row. |
-| **Last Dept. AM LED** | `GPIO 2`                                 | Connect to the anode of the AM LED for the Last Departed row. |
-| **Last Dept. PM LED** | `GPIO 4`                                 | Connect to the anode of the PM LED for the Last Departed row. |
-| **All Components** | `5V`                                     | Connect all VCC/VIN pins to a common 5V rail.     |
-| **All Components** | `GND`                                    | Connect all GND pins to a common ground rail.       |
+| Component | ESP32 Pin | Connection / Notes | Source |
+| :--- | :--- | :--- | :--- |
+| **I2C Bus 1 (SDA)** | `GPIO 21` | Connects to the SDA pin of the 8 "Destination" and "Present" row displays. | |
+| **I2C Bus 1 (SCL)** | `GPIO 22` | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. | |
+| **I2C Bus 2 (SDA)** | `GPIO 25` | Connects to the SDA pin of the 4 "Last Time Departed" row displays. | |
+| **I2C Bus 2 (SCL)** | `GPIO 26` | Connects to the SCL pin of the 4 "Last Time Departed" row displays. | |
+| **DFPlayer Mini (RX)** | `GPIO 17` | Connects to the **TX** pin of the DFPlayer. | |
+| **DFPlayer Mini (TX)** | `GPIO 16` | Connects to the **RX** pin of the DFPlayer. | |
+| **Destination AM LED** | `GPIO 13` | Connects to the anode (+) of the AM LED for the Destination row. | |
+| **Destination PM LED** | `GPIO 14` | Connects to the anode (+) of the PM LED for the Destination row. | |
+| **Present AM LED** | `GPIO 32` | Connects to the anode (+) of the AM LED for the Present row. | |
+| **Present PM LED** | `GPIO 27` | Connects to the anode (+) of the PM LED for the Present row. | |
+| **Last Dept. AM LED** | `GPIO 2` | Connects to the anode (+) of the Last Departed row LED. | |
+| **Last Dept. PM LED** | `GPIO 4` | Connects to the anode (+) of the Last Departed row LED. | |
+| **Power (+5V)** | `5V` | Connects to the VCC/VIN pin of all components (ESP32, Displays, DFPlayer). | |
+| **Ground (GND)** | `GND` | Connects all GND pins to a common ground rail. | |
+
+#### I2C Bus and Display Addresses
+
+* **I2C Bus 1** (`SDA: 21`, `SCL: 22`):
+    * **Destination Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
+    * **Present Row**: `0x74` (Month), `0x75` (Day), `0x76` (Year), `0x77` (Time)
+* **I2C Bus 2** (`SDA: 25`, `SCL: 26`):
+    * **Last Time Departed Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
+
+**
 
 ---
 
