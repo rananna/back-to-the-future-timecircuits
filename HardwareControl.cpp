@@ -10,8 +10,8 @@ TwoWire I2C_Bus_1(0);
 TwoWire I2C_Bus_2(1);
 
 // Definitions for global variables
-const bool ENABLE_HARDWARE = false;
-const bool ENABLE_I2C_HARDWARE = false;
+const bool ENABLE_HARDWARE = true;
+const bool ENABLE_I2C_HARDWARE = true;
 
 // Initialize all displays using the new I2C bus and addresses
 DisplayRow destRow = {
@@ -133,6 +133,7 @@ void blankAllDisplays() {
   clearDisplayRow(lastRow);
 }
 
+// *** UPDATED FUNCTION ***
 void updateDisplayRow(DisplayRow &row, struct tm &timeinfo, int year) {
   if (!ENABLE_HARDWARE) {
     ESP_LOGD("Display (Disabled)", "updateDisplayRow skipped for row (I2C)");
@@ -162,6 +163,8 @@ void updateDisplayRow(DisplayRow &row, struct tm &timeinfo, int year) {
     
     row.time.clear();
     row.time.print(hour * 100 + timeinfo.tm_min);
+    // *** FIX: Ensure colon is drawn ***
+    row.time.drawColon(true);
     row.time.writeDisplay();
   }
   digitalWrite(row.amPin, (timeinfo.tm_hour < 12));
@@ -212,6 +215,7 @@ void animateTimeDisplay(DisplayRow &row) {
   if (ENABLE_I2C_HARDWARE) {
     row.time.clear();
     row.time.print(random(0, 2400));
+    row.time.drawColon(random(0,2));
     row.time.writeDisplay();
   }
 }

@@ -33,7 +33,7 @@ struct ClockSettings {
   int departureHour, departureMinute;
   int arrivalHour, arrivalMinute;
   int lastTimeDepartedHour, lastTimeDepartedMinute, lastTimeDepartedYear, lastTimeDepartedMonth, lastTimeDepartedDay;
-  int brightness;
+  byte brightness;
   int notificationVolume;
   bool timeTravelSoundToggle;
   int timeTravelAnimationInterval;
@@ -41,7 +41,7 @@ struct ClockSettings {
   bool displayFormat24h;
   int theme;
   int presentTimezoneIndex;
-  int timeTravelAnimationDuration;
+  unsigned long timeTravelAnimationDuration;
   int animationStyle;
   bool timeTravelVolumeFade;
   bool windSpeedModeEnabled; // NEW
@@ -118,5 +118,6 @@ void display88MphSpeed(float currentSpeed);
 void displayWindSpeed(float currentSpeed); // NEW
 void playSound(const char *soundName);
 void setupSoundFiles();
+void updateNormalClockDisplay(); // Forward declaration for use in other files
 
 #endif // HARDWARE_CONTROL_H

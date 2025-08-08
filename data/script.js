@@ -1,4 +1,3 @@
-// final_ui/data/script.js
 // Global variable to track if any input is invalid
 let anyInputInvalid = false;
 let settingsChanged = false;
@@ -146,6 +145,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
             .catch(error => showMessage('Error: Could not connect to device!', 'error'));
     });
     
+    // *** ADDED EVENT LISTENER ***
+    document.getElementById('testAnimationBtn').addEventListener('click', () => {
+        fetch('/api/testAnimation', { method: 'POST' })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text); });
+                }
+                showMessage('Time Travel Sequence Initiated!', 'success');
+            })
+            .catch(error => showMessage(`Error: ${error.message}`, 'error'));
+    });
+
     document.querySelectorAll('.container input, .container select').forEach(element => {
         element.addEventListener('input', (e) => {
             setSettingsChanged(true);
@@ -163,10 +174,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
         if (selectedOption.parentElement.label === 'Custom Jumps') {
             actions.classList.remove('hidden');
             const [year, month, day, hour, minute] = selectedOption.value.split('-');
+            
+            // *** FIX: Pad month/day to ensure valid YYYY-MM-DD format ***
             document.getElementById('presetName').value = selectedOption.textContent;
-            document.getElementById('presetDate').value = `${year}-${month}-${day}`;
-            document.getElementById('presetTime').value = `${hour}:${minute}`;
-            // FIX: Store the original value in the hidden input for reliable updates.
+            document.getElementById('presetDate').value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            document.getElementById('presetTime').value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
             document.getElementById('editingPresetValue').value = selectedOption.value;
             document.getElementById('addPresetBtn').textContent = 'Update Preset';
         } else {
@@ -177,9 +189,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const selectedValue = e.target.value;
         if (!selectedValue) return;
 
-        const parts = selectedValue.split('-');
-        const [year, month, day, hour, minute] = parts;
-
+        const [year, month, day, hour, minute] = selectedValue.split('-');
+        
         document.getElementById('lastTimeDepartedYear').textContent = year;
         document.getElementById('lastTimeDepartedMonth').textContent = month;
         document.getElementById('lastTimeDepartedDay').textContent = day;
@@ -199,7 +210,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
 function handlePreview(settingName, value) {
     if (!document.getElementById('livePreviewToggle').checked) return;
 
-    // FIX: Added .catch() for user feedback on network errors.
     fetch(`/api/previewSetting?setting=${settingName}&value=${value}`)
         .then(response => {
             if (!response.ok) {
@@ -264,7 +274,6 @@ function addOrUpdatePreset() {
         return;
     }
 
-    // If the hidden input has a value, we are updating an existing preset.
     const originalValue = document.getElementById('editingPresetValue').value;
     if (originalValue) {
         updatePreset(originalValue);
@@ -286,7 +295,7 @@ function addPreset() {
 
     const [year, month, day] = date.split('-');
     const [hour, minute] = time.split(':');
-    const value = `${year}-${month}-${day}-${hour}-${minute}`;
+    const value = `${parseInt(year)}-${parseInt(month)}-${parseInt(day)}-${parseInt(hour)}-${parseInt(minute)}`;
 
     const formData = new FormData();
     formData.append('name', name);
@@ -322,9 +331,8 @@ function editPreset() {
     const [year, month, day, hour, minute] = value.split('-');
 
     document.getElementById('presetName').value = name;
-    document.getElementById('presetDate').value = `${year}-${month}-${day}`;
-    document.getElementById('presetTime').value = `${hour}:${minute}`;
-    // FIX: Reliably set the original value for the update operation.
+    document.getElementById('presetDate').value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    document.getElementById('presetTime').value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
     document.getElementById('editingPresetValue').value = value;
 
     const btn = document.getElementById('addPresetBtn');
@@ -344,7 +352,7 @@ function updatePreset(originalValue) {
 
     const [year, month, day] = newDate.split('-');
     const [hour, minute] = newTime.split(':');
-    const newValue = `${year}-${month}-${day}-${hour}-${minute}`;
+    const newValue = `${parseInt(year)}-${parseInt(month)}-${parseInt(day)}-${parseInt(hour)}-${parseInt(minute)}`;
 
     const formData = new FormData();
     formData.append('originalValue', originalValue);
@@ -421,7 +429,6 @@ function clearPresets() {
 function syncNtp() {
     const btn = document.getElementById('syncNtpBtn');
     showLoading('syncNtpBtn', true);
-    // FIX: Added .catch() for user feedback on network errors.
     fetch('/api/syncNtp', { method: 'POST' })
         .then(response => response.text())
         .then(data => {
@@ -433,12 +440,10 @@ function syncNtp() {
 }
 
 function fetchAndApplyPresets() {
-    // FIX: Added .catch() for user feedback on network errors.
     return fetch('/api/getPresets')
         .then(response => response.json())
         .then(presets => {
             const select = document.getElementById('presetDateSelect');
-            // Clear existing custom presets before adding new ones
             const existingGroup = select.querySelector('optgroup[label="Custom Jumps"]');
             if (existingGroup) {
                 existingGroup.remove();
@@ -458,7 +463,7 @@ function fetchAndApplyPresets() {
         })
         .catch(error => {
             showMessage('Error loading custom presets!', 'error');
-            throw error; // Re-throw error for Promise.all to catch
+            throw error;
         });
 }
 
@@ -475,20 +480,26 @@ function updateLastDepartedDisplay() {
     const monthStr = months[month - 1];
 
     const hourStr = hour.toString().padStart(2, '0');
-    const displayString = `${monthStr} ${day} ${year} ${hourStr}:${minute.toString().padStart(2, '0')}`;
+    const displayString = `${monthStr} ${day.toString().padStart(2, '0')} ${year} ${hourStr}:${minute.toString().padStart(2, '0')}`;
     document.getElementById('lastTimeDepartedDisplay').textContent = displayString;
 }
 
-function updateHeaderClocks(presentTimeRaw, destinationTimeHeader, lastDepartedTimeRaw) {
+function updateHeaderClocks(presentTimeRaw) {
     const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
     const is24h = document.getElementById('displayFormat24h').checked;
 
-    const populateHeaderRow = (prefix, formattedTimeInfo, yearOverride = null) => {
-        const timeParts = formattedTimeInfo.time.split(' ');
+    const populateHeaderRow = (prefix, unixTimestamp, yearOverride = null) => {
+        const timezoneIndex = (prefix === 'dest') 
+            ? parseInt(document.getElementById('destinationTimezoneSelect').value, 10) || 0
+            : parseInt(document.getElementById('presentTimezoneSelect').value, 10) || 0;
+            
+        const formatted = formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24h);
+
+        const timeParts = formatted.time.split(' ');
         const [hour, minute, second] = timeParts[0].split(':');
         const ampm = timeParts.length > 1 ? timeParts[1] : '';
 
-        const dateParts = formattedTimeInfo.date.split('/');
+        const dateParts = formatted.date.split('/');
         const monthNum = parseInt(dateParts[0], 10);
         const day = dateParts[1];
         const year = dateParts[2];
@@ -503,26 +514,16 @@ function updateHeaderClocks(presentTimeRaw, destinationTimeHeader, lastDepartedT
 
         const ampmTextElement = document.getElementById(`header-${prefix}-ampm`);
         if (ampmTextElement) {
-            if (is24h) {
-                ampmTextElement.textContent = '';
-            } else {
-                ampmTextElement.textContent = ampm;
-            }
+            ampmTextElement.textContent = is24h ? '' : ampm;
         }
     };
 
-    const presentTzIndex = parseInt(document.getElementById('presentTimezoneSelect').value, 10) || 0;
     const presentUnixTimestamp = presentTimeRaw.getTime() / 1000;
-    const formattedPresentTime = formatDateTimeInTimezone(presentUnixTimestamp, presentTzIndex, is24h);
-    populateHeaderRow('pres', formattedPresentTime);
+    populateHeaderRow('pres', presentUnixTimestamp);
 
-    const destTzIndex = parseInt(document.getElementById('destinationTimezoneSelect').value, 10) || 0;
-    const destinationTimeWithYear = new Date(presentTimeRaw.getTime());
-    destinationTimeWithYear.setFullYear(document.getElementById('destinationYear').value);
-
-    const formattedDestTimeForDisplay = formatDateTimeInTimezone(destinationTimeWithYear.getTime() / 1000, destTzIndex, is24h);
-    populateHeaderRow('dest', formattedDestTimeForDisplay, document.getElementById('destinationYear').value);
-
+    const destinationTime = new Date(presentTimeRaw.getTime());
+    destinationTime.setFullYear(parseInt(document.getElementById('destinationYear').value, 10));
+    populateHeaderRow('dest', destinationTime.getTime() / 1000, document.getElementById('destinationYear').value);
 
     const lastYear = document.getElementById('lastTimeDepartedYear').textContent;
     const lastMonth = parseInt(document.getElementById('lastTimeDepartedMonth').textContent, 10) - 1;
@@ -530,11 +531,7 @@ function updateHeaderClocks(presentTimeRaw, destinationTimeHeader, lastDepartedT
     const lastHour = document.getElementById('lastTimeDepartedHour').textContent;
     const lastMinute = parseInt(document.getElementById('lastTimeDepartedMinute').textContent, 10);
     const lastDepartedTime = new Date(lastYear, lastMonth, lastDay, lastHour, lastMinute);
-
-    const lastDepartedUnixTimestamp = lastDepartedTime.getTime() / 1000;
-
-    const formattedLastDepartedTime = formatDateTimeInTimezone(lastDepartedUnixTimestamp, presentTzIndex, is24h);
-    populateHeaderRow('last', formattedLastDepartedTime);
+    populateHeaderRow('last', lastDepartedTime.getTime() / 1000, lastYear);
 }
 
 function showMessage(message, type = 'info', duration = 3000) {
@@ -545,7 +542,6 @@ function showMessage(message, type = 'info', duration = 3000) {
     banner.style.visibility = 'visible';
     banner.style.opacity = '1';
 
-    // Clear any existing timer
     if (banner.timer) {
         clearTimeout(banner.timer);
     }
@@ -603,7 +599,7 @@ function validateAllNumberInputs() {
 
 function applyTheme(themeIndex) {
     const themeClasses = ['theme-time-circuits', 'theme-outatime', 'theme-88mph', 'theme-plutonium-glow', 'theme-mr-fusion', 'theme-clock-tower'];
-    document.body.className = ''; // Clear all existing classes first
+    document.body.className = '';
     const index = parseInt(themeIndex, 10);
     if(index >= 0 && index < themeClasses.length) {
         document.body.classList.add(themeClasses[index]);
@@ -641,20 +637,8 @@ function fetchTime() {
             const is24h = document.getElementById('displayFormat24h').checked;
 
             if (data.unixTime && timezoneOptions.length > 0) {
-                const presentTzIndex = parseInt(document.getElementById('presentTimezoneSelect').value, 10) || 0;
                 const presentTime = new Date(data.unixTime * 1000);
-
-                const destinationTimeHeader = new Date(data.unixTime * 1000);
-                destinationTimeHeader.setFullYear(document.getElementById('destinationYear').value);
-
-                const lastYear = document.getElementById('lastTimeDepartedYear').textContent;
-                const lastMonth = parseInt(document.getElementById('lastTimeDepartedMonth').textContent, 10) - 1;
-                const lastDay = document.getElementById('lastTimeDepartedDay').textContent;
-                const lastHour = document.getElementById('lastTimeDepartedHour').textContent;
-                const lastMinute = parseInt(document.getElementById('lastTimeDepartedMinute').textContent, 10);
-                const lastDepartedTime = new Date(lastYear, lastMonth, lastDay, lastHour, lastMinute);
-
-                updateHeaderClocks(presentTime, destinationTimeHeader, lastDepartedTime);
+                updateHeaderClocks(presentTime);
 
                 const currentMinutes = presentTime.getHours() * 60 + presentTime.getMinutes();
                 const totalDayMinutes = 24 * 60;
@@ -666,7 +650,6 @@ function fetchTime() {
 }
 
 function fetchTimezones() {
-    // FIX: Added .catch() for user feedback on network errors.
     return fetch('/api/timezones')
         .then(response => response.json())
         .then(data => {
@@ -691,7 +674,7 @@ function fetchTimezones() {
         })
         .catch(error => {
             showMessage('Error loading time zones!', 'error');
-            throw error; // Re-throw error for Promise.all to catch
+            throw error;
         });
 }
 
@@ -713,7 +696,6 @@ function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) 
 }
 
 function fetchSettings() {
-    // FIX: Added .catch() for user feedback on network errors.
     return fetch('/api/settings')
         .then(response => response.json())
         .then(data => {
@@ -764,19 +746,13 @@ function fetchSettings() {
                 animationStyleSelect.value = data.animationStyle;
             }
 
-            const ltdYear = data.lastTimeDepartedYear.toString().padStart(4, '0');
-            const ltdMonth = data.lastTimeDepartedMonth.toString().padStart(2, '0');
-            const ltdDay = data.lastTimeDepartedDay.toString().padStart(2, '0');
-            const ltdHour = data.lastTimeDepartedHour.toString().padStart(2, '0');
-            const ltdMinute = data.lastTimeDepartedMinute.toString().padStart(2, '0');
-            const savedValue = `${ltdYear}-${ltdMonth}-${ltdDay}-${ltdHour}-${ltdMinute}`;
+            const ltdValue = `${data.lastTimeDepartedYear}-${data.lastTimeDepartedMonth}-${data.lastTimeDepartedDay}-${data.lastTimeDepartedHour}-${data.lastTimeDepartedMinute}`;
             const select = document.getElementById('presetDateSelect');
-            select.value = savedValue;
-            // If the value was found and set, dispatch the change event
-            if (select.value === savedValue) {
+            select.value = ltdValue;
+            if (select.value === ltdValue) {
                 select.dispatchEvent(new Event('change'));
             } else {
-                select.selectedIndex = 0; // Fallback to the first option
+                select.selectedIndex = 0;
             }
 
             buildThemeSelector(data.theme);
@@ -787,7 +763,7 @@ function fetchSettings() {
         })
         .catch(error => {
             showMessage('Error loading settings!', 'error');
-            throw error; // Re-throw so Promise.all can catch it
+            throw error;
         });
 }
 
@@ -829,7 +805,6 @@ function saveSettings() {
 
     formData.append('animationStyle', document.getElementById('animationStyleSelect').value);
 
-    // FIX: Added .catch() for user feedback on network errors.
     fetch('/api/saveSettings', { method: 'POST', body: new URLSearchParams(formData) })
         .then(response => {
             if (!response.ok) {
@@ -1006,7 +981,6 @@ function clearPreferences() {
                 })
                 .then(text => {
                     showMessage(text, 'success', 5000);
-                    // Reload settings after a short delay
                     setTimeout(() => {
                         fetchAndApplyPresets().then(fetchSettings);
                     }, 1000);

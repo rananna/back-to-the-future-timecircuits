@@ -24,7 +24,7 @@
 7.  [📦 Enclosure & Case Design](#-enclosure--case-design)
 8.  [❓ Troubleshooting](#-troubleshooting)
 9.  [🤝 Contributing](#-contributing)
-10. [🔬 For Advanced Users & Developers](#-for-advanced-users--developers)
+10. [🔬 Theory of Operation](#-theory-of-operation)
 11. [📜 License](#-license)
 
 ---
@@ -149,22 +149,22 @@ Here are a few shots of the completed Time Circuits display.
 
     #### Component Wiring Table
 
-| Component | ESP32 Pin | Suggested Wire Color | Connection / Notes | Source |
-| :--- | :--- | :--- | :--- | :--- |
-| **I2C Bus 1 (SDA)** | `GPIO 21` | Yellow | Connects to the SDA pin of the 8 "Destination" and "Present" row displays. | |
-| **I2C Bus 1 (SCL)** | `GPIO 22` | Green | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. | |
-| **I2C Bus 2 (SDA)** | `GPIO 25` | Blue | Connects to the SDA pin of the 4 "Last Time Departed" row displays. | |
-| **I2C Bus 2 (SCL)** | `GPIO 26` | White | Connects to the SCL pin of the 4 "Last Time Departed" row displays. | |
-| **DFPlayer Mini (RX)** | `GPIO 17` | Orange | Connects to the **TX** pin of the DFPlayer. **Cross this connection!** | |
-| **DFPlayer Mini (TX)** | `GPIO 16` | Purple | Connects to the **RX** pin of the DFPlayer. **Cross this connection!** | |
-| **Destination AM LED** | `GPIO 13` | | Connects to the anode (+) of the AM LED for the Destination row. | |
-| **Destination PM LED** | `GPIO 14` | | Connects to the anode (+) of the PM LED for the Destination row. | |
-| **Present AM LED** | `GPIO 32` | | Connects to the anode (+) of the AM LED for the Present row. | |
-| **Present PM LED** | `GPIO 27` | | Connects to the anode (+) of the PM LED for the Present row. | |
-| **Last Dept. AM LED** | `GPIO 2` | | Connects to the anode (+) of the Last Departed row LED. | |
-| **Last Dept. PM LED** | `GPIO 4` | | Connects to the anode (+) of the Last Departed row LED. | |
-| **Power (+5V)** | `5V` | Red | Connects to the VCC/VIN pin of all components (ESP32, Displays, DFPlayer). | |
-| **Ground (GND)** | `GND` | Black | Connects all GND pins to a common ground rail. **Crucial for stability!** | |
+| Component | ESP32 Pin | Suggested Wire Color | Connection / Notes |
+| :--- | :--- | :--- | :--- |
+| **I2C Bus 1 (SDA)** | `GPIO 21` | Yellow | Connects to the SDA pin of the 8 "Destination" and "Present" row displays. |
+| **I2C Bus 1 (SCL)** | `GPIO 22` | Green | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. |
+| **I2C Bus 2 (SDA)** | `GPIO 25` | Blue | Connects to the SDA pin of the 4 "Last Time Departed" row displays. |
+| **I2C Bus 2 (SCL)** | `GPIO 26` | White | Connects to the SCL pin of the 4 "Last Time Departed" row displays. |
+| **DFPlayer Mini (RX)** | `GPIO 17` | Orange | Connects to the **TX** pin of the DFPlayer. **Cross this connection!** |
+| **DFPlayer Mini (TX)** | `GPIO 16` | Purple | Connects to the **RX** pin of the DFPlayer. **Cross this connection!** |
+| **Destination AM LED** | `GPIO 13` | | Connects to the anode (+) of the AM LED for the Destination row. |
+| **Destination PM LED** | `GPIO 14` | | Connects to the anode (+) of the PM LED for the Destination row. |
+| **Present AM LED** | `GPIO 32` | | Connects to the anode (+) of the AM LED for the Present row. |
+| **Present PM LED** | `GPIO 27` | | Connects to the anode (+) of the PM LED for the Present row. |
+| **Last Dept. AM LED** | `GPIO 2` | | Connects to the anode (+) of the Last Departed row LED. |
+| **Last Dept. PM LED** | `GPIO 4` | | Connects to the anode (+) of the Last Departed row LED. |
+| **Power (+5V)** | `5V` | Red | Connects to the VCC/VIN pin of all components (ESP32, Displays, DFPlayer). |
+| **Ground (GND)** | `GND` | Black | Connects all GND pins to a common ground rail. **Crucial for stability!** |
 
     #### I2C Bus and Display Addresses
 
@@ -260,6 +260,7 @@ Having trouble? Here are some common issues and their solutions.
     * **Check SD Card:** Ensure your MicroSD card is formatted as **FAT32**. Create a folder named `mp3` in the root directory and place your `.mp3` files inside it.
 
 Enjoy your new Time Circuits Display! Don't be surprised if you suddenly have an urge to drive 88 miles per hour.
+
 ---
 ## 🤝 Contributing
 
@@ -274,39 +275,22 @@ If you have a suggestion that would make this better, please fork the repo and c
 5.  Open a Pull Request
 
 ---
-## 🔬 For Advanced Users & Developers
+## 🔬 Theory of Operation
 
-For those who want to dive deeper or modify the code, here’s an overview of how the software works.
+For those who want to understand the inner workings of the Time Circuits clock, this section provides a high-level overview of the project's architecture.
 
-### **Code Structure Overview**
-* **`back-to-the-future-timecircuits.ino`**: This is the main sketch. It handles the `setup()` and `loop()` functions, WiFi management, the web server, and calls to other modules for hardware control and animations.
-* **`HardwareControl.cpp / .h`**: These files abstract all direct interaction with the hardware, such as writing to the I2C displays, controlling LEDs, and playing sounds via the DFPlayer.
-* **`data/` folder**: Contains the frontend files for the web UI (`index.html`, `style.css`, `script.js`). `script.js` is responsible for all API communication with the ESP32.
-* **Main Handler Functions**:
-    * `handleBootSequence()`: Manages the non-blocking startup animation.
-    * `handleDisplayAnimation()`: Controls the time travel visual effects.
-    * `handleSleepSchedule()`: Checks if the displays should enter or exit power-saving mode.
-    * `handlePresetCycling()`: Automatically cycles through the saved "Last Time Departed" presets if enabled.
+* **The Brain: ESP32**: The entire project is orchestrated by a single **ESP32** microcontroller. This powerful chip was chosen for its dual-core processor, ample memory, and, most importantly, its built-in Wi-Fi and Bluetooth capabilities. It's responsible for everything from driving the displays and playing sounds to running the web server for the control interface.
 
-### **API Endpoints for Integration**
-The web interface is powered by a simple REST API. You can send commands to the clock from other devices on your network.
+* **Web-Based Control (REST API)**: The clock is controlled via a web interface hosted directly on the ESP32 using the `ESPAsyncWebServer` library. Your phone or computer communicates with the clock using a simple **REST API**. When you change a setting in the web UI (like the destination year), your browser sends an HTTP request to an API endpoint on the ESP32 (e.g., `POST /api/saveSettings`). The ESP32 code parses this request, updates the settings, and saves them to its flash memory.
 
-* `POST /api/timeTravel`
-    * **Description**: Initiates the full time travel animation sequence.
-    * **Returns**: `200 OK` with the text "Time Travel Sequence Initiated!"
-* `POST /api/syncNtp`
-    * **Description**: Forces a manual sync with the NTP server.
-    * **Returns**: `200 OK` with the text "NTP Sync Requested!"
-* `GET /api/settings`
-    * **Description**: Returns a JSON object containing all current settings.
-    * **Example Response**: `{"destinationYear": 1955, "brightness": 5, "theme": 0, ...}`
-* `GET /api/status`
-    * **Description**: Returns a JSON object with the current WiFi status.
-    * **Example Response**: `{"rssi": -55, "ssid": "YourWiFi"}`
-* `POST /api/saveSettings`
-    * **Description**: Saves all settings sent in the request body.
-    * **Parameters**: Expects form data with keys matching the settings (e.g., `destinationYear=1985`, `brightness=7`).
+* **Dual I2C Buses**: The project uses twelve 14-segment display modules, but the I2C protocol, which is used to control them, only supports eight unique addresses per bus (`0x70` to `0x77`). To overcome this limitation, the project leverages the ESP32's ability to create multiple I2C buses on different GPIO pins.
+    * **Bus 1 (`GPIO 21/22`)**: Controls the eight displays for the "Destination Time" and "Present Time" rows.
+    * **Bus 2 (`GPIO 25/26`)**: Controls the four displays for the "Last Time Departed" row.
+    This dual-bus architecture allows all twelve displays to be controlled independently without address conflicts.
 
-**Example using cURL to trigger a time jump:**
-```bash
-curl -X POST [http://timecircuits.local/api/timeTravel](http://timecircuits.local/api/timeTravel)
+* **Animation State Machine**: The complex time travel animations are managed by a **state machine** within the main `.ino` file. When an animation is triggered, a global variable (`currentPhase`) transitions through a series of states (e.g., `ANIM_FLICKER`, `ANIM_DIM_OUT`). The main `loop()` function checks the current state and the time elapsed since the last state change to determine what to show on the displays and what sounds to play. This non-blocking approach ensures the device remains responsive even during a multi-second animation sequence.
+
+---
+## 📜 License
+
+[Add License Information Here, e.g., "Distributed under the MIT License. See `LICENSE.txt` for more information."]

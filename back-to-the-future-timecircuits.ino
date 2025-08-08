@@ -115,9 +115,6 @@ unsigned long lastGlitchTime = 0;
 // *** BUG FIX: Glitch Effect State Variables ***
 bool isGlitching = false;
 unsigned long glitchStartTime = 0;
-DisplayRow* glitchedRow = nullptr;
-struct tm originalGlitchedTimeInfo;
-int originalGlitchedYear;
 // *** NEW: Preset Cycling State Variables ***
 unsigned long lastPresetCycleTime = 0;
 int currentPresetIndex = 0;
@@ -447,32 +444,22 @@ void handleDisplayAnimation() {
   #endif
 }
 
+// *** UPDATED FUNCTION ***
 void handleGlitchEffect() {
   #if ENABLE_HARDWARE
-  if (isAnimating || isDisplayAsleep || isGlitching || currentSettings.animationStyle != 5) return;
-  if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
+  if (isAnimating || isDisplayAsleep || isGlitching) return;
+  // Automatically trigger glitch only if the style is set
+  if (currentSettings.animationStyle == 5 && millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
     if (random(0, 100) < 25) { // 25% chance of a glitch every minute
-      ESP_LOGD("Glitch", "Triggering glitch effect!");
+      ESP_LOGD("Glitch", "Triggering global glitch effect!");
       isGlitching = true;
       glitchStartTime = millis();
 
-      int rowNum = random(0, 3);
-      if (rowNum == 0) {
-        glitchedRow = &destRow;
-        originalGlitchedTimeInfo = destinationTimeInfo;
-        originalGlitchedYear = currentSettings.destinationYear;
-      } else if (rowNum == 1) {
-        glitchedRow = &presRow;
-        originalGlitchedTimeInfo = currentTimeInfo;
-        originalGlitchedYear = currentTimeInfo.tm_year + 1900;
-      } else {
-        glitchedRow = &lastRow;
-        originalGlitchedTimeInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
-        originalGlitchedYear = currentSettings.lastTimeDepartedYear;
-      }
-      
+      // Animate all rows simultaneously for a global interference effect
       if (ENABLE_I2C_HARDWARE) {
-          animateDisplayRowRandomly(*glitchedRow);
+          animateDisplayRowRandomly(destRow);
+          animateDisplayRowRandomly(presRow);
+          animateDisplayRowRandomly(lastRow);
       }
     }
     lastGlitchTime = millis();
@@ -480,14 +467,14 @@ void handleGlitchEffect() {
   #endif
 }
 
+// *** UPDATED FUNCTION ***
 void restoreDisplayAfterGlitch() {
   #if ENABLE_HARDWARE
-  if (!isGlitching || !glitchedRow) return;
-  if (millis() - glitchStartTime > 75) { // 75ms glitch duration
-    ESP_LOGD("Glitch", "Glitch effect finished. Restoring display.");
-    updateDisplayRow(*glitchedRow, originalGlitchedTimeInfo, originalGlitchedYear);
+  if (!isGlitching) return;
+  if (millis() - glitchStartTime > 150) { // Glitch for 150ms
+    ESP_LOGD("Glitch", "Global glitch effect finished. Restoring all displays.");
+    updateNormalClockDisplay(); // This function restores all rows to their correct state
     isGlitching = false;
-    glitchedRow = nullptr;
   }
   #endif
 }
@@ -498,6 +485,7 @@ void updateNormalClockDisplay() {
   static int lastDestinationTimezoneIndex = -1;
   static bool lastDisplayFormat24h = false;
   static int lastLastTimeDepartedHour = -1, lastLastTimeDepartedMinute = -1, lastLastTimeDepartedYear = -1, lastLastTimeDepartedMonth = -1, lastLastTimeDepartedDay = -1;
+  
   if (currentSettings.presentTimezoneIndex != lastPresentTimezoneIndex) {
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
@@ -527,6 +515,7 @@ void updateNormalClockDisplay() {
                                   currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
                                   currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
                                   presentTimeNeedsUpdate));
+  
   if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate || currentSettings.windSpeedModeEnabled)) {
     lastDisplayUpdate = millis();
     lastDisplayFormat24h = currentSettings.displayFormat24h;
@@ -650,6 +639,7 @@ void handleSleepSchedule() {
     shouldBeAsleep = (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
   }
   // If sleep_minutes == wake_minutes, sleep is disabled, shouldBeAsleep remains false.
+  
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     #if ENABLE_HARDWARE
@@ -867,6 +857,11 @@ void setupWebRoutes() {
     startTimeTravelAnimation();
     request->send(200, "text/plain", "Time Travel Sequence Initiated!");
   });
+  // *** NEWLY ADDED ENDPOINT ***
+  server.on("/api/testAnimation", HTTP_POST, [](AsyncWebServerRequest *request) {
+    startTimeTravelAnimation();
+    request->send(200, "text/plain", "Test Sequence Initiated!");
+  });
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
     DynamicJsonDocument doc(4096);
     JsonObject root = doc.to<JsonObject>();
@@ -938,7 +933,7 @@ void setupWebRoutes() {
       } else if (setting == "notificationVolume") {
         int volume = value.toInt();
         if (volume >= 0 && volume <= 30) {
-           #if ENABLE_HARDWARE
+          #if ENABLE_HARDWARE
           myDFPlayer.volume(volume);
           #endif
         } else {
@@ -961,7 +956,6 @@ void setupWebRoutes() {
             currentSettings.timeTravelAnimationDuration = duration;
             #if ENABLE_HARDWARE
             playSound(SOUND_CONFIRM_ON);
-            // Audible feedback for this change
             #endif
           } else {
             request->send(400, "text/plain", "Invalid animation duration.");
@@ -981,7 +975,6 @@ void setupWebRoutes() {
               currentSettings.presetCycleInterval = interval;
               #if ENABLE_HARDWARE
               playSound(SOUND_CONFIRM_ON);
-              // Provide audible feedback
               #endif
           } else {
               request->send(400, "text/plain", "Invalid preset cycle interval.");
@@ -993,7 +986,6 @@ void setupWebRoutes() {
               currentSettings.timeTravelAnimationInterval = interval;
               #if ENABLE_HARDWARE
               playSound(SOUND_CONFIRM_ON);
-              // Provide audible feedback
               #endif
           } else {
               request->send(400, "text/plain", "Invalid animation interval.");
@@ -1089,7 +1081,7 @@ void setupWebRoutes() {
       JsonArray newArray = newDoc.to<JsonArray>();
       for (JsonObject preset : oldArray) {
         if (preset["value"].as<String>() != valueToDelete) {
-            newArray.add(preset);
+          newArray.add(preset);
         }
       }
       String newPresetsJson;
@@ -1126,91 +1118,96 @@ void runBootSequence() {
   bootStateStartTime = millis();
 }
 
+// *** UPDATED FUNCTION ***
 void handleBootSequence() {
   if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) {
     return;
   }
 
   unsigned long currentTime = millis();
+  unsigned long elapsed = currentTime - bootStateStartTime;
   static unsigned long lastUpdate = 0;
+
   switch (bootState) {
     case BOOT_ANIMATION_START:
       #if ENABLE_HARDWARE
       blankAllDisplays();
-      // Ensure displays are blank at the start of the sequence
       startTimeTravelAnimation();
       #endif
       bootState = BOOT_ANIMATION_WAIT;
       bootStateStartTime = currentTime;
       break;
+
     case BOOT_ANIMATION_WAIT:
-      if (!isAnimating && (currentTime - bootStateStartTime > currentSettings.timeTravelAnimationDuration + BOOT_ANIMATION_WAIT_MS)) { // Add a small buffer after the animation
+      if (!isAnimating) {
         bootState = BOOT_88MPH_DISPLAY;
         bootStateStartTime = currentTime;
       }
       break;
+
     case BOOT_88MPH_DISPLAY:
       #if ENABLE_HARDWARE
       static int speed = 0;
-      if (currentTime - lastUpdate > 50 && speed <= 88) { // Update every 50ms
-          display88MphSpeed(speed);
-          speed++;
+      if (currentTime - lastUpdate > 50 && speed <= 88) {
+          display88MphSpeed(speed++);
           lastUpdate = currentTime;
       }
-      if (speed > 88 && (currentTime - bootStateStartTime > 1000)) { // Pause for 1 second when 88 is reached
+      if (speed > 88 && elapsed > 1000) {
           bootState = BOOT_RECALIBRATING_DISPLAY;
           bootStateStartTime = currentTime;
       }
-      #else // Skip this state if hardware is disabled
-        if (currentTime - bootStateStartTime > 1000) {
+      #else
+        if (elapsed > 1000) {
             bootState = BOOT_RECALIBRATING_DISPLAY;
             bootStateStartTime = currentTime;
         }
       #endif
       break;
+
     case BOOT_RECALIBRATING_DISPLAY:
       #if ENABLE_HARDWARE
-      destRow.month.print("REC"); destRow.month.writeDisplay();
-      destRow.day.print("AL");
-      destRow.day.writeDisplay();
-      destRow.year.print("IBRA"); destRow.year.writeDisplay();
-      destRow.time.print("TING"); destRow.time.writeDisplay();
+      if (currentTime - lastUpdate > 100) {
+        animateDisplayRowRandomly(destRow);
+        animateDisplayRowRandomly(presRow);
+        lastUpdate = currentTime;
+      }
+      destRow.month.print("RECA"); destRow.month.writeDisplay();
+      destRow.day.print("LIBR"); destRow.day.writeDisplay();
       #endif
-      if (currentTime - bootStateStartTime > BOOT_STATE_CHANGE_INTERVAL_MS) {
+      if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
         bootState = BOOT_RELAY_TEST_DISPLAY;
         bootStateStartTime = currentTime;
       }
       break;
+
     case BOOT_RELAY_TEST_DISPLAY:
       #if ENABLE_HARDWARE
-      presRow.month.print("REL"); presRow.month.writeDisplay();
-      presRow.day.print("AY");
-      presRow.day.writeDisplay();
-      presRow.year.print("SELF"); presRow.year.writeDisplay();
-      presRow.time.print("TEST"); presRow.time.writeDisplay();
+      presRow.month.print("RLAY"); presRow.month.writeDisplay();
+      presRow.day.print("TEST"); presRow.day.writeDisplay();
       #endif
-      if (currentTime - bootStateStartTime > BOOT_STATE_CHANGE_INTERVAL_MS) {
+      if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
         bootState = BOOT_CAPACITOR_FULL_DISPLAY;
         bootStateStartTime = currentTime;
       }
       break;
+
     case BOOT_CAPACITOR_FULL_DISPLAY:
       #if ENABLE_HARDWARE
       lastRow.month.print("CAP"); lastRow.month.writeDisplay();
-      lastRow.day.print("AC");
-      lastRow.day.writeDisplay();
-      lastRow.year.print("ITOR"); lastRow.year.writeDisplay();
-      lastRow.time.print("FULL"); lastRow.time.writeDisplay();
+      lastRow.day.print("FULL"); lastRow.day.writeDisplay();
       #endif
-      if (currentTime - bootStateStartTime > BOOT_STATE_CHANGE_INTERVAL_MS) {
-        bootState = BOOT_COMPLETE;
+      if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
         #if ENABLE_HARDWARE
+        byte savedBrightness = currentSettings.brightness;
+        setDisplayBrightness(7);
+        delay(100);
         blankAllDisplays();
+        delay(50);
+        setDisplayBrightness(savedBrightness);
         #endif
+        bootState = BOOT_COMPLETE;
         ESP_LOGI("Boot", "Boot sequence complete.");
       }
-      break;
-    default:
       break;
   }
 }
@@ -1282,18 +1279,21 @@ void setup() {
   runBootSequence();
 }
 
+// *** UPDATED/FIXED loop() FUNCTION ***
 void loop() {
     ArduinoOTA.handle();
+
+    // Allow animations to be handled during the boot sequence to prevent hangs
+    handleDisplayAnimation();
+
     if (bootState != BOOT_COMPLETE) {
         handleBootSequence();
-        return;
-        // Don't run the rest of the loop until boot is complete
+        return; // Don't run the rest of the loop until boot is complete
     }
 
-    // Handle continuous animation logic
-    handleDisplayAnimation();
-    // *** BUG FIX: Call the function to handle glitch restoration ***
+    // Call the function to handle glitch restoration
     restoreDisplayAfterGlitch();
+    
     // Automatic time travel animation trigger
     if (currentSettings.timeTravelAnimationInterval > 0 && !isAnimating) {
         unsigned long intervalMillis = (unsigned long)currentSettings.timeTravelAnimationInterval * 60 * 1000;
@@ -1303,9 +1303,7 @@ void loop() {
     }
     
     // Glitch effect handler
-    if (currentSettings.animationStyle == 5) {
-        handleGlitchEffect();
-    }
+    handleGlitchEffect();
 
     // Wind speed fetching
     if (currentSettings.windSpeedModeEnabled &&
@@ -1314,8 +1312,9 @@ void loop() {
         fetchWindSpeed();
     }
     
-    // *** FEATURE IMPLEMENTATION: Handle preset cycling ***
+    // Handle preset cycling
     handlePresetCycling();
+    
     static unsigned long lastOneSecondUpdate = 0;
     if (millis() - lastOneSecondUpdate >= 1000) {
         lastOneSecondUpdate = millis();
@@ -1354,14 +1353,12 @@ void loop() {
                 lastNtpSyncTime = epoch;
                 ntpRequestSentTime = 0;
                 isNtpSyncAnimating = false;
-                // Stop animation on success
             }
         } else if (ntpRequestSentTime > 0) { // Timeout
             ESP_LOGW("NTP", "Sync failed. Retrying with next server.");
             timeSynchronized = false;
             currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
             ntpRequestSentTime = 0;
-            // *** BUG FIX: Stop animation on failure ***
             isNtpSyncAnimating = false;
         }
       
