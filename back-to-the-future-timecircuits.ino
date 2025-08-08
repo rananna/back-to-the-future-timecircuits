@@ -485,7 +485,6 @@ void updateNormalClockDisplay() {
   static int lastDestinationTimezoneIndex = -1;
   static bool lastDisplayFormat24h = false;
   static int lastLastTimeDepartedHour = -1, lastLastTimeDepartedMinute = -1, lastLastTimeDepartedYear = -1, lastLastTimeDepartedMonth = -1, lastLastTimeDepartedDay = -1;
-  
   if (currentSettings.presentTimezoneIndex != lastPresentTimezoneIndex) {
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
@@ -515,7 +514,6 @@ void updateNormalClockDisplay() {
                                   currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
                                   currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
                                   presentTimeNeedsUpdate));
-  
   if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate || currentSettings.windSpeedModeEnabled)) {
     lastDisplayUpdate = millis();
     lastDisplayFormat24h = currentSettings.displayFormat24h;
@@ -639,7 +637,6 @@ void handleSleepSchedule() {
     shouldBeAsleep = (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
   }
   // If sleep_minutes == wake_minutes, sleep is disabled, shouldBeAsleep remains false.
-  
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     #if ENABLE_HARDWARE
@@ -875,6 +872,7 @@ void setupWebRoutes() {
       obj["text"] = TZ_DATA[i].displayName;
       obj["ianaTzName"] = TZ_DATA[i].ianaTzName;
     }
+  
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -925,7 +923,7 @@ void setupWebRoutes() {
         if (brightness >= 0 && brightness <= 7) {
           #if ENABLE_HARDWARE
           setDisplayBrightness(brightness);
-          #endif
+        #endif
         } else {
             request->send(400, "text/plain", "Invalid brightness value.");
             return;
@@ -933,7 +931,7 @@ void setupWebRoutes() {
       } else if (setting == "notificationVolume") {
         int volume = value.toInt();
         if (volume >= 0 && volume <= 30) {
-          #if ENABLE_HARDWARE
+         #if ENABLE_HARDWARE
           myDFPlayer.volume(volume);
           #endif
         } else {
@@ -1014,6 +1012,7 @@ void setupWebRoutes() {
       String presetsJson = preferences.getString("customPresets", "[]");
       DynamicJsonDocument doc(2048);
       deserializeJson(doc, presetsJson);
+    
       JsonArray array = doc.as<JsonArray>();
       for (JsonObject existingPreset : array) {
         if (existingPreset["value"].as<String>() == value) {
@@ -1024,6 +1023,7 @@ void setupWebRoutes() {
       JsonObject newPreset = array.createNestedObject();
       newPreset["name"] = name;
       newPreset["value"] = value;
+     
       String newPresetsJson;
       serializeJson(doc, newPresetsJson);
       preferences.putString("customPresets", newPresetsJson);
@@ -1081,7 +1081,7 @@ void setupWebRoutes() {
       JsonArray newArray = newDoc.to<JsonArray>();
       for (JsonObject preset : oldArray) {
         if (preset["value"].as<String>() != valueToDelete) {
-          newArray.add(preset);
+           newArray.add(preset);
         }
       }
       String newPresetsJson;
@@ -1102,6 +1102,7 @@ void setupWebRoutes() {
              &currentSettings.lastTimeDepartedHour,
              &currentSettings.lastTimeDepartedMinute);
     }
+   
     request->send(200, "text/plain", "OK");
   });
   server.on("/api/clearPreferences", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -1127,7 +1128,6 @@ void handleBootSequence() {
   unsigned long currentTime = millis();
   unsigned long elapsed = currentTime - bootStateStartTime;
   static unsigned long lastUpdate = 0;
-
   switch (bootState) {
     case BOOT_ANIMATION_START:
       #if ENABLE_HARDWARE
@@ -1137,14 +1137,12 @@ void handleBootSequence() {
       bootState = BOOT_ANIMATION_WAIT;
       bootStateStartTime = currentTime;
       break;
-
     case BOOT_ANIMATION_WAIT:
       if (!isAnimating) {
         bootState = BOOT_88MPH_DISPLAY;
         bootStateStartTime = currentTime;
       }
       break;
-
     case BOOT_88MPH_DISPLAY:
       #if ENABLE_HARDWARE
       static int speed = 0;
@@ -1163,7 +1161,6 @@ void handleBootSequence() {
         }
       #endif
       break;
-
     case BOOT_RECALIBRATING_DISPLAY:
       #if ENABLE_HARDWARE
       if (currentTime - lastUpdate > 100) {
@@ -1179,7 +1176,6 @@ void handleBootSequence() {
         bootStateStartTime = currentTime;
       }
       break;
-
     case BOOT_RELAY_TEST_DISPLAY:
       #if ENABLE_HARDWARE
       presRow.month.print("RLAY"); presRow.month.writeDisplay();
@@ -1190,7 +1186,6 @@ void handleBootSequence() {
         bootStateStartTime = currentTime;
       }
       break;
-
     case BOOT_CAPACITOR_FULL_DISPLAY:
       #if ENABLE_HARDWARE
       lastRow.month.print("CAP"); lastRow.month.writeDisplay();
@@ -1282,18 +1277,16 @@ void setup() {
 // *** UPDATED/FIXED loop() FUNCTION ***
 void loop() {
     ArduinoOTA.handle();
-
     // Allow animations to be handled during the boot sequence to prevent hangs
     handleDisplayAnimation();
-
     if (bootState != BOOT_COMPLETE) {
         handleBootSequence();
-        return; // Don't run the rest of the loop until boot is complete
+        return;
+        // Don't run the rest of the loop until boot is complete
     }
 
     // Call the function to handle glitch restoration
     restoreDisplayAfterGlitch();
-    
     // Automatic time travel animation trigger
     if (currentSettings.timeTravelAnimationInterval > 0 && !isAnimating) {
         unsigned long intervalMillis = (unsigned long)currentSettings.timeTravelAnimationInterval * 60 * 1000;
@@ -1304,7 +1297,6 @@ void loop() {
     
     // Glitch effect handler
     handleGlitchEffect();
-
     // Wind speed fetching
     if (currentSettings.windSpeedModeEnabled &&
         (millis() - lastWindSpeedFetch >= WIND_SPEED_FETCH_INTERVAL_MS) &&
@@ -1314,7 +1306,6 @@ void loop() {
     
     // Handle preset cycling
     handlePresetCycling();
-    
     static unsigned long lastOneSecondUpdate = 0;
     if (millis() - lastOneSecondUpdate >= 1000) {
         lastOneSecondUpdate = millis();
