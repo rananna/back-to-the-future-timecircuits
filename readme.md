@@ -5,7 +5,6 @@
 </p>
 
 <p align="center">
-  <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg">
   <img alt="Platform" src="https://img.shields.io/badge/Platform-ESP32-purple.svg">
   <img alt="Framework" src="https://img.shields.io/badge/Framework-Arduino-00979D.svg">
   <img alt="Power" src="https://img.shields.io/badge/Power-1.21_Gigawatts!-orange.svg">
@@ -65,7 +64,7 @@ Here are a few shots of the completed Time Circuits display.
 | ** | ** | ** |
 
 ---
-##  BOM (Bill of Materials)
+## 🛠️ BOM (Bill of Materials)
 
 | Category          | Component                                                                  | Qty | Notes                                                                   |
 | :---------------- | :------------------------------------------------------------------------- | :-: | :---------------------------------------------------------------------- |
@@ -103,26 +102,46 @@ Here are a few shots of the completed Time Circuits display.
 
 4.  **Wiring & Schematics**:
 ![schematic diagram](bttf_bb.png)
-    This project uses two separate I2C buses to manage all 12 displays without address conflicts. The connection table below is the definitive guide for wiring your components.
+    This project uses two separate I2C buses to manage all 12 displays without address conflicts. Follow the steps and tables below carefully.
+
+    #### Wiring Best Practices
+    * **Use a Breadboard**: For initial setup, a breadboard is highly recommended to easily connect and test components.
+    * **Color-Coded Wires**: Using standard wire colors (e.g., **Red** for 5V, **Black** for GND, **Yellow** for SDA, **Green** for SCL) will make wiring and troubleshooting much easier.
+    * **Common Ground Rail**: It is crucial that all components share a common ground. Connect all GND pins to the same ground rail on your breadboard or a common wire.
+
+    #### Step-by-Step Wiring Sequence
+
+    1.  **Power Rails**: Connect your 5V power supply to the main power and ground rails of your breadboard.
+    2.  **Wire I2C Bus 1 (Destination & Present Time)**:
+        * Connect **GPIO 21 (SDA)** of the ESP32 to the SDA pin of the 8 "Destination" and "Present" row displays. Daisy-chain the SDA pins of these 8 displays together.
+        * Connect **GPIO 22 (SCL)** of the ESP32 to the SCL pin of the same 8 displays. Daisy-chain the SCL pins together.
+    3.  **Wire I2C Bus 2 (Last Time Departed)**:
+        * Connect **GPIO 25 (SDA)** of the ESP32 to the SDA pin of the 4 "Last Time Departed" row displays.
+        * Connect **GPIO 26 (SCL)** of the ESP32 to the SCL pin of these 4 displays.
+    4.  **Connect the Audio Module**:
+        * Wire the DFPlayer Mini according to the table below. Remember that the ESP32's TX pin connects to the player's RX, and vice-versa.
+    5.  **Wire the Indicator LEDs**:
+        * Connect the anode (+) of each of the 6 AM/PM LEDs through a 220-330Ω resistor to its corresponding GPIO pin on the ESP32. Connect the cathode (-) of each LED to the common ground rail.
+    6.  **Final Power Connections**: Connect the VCC/VIN and GND pins of all components (ESP32, Displays, DFPlayer) to your main 5V and ground rails.
 
     #### Component Wiring Table
 
-| Component | ESP32 Pin | Connection / Notes | Source |
-| :--- | :--- | :--- | :--- |
-| **I2C Bus 1 (SDA)** | `GPIO 21` | Connects to the SDA pin of the 8 "Destination" and "Present" row displays. | |
-| **I2C Bus 1 (SCL)** | `GPIO 22` | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. | |
-| **I2C Bus 2 (SDA)** | `GPIO 25` | Connects to the SDA pin of the 4 "Last Time Departed" row displays. | |
-| **I2C Bus 2 (SCL)** | `GPIO 26` | Connects to the SCL pin of the 4 "Last Time Departed" row displays. | |
-| **DFPlayer Mini (RX)** | `GPIO 17` | Connects to the **TX** pin of the DFPlayer. | |
-| **DFPlayer Mini (TX)** | `GPIO 16` | Connects to the **RX** pin of the DFPlayer. | |
-| **Destination AM LED** | `GPIO 13` | Connects to the anode (+) of the AM LED for the Destination row. | |
-| **Destination PM LED** | `GPIO 14` | Connects to the anode (+) of the PM LED for the Destination row. | |
-| **Present AM LED** | `GPIO 32` | Connects to the anode (+) of the AM LED for the Present row. | |
-| **Present PM LED** | `GPIO 27` | Connects to the anode (+) of the PM LED for the Present row. | |
-| **Last Dept. AM LED** | `GPIO 2` | Connects to the anode (+) of the Last Departed row LED. | |
-| **Last Dept. PM LED** | `GPIO 4` | Connects to the anode (+) of the Last Departed row LED. | |
-| **Power (+5V)** | `5V` | Connects to the VCC/VIN pin of all components (ESP32, Displays, DFPlayer). | |
-| **Ground (GND)** | `GND` | Connects all GND pins to a common ground rail. | |
+| Component | ESP32 Pin | Suggested Wire Color | Connection / Notes | Source |
+| :--- | :--- | :--- | :--- | :--- |
+| **I2C Bus 1 (SDA)** | `GPIO 21` | Yellow | Connects to the SDA pin of the 8 "Destination" and "Present" row displays. | |
+| **I2C Bus 1 (SCL)** | `GPIO 22` | Green | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. | |
+| **I2C Bus 2 (SDA)** | `GPIO 25` | Blue | Connects to the SDA pin of the 4 "Last Time Departed" row displays. | |
+| **I2C Bus 2 (SCL)** | `GPIO 26` | White | Connects to the SCL pin of the 4 "Last Time Departed" row displays. | |
+| **DFPlayer Mini (RX)** | `GPIO 17` | Orange | Connects to the **TX** pin of the DFPlayer. **Cross this connection!** | |
+| **DFPlayer Mini (TX)** | `GPIO 16` | Purple | Connects to the **RX** pin of the DFPlayer. **Cross this connection!** | |
+| **Destination AM LED** | `GPIO 13` | | Connects to the anode (+) of the AM LED for the Destination row. | |
+| **Destination PM LED** | `GPIO 14` | | Connects to the anode (+) of the PM LED for the Destination row. | |
+| **Present AM LED** | `GPIO 32` | | Connects to the anode (+) of the AM LED for the Present row. | |
+| **Present PM LED** | `GPIO 27` | | Connects to the anode (+) of the PM LED for the Present row. | |
+| **Last Dept. AM LED** | `GPIO 2` | | Connects to the anode (+) of the Last Departed row LED. | |
+| **Last Dept. PM LED** | `GPIO 4` | | Connects to the anode (+) of the Last Departed row LED. | |
+| **Power (+5V)** | `5V` | Red | Connects to the VCC/VIN pin of all components (ESP32, Displays, DFPlayer). | |
+| **Ground (GND)** | `GND` | Black | Connects all GND pins to a common ground rail. **Crucial for stability!** | |
 
     #### I2C Bus and Display Addresses
 
@@ -214,11 +233,6 @@ If you have a suggestion that would make this better, please fork the repo and c
 3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4.  Push to the Branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
-
----
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE.md` for more information.
 
 ---
 ## 🔬 For Advanced Users & Developers
