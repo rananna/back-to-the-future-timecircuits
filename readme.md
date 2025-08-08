@@ -83,41 +83,6 @@ For those who want to dive deeper or modify the code, here’s a brief overview 
 
 ---
 
-## 🔌 Wiring & Schematics
-
-This project uses two separate I2C buses to manage all 12 displays without address conflicts. The connection table below is the definitive guide for wiring your components.
-
-#### Component Wiring Table
-
-| Component | ESP32 Pin | Connection / Notes | Source |
-| :--- | :--- | :--- | :--- |
-| **I2C Bus 1 (SDA)** | `GPIO 21` | Connects to the SDA pin of the 8 "Destination" and "Present" row displays. | |
-| **I2C Bus 1 (SCL)** | `GPIO 22` | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. | |
-| **I2C Bus 2 (SDA)** | `GPIO 25` | Connects to the SDA pin of the 4 "Last Time Departed" row displays. | |
-| **I2C Bus 2 (SCL)** | `GPIO 26` | Connects to the SCL pin of the 4 "Last Time Departed" row displays. | |
-| **DFPlayer Mini (RX)** | `GPIO 17` | Connects to the **TX** pin of the DFPlayer. | |
-| **DFPlayer Mini (TX)** | `GPIO 16` | Connects to the **RX** pin of the DFPlayer. | |
-| **Destination AM LED** | `GPIO 13` | Connects to the anode (+) of the AM LED for the Destination row. | |
-| **Destination PM LED** | `GPIO 14` | Connects to the anode (+) of the PM LED for the Destination row. | |
-| **Present AM LED** | `GPIO 32` | Connects to the anode (+) of the AM LED for the Present row. | |
-| **Present PM LED** | `GPIO 27` | Connects to the anode (+) of the PM LED for the Present row. | |
-| **Last Dept. AM LED** | `GPIO 2` | Connects to the anode (+) of the Last Departed row LED. | |
-| **Last Dept. PM LED** | `GPIO 4` | Connects to the anode (+) of the Last Departed row LED. | |
-| **Power (+5V)** | `5V` | Connects to the VCC/VIN pin of all components (ESP32, Displays, DFPlayer). | |
-| **Ground (GND)** | `GND` | Connects all GND pins to a common ground rail. | |
-
-#### I2C Bus and Display Addresses
-
-* **I2C Bus 1** (`SDA: 21`, `SCL: 22`):
-    * **Destination Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
-    * **Present Row**: `0x74` (Month), `0x75` (Day), `0x76` (Year), `0x77` (Time)
-* **I2C Bus 2** (`SDA: 25`, `SCL: 26`):
-    * **Last Time Departed Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
-
-**
-
----
-
 ## 🚀 Installation & Setup
 
 1.  **Install Arduino IDE and ESP32 Core**:
@@ -138,17 +103,48 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 3.  **Configure I2C Display Addresses**:
     * **This is a critical step!** Each of the 12 display modules must have a unique address on its I2C bus. You must solder the address selection jumpers on the back of each board. Refer to the [Adafruit tutorial](https://learn.adafruit.com/adafruit-led-backpack/changing-i2c-address) for instructions on how to do this.
 
-4.  **Prepare the Filesystem (LittleFS)**:
+4.  **Wiring & Schematics**:
+    This project uses two separate I2C buses to manage all 12 displays without address conflicts. The connection table below is the definitive guide for wiring your components.
+    
+
+    #### Component Wiring Table
+
+| Component | ESP32 Pin | Connection / Notes | Source |
+| :--- | :--- | :--- | :--- |
+| **I2C Bus 1 (SDA)** | `GPIO 21` | Connects to the SDA pin of the 8 "Destination" and "Present" row displays. | |
+| **I2C Bus 1 (SCL)** | `GPIO 22` | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. | |
+| **I2C Bus 2 (SDA)** | `GPIO 25` | Connects to the SDA pin of the 4 "Last Time Departed" row displays. | |
+| **I2C Bus 2 (SCL)** | `GPIO 26` | Connects to the SCL pin of the 4 "Last Time Departed" row displays. | |
+| **DFPlayer Mini (RX)** | `GPIO 17` | Connects to the **TX** pin of the DFPlayer. | |
+| **DFPlayer Mini (TX)** | `GPIO 16` | Connects to the **RX** pin of the DFPlayer. | |
+| **Destination AM LED** | `GPIO 13` | Connects to the anode (+) of the AM LED for the Destination row. | |
+| **Destination PM LED** | `GPIO 14` | Connects to the anode (+) of the PM LED for the Destination row. | |
+| **Present AM LED** | `GPIO 32` | Connects to the anode (+) of the AM LED for the Present row. | |
+| **Present PM LED** | `GPIO 27` | Connects to the anode (+) of the PM LED for the Present row. | |
+| **Last Dept. AM LED** | `GPIO 2` | Connects to the anode (+) of the Last Departed row LED. | |
+| **Last Dept. PM LED** | `GPIO 4` | Connects to the anode (+) of the Last Departed row LED. | |
+| **Power (+5V)** | `5V` | Connects to the VCC/VIN pin of all components (ESP32, Displays, DFPlayer). | |
+| **Ground (GND)** | `GND` | Connects all GND pins to a common ground rail. | |
+
+    #### I2C Bus and Display Addresses
+
+    * **I2C Bus 1** (`SDA: 21`, `SCL: 22`):
+        * **Destination Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
+        * **Present Row**: `0x74` (Month), `0x75` (Day), `0x76` (Year), `0x77` (Time)
+    * **I2C Bus 2** (`SDA: 25`, `SCL: 26`):
+        * **Last Time Departed Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
+
+5.  **Prepare the Filesystem (LittleFS)**:
     * Download and install the [Arduino ESP32 filesystem uploader tool](https://github.com/espressif/arduino-esp32/blob/master/tools/arduino-esp32fs-plugin/README.md).
     * Place the `index.html`, `style.css`, and `script.js` files inside a `data` folder in your sketch directory (`back-to-the-future-timecircuits/data/`).
     * In the Arduino IDE, select `Tools` -> `ESP32 Sketch Data Upload` to flash the web files to the ESP32's LittleFS filesystem.
 
-5.  **Prepare the SD Card**:
+6.  **Prepare the SD Card**:
     * Format your MicroSD card to **FAT32**.
     * Create a folder named `mp3` in the root of the SD card.
     * Place your sound effect files (in `.mp3` format) inside the `/mp3/` folder. The filenames will be used as keys, so name them descriptively (e.g., `TIME_TRAVEL.mp3`, `ARRIVAL_THUD.mp3`). The code automatically maps these names to playable tracks.
 
-6.  **Upload the Code**:
+7.  **Upload the Code**:
     * Open the `back-to-the-future-timecircuits.ino` file in the Arduino IDE.
     * Select the correct COM port for your ESP32.
     * Click the "Upload" button to flash the main firmware.
