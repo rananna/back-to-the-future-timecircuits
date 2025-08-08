@@ -106,6 +106,7 @@ For those who want to dive deeper or modify the code, here’s a brief overview 
 4.  **Wiring & Schematics**:
     This project uses two separate I2C buses to manage all 12 displays without address conflicts. The connection table below is the definitive guide for wiring your components.
     
+    
 
     #### Component Wiring Table
 
