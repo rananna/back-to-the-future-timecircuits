@@ -56,15 +56,13 @@ This project is more than just a clock; it's a feature-packed, interactive prop.
 * **Over-the-Air (OTA) Updates**: Update the firmware wirelessly over your WiFi network using the Arduino IDE, no physical connection required after the initial flash.
 
 ---
-## ⚙️ Theory of Operation
+## 📸 Gallery
 
-For those who want to dive deeper or modify the code, here’s a brief overview of how the software works.
+Here are a few shots of the completed Time Circuits display.
 
-* **Main Loop (`loop()`)**: The main loop is designed to be non-blocking. Instead of using long `delay()` calls, it delegates tasks to various handler functions on each iteration. It continuously calls `handleBootSequence()` until the startup animations are complete. Afterward, it runs handlers like `handleDisplayAnimation()`, `handlePresetCycling()`, `handleSleepSchedule()`, and `restoreDisplayAfterGlitch()` to manage the clock's state.
-
-* **NTP Time Synchronization**: The clock's accuracy is maintained by a robust NTP client. On startup, it attempts to sync the time. If the initial sync fails, it automatically cycles to the next server in a predefined list (`NTP_SERVERS`) and retries after a short interval (`NTP_INITIAL_RETRY_INTERVAL_MS`). Once successful, it re-syncs periodically (`NTP_SUCCESS_INTERVAL_MS`) to maintain accuracy. A sync can also be manually triggered from the web interface.
-
-* **Web Server & API**: The project uses the **ESPAsyncWebServer** library to host the web interface and provide a RESTful API. The `server.on()` function is used to define various API endpoints (e.g., `/api/settings`, `/api/time`, `/api/saveSettings`). These endpoints allow the frontend JavaScript to fetch data from the ESP32 and send commands to update settings, trigger animations, or request a sync. This client-server architecture cleanly separates the hardware control logic from the user interface.
+| Front View | Angled View | Internals |
+| :---: | :---: | :---: |
+| ** | ** | ** |
 
 ---
 ##  BOM (Bill of Materials)
@@ -106,8 +104,6 @@ For those who want to dive deeper or modify the code, here’s a brief overview 
 4.  **Wiring & Schematics**:
 ![schematic diagram](bttf_bb.png)
     This project uses two separate I2C buses to manage all 12 displays without address conflicts. The connection table below is the definitive guide for wiring your components.
-    
-    
 
     #### Component Wiring Table
 
@@ -144,7 +140,17 @@ For those who want to dive deeper or modify the code, here’s a brief overview 
 6.  **Prepare the SD Card**:
     * Format your MicroSD card to **FAT32**.
     * Create a folder named `mp3` in the root of the SD card.
-    * Place your sound effect files (in `.mp3` format) inside the `/mp3/` folder. The filenames will be used as keys, so name them descriptively (e.g., `TIME_TRAVEL.mp3`, `ARRIVAL_THUD.mp3`). The code automatically maps these names to playable tracks.
+    * For the clock's main sound effects to work, you must name your files *exactly* as follows and place them in the `/mp3/` folder. The system is case-sensitive!
+    | Required Filename | Triggered By |
+    | :--- | :--- |
+    | `TIME_TRAVEL.mp3` | The main time travel animation. |
+    | `ACCELERATION.mp3`| The "speeding up to 88mph" part of the animation. |
+    | `WARP_WHOOSH.mp3` | The moment the time jump occurs. |
+    | `ARRIVAL_THUD.mp3`| Sound played upon completion of the time travel sequence. |
+    | `CONFIRM_ON.mp3` | Saving settings, waking from sleep, other confirmations. |
+    | `SLEEP_ON.mp3` | Entering sleep mode. |
+    | `EASTER_EGG.mp3` | Triggered by the "Great Scott!" button in the UI. |
+    | `NOT_FOUND.mp3` | (Optional) A fallback sound played if a sound is not found. |
 
 7.  **Upload the Code**:
     * Open the `back-to-the-future-timecircuits.ino` file in the Arduino IDE.
@@ -196,3 +202,45 @@ Having trouble? Here are some common issues and their solutions.
     * **Check SD Card:** Ensure your MicroSD card is formatted as **FAT32**. Create a folder named `mp3` in the root directory and place your `.mp3` files inside it.
 
 Enjoy your new Time Circuits Display! Don't be surprised if you suddenly have an urge to drive 88 miles per hour.
+---
+## 🤝 Contributing
+
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+---
+## 📜 License
+
+Distributed under the MIT License. See `LICENSE.md` for more information.
+
+---
+## 🔬 For Advanced Users & Developers
+
+For those who want to dive deeper or modify the code, here’s an overview of how the software works.
+
+### **Theory of Operation**
+
+* **Main Loop (`loop()`)**: The main loop is designed to be non-blocking. Instead of using long `delay()` calls, it delegates tasks to various handler functions on each iteration. It continuously calls `handleBootSequence()` until the startup animations are complete. Afterward, it runs handlers like `handleDisplayAnimation()`, `handlePresetCycling()`, `handleSleepSchedule()`, and `restoreDisplayAfterGlitch()` to manage the clock's state.
+
+* **NTP Time Synchronization**: The clock's accuracy is maintained by a robust NTP client. On startup, it attempts to sync the time. If the initial sync fails, it automatically cycles to the next server in a predefined list (`NTP_SERVERS`) and retries after a short interval (`NTP_INITIAL_RETRY_INTERVAL_MS`). Once successful, it re-syncs periodically (`NTP_SUCCESS_INTERVAL_MS`) to maintain accuracy. A sync can also be manually triggered from the web interface.
+
+* **Web Server & API**: The project uses the **ESPAsyncWebServer** library to host the web interface and provide a RESTful API. The `server.on()` function is used to define various API endpoints (e.g., `/api/settings`, `/api/time`, `/api/saveSettings`). These endpoints allow the frontend JavaScript to fetch data from the ESP32 and send commands to update settings, trigger animations, or request a sync. This client-server architecture cleanly separates the hardware control logic from the user interface.
+
+### **API Endpoints for Integration**
+The web interface is powered by a simple REST API. You can send commands to the clock from other devices on your network. Here are a few key endpoints:
+
+* `POST /api/timeTravel`: Initiates the time travel animation sequence.
+* `POST /api/syncNtp`: Forces a manual sync with the NTP server.
+* `GET /api/settings`: Returns a JSON object with all current settings.
+* `GET /api/status`: Returns a JSON object with WiFi status (SSID, RSSI).
+
+**Example using cURL to trigger a time jump:**
+```bash
+curl -X POST [http://timecircuits.local/api/timeTravel](http://timecircuits.local/api/timeTravel)
