@@ -101,7 +101,7 @@ Here are a few shots of the completed Time Circuits display.
     * **This is a critical step!** Each of the 12 display modules must have a unique address on its I2C bus. You must solder the address selection jumpers on the back of each board. Refer to the [Adafruit tutorial](https://learn.adafruit.com/adafruit-led-backpack/changing-i2c-address) for instructions on how to do this.
 
 4.  **Wiring & Schematics**:
-    ![schematic diagram](bttf_bb.png)
+    ![schematic diagram](images/bttf_bb.png)
     This project uses two separate I2C buses to manage all 12 displays without address conflicts. Follow the steps and tables below carefully.
 
     #### Wiring Best Practices
