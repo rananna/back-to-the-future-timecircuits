@@ -1,7 +1,7 @@
 # Back to the Future - ESP32 Time Circuits Display
 
 <p align="center">
-  <img alt="A photo of the completed BTTF Clock Prop" src="20250722_134713.jpg" width="800">
+  <img alt="A photo of the completed BTTF Clock Prop" src="images/bttf.png" width="800">
 </p>
 
 <p align="center">
@@ -13,11 +13,32 @@
 > **Great Scott!** You've found the schematics for a fully-functional, WiFi-enabled Time Circuits display. While it can't *actually* travel through time (the flux capacitor technology is still a bit tricky), it brings the iconic look, feel, and sounds of the DeLorean's dashboard right to your desk. Using an ESP32, 12 alphanumeric displays, and a little bit of 1.21-gigawatt... I mean, 5-volt... ingenuity, this display connects to your network to show the Destination Time, Present Time, and Last Time Departed, all fully configurable from a slick, mobile-friendly web interface.
 
 ---
+
+## Table of Contents
+1.  [🌟 Demonstration](#-demonstration)
+2.  [✨ Features](#-features)
+3.  [📸 Gallery](#-gallery)
+4.  [🛠️ BOM (Bill of Materials)](#️-bom-bill-of-materials)
+5.  [🚀 Installation & Setup](#-installation--setup)
+6.  [💡 Configuration & Usage](#-configuration--usage)
+7.  [📦 Enclosure & Case Design](#-enclosure--case-design)
+8.  [❓ Troubleshooting](#-troubleshooting)
+9.  [🤝 Contributing](#-contributing)
+10. [🔬 For Advanced Users & Developers](#-for-advanced-users--developers)
+11. [📜 License](#-license)
+
+---
+
 ## 🌟 Demonstration
 
-A picture is worth a thousand words, and a video is worth a million! Check out the video below for a full demonstration of the clock's features, including the boot sequence, time travel animation, and a tour of the web interface.
+A picture is worth a thousand words, and a video is worth a million! Check out the video below for a full demonstration of the clock's features.
 
-*[Placeholder for a GIF or link to a YouTube video showing the clock in action.]*
+**[High-Quality GIF or Embedded YouTube Video Here]**
+
+*This demonstration showcases:*
+* *The cinematic boot-up sequence.*
+* *The full time travel animation with authentic sound effects.*
+* *A quick tour of the web interface, highlighting how to change the destination year and switch UI themes.*
 
 ---
 
@@ -59,9 +80,11 @@ This project is more than just a clock; it's a feature-packed, interactive prop.
 
 Here are a few shots of the completed Time Circuits display.
 
-| Front View | Angled View | Internals |
+| Front View | Wiring Close-up | Enclosure Internals |
 | :---: | :---: | :---: |
-| ** | ** | ** |
+| **[High-quality photo of the finished clock]** | **[Detailed shot of the wiring on the breadboard or perfboard]** | **[Photo showing how components are organized inside the case]** |
+| **Web UI - Time Circuits Theme** | **Web UI - OUTATIME Theme** | **Web UI - Mr. Fusion Theme** |
+| **[Screenshot of the web UI with the default green theme]** | **[Screenshot of the web UI with the red 'OUTATIME' theme]** | **[Screenshot of the web UI with the orange 'Mr. Fusion' theme]** |
 
 ---
 ## 🛠️ BOM (Bill of Materials)
@@ -151,10 +174,13 @@ Here are a few shots of the completed Time Circuits display.
     * **I2C Bus 2** (`SDA: 25`, `SCL: 26`):
         * **Last Time Departed Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
 
-5.  **Prepare the Filesystem (LittleFS)**:
-    * Download and install the [Arduino ESP32 filesystem uploader tool](https://github.com/espressif/arduino-esp32/blob/master/tools/arduino-esp32fs-plugin/README.md).
-    * Place the `index.html`, `style.css`, and `script.js` files inside a `data` folder in your sketch directory (`back-to-the-future-timecircuits/data/`).
-    * In the Arduino IDE, select `Tools` -> `ESP32 Sketch Data Upload` to flash the web files to the ESP32's LittleFS filesystem.
+5.  **Upload Web Interface Files to LittleFS**:
+    * To get the web interface onto the ESP32, you need to upload the contents of the `data` folder to its flash memory. The easiest way to do this is with the **Arduino ESP32 filesystem uploader** tool.
+    * **Installation**: Follow the installation instructions at the official repository: [ESP32 FS Plugin](https://github.com/earlephilhower/arduino-littlefs-upload).
+    * **Usage**:
+        1.  Ensure your `index.html`, `style.css`, and `script.js` files are inside a `data` folder in your main sketch directory.
+        2.  In the Arduino IDE, select `Tools` -> `ESP32 Sketch Data Upload`.
+        3.  This will flash the web files to the ESP32's LittleFS filesystem.
 
 6.  **Prepare the SD Card**:
     * Format your MicroSD card to **FAT32**.
@@ -171,7 +197,7 @@ Here are a few shots of the completed Time Circuits display.
     | `EASTER_EGG.mp3` | Triggered by the "Great Scott!" button in the UI. |
     | `NOT_FOUND.mp3` | (Optional) A fallback sound played if a sound is not found. |
 
-7.  **Upload the Code**:
+7.  **Upload the Main Code**:
     * Open the `back-to-the-future-timecircuits.ino` file in the Arduino IDE.
     * Select the correct COM port for your ESP32.
     * Click the "Upload" button to flash the main firmware.
@@ -196,6 +222,19 @@ Here are a few shots of the completed Time Circuits display.
 
 4.  **Engage Time Circuits!**:
     * After making changes, the **"Engage Time Circuits (Save All Settings)"** button will glow. Click it to save your configuration to the device's permanent memory. A time travel animation will play on the physical display to confirm the save.
+
+---
+
+## 📦 Enclosure & Case Design
+A proper enclosure is what brings this project to life, turning it from a collection of electronics into a true prop replica.
+
+**[Photo of your completed enclosure from the front]**
+**[Photo of the enclosure from the side or back, showing how it's assembled]**
+
+#### Construction Tips & Materials
+* **Main Body**: [Describe the material you used, e.g., "The main body was constructed from a laser-cut 3mm MDF, painted matte black to replicate the look of the movie prop."]
+* **Mounting**: [Explain how you mounted the components, e.g., "The display boards were mounted to a perfboard backplane, which was then secured to the enclosure using standoffs. The ESP32 and DFPlayer are housed in a separate compartment to keep wiring tidy."]
+* **3D Printable Files**: [If you have them, link to the files, e.g., "The 3D models for the enclosure are available on Thingiverse: [link to your Thingiverse page]."]
 
 ---
 
@@ -239,21 +278,34 @@ If you have a suggestion that would make this better, please fork the repo and c
 
 For those who want to dive deeper or modify the code, here’s an overview of how the software works.
 
-### **Theory of Operation**
-
-* **Main Loop (`loop()`)**: The main loop is designed to be non-blocking. Instead of using long `delay()` calls, it delegates tasks to various handler functions on each iteration. It continuously calls `handleBootSequence()` until the startup animations are complete. Afterward, it runs handlers like `handleDisplayAnimation()`, `handlePresetCycling()`, `handleSleepSchedule()`, and `restoreDisplayAfterGlitch()` to manage the clock's state.
-
-* **NTP Time Synchronization**: The clock's accuracy is maintained by a robust NTP client. On startup, it attempts to sync the time. If the initial sync fails, it automatically cycles to the next server in a predefined list (`NTP_SERVERS`) and retries after a short interval (`NTP_INITIAL_RETRY_INTERVAL_MS`). Once successful, it re-syncs periodically (`NTP_SUCCESS_INTERVAL_MS`) to maintain accuracy. A sync can also be manually triggered from the web interface.
-
-* **Web Server & API**: The project uses the **ESPAsyncWebServer** library to host the web interface and provide a RESTful API. The `server.on()` function is used to define various API endpoints (e.g., `/api/settings`, `/api/time`, `/api/saveSettings`). These endpoints allow the frontend JavaScript to fetch data from the ESP32 and send commands to update settings, trigger animations, or request a sync. This client-server architecture cleanly separates the hardware control logic from the user interface.
+### **Code Structure Overview**
+* **`back-to-the-future-timecircuits.ino`**: This is the main sketch. It handles the `setup()` and `loop()` functions, WiFi management, the web server, and calls to other modules for hardware control and animations.
+* **`HardwareControl.cpp / .h`**: These files abstract all direct interaction with the hardware, such as writing to the I2C displays, controlling LEDs, and playing sounds via the DFPlayer.
+* **`data/` folder**: Contains the frontend files for the web UI (`index.html`, `style.css`, `script.js`). `script.js` is responsible for all API communication with the ESP32.
+* **Main Handler Functions**:
+    * `handleBootSequence()`: Manages the non-blocking startup animation.
+    * `handleDisplayAnimation()`: Controls the time travel visual effects.
+    * `handleSleepSchedule()`: Checks if the displays should enter or exit power-saving mode.
+    * `handlePresetCycling()`: Automatically cycles through the saved "Last Time Departed" presets if enabled.
 
 ### **API Endpoints for Integration**
-The web interface is powered by a simple REST API. You can send commands to the clock from other devices on your network. Here are a few key endpoints:
+The web interface is powered by a simple REST API. You can send commands to the clock from other devices on your network.
 
-* `POST /api/timeTravel`: Initiates the time travel animation sequence.
-* `POST /api/syncNtp`: Forces a manual sync with the NTP server.
-* `GET /api/settings`: Returns a JSON object with all current settings.
-* `GET /api/status`: Returns a JSON object with WiFi status (SSID, RSSI).
+* `POST /api/timeTravel`
+    * **Description**: Initiates the full time travel animation sequence.
+    * **Returns**: `200 OK` with the text "Time Travel Sequence Initiated!"
+* `POST /api/syncNtp`
+    * **Description**: Forces a manual sync with the NTP server.
+    * **Returns**: `200 OK` with the text "NTP Sync Requested!"
+* `GET /api/settings`
+    * **Description**: Returns a JSON object containing all current settings.
+    * **Example Response**: `{"destinationYear": 1955, "brightness": 5, "theme": 0, ...}`
+* `GET /api/status`
+    * **Description**: Returns a JSON object with the current WiFi status.
+    * **Example Response**: `{"rssi": -55, "ssid": "YourWiFi"}`
+* `POST /api/saveSettings`
+    * **Description**: Saves all settings sent in the request body.
+    * **Parameters**: Expects form data with keys matching the settings (e.g., `destinationYear=1985`, `brightness=7`).
 
 **Example using cURL to trigger a time jump:**
 ```bash
