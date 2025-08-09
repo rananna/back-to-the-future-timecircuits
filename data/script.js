@@ -91,7 +91,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
         { id: 'notificationVolume', valueSpanId: 'volumeValue' },
         { id: 'timeTravelAnimationInterval', valueSpanId: 'timeTravelAnimationIntervalValue' },
         { id: 'presetCycleInterval', valueSpanId: 'presetCycleIntervalValue' },
-        { id: 'timeTravelAnimationDuration', valueSpanId: 'timeTravelAnimationDurationValue' }
+        { id: 'timeTravelAnimationDuration', valueSpanId: 'timeTravelAnimationDurationValue' },
+        { id: 'glitchEffectFrequency', valueSpanId: 'glitchEffectFrequencyValue' } // *** NEW ***
     ];
 
     sliders.forEach(sliderInfo => {
@@ -111,6 +112,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         { id: 'destinationTimezoneSelect', setting: 'destinationTimezoneIndex', event: 'change' },
         { id: 'presentTimezoneSelect', setting: 'presentTimezoneIndex', event: 'change' },
         { id: 'animationStyleSelect', setting: 'animationStyle', event: 'change' },
+        { id: 'glitchEffectFrequency', setting: 'glitchEffectFrequency', event: 'input' }, // *** NEW ***
         { id: 'displayFormat24h', setting: 'displayFormat24h', event: 'change', isCheckbox: true },
         { id: 'timeTravelSoundToggle', setting: 'timeTravelSoundToggle', event: 'change', isCheckbox: true },
         { id: 'timeTravelVolumeFade', setting: 'timeTravelVolumeFade', event: 'change', isCheckbox: true },
@@ -717,7 +719,7 @@ function fetchSettings() {
             const arrMin = data.arrivalMinute.toString().padStart(2, '0');
             document.getElementById('arrivalTime').value = `${arrHour}:${arrMin}`;
 
-            ['brightness', 'notificationVolume', 'timeTravelAnimationInterval', 'presetCycleInterval', 'timeTravelAnimationDuration'].forEach(id => {
+            ['brightness', 'notificationVolume', 'timeTravelAnimationInterval', 'presetCycleInterval', 'timeTravelAnimationDuration', 'glitchEffectFrequency'].forEach(id => {
                 const element = document.getElementById(id);
                 if (element) {
                     element.value = data[id];
@@ -787,7 +789,7 @@ function saveSettings() {
     formData.append('arrivalHour', arrivalTime[0]);
     formData.append('arrivalMinute', arrivalTime[1]);
 
-    ['brightness', 'notificationVolume', 'timeTravelAnimationInterval', 'presetCycleInterval', 'timeTravelAnimationDuration'].forEach(id => {
+    ['brightness', 'notificationVolume', 'timeTravelAnimationInterval', 'presetCycleInterval', 'timeTravelAnimationDuration', 'glitchEffectFrequency'].forEach(id => {
         formData.append(id, document.getElementById(id).value);
     });
     ['timeTravelSoundToggle', 'displayFormat24h', 'timeTravelVolumeFade'].forEach(id => {

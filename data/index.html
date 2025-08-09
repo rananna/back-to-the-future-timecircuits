@@ -207,8 +207,16 @@
                         <option value="2">All Displays Random</option>
                         <option value="3">Counting Up</option>
                         <option value="4">Wave Flicker</option>
-                        <option value="5">Glitch Effect</option>
                     </select>
+
+                    <label for="glitchEffectFrequency">
+                        Glitch Effect Instability (%): <span id="glitchEffectFrequencyValue">0</span><span class="feedback-check">✔</span>
+                    </label>
+                    <div class="slider-container">
+                        <button class="incrementer-btn" data-target="glitchEffectFrequency" data-action="decrement">-</button>
+                        <input type="range" id="glitchEffectFrequency" min="0" max="100">
+                        <button class="incrementer-btn" data-target="glitchEffectFrequency" data-action="increment">+</button>
+                    </div>
                 </div>
                 
                 <label for="themeSelector">Theme:</label>

@@ -60,7 +60,8 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 * **Audio-Visual Experience**:
     * **Dynamic Sound Effects**: An integrated DFPlayer Mini MP3 module plays iconic movie sounds for events like time travel, button confirmations, and power-ups. The system dynamically scans the SD card for sound files, which must be named correctly (e.g., `TIME_TRAVEL.mp3`, `ACCELERATION.mp3`).
     * **Physical Time Travel Animations**: Trigger a physical animation on the hardware where all displays flicker with random dates and times before settling on the new present time.
-    * **Multiple Animation Styles**: Choose from several animation styles via the web UI, including "Sequential Flicker," "Random Flicker," "Counting Up," "Wave Flicker," and a "Glitch Effect".
+    * **Multiple Animation Styles**: Choose from several animation styles via the web UI, including "Sequential Flicker," "Random Flicker," "Counting Up," and "Wave Flicker."
+    * **Random Glitch Effect**: A configurable "instability" setting allows for random, intermittent display glitches, making the prop feel more authentic.
     * **Cinematic Boot Sequence**: A non-blocking startup sequence plays on the displays, showing messages like "88 MPH," "RECALIBRATING," and "CAPACITOR FULL".
 
 #### **Advanced Web Interface**
@@ -205,7 +206,7 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 
 3.  **Key Settings to Configure**:
     * **Time Circuits Tab**: Set your destination year, select a "Famous Time Jump," and configure preset cycling.
-    * **Temporal Controls Tab**: Adjust display brightness, sound volume, animation styles, and sleep/wake times.
+    * **Temporal Controls Tab**: Adjust display brightness, sound volume, animation styles, and the frequency of the random glitch effect.
     * **Onboard Systems Tab**: Set your present time zone, sync with NTP servers, and manage network settings.
 
 4.  **Engage Time Circuits!**:

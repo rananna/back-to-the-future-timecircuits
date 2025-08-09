@@ -45,6 +45,7 @@ ClockSettings currentSettings = {
   true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
   4000,
   ANIMATION_SEQUENTIAL_FLICKER,
+  0, // *** NEW: glitchEffectFrequency, default to 0 (off) ***
   true,
   false, // windSpeedModeEnabled
   -80.52, 43.47 // Default coordinates (Kitchener, ON, Canada)
@@ -53,6 +54,7 @@ ClockSettings defaultSettings = {
   1955, 4, 22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15, true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
   4000,
   ANIMATION_SEQUENTIAL_FLICKER,
+  0, // *** NEW: glitchEffectFrequency, default to 0 (off) ***
   true,
   false, // windSpeedModeEnabled
   -80.52, 43.47
@@ -98,7 +100,7 @@ struct tm currentTimeInfo;
 struct tm destinationTimeInfo;
 int currentVolume = 0;
 #define MDNS_HOSTNAME "timecircuits"
-const char* const ANIMATION_STYLE_NAMES[] = { "Sequential Flicker", "Random Flicker", "All Displays Random", "Counting Up", "Wave Flicker", "Glitch Effect" };
+const char* const ANIMATION_STYLE_NAMES[] = { "Sequential Flicker", "Random Flicker", "All Displays Random", "Counting Up", "Wave Flicker" };
 // New enums and variables to manage the non-blocking boot sequence
 enum BootSequenceState { BOOT_INACTIVE, BOOT_ANIMATION_START, BOOT_ANIMATION_WAIT, BOOT_88MPH_DISPLAY, BOOT_RECALIBRATING_DISPLAY, BOOT_RELAY_TEST_DISPLAY, BOOT_CAPACITOR_FULL_DISPLAY, BOOT_COMPLETE };
 BootSequenceState bootState = BOOT_INACTIVE;
@@ -447,15 +449,18 @@ void handleDisplayAnimation() {
 // *** UPDATED FUNCTION ***
 void handleGlitchEffect() {
   #if ENABLE_HARDWARE
-  if (isAnimating || isDisplayAsleep || isGlitching) return;
-  // Automatically trigger glitch only if the style is set
-  if (currentSettings.animationStyle == 5 && millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
-    if (random(0, 100) < 25) { // 25% chance of a glitch every minute
+  // Return if an animation is playing, the display is asleep, a glitch is already happening, or the effect is disabled.
+  if (isAnimating || isDisplayAsleep || isGlitching || currentSettings.glitchEffectFrequency == 0) return;
+
+  // Check if it's time to potentially trigger a glitch
+  if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
+    // Use the frequency setting as a probability (e.g., 25 means 25% chance)
+    if (random(0, 100) < currentSettings.glitchEffectFrequency) {
       ESP_LOGD("Glitch", "Triggering global glitch effect!");
       isGlitching = true;
       glitchStartTime = millis();
 
-      // Animate all rows simultaneously for a global interference effect
+      // Animate all rows for a global interference effect
       if (ENABLE_I2C_HARDWARE) {
           animateDisplayRowRandomly(destRow);
           animateDisplayRowRandomly(presRow);
@@ -514,6 +519,7 @@ void updateNormalClockDisplay() {
                                   currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
                                   currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
                                   presentTimeNeedsUpdate));
+
   if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate || currentSettings.windSpeedModeEnabled)) {
     lastDisplayUpdate = millis();
     lastDisplayFormat24h = currentSettings.displayFormat24h;
@@ -738,6 +744,7 @@ void setupWebRoutes() {
     doc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
     doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
     doc["animationStyle"] = currentSettings.animationStyle;
+    doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency; // *** NEW ***
     doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade;
     doc["windSpeedModeEnabled"] = currentSettings.windSpeedModeEnabled;
     doc["latitude"] = currentSettings.latitude;
@@ -810,6 +817,10 @@ void setupWebRoutes() {
     }
     if (request->hasParam("animationStyle", true)) { 
         currentSettings.animationStyle = request->getParam("animationStyle", true)->value().toInt();
+    }
+    // *** NEW: Handle the glitch frequency setting ***
+    if (request->hasParam("glitchEffectFrequency", true)) {
+        currentSettings.glitchEffectFrequency = request->getParam("glitchEffectFrequency", true)->value().toInt();
     }
     if (request->hasParam("timeTravelSoundToggle", true)) { 
         currentSettings.timeTravelSoundToggle = (request->getParam("timeTravelSoundToggle", true)->value() == "true");
@@ -923,7 +934,7 @@ void setupWebRoutes() {
         if (brightness >= 0 && brightness <= 7) {
           #if ENABLE_HARDWARE
           setDisplayBrightness(brightness);
-        #endif
+          #endif
         } else {
             request->send(400, "text/plain", "Invalid brightness value.");
             return;
@@ -942,11 +953,20 @@ void setupWebRoutes() {
           currentSettings.displayFormat24h = (value == "true");
       } else if (setting == "animationStyle") {
           int style = value.toInt();
-          if (style >=0 && style <=5) {
+          if (style >=0 && style <=4) { // *** MODIFIED: Max style is now 4 ***
             currentSettings.animationStyle = style;
           } else {
             request->send(400, "text/plain", "Invalid animation style.");
             return;
+          }
+      // *** NEW: Handle live preview for glitch frequency ***
+      } else if (setting == "glitchEffectFrequency") {
+          int freq = value.toInt();
+          if (freq >= 0 && freq <= 100) {
+              currentSettings.glitchEffectFrequency = freq;
+          } else {
+              request->send(400, "text/plain", "Invalid glitch frequency.");
+              return;
           }
       } else if (setting == "timeTravelAnimationDuration") {
           int duration = value.toInt();
@@ -1023,7 +1043,7 @@ void setupWebRoutes() {
       JsonObject newPreset = array.createNestedObject();
       newPreset["name"] = name;
       newPreset["value"] = value;
-     
+ 
       String newPresetsJson;
       serializeJson(doc, newPresetsJson);
       preferences.putString("customPresets", newPresetsJson);
@@ -1042,7 +1062,8 @@ void setupWebRoutes() {
       deserializeJson(doc, presetsJson);
       JsonArray array = doc.as<JsonArray>();
       bool updated = false;
-      for (JsonObject preset : array) {
+      for (JsonObject preset : array) 
+      {
         if (preset["value"].as<String>() == originalValue) {
           preset["name"] = newName;
           preset["value"] = newValue;
@@ -1081,7 +1102,7 @@ void setupWebRoutes() {
       JsonArray newArray = newDoc.to<JsonArray>();
       for (JsonObject preset : oldArray) {
         if (preset["value"].as<String>() != valueToDelete) {
-           newArray.add(preset);
+          newArray.add(preset);
         }
       }
       String newPresetsJson;
@@ -1297,6 +1318,7 @@ void loop() {
     
     // Glitch effect handler
     handleGlitchEffect();
+    
     // Wind speed fetching
     if (currentSettings.windSpeedModeEnabled &&
         (millis() - lastWindSpeedFetch >= WIND_SPEED_FETCH_INTERVAL_MS) &&
@@ -1306,6 +1328,7 @@ void loop() {
     
     // Handle preset cycling
     handlePresetCycling();
+    
     static unsigned long lastOneSecondUpdate = 0;
     if (millis() - lastOneSecondUpdate >= 1000) {
         lastOneSecondUpdate = millis();
@@ -1419,6 +1442,7 @@ void loop() {
                 ESP_LOGI("Status", " Preset Cycle: %d min", currentSettings.presetCycleInterval);
                 ESP_LOGI("Status", " Animation Duration: %d ms", currentSettings.timeTravelAnimationDuration);
                 ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
+                ESP_LOGI("Status", " Glitch Frequency: %d%%", currentSettings.glitchEffectFrequency);
                 ESP_LOGI("Status", " Theme: %d", currentSettings.theme);
                 ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off");
                 ESP_LOGI("Status", " Wind Speed Mode: %s", currentSettings.windSpeedModeEnabled ? "On" : "Off");

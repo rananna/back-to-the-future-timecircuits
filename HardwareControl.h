@@ -43,6 +43,7 @@ struct ClockSettings {
   int presentTimezoneIndex;
   unsigned long timeTravelAnimationDuration;
   int animationStyle;
+  int glitchEffectFrequency; // *** NEW SETTING ADDED ***
   bool timeTravelVolumeFade;
   bool windSpeedModeEnabled; // NEW
   float longitude; // NEW
