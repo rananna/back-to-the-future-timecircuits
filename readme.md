@@ -174,33 +174,23 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 
     
 
-    #### **I2C Address Configuration Table**
+    #### **Project-Specific Jumper Connections**
+    This table outlines the exact solder jumper settings you'll need for each of the 12 display modules on both I2C buses to ensure they all have the correct, unique addresses required by the project code.
 
-    The base address for the displays is **0x70**. By bridging the solder jumpers labeled A0, A1, and A2, you add a value to this base address.
-
-| Target Address | A2 Jumper (Value +4) | A1 Jumper (Value +2) | A0 Jumper (Value +1) | Result (0x70 + value) |
-| :---: | :---: | :---: | :---: | :---: |
-| **0x70** | Leave Open | Leave Open | Leave Open | 0x70 + 0 |
-| **0x71** | Leave Open | Leave Open | **Solder Bridge** | 0x70 + 1 |
-| **0x72** | Leave Open | **Solder Bridge** | Leave Open | 0x70 + 2 |
-| **0x73** | Leave Open | **Solder Bridge** | **Solder Bridge** | 0x70 + 3 |
-| **0x74** | **Solder Bridge** | Leave Open | Leave Open | 0x70 + 4 |
-| **0x75** | **Solder Bridge** | Leave Open | **Solder Bridge** | 0x70 + 5 |
-| **0x76** | **Solder Bridge** | **Solder Bridge** | Leave Open | 0x70 + 6 |
-| **0x77** | **Solder Bridge** | **Solder Bridge** | **Solder Bridge** | 0x70 + 7 |
-
-    #### **Required Addresses for Your Project:**
-
-    You need to configure the addresses for the displays on each I2C bus as follows:
-
-    * **I2C Bus 1 (GPIO 21/22) - 8 Displays**:
-        * **Destination Row**: Set four displays to addresses **0x70, 0x71, 0x72, and 0x73**.
-        * **Present Row**: Set four displays to addresses **0x74, 0x75, 0x76, and 0x77**.
-
-    * **I2C Bus 2 (GPIO 25/26) - 4 Displays**:
-        * **Last Time Departed Row**: Set four displays to addresses **0x70, 0x71, 0x72, and 0x73**.
-
-    **Example**: To set a display to address **0x75**, you would need to solder the **A2** and **A0** jumpers, leaving A1 open.
+| Display Row | Display Purpose | I2C Address | A2 Jumper (+4) | A1 Jumper (+2) | A0 Jumper (+1) |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Destination** | Month | **0x70** | Leave Open | Leave Open | Leave Open |
+| **Destination** | Day | **0x71** | Leave Open | Leave Open | **Solder Bridge** |
+| **Destination** | Year | **0x72** | Leave Open | **Solder Bridge** | Leave Open |
+| **Destination** | Time | **0x73** | Leave Open | **Solder Bridge** | **Solder Bridge** |
+| **Present** | Month | **0x74** | **Solder Bridge** | Leave Open | Leave Open |
+| **Present** | Day | **0x75** | **Solder Bridge** | Leave Open | **Solder Bridge** |
+| **Present** | Year | **0x76** | **Solder Bridge** | **Solder Bridge** | Leave Open |
+| **Present** | Time | **0x77** | **Solder Bridge** | **Solder Bridge** | **Solder Bridge** |
+| **Last Departed** | Month | **0x70** | Leave Open | Leave Open | Leave Open |
+| **Last Departed** | Day | **0x71** | Leave Open | Leave Open | **Solder Bridge** |
+| **Last Departed** | Year | **0x72** | Leave Open | **Solder Bridge** | Leave Open |
+| **Last Departed** | Time | **0x73** | Leave Open | **Solder Bridge** | **Solder Bridge** |
 
 4.  **Upload Web Interface Files to LittleFS**:
     * To get the web interface onto the ESP32, you need to upload the contents of the `data` folder to its flash memory. The easiest way to do this is with the **Arduino ESP32 filesystem uploader** tool.
