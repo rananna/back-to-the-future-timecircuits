@@ -1,4 +1,4 @@
-# Back to the Future - ESP32 Time Circuits Display
+D# Back to the Future - ESP32 Time Circuits Display
 
 <p align="center">
   <img alt="A photo of the completed BTTF Clock Prop" src="images/bttf.png" width="800">
@@ -114,6 +114,7 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 * **Use a Breadboard**: For initial setup, a breadboard is highly recommended to easily connect and test components.
 * **Color-Coded Wires**: Using standard wire colors (e.g., **Red** for 5V, **Black** for GND, **Yellow** for SDA, **Green** for SCL) will make wiring and troubleshooting much easier.
 * **Common Ground Rail**: It is crucial that all components share a common ground. Connect all GND pins to the same ground rail on your breadboard or a common wire.
+* **Power Note**: A stable 5V power supply rated for **at least 2A** is highly recommended. Underpowering the device, especially from a standard computer USB port, is a common cause of instability, such as flickering displays or random resets, particularly when all 12 displays are at full brightness.
 
 #### Component Wiring Table
 
@@ -268,7 +269,7 @@ For those who want to understand the inner workings of the Time Circuits clock, 
     * **Bus 2 (`GPIO 25/26`)**: Controls the four displays for the "Last Time Departed" row.
     This dual-bus architecture allows all twelve displays to be controlled independently without address conflicts.
 
-* **Animation State Machine**: The complex time travel animations are managed by a **state machine** within the main `.ino` file. When an animation is triggered, a global variable (`currentPhase`) transitions through a series of states (e.g., `ANIM_FLICKER`, `ANIM_DIM_OUT`). The main `loop()` function checks the current state and the time elapsed since the last state change to determine what to show on the displays and what sounds to play. This non-blocking approach ensures the device remains responsive even during a multi-second animation sequence.
+* **Animation State Machine**: The complex time travel animations are managed by a **state machine** within the main `.ino` file. When an animation is triggered, a global variable (`currentPhase`) transitions through a series of states (e.g., `ANIM_FLICKER`, `ANIM_DIM_OUT`). The main `loop()` function checks the current state and the time elapsed since the last state change to determine what to show on the displays and what sounds to play. This non-blocking approach is crucial because it allows the ESP32 to handle complex, multi-second animations without freezing or becoming unresponsive, ensuring the web server and other functions continue to work seamlessly in the background.
 
 ---
 ## ❓ Troubleshooting
@@ -276,7 +277,7 @@ For those who want to understand the inner workings of the Time Circuits clock, 
 Having trouble? Here are some common issues and their solutions.
 
 * **My displays are not turning on or are behaving erratically.**
-    * **Check Power:** Ensure your 5V power supply can provide at least 2 Amps. Powering everything from a computer's USB port may not be sufficient. Verify all VCC and GND connections are secure.
+    * **Check Power:** Ensure your 5V power supply can provide **at least 2 Amps**. Powering everything from a computer's USB port may not be sufficient and is a common cause of instability. Verify all VCC and GND connections are secure and that all components share a common ground.
     * **Check I2C Wiring:** Double-check your SDA and SCL connections for both I2C buses. A single loose wire can cause the entire bus to fail.
 
 * **Only some of my displays work.**
