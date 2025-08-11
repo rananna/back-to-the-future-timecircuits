@@ -163,10 +163,13 @@ void animateDisplayRowRandomly(DisplayRow &row) {
 void playSound(const char *soundName) {
 #if ENABLE_HARDWARE
   String nameStr = String(soundName);
+  nameStr.toUpperCase();
+
   if (soundFiles.count(nameStr)) {
     myDFPlayer.play(soundFiles[nameStr]);
+    ESP_LOGI("Sound", "Playing sound: %s (File #%d)", nameStr.c_str(), soundFiles[nameStr]);
   } else {
-    ESP_LOGW("Sound", "Sound file '%s' not found.", soundName);
+    ESP_LOGW("Sound", "Sound file '%s.mp3' not found.", soundName);
     if (soundFiles.count("NOT_FOUND")) {
       myDFPlayer.play(soundFiles["NOT_FOUND"]);
     }
@@ -190,6 +193,7 @@ void setupSoundFiles() {
       String descriptiveName = fileName.substring(0, fileName.lastIndexOf("."));
       descriptiveName.toUpperCase();
       soundFiles[descriptiveName] = fileIndex;
+      ESP_LOGI("Sound", "Found sound: %s as file #%d", descriptiveName.c_str(), fileIndex);
       fileIndex++;
     }
     file = root.openNextFile();

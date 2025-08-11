@@ -37,7 +37,6 @@ ClockSettings currentSettings;
 ClockSettings defaultSettings = {
   1955, 4, 22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15, true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
   4000, ANIMATION_SEQUENTIAL_FLICKER, 0, 25, true, false, -80.52, 43.47,
-  "", "", // OWM and AV API Keys
   // Marquee Defaults
   false, 2, 10, 0, {}
 };
@@ -125,19 +124,19 @@ void fetchWindSpeed();
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
     strncpy(path_copy, path, sizeof(path_copy) - 1);
-    path_copy[sizeof(path_copy) - 1] = '\0';
+path_copy[sizeof(path_copy) - 1] = '\0';
     JsonVariant current = root;
     char* context = NULL;
     char* token = strtok_r(path_copy, ".[]", &context);
-    while (token != NULL) {
+while (token != NULL) {
         if (current.isNull()) return JsonVariant();
-        if (current.is<JsonObject>()) {
+if (current.is<JsonObject>()) {
             current = current[token];
-        } else if (current.is<JsonArray>()) {
+} else if (current.is<JsonArray>()) {
             current = current[atoi(token)];
-        } else {
+} else {
             return JsonVariant();
-        }
+}
         token = strtok_r(NULL, ".[]", &context);
     }
     return current;
@@ -153,15 +152,17 @@ void loadSettings() {
   if (preferences.getBytesLength(PREFERENCES_KEY) != sizeof(currentSettings)) {
     currentSettings = defaultSettings;
     saveSettings();
-  } else {
+} else {
     preferences.getBytes(PREFERENCES_KEY, &currentSettings, sizeof(currentSettings));
   }
   // Sanity check loaded timezone indices
   if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
-    currentSettings.presentTimezoneIndex = 0; // Default to UTC
+    currentSettings.presentTimezoneIndex = 0;
+// Default to UTC
   }
   if (currentSettings.destinationTimezoneIndex < 0 || currentSettings.destinationTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
-    currentSettings.destinationTimezoneIndex = 0; // Default to UTC
+    currentSettings.destinationTimezoneIndex = 0;
+// Default to UTC
   }
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
@@ -198,19 +199,17 @@ void setupWebRoutes() {
     doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
     doc["animationStyle"] = currentSettings.animationStyle;
     doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency;
-    doc["malfunctionFrequency"] = currentSettings.malfunctionFrequency;
+    doc["malfunctionFrequency"] = currentSettings.malfunctionFrequency; // <-- ADDED
     doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
     doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade;
-    doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
+doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
-    String jsonString;
+String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
     String response = "{";
-    response += "\"openWeatherMapApiKey\":\"" + String(currentSettings.openWeatherMapApiKey) + "\",";
-    response += "\"alphaVantageApiKey\":\"" + String(currentSettings.alphaVantageApiKey) + "\",";
     response += "\"dataLinkEnabled\":" + String(currentSettings.dataLinkEnabled ? "true" : "false") + ",";
     response += "\"dataLinkTargetRow\":" + String(currentSettings.dataLinkTargetRow) + ",";
     response += "\"dataLinkRefreshInterval\":" + String(currentSettings.dataLinkRefreshInterval) + ",";
@@ -218,17 +217,20 @@ void setupWebRoutes() {
     response += "\"dataPoints\":[";
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
         response += "{";
-        response += "\"url\":\"" + String(currentSettings.dataPoints[i].url) + "\",";
+        
+response += "\"url\":\"" + String(currentSettings.dataPoints[i].url) + "\",";
+  
+
         response += "\"label\":\"" + String(currentSettings.dataPoints[i].label) + "\",";
         response += "\"jsonPath\":\"" + String(currentSettings.dataPoints[i].jsonPath) + "\",";
         response += "\"format\":\"" + String(currentSettings.dataPoints[i].format) + "\",";
         response += "\"icon\":\"" + String(currentSettings.dataPoints[i].icon) + "\",";
-        response += "\"scrollSpeed\":" + String(currentSettings.dataPoints[i].scrollSpeed) + ",";
+response += "\"scrollSpeed\":" + String(currentSettings.dataPoints[i].scrollSpeed) + ",";
         response += "\"isLiveData\":" + String(currentSettings.dataPoints[i].isLiveData ? "true" : "false") + ",";
-        response += "\"liveDataTag\":\"" + String(currentSettings.dataPoints[i].liveDataTag) + "\"";
+response += "\"liveDataTag\":\"" + String(currentSettings.dataPoints[i].liveDataTag) + "\"";
         response += "}";
         if (i < currentSettings.numDataPoints - 1) response += ",";
-    }
+}
     response += "]}";
     request->send(200, "application/json", response);
   });
@@ -257,72 +259,66 @@ void setupWebRoutes() {
         if (request->hasParam(name, true)) return request->getParam(name, true)->value();
         return "";
     };
-
-    String owmKey = getParamValue("openWeatherMapApiKey");
-    strncpy(currentSettings.openWeatherMapApiKey, owmKey.c_str(), sizeof(currentSettings.openWeatherMapApiKey) - 1);
-    currentSettings.openWeatherMapApiKey[sizeof(currentSettings.openWeatherMapApiKey) - 1] = '\0';
-
-    String avKey = getParamValue("alphaVantageApiKey");
-    strncpy(currentSettings.alphaVantageApiKey, avKey.c_str(), sizeof(currentSettings.alphaVantageApiKey) - 1);
-    currentSettings.alphaVantageApiKey[sizeof(currentSettings.alphaVantageApiKey) - 1] = '\0';
-    
     currentSettings.destinationYear = getParamInt("destinationYear", currentSettings.destinationYear);
     currentSettings.destinationTimezoneIndex = getParamInt("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex);
-    if (request->hasParam("lastTimeDepartedYear", true)) {
+    if 
+
+(request->hasParam("lastTimeDepartedYear", true)) {
         currentSettings.lastTimeDepartedYear = getParamInt("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear);
         currentSettings.lastTimeDepartedMonth = getParamInt("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth);
-        currentSettings.lastTimeDepartedDay = getParamInt("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay);
+currentSettings.lastTimeDepartedDay = getParamInt("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay);
         currentSettings.lastTimeDepartedHour = getParamInt("lastTimeDepartedHour", currentSettings.lastTimeDepartedHour);
         currentSettings.lastTimeDepartedMinute = getParamInt("lastTimeDepartedMinute", currentSettings.lastTimeDepartedMinute);
     }
     currentSettings.presetCycleInterval = getParamInt("presetCycleInterval", currentSettings.presetCycleInterval);
-    currentSettings.departureHour = getParamInt("departureHour", currentSettings.departureHour);
+currentSettings.departureHour = getParamInt("departureHour", currentSettings.departureHour);
     currentSettings.departureMinute = getParamInt("departureMinute", currentSettings.departureMinute);
     currentSettings.arrivalHour = getParamInt("arrivalHour", currentSettings.arrivalHour);
     currentSettings.arrivalMinute = getParamInt("arrivalMinute", currentSettings.arrivalMinute);
     currentSettings.brightness = getParamInt("brightness", currentSettings.brightness);
-    currentSettings.timeTravelAnimationDuration = getParamInt("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration);
+currentSettings.timeTravelAnimationDuration = getParamInt("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration);
     currentSettings.timeTravelAnimationInterval = getParamInt("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval);
     currentSettings.animationStyle = getParamInt("animationStyle", currentSettings.animationStyle);
     currentSettings.glitchEffectFrequency = getParamInt("glitchEffectFrequency", currentSettings.glitchEffectFrequency);
     currentSettings.malfunctionFrequency = getParamInt("malfunctionFrequency", currentSettings.malfunctionFrequency);
+// <-- ADDED
     currentSettings.notificationVolume = getParamInt("notificationVolume", currentSettings.notificationVolume);
-    currentSettings.timeTravelSoundToggle = (getParamValue("timeTravelSoundToggle") == "true");
+currentSettings.timeTravelSoundToggle = (getParamValue("timeTravelSoundToggle") == "true");
     currentSettings.timeTravelVolumeFade = (getParamValue("timeTravelVolumeFade") == "true");
-    currentSettings.presentTimezoneIndex = getParamInt("presentTimezoneIndex", currentSettings.presentTimezoneIndex);
+currentSettings.presentTimezoneIndex = getParamInt("presentTimezoneIndex", currentSettings.presentTimezoneIndex);
     currentSettings.displayFormat24h = (getParamValue("displayFormat24h") == "true");
-    currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
+currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
     currentSettings.dataLinkTargetRow = getParamInt("dataLinkTargetRow", currentSettings.dataLinkTargetRow);
-    currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
+currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
 if (request->hasParam("numDataPoints", true)) {
         int numDataPoints = getParamInt("numDataPoints", currentSettings.numDataPoints);
-        if (numDataPoints > 5) numDataPoints = 5;
+if (numDataPoints > 5) numDataPoints = 5;
         currentSettings.numDataPoints = numDataPoints;
-        for (int i = 0; i < currentSettings.numDataPoints; i++) {
+for (int i = 0; i < currentSettings.numDataPoints; i++) {
             String url = getParamValue("dp_url_" + String(i));
-            strncpy(currentSettings.dataPoints[i].url, url.c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
+strncpy(currentSettings.dataPoints[i].url, url.c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
             currentSettings.dataPoints[i].url[sizeof(currentSettings.dataPoints[i].url) - 1] = '\0';
             String label = getParamValue("dp_label_" + String(i));
-            strncpy(currentSettings.dataPoints[i].label, label.c_str(), sizeof(currentSettings.dataPoints[i].label) - 1);
+strncpy(currentSettings.dataPoints[i].label, label.c_str(), sizeof(currentSettings.dataPoints[i].label) - 1);
             currentSettings.dataPoints[i].label[sizeof(currentSettings.dataPoints[i].label) - 1] = '\0';
             String path = getParamValue("dp_path_" + String(i));
-            strncpy(currentSettings.dataPoints[i].jsonPath, path.c_str(), sizeof(currentSettings.dataPoints[i].jsonPath) - 1);
+strncpy(currentSettings.dataPoints[i].jsonPath, path.c_str(), sizeof(currentSettings.dataPoints[i].jsonPath) - 1);
             currentSettings.dataPoints[i].jsonPath[sizeof(currentSettings.dataPoints[i].jsonPath) - 1] = '\0';
             String format = getParamValue("dp_format_" + String(i));
-            strncpy(currentSettings.dataPoints[i].format, format.c_str(), sizeof(currentSettings.dataPoints[i].format) - 1);
+strncpy(currentSettings.dataPoints[i].format, format.c_str(), sizeof(currentSettings.dataPoints[i].format) - 1);
             currentSettings.dataPoints[i].format[sizeof(currentSettings.dataPoints[i].format) - 1] = '\0';
             String icon = getParamValue("dp_icon_" + String(i));
-            strncpy(currentSettings.dataPoints[i].icon, icon.c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
+strncpy(currentSettings.dataPoints[i].icon, icon.c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
             currentSettings.dataPoints[i].icon[sizeof(currentSettings.dataPoints[i].icon) - 1] = '\0';
             String tag = getParamValue("dp_liveDataTag_" + String(i));
-            strncpy(currentSettings.dataPoints[i].liveDataTag, tag.c_str(), sizeof(currentSettings.dataPoints[i].liveDataTag) - 1);
+strncpy(currentSettings.dataPoints[i].liveDataTag, tag.c_str(), sizeof(currentSettings.dataPoints[i].liveDataTag) - 1);
             currentSettings.dataPoints[i].liveDataTag[sizeof(currentSettings.dataPoints[i].liveDataTag) - 1] = '\0';
             currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
-            currentSettings.dataPoints[i].isLiveData = (getParamValue("dp_isLiveData_" + String(i)) == "true");
+currentSettings.dataPoints[i].isLiveData = (getParamValue("dp_isLiveData_" + String(i)) == "true");
         }
     }
     saveSettings();
-    #if ENABLE_HARDWARE
+#if ENABLE_HARDWARE
     myDFPlayer.volume(currentSettings.notificationVolume);
     #endif
     request->send(200, "text/plain", "Settings Saved! Engaging Time Circuits...");
@@ -353,6 +349,8 @@ if (request->hasParam("numDataPoints", true)) {
             preset["value"] = value;
             break;
         }
+ 
+
     }
     String newPresetsJson;
     serializeJson(doc, newPresetsJson);
@@ -371,7 +369,9 @@ if (request->hasParam("numDataPoints", true)) {
             break;
         }
     }
-    String newPresetsJson;
+   
+
+String newPresetsJson;
     serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
     request->send(200, "text/plain", "Preset deleted!");
@@ -399,13 +399,6 @@ if (request->hasParam("numDataPoints", true)) {
     String url = request->getParam("url", true)->value();
     String path = request->getParam("path", true)->value();
     HTTPClient http;
-
-    if (url.indexOf("openweathermap.org") != -1 && strlen(currentSettings.openWeatherMapApiKey) > 0) {
-        url += "&appid=" + String(currentSettings.openWeatherMapApiKey);
-    } else if (url.indexOf("alphavantage.co") != -1 && strlen(currentSettings.alphaVantageApiKey) > 0) {
-        url += "&apikey=" + String(currentSettings.alphaVantageApiKey);
-    }
-    
     http.begin(url);
     int httpCode = http.GET();
     if (httpCode == HTTP_CODE_OK) {
@@ -413,17 +406,21 @@ if (request->hasParam("numDataPoints", true)) {
         DeserializationError error = deserializeJson(doc, http.getStream());
         if (error == DeserializationError::Ok) {
             JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), path.c_str());
-            if (!value.isNull()) {
+        
+
+    if (!value.isNull()) {
                 request->send(200, "application/json", "{\"success\":true, \"value\":\"" + value.as<String>() + "\"}");
             } else {
                 request->send(200, "application/json", "{\"success\":false, \"error\":\"JSON Path not found.\"}");
             }
         } else {
-            request->send(200, "application/json", "{\"success\":false, \"error\":\"JSON Parsing Failed.\"}");
+            request->send(200, 
+
+"application/json", "{\"success\":false, \"error\":\"JSON Parsing Failed.\"}");
         }
     } else {
         request->send(200, "application/json", "{\"success\":false, \"error\":\"HTTP Error: " + String(httpCode) + "\"}");
-    }
+}
     http.end();
   });
 }
@@ -432,22 +429,22 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("\n\n--- BOOTING ---");
-  if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed."); while(1); }
+if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed."); while(1); }
   preferences.begin("bttf-clock", false);
   loadSettings();
   #if ENABLE_HARDWARE
   setupPhysicalDisplay();
-  dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
+dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
   if (myDFPlayer.begin(dfpSerial, true, false)) {
       myDFPlayer.volume(currentSettings.notificationVolume);
       setupSoundFiles();
-  }
+}
   #endif
   wifiManager.autoConnect("BTTF-Clock-Setup");
   ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
   if (MDNS.begin(MDNS_HOSTNAME)) { MDNS.addService("http", "tcp", 80); }
   setupWebRoutes();
-  server.begin();
+server.begin();
   ESP_LOGI("Web", "HTTP server started.");
   configTime(0, 0, NTP_SERVERS[0]);
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -458,45 +455,47 @@ void setup() {
 void loop() {
   ArduinoOTA.handle();
   handleBootSequence();
-  if (isMalfunctioning) {
+if (isMalfunctioning) {
     handleMalfunction();
   } else if (!isAnimating) {
     restoreDisplayAfterGlitch();
     handleGlitchEffect();
     handlePresetCycling();
     handleSleepSchedule();
-    if (currentSettings.dataLinkEnabled) {
+if (currentSettings.dataLinkEnabled) {
       fetchDataLink();
       updateMarqueeDisplay();
     } else {
       updateNormalClockDisplay();
-    }
+}
   }
 
   handleDisplayAnimation();
   static unsigned long lastNtpUpdate = 0;
-  if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > NTP_SUCCESS_INTERVAL_MS)) {
+if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > NTP_SUCCESS_INTERVAL_MS)) {
     configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
     struct tm timeinfo;
-    if(getLocalTime(&timeinfo, 5000)){ timeSynchronized = true; }
+    if(getLocalTime(&timeinfo, 5000)){ timeSynchronized = true;
+}
     else { timeSynchronized = false; }
     currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
-    lastNtpUpdate = millis();
+lastNtpUpdate = millis();
     ntpSyncRequested = false;
   }
 }
 
 void startTimeTravelAnimation() {
-    if (isAnimating) { return; }
+    if (isAnimating) { return;
+}
     isAnimating = true;
-    animationStartTime = millis();
+animationStartTime = millis();
     currentPhase = ANIM_FLICKER;
-    #if ENABLE_HARDWARE
+#if ENABLE_HARDWARE
     if (currentSettings.timeTravelSoundToggle) {
-        playSound(SOUND_ACCELERATION);
-    }
+        playSound("ACCELERATION");
+}
     #endif
 }
 
@@ -504,75 +503,93 @@ void handleDisplayAnimation() {
   #if ENABLE_HARDWARE
   if (!isAnimating) return;
   unsigned long currentTime = millis();
-  unsigned long elapsed = currentTime - animationStartTime;
+unsigned long elapsed = currentTime - animationStartTime;
   switch (currentPhase) {
     case ANIM_FLICKER:
         if (elapsed >= currentSettings.timeTravelAnimationDuration) {
             currentPhase = ANIM_COMPLETE;
-        } else if (currentTime - lastAnimationFrameTime > ANIMATION_UPDATE_INTERVAL_MS) {
+} else if (currentTime - lastAnimationFrameTime > ANIMATION_UPDATE_INTERVAL_MS) {
             animateDisplayRowRandomly(destRow);
-            animateDisplayRowRandomly(presRow);
+animateDisplayRowRandomly(presRow);
             animateDisplayRowRandomly(lastRow);
             lastAnimationFrameTime = currentTime;
         }
         break;
-    case ANIM_COMPLETE:
+case ANIM_COMPLETE:
       isAnimating = false;
       updateNormalClockDisplay();
-      #if ENABLE_HARDWARE
+#if ENABLE_HARDWARE
       if(currentSettings.timeTravelSoundToggle){
-        playSound(SOUND_ARRIVAL_THUD);
-      }
+        playSound("ARRIVAL_THUD");
+}
       #endif
       break;
-  }
+}
   #endif
 }
 
+// --- BUG FIX: Corrected Malfunction Handler ---
 void handleMalfunction() {
   #if ENABLE_HARDWARE
   if (!isMalfunctioning) return;
-  unsigned long elapsed = millis() - malfunctionStartTime;
+unsigned long elapsed = millis() - malfunctionStartTime;
 
   switch (currentMalfunctionPhase) {
     case MAL_HAYWIRE:
+      // Step 1: Displays go haywire for 3 seconds
       if (elapsed < 3000) {
         if (millis() - lastAnimationFrameTime > 100) {
-          destRow.month.print("8888"); destRow.day.print("8888"); destRow.year.print("8888"); destRow.time.print("8888");
+          // Flash "8888" or random garbage on all displays
+          destRow.month.print("8888");
+destRow.day.print("8888"); destRow.year.print("8888"); destRow.time.print("8888");
           presRow.month.print("8888"); presRow.day.print("8888"); presRow.year.print("8888"); presRow.time.print("8888");
           lastRow.month.print("8888"); lastRow.day.print("8888"); lastRow.year.print("8888"); lastRow.time.print("8888");
           
           destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
           presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-          lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+          lastRow.month.writeDisplay();
+lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
           
           lastAnimationFrameTime = millis();
         }
       } else {
         malfunctionStartTime = millis();
+// Reset timer for next phase
         currentMalfunctionPhase = MAL_ERROR_MESSAGE;
-      }
+}
       break;
 
     case MAL_ERROR_MESSAGE:
+      // Step 2: Show error message for 4 seconds
       if (elapsed < 4000) {
-        destRow.month.print("TIME"); destRow.day.print("CIRC"); destRow.year.print("UIT "); destRow.time.print("OVER");
+        // Display "TIME CIRCUIT OVERLOAD" across the top two rows
+        destRow.month.print("TIME");
+destRow.day.print("CIRC"); destRow.year.print("UIT "); destRow.time.print("OVER");
         presRow.month.print("LOAD"); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
         
-        lastRow.month.print("FLUX"); lastRow.day.print("OFFL"); lastRow.year.print("INE "); lastRow.time.clear();
+        // Display "FLUX OFFLINE" on the bottom row
+        lastRow.month.print("FLUX");
+lastRow.day.print("OFFL"); lastRow.year.print("INE "); lastRow.time.clear();
 
         destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
         presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-      } else {
+} else {
         malfunctionStartTime = millis();
         currentMalfunctionPhase = MAL_REBOOT;
-      }
+}
       break;
 
     case MAL_REBOOT:
+      // Step 3: Simulate a reboot
       blankAllDisplays();
+// Turn off all displays
       runBootSequence();
+// Trigger the existing boot sequence
+      
+      // FIX: Removed the following two lines to allow the boot sequence to complete.
+// isMalfunctioning = false;
+      // currentMalfunctionPhase = MAL_INACTIVE;
       break;
   }
   #endif
@@ -580,35 +597,35 @@ void handleMalfunction() {
 
 void runBootSequence() {
   bootState = BOOT_START;
-  bootStateStartTime = millis();
+bootStateStartTime = millis();
 }
 
 void handleBootSequence() {
   if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
-  unsigned long elapsed = millis() - bootStateStartTime;
+unsigned long elapsed = millis() - bootStateStartTime;
   if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
     bootState = static_cast<BootSequenceState>(bootState + 1);
-    bootStateStartTime = millis();
+bootStateStartTime = millis();
     if (bootState >= BOOT_COMPLETE) {
       bootState = BOOT_COMPLETE;
       updateNormalClockDisplay();
       return;
-    }
+}
   }
   #if ENABLE_HARDWARE
   switch (bootState) {
     case BOOT_88MPH:
       display88MphSpeed(88.0);
-      break;
+break;
     case BOOT_RECALIBRATING:
       destRow.month.print("RECA"); destRow.day.print("LIBR"); destRow.year.print("ATIN"); destRow.time.print("G");
       destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
       break;
-    case BOOT_CAPACITOR:
+case BOOT_CAPACITOR:
       presRow.month.print("CAPA"); presRow.day.print("CITO"); presRow.year.print("R"); presRow.time.print("FULL");
       presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
       break;
-    default:
+default:
       break;
   }
   #endif
@@ -617,26 +634,28 @@ void handleBootSequence() {
 void restoreDisplayAfterGlitch() {
   if (isGlitching && millis() - glitchStartTime > 150) {
     updateNormalClockDisplay();
-    isGlitching = false;
+isGlitching = false;
   }
 }
 
 void handleGlitchEffect() {
   if (isAnimating || isDisplayAsleep || isGlitching || isMalfunctioning || currentSettings.glitchEffectFrequency == 0) return;
-  if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
+if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
     lastGlitchTime = millis();
-    if (random(100) < currentSettings.glitchEffectFrequency) {
+if (random(100) < currentSettings.glitchEffectFrequency) {
       
+      // MODIFIED: Check for a major malfunction
       if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
         isMalfunctioning = true;
-        malfunctionStartTime = millis();
+malfunctionStartTime = millis();
         currentMalfunctionPhase = MAL_HAYWIRE;
       } else {
         isGlitching = true;
-        glitchStartTime = millis();
+glitchStartTime = millis();
         #if ENABLE_HARDWARE
+        // Simple glitch
         animateDisplayRowRandomly(destRow);
-        animateDisplayRowRandomly(presRow);
+animateDisplayRowRandomly(presRow);
         animateDisplayRowRandomly(lastRow);
         #endif
       }
@@ -646,56 +665,58 @@ void handleGlitchEffect() {
 
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
+// Future implementation: Logic to cycle presets
     }
 }
 
 void handleSleepSchedule() {
   if (!timeSynchronized) return;
   struct tm timeinfo;
-  getLocalTime(&timeinfo);
+getLocalTime(&timeinfo);
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
   int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
-  int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
+int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
-                        (now_minutes >= sleep_minutes && now_minutes < wake_minutes) : 
+(now_minutes >= sleep_minutes && now_minutes < wake_minutes) : 
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-  if (shouldBeAsleep && !isDisplayAsleep) {
+if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     #if ENABLE_HARDWARE
     blankAllDisplays();
-    playSound(SOUND_SLEEP_ON);
-    #endif
+    playSound("SLEEP_ON");
+#endif
   } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
-    #if ENABLE_HARDWARE
+#if ENABLE_HARDWARE
     updateNormalClockDisplay();
-    playSound(SOUND_CONFIRM_ON);
+    playSound("CONFIRM_ON");
     #endif
   }
 }
 
 void updateNormalClockDisplay() {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return;
+// <-- ADDED isMalfunctioning
 #if ENABLE_HARDWARE
   if (timeSynchronized) {
     time_t now;
     time(&now);
     struct tm timeinfo;
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
-    localtime_r(&now, &timeinfo);
+localtime_r(&now, &timeinfo);
     updateDisplayRow(presRow, timeinfo, timeinfo.tm_year + 1900);
     setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
     tzset();
     localtime_r(&now, &timeinfo);
     updateDisplayRow(destRow, timeinfo, currentSettings.destinationYear);
-    struct tm lastTimeDepartedInfo = {0};
+struct tm lastTimeDepartedInfo = {0};
     lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
     lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
     lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
-    lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
+lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
     lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
     updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
   }
@@ -704,13 +725,13 @@ void updateNormalClockDisplay() {
 
 void fetchWindSpeed() {
   if (WiFi.status() != WL_CONNECTED) return;
-  HTTPClient http;
+HTTPClient http;
   String apiURL = "http://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 2) + "&longitude=" + String(currentSettings.longitude, 2) + "&current_weather=true";
   http.begin(apiURL);
-  if (http.GET() == HTTP_CODE_OK) {
+if (http.GET() == HTTP_CODE_OK) {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, http.getStream());
-    if (doc.containsKey("current_weather")) {
+if (doc.containsKey("current_weather")) {
       currentWindSpeed = doc["current_weather"]["windspeed"];
     }
   }
@@ -719,58 +740,53 @@ void fetchWindSpeed() {
 
 void fetchDataLink() {
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0 || isFetchingData) return;
-    if (millis() - lastDataLinkFetch < (unsigned long)currentSettings.dataLinkRefreshInterval * 60 * 1000 / currentSettings.numDataPoints) return;
+if (millis() - lastDataLinkFetch < (unsigned long)currentSettings.dataLinkRefreshInterval * 60 * 1000 / currentSettings.numDataPoints) return;
     isFetchingData = true;
     lastDataLinkFetch = millis();
-    DataPoint point = currentSettings.dataPoints[currentPointToFetch];
+DataPoint point = currentSettings.dataPoints[currentPointToFetch];
     String fetchedValue = "";
     bool fetchSuccess = false;
-    if (point.isLiveData) {
+if (point.isLiveData) {
         if (String(point.liveDataTag) == "WIND_SPEED") {
             fetchWindSpeed();
-            char speedStr[8];
+char speedStr[8];
             dtostrf(currentWindSpeed * 0.621371, 4, 1, speedStr);
             fetchedValue = String(speedStr);
             fetchSuccess = true;
-        } else { fetchedValue = "LIVE ERR"; }
+} else { fetchedValue = "LIVE ERR"; }
     } else {
         HTTPClient http;
-        String url = String(point.url);
-
-        if (url.indexOf("openweathermap.org") != -1 && strlen(currentSettings.openWeatherMapApiKey) > 0) {
-            url += "&appid=" + String(currentSettings.openWeatherMapApiKey);
-        } else if (url.indexOf("alphavantage.co") != -1 && strlen(currentSettings.alphaVantageApiKey) > 0) {
-            url += "&apikey=" + String(currentSettings.alphaVantageApiKey);
-        }
-        
-        http.begin(url);
+http.begin(point.url);
         if (http.GET() == HTTP_CODE_OK) {
             DynamicJsonDocument doc(8192);
-            if (deserializeJson(doc, http.getStream()) == DeserializationError::Ok) {
+if (deserializeJson(doc, http.getStream()) == DeserializationError::Ok) {
                 JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), point.jsonPath);
-                if (!value.isNull()) {
+if (!value.isNull()) {
                     fetchedValue = value.as<String>();
-                    if (fetchedValue.length() > 256) fetchedValue = fetchedValue.substring(0, 256);
+if (fetchedValue.length() > 256) fetchedValue = fetchedValue.substring(0, 256);
                     fetchSuccess = true;
-                } else { fetchedValue = "PATH ERR"; }
-            } else { fetchedValue = "JSON ERR"; }
-        } else { fetchedValue = "HTTP ERR"; }
+                } else { fetchedValue = "PATH ERR";
+}
+            } else { fetchedValue = "JSON ERR";
+}
+        } else { fetchedValue = "HTTP ERR";
+}
         http.end();
     }
     if (fetchSuccess) {
         String format = String(point.format);
-        format.replace("%L", point.label);
+format.replace("%L", point.label);
         format.replace("%V", fetchedValue);
         displayPages[currentPointToFetch] = format;
         lastGoodDisplayPages[currentPointToFetch] = format;
         dataPointFetchFailures[currentPointToFetch] = 0;
-    } else {
+} else {
         dataPointFetchFailures[currentPointToFetch]++;
-        if (dataPointFetchFailures[currentPointToFetch] >= MAX_FETCH_FAILURES) {
+if (dataPointFetchFailures[currentPointToFetch] >= MAX_FETCH_FAILURES) {
             displayPages[currentPointToFetch] = String(point.label) + " | API FAIL";
-        } else {
+} else {
             displayPages[currentPointToFetch] = lastGoodDisplayPages[currentPointToFetch];
-        }
+}
     }
     currentPointToFetch = (currentPointToFetch + 1) % currentSettings.numDataPoints;
     isFetchingData = false;
@@ -779,23 +795,23 @@ void fetchDataLink() {
 void updateMarqueeDisplay() {
     #if ENABLE_HARDWARE
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0) return;
-    DisplayRow* targetRow = &lastRow;
+DisplayRow* targetRow = &lastRow;
     if (currentSettings.dataLinkTargetRow == 0) targetRow = &destRow;
     if (currentSettings.dataLinkTargetRow == 1) targetRow = &presRow;
-    if (marqueeState == M_IDLE) {
+if (marqueeState == M_IDLE) {
         currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
-        marqueeScrollPosition = 0;
+marqueeScrollPosition = 0;
         marqueeState = M_PAUSED;
         lastMarqueeStateChange = millis();
     }
     DataPoint point = currentSettings.dataPoints[currentPageIndex];
-    String content = displayPages[currentPageIndex];
+String content = displayPages[currentPageIndex];
     String staticPart = content;
     String scrollPart = "";
     int pipePos = content.indexOf('|');
-    if (pipePos != -1) {
+if (pipePos != -1) {
         staticPart = content.substring(0, pipePos);
-        scrollPart = content.substring(pipePos + 1);
+scrollPart = content.substring(pipePos + 1);
         scrollPart.trim();
     }
     staticPart.trim();
@@ -803,31 +819,31 @@ void updateMarqueeDisplay() {
     targetRow->month.print(staticPart.c_str());
     targetRow->month.writeDisplay();
     drawIcon(targetRow->day, point.icon);
-    String canvas = "   " + scrollPart + "   ";
-    if (canvas.length() <= 8) {
+String canvas = "   " + scrollPart + "   ";
+if (canvas.length() <= 8) {
         targetRow->year.clear();
         targetRow->time.clear();
         targetRow->year.print(canvas.substring(0,4));
         targetRow->time.print(canvas.substring(4));
         targetRow->year.writeDisplay();
         targetRow->time.writeDisplay();
-        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 5000) {
+if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 5000) {
              marqueeState = M_IDLE;
-        }
+}
     } else {
         if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 3000) {
             marqueeState = M_SCROLLING;
-            lastMarqueeStateChange = millis();
+lastMarqueeStateChange = millis();
         }
         if (marqueeState == M_SCROLLING && millis() - lastMarqueeStateChange > (unsigned long)point.scrollSpeed) {
             marqueeScrollPosition++;
-            lastMarqueeStateChange = millis();
+lastMarqueeStateChange = millis();
             if (marqueeScrollPosition > canvas.length() - 8) {
                 marqueeState = M_IDLE;
-            }
+}
         }
         String viewport = canvas.substring(marqueeScrollPosition, marqueeScrollPosition + 8);
-        targetRow->year.clear();
+targetRow->year.clear();
         targetRow->time.clear();
         targetRow->year.print(viewport.substring(0,4));
         targetRow->time.print(viewport.substring(4));
