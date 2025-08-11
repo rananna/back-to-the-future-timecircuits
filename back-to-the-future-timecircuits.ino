@@ -10,7 +10,7 @@
 #include <time.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
-#include <HTTPClient.h> // Required for making API requests
+#include <HTTPClient.h>
 
 #include "HardwareControl.h"
 
@@ -23,41 +23,22 @@
 // == GLOBAL DEFINITIONS & OBJECTS                                ==
 // =================================================================
 
-// --- Timing and Interval Constants ---
-#define WIFI_RECONNECT_INTERVAL_MS 20000
-#define NTP_INITIAL_RETRY_INTERVAL_MS 5000
-#define NTP_RETRY_INTERVAL_MS 30000
-#define NTP_SUCCESS_INTERVAL_MS 3600000
-#define SERIAL_REPORT_INTERVAL_MS 30000
-#define ANIMATION_UPDATE_INTERVAL_MS 50
-#define COUNT_UPDATE_INTERVAL_MS 20
-#define SCROLL_INTERVAL_MS 250
-#define BOOT_STATE_CHANGE_INTERVAL_MS 3000
-#define BOOT_ANIMATION_WAIT_MS 500
-#define NTP_TIMEOUT_MS 2000
-#define WIND_SPEED_FETCH_INTERVAL_MS 900000 // 15 minutes
-#define GLITCH_EFFECT_INTERVAL_MS 60000 // 1 minute
+#define PREFERENCES_KEY "settings_v2"
+#define THEME_PREF_KEY "ui_theme"
 
-// Global instances and non-hardware-specific variables
-ClockSettings currentSettings = {
-  1955, 4,
-  22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15,
-  true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
-  4000,
-  ANIMATION_SEQUENTIAL_FLICKER,
-  0, // *** NEW: glitchEffectFrequency, default to 0 (off) ***
-  true,
-  false, // windSpeedModeEnabled
-  -80.52, 43.47 // Default coordinates (Kitchener, ON, Canada)
-};
+// --- Timing and Interval Constants ---
+#define NTP_SUCCESS_INTERVAL_MS 3600000
+#define ANIMATION_UPDATE_INTERVAL_MS 50
+#define BOOT_STATE_CHANGE_INTERVAL_MS 2000
+#define GLITCH_EFFECT_INTERVAL_MS 60000
+
+// --- Global Objects & Variables ---
+ClockSettings currentSettings;
 ClockSettings defaultSettings = {
   1955, 4, 22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15, true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
-  4000,
-  ANIMATION_SEQUENTIAL_FLICKER,
-  0, // *** NEW: glitchEffectFrequency, default to 0 (off) ***
-  true,
-  false, // windSpeedModeEnabled
-  -80.52, 43.47
+  4000, ANIMATION_SEQUENTIAL_FLICKER, 0, 25, true, false, -80.52, 43.47,
+  // Marquee Defaults
+  false, 2, 10, 0, {}
 };
 const TimeZoneEntry TZ_DATA[] = {
   { "UTC0", "UTC", "Etc/UTC", "Global" },
@@ -68,1389 +49,794 @@ const TimeZoneEntry TZ_DATA[] = {
   { "AKST9AKDT,M3.2.0,M11.1.0", "Alaska (Anchorage)", "America/Anchorage", "Americas" },
   { "MST7", "Mountain (Phoenix, No DST)", "America/Phoenix", "Americas" },
   { "HST10", "Hawaii (Honolulu, No DST)", "Pacific/Honolulu", "Americas" },
-  { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe/Africa" },
-  { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe/Africa" }
+  { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/Africa" },
+  { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Africa" }
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
 
+// --- Pre-generated constant strings stored in Flash Memory (PROGMEM) ---
+const char TZ_JSON[] PROGMEM = "{\"Global\":[{\"value\":0,\"text\":\"UTC\",\"ianaTzName\":\"Etc/UTC\"}],\"Americas\":[{\"value\":1,\"text\":\"Eastern (New York)\",\"ianaTzName\":\"America/New_York\"},{\"value\":2,\"text\":\"Central (Chicago)\",\"ianaTzName\":\"America/Chicago\"},{\"value\":3,\"text\":\"Mountain (Denver)\",\"ianaTzName\":\"America/Denver\"},{\"value\":4,\"text\":\"Pacific (Los Angeles)\",\"ianaTzName\":\"America/Los_Angeles\"},{\"value\":5,\"text\":\"Alaska (Anchorage)\",\"ianaTzName\":\"America/Anchorage\"},{\"value\":6,\"text\":\"Mountain (Phoenix, No DST)\",\"ianaTzName\":\"America/Phoenix\"},{\"value\":7,\"text\":\"Hawaii (Honolulu, No DST)\",\"ianaTzName\":\"Pacific/Honolulu\"}],\"Europe/Africa\":[{\"value\":8,\"text\":\"GMT/BST (London)\",\"ianaTzName\":\"Europe/London\"},{\"value\":9,\"text\":\"CET/CEST (Berlin)\",\"ianaTzName\":\"Europe/Berlin\"}]}";
+const char STYLE_0[] PROGMEM = "Sequential Flicker";
+const char STYLE_1[] PROGMEM = "Random Flicker";
+const char STYLE_2[] PROGMEM = "All Displays Random";
+const char STYLE_3[] PROGMEM = "Counting Up";
+const char STYLE_4[] PROGMEM = "Wave Flicker";
+const char* const ANIMATION_STYLE_NAMES[] PROGMEM = { STYLE_0, STYLE_1, STYLE_2, STYLE_3, STYLE_4 };
 const char *NTP_SERVERS[] = { "pool.ntp.org", "time.google.com", "time.nist.gov" };
 const int NUM_NTP_SERVERS = sizeof(NTP_SERVERS) / sizeof(NTP_SERVERS[0]);
 int currentNtpServerIndex = 0;
-WiFiUDP Udp;
-unsigned long lastNtpRequestSent = 0;
-unsigned long lastNtpAttempt = 0;
 bool timeSynchronized = false;
-time_t lastNtpSyncTime = 0;
-char currentNtpServerUsed[32] = "N/A";
 bool ntpSyncRequested = false;
 WiFiManager wifiManager;
 AsyncWebServer server(80);
 Preferences preferences;
-
 // Animation and sleep state
 bool isAnimating = false;
 unsigned long animationStartTime = 0;
 unsigned long lastAnimationFrameTime = 0;
-unsigned long lastTimeTravelAnimationTime = 0;
-enum AnimationPhase { ANIM_INACTIVE, ANIM_VOLUME_FADE_IN, ANIM_DIM_IN, ANIM_CAPACITOR_CHARGING, ANIM_PRE_FLICKER_88MPH, ANIM_FLICKER, ANIM_DIM_OUT, ANIM_VOLUME_FADE_OUT, ANIM_COMPLETE };
+enum AnimationPhase { ANIM_INACTIVE, ANIM_FLICKER, ANIM_COMPLETE };
 AnimationPhase currentPhase = ANIM_INACTIVE;
 bool isDisplayAsleep = false;
 byte initialBrightness = 0;
-struct tm currentTimeInfo;
-struct tm destinationTimeInfo;
-int currentVolume = 0;
 #define MDNS_HOSTNAME "timecircuits"
-const char* const ANIMATION_STYLE_NAMES[] = { "Sequential Flicker", "Random Flicker", "All Displays Random", "Counting Up", "Wave Flicker" };
-// New enums and variables to manage the non-blocking boot sequence
-enum BootSequenceState { BOOT_INACTIVE, BOOT_ANIMATION_START, BOOT_ANIMATION_WAIT, BOOT_88MPH_DISPLAY, BOOT_RECALIBRATING_DISPLAY, BOOT_RELAY_TEST_DISPLAY, BOOT_CAPACITOR_FULL_DISPLAY, BOOT_COMPLETE };
+enum BootSequenceState { BOOT_INACTIVE, BOOT_START, BOOT_88MPH, BOOT_RECALIBRATING, BOOT_CAPACITOR, BOOT_COMPLETE };
 BootSequenceState bootState = BOOT_INACTIVE;
 unsigned long bootStateStartTime = 0;
-unsigned long ntpRequestSentTime = 0;
-// New state for NTP sync animation
-bool isNtpSyncAnimating = false;
-unsigned long ntpSyncAnimStartTime = 0;
-// NEW: Variables for Wind Speed and Glitch Effect
-unsigned long lastWindSpeedFetch = 0;
-float currentWindSpeed = 0.0;
 unsigned long lastGlitchTime = 0;
-
-// *** BUG FIX: Glitch Effect State Variables ***
 bool isGlitching = false;
 unsigned long glitchStartTime = 0;
-// *** NEW: Preset Cycling State Variables ***
 unsigned long lastPresetCycleTime = 0;
 int currentPresetIndex = 0;
-// =================================================================
-// == FUNCTION IMPLEMENTATIONS                                    ==
-// =================================================================
+float currentWindSpeed = 0.0;
+// Marquee Display Engine Variables
+enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
+MarqueeState marqueeState = M_IDLE;
+String displayPages[5];
+String lastGoodDisplayPages[5];
+int currentPageIndex = 0;
+int currentPointToFetch = 0;
+unsigned long lastDataLinkFetch = 0;
+unsigned long lastMarqueeStateChange = 0;
+int marqueeScrollPosition = 0;
+bool isFetchingData = false;
+int dataPointFetchFailures[5] = {0, 0, 0, 0, 0};
+const int MAX_FETCH_FAILURES = 3;
 
-// NEW: Function to fetch wind speed from Open-Meteo API
-void fetchWindSpeed() {
-  if (WiFi.status() != WL_CONNECTED) {
-    ESP_LOGW("Weather", "Cannot fetch wind speed, WiFi not connected.");
-    return;
-  }
-  
-  HTTPClient http;
-  String apiURL = "http://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 2) + "&longitude=" + String(currentSettings.longitude, 2) + "&current_weather=true";
-  http.begin(apiURL);
-  int httpCode = http.GET();
+// --- ADDED: Malfunction State Variables ---
+bool isMalfunctioning = false;
+unsigned long malfunctionStartTime = 0;
+enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
+MalfunctionPhase currentMalfunctionPhase = MAL_INACTIVE;
 
-  if (httpCode > 0) {
-    if (httpCode == HTTP_CODE_OK) {
-      String payload = http.getString();
-      DynamicJsonDocument doc(1024);
-      deserializeJson(doc, payload);
-      
-      if (doc.containsKey("current_weather")) {
-        currentWindSpeed = doc["current_weather"]["windspeed"];
-        ESP_LOGI("Weather", "Successfully fetched wind speed: %.2f km/h", currentWindSpeed);
-      } else {
-        ESP_LOGW("Weather", "API response did not contain current_weather object.");
-      }
-    } else {
-      ESP_LOGW("Weather", "API request failed, error: %s", http.errorToString(httpCode).c_str());
+// Forward declarations
+void startTimeTravelAnimation();
+void handleDisplayAnimation();
+void handleBootSequence();
+void handleGlitchEffect();
+void handleMalfunction(); // <-- ADDED
+void restoreDisplayAfterGlitch();
+void handlePresetCycling();
+void handleSleepSchedule();
+void updateNormalClockDisplay();
+void fetchDataLink();
+void updateMarqueeDisplay();
+void fetchWindSpeed();
+JsonVariant getJsonVariant(JsonVariant root, const char* path) {
+    char path_copy[128];
+    strncpy(path_copy, path, sizeof(path_copy) - 1);
+    path_copy[sizeof(path_copy) - 1] = '\0';
+    JsonVariant current = root;
+    char* context = NULL;
+    char* token = strtok_r(path_copy, ".[]", &context);
+    while (token != NULL) {
+        if (current.isNull()) return JsonVariant();
+        if (current.is<JsonObject>()) {
+            current = current[token];
+        } else if (current.is<JsonArray>()) {
+            current = current[atoi(token)];
+        } else {
+            return JsonVariant();
+        }
+        token = strtok_r(NULL, ".[]", &context);
     }
-  } else {
-    ESP_LOGE("Weather", "API request failed, error: %s", http.errorToString(httpCode).c_str());
-  }
-  http.end();
-  lastWindSpeedFetch = millis();
+    return current;
 }
 
 void saveSettings() {
-  ESP_LOGI("Settings", "Saving settings to preferences...");
-  preferences.putBytes("settings", &currentSettings, sizeof(currentSettings));
-  ESP_LOGI("Settings", "Settings saved.");
+  preferences.putBytes(PREFERENCES_KEY, &currentSettings, sizeof(currentSettings));
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
 }
 
 void loadSettings() {
-  ESP_LOGI("Settings", "Loading settings from preferences...");
-  size_t savedSize = preferences.getBytesLength("settings");
-  if (savedSize != sizeof(currentSettings)) {
-    ESP_LOGW("Settings", "Size mismatch. Loading default settings.");
+  if (preferences.getBytesLength(PREFERENCES_KEY) != sizeof(currentSettings)) {
     currentSettings = defaultSettings;
     saveSettings();
   } else {
-    preferences.getBytes("settings", &currentSettings, sizeof(currentSettings));
-    ESP_LOGI("Settings", "Settings loaded from preferences.");
+    preferences.getBytes(PREFERENCES_KEY, &currentSettings, sizeof(currentSettings));
+  }
+  // Sanity check loaded timezone indices
+  if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
+    currentSettings.presentTimezoneIndex = 0; // Default to UTC
+  }
+  if (currentSettings.destinationTimezoneIndex < 0 || currentSettings.destinationTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
+    currentSettings.destinationTimezoneIndex = 0; // Default to UTC
   }
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
 }
 
-#if ENABLE_HARDWARE
-void animateDisplayRowRandomly(DisplayRow &row) {
-    if (random(0, 100) < 90) animateMonthDisplay(row);
-    if (random(0, 100) < 60) animateDayDisplay(row);
-    if (random(0, 100) < 30) animateYearDisplay(row);
-    if (random(0, 100) < 80) animateTimeDisplay(row);
-    if (random(0, 100) < 70) animateAmPmDisplay(row);
-}
-#endif
-
-void handleDisplayAnimation() {
-  #if ENABLE_HARDWARE
-  if (!isAnimating) return;
-  
-  static AnimationPhase lastPhase = ANIM_INACTIVE;
-  if (currentPhase != lastPhase) {
-    ESP_LOGI("Animation", "Transitioning to phase: %d", currentPhase);
-    lastPhase = currentPhase;
-  }
-  unsigned long currentTime = millis();
-  unsigned long elapsed = currentTime - animationStartTime;
-  const unsigned long TOTAL_ANIMATION_DURATION = currentSettings.timeTravelAnimationDuration;
-  const float VOLUME_FADE_IN_PERCENTAGE = 0.10;
-  const float DIM_IN_PERCENTAGE = 0.10;
-  const float CAPACITOR_CHARGING_PERCENTAGE = 0.20;
-  const float PRE_FLICKER_88MPH_PERCENTAGE = 0.30;
-  const float FLICKER_PERCENTAGE = 0.50;
-  const float DIM_OUT_PERCENTAGE = 0.10;
-  const float VOLUME_FADE_OUT_PERCENTAGE = 0.10;
-  const unsigned long VOLUME_FADE_IN_DURATION = TOTAL_ANIMATION_DURATION * VOLUME_FADE_IN_PERCENTAGE;
-  const unsigned long DIM_IN_DURATION = TOTAL_ANIMATION_DURATION * DIM_IN_PERCENTAGE;
-  const unsigned long CAPACITOR_CHARGING_DURATION = TOTAL_ANIMATION_DURATION * CAPACITOR_CHARGING_PERCENTAGE;
-  const unsigned long PRE_FLICKER_88MPH_DURATION = TOTAL_ANIMATION_DURATION * PRE_FLICKER_88MPH_PERCENTAGE;
-  const unsigned long FLICKER_DURATION = TOTAL_ANIMATION_DURATION * FLICKER_PERCENTAGE;
-  const unsigned long DIM_OUT_DURATION = TOTAL_ANIMATION_DURATION * DIM_OUT_PERCENTAGE;
-  const unsigned long VOLUME_FADE_OUT_DURATION = TOTAL_ANIMATION_DURATION * VOLUME_FADE_OUT_PERCENTAGE;
-
-  switch (currentPhase) {
-    case ANIM_VOLUME_FADE_IN:
-      if (currentSettings.timeTravelSoundToggle) {
-        myDFPlayer.volume(0);
-        playSound(SOUND_TIME_TRAVEL);
-      }
-      currentPhase = ANIM_DIM_IN;
-      animationStartTime = currentTime;
-    case ANIM_DIM_IN: {
-      if (elapsed < DIM_IN_DURATION) {
-        byte currentBrightness = map(elapsed, 0, DIM_IN_DURATION, 0, initialBrightness);
-        setDisplayBrightness(currentBrightness);
-        if (currentSettings.timeTravelVolumeFade) {
-          int newVolume = map(elapsed, 0, DIM_IN_DURATION, 0, currentSettings.notificationVolume);
-          if (newVolume != currentVolume) {
-            currentVolume = newVolume;
-            myDFPlayer.volume(currentVolume);
-          }
-        }
-      } else {
-        setDisplayBrightness(initialBrightness);
-        blankAllDisplays();
-        currentPhase = ANIM_CAPACITOR_CHARGING;
-        animationStartTime = currentTime;
-      }
-      break;
-    }
-    case ANIM_CAPACITOR_CHARGING:
-      {
-        static const char* chargingText = "FLUX CAPACITOR CHARGING";
-        static unsigned long textDisplayTime = 0;
-        const unsigned long displayDuration = 3000;
-        if (millis() - textDisplayTime < displayDuration) {
-          // A simple text animation, maybe scrolling or flickering
-        } else {
-          // Transition to the next phase after the text has been displayed for a while
-          blankAllDisplays();
-          if (currentSettings.timeTravelSoundToggle && !currentSettings.timeTravelVolumeFade) {
-            playSound(SOUND_ACCELERATION);
-          }
-          currentPhase = ANIM_PRE_FLICKER_88MPH;
-          animationStartTime = millis();
-        }
-      }
-      break;
-    case ANIM_PRE_FLICKER_88MPH: {
-      if (elapsed < PRE_FLICKER_88MPH_DURATION) {
-        float speed = 0.0;
-        float progress = (float)elapsed / PRE_FLICKER_88MPH_DURATION;
-        if (progress < 0.5) { 
-          speed = map(elapsed, 0, PRE_FLICKER_88MPH_DURATION / 2, 0, 80);
-        } else {
-          speed = map(elapsed, PRE_FLICKER_88MPH_DURATION / 2, PRE_FLICKER_88MPH_DURATION, 80, 88);
-        }
-        
-        if (ENABLE_I2C_HARDWARE) {
-          // Display "ACCELERATING" on the middle row as speed increases
-          presRow.month.clear();
-          presRow.day.clear();
-          presRow.year.clear();
-          presRow.time.clear();
-          
-          presRow.month.print("ACC");
-          presRow.month.writeDisplay();
-          presRow.day.print("EL");
-          presRow.day.writeDisplay();
-          presRow.year.print("ERAT");
-          presRow.year.writeDisplay();
-          presRow.time.print("ING");
-          presRow.time.writeDisplay();
-        }
-
-        display88MphSpeed(speed);
-        if (currentTime - lastAnimationFrameTime > 100) {
-           lastAnimationFrameTime = currentTime;
-        }
-      } else {
-        blankAllDisplays();
-        if (currentSettings.timeTravelSoundToggle && !currentSettings.timeTravelVolumeFade) {
-          playSound(SOUND_WARP_WHOOSH);
-        }
-        currentPhase = ANIM_FLICKER;
-        animationStartTime = currentTime;
-      }
-      break;
-    }
-    case ANIM_FLICKER: {
-      if (elapsed < FLICKER_DURATION) {
-        if (currentTime - lastAnimationFrameTime > ANIMATION_UPDATE_INTERVAL_MS) {
-          lastAnimationFrameTime = currentTime;
-          switch (currentSettings.animationStyle) {
-            case 0: { // Sequential Flicker (Default)
-              unsigned long currentPhaseElapsed = currentTime - animationStartTime;
-              int thirdPhaseDuration = FLICKER_DURATION / 3;
-              if (currentPhaseElapsed < thirdPhaseDuration) {
-                animateDisplayRowRandomly(destRow);
-              } else if (currentPhaseElapsed < (thirdPhaseDuration * 2)) {
-                animateDisplayRowRandomly(presRow);
-              } else {
-                animateDisplayRowRandomly(lastRow);
-              }
-              break;
-            }
-            case 1: { // Random Flicker with varied segment speed
-              animateDisplayRowRandomly(destRow);
-              animateDisplayRowRandomly(presRow);
-              animateDisplayRowRandomly(lastRow);
-              break;
-            }
-            case 2: { // All Displays Random Flicker
-                animateDisplayRowRandomly(destRow);
-                animateDisplayRowRandomly(presRow);
-                animateDisplayRowRandomly(lastRow);
-                break;
-            }
-            case 3: { // Counting Up
-                static int counter = 0;
-                static unsigned long lastCountUpdateTime = 0;
-                if (currentTime - lastCountUpdateTime > COUNT_UPDATE_INTERVAL_MS) {
-                    lastCountUpdateTime = currentTime;
-                    counter = (counter + 1) % 10000;
-                    destRow.month.print("---");
-                    destRow.month.writeDisplay();
-                    destRow.day.print(random(0, 100)); destRow.day.writeDisplay();
-                    destRow.year.print(random(0, 10000)); destRow.year.writeDisplay();
-                    destRow.time.print(counter); destRow.time.writeDisplay();
-                    presRow.month.print("---"); presRow.month.writeDisplay();
-                    presRow.day.print(random(0, 100)); presRow.day.writeDisplay();
-                    presRow.year.print(random(0, 10000)); presRow.year.writeDisplay();
-                    presRow.time.print(counter); presRow.time.writeDisplay();
-                    lastRow.month.print("---");
-                    lastRow.month.writeDisplay();
-                    lastRow.day.print(random(0, 100)); lastRow.day.writeDisplay();
-                    lastRow.year.print(random(0, 10000)); lastRow.year.writeDisplay();
-                    lastRow.time.print(counter); lastRow.time.writeDisplay();
-                    animateAmPmDisplay(destRow);
-                    animateAmPmDisplay(presRow);
-                    animateAmPmDisplay(lastRow);
-                }
-                break;
-            }
-            case 4: { // Wave Flicker
-              unsigned long currentPhaseElapsed = currentTime - animationStartTime;
-              int phaseDuration = FLICKER_DURATION / 5; // 5 phases for a wave effect
-              if (currentPhaseElapsed < phaseDuration) {
-                animateDisplayRowRandomly(destRow);
-              } else if (currentPhaseElapsed < (phaseDuration * 2)) {
-                clearDisplayRow(destRow);
-                animateDisplayRowRandomly(presRow);
-              } else if (currentPhaseElapsed < (phaseDuration * 3)) {
-                clearDisplayRow(presRow);
-                animateDisplayRowRandomly(lastRow);
-              } else if (currentPhaseElapsed < (phaseDuration * 4)) {
-                clearDisplayRow(lastRow);
-              }
-              // Last phase is blank before dim out
-              break;
-            }
-            default:
-                // Default to sequential flicker
-                unsigned long currentPhaseElapsed = currentTime - animationStartTime;
-                int thirdPhaseDuration = FLICKER_DURATION / 3;
-                if (currentPhaseElapsed < thirdPhaseDuration) {
-                    animateDisplayRowRandomly(destRow);
-                } else if (currentPhaseElapsed < (thirdPhaseDuration * 2)) {
-                    animateDisplayRowRandomly(presRow);
-                } else {
-                    animateDisplayRowRandomly(lastRow);
-                }
-                break;
-          }
-        }
-      } else {
-        blankAllDisplays();
-        currentPhase = ANIM_DIM_OUT;
-        animationStartTime = currentTime;
-      }
-      break;
-    }
-    case ANIM_DIM_OUT: {
-      if (elapsed < DIM_OUT_DURATION) {
-        byte currentBrightness = map(elapsed, 0, DIM_OUT_DURATION, initialBrightness, 0);
-        setDisplayBrightness(currentBrightness);
-      } else {
-        setDisplayBrightness(0);
-        currentPhase = ANIM_VOLUME_FADE_OUT;
-        animationStartTime = currentTime;
-      }
-      break;
-    }
-    case ANIM_VOLUME_FADE_OUT: {
-      if (elapsed < VOLUME_FADE_OUT_DURATION) {
-        if (currentSettings.timeTravelVolumeFade) {
-          int newVolume = map(elapsed, 0, VOLUME_FADE_OUT_DURATION, currentSettings.notificationVolume, 0);
-          if (newVolume != currentVolume) {
-            currentVolume = newVolume;
-            myDFPlayer.volume(currentVolume);
-          }
-        }
-      } else {
-        if (currentSettings.timeTravelSoundToggle) {
-          myDFPlayer.volume(currentSettings.notificationVolume);
-          playSound(SOUND_ARRIVAL_THUD);
-        }
-        currentPhase = ANIM_COMPLETE;
-        animationStartTime = currentTime;
-      }
-      break;
-    }
-    case ANIM_COMPLETE:
-      if (elapsed < 100) {
-      } else {
-        ESP_LOGI("Animation", "Animation complete.");
-        isAnimating = false;
-        currentPhase = ANIM_INACTIVE;
-        isDisplayAsleep = false;
-        setDisplayBrightness(currentSettings.brightness);
-        if (currentSettings.timeTravelSoundToggle) {
-          myDFPlayer.volume(currentSettings.notificationVolume);
-        }
-      }
-      break;
-    case ANIM_INACTIVE:
-      break;
-  }
-  #endif
-}
-
-// *** UPDATED FUNCTION ***
-void handleGlitchEffect() {
-  #if ENABLE_HARDWARE
-  // Return if an animation is playing, the display is asleep, a glitch is already happening, or the effect is disabled.
-  if (isAnimating || isDisplayAsleep || isGlitching || currentSettings.glitchEffectFrequency == 0) return;
-
-  // Check if it's time to potentially trigger a glitch
-  if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
-    // Use the frequency setting as a probability (e.g., 25 means 25% chance)
-    if (random(0, 100) < currentSettings.glitchEffectFrequency) {
-      ESP_LOGD("Glitch", "Triggering global glitch effect!");
-      isGlitching = true;
-      glitchStartTime = millis();
-
-      // Animate all rows for a global interference effect
-      if (ENABLE_I2C_HARDWARE) {
-          animateDisplayRowRandomly(destRow);
-          animateDisplayRowRandomly(presRow);
-          animateDisplayRowRandomly(lastRow);
-      }
-    }
-    lastGlitchTime = millis();
-  }
-  #endif
-}
-
-// *** UPDATED FUNCTION ***
-void restoreDisplayAfterGlitch() {
-  #if ENABLE_HARDWARE
-  if (!isGlitching) return;
-  if (millis() - glitchStartTime > 150) { // Glitch for 150ms
-    ESP_LOGD("Glitch", "Global glitch effect finished. Restoring all displays.");
-    updateNormalClockDisplay(); // This function restores all rows to their correct state
-    isGlitching = false;
-  }
-  #endif
-}
-
-void updateNormalClockDisplay() {
-  static unsigned long lastDisplayUpdate = 0;
-  static int lastPresentTimezoneIndex = -1;
-  static int lastDestinationTimezoneIndex = -1;
-  static bool lastDisplayFormat24h = false;
-  static int lastLastTimeDepartedHour = -1, lastLastTimeDepartedMinute = -1, lastLastTimeDepartedYear = -1, lastLastTimeDepartedMonth = -1, lastLastTimeDepartedDay = -1;
-  if (currentSettings.presentTimezoneIndex != lastPresentTimezoneIndex) {
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
-    lastPresentTimezoneIndex = currentSettings.presentTimezoneIndex;
-    ESP_LOGD("Time", "Present Timezone changed to %s", TZ_DATA[currentSettings.presentTimezoneIndex].displayName);
-  }
-  
-  if (isDisplayAsleep) {
-    #if ENABLE_HARDWARE
-    if (millis() - lastDisplayUpdate > 1000) {
-      lastDisplayUpdate = millis();
-      clearDisplayRow(destRow);
-      clearDisplayRow(presRow);
-      clearDisplayRow(lastRow);
-    }
-    #endif
-    return;
-  }
-  
-  bool presentTimeNeedsUpdate = (millis() - lastDisplayUpdate > 1000) ||
-                                (currentSettings.displayFormat24h != lastDisplayFormat24h);
-  bool destinationTimeNeedsUpdate = (currentSettings.destinationTimezoneIndex != lastDestinationTimezoneIndex) || presentTimeNeedsUpdate;
-  bool lastDepartedNeedsUpdate = (!currentSettings.windSpeedModeEnabled && (
-                                  currentSettings.lastTimeDepartedHour != lastLastTimeDepartedHour ||
-                                  currentSettings.lastTimeDepartedMinute != lastLastTimeDepartedMinute ||
-                                  currentSettings.lastTimeDepartedYear != lastLastTimeDepartedYear ||
-                                  currentSettings.lastTimeDepartedMonth != lastLastTimeDepartedMonth ||
-                                  currentSettings.lastTimeDepartedDay != lastLastTimeDepartedDay ||
-                                  presentTimeNeedsUpdate));
-
-  if (timeSynchronized && (presentTimeNeedsUpdate || destinationTimeNeedsUpdate || lastDepartedNeedsUpdate || currentSettings.windSpeedModeEnabled)) {
-    lastDisplayUpdate = millis();
-    lastDisplayFormat24h = currentSettings.displayFormat24h;
-    time_t now;
-    time(&now);
-    
-    #if ENABLE_HARDWARE
-    if (presentTimeNeedsUpdate) {
-      localtime_r(&now, &currentTimeInfo);
-      updateDisplayRow(presRow, currentTimeInfo, currentTimeInfo.tm_year + 1900);
-    }
-    
-    if (destinationTimeNeedsUpdate) {
-      setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-      tzset();
-      localtime_r(&now, &destinationTimeInfo);
-      updateDisplayRow(destRow, destinationTimeInfo, currentSettings.destinationYear);
-      lastDestinationTimezoneIndex = currentSettings.destinationTimezoneIndex;
-      setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-      tzset();
-    }
-
-    if (currentSettings.windSpeedModeEnabled) {
-      displayWindSpeed(currentWindSpeed);
-      // Clear the saved last departed time to force an update when switching back
-      lastLastTimeDepartedHour = -1;
-    } else if (lastDepartedNeedsUpdate) {
-      struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
-      updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
-      lastLastTimeDepartedHour = currentSettings.lastTimeDepartedHour;
-      lastLastTimeDepartedMinute = currentSettings.lastTimeDepartedMinute;
-      lastLastTimeDepartedYear = currentSettings.lastTimeDepartedYear;
-      lastLastTimeDepartedMonth = currentSettings.lastTimeDepartedMonth;
-      lastLastTimeDepartedDay = currentSettings.lastTimeDepartedDay;
-    }
-    #endif
-  } else if (!timeSynchronized) {
-    #if ENABLE_HARDWARE
-    if (millis() - lastDisplayUpdate > 1000) {
-      lastDisplayUpdate = millis();
-      clearDisplayRow(destRow);
-      clearDisplayRow(presRow);
-      clearDisplayRow(lastRow);
-      if (ENABLE_I2C_HARDWARE) {
-        destRow.month.print("NTP");
-        destRow.month.writeDisplay();
-        presRow.month.print("ERR");
-        presRow.month.writeDisplay();
-      }
-    }
-    #endif
-  }
-}
-
-void showNtpSyncAnimation() {
-  #if ENABLE_HARDWARE
-  if (!ENABLE_I2C_HARDWARE) return;
-  isNtpSyncAnimating = true;
-  ntpSyncAnimStartTime = millis();
-  blankAllDisplays();
-  
-  // Display "SYNCING" on the present time row
-  presRow.month.print("SYNC");
-  presRow.month.writeDisplay();
-  presRow.day.print("ING");
-  presRow.day.writeDisplay();
-  ESP_LOGI("NTP", "Displaying NTP sync animation.");
-  #endif
-}
-
-void startTimeTravelAnimation() {
-  if (isAnimating) {
-    ESP_LOGW("Animation", "Animation already in progress. Ignoring new request.");
-    return;
-  }
-  isAnimating = true;
-  animationStartTime = millis();
-  lastAnimationFrameTime = millis();
-  initialBrightness = currentSettings.brightness;
-  currentPhase = ANIM_VOLUME_FADE_IN;
-  ESP_LOGI("Animation", "Starting physical time travel animation.");
-  #if ENABLE_HARDWARE
-  blankAllDisplays();
-  #endif
-  lastTimeTravelAnimationTime = millis();
-  // Reset the timer for the automatic animation
-}
-
-void sendNTPrequest() {
-  IPAddress ntpServerIP;
-  const char *serverToUse = NTP_SERVERS[currentNtpServerIndex];
-  if (WiFi.hostByName(serverToUse, ntpServerIP)) {
-    byte packetBuffer[48];
-    memset(packetBuffer, 0, 48);
-    packetBuffer[0] = 0b11100011;
-    Udp.beginPacket(ntpServerIP, 123);
-    Udp.write(packetBuffer, 48);
-    Udp.endPacket();
-    ntpRequestSentTime = millis();
-    ESP_LOGI("NTP", "NTP request sent to %s", serverToUse);
-    showNtpSyncAnimation();
-    // Show animation when request is sent
-  } else {
-    ESP_LOGW("NTP", "Failed to resolve NTP server: %s", serverToUse);
-  }
-}
-
-void handleSleepSchedule() {
-  if (!timeSynchronized) return;
-  time_t now_t;
-  time(&now_t);
-  struct tm *now_tm = localtime(&now_t);
-  int now_minutes = now_tm->tm_hour * 60 + now_tm->tm_min;
-  int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
-  int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
-  
-  bool shouldBeAsleep = false;
-  if (sleep_minutes < wake_minutes) { // Same-day sleep period (e.g., sleep at 08:00, wake at 17:00)
-    shouldBeAsleep = (now_minutes >= sleep_minutes && now_minutes < wake_minutes);
-  } else if (sleep_minutes > wake_minutes) { // Overnight sleep period (e.g., sleep at 22:00, wake at 07:00)
-    shouldBeAsleep = (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-  }
-  // If sleep_minutes == wake_minutes, sleep is disabled, shouldBeAsleep remains false.
-  if (shouldBeAsleep && !isDisplayAsleep) {
-    isDisplayAsleep = true;
-    #if ENABLE_HARDWARE
-    playSound(SOUND_SLEEP_ON);
-    #endif
-    ESP_LOGI("Sleep", "Entering sleep mode.");
-  } else if (!shouldBeAsleep && isDisplayAsleep) {
-    isDisplayAsleep = false;
-    #if ENABLE_HARDWARE
-    playSound(SOUND_CONFIRM_ON);
-    #endif
-    ESP_LOGI("Sleep", "Exiting sleep mode.");
-  }
-}
-
-// *** FEATURE IMPLEMENTATION: Preset Cycling ***
-void handlePresetCycling() {
-    if (currentSettings.presetCycleInterval > 0 && !isAnimating && !isDisplayAsleep) {
-        unsigned long intervalMillis = (unsigned long)currentSettings.presetCycleInterval * 60 * 1000;
-        if (millis() - lastPresetCycleTime >= intervalMillis) {
-            ESP_LOGI("Presets", "Cycling to next preset.");
-            String presetsJson = preferences.getString("customPresets", "[]");
-            DynamicJsonDocument doc(2048);
-            deserializeJson(doc, presetsJson);
-            JsonArray presets = doc.as<JsonArray>();
-            if (presets.size() > 0) {
-                currentPresetIndex = (currentPresetIndex + 1) % presets.size();
-                JsonObject preset = presets[currentPresetIndex];
-                String value = preset["value"].as<String>();
-
-                sscanf(value.c_str(), "%d-%d-%d-%d-%d",
-                       &currentSettings.lastTimeDepartedYear,
-                       &currentSettings.lastTimeDepartedMonth,
-                       &currentSettings.lastTimeDepartedDay,
-                       &currentSettings.lastTimeDepartedHour,
-                       &currentSettings.lastTimeDepartedMinute);
-                ESP_LOGI("Presets", "Cycled to: %s", preset["name"].as<String>());
-            }
-            lastPresetCycleTime = millis();
-        }
-    }
-}
-
-
 void setupWebRoutes() {
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (LittleFS.exists("/index.html")) {
-      request->send(LittleFS, "/index.html", "text/html");
-    } else {
-      request->send(404, "text/plain", "index.html not found. Please upload files to LittleFS.");
-    }
-  });
-  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(LittleFS, "/style.css", "text/css");
-  });
-  server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(LittleFS, "/script.js", "application/javascript");
-  });
-  server.on("/api/time", HTTP_GET, [](AsyncWebServerRequest *request) {
-    time_t now;
-    time(&now);
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/index.html", "text/html"); });
+  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/style.css", "text/css"); });
+  server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/script.js", "application/javascript"); });
+  server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(200, "text/plain", "READY"); });
+  server.on("/api/settings/timecircuits", HTTP_GET, [](AsyncWebServerRequest *request) {
     StaticJsonDocument<256> doc;
-    doc["unixTime"] = now;
-    doc["timeSynchronized"] = timeSynchronized;
-    if (lastNtpSyncTime != 0) {
-      struct tm *lastSyncTm = localtime(&lastNtpSyncTime);
-      char buf[11];
-      strftime(buf, sizeof(buf), "%m/%d/%Y", lastSyncTm);
-      doc["lastSyncTime"] = buf;
-    } else {
-      doc["lastSyncTime"] = "Never";
-    }
-    doc["lastNtpServer"] = currentNtpServerUsed;
-    
+    doc["destinationYear"] = currentSettings.destinationYear;
+    doc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;
+    doc["lastTimeDepartedYear"] = currentSettings.lastTimeDepartedYear;
+    doc["lastTimeDepartedMonth"] = currentSettings.lastTimeDepartedMonth;
+    doc["lastTimeDepartedDay"] = currentSettings.lastTimeDepartedDay;
+    doc["lastTimeDepartedHour"] = currentSettings.lastTimeDepartedHour;
+    doc["lastTimeDepartedMinute"] = currentSettings.lastTimeDepartedMinute;
+    doc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
-  server.on("/api/settings", HTTP_GET, [](AsyncWebServerRequest *request) {
-    StaticJsonDocument<1024> doc;
-    doc["destinationYear"] = currentSettings.destinationYear;
-    doc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;
+  server.on("/api/settings/temporal", HTTP_GET, [](AsyncWebServerRequest *request) {
+    StaticJsonDocument<384> doc;
     doc["departureHour"] = currentSettings.departureHour;
     doc["departureMinute"] = currentSettings.departureMinute;
     doc["arrivalHour"] = currentSettings.arrivalHour;
     doc["arrivalMinute"] = currentSettings.arrivalMinute;
-    doc["lastTimeDepartedHour"] = currentSettings.lastTimeDepartedHour;
-    doc["lastTimeDepartedMinute"] = currentSettings.lastTimeDepartedMinute;
-    doc["lastTimeDepartedYear"] = currentSettings.lastTimeDepartedYear;
-    doc["lastTimeDepartedMonth"] = currentSettings.lastTimeDepartedMonth;
-    doc["lastTimeDepartedDay"] = currentSettings.lastTimeDepartedDay;
     doc["brightness"] = currentSettings.brightness;
     doc["notificationVolume"] = currentSettings.notificationVolume;
-    doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
+    doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
     doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
+    doc["animationStyle"] = currentSettings.animationStyle;
+    doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency;
+    doc["malfunctionFrequency"] = currentSettings.malfunctionFrequency; // <-- ADDED
+    doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
+    doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade;
     doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
-    doc["theme"] = currentSettings.theme;
-    doc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
-    doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
-    doc["animationStyle"] = currentSettings.animationStyle;
-    doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency; // *** NEW ***
-    doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade;
-    doc["windSpeedModeEnabled"] = currentSettings.windSpeedModeEnabled;
-    doc["latitude"] = currentSettings.latitude;
-    doc["longitude"] = currentSettings.longitude;
+String jsonString;
+    serializeJson(doc, jsonString);
+    request->send(200, "application/json", jsonString);
+  });
+  server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String response = "{";
+    response += "\"dataLinkEnabled\":" + String(currentSettings.dataLinkEnabled ? "true" : "false") + ",";
+    response += "\"dataLinkTargetRow\":" + String(currentSettings.dataLinkTargetRow) + ",";
+    response += "\"dataLinkRefreshInterval\":" + String(currentSettings.dataLinkRefreshInterval) + ",";
+    response += "\"numDataPoints\":" + String(currentSettings.numDataPoints) + ",";
+    response += "\"dataPoints\":[";
+    for (int i = 0; i < currentSettings.numDataPoints; i++) {
+        response += "{";
+        
+response += "\"url\":\"" + String(currentSettings.dataPoints[i].url) + "\",";
+  
+        response += "\"label\":\"" + String(currentSettings.dataPoints[i].label) + "\",";
+        response += "\"jsonPath\":\"" + String(currentSettings.dataPoints[i].jsonPath) + "\",";
+        response += "\"format\":\"" + String(currentSettings.dataPoints[i].format) + "\",";
+        response += "\"icon\":\"" + String(currentSettings.dataPoints[i].icon) + "\",";
+response += "\"scrollSpeed\":" + String(currentSettings.dataPoints[i].scrollSpeed) + ",";
+        response += "\"isLiveData\":" + String(currentSettings.dataPoints[i].isLiveData ? "true" : "false") + ",";
+        response += "\"liveDataTag\":\"" + String(currentSettings.dataPoints[i].liveDataTag) + "\"";
+        response += "}";
+        if (i < currentSettings.numDataPoints - 1) response += ",";
+    }
+    response += "]}";
+    request->send(200, "application/json", response);
+  });
+  server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send_P(200, "application/json", TZ_JSON);
+  });
+  server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "application/json", preferences.getString("customPresets", "[]"));
+  });
+  server.on("/api/time", HTTP_GET, [](AsyncWebServerRequest *request) {
+    time_t now;
+    time(&now);
+    StaticJsonDocument<128> doc;
+    doc["unixTime"] = now;
+    doc["timeSynchronized"] = timeSynchronized;
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
   server.on("/api/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request){
-    ESP_LOGI("WebUI", "Received Settings from UI");
-    if (request->hasParam("destinationYear", true)) { 
-        currentSettings.destinationYear = request->getParam("destinationYear", true)->value().toInt(); 
+    auto getParamInt = [&](const String& name, int defaultValue) -> int {
+        if (request->hasParam(name, true)) return request->getParam(name, true)->value().toInt();
+        return defaultValue;
+    };
+    auto getParamValue = [&](const String& name) -> String {
+        if (request->hasParam(name, true)) return request->getParam(name, true)->value();
+        return "";
+    };
+    currentSettings.destinationYear = getParamInt("destinationYear", currentSettings.destinationYear);
+    currentSettings.destinationTimezoneIndex = getParamInt("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex);
+    if 
+(request->hasParam("lastTimeDepartedYear", true)) {
+        currentSettings.lastTimeDepartedYear = getParamInt("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear);
+        currentSettings.lastTimeDepartedMonth = getParamInt("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth);
+currentSettings.lastTimeDepartedDay = getParamInt("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay);
+        currentSettings.lastTimeDepartedHour = getParamInt("lastTimeDepartedHour", currentSettings.lastTimeDepartedHour);
+        currentSettings.lastTimeDepartedMinute = getParamInt("lastTimeDepartedMinute", currentSettings.lastTimeDepartedMinute);
     }
-    if (request->hasParam("destinationTimezoneIndex", true)) { 
-        currentSettings.destinationTimezoneIndex = request->getParam("destinationTimezoneIndex", true)->value().toInt(); 
-    }
-    if (request->hasParam("departureHour", true)) { 
-        currentSettings.departureHour = request->getParam("departureHour", true)->value().toInt(); 
-    }
-    if (request->hasParam("departureMinute", true)) { 
-        currentSettings.departureMinute = request->getParam("departureMinute", true)->value().toInt();
-    }
-    if (request->hasParam("arrivalHour", true)) { 
-        currentSettings.arrivalHour = request->getParam("arrivalHour", true)->value().toInt();
-    }
-    if (request->hasParam("arrivalMinute", true)) { 
-        currentSettings.arrivalMinute = request->getParam("arrivalMinute", true)->value().toInt();
-    }
-    if (request->hasParam("lastTimeDepartedHour", true)) { 
-        currentSettings.lastTimeDepartedHour = request->getParam("lastTimeDepartedHour", true)->value().toInt();
-    }
-    if (request->hasParam("lastTimeDepartedMinute", true)) { 
-        currentSettings.lastTimeDepartedMinute = request->getParam("lastTimeDepartedMinute", true)->value().toInt();
-    }
-    if (request->hasParam("lastTimeDepartedYear", true)) { 
-        currentSettings.lastTimeDepartedYear = request->getParam("lastTimeDepartedYear", true)->value().toInt();
-    }
-    if (request->hasParam("lastTimeDepartedMonth", true)) { 
-        currentSettings.lastTimeDepartedMonth = request->getParam("lastTimeDepartedMonth", true)->value().toInt();
-    }
-    if (request->hasParam("lastTimeDepartedDay", true)) { 
-        currentSettings.lastTimeDepartedDay = request->getParam("lastTimeDepartedDay", true)->value().toInt();
-    }
-    if (request->hasParam("brightness", true)) { 
-        currentSettings.brightness = request->getParam("brightness", true)->value().toInt();
-        #if ENABLE_HARDWARE
-        setDisplayBrightness(currentSettings.brightness);
-        #endif
-    }
-    if (request->hasParam("notificationVolume", true)) { 
-        currentSettings.notificationVolume = request->getParam("notificationVolume", true)->value().toInt();
-        #if ENABLE_HARDWARE
-        myDFPlayer.volume(currentSettings.notificationVolume);
-        #endif
-    }
-    if (request->hasParam("timeTravelAnimationInterval", true)) { 
-        currentSettings.timeTravelAnimationInterval = request->getParam("timeTravelAnimationInterval", true)->value().toInt();
-    }
-    if (request->hasParam("presetCycleInterval", true)) { 
-        currentSettings.presetCycleInterval = request->getParam("presetCycleInterval", true)->value().toInt();
-    }
-    if (request->hasParam("theme", true)) { 
-        currentSettings.theme = request->getParam("theme", true)->value().toInt();
-    }
-    if (request->hasParam("presentTimezoneIndex", true)) { 
-        currentSettings.presentTimezoneIndex = request->getParam("presentTimezoneIndex", true)->value().toInt();
-    }
-    if (request->hasParam("timeTravelAnimationDuration", true)) { 
-        currentSettings.timeTravelAnimationDuration = request->getParam("timeTravelAnimationDuration", true)->value().toInt();
-    }
-    if (request->hasParam("animationStyle", true)) { 
-        currentSettings.animationStyle = request->getParam("animationStyle", true)->value().toInt();
-    }
-    // *** NEW: Handle the glitch frequency setting ***
-    if (request->hasParam("glitchEffectFrequency", true)) {
-        currentSettings.glitchEffectFrequency = request->getParam("glitchEffectFrequency", true)->value().toInt();
-    }
-    if (request->hasParam("timeTravelSoundToggle", true)) { 
-        currentSettings.timeTravelSoundToggle = (request->getParam("timeTravelSoundToggle", true)->value() == "true");
-    }
-    if (request->hasParam("displayFormat24h", true)) { 
-        currentSettings.displayFormat24h = (request->getParam("displayFormat24h", true)->value() == "true");
-    }
-    if (request->hasParam("timeTravelVolumeFade", true)) {
-        currentSettings.timeTravelVolumeFade = (request->getParam("timeTravelVolumeFade", true)->value() == "true");
-    }
-    if (request->hasParam("windSpeedModeEnabled", true)) {
-        bool justEnabled = !currentSettings.windSpeedModeEnabled && (request->getParam("windSpeedModeEnabled", true)->value() == "true");
-        currentSettings.windSpeedModeEnabled = (request->getParam("windSpeedModeEnabled", true)->value() == "true");
-        if (justEnabled) {
-          ESP_LOGI("WebUI", "Wind Speed Mode enabled. Fetching speed immediately.");
-          fetchWindSpeed();
+    currentSettings.presetCycleInterval = getParamInt("presetCycleInterval", currentSettings.presetCycleInterval);
+    currentSettings.departureHour = getParamInt("departureHour", currentSettings.departureHour);
+    currentSettings.departureMinute = getParamInt("departureMinute", currentSettings.departureMinute);
+    currentSettings.arrivalHour = getParamInt("arrivalHour", currentSettings.arrivalHour);
+    currentSettings.arrivalMinute = getParamInt("arrivalMinute", currentSettings.arrivalMinute);
+    currentSettings.brightness = getParamInt("brightness", currentSettings.brightness);
+    currentSettings.timeTravelAnimationDuration = getParamInt("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration);
+    currentSettings.timeTravelAnimationInterval = getParamInt("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval);
+    currentSettings.animationStyle = getParamInt("animationStyle", currentSettings.animationStyle);
+    currentSettings.glitchEffectFrequency = getParamInt("glitchEffectFrequency", currentSettings.glitchEffectFrequency);
+    currentSettings.malfunctionFrequency = getParamInt("malfunctionFrequency", currentSettings.malfunctionFrequency);
+// <-- ADDED
+    currentSettings.notificationVolume = getParamInt("notificationVolume", currentSettings.notificationVolume);
+currentSettings.timeTravelSoundToggle = (getParamValue("timeTravelSoundToggle") == "true");
+    currentSettings.timeTravelVolumeFade = (getParamValue("timeTravelVolumeFade") == "true");
+    currentSettings.presentTimezoneIndex = getParamInt("presentTimezoneIndex", currentSettings.presentTimezoneIndex);
+    currentSettings.displayFormat24h = (getParamValue("displayFormat24h") == "true");
+currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
+    currentSettings.dataLinkTargetRow = getParamInt("dataLinkTargetRow", currentSettings.dataLinkTargetRow);
+    currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
+if (request->hasParam("numDataPoints", true)) {
+        int numDataPoints = getParamInt("numDataPoints", currentSettings.numDataPoints);
+        if (numDataPoints > 5) numDataPoints = 5;
+        currentSettings.numDataPoints = numDataPoints;
+        for (int i = 0; i < currentSettings.numDataPoints; i++) {
+            String url = getParamValue("dp_url_" + String(i));
+            strncpy(currentSettings.dataPoints[i].url, url.c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
+            currentSettings.dataPoints[i].url[sizeof(currentSettings.dataPoints[i].url) - 1] = '\0';
+            String label = getParamValue("dp_label_" + String(i));
+            strncpy(currentSettings.dataPoints[i].label, label.c_str(), sizeof(currentSettings.dataPoints[i].label) - 1);
+            currentSettings.dataPoints[i].label[sizeof(currentSettings.dataPoints[i].label) - 1] = '\0';
+            String path = getParamValue("dp_path_" + String(i));
+            strncpy(currentSettings.dataPoints[i].jsonPath, path.c_str(), sizeof(currentSettings.dataPoints[i].jsonPath) - 1);
+            currentSettings.dataPoints[i].jsonPath[sizeof(currentSettings.dataPoints[i].jsonPath) - 1] = '\0';
+            String format = getParamValue("dp_format_" + String(i));
+            strncpy(currentSettings.dataPoints[i].format, format.c_str(), sizeof(currentSettings.dataPoints[i].format) - 1);
+            currentSettings.dataPoints[i].format[sizeof(currentSettings.dataPoints[i].format) - 1] = '\0';
+            String icon = getParamValue("dp_icon_" + String(i));
+            strncpy(currentSettings.dataPoints[i].icon, icon.c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
+            currentSettings.dataPoints[i].icon[sizeof(currentSettings.dataPoints[i].icon) - 1] = '\0';
+            String tag = getParamValue("dp_liveDataTag_" + String(i));
+            strncpy(currentSettings.dataPoints[i].liveDataTag, tag.c_str(), sizeof(currentSettings.dataPoints[i].liveDataTag) - 1);
+            currentSettings.dataPoints[i].liveDataTag[sizeof(currentSettings.dataPoints[i].liveDataTag) - 1] = '\0';
+            currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
+            currentSettings.dataPoints[i].isLiveData = (getParamValue("dp_isLiveData_" + String(i)) == "true");
         }
-    }
-    if (request->hasParam("latitude", true)) {
-        currentSettings.latitude = request->getParam("latitude", true)->value().toFloat();
-    }
-    if (request->hasParam("longitude", true)) {
-        currentSettings.longitude = request->getParam("longitude", true)->value().toFloat();
     }
     saveSettings();
     #if ENABLE_HARDWARE
-    playSound(SOUND_CONFIRM_ON);
+    myDFPlayer.volume(currentSettings.notificationVolume);
     #endif
-    request->send(200, "text/plain", "Settings Saved!");
-  });
-  server.on("/api/resetWifi", HTTP_POST, [](AsyncWebServerRequest *request) {
-    wifiManager.resetSettings();
-    request->send(200, "text/plain", "WiFi Reset. Restarting...");
-    delay(2000);
-    ESP.restart();
-  });
-  server.on("/api/syncNtp", HTTP_POST, [](AsyncWebServerRequest *request) {
-    ntpSyncRequested = true;
-    request->send(200, "text/plain", "NTP Sync Requested!");
-  });
-  server.on("/api/timeTravel", HTTP_POST, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Settings Saved! Engaging Time Circuits...");
     startTimeTravelAnimation();
-    request->send(200, "text/plain", "Time Travel Sequence Initiated!");
   });
-  // *** NEWLY ADDED ENDPOINT ***
-  server.on("/api/testAnimation", HTTP_POST, [](AsyncWebServerRequest *request) {
-    startTimeTravelAnimation();
-    request->send(200, "text/plain", "Test Sequence Initiated!");
+  server.on("/api/addPreset", HTTP_POST, [](AsyncWebServerRequest *request){
+    String presetsJson = preferences.getString("customPresets", "[]");
+    DynamicJsonDocument doc(2048);
+    deserializeJson(doc, presetsJson);
+    JsonArray presets = doc.as<JsonArray>();
+    JsonObject newPreset = presets.createNestedObject();
+    newPreset["name"] = request->getParam("name", true)->value();
+    newPreset["value"] = request->getParam("value", true)->value();
+    String newPresetsJson;
+    serializeJson(doc, newPresetsJson);
+    preferences.putString("customPresets", newPresetsJson);
+    request->send(200, "text/plain", "Custom preset saved!");
   });
-  server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
-    DynamicJsonDocument doc(4096);
-    JsonObject root = doc.to<JsonObject>();
-    for (int i = 0; i < NUM_TIMEZONE_OPTIONS; i++) {
-      const char *country = TZ_DATA[i].country;
-      if (!root.containsKey(country)) {
-        root.createNestedArray(country);
-      }
-      JsonObject obj = root[country].createNestedObject();
-      obj["value"] = i;
-      obj["text"] = TZ_DATA[i].displayName;
-      obj["ianaTzName"] = TZ_DATA[i].ianaTzName;
+  server.on("/api/updatePreset", HTTP_POST, [](AsyncWebServerRequest *request){
+    String name = request->getParam("name", true)->value();
+    String value = request->getParam("value", true)->value();
+    String presetsJson = preferences.getString("customPresets", "[]");
+    DynamicJsonDocument doc(2048);
+    deserializeJson(doc, presetsJson);
+    JsonArray presets = doc.as<JsonArray>();
+    for (JsonObject preset : presets) {
+        if (preset["name"] == name) {
+            preset["value"] = value;
+            break;
+        }
+ 
     }
-  
-    String jsonString;
-    serializeJson(doc, jsonString);
-    request->send(200, "application/json", jsonString);
+    String newPresetsJson;
+    serializeJson(doc, newPresetsJson);
+    preferences.putString("customPresets", newPresetsJson);
+    request->send(200, "text/plain", "Preset updated!");
   });
-  server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    StaticJsonDocument<128> doc;
-    doc["rssi"] = WiFi.RSSI();
-    doc["ssid"] = WiFi.SSID();
-    String jsonString;
-    serializeJson(doc, jsonString);
-    request->send(200, "application/json", jsonString);
-  });
-  server.on("/api/testSound", HTTP_GET, [](AsyncWebServerRequest *request) {
-    #if ENABLE_HARDWARE
-    if (currentSettings.timeTravelSoundToggle) {
-      playSound(SOUND_CONFIRM_ON);
+  server.on("/api/deletePreset", HTTP_POST, [](AsyncWebServerRequest *request){
+    String name = request->getParam("name", true)->value();
+    String presetsJson = preferences.getString("customPresets", "[]");
+    DynamicJsonDocument doc(2048);
+    deserializeJson(doc, presetsJson);
+    JsonArray presets = doc.as<JsonArray>();
+    for (int i = 0; i < presets.size(); i++) {
+        if (presets[i]["name"] == name) {
+            presets.remove(i);
+            break;
+        }
     }
-    #endif
-    request->send(200, "text/plain", "Sound test initiated.");
+   
+String newPresetsJson;
+    serializeJson(doc, newPresetsJson);
+    preferences.putString("customPresets", newPresetsJson);
+    request->send(200, "text/plain", "Preset deleted!");
   });
-  server.on("/api/timeTravelSound", HTTP_GET, [](AsyncWebServerRequest *request) {
-    #if ENABLE_HARDWARE
-    if (currentSettings.timeTravelSoundToggle) {
-      playSound(SOUND_TIME_TRAVEL);
-    }
-    #endif
-    request->send(200, "text/plain", "Time travel sound initiated.");
-  });
-  server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request) {
-    #if ENABLE_HARDWARE
-    playSound(SOUND_EASTER_EGG);
-    #endif
-    request->send(200, "text/plain", "Great Scott!");
-  });
-  server.on("/api/resetSettings", HTTP_POST, [](AsyncWebServerRequest *request) {
+  server.on("/api/resetSettings", HTTP_POST, [](AsyncWebServerRequest *request){
     preferences.remove("customPresets");
+    preferences.remove(THEME_PREF_KEY);
     currentSettings = defaultSettings;
     saveSettings();
     request->send(200, "text/plain", "Settings have been reset to default.");
   });
-  server.on("/api/previewSetting", HTTP_GET, [](AsyncWebServerRequest *request) {
-    ESP_LOGI("WebUI", "Live preview request received");
-    if (request->hasParam("setting") && request->hasParam("value")) {
-      String setting = request->getParam("setting")->value();
-      String value = request->getParam("value")->value();
-      if (setting == "brightness") {
-        int brightness = value.toInt();
-        if (brightness >= 0 && brightness <= 7) {
-          #if ENABLE_HARDWARE
-          setDisplayBrightness(brightness);
-          #endif
+  server.on("/api/syncTime", HTTP_POST, [](AsyncWebServerRequest *request){
+    ntpSyncRequested = true;
+    request->send(200, "text/plain", "NTP time sync requested.");
+  });
+  server.on("/api/getTheme", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", preferences.getString(THEME_PREF_KEY, "theme-time-circuits"));
+  });
+  server.on("/api/setTheme", HTTP_POST, [](AsyncWebServerRequest *request){
+    String theme = request->getParam("theme", true)->value();
+    preferences.putString(THEME_PREF_KEY, theme);
+    request->send(200, "text/plain", "Theme saved.");
+  });
+  server.on("/api/testDataPoint", HTTP_POST, [](AsyncWebServerRequest *request){
+    String url = request->getParam("url", true)->value();
+    String path = request->getParam("path", true)->value();
+    HTTPClient http;
+    http.begin(url);
+    int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_OK) {
+        DynamicJsonDocument doc(8192);
+        DeserializationError error = deserializeJson(doc, http.getStream());
+        if (error == DeserializationError::Ok) {
+            JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), path.c_str());
+        
+    if (!value.isNull()) {
+                request->send(200, "application/json", "{\"success\":true, \"value\":\"" + value.as<String>() + "\"}");
+            } else {
+                request->send(200, "application/json", "{\"success\":false, \"error\":\"JSON Path not found.\"}");
+            }
         } else {
-            request->send(400, "text/plain", "Invalid brightness value.");
-            return;
+            request->send(200, 
+"application/json", "{\"success\":false, \"error\":\"JSON Parsing Failed.\"}");
         }
-      } else if (setting == "notificationVolume") {
-        int volume = value.toInt();
-        if (volume >= 0 && volume <= 30) {
-         #if ENABLE_HARDWARE
-          myDFPlayer.volume(volume);
-          #endif
-        } else {
-            request->send(400, "text/plain", "Invalid volume value.");
-            return;
-        }
-      } else if (setting == "displayFormat24h") {
-          currentSettings.displayFormat24h = (value == "true");
-      } else if (setting == "animationStyle") {
-          int style = value.toInt();
-          if (style >=0 && style <=4) { // *** MODIFIED: Max style is now 4 ***
-            currentSettings.animationStyle = style;
-          } else {
-            request->send(400, "text/plain", "Invalid animation style.");
-            return;
-          }
-      // *** NEW: Handle live preview for glitch frequency ***
-      } else if (setting == "glitchEffectFrequency") {
-          int freq = value.toInt();
-          if (freq >= 0 && freq <= 100) {
-              currentSettings.glitchEffectFrequency = freq;
-          } else {
-              request->send(400, "text/plain", "Invalid glitch frequency.");
-              return;
-          }
-      } else if (setting == "timeTravelAnimationDuration") {
-          int duration = value.toInt();
-          if (duration >=1000 && duration <= 10000) {
-            currentSettings.timeTravelAnimationDuration = duration;
-            #if ENABLE_HARDWARE
-            playSound(SOUND_CONFIRM_ON);
-            #endif
-          } else {
-            request->send(400, "text/plain", "Invalid animation duration.");
-            return;
-          }
-      } else if (setting == "destinationYear") {
-          currentSettings.destinationYear = value.toInt();
-      } else if (setting == "destinationTimezoneIndex") {
-          currentSettings.destinationTimezoneIndex = value.toInt();
-      } else if (setting == "presentTimezoneIndex") {
-          currentSettings.presentTimezoneIndex = value.toInt();
-      } else if (setting == "timeTravelVolumeFade") {
-        currentSettings.timeTravelVolumeFade = (value == "true");
-      } else if (setting == "presetCycleInterval") {
-          int interval = value.toInt();
-          if (interval >= 0 && interval <= 60) {
-              currentSettings.presetCycleInterval = interval;
-              #if ENABLE_HARDWARE
-              playSound(SOUND_CONFIRM_ON);
-              #endif
-          } else {
-              request->send(400, "text/plain", "Invalid preset cycle interval.");
-              return;
-          }
-      } else if (setting == "timeTravelAnimationInterval") {
-          int interval = value.toInt();
-          if (interval >= 0 && interval <= 120) {
-              currentSettings.timeTravelAnimationInterval = interval;
-              #if ENABLE_HARDWARE
-              playSound(SOUND_CONFIRM_ON);
-              #endif
-          } else {
-              request->send(400, "text/plain", "Invalid animation interval.");
-              return;
-          }
-      } else {
-        request->send(400, "text/plain", "Unknown setting.");
-        return;
-      }
-      request->send(200, "text/plain", "OK");
     } else {
-      request->send(400, "text/plain", "Missing parameters.");
+        request->send(200, "application/json", "{\"success\":false, \"error\":\"HTTP Error: " + String(httpCode) + "\"}");
     }
+    http.end();
   });
-  server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "application/json", preferences.getString("customPresets", "[]"));
-  });
-  server.on("/api/addPreset", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (request->hasParam("name", true) && request->hasParam("value", true)) {
-      String name = request->getParam("name", true)->value();
-      if (name.length() == 0) {
-        request->send(400, "text/plain", "Preset name cannot be empty.");
-        return;
-      }
-      String value = request->getParam("value", true)->value();
-      String presetsJson = preferences.getString("customPresets", "[]");
-      DynamicJsonDocument doc(2048);
-      deserializeJson(doc, presetsJson);
-    
-      JsonArray array = doc.as<JsonArray>();
-      for (JsonObject existingPreset : array) {
-        if (existingPreset["value"].as<String>() == value) {
-          request->send(400, "text/plain", "A preset with this date/time already exists.");
-          return;
-        }
-      }
-      JsonObject newPreset = array.createNestedObject();
-      newPreset["name"] = name;
-      newPreset["value"] = value;
- 
-      String newPresetsJson;
-      serializeJson(doc, newPresetsJson);
-      preferences.putString("customPresets", newPresetsJson);
-      request->send(200, "text/plain", "Preset saved!");
-    } else {
-      request->send(400, "text/plain", "Missing name or value.");
-    }
-  });
-  server.on("/api/updatePreset", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (request->hasParam("originalValue", true) && request->hasParam("newName", true) && request->hasParam("newValue", true)) {
-      String originalValue = request->getParam("originalValue", true)->value();
-      String newName = request->getParam("newName", true)->value();
-      String newValue = request->getParam("newValue", true)->value();
-      String presetsJson = preferences.getString("customPresets", "[]");
-      DynamicJsonDocument doc(2048);
-      deserializeJson(doc, presetsJson);
-      JsonArray array = doc.as<JsonArray>();
-      bool updated = false;
-      for (JsonObject preset : array) 
-      {
-        if (preset["value"].as<String>() == originalValue) {
-          preset["name"] = newName;
-          preset["value"] = newValue;
-          updated = true;
-          break;
-        }
-        if (preset["value"].as<String>() == newValue && preset["value"].as<String>() != originalValue) {
-           request->send(400, "text/plain", "Preset with this value already exists.");
-          return;
-        }
-      }
-      if (updated) {
-        String newPresetsJson;
-        serializeJson(doc, newPresetsJson);
-        preferences.putString("customPresets", newPresetsJson);
-        request->send(200, "text/plain", "Preset updated!");
-      } else {
-        request->send(404, "text/plain", "Preset to update not found.");
-      }
-    } else {
-      request->send(400, "text/plain", "Missing parameters for update.");
-    }
-  });
-  server.on("/api/clearPresets", HTTP_POST, [](AsyncWebServerRequest *request) {
-    preferences.remove("customPresets");
-    request->send(200, "text/plain", "All custom presets cleared!");
-  });
-  server.on("/api/deletePreset", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (request->hasParam("value", true)) {
-      String valueToDelete = request->getParam("value", true)->value();
-      String presetsJson = preferences.getString("customPresets", "[]");
-      DynamicJsonDocument doc(2048);
-      deserializeJson(doc, presetsJson);
-      JsonArray oldArray = doc.as<JsonArray>();
-      DynamicJsonDocument newDoc(2048);
-      JsonArray newArray = newDoc.to<JsonArray>();
-      for (JsonObject preset : oldArray) {
-        if (preset["value"].as<String>() != valueToDelete) {
-          newArray.add(preset);
-        }
-      }
-      String newPresetsJson;
-      serializeJson(newDoc, newPresetsJson);
-      preferences.putString("customPresets", newPresetsJson);
-      request->send(200, "text/plain", "Preset deleted!");
-    } else {
-      request->send(400, "text/plain", "Missing preset value.");
-    }
-  });
-  server.on("/api/setLastDeparted", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (request->hasParam("value", true)) {
-      String value = request->getParam("value", true)->value();
-      sscanf(value.c_str(), "%d-%d-%d-%d-%d",
-             &currentSettings.lastTimeDepartedYear,
-             &currentSettings.lastTimeDepartedMonth,
-             &currentSettings.lastTimeDepartedDay,
-             &currentSettings.lastTimeDepartedHour,
-             &currentSettings.lastTimeDepartedMinute);
-    }
-   
-    request->send(200, "text/plain", "OK");
-  });
-  server.on("/api/clearPreferences", HTTP_POST, [](AsyncWebServerRequest *request) {
-    ESP_LOGI("WebUI", "Clearing all preferences...");
-    preferences.clear();
-    request->send(200, "text/plain", "Preferences cleared!");
-  });
-}
-
-// New function to run a post-boot display sequence
-void runBootSequence() {
-  ESP_LOGI("Boot", "Starting non-blocking boot sequence.");
-  bootState = BOOT_ANIMATION_START;
-  bootStateStartTime = millis();
-}
-
-// *** UPDATED FUNCTION ***
-void handleBootSequence() {
-  if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) {
-    return;
-  }
-
-  unsigned long currentTime = millis();
-  unsigned long elapsed = currentTime - bootStateStartTime;
-  static unsigned long lastUpdate = 0;
-  switch (bootState) {
-    case BOOT_ANIMATION_START:
-      #if ENABLE_HARDWARE
-      blankAllDisplays();
-      startTimeTravelAnimation();
-      #endif
-      bootState = BOOT_ANIMATION_WAIT;
-      bootStateStartTime = currentTime;
-      break;
-    case BOOT_ANIMATION_WAIT:
-      if (!isAnimating) {
-        bootState = BOOT_88MPH_DISPLAY;
-        bootStateStartTime = currentTime;
-      }
-      break;
-    case BOOT_88MPH_DISPLAY:
-      #if ENABLE_HARDWARE
-      static int speed = 0;
-      if (currentTime - lastUpdate > 50 && speed <= 88) {
-          display88MphSpeed(speed++);
-          lastUpdate = currentTime;
-      }
-      if (speed > 88 && elapsed > 1000) {
-          bootState = BOOT_RECALIBRATING_DISPLAY;
-          bootStateStartTime = currentTime;
-      }
-      #else
-        if (elapsed > 1000) {
-            bootState = BOOT_RECALIBRATING_DISPLAY;
-            bootStateStartTime = currentTime;
-        }
-      #endif
-      break;
-    case BOOT_RECALIBRATING_DISPLAY:
-      #if ENABLE_HARDWARE
-      if (currentTime - lastUpdate > 100) {
-        animateDisplayRowRandomly(destRow);
-        animateDisplayRowRandomly(presRow);
-        lastUpdate = currentTime;
-      }
-      destRow.month.print("RECA"); destRow.month.writeDisplay();
-      destRow.day.print("LIBR"); destRow.day.writeDisplay();
-      #endif
-      if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
-        bootState = BOOT_RELAY_TEST_DISPLAY;
-        bootStateStartTime = currentTime;
-      }
-      break;
-    case BOOT_RELAY_TEST_DISPLAY:
-      #if ENABLE_HARDWARE
-      presRow.month.print("RLAY"); presRow.month.writeDisplay();
-      presRow.day.print("TEST"); presRow.day.writeDisplay();
-      #endif
-      if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
-        bootState = BOOT_CAPACITOR_FULL_DISPLAY;
-        bootStateStartTime = currentTime;
-      }
-      break;
-    case BOOT_CAPACITOR_FULL_DISPLAY:
-      #if ENABLE_HARDWARE
-      lastRow.month.print("CAP"); lastRow.month.writeDisplay();
-      lastRow.day.print("FULL"); lastRow.day.writeDisplay();
-      #endif
-      if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
-        #if ENABLE_HARDWARE
-        byte savedBrightness = currentSettings.brightness;
-        setDisplayBrightness(7);
-        delay(100);
-        blankAllDisplays();
-        delay(50);
-        setDisplayBrightness(savedBrightness);
-        #endif
-        bootState = BOOT_COMPLETE;
-        ESP_LOGI("Boot", "Boot sequence complete.");
-      }
-      break;
-  }
 }
 
 void setup() {
   Serial.begin(115200);
-  esp_log_level_set("*", ESP_LOG_DEBUG);
-  randomSeed(analogRead(0));
-  ESP_LOGI("Boot", "--- BOOTING UP ---");
-  pinMode(LED_BUILTIN, OUTPUT);
-  if (!LittleFS.begin(true)) {
-    ESP_LOGE("FS", "CRITICAL ERROR: An Error has occurred while mounting LittleFS.");
-    while(1) {
-        ESP_LOGE("FS", "LittleFS mount failed. Halting execution.");
-        digitalWrite(LED_BUILTIN, HIGH);
-        delay(100);
-        digitalWrite(LED_BUILTIN, LOW);
-        delay(100);
-    } // Halt
-  }
-  ESP_LOGI("FS", "LittleFS Mounted Successfully.");
-  ESP_LOGD("FS", "Listing Files in LittleFS:");
-  File root = LittleFS.open("/");
-  File file = root.openNextFile();
-  int fileCount = 0;
-  while (file) {
-    ESP_LOGD("FS", "  FILE: %s	SIZE: %d", file.name(), file.size());
-    file = root.openNextFile();
-    fileCount++;
-  }
-  if (fileCount == 0) {
-    ESP_LOGW("FS", "No files found in LittleFS. Did you upload the data folder?");
-  }
-  ESP_LOGD("FS", "---------------------------------");
+  delay(1000);
+  Serial.println("\n\n--- BOOTING ---");
+  if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed."); while(1); }
   preferences.begin("bttf-clock", false);
   loadSettings();
-  ESP_LOGI("Sound", "Initializing DFPlayer... (May take 3-5 seconds)");
   #if ENABLE_HARDWARE
+  setupPhysicalDisplay();
   dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
-  if (!myDFPlayer.begin(dfpSerial, true, false)) {
-      ESP_LOGE("Sound", "Unable to begin DFPlayer. Check wiring and SD card.");
-  } else {
-      ESP_LOGI("Sound", "DFPlayer Mini online.");
+  if (myDFPlayer.begin(dfpSerial, true, false)) {
       myDFPlayer.volume(currentSettings.notificationVolume);
       setupSoundFiles();
   }
-  #else
-    ESP_LOGI("Sound (Disabled)", "DFPlayer Mini initialization skipped.");
   #endif
-  wifiManager.autoConnect(MDNS_HOSTNAME);
+  wifiManager.autoConnect("BTTF-Clock-Setup");
   ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
-  ArduinoOTA.begin();
-  if (MDNS.begin(MDNS_HOSTNAME)) {
-    MDNS.addService("http", "tcp", 80);
-    ESP_LOGI("mDNS", "mDNS started: http://%s.local/", MDNS_HOSTNAME);
-  }
-
-  // ***** FIX: INITIALIZE HARDWARE *BEFORE* USING IT *****
-  #if ENABLE_HARDWARE
-  setupPhysicalDisplay();
-  #endif
-
-  Udp.begin(123);
+  if (MDNS.begin(MDNS_HOSTNAME)) { MDNS.addService("http", "tcp", 80); }
   setupWebRoutes();
   server.begin();
-  ESP_LOGI("Web", "HTTP server started");
-  
-  // Run the post-boot animation sequence
+  ESP_LOGI("Web", "HTTP server started.");
+  configTime(0, 0, NTP_SERVERS[0]);
+  setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+  tzset();
   runBootSequence();
 }
 
-// *** UPDATED/FIXED loop() FUNCTION ***
 void loop() {
-    ArduinoOTA.handle();
-    // Allow animations to be handled during the boot sequence to prevent hangs
-    handleDisplayAnimation();
-    if (bootState != BOOT_COMPLETE) {
-        handleBootSequence();
-        return;
-        // Don't run the rest of the loop until boot is complete
-    }
-
-    // Call the function to handle glitch restoration
+  ArduinoOTA.handle();
+  handleBootSequence();
+  if (isMalfunctioning) {
+    handleMalfunction();
+  } else if (!isAnimating) {
     restoreDisplayAfterGlitch();
-    // Automatic time travel animation trigger
-    if (currentSettings.timeTravelAnimationInterval > 0 && !isAnimating) {
-        unsigned long intervalMillis = (unsigned long)currentSettings.timeTravelAnimationInterval * 60 * 1000;
-        if (millis() - lastTimeTravelAnimationTime >= intervalMillis) {
-            startTimeTravelAnimation();
-        }
-    }
-    
-    // Glitch effect handler
     handleGlitchEffect();
-    
-    // Wind speed fetching
-    if (currentSettings.windSpeedModeEnabled &&
-        (millis() - lastWindSpeedFetch >= WIND_SPEED_FETCH_INTERVAL_MS) &&
-        (ntpRequestSentTime == 0)) {
-        fetchWindSpeed();
-    }
-    
-    // Handle preset cycling
     handlePresetCycling();
-    
-    static unsigned long lastOneSecondUpdate = 0;
-    if (millis() - lastOneSecondUpdate >= 1000) {
-        lastOneSecondUpdate = millis();
-        // Check Wi-Fi connection and handle reconnection with backoff
-        static unsigned long lastWifiCheck = 0;
-        static bool isReconnecting = false;
-        if (millis() - lastWifiCheck > WIFI_RECONNECT_INTERVAL_MS) {
-            lastWifiCheck = millis();
-            if (WiFi.status() != WL_CONNECTED) {
-                if (!isReconnecting) {
-                    ESP_LOGW("WiFi", "WiFi Disconnected. Attempting to reconnect...");
-                    WiFi.reconnect();
-                    isReconnecting = true;
-                }
-            } else {
-                if (isReconnecting) {
-                    ESP_LOGI("WiFi", "WiFi Reconnected. IP: %s", WiFi.localIP().toString().c_str());
-                    isReconnecting = false;
-                }
-            }
-        }
+    handleSleepSchedule();
+    if (currentSettings.dataLinkEnabled) {
+      fetchDataLink();
+      updateMarqueeDisplay();
+    } else {
+      updateNormalClockDisplay();
+    }
+  }
 
-        // NTP response handling
-        if (ntpRequestSentTime > 0 && millis() - ntpRequestSentTime < NTP_TIMEOUT_MS) {
-            int packetSize = Udp.parsePacket();
-            if (packetSize >= 48) {
-                byte packetBuffer[48];
-                Udp.read(packetBuffer, 48);
-                unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-                unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-                time_t epoch = (highWord << 16 | lowWord) - 2208988800UL;
-                struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
-                settimeofday(&tv, NULL);
-                ESP_LOGI("NTP", "NTP Time Sync Successful!");
-                timeSynchronized = true;
-                lastNtpSyncTime = epoch;
-                ntpRequestSentTime = 0;
-                isNtpSyncAnimating = false;
-            }
-        } else if (ntpRequestSentTime > 0) { // Timeout
-            ESP_LOGW("NTP", "Sync failed. Retrying with next server.");
-            timeSynchronized = false;
-            currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
-            ntpRequestSentTime = 0;
-            isNtpSyncAnimating = false;
+  handleDisplayAnimation();
+  static unsigned long lastNtpUpdate = 0;
+  if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > NTP_SUCCESS_INTERVAL_MS)) {
+    configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
+    struct tm timeinfo;
+    if(getLocalTime(&timeinfo, 5000)){ timeSynchronized = true;
+    }
+    else { timeSynchronized = false; }
+    currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
+    lastNtpUpdate = millis();
+    ntpSyncRequested = false;
+  }
+}
+
+void startTimeTravelAnimation() {
+    if (isAnimating) { return;
+    }
+    isAnimating = true;
+animationStartTime = millis();
+    currentPhase = ANIM_FLICKER;
+    #if ENABLE_HARDWARE
+    if (currentSettings.timeTravelSoundToggle) {
+        playSound(SOUND_ACCELERATION);
+    }
+    #endif
+}
+
+void handleDisplayAnimation() {
+  #if ENABLE_HARDWARE
+  if (!isAnimating) return;
+  unsigned long currentTime = millis();
+  unsigned long elapsed = currentTime - animationStartTime;
+  switch (currentPhase) {
+    case ANIM_FLICKER:
+        if (elapsed >= currentSettings.timeTravelAnimationDuration) {
+            currentPhase = ANIM_COMPLETE;
+        } else if (currentTime - lastAnimationFrameTime > ANIMATION_UPDATE_INTERVAL_MS) {
+            animateDisplayRowRandomly(destRow);
+            animateDisplayRowRandomly(presRow);
+            animateDisplayRowRandomly(lastRow);
+            lastAnimationFrameTime = currentTime;
         }
+        break;
+    case ANIM_COMPLETE:
+      isAnimating = false;
+      updateNormalClockDisplay();
+      #if ENABLE_HARDWARE
+      if(currentSettings.timeTravelSoundToggle){
+        playSound(SOUND_ARRIVAL_THUD);
+      }
+      #endif
+      break;
+  }
+  #endif
+}
+
+// --- BUG FIX: Corrected Malfunction Handler ---
+void handleMalfunction() {
+  #if ENABLE_HARDWARE
+  if (!isMalfunctioning) return;
+  unsigned long elapsed = millis() - malfunctionStartTime;
+
+  switch (currentMalfunctionPhase) {
+    case MAL_HAYWIRE:
+      // Step 1: Displays go haywire for 3 seconds
+      if (elapsed < 3000) {
+        if (millis() - lastAnimationFrameTime > 100) {
+          // Flash "8888" or random garbage on all displays
+          destRow.month.print("8888");
+          destRow.day.print("8888"); destRow.year.print("8888"); destRow.time.print("8888");
+          presRow.month.print("8888"); presRow.day.print("8888"); presRow.year.print("8888"); presRow.time.print("8888");
+          lastRow.month.print("8888"); lastRow.day.print("8888"); lastRow.year.print("8888"); lastRow.time.print("8888");
+          
+          destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+          presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+          lastRow.month.writeDisplay();
+          lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+          
+          lastAnimationFrameTime = millis();
+        }
+      } else {
+        malfunctionStartTime = millis(); // Reset timer for next phase
+        currentMalfunctionPhase = MAL_ERROR_MESSAGE;
+      }
+      break;
+
+    case MAL_ERROR_MESSAGE:
+      // Step 2: Show error message for 4 seconds
+      if (elapsed < 4000) {
+        // Display "TIME CIRCUIT OVERLOAD" across the top two rows
+        destRow.month.print("TIME");
+        destRow.day.print("CIRC"); destRow.year.print("UIT "); destRow.time.print("OVER");
+        presRow.month.print("LOAD"); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
+        
+        // Display "FLUX OFFLINE" on the bottom row
+        lastRow.month.print("FLUX");
+        lastRow.day.print("OFFL"); lastRow.year.print("INE "); lastRow.time.clear();
+
+        destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+      } else {
+        malfunctionStartTime = millis();
+        currentMalfunctionPhase = MAL_REBOOT;
+      }
+      break;
+
+    case MAL_REBOOT:
+      // Step 3: Simulate a reboot
+      blankAllDisplays(); // Turn off all displays
+      runBootSequence();  // Trigger the existing boot sequence
       
-        // NTP sync trigger logic
-        if (WiFi.status() == WL_CONNECTED) {
-            bool timeToSync = false;
-            if (!timeSynchronized) {
-                if (millis() - lastNtpAttempt >= NTP_INITIAL_RETRY_INTERVAL_MS) timeToSync = true;
-            } else {
-                if (millis() - lastNtpSyncTime * 1000 >= NTP_SUCCESS_INTERVAL_MS) timeToSync = true;
-            }
+      // FIX: Removed the following two lines to allow the boot sequence to complete.
+      // isMalfunctioning = false;
+      // currentMalfunctionPhase = MAL_INACTIVE;
+      break;
+  }
+  #endif
+}
 
-            if (timeToSync || ntpSyncRequested) {
-                sendNTPrequest();
-                lastNtpAttempt = millis();
-                ntpSyncRequested = false; 
-            }
-        }
+void runBootSequence() {
+  bootState = BOOT_START;
+  bootStateStartTime = millis();
+}
 
-        // Sleep schedule and display updates
-        handleSleepSchedule();
-        if (!isAnimating && !isNtpSyncAnimating) {
-            updateNormalClockDisplay();
-        }
+void handleBootSequence() {
+  if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
+  unsigned long elapsed = millis() - bootStateStartTime;
+  if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
+    bootState = static_cast<BootSequenceState>(bootState + 1);
+    bootStateStartTime = millis();
+    if (bootState >= BOOT_COMPLETE) {
+      bootState = BOOT_COMPLETE;
+      updateNormalClockDisplay();
+      return;
+    }
+  }
+  #if ENABLE_HARDWARE
+  switch (bootState) {
+    case BOOT_88MPH:
+      display88MphSpeed(88.0);
+      break;
+    case BOOT_RECALIBRATING:
+      destRow.month.print("RECA"); destRow.day.print("LIBR"); destRow.year.print("ATIN"); destRow.time.print("G");
+      destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+      break;
+    case BOOT_CAPACITOR:
+      presRow.month.print("CAPA"); presRow.day.print("CITO"); presRow.year.print("R"); presRow.time.print("FULL");
+      presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+      break;
+    default:
+      break;
+  }
+  #endif
+}
+
+void restoreDisplayAfterGlitch() {
+  if (isGlitching && millis() - glitchStartTime > 150) {
+    updateNormalClockDisplay();
+    isGlitching = false;
+  }
+}
+
+void handleGlitchEffect() {
+  if (isAnimating || isDisplayAsleep || isGlitching || isMalfunctioning || currentSettings.glitchEffectFrequency == 0) return;
+  if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
+    lastGlitchTime = millis();
+    if (random(100) < currentSettings.glitchEffectFrequency) {
       
-        // Serial status reporting
-        static unsigned long lastSerialReport = 0;
-        if (millis() - lastSerialReport > SERIAL_REPORT_INTERVAL_MS) {
-            lastSerialReport = millis();
-            if (timeSynchronized) {
-                char destBuffer[30], presentBuffer[30], lastBuffer[30];
-                time_t now_t;
-                time(&now_t);
-                localtime_r(&now_t, &currentTimeInfo);
-                struct tm destinationTimeInfo_local = *localtime(&now_t);
-                destinationTimeInfo_local.tm_year = currentSettings.destinationYear - 1900;
-                struct tm lastTimeDepartedInfo = { 0, currentSettings.lastTimeDepartedMinute, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedMonth - 1, currentSettings.lastTimeDepartedYear - 1900 };
+      // MODIFIED: Check for a major malfunction
+      if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
+        isMalfunctioning = true;
+        malfunctionStartTime = millis();
+        currentMalfunctionPhase = MAL_HAYWIRE;
+      } else {
+        isGlitching = true;
+        glitchStartTime = millis();
+        #if ENABLE_HARDWARE
+        // Simple glitch
+        animateDisplayRowRandomly(destRow);
+        animateDisplayRowRandomly(presRow);
+        animateDisplayRowRandomly(lastRow);
+        #endif
+      }
+    }
+  }
+}
 
-                setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-                tzset();
-                strftime(destBuffer, sizeof(destBuffer), "%b %d %Y %I:%M %p", &destinationTimeInfo_local);
-                
-                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                tzset();
-                strftime(presentBuffer, sizeof(presentBuffer), "%b %d %Y %I:%M %p", &currentTimeInfo);
-                strftime(lastBuffer, sizeof(lastBuffer), "%b %d %Y %I:%M %p", &lastTimeDepartedInfo);
-            
-                ESP_LOGI("Status", "\n--- TIME CIRCUITS STATUS ---");
-                ESP_LOGI("Status", " Time Synchronized: Yes");
-                ESP_LOGI("Status", " Display Asleep: %s", isDisplayAsleep ? "Yes" : "No");
-                ESP_LOGI("Status", "DESTINATION TIME  : %s", destBuffer);
-                ESP_LOGI("Status", "PRESENT TIME      : %s", presentBuffer);
-                ESP_LOGI("Status", "LAST TIME DEPARTED: %s", lastBuffer);
-                ESP_LOGI("Status", "--------------------------");
-                ESP_LOGI("Status", "--- CURRENT SETTINGS ---");
-                ESP_LOGI("Status", " Destination Year: %d", currentSettings.destinationYear);
-                ESP_LOGI("Status", " Destination Timezone: %s", TZ_DATA[currentSettings.destinationTimezoneIndex].displayName);
-                ESP_LOGI("Status", " Present Timezone: %s", TZ_DATA[currentSettings.presentTimezoneIndex].displayName);
-                ESP_LOGI("Status", " Last Departed: %02d/%02d/%d %02d:%02d", currentSettings.lastTimeDepartedMonth, currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedYear, currentSettings.lastTimeDepartedHour, currentSettings.lastTimeDepartedMinute);
-                ESP_LOGI("Status", " Departure Time (Sleep): %02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
-                ESP_LOGI("Status", " Arrival Time (Wake): %02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
-                ESP_LOGI("Status", " Brightness: %d/7", currentSettings.brightness);
-                ESP_LOGI("Status", " Volume: %d/30", currentSettings.notificationVolume);
-                ESP_LOGI("Status", " 24h Format: %s", currentSettings.displayFormat24h ? "On" : "Off");
-                ESP_LOGI("Status", " Time Travel FX: %s", currentSettings.timeTravelSoundToggle ? "On" : "Off");
-                ESP_LOGI("Status", " Time Travel Animation Interval: %d min", currentSettings.timeTravelAnimationInterval);
-                ESP_LOGI("Status", " Preset Cycle: %d min", currentSettings.presetCycleInterval);
-                ESP_LOGI("Status", " Animation Duration: %d ms", currentSettings.timeTravelAnimationDuration);
-                ESP_LOGI("Status", " Animation Style: %d (%s)", currentSettings.animationStyle, ANIMATION_STYLE_NAMES[currentSettings.animationStyle]);
-                ESP_LOGI("Status", " Glitch Frequency: %d%%", currentSettings.glitchEffectFrequency);
-                ESP_LOGI("Status", " Theme: %d", currentSettings.theme);
-                ESP_LOGI("Status", " Volume Fade: %s", currentSettings.timeTravelVolumeFade ? "On" : "Off");
-                ESP_LOGI("Status", " Wind Speed Mode: %s", currentSettings.windSpeedModeEnabled ? "On" : "Off");
-                ESP_LOGI("Status", " Location: %.2f, %.2f", currentSettings.latitude, currentSettings.longitude);
-                ESP_LOGI("Status", "------------------------");
-            } else {
-                ESP_LOGW("Status", "Time not synchronized. NTP Sync status: Retrying with %s in %dms.", NTP_SERVERS[currentNtpServerIndex], NTP_INITIAL_RETRY_INTERVAL_MS);
+void handlePresetCycling() {
+    if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
+    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+        lastPresetCycleTime = millis();
+        // Future implementation: Logic to cycle presets
+    }
+}
+
+void handleSleepSchedule() {
+  if (!timeSynchronized) return;
+  struct tm timeinfo;
+  getLocalTime(&timeinfo);
+  int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+  int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
+  int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
+  bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
+                        (now_minutes >= sleep_minutes && now_minutes < wake_minutes) : 
+                        (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
+  if (shouldBeAsleep && !isDisplayAsleep) {
+    isDisplayAsleep = true;
+    #if ENABLE_HARDWARE
+    blankAllDisplays();
+    playSound(SOUND_SLEEP_ON);
+    #endif
+  } else if (!shouldBeAsleep && isDisplayAsleep) {
+    isDisplayAsleep = false;
+    #if ENABLE_HARDWARE
+    updateNormalClockDisplay();
+    playSound(SOUND_CONFIRM_ON);
+    #endif
+  }
+}
+
+void updateNormalClockDisplay() {
+  if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return; // <-- ADDED isMalfunctioning
+#if ENABLE_HARDWARE
+  if (timeSynchronized) {
+    time_t now;
+    time(&now);
+    struct tm timeinfo;
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
+localtime_r(&now, &timeinfo);
+    updateDisplayRow(presRow, timeinfo, timeinfo.tm_year + 1900);
+    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+    tzset();
+    localtime_r(&now, &timeinfo);
+    updateDisplayRow(destRow, timeinfo, currentSettings.destinationYear);
+    struct tm lastTimeDepartedInfo = {0};
+    lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
+    lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
+    lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
+    lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
+    lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
+    updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
+  }
+  #endif
+}
+
+void fetchWindSpeed() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  String apiURL = "http://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 2) + "&longitude=" + String(currentSettings.longitude, 2) + "&current_weather=true";
+  http.begin(apiURL);
+  if (http.GET() == HTTP_CODE_OK) {
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, http.getStream());
+    if (doc.containsKey("current_weather")) {
+      currentWindSpeed = doc["current_weather"]["windspeed"];
+    }
+  }
+  http.end();
+}
+
+void fetchDataLink() {
+    if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0 || isFetchingData) return;
+    if (millis() - lastDataLinkFetch < (unsigned long)currentSettings.dataLinkRefreshInterval * 60 * 1000 / currentSettings.numDataPoints) return;
+    isFetchingData = true;
+    lastDataLinkFetch = millis();
+    DataPoint point = currentSettings.dataPoints[currentPointToFetch];
+    String fetchedValue = "";
+    bool fetchSuccess = false;
+    if (point.isLiveData) {
+        if (String(point.liveDataTag) == "WIND_SPEED") {
+            fetchWindSpeed();
+            char speedStr[8];
+            dtostrf(currentWindSpeed * 0.621371, 4, 1, speedStr);
+            fetchedValue = String(speedStr);
+            fetchSuccess = true;
+        } else { fetchedValue = "LIVE ERR"; }
+    } else {
+        HTTPClient http;
+        http.begin(point.url);
+        if (http.GET() == HTTP_CODE_OK) {
+            DynamicJsonDocument doc(8192);
+            if (deserializeJson(doc, http.getStream()) == DeserializationError::Ok) {
+                JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), point.jsonPath);
+                if (!value.isNull()) {
+                    fetchedValue = value.as<String>();
+                    if (fetchedValue.length() > 256) fetchedValue = fetchedValue.substring(0, 256);
+                    fetchSuccess = true;
+                } else { fetchedValue = "PATH ERR";
+                }
+            } else { fetchedValue = "JSON ERR";
             }
+        } else { fetchedValue = "HTTP ERR";
+        }
+        http.end();
+    }
+    if (fetchSuccess) {
+        String format = String(point.format);
+        format.replace("%L", point.label);
+        format.replace("%V", fetchedValue);
+        displayPages[currentPointToFetch] = format;
+        lastGoodDisplayPages[currentPointToFetch] = format;
+        dataPointFetchFailures[currentPointToFetch] = 0;
+    } else {
+        dataPointFetchFailures[currentPointToFetch]++;
+        if (dataPointFetchFailures[currentPointToFetch] >= MAX_FETCH_FAILURES) {
+            displayPages[currentPointToFetch] = String(point.label) + " | API FAIL";
+        } else {
+            displayPages[currentPointToFetch] = lastGoodDisplayPages[currentPointToFetch];
         }
     }
+    currentPointToFetch = (currentPointToFetch + 1) % currentSettings.numDataPoints;
+    isFetchingData = false;
+}
+
+void updateMarqueeDisplay() {
+    #if ENABLE_HARDWARE
+    if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0) return;
+    DisplayRow* targetRow = &lastRow;
+    if (currentSettings.dataLinkTargetRow == 0) targetRow = &destRow;
+    if (currentSettings.dataLinkTargetRow == 1) targetRow = &presRow;
+    if (marqueeState == M_IDLE) {
+        currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
+        marqueeScrollPosition = 0;
+        marqueeState = M_PAUSED;
+        lastMarqueeStateChange = millis();
+    }
+    DataPoint point = currentSettings.dataPoints[currentPageIndex];
+    String content = displayPages[currentPageIndex];
+    String staticPart = content;
+    String scrollPart = "";
+    int pipePos = content.indexOf('|');
+    if (pipePos != -1) {
+        staticPart = content.substring(0, pipePos);
+        scrollPart = content.substring(pipePos + 1);
+        scrollPart.trim();
+    }
+    staticPart.trim();
+    targetRow->month.clear();
+    targetRow->month.print(staticPart.c_str());
+    targetRow->month.writeDisplay();
+    drawIcon(targetRow->day, point.icon);
+    String canvas = "   " + scrollPart + "   ";
+    if (canvas.length() <= 8) {
+        targetRow->year.clear();
+        targetRow->time.clear();
+        targetRow->year.print(canvas.substring(0,4));
+        targetRow->time.print(canvas.substring(4));
+        targetRow->year.writeDisplay();
+        targetRow->time.writeDisplay();
+        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 5000) {
+             marqueeState = M_IDLE;
+        }
+    } else {
+        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 3000) {
+            marqueeState = M_SCROLLING;
+            lastMarqueeStateChange = millis();
+        }
+        if (marqueeState == M_SCROLLING && millis() - lastMarqueeStateChange > (unsigned long)point.scrollSpeed) {
+            marqueeScrollPosition++;
+            lastMarqueeStateChange = millis();
+            if (marqueeScrollPosition > canvas.length() - 8) {
+                marqueeState = M_IDLE;
+            }
+        }
+        String viewport = canvas.substring(marqueeScrollPosition, marqueeScrollPosition + 8);
+        targetRow->year.clear();
+        targetRow->time.clear();
+        targetRow->year.print(viewport.substring(0,4));
+        targetRow->time.print(viewport.substring(4));
+        targetRow->year.writeDisplay();
+        targetRow->time.writeDisplay();
+    }
+    #endif
 }

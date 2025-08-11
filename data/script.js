@@ -1,489 +1,287 @@
-// Global variable to track if any input is invalid
-let anyInputInvalid = false;
+// Global variables
 let settingsChanged = false;
 let timezoneOptions = [];
-let statusFetchInterval = null;
+let isDataLinkLoaded = false; // Flag to track if datalink settings are loaded
+let anyInputInvalid = false; // Flag for form validation
+
+// Pre-defined templates for the Data Link feature
+const apiTemplates = {
+    // Finance
+    nasdaq: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey=YOUR_KEY', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    sp500: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=YOUR_KEY', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    tsx: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT&apikey=YOUR_KEY', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    usdcad: { url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD&apikey=YOUR_KEY', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 200 },
+    crypto: { url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC', format: '%L | $%V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+
+    // Weather & Environment
+    windSpeed: { url: 'INTERNAL', label: 'WIND', jsonPath: 'speed', icon: 'WIND', format: '%L | %V MPH', isLiveData: true, liveDataTag: 'WIND_SPEED', scrollSpeed: 150 },
+    feelsLike: { url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_KEY&units=metric', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD', format: '%L | %V C', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    humidity: { url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_KEY&units=metric', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN', format: '%L | %V PCT', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    uvIndex: { url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_KEY', label: 'UV', jsonPath: 'value', icon: 'SUN', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    aqi: { url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_KEY', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    
+    // Fun & Social
+    youtube: { url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID&key=YOUR_KEY', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 250 },
+    space: { url: 'http://api.open-notify.org/astros.json', label: 'ASTRO', jsonPath: 'number', icon: 'WIFI', format: '%L | %V IN SPACE', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+};
+
+// --- INITIALIZATION LOGIC ---
+
+document.addEventListener('DOMContentLoaded', () => {
+    function waitForServerReady() {
+        fetch('/api/isReady')
+            .then(response => {
+                if (response.ok) {
+                    console.log("Server is ready. Initializing UI.");
+                    initializeUI();
+                } else {
+                    setTimeout(waitForServerReady, 1000);
+                }
+            })
+            .catch(error => {
+                setTimeout(waitForServerReady, 1000);
+            });
+    }
+    waitForServerReady();
+});
+
+function initializeUI() {
+    const initialEndpoints = [
+        '/api/settings/timecircuits',
+        '/api/settings/temporal',
+        '/api/settings/datalink',
+        '/api/timezones',
+        '/api/getPresets',
+        '/api/getTheme'
+    ];
+    const promises = initialEndpoints.map(url => fetch(url).then(res => res.ok ? (url.endsWith('Theme') ? res.text() : res.json()) : Promise.reject(new Error(`Request to ${url} failed`))));
+
+    Promise.all(promises)
+        .then(results => {
+            const [timecircuits, temporal, datalink, timezones, presets, theme] = results;
+            
+            document.body.className = theme;
+            
+            populateTimezoneSelects(timezones);
+            populatePresetsSelect(presets);
+            
+            applySettings(timecircuits, temporal, datalink);
+            document.querySelector('.header-circuits').classList.add('visible');
+            fetchTime();
+            setInterval(fetchTime, 1000);
+            attachEventListeners();
+            
+            showMessage('System Online', 'success');
+        })
+        .catch(error => {
+            console.error("Failed during essential initialization:", error);
+            showMessage(`Critical error loading settings: ${error.message}. Please refresh.`, 'error');
+        });
+}
+
+function loadDataLinkSettings() {
+    if (isDataLinkLoaded) return;
+    console.log("Fetching Data Link settings on-demand...");
+    showMessage('Loading Data Link settings...', 'info');
+    fetch('/api/settings/datalink')
+        .then(res => res.ok ? res.json() : Promise.reject('Failed to load'))
+        .then(datalink => {
+            console.log("Data Link settings fetched successfully.");
+            applyDataLinkSettings(datalink);
+            isDataLinkLoaded = true;
+            showMessage('Data Link settings loaded.', 'success');
+        })
+        .catch(error => {
+            console.error("Failed to load Data Link settings:", error);
+            showMessage(`Error loading Data Link: ${error.message}`, 'error');
+        });
+}
+
+function populateTimezoneSelects(data) {
+    timezoneOptions = [];
+    const presentSelect = document.getElementById('presentTimezoneSelect');
+    const destinationSelect = document.getElementById('destinationTimezoneSelect');
+    presentSelect.innerHTML = '';
+    destinationSelect.innerHTML = '';
+    for (const country in data) {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = country;
+        data[country].forEach(tz => {
+            const option = document.createElement('option');
+            option.value = tz.value;
+            option.textContent = tz.text;
+            optgroup.appendChild(option);
+            timezoneOptions[tz.value] = tz;
+        });
+        presentSelect.appendChild(optgroup.cloneNode(true));
+        destinationSelect.appendChild(optgroup.cloneNode(true));
+    }
+}
+
+function populatePresetsSelect(data) {
+    const select = document.getElementById('presetDateSelect');
+    let customGroup = select.querySelector('optgroup[label="Custom Time Jumps"]');
+    if (customGroup) customGroup.remove();
+    if (data && data.length > 0) {
+        customGroup = document.createElement('optgroup');
+        customGroup.label = 'Custom Time Jumps';
+        data.forEach(preset => {
+            const option = document.createElement('option');
+            option.value = preset.value;
+            option.textContent = preset.name;
+            customGroup.appendChild(option);
+        });
+        select.appendChild(customGroup);
+    }
+}
+
+function applySettings(timecircuits, temporal, datalink) {
+    if(timecircuits) {
+        document.getElementById('destinationYear').value = timecircuits.destinationYear;
+        document.getElementById('destinationTimezoneSelect').value = timecircuits.destinationTimezoneIndex;
+        document.getElementById('lastTimeDepartedYear').textContent = timecircuits.lastTimeDepartedYear;
+        document.getElementById('lastTimeDepartedMonth').textContent = timecircuits.lastTimeDepartedMonth;
+        document.getElementById('lastTimeDepartedDay').textContent = timecircuits.lastTimeDepartedDay;
+        document.getElementById('lastTimeDepartedHour').textContent = timecircuits.lastTimeDepartedHour;
+        document.getElementById('lastTimeDepartedMinute').textContent = timecircuits.lastTimeDepartedMinute;
+        document.getElementById('presentTimezoneSelect').value = timecircuits.presentTimezoneIndex;
+    }
+    if(temporal) {
+        const depHour = String(temporal.departureHour).padStart(2, '0');
+        const depMin = String(temporal.departureMinute).padStart(2, '0');
+        document.getElementById('departureTime').value = `${depHour}:${depMin}`;
+        const arrHour = String(temporal.arrivalHour).padStart(2, '0');
+        const arrMin = String(temporal.arrivalMinute).padStart(2, '0');
+        document.getElementById('arrivalTime').value = `${arrHour}:${arrMin}`;
+        
+        // MODIFIED: Added 'malfunctionFrequency' to the list of sliders
+        ['brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'presetCycleInterval', 'glitchEffectFrequency', 'malfunctionFrequency'].forEach(id => {
+            const slider = document.getElementById(id);
+            if (slider) {
+                slider.value = temporal[id];
+                const valueSpan = document.getElementById(`${id}Value`);
+                if (valueSpan) valueSpan.textContent = temporal[id];
+            }
+        });
+
+        ['timeTravelSoundToggle', 'timeTravelVolumeFade', 'displayFormat24h'].forEach(id => {
+            const toggle = document.getElementById(id);
+            if (toggle) toggle.checked = temporal[id];
+        });
+        document.getElementById('animationStyleSelect').value = temporal.animationStyle;
+    }
+    if (datalink) {
+        applyDataLinkSettings(datalink);
+        isDataLinkLoaded = true;
+    }
+    updateSleepVisual();
+}
+
+function applyDataLinkSettings(datalink) {
+    document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
+    document.getElementById('dataLinkEnabled').dispatchEvent(new Event('change'));
+    document.getElementById('dataLinkTargetRow').value = datalink.dataLinkTargetRow;
+    document.getElementById('dataLinkRefreshInterval').value = datalink.dataLinkRefreshInterval;
+    document.getElementById('dataLinkRefreshIntervalValue').textContent = datalink.dataLinkRefreshInterval;
+    document.getElementById('numDataPoints').value = datalink.numDataPoints;
+    document.getElementById('numDataPointsValue').textContent = datalink.numDataPoints;
+    updateDataPointsUI(datalink.numDataPoints).then(() => {
+        if (datalink.dataPoints) {
+            datalink.dataPoints.forEach((point, i) => {
+                document.getElementById(`dp_url_${i}`).value = point.url;
+                document.getElementById(`dp_label_${i}`).value = point.label;
+                document.getElementById(`dp_path_${i}`).value = point.jsonPath;
+                document.getElementById(`dp_format_${i}`).value = point.format;
+                document.getElementById(`dp_icon_${i}`).value = point.icon;
+                const scrollSlider = document.getElementById(`dp_scrollSpeed_${i}`);
+                scrollSlider.value = point.scrollSpeed;
+                scrollSlider.dispatchEvent(new Event('input'));
+                document.getElementById(`dp_isLiveData_${i}`).value = point.isLiveData;
+                document.getElementById(`dp_liveDataTag_${i}`).value = point.liveDataTag;
+                document.getElementById(`api_fields_${i}`).style.display = point.isLiveData ? 'none' : 'block';
+            });
+        }
+    });
+}
+
+function attachEventListeners() {
+    document.getElementById('saveSettingsBtn').onclick = saveSettings;
+    document.querySelectorAll('.tab-link').forEach(btn => btn.onclick = (e) => {
+        const tabName = e.target.getAttribute('data-tab');
+        openTab(e, tabName);
+        if (tabName === 'DataLink' && !isDataLinkLoaded) loadDataLinkSettings();
+    });
+    document.getElementById('presetDateSelect').onchange = applySelectedPreset;
+    document.getElementById('addPresetBtn').onclick = addPreset;
+    document.getElementById('updatePresetBtn').onclick = updatePreset;
+    document.getElementById('deletePresetBtn').onclick = deletePreset;
+    document.getElementById('dataLinkEnabled').onchange = (e) => {
+        document.getElementById('dataLinkSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
+        setSettingsChanged(true);
+    };
+    document.getElementById('numDataPoints').oninput = (e) => {
+        document.getElementById('numDataPointsValue').textContent = e.target.value;
+        updateDataPointsUI(parseInt(e.target.value, 10));
+        setSettingsChanged(true);
+    };
+    document.getElementById('apiTemplateSelector').onchange = (e) => {
+        if (e.target.value) applyApiTemplate(e.target.value);
+    };
+    document.querySelectorAll('input, select').forEach(el => {
+        el.addEventListener('change', () => setSettingsChanged(true));
+        el.addEventListener('input', (e) => {
+            const valueSpan = document.getElementById(`${e.target.id}Value`);
+            if (valueSpan) valueSpan.textContent = e.target.value;
+            setSettingsChanged(true);
+        });
+    });
+    document.getElementById('resetDefaultsBtn').onclick = () => {
+        if (confirm("Are you sure? This will reset all settings to their defaults.")) {
+            fetch('/api/resetSettings', { method: 'POST' })
+                .then(res => res.text())
+                .then(text => {
+                    showMessage(text, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                });
+        }
+    };
+    document.getElementById('syncNtpBtn').onclick = () => {
+        fetch('/api/syncTime', { method: 'POST' })
+            .then(res => res.text())
+            .then(text => showMessage(text, 'info'));
+    };
+    document.querySelectorAll('.theme-option').forEach(el => {
+        el.onclick = () => {
+            const theme = el.getAttribute('data-theme');
+            document.body.className = theme;
+            fetch('/api/setTheme', { method: 'POST', body: new URLSearchParams({ theme }) });
+        };
+    });
+    document.getElementById('departureTime').onchange = updateSleepVisual;
+    document.getElementById('arrivalTime').onchange = updateSleepVisual;
+}
 
 function openTab(evt, tabName) {
-    var i, tabcontent, tablinks;
-    tabcontent = document.getElementsByClassName("tab-content");
-    for (i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
-    }
-    tablinks = document.getElementsByClassName("tab-link");
-    for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].className = tablinks[i].className.replace(" active", "");
-    }
+    document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = "none");
+    document.querySelectorAll('.tab-link').forEach(tl => tl.classList.remove('active'));
     document.getElementById(tabName).style.display = "block";
-    evt.currentTarget.className += " active";
+    evt.currentTarget.classList.add('active');
 }
 
 function setSettingsChanged(isChanged) {
     settingsChanged = isChanged;
-    updateSaveButtonState();
-}
-
-// Function now adds/removes a class for glowing effect
-function updateSaveButtonState() {
     const saveBtn = document.getElementById('saveSettingsBtn');
-    if (anyInputInvalid) {
-        saveBtn.disabled = true;
-        saveBtn.classList.remove('needs-save');
-    } else {
-        saveBtn.disabled = !settingsChanged;
-        if (settingsChanged) {
-            saveBtn.classList.add('needs-save');
-        } else {
-            saveBtn.classList.remove('needs-save');
-        }
+    saveBtn.disabled = !isChanged || anyInputInvalid;
+}
+
+function validateDataPointField(event) {
+    const el = event.target;
+    el.classList.remove('invalid');
+    if (el.id.startsWith('dp_format_') && el.value && !el.value.includes('%V')) {
+        el.classList.add('invalid');
     }
-}
-
-function showFeedback(elementId) {
-    const el = document.getElementById(elementId);
-    if(el) {
-        // Find the closest label and then its feedback-check span
-        const feedbackEl = el.closest('label, .slider-container, .setting-group').querySelector('.feedback-check'); // Added .setting-group for broader search
-        if (feedbackEl) {
-            feedbackEl.classList.remove('show');
-            void feedbackEl.offsetWidth; // Trigger reflow to restart animation
-            feedbackEl.classList.add('show');
-            feedbackEl.addEventListener('animationend', () => {
-                feedbackEl.classList.remove('show');
-            }, { once: true });
-        }
-    }
-}
-
-document.addEventListener('DOMContentLoaded', (event) => {
-    // FIX: Use Promise.all to fetch initial data concurrently and robustly.
-    // This prevents a failure in one request from blocking others.
-    Promise.all([
-        fetchTimezones(),
-        fetchAndApplyPresets()
-    ]).then(() => {
-        // Fetch settings only after presets and timezones are loaded.
-        fetchSettings().then(() => {
-            document.querySelector('.header-circuits').classList.add('visible');
-            fetchTime(); // Initial time fetch
-            setInterval(fetchTime, 1000); // Fetch time every second
-            statusFetchInterval = setInterval(fetchStatus, 5000); // Fetch status every 5 seconds
-        }).catch(error => {
-            showMessage('Critical error loading initial settings. Please refresh.', 'error');
-        });
-    }).catch(error => {
-        showMessage('Could not load initial device data. Check connection and refresh.', 'error');
-    });
-
-
-    const windSpeedToggle = document.getElementById('windSpeedModeToggle');
-    if (windSpeedToggle) {
-        windSpeedToggle.addEventListener('change', (e) => {
-            const isEnabled = e.target.checked;
-            document.getElementById('geolocationSettings').style.display = isEnabled ? 'block' : 'none';
-            document.getElementById('lastDepartedDateSection').style.display = isEnabled ? 'none' : 'block';
-            setSettingsChanged(true);
-        });
-    }
-
-    const sliders = [
-        { id: 'brightness', valueSpanId: 'brightnessValue' },
-        { id: 'notificationVolume', valueSpanId: 'volumeValue' },
-        { id: 'timeTravelAnimationInterval', valueSpanId: 'timeTravelAnimationIntervalValue' },
-        { id: 'presetCycleInterval', valueSpanId: 'presetCycleIntervalValue' },
-        { id: 'timeTravelAnimationDuration', valueSpanId: 'timeTravelAnimationDurationValue' },
-        { id: 'glitchEffectFrequency', valueSpanId: 'glitchEffectFrequencyValue' } // *** NEW ***
-    ];
-
-    sliders.forEach(sliderInfo => {
-        const sliderElement = document.getElementById(sliderInfo.id);
-        if (sliderElement) {
-            sliderElement.addEventListener('input', (e) => {
-                document.getElementById(sliderInfo.valueSpanId).textContent = e.target.value;
-                setSettingsChanged(true);
-                if (document.getElementById('livePreviewToggle').checked) {
-                    handlePreview(sliderInfo.id, e.target.value);
-                }
-            });
-        }
-    });
-    
-    const previewElements = [
-        { id: 'destinationTimezoneSelect', setting: 'destinationTimezoneIndex', event: 'change' },
-        { id: 'presentTimezoneSelect', setting: 'presentTimezoneIndex', event: 'change' },
-        { id: 'animationStyleSelect', setting: 'animationStyle', event: 'change' },
-        { id: 'glitchEffectFrequency', setting: 'glitchEffectFrequency', event: 'input' }, // *** NEW ***
-        { id: 'displayFormat24h', setting: 'displayFormat24h', event: 'change', isCheckbox: true },
-        { id: 'timeTravelSoundToggle', setting: 'timeTravelSoundToggle', event: 'change', isCheckbox: true },
-        { id: 'timeTravelVolumeFade', setting: 'timeTravelVolumeFade', event: 'change', isCheckbox: true },
-        { id: 'destinationYear', setting: 'destinationYear', event: 'input' }
-    ];
-
-    previewElements.forEach(item => {
-        const element = document.getElementById(item.id);
-        if (element) {
-            element.addEventListener(item.event, (e) => {
-                setSettingsChanged(true);
-                if (document.getElementById('livePreviewToggle').checked) {
-                    const value = item.isCheckbox ? e.target.checked : e.target.value;
-                    handlePreview(item.setting, value);
-                    showFeedback(item.id);
-                }
-            });
-        }
-    });
-
-    document.getElementById('departureTime').addEventListener('input', () => {
-        setSettingsChanged(true);
-        updateSleepScheduleVisual();
-    });
-    document.getElementById('arrivalTime').addEventListener('input', () => {
-        setSettingsChanged(true);
-        updateSleepScheduleVisual();
-    });
-
-    document.getElementById('powerOfLoveBtn').addEventListener('click', () => {
-        fetch('/api/greatScott', { method: 'POST' })
-            .catch(error => showMessage('Error: Could not connect to device!', 'error'));
-    });
-    
-    // *** ADDED EVENT LISTENER ***
-    document.getElementById('testAnimationBtn').addEventListener('click', () => {
-        fetch('/api/testAnimation', { method: 'POST' })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => { throw new Error(text); });
-                }
-                showMessage('Time Travel Sequence Initiated!', 'success');
-            })
-            .catch(error => showMessage(`Error: ${error.message}`, 'error'));
-    });
-
-    document.querySelectorAll('.container input, .container select').forEach(element => {
-        element.addEventListener('input', (e) => {
-            setSettingsChanged(true);
-            if(e.target.type === 'number') {
-                validateInput(e.target);
-            }
-        });
-    });
-
-    document.getElementById('syncNtpBtn').addEventListener('click', syncNtp);
-
-    document.getElementById('presetDateSelect').addEventListener('change', (e) => {
-        const selectedOption = e.target.options[e.target.selectedIndex];
-        const actions = document.getElementById('presetActions');
-        if (selectedOption.parentElement.label === 'Custom Jumps') {
-            actions.classList.remove('hidden');
-            const [year, month, day, hour, minute] = selectedOption.value.split('-');
-            
-            // *** FIX: Pad month/day to ensure valid YYYY-MM-DD format ***
-            document.getElementById('presetName').value = selectedOption.textContent;
-            document.getElementById('presetDate').value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            document.getElementById('presetTime').value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-            document.getElementById('editingPresetValue').value = selectedOption.value;
-            document.getElementById('addPresetBtn').textContent = 'Update Preset';
-        } else {
-            resetPresetForm();
-            actions.classList.add('hidden');
-        }
-
-        const selectedValue = e.target.value;
-        if (!selectedValue) return;
-
-        const [year, month, day, hour, minute] = selectedValue.split('-');
-        
-        document.getElementById('lastTimeDepartedYear').textContent = year;
-        document.getElementById('lastTimeDepartedMonth').textContent = month;
-        document.getElementById('lastTimeDepartedDay').textContent = day;
-        document.getElementById('lastTimeDepartedHour').textContent = hour;
-        document.getElementById('lastTimeDepartedMinute').textContent = minute;
-
-        updateLastDepartedDisplay();
-        setSettingsChanged(true);
-    });
-
-    document.getElementById('editPresetBtn').addEventListener('click', editPreset);
-
-    setupIncrementerButtons();
-    validateAllNumberInputs();
-});
-
-function handlePreview(settingName, value) {
-    if (!document.getElementById('livePreviewToggle').checked) return;
-
-    fetch(`/api/previewSetting?setting=${settingName}&value=${value}`)
-        .then(response => {
-            if (!response.ok) {
-                response.text().then(text => {
-                    console.error(`Preview error for ${settingName}: ${text}`);
-                    showMessage(`Live preview failed: ${text}`, 'error');
-                });
-            } else {
-                showFeedback(settingName);
-            }
-        })
-        .catch(error => {
-            console.error('Error in handlePreview:', error)
-            showMessage(`Live preview connection error.`, 'error');
-        });
-}
-
-function setupIncrementerButtons() {
-    document.querySelectorAll('.incrementer-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const targetId = e.target.dataset.target;
-            const action = e.target.dataset.action;
-            const targetSlider = document.getElementById(targetId);
-
-            if (targetSlider) {
-                let currentValue = parseInt(targetSlider.value, 10);
-                const step = parseInt(targetSlider.step, 10) || 1;
-
-                if (action === 'increment') {
-                    currentValue += step;
-                } else {
-                    currentValue -= step;
-                }
-
-                const min = parseInt(targetSlider.min, 10);
-                const max = parseInt(targetSlider.max, 10);
-
-                if (currentValue < min) currentValue = min;
-                if (currentValue > max) currentValue = max;
-
-                targetSlider.value = currentValue;
-
-                targetSlider.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        });
-    });
-}
-
-function addOrUpdatePreset() {
-    const btn = document.getElementById('addPresetBtn');
-    const name = document.getElementById('presetName').value.trim();
-    const date = document.getElementById('presetDate').value;
-    const time = document.getElementById('presetTime').value;
-
-    if (!name || !date || !time) {
-        showMessage('All preset fields (Name, Date, Time) are required!', 'error');
-        return;
-    }
-    
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
-        showMessage('Invalid date or time format. Please use YYYY-MM-DD and HH:MM.', 'error');
-        return;
-    }
-
-    const originalValue = document.getElementById('editingPresetValue').value;
-    if (originalValue) {
-        updatePreset(originalValue);
-    } else {
-        addPreset();
-    }
-}
-
-
-function addPreset() {
-    const name = document.getElementById('presetName').value;
-    const date = document.getElementById('presetDate').value;
-    const time = document.getElementById('presetTime').value;
-
-    if (!name || !date || !time) {
-        showMessage('All preset fields are required!', 'error');
-        return;
-    }
-
-    const [year, month, day] = date.split('-');
-    const [hour, minute] = time.split(':');
-    const value = `${parseInt(year)}-${parseInt(month)}-${parseInt(day)}-${parseInt(hour)}-${parseInt(minute)}`;
-
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('value', value);
-
-    fetch('/api/addPreset', { method: 'POST', body: new URLSearchParams(formData) })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => { throw new Error(text); });
-            }
-            return response.text();
-        })
-        .then(data => {
-            showMessage(data, 'success');
-            resetPresetForm();
-            fetchAndApplyPresets();
-        })
-        .catch(error => showMessage(`Error adding preset: ${error.message}`, 'error'));
-}
-
-function editPreset() {
-    const select = document.getElementById('presetDateSelect');
-    const selectedOption = select.options[select.selectedIndex];
-
-    if (!selectedOption || !selectedOption.value || !selectedOption.parentElement || selectedOption.parentElement.label !== 'Custom Jumps') {
-        showMessage('Please select a custom preset to edit.', 'error');
-        return;
-    }
-
-    const name = selectedOption.textContent;
-    const value = selectedOption.value;
-
-    const [year, month, day, hour, minute] = value.split('-');
-
-    document.getElementById('presetName').value = name;
-    document.getElementById('presetDate').value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    document.getElementById('presetTime').value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    document.getElementById('editingPresetValue').value = value;
-
-    const btn = document.getElementById('addPresetBtn');
-    btn.textContent = 'Update Preset';
-    showMessage('Editing preset. Click "Update Preset" to save changes.', 'info');
-}
-
-function updatePreset(originalValue) {
-    const newName = document.getElementById('presetName').value;
-    const newDate = document.getElementById('presetDate').value;
-    const newTime = document.getElementById('presetTime').value;
-
-    if (!newName || !newDate || !newTime) {
-        showMessage('All preset fields are required!', 'error');
-        return;
-    }
-
-    const [year, month, day] = newDate.split('-');
-    const [hour, minute] = newTime.split(':');
-    const newValue = `${parseInt(year)}-${parseInt(month)}-${parseInt(day)}-${parseInt(hour)}-${parseInt(minute)}`;
-
-    const formData = new FormData();
-    formData.append('originalValue', originalValue);
-    formData.append('newName', newName);
-    formData.append('newValue', newValue);
-
-    fetch('/api/updatePreset', { method: 'POST', body: new URLSearchParams(formData) })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => { throw new Error(text); });
-            }
-            return response.text();
-        })
-        .then(data => {
-            showMessage(data, 'success');
-            resetPresetForm();
-            fetchAndApplyPresets();
-        })
-        .catch(error => showMessage(`Error updating preset: ${error.message}`, 'error'));
-}
-
-function resetPresetForm() {
-    document.getElementById('presetName').value = '';
-    document.getElementById('presetDate').value = '';
-    document.getElementById('presetTime').value = '';
-    document.getElementById('editingPresetValue').value = '';
-    document.getElementById('addPresetBtn').textContent = 'Add to Presets';
-}
-
-function deletePreset() {
-    const select = document.getElementById('presetDateSelect');
-    const selectedOption = select.options[select.selectedIndex];
-
-    if (!selectedOption || !selectedOption.value || !selectedOption.parentElement || selectedOption.parentElement.label !== 'Custom Jumps') {
-        showMessage('Please select a custom preset to delete.', 'error');
-        return;
-    }
-
-    const presetValue = selectedOption.value;
-    showCustomConfirm(`Delete preset "${selectedOption.textContent}"?`, () => {
-        const formData = new FormData();
-        formData.append('value', presetValue);
-
-        fetch('/api/deletePreset', { method: 'POST', body: new URLSearchParams(formData) })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => { throw new Error(text); });
-                }
-                return response.text();
-            })
-            .then(data => {
-                showMessage(data, 'success');
-                fetchAndApplyPresets().then(fetchSettings);
-            })
-            .catch(error => showMessage(`Error deleting preset: ${error.message}`, 'error'));
-    });
-}
-
-function clearPresets() {
-    fetch('/api/clearPresets', { method: 'POST' })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => { throw new Error(text); });
-            }
-            return response.text();
-        })
-        .then(data => {
-            showMessage(data, 'success');
-            fetchAndApplyPresets().then(fetchSettings);
-        })
-        .catch(error => showMessage(`Error clearing presets: ${error.message}`, 'error'));
-}
-
-function syncNtp() {
-    const btn = document.getElementById('syncNtpBtn');
-    showLoading('syncNtpBtn', true);
-    fetch('/api/syncNtp', { method: 'POST' })
-        .then(response => response.text())
-        .then(data => {
-            showMessage(data, 'success');
-            setTimeout(fetchTime, 1000);
-        })
-        .catch(error => showMessage('Error: Could not request NTP sync!', 'error'))
-        .finally(() => showLoading('syncNtpBtn', false));
-}
-
-function fetchAndApplyPresets() {
-    return fetch('/api/getPresets')
-        .then(response => response.json())
-        .then(presets => {
-            const select = document.getElementById('presetDateSelect');
-            const existingGroup = select.querySelector('optgroup[label="Custom Jumps"]');
-            if (existingGroup) {
-                existingGroup.remove();
-            }
-
-            if (presets && presets.length > 0) {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = 'Custom Jumps';
-                presets.forEach(preset => {
-                    const option = document.createElement('option');
-                    option.value = preset.value;
-                    option.textContent = preset.name;
-                    optgroup.appendChild(option);
-                });
-                select.appendChild(optgroup);
-            }
-        })
-        .catch(error => {
-            showMessage('Error loading custom presets!', 'error');
-            throw error;
-        });
-}
-
-function updateLastDepartedDisplay() {
-    const year = document.getElementById('lastTimeDepartedYear').textContent;
-    const month = parseInt(document.getElementById('lastTimeDepartedMonth').textContent, 10);
-    const day = document.getElementById('lastTimeDepartedDay').textContent;
-    let hour = parseInt(document.getElementById('lastTimeDepartedHour').textContent, 10);
-    const minute = parseInt(document.getElementById('lastTimeDepartedMinute').textContent, 10);
-
-    if(!year || !month || !day || isNaN(hour) || isNaN(minute)) return;
-
-    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-    const monthStr = months[month - 1];
-
-    const hourStr = hour.toString().padStart(2, '0');
-    const displayString = `${monthStr} ${day.toString().padStart(2, '0')} ${year} ${hourStr}:${minute.toString().padStart(2, '0')}`;
-    document.getElementById('lastTimeDepartedDisplay').textContent = displayString;
+    anyInputInvalid = !!document.querySelector('.invalid');
+    setSettingsChanged(true);
 }
 
 function updateHeaderClocks(presentTimeRaw) {
@@ -491,71 +289,320 @@ function updateHeaderClocks(presentTimeRaw) {
     const is24h = document.getElementById('displayFormat24h').checked;
 
     const populateHeaderRow = (prefix, unixTimestamp, yearOverride = null) => {
-        const timezoneIndex = (prefix === 'dest') 
-            ? parseInt(document.getElementById('destinationTimezoneSelect').value, 10) || 0
-            : parseInt(document.getElementById('presentTimezoneSelect').value, 10) || 0;
-            
+        const timezoneSelectId = (prefix === 'dest') ? 'destinationTimezoneSelect' : 'presentTimezoneSelect';
+        const timezoneSelect = document.getElementById(timezoneSelectId);
+        if (!timezoneSelect || timezoneOptions.length === 0) return;
+        const timezoneIndex = parseInt(timezoneSelect.value, 10) || 0;
         const formatted = formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24h);
-
+        if (!formatted) return;
         const timeParts = formatted.time.split(' ');
         const [hour, minute, second] = timeParts[0].split(':');
         const ampm = timeParts.length > 1 ? timeParts[1] : '';
-
         const dateParts = formatted.date.split('/');
         const monthNum = parseInt(dateParts[0], 10);
         const day = dateParts[1];
         const year = dateParts[2];
-
-        document.getElementById(`header-${prefix}-month`).textContent = months[monthNum - 1];
-        document.getElementById(`header-${prefix}-day`).textContent = day;
-        document.getElementById(`header-${prefix}-year`).textContent = yearOverride || year;
-
-        document.getElementById(`header-${prefix}-hour`).textContent = hour;
-        document.getElementById(`header-${prefix}-minute`).textContent = minute;
-        document.getElementById(`header-${prefix}-second`).textContent = second;
-
-        const ampmTextElement = document.getElementById(`header-${prefix}-ampm`);
-        if (ampmTextElement) {
-            ampmTextElement.textContent = is24h ? '' : ampm;
-        }
+        const setContent = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        };
+        setContent(`header-${prefix}-month`, months[monthNum - 1] || '---');
+        setContent(`header-${prefix}-day`, day || '00');
+        setContent(`header-${prefix}-year`, yearOverride || year || '0000');
+        setContent(`header-${prefix}-hour`, hour || '00');
+        setContent(`header-${prefix}-minute`, minute || '00');
+        setContent(`header-${prefix}-second`, second || '00');
+        setContent(`header-${prefix}-ampm`, is24h ? '' : ampm);
     };
 
     const presentUnixTimestamp = presentTimeRaw.getTime() / 1000;
     populateHeaderRow('pres', presentUnixTimestamp);
-
-    const destinationTime = new Date(presentTimeRaw.getTime());
-    destinationTime.setFullYear(parseInt(document.getElementById('destinationYear').value, 10));
-    populateHeaderRow('dest', destinationTime.getTime() / 1000, document.getElementById('destinationYear').value);
-
+    const destYearInput = document.getElementById('destinationYear');
+    if (destYearInput && destYearInput.value) {
+        const destinationTime = new Date(presentTimeRaw.getTime());
+        destinationTime.setFullYear(parseInt(destYearInput.value, 10));
+        populateHeaderRow('dest', destinationTime.getTime() / 1000, destYearInput.value);
+    }
     const lastYear = document.getElementById('lastTimeDepartedYear').textContent;
     const lastMonth = parseInt(document.getElementById('lastTimeDepartedMonth').textContent, 10) - 1;
     const lastDay = document.getElementById('lastTimeDepartedDay').textContent;
     const lastHour = document.getElementById('lastTimeDepartedHour').textContent;
-    const lastMinute = parseInt(document.getElementById('lastTimeDepartedMinute').textContent, 10);
-    const lastDepartedTime = new Date(lastYear, lastMonth, lastDay, lastHour, lastMinute);
-    populateHeaderRow('last', lastDepartedTime.getTime() / 1000, lastYear);
-}
-
-function showMessage(message, type = 'info', duration = 3000) {
-    const banner = document.getElementById('messageBanner');
-    if (!banner) return;
-    banner.textContent = message;
-    banner.className = 'message-banner ' + type;
-    banner.style.visibility = 'visible';
-    banner.style.opacity = '1';
-
-    if (banner.timer) {
-        clearTimeout(banner.timer);
+    const lastMinute = document.getElementById('lastTimeDepartedMinute').textContent;
+    if(lastYear && !isNaN(lastMonth) && lastDay && lastHour && lastMinute) {
+        const lastDepartedTime = new Date(lastYear, lastMonth, lastDay, lastHour, lastMinute);
+        populateHeaderRow('last', lastDepartedTime.getTime() / 1000, lastYear);
     }
 
-    banner.timer = setTimeout(() => {
-        banner.style.opacity = '0';
-        setTimeout(() => {
-            banner.style.visibility = 'hidden';
-            banner.textContent = '';
-            banner.className = 'message-banner';
-        }, 500);
-    }, duration);
+    const now = new Date();
+    const totalMinutes = now.getHours() * 60 + now.getMinutes();
+    const percentOfDay = (totalMinutes / (24 * 60)) * 100;
+    document.getElementById('currentTimeMarker').style.left = `${percentOfDay}%`;
+}
+
+function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) {
+    if (!timezoneOptions || timezoneIndex < 0 || !timezoneOptions[timezoneIndex]) return null;
+    const tzIANA = timezoneOptions[timezoneIndex].ianaTzName;
+    const dateObj = new Date(unixTimestamp * 1000);
+    try {
+        const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !is24HourFormat, timeZone: tzIANA };
+        const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: tzIANA };
+        return {
+            time: dateObj.toLocaleTimeString('en-US', timeOptions),
+            date: dateObj.toLocaleDateString('en-US', dateOptions)
+        };
+    } catch (e) {
+        return { time: "Error", date: "Error" };
+    }
+}
+
+function updateDataPointsUI(numPoints) {
+    return new Promise((resolve) => {
+        const container = document.getElementById('dataPointsConfigContainer');
+        container.innerHTML = '';
+        if (numPoints > 0) {
+            for (let i = 0; i < numPoints; i++) {
+                const block = document.createElement('div');
+                block.className = 'setting-group data-point-block';
+                block.innerHTML = `<h4>Data Point ${i + 1}</h4><input type="hidden" id="dp_isLiveData_${i}" value="false"><input type="hidden" id="dp_liveDataTag_${i}" value=""><div id="api_fields_${i}"><label for="dp_url_${i}">API URL:</label><input type="text" id="dp_url_${i}" placeholder="http://..."><label for="dp_path_${i}">JSON Path:</label><input type="text" id="dp_path_${i}" placeholder="data.value[0]"></div><div class="preset-date-inputs"><div style="width:100%"><label for="dp_label_${i}">Label (4 chars):</label><input type="text" id="dp_label_${i}" maxlength="4"></div><div style="width:100%"><label for="dp_icon_${i}">Icon:</label><input type="text" id="dp_icon_${i}" placeholder="e.g., SUN, BTC"></div></div><label for="dp_format_${i}">Format (%L, %V, |):</label><input type="text" id="dp_format_${i}" placeholder="%L | %V"><hr><label for="dp_scrollSpeed_${i}">Scroll Speed (ms/step): <span id="dp_scrollSpeed_val_${i}">150</span></label><input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150"><button class="test-api-btn" data-index="${i}">Test API</button>`;
+                container.appendChild(block);
+            }
+            document.querySelectorAll('.test-api-btn').forEach(btn => btn.onclick = testApi);
+        }
+        resolve();
+    });
+}
+
+function applyApiTemplate(templateName) {
+    const template = apiTemplates[templateName];
+    if (template && document.getElementById('dp_url_0')) {
+        document.getElementById('dp_url_0').value = template.url;
+        document.getElementById('dp_label_0').value = template.label;
+        document.getElementById('dp_path_0').value = template.jsonPath;
+        document.getElementById('dp_icon_0').value = template.icon;
+        document.getElementById('dp_format_0').value = template.format;
+        document.getElementById('dp_isLiveData_0').value = template.isLiveData;
+        document.getElementById('dp_liveDataTag_0').value = template.liveDataTag;
+        document.getElementById('api_fields_0').style.display = template.isLiveData ? 'none' : 'block';
+        const scrollSlider = document.getElementById('dp_scrollSpeed_0');
+        scrollSlider.value = template.scrollSpeed;
+        scrollSlider.dispatchEvent(new Event('input'));
+        showMessage(`Template "${templateName}" applied to Data Point 1.`, 'success');
+        setSettingsChanged(true);
+    }
+}
+
+function applySelectedPreset(event) {
+    const select = event.target;
+    const value = select.value;
+    const selectedOption = select.options[select.selectedIndex];
+    const isCustom = selectedOption.parentElement.label === 'Custom Time Jumps';
+
+    document.getElementById('presetActions').classList.toggle('hidden', !isCustom);
+
+    if (!value) return;
+    const [year, month, day, hour, minute] = value.split('-');
+    
+    document.getElementById('destinationYear').value = year;
+    document.getElementById('lastTimeDepartedYear').textContent = year;
+    document.getElementById('lastTimeDepartedMonth').textContent = month;
+    document.getElementById('lastTimeDepartedDay').textContent = day;
+    document.getElementById('lastTimeDepartedHour').textContent = hour;
+    document.getElementById('lastTimeDepartedMinute').textContent = minute;
+    
+    const is24h = document.getElementById('displayFormat24h').checked;
+    let displayHour = parseInt(hour, 10);
+    let ampm = '';
+    if (!is24h) {
+        ampm = displayHour >= 12 ? ' PM' : ' AM';
+        if (displayHour > 12) displayHour -= 12;
+        if (displayHour === 0) displayHour = 12;
+    }
+    const formattedDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+    const formattedTime = `${String(displayHour).padStart(2, '0')}:${minute.padStart(2, '0')}${ampm}`;
+    document.getElementById('lastTimeDepartedDisplay').textContent = `${formattedDate} ${formattedTime}`;
+    
+    if (isCustom) {
+        document.getElementById('presetName').value = selectedOption.textContent;
+        document.getElementById('presetDate').value = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
+        document.getElementById('presetTime').value = `${hour.padStart(2,'0')}:${minute.padStart(2,'0')}`;
+    }
+
+    showMessage(`Time Circuits set to: ${selectedOption.text}`, 'info');
+    setSettingsChanged(true);
+    updateHeaderClocks(new Date());
+}
+
+function saveSettings() {
+    showLoading('saveSettingsBtn', true);
+    const formData = new URLSearchParams();
+    
+    // MODIFIED: Added 'malfunctionFrequency' to the list of settings
+    const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkTargetRow', 'dataLinkRefreshInterval'];
+    
+    for (const id of settingsToSave) {
+        const element = document.getElementById(id);
+        if (element) {
+            let key = id;
+            if (id === 'destinationTimezoneSelect') key = 'destinationTimezoneIndex';
+            if (id === 'presentTimezoneSelect') key = 'presentTimezoneIndex';
+            if (id === 'animationStyleSelect') key = 'animationStyle';
+            formData.append(key, element.value);
+        } else {
+            return; // Error handled by loop
+        }
+    }
+    const togglesToSave = ['timeTravelSoundToggle', 'timeTravelVolumeFade', 'displayFormat24h', 'dataLinkEnabled'];
+    togglesToSave.forEach(id => formData.append(id, document.getElementById(id).checked));
+    formData.append('lastTimeDepartedYear', document.getElementById('lastTimeDepartedYear').textContent);
+    formData.append('lastTimeDepartedMonth', document.getElementById('lastTimeDepartedMonth').textContent);
+    formData.append('lastTimeDepartedDay', document.getElementById('lastTimeDepartedDay').textContent);
+    formData.append('lastTimeDepartedHour', document.getElementById('lastTimeDepartedHour').textContent);
+    formData.append('lastTimeDepartedMinute', document.getElementById('lastTimeDepartedMinute').textContent);
+    const departureTime = document.getElementById('departureTime').value.split(':');
+    formData.append('departureHour', departureTime[0]);
+    formData.append('departureMinute', departureTime[1]);
+    const arrivalTime = document.getElementById('arrivalTime').value.split(':');
+    formData.append('arrivalHour', arrivalTime[0]);
+    formData.append('arrivalMinute', arrivalTime[1]);
+    if (isDataLinkLoaded) {
+        const numDataPoints = document.getElementById('numDataPoints').value;
+        formData.append('numDataPoints', numDataPoints);
+        for (let i = 0; i < numDataPoints; i++) {
+            if (!document.getElementById(`dp_url_${i}`)) break;
+            formData.append(`dp_url_${i}`, document.getElementById(`dp_url_${i}`).value);
+            formData.append(`dp_label_${i}`, document.getElementById(`dp_label_${i}`).value);
+            formData.append(`dp_path_${i}`, document.getElementById(`dp_path_${i}`).value);
+            formData.append(`dp_format_${i}`, document.getElementById(`dp_format_${i}`).value);
+            formData.append(`dp_icon_${i}`, document.getElementById(`dp_icon_${i}`).value);
+            formData.append(`dp_scrollSpeed_${i}`, document.getElementById(`dp_scrollSpeed_${i}`).value);
+            formData.append(`dp_isLiveData_${i}`, document.getElementById(`dp_isLiveData_${i}`).value);
+            formData.append(`dp_liveDataTag_${i}`, document.getElementById(`dp_liveDataTag_${i}`).value);
+        }
+    }
+    fetch('/api/saveSettings', { method: 'POST', body: formData })
+        .then(res => res.text())
+        .then(text => {
+            showMessage(text, 'success');
+            setSettingsChanged(false);
+            const duration = parseInt(document.getElementById('timeTravelAnimationDuration').value, 10);
+            document.body.classList.add('time-travel-active');
+            setTimeout(() => document.body.classList.remove('time-travel-active'), duration);
+        })
+        .catch(err => showMessage(`Error: ${err.message}`, 'error'))
+        .finally(() => showLoading('saveSettingsBtn', false));
+}
+
+function addPreset() {
+    const name = document.getElementById('presetName').value;
+    const date = document.getElementById('presetDate').value;
+    const time = document.getElementById('presetTime').value;
+    if (!name || !date || !time) {
+        showMessage('Preset name, date, and time are required.', 'error');
+        return;
+    }
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
+    const value = `${year}-${month}-${day}-${hour}-${minute}`;
+    const formData = new URLSearchParams({ name, value });
+    fetch('/api/addPreset', { method: 'POST', body: formData })
+        .then(res => res.text())
+        .then(text => {
+            showMessage(text, 'success');
+            fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
+            document.getElementById('presetName').value = '';
+            document.getElementById('presetDate').value = '';
+            document.getElementById('presetTime').value = '';
+        });
+}
+
+function updatePreset() {
+    const name = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
+    const date = document.getElementById('presetDate').value;
+    const time = document.getElementById('presetTime').value;
+    if (!name || !date || !time) {
+        showMessage('Preset name, date, and time are required.', 'error');
+        return;
+    }
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
+    const value = `${year}-${month}-${day}-${hour}-${minute}`;
+    const formData = new URLSearchParams({ name, value });
+    fetch('/api/updatePreset', { method: 'POST', body: formData })
+        .then(res => res.text())
+        .then(text => {
+            showMessage(text, 'success');
+            fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
+        });
+}
+
+function deletePreset() {
+    const name = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
+    if (confirm(`Are you sure you want to delete the preset "${name}"?`)) {
+        const formData = new URLSearchParams({ name });
+        fetch('/api/deletePreset', { method: 'POST', body: formData })
+            .then(res => res.text())
+            .then(text => {
+                showMessage(text, 'success');
+                fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
+                document.getElementById('presetActions').classList.add('hidden');
+                document.getElementById('presetName').value = '';
+                document.getElementById('presetDate').value = '';
+                document.getElementById('presetTime').value = '';
+            });
+    }
+}
+
+function fetchTime() {
+    fetch('/api/time')
+        .then(res => res.json())
+        .then(data => {
+            const timeSyncStatusEl = document.getElementById('timeSyncStatus');
+            if (timeSyncStatusEl) timeSyncStatusEl.textContent = data.timeSynchronized ? 'Yes' : 'No';
+            if (data.unixTime) updateHeaderClocks(new Date(data.unixTime * 1000));
+        });
+}
+
+function testApi(event) {
+    const index = event.target.getAttribute('data-index');
+    const url = document.getElementById(`dp_url_${index}`).value;
+    const path = document.getElementById(`dp_path_${index}`).value;
+    if (!url || !path) {
+        showMessage('URL and JSON Path are required to test.', 'error');
+        return;
+    }
+    showMessage('Testing API...', 'info');
+    fetch('/api/testDataPoint', { method: 'POST', body: new URLSearchParams({ url, path }) })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showMessage(`Success! Got value: ${data.value}`, 'success');
+            } else {
+                showMessage(`Error: ${data.error}`, 'error');
+            }
+        });
+}
+
+function updateSleepVisual() {
+    const depTime = document.getElementById('departureTime').value;
+    const arrTime = document.getElementById('arrivalTime').value;
+    if (!depTime || !arrTime) return;
+    const [depH, depM] = depTime.split(':').map(Number);
+    const [arrH, arrM] = arrTime.split(':').map(Number);
+    const depTotalMins = depH * 60 + depM;
+    const arrTotalMins = arrH * 60 + arrM;
+    const bar = document.getElementById('sleepScheduleBar');
+    let startPercent, widthPercent;
+    if (depTotalMins < arrTotalMins) { // Normal overnight
+        startPercent = (depTotalMins / 1440) * 100;
+        widthPercent = ((arrTotalMins - depTotalMins) / 1440) * 100;
+    } else { // Spans across midnight
+        const toMidnight = 1440 - depTotalMins;
+        const afterMidnight = arrTotalMins;
+        startPercent = (depTotalMins / 1440) * 100;
+        widthPercent = ((toMidnight + afterMidnight) / 1440) * 100;
+    }
+    bar.style.left = `${startPercent}%`;
+    bar.style.width = `${widthPercent}%`;
 }
 
 function showLoading(buttonId, isLoading) {
@@ -566,430 +613,21 @@ function showLoading(buttonId, isLoading) {
         button.innerHTML = '<span class="loading-spinner"></span> Saving...';
         button.disabled = true;
     } else {
-        button.textContent = button.dataset.originalText || 'Submit';
+        button.textContent = button.dataset.originalText || 'Save';
         button.disabled = false;
     }
 }
 
-function validateInput(inputElement) {
-    const validationMessageSpan = document.getElementById(inputElement.id + 'Validation');
-    if (inputElement.type === 'number') {
-        const numValue = parseInt(inputElement.value, 10);
-        const min = parseInt(inputElement.min, 10);
-        const max = parseInt(inputElement.max, 10);
-        if (isNaN(numValue) || numValue < min || numValue > max) {
-            inputElement.classList.add('invalid');
-            if (validationMessageSpan) validationMessageSpan.textContent = `Value must be between ${min} and ${max}.`;
-        } else {
-            inputElement.classList.remove('invalid');
-            if (validationMessageSpan) validationMessageSpan.textContent = '';
-        }
-    }
-    validateAllNumberInputs();
-}
-
-function validateAllNumberInputs() {
-    anyInputInvalid = false;
-    const inputs = document.querySelectorAll('.container input[type="number"]');
-    inputs.forEach(input => {
-        if(input.classList.contains('invalid')){
-            anyInputInvalid = true;
-        }
-    });
-    updateSaveButtonState();
-}
-
-function applyTheme(themeIndex) {
-    const themeClasses = ['theme-time-circuits', 'theme-outatime', 'theme-88mph', 'theme-plutonium-glow', 'theme-mr-fusion', 'theme-clock-tower'];
-    document.body.className = '';
-    const index = parseInt(themeIndex, 10);
-    if(index >= 0 && index < themeClasses.length) {
-        document.body.classList.add(themeClasses[index]);
-    }
-    setSettingsChanged(true);
-}
-
-
-function updateWifiStrengthIndicator(rssi) {
-    const wifiIndicator = document.getElementById('wifiStrength');
-    wifiIndicator.className = 'wifi-indicator';
-    if (rssi >= -67) wifiIndicator.classList.add('strength-4');
-    else if (rssi >= -70) wifiIndicator.classList.add('strength-3');
-    else if (rssi >= -80) wifiIndicator.classList.add('strength-2');
-    else wifiIndicator.classList.add('strength-1');
-}
-
-function fetchStatus() {
-    fetch('/api/status')
-        .then(response => response.json())
-        .then(data => {
-            updateWifiStrengthIndicator(data.rssi);
-            document.getElementById('wifiSSID').textContent = data.ssid || 'N/A';
-        })
-        .catch(error => console.error('Error fetching status! It may be temporarily disconnected.', error));
-}
-
-function fetchTime() {
-    fetch('/api/time')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('timeSyncStatus').textContent = data.timeSynchronized ? 'Yes' : 'No';
-            document.getElementById('lastSyncTime').textContent = data.lastSyncTime;
-            document.getElementById('lastNtpServer').textContent = data.lastNtpServer;
-            const is24h = document.getElementById('displayFormat24h').checked;
-
-            if (data.unixTime && timezoneOptions.length > 0) {
-                const presentTime = new Date(data.unixTime * 1000);
-                updateHeaderClocks(presentTime);
-
-                const currentMinutes = presentTime.getHours() * 60 + presentTime.getMinutes();
-                const totalDayMinutes = 24 * 60;
-                const markerPosition = (currentMinutes / totalDayMinutes) * 100;
-                document.getElementById('currentTimeMarker').style.left = `${markerPosition}%`;
-            }
-        })
-        .catch(error => console.error('Error fetching time!', error));
-}
-
-function fetchTimezones() {
-    return fetch('/api/timezones')
-        .then(response => response.json())
-        .then(data => {
-            timezoneOptions = [];
-            const presentSelect = document.getElementById('presentTimezoneSelect');
-            const destinationSelect = document.getElementById('destinationTimezoneSelect');
-            [presentSelect, destinationSelect].forEach(sel => { if(sel) sel.innerHTML = ''; });
-            
-            for (const country in data) {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = country;
-                data[country].forEach(tz => {
-                    const option = document.createElement('option');
-                    option.value = tz.value;
-                    option.textContent = tz.text;
-                    optgroup.appendChild(option);
-                    timezoneOptions[tz.value] = tz;
-                });
-                if(presentSelect) presentSelect.appendChild(optgroup.cloneNode(true));
-                if(destinationSelect) destinationSelect.appendChild(optgroup.cloneNode(true));
-            }
-        })
-        .catch(error => {
-            showMessage('Error loading time zones!', 'error');
-            throw error;
-        });
-}
-
-function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) {
-    if (!timezoneOptions || !timezoneOptions[timezoneIndex]) return { time: "--:--:--", date: "--/--/----" };
-    const tzIANA = timezoneOptions[timezoneIndex].ianaTzName;
-    const dateObj = new Date(unixTimestamp * 1000);
-    const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !is24HourFormat, timeZone: tzIANA };
-    const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: tzIANA };
-    try {
-        return {
-            time: dateObj.toLocaleTimeString('en-US', timeOptions),
-            date: dateObj.toLocaleDateString('en-US', dateOptions)
-        };
-    } catch (e) {
-        console.error("Error formatting time for timezone", tzIANA, e);
-        return { time: "Error", date: "Error" };
-    }
-}
-
-function fetchSettings() {
-    return fetch('/api/settings')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('destinationYear').value = data.destinationYear;
-
-            document.getElementById('lastTimeDepartedHour').textContent = data.lastTimeDepartedHour.toString().padStart(2, '0');
-            document.getElementById('lastTimeDepartedMinute').textContent = data.lastTimeDepartedMinute.toString().padStart(2, '0');
-            document.getElementById('lastTimeDepartedMonth').textContent = data.lastTimeDepartedMonth.toString().padStart(2, '0');
-            document.getElementById('lastTimeDepartedDay').textContent = data.lastTimeDepartedDay.toString().padStart(2, '0');
-            document.getElementById('lastTimeDepartedYear').textContent = data.lastTimeDepartedYear;
-            
-            updateLastDepartedDisplay();
-            
-            const depHour = data.departureHour.toString().padStart(2, '0');
-            const depMin = data.departureMinute.toString().padStart(2, '0');
-            document.getElementById('departureTime').value = `${depHour}:${depMin}`;
-
-            const arrHour = data.arrivalHour.toString().padStart(2, '0');
-            const arrMin = data.arrivalMinute.toString().padStart(2, '0');
-            document.getElementById('arrivalTime').value = `${arrHour}:${arrMin}`;
-
-            ['brightness', 'notificationVolume', 'timeTravelAnimationInterval', 'presetCycleInterval', 'timeTravelAnimationDuration', 'glitchEffectFrequency'].forEach(id => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.value = data[id];
-                    element.dispatchEvent(new Event('input'));
-                }
-            });
-
-            ['timeTravelSoundToggle', 'displayFormat24h', 'timeTravelVolumeFade'].forEach(id => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.checked = data[id];
-                }
-            });
-
-            document.getElementById('presentTimezoneSelect').value = data.presentTimezoneIndex;
-            document.getElementById('destinationTimezoneSelect').value = data.destinationTimezoneIndex;
-            
-            const windSpeedToggle = document.getElementById('windSpeedModeToggle');
-            windSpeedToggle.checked = data.windSpeedModeEnabled;
-            document.getElementById('latitude').value = data.latitude;
-            document.getElementById('longitude').value = data.longitude;
-            windSpeedToggle.dispatchEvent(new Event('change'));
-
-            const animationStyleSelect = document.getElementById('animationStyleSelect');
-            if (animationStyleSelect) {
-                animationStyleSelect.value = data.animationStyle;
-            }
-
-            const ltdValue = `${data.lastTimeDepartedYear}-${data.lastTimeDepartedMonth}-${data.lastTimeDepartedDay}-${data.lastTimeDepartedHour}-${data.lastTimeDepartedMinute}`;
-            const select = document.getElementById('presetDateSelect');
-            select.value = ltdValue;
-            if (select.value === ltdValue) {
-                select.dispatchEvent(new Event('change'));
-            } else {
-                select.selectedIndex = 0;
-            }
-
-            buildThemeSelector(data.theme);
-            updateSleepScheduleVisual();
-            validateAllNumberInputs();
-
-            setSettingsChanged(false);
-        })
-        .catch(error => {
-            showMessage('Error loading settings!', 'error');
-            throw error;
-        });
-}
-
-function saveSettings() {
-    showLoading('saveSettingsBtn', true);
-    const formData = new FormData();
-    formData.append('destinationYear', document.getElementById('destinationYear').value);
-
-    formData.append('destinationTimezoneIndex', document.getElementById('destinationTimezoneSelect').value);
-    formData.append('lastTimeDepartedHour', document.getElementById('lastTimeDepartedHour').textContent);
-    formData.append('lastTimeDepartedMinute', document.getElementById('lastTimeDepartedMinute').textContent);
-    formData.append('lastTimeDepartedMonth', document.getElementById('lastTimeDepartedMonth').textContent);
-    formData.append('lastTimeDepartedDay', document.getElementById('lastTimeDepartedDay').textContent);
-    formData.append('lastTimeDepartedYear', document.getElementById('lastTimeDepartedYear').textContent);
-
-    const departureTime = document.getElementById('departureTime').value.split(':');
-    formData.append('departureHour', departureTime[0]);
-    formData.append('departureMinute', departureTime[1]);
-
-    const arrivalTime = document.getElementById('arrivalTime').value.split(':');
-    formData.append('arrivalHour', arrivalTime[0]);
-    formData.append('arrivalMinute', arrivalTime[1]);
-
-    ['brightness', 'notificationVolume', 'timeTravelAnimationInterval', 'presetCycleInterval', 'timeTravelAnimationDuration', 'glitchEffectFrequency'].forEach(id => {
-        formData.append(id, document.getElementById(id).value);
-    });
-    ['timeTravelSoundToggle', 'displayFormat24h', 'timeTravelVolumeFade'].forEach(id => {
-        formData.append(id, document.getElementById(id).checked);
-    });
-    const selectedTheme = document.querySelector('.theme-swatch.selected');
-    if (selectedTheme) {
-        formData.append('theme', selectedTheme.parentElement.dataset.themeIndex);
-    }
-    formData.append('presentTimezoneIndex', document.getElementById('presentTimezoneSelect').value);
-
-    formData.append('windSpeedModeEnabled', document.getElementById('windSpeedModeToggle').checked);
-    formData.append('latitude', document.getElementById('latitude').value);
-    formData.append('longitude', document.getElementById('longitude').value);
-
-    formData.append('animationStyle', document.getElementById('animationStyleSelect').value);
-
-    fetch('/api/saveSettings', { method: 'POST', body: new URLSearchParams(formData) })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => { throw new Error(text); });
-            }
-            return response.text();
-        })
-        .then(data => {
-            showMessage(data, 'success');
-            setSettingsChanged(false);
-            const settingGroups = document.querySelectorAll('.setting-group');
-            settingGroups.forEach(el => {
-                el.classList.add('highlight-saved');
-                el.addEventListener('animationend', () => {
-                    el.classList.remove('highlight-saved');
-                }, { once: true });
-            });
-            startTimeTravelSequence();
-        })
-        .catch(error => showMessage(`Error saving settings: ${error.message}`, 'error'))
-        .finally(() => {
-            showLoading('saveSettingsBtn', false);
-        });
-}
-
-function startTimeTravelSequence() {
-    fetch('/api/timeTravel', { method: 'POST' })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => { throw new Error(text); });
-            }
-            document.body.classList.add('time-travel-active');
-            setTimeout(() => {
-                document.body.classList.remove('time-travel-active');
-            }, 3000);
-        })
-        .catch(error => showMessage(`Error initiating time travel sequence: ${error.message}`, 'error'));
-}
-
-function showCustomConfirm(msg, callback) {
-    const confirmModal = document.getElementById('customConfirm');
-    document.getElementById('confirmMsg').textContent = msg;
-    confirmModal.style.display = 'block';
-    document.getElementById('confirmYes').onclick = () => {
-        callback();
-        confirmModal.style.display = 'none';
-    }
-    document.getElementById('confirmNo').onclick = () => confirmModal.style.display = 'none';
-}
-
-function resetToDefaults() {
-    showLoading('resetDefaultsBtn', true);
-    fetch('/api/resetSettings', { method: 'POST' })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => { throw new Error(text); });
-            }
-            return response.text();
-        })
-        .then(() => {
-            showMessage('Settings reset to defaults!', 'success');
-            fetchAndApplyPresets().then(fetchSettings);
-        })
-        .catch(error => showMessage(`Error resetting settings: ${error.message}`, 'error'))
-        .finally(() => showLoading('resetDefaultsBtn', false));
-}
-
-function resetWifi() {
-    showLoading('resetWifiBtn', true);
-    fetch('/api/resetWifi', { method: 'POST' })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => { throw new Error(text); });
-            }
-            return response.text();
-        })
-        .then(() => showMessage('WiFi credentials reset. Device restarting...', 'success', 10000))
-        .catch(error => showMessage(`Error resetting WiFi: ${error.message}`, 'error'))
-        .finally(() => showLoading('resetWifiBtn', false));
-}
-
-function testSound() {
-    fetch('/api/testSound').catch(error => showMessage('Error testing sound!', 'error'));
-}
-
-function updateSleepScheduleVisual() {
-    const container = document.getElementById('sleepScheduleVisualContainer');
-    if (!container) return;
-
-    const [depHour, depMin] = document.getElementById('departureTime').value.split(':').map(Number);
-    const [arrHour, arrMin] = document.getElementById('arrivalTime').value.split(':').map(Number);
-
-    document.getElementById('sleepTimeDisplayLeft').textContent = `${arrHour.toString().padStart(2, '0')}:${arrMin.toString().padStart(2, '0')}`;
-    document.getElementById('sleepTimeDisplayRight').textContent = `${depHour.toString().padStart(2, '0')}:${depMin.toString().padStart(2, '0')}`;
-
-    const existingBars = container.querySelectorAll('.sleep-schedule-bar');
-    existingBars.forEach(bar => bar.remove());
-
-    const depTotalMinutes = depHour * 60 + depMin;
-    const arrTotalMinutes = arrHour * 60 + arrMin;
-    const totalDayMinutes = 24 * 60;
-
-    const createBar = (left, width) => {
-        const bar = document.createElement('div');
-        bar.className = 'sleep-schedule-bar';
-        bar.style.left = `${left}%`;
-        bar.style.width = `${width}%`;
-        container.insertBefore(bar, container.firstChild);
-    };
-
-    if (depTotalMinutes < arrTotalMinutes) {
-        const left = (depTotalMinutes / totalDayMinutes) * 100;
-        const width = ((arrTotalMinutes - depTotalMinutes) / totalDayMinutes) * 100;
-        if (width > 0) createBar(left, width);
-    } else if (depTotalMinutes > arrTotalMinutes) {
-        const left1 = (depTotalMinutes / totalDayMinutes) * 100;
-        const width1 = ((totalDayMinutes - depTotalMinutes) / totalDayMinutes) * 100;
-        if (width1 > 0) createBar(left1, width1);
-
-        const left2 = 0;
-        const width2 = (arrTotalMinutes / totalDayMinutes) * 100;
-        if (width2 > 0) createBar(left2, width2);
-    }
-}
-
-
-function buildThemeSelector(selectedTheme) {
-    const themeSelector = document.getElementById('themeSelector');
-    themeSelector.innerHTML = '';
-    const themes = [
-        { name: 'Time Circuits', color: '#00ff00' },
-        { name: 'OUTATIME', color: '#ff0000' },
-        { name: '88 MPH', color: '#00ffff' },
-        { name: 'Plutonium Glow', color: '#a0ffa0' },
-        { name: 'Mr. Fusion', color: '#ff8c00' },
-        { name: 'Clock Tower', color: '#daa520' }
-    ];
-    themes.forEach((theme, index) => {
-        const option = document.createElement('div');
-        option.className = 'theme-option';
-        option.dataset.themeIndex = index;
-        const swatch = document.createElement('div');
-        swatch.className = 'theme-swatch';
-        swatch.style.backgroundColor = theme.color;
-        const name = document.createElement('span');
-        name.className = 'theme-name';
-        name.textContent = theme.name;
-        option.appendChild(swatch);
-        option.appendChild(name);
-        if (index === selectedTheme) swatch.classList.add('selected');
-        option.onclick = () => {
-            const currentSelected = document.querySelector('.theme-swatch.selected');
-            if (currentSelected) {
-                currentSelected.classList.remove('selected');
-            }
-            swatch.classList.add('selected');
-            applyTheme(index);
-        };
-        themeSelector.appendChild(option);
-    });
-    applyTheme(selectedTheme);
-}
-
-function clearPreferences() {
-    showCustomConfirm(
-        'Are you sure you want to clear all saved settings from the device? This cannot be undone and will reset the device to its default configuration.',
-        () => {
-            fetch('/api/clearPreferences', { method: 'POST' })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.text().then(text => { throw new Error(text); });
-                    }
-                    return response.text();
-                })
-                .then(text => {
-                    showMessage(text, 'success', 5000);
-                    setTimeout(() => {
-                        fetchAndApplyPresets().then(fetchSettings);
-                    }, 1000);
-                })
-                .catch(error => {
-                    showMessage(`Error clearing preferences: ${error.message}`, 'error');
-                });
-        }
-    );
+function showMessage(message, type = 'info', duration = 4000) {
+    const banner = document.getElementById('messageBanner');
+    if (!banner) return;
+    banner.textContent = message;
+    banner.className = `message-banner ${type}`;
+    banner.style.visibility = 'visible';
+    banner.style.opacity = '1';
+    if (banner.timer) clearTimeout(banner.timer);
+    banner.timer = setTimeout(() => {
+        banner.style.opacity = '0';
+        setTimeout(() => banner.style.visibility = 'hidden', 500);
+    }, duration);
 }

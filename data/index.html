@@ -6,9 +6,8 @@
     <link rel="stylesheet" type="text/css" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body>
+<body class="theme-time-circuits">
     <div id="messageBanner" class="message-banner"></div>
-
     <div class="container">
         <div class="header-circuits">
             <div class="circuit-row destination">
@@ -54,241 +53,235 @@
                 </div>
             </div>
         </div>
-        
         <h1>Back to the Future Clock</h1>
-
         <div class="tab-nav">
-            <button class="tab-link active" onclick="openTab(event, 'TimeCircuits')">Time Circuits</button>
-            <button class="tab-link" onclick="openTab(event, 'DisplaySound')">Temporal Controls</button>
-            <button class="tab-link" onclick="openTab(event, 'System')">Onboard Systems</button>
+            <button class="tab-link active" onclick="openTab(event, 'TimeCircuits')" data-tab="TimeCircuits">Time Circuits</button>
+            <button class="tab-link" onclick="openTab(event, 'DisplaySound')" data-tab="DisplaySound">Temporal Controls</button>
+            <button class="tab-link" onclick="openTab(event, 'DataLink')" data-tab="DataLink">Data Link</button>
+            <button class="tab-link" onclick="openTab(event, 'System')" data-tab="System">Network & System</button>
         </div>
-
         <div id="TimeCircuits" class="tab-content" style="display: block;">
             <div class="setting-group">
                 <h3>Destination Time & Year</h3>
                 <label for="destinationTimezoneSelect">Time Zone:</label>
                 <select id="destinationTimezoneSelect"></select>
-                <span id="destinationTimezoneSelectValidation" class="validation-message"></span>
                 <div class="time-circuit-display">
                     <div class="time-circuit-row">
-                        <div class="time-circuit-label">YEAR</div>
+                        <label for="destinationYear" class="time-circuit-label">YEAR</label>
                         <input type="number" id="destinationYear" class="time-circuit-input" min="1000" max="9999" value="1955">
-                        <span id="destinationYearValidation" class="validation-message"></span>
                     </div>
                 </div>
             </div>
-
             <div class="setting-group">
-                <h3>Last Time Departed</h3>
-                
-                <label for="windSpeedModeToggle">
-                    Enable Live Wind Speedometer
-                </label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="windSpeedModeToggle">
-                    <span class="slider round"></span>
-                </label>
-                
-                <div id="geolocationSettings" style="display:none;">
-                    <p>Enter your location for accurate wind speed. You can use a site like <a href="https://www.latlong.net/" target="_blank">latlong.net</a>.</p>
-                    <label for="latitude">Latitude:</label>
-                    <input type="number" id="latitude" step="any" placeholder="e.g., 43.47">
-                    <label for="longitude">Longitude:</label>
-                    <input type="number" id="longitude" step="any" placeholder="e.g., -80.52">
+                <h3>Last Time Departed & Presets</h3>
+                <p id="lastTimeDepartedDisplay" class="static-time-display">-- -- ---- --:-- --</p>
+                <div style="display:none;">
+                    <span id="lastTimeDepartedYear"></span><span id="lastTimeDepartedMonth"></span><span id="lastTimeDepartedDay"></span>
+                    <span id="lastTimeDepartedHour"></span><span id="lastTimeDepartedMinute"></span>
                 </div>
-
-                <div id="lastDepartedDateSection">
-                    <p id="lastTimeDepartedDisplay" class="static-time-display">-- -- ---- --:-- --</p>
-                    <div style="display:none;">
-                        <span id="lastTimeDepartedYear"></span><span id="lastTimeDepartedMonth"></span><span id="lastTimeDepartedDay"></span>
-                        <span id="lastTimeDepartedHour"></span><span id="lastTimeDepartedMinute"></span>
+                <label for="presetDateSelect">Famous & Custom Time Jumps:</label>
+                <div class="contextual-control-group">
+                    <select id="presetDateSelect">
+                        <optgroup label="From the Movies">
+                            <option value="">-- Select a Famous Date --</option>
+                            <option value="1985-10-26-01-21">The First Time Travel (1985)</option>
+                            <option value="1955-11-05-06-00">Lightning Strike (1955)</option>
+                            <option value="2015-10-21-16-29">Future Arrival (2015)</option>
+                            <option value="1885-01-01-00-00">Arrival in the Old West (1885)</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div id="presetActions" class="preset-buttons hidden">
+                    <button id="updatePresetBtn" class="action-button">Update Selected Preset</button>
+                    <button id="deletePresetBtn" class="delete-button">Delete Selected Preset</button>
+                </div>
+                <div class="preset-adder">
+                    <h4>Add a New Custom Time Jump</h4>
+                    <input type="text" id="presetName" placeholder="Preset Name (e.g., My Birthday)">
+                    <div class="preset-date-inputs">
+                        <input type="date" id="presetDate">
+                        <input type="time" id="presetTime">
                     </div>
-                    
-                    <label for="presetDateSelect">Famous Time Jumps:</label>
-                    <div class="contextual-control-group">
-                        <select id="presetDateSelect">
-                            <optgroup label="From the Movies">
-                                <option value="">-- Select a Famous Date --</option>
-                                <option value="1985-10-26-01-21">The First Time Travel (1985)</option>
-                                <option value="1955-11-05-06-00">Lightning Strike (1955)</option>
-                                <option value="2015-10-21-16-29">Future Arrival (2015)</option>
-                                <option value="1885-01-01-00-00">Arrival in the Old West (1885)</option>
-                            </optgroup>
-                        </select>
-                        <div id="presetActions" class="contextual-actions hidden">
-                            <button id="editPresetBtn" class="action-button" onclick="editPreset()">Edit</button>
-                            <button id="deletePresetBtn" class="action-button delete-button" onclick="deletePreset()">Delete</button>
-                        </div>
-                    </div>
-
-                    <label for="presetCycleInterval">
-                        Cycle Presets Every (min, 0=Off): <span id="presetCycleIntervalValue">10</span>
-                    </label>
-                    <div class="slider-container">
-                        <button class="incrementer-btn" data-target="presetCycleInterval" data-action="decrement">-</button>
-                        <input type="range" id="presetCycleInterval" min="0" max="60">
-                        <button class="incrementer-btn" data-target="presetCycleInterval" data-action="increment">+</button>
-                    </div>
-
-                    <div class="preset-adder">
-                        <h4>Add or Edit a Custom Time Jump</h4>
-                        <input type="text" id="presetName" placeholder="Preset Name (e.g., My Birthday)">
-                        <div class="preset-date-inputs">
-                            <input type="date" id="presetDate">
-                            <input type="time" id="presetTime">
-                        </div>
-                        <input type="hidden" id="editingPresetValue">
-                        <button id="addPresetBtn" onclick="addOrUpdatePreset()">Add to Presets</button>
-                        <button id="clearPresetsBtn" class="delete-button" onclick="showCustomConfirm('Delete ALL custom presets? This cannot be undone.', clearPresets)">Clear All Custom Presets</button>
-                    </div>
+                    <button id="addPresetBtn">Add to Presets</button>
+                </div>
+                <hr>
+                <label for="presetCycleInterval">Cycle Presets Every (min, 0=Off): <span id="presetCycleIntervalValue">10</span></label>
+                <div class="slider-container">
+                    <input type="range" id="presetCycleInterval" min="0" max="60">
                 </div>
             </div>
         </div>
-
         <div id="DisplaySound" class="tab-content">
             <div class="setting-group">
                 <h3>Departure/Arrival (Sleep) Times</h3>
-                
                 <label for="departureTime">Departure Time:</label>
                 <input type="time" id="departureTime" name="departureTime">
-            
                 <label for="arrivalTime">Arrival Time:</label>
                 <input type="time" id="arrivalTime" name="arrivalTime">
-                
-                <div class="sleep-schedule-visual" id="sleepScheduleVisualContainer">
+                <div class="sleep-schedule-visual">
+                    <div id="sleepScheduleBar" class="sleep-schedule-bar"></div>
                     <div id="currentTimeMarker"></div>
-                    <span id="sleepTimeDisplayLeft" class="sleep-time-display"></span>
-                    <span id="sleepTimeDisplayRight" class="sleep-time-display"></span>
+                    <span class="sleep-time-display">12AM</span>
+                    <span class="sleep-time-display">6AM</span>
+                    <span class="sleep-time-display">12PM</span>
+                    <span class="sleep-time-display">6PM</span>
                 </div>
             </div>
             <div class="setting-group">
                 <h3>Display</h3>
-                <label for="livePreviewToggle">
-                    Live Preview
-                </label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="livePreviewToggle" checked>
-                    <span class="slider round"></span>
-                </label>
-                <hr>
-                <label for="brightness">
-                    Display Brightness: <span id="brightnessValue">5</span><span class="feedback-check">✔</span>
-                </label>
+                <label for="brightness">Display Brightness: <span id="brightnessValue">5</span></label>
                 <div class="slider-container">
-                    <button class="incrementer-btn" data-target="brightness" data-action="decrement">-</button>
                     <input type="range" id="brightness" min="0" max="7">
-                    <button class="incrementer-btn" data-target="brightness" data-action="increment">+</button>
                 </div>
-                
-                <div class="setting-group">
-                    <h3>Time Travel Animations</h3>
-                    <label for="timeTravelAnimationDuration">
-                        Total Animation Duration (ms): <span id="timeTravelAnimationDurationValue">4000</span><span class="feedback-check">✔</span>
-                    </label>
-                    <div class="slider-container">
-                        <button class="incrementer-btn" data-target="timeTravelAnimationDuration" data-action="decrement">-</button>
-                        <input type="range" id="timeTravelAnimationDuration" min="1000" max="10000" step="100">
-                        <button class="incrementer-btn" data-target="timeTravelAnimationDuration" data-action="increment">+</button>
-                    </div>
-
-                    <label for="timeTravelAnimationInterval">
-                        Time Travel Animation Every (min, 0=Off): <span id="timeTravelAnimationIntervalValue">15</span>
-                    </label>
-                    <div class="slider-container">
-                        <button class="incrementer-btn" data-target="timeTravelAnimationInterval" data-action="decrement">-</button>
-                        <input type="range" id="timeTravelAnimationInterval" min="0" max="120">
-                        <button class="incrementer-btn" data-target="timeTravelAnimationInterval" data-action="increment">+</button>
-                    </div>
-
-                    <label for="animationStyleSelect">Animation Style:<span class="feedback-check">✔</span></label>
-                    <select id="animationStyleSelect">
-                        <option value="0">Sequential Flicker</option>
-                        <option value="1">Random Flicker</option>
-                        <option value="2">All Displays Random</option>
-                        <option value="3">Counting Up</option>
-                        <option value="4">Wave Flicker</option>
-                    </select>
-
-                    <label for="glitchEffectFrequency">
-                        Glitch Effect Instability (%): <span id="glitchEffectFrequencyValue">0</span><span class="feedback-check">✔</span>
-                    </label>
-                    <div class="slider-container">
-                        <button class="incrementer-btn" data-target="glitchEffectFrequency" data-action="decrement">-</button>
-                        <input type="range" id="glitchEffectFrequency" min="0" max="100">
-                        <button class="incrementer-btn" data-target="glitchEffectFrequency" data-action="increment">+</button>
-                    </div>
-                </div>
-                
-                <label for="themeSelector">Theme:</label>
-                <div id="themeSelector"></div>
-            </div>
-
-            <div class="setting-group">
-                <h3>Sound</h3>
-                <label for="notificationVolume">
-                    Notification Volume: <span id="volumeValue">15</span><span class="feedback-check">✔</span>
-                </label>
-                <div class="slider-container">
-                    <button class="incrementer-btn" data-target="notificationVolume" data-action="decrement">-</button>
-                    <input type="range" id="notificationVolume" min="0" max="30">
-                    <button class="incrementer-btn" data-target="notificationVolume" data-action="increment">+</button>
-                </div>
-                <label for="timeTravelSoundToggle">Time Travel Sound FX On:<span class="feedback-check">✔</span></label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="timeTravelSoundToggle">
-                    <span class="slider round"></span>
-                </label><br>
-                <label for="timeTravelVolumeFade">Time Travel Volume Fade:<span class="feedback-check">✔</span></label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="timeTravelVolumeFade">
-                    <span class="slider round"></span>
-                </label><br>
-                <button onclick="testSound()">Test Sound</button>
-            </div>
-        </div>
-
-        <div id="System" class="tab-content">
-            <div class="setting-group">
-                 <h3>Present Time</h3>
-                <p>Time Synchronized: <span id="timeSyncStatus">No</span></p>
-                <p>Last Sync Time: <span id="lastSyncTime">Never</span></p>
-                <p>Last NTP Server: <span id="lastNtpServer">N/A</span></p>
-                <label for="presentTimezoneSelect">Time Zone:</label>
-                <select id="presentTimezoneSelect"></select>
-                <span id="presentTimezoneSelectValidation" class="validation-message"></span>
-                <label for="displayFormat24h">24 Hour Format:<span class="feedback-check">✔</span></label>
+                <label for="displayFormat24h" class="toggle-label">24 Hour Format:</label>
                 <label class="toggle-switch">
                     <input type="checkbox" id="displayFormat24h">
                     <span class="slider round"></span>
                 </label>
-                <button id="syncNtpBtn" onclick="syncNtp()">Calibrate Present Time</button>
+                <br>
+                <label for="timeTravelAnimationDuration">Animation Duration (ms): <span id="timeTravelAnimationDurationValue">4000</span></label>
+                <div class="slider-container">
+                    <input type="range" id="timeTravelAnimationDuration" min="1000" max="10000" step="100">
+                </div>
+                <label for="timeTravelAnimationInterval">Animation Every (min, 0=Off): <span id="timeTravelAnimationIntervalValue">15</span></label>
+                <div class="slider-container">
+                    <input type="range" id="timeTravelAnimationInterval" min="0" max="120">
+                </div>
+                <label for="animationStyleSelect">Animation Style:</label>
+                <select id="animationStyleSelect">
+                    <option value="0">Sequential Flicker</option>
+                    <option value="1">Random Flicker</option>
+                    <option value="2">All Displays Random</option>
+                    <option value="3">Counting Up</option>
+                    <option value="4">Wave Flicker</option>
+                </select>
+                <label for="glitchEffectFrequency">Glitch Instability (%): <span id="glitchEffectFrequencyValue">0</span></label>
+                <div class="slider-container">
+                    <input type="range" id="glitchEffectFrequency" min="0" max="100">
+                </div>
+                <label for="malfunctionFrequency">Malfunction Chance (1 in X): <span id="malfunctionFrequencyValue">25</span></label>
+                <div class="slider-container">
+                    <input type="range" id="malfunctionFrequency" min="1" max="200" value="25">
+                </div>
+                </div>
+            <div class="setting-group">
+                <h3>Sound</h3>
+                <label for="notificationVolume">Volume: <span id="volumeValue">15</span></label>
+                <div class="slider-container">
+                    <input type="range" id="notificationVolume" min="0" max="30">
+                </div>
+                <label for="timeTravelSoundToggle" class="toggle-label">Time Travel Sound FX:</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="timeTravelSoundToggle">
+                    <span class="slider round"></span>
+                </label>
+                <br>
+                <label for="timeTravelVolumeFade" class="toggle-label">Time Travel Volume Fade:</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="timeTravelVolumeFade">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+        <div id="DataLink" class="tab-content">
+            <div class="setting-group">
+                <h3>Data Link Configuration</h3>
+                <label for="dataLinkEnabled" class="toggle-label">Enable Data Link Marquee</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="dataLinkEnabled">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div id="dataLinkSettingsContainer" style="display:none;">
+                <div class="setting-group">
+                     <h3>Global Marquee Settings</h3>
+                     <label for="dataLinkTargetRow">Target Display Row:</label>
+                     <select id="dataLinkTargetRow">
+                         <option value="0">Top (Destination)</option>
+                         <option value="1">Middle (Present)</option>
+                         <option value="2">Bottom (Last Departed)</option>
+                     </select>
+                     <label for="dataLinkRefreshInterval">Refresh All Data Every (min): <span id="dataLinkRefreshIntervalValue">10</span></label>
+                     <div class="slider-container">
+                         <input type="range" id="dataLinkRefreshInterval" min="1" max="60" value="10">
+                     </div>
+                </div>
+                <div class="setting-group">
+                    <h3>API Data Points</h3>
+                    <label for="apiTemplateSelector">Load a Template (for Data Point 1):</label>
+                    <select id="apiTemplateSelector">
+                        <option value="">-- Select a Template --</option>
+                        <optgroup label="Finance">
+                            <option value="nasdaq">Stock: NASDAQ Index</option>
+                            <option value="sp500">Stock: S&P 500 Index</option>
+                            <option value="tsx">Stock: TSX Index</option>
+                            <option value="usdcad">FX: USD to CAD</option>
+                            <option value="crypto">Crypto: Bitcoin Price</option>
+                        </optgroup>
+                        <optgroup label="Weather & Environment">
+                            <option value="windSpeed">Live: Wind Speed</option>
+                            <option value="feelsLike">Weather: Feels Like Temp</option>
+                            <option value="humidity">Weather: Humidity</option>
+                            <option value="uvIndex">Weather: UV Index</option>
+                            <option value="aqi">Weather: Air Quality (AQI)</option>
+                        </optgroup>
+                        <optgroup label="Fun & Social">
+                             <option value="youtube">Social: YouTube Subs</option>
+                             <option value="space">Fun: People in Space</option>
+                        </optgroup>
+                    </select>
+                     <label for="numDataPoints">Number of Data Points: <span id="numDataPointsValue">1</span></label>
+                     <div class="slider-container">
+                         <input type="range" id="numDataPoints" min="0" max="5" value="1">
+                     </div>
+                     <div id="dataPointsConfigContainer"></div>
+                </div>
+            </div>
+        </div>
+        <div id="System" class="tab-content">
+            <div class="setting-group">
+                 <h3>Present Time</h3>
+                <p>Time Synchronized: <span id="timeSyncStatus">No</span></p>
+                <label for="presentTimezoneSelect">Time Zone:</label>
+                <select id="presentTimezoneSelect"></select>
+                <button id="syncNtpBtn">Calibrate Present Time</button>
             </div>
             <div class="setting-group">
-                <h3>Network Status</h3>
-                <p>Connected to: <span id="wifiSSID">--</span></p>
-                <div class="wifi-signal-line">
-                    <span>WiFi Signal: </span>
-                    <div class="wifi-indicator" id="wifiStrength">
-                        <div class="wifi-bar"></div>
-                        <div class="wifi-bar"></div>
-                        <div class="wifi-bar"></div>
-                        <div class="wifi-bar"></div>
+                <h3>UI Theme</h3>
+                <div id="themeSelector" class="theme-selector">
+                    <div class="theme-option" data-theme="theme-time-circuits">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #00ff00, #00ffff);"></div>
+                        <span class="theme-name">Time Circuits</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-outatime">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #ff0000, #ffdd00);"></div>
+                        <span class="theme-name">OUTATIME</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-88mph">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #7df9ff, #005f73);"></div>
+                        <span class="theme-name">88 MPH</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-plutonium-glow">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #a0ffa0, #ffffaa);"></div>
+                        <span class="theme-name">Plutonium Glow</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-mr-fusion">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #ff6a00, #cccccc);"></div>
+                        <span class="theme-name">Mr. Fusion</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-clock-tower">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #daa520, #f5f5dc);"></div>
+                        <span class="theme-name">Clock Tower</span>
                     </div>
                 </div>
-                 <button id="resetWifiBtn" onclick="showCustomConfirm('Are you sure you want to reset WiFi credentials?', resetWifi)" class="reset-button">Network Re-Route (Reset WiFi Credentials)</button>
             </div>
-             <div class="setting-group">
+            <div class="setting-group">
                 <h3>Device Actions</h3>
-                <button id="testAnimationBtn">Test Time Travel Sequence</button>
-                <button id="powerOfLoveBtn">Great Scott, This Is Heavy!</button>
-                <button id="resetDefaultsBtn" onclick="showCustomConfirm('This will clear all settings and presets. Are you sure?', resetToDefaults)" class="reset-button">Reset All Settings to Default</button>
-                <button id="clearPreferencesBtn" onclick="showCustomConfirm('This will clear ALL saved settings and presets from the device. Are you sure?', clearPreferences)" class="delete-button">Clear Saved Settings</button>
-             </div>
+                <button id="resetDefaultsBtn" class="reset-button">Reset All Settings to Default</button>
+            </div>
         </div>
-
-        <button id="saveSettingsBtn" onclick="saveSettings()" disabled>Engage Time Circuits (Save All Settings)</button>
+        <button id="saveSettingsBtn" disabled>Engage Time Circuits (Save All Settings)</button>
     </div>
-
     <div id="customConfirm" class="modal">
         <div class="modal-content">
             <p id="confirmMsg"></p>
@@ -296,7 +289,6 @@
             <button id="confirmNo">No</button>
         </div>
     </div>
-
     <script src="/script.js"></script>
 </body>
 </html>

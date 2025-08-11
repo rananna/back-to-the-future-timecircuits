@@ -26,6 +26,25 @@
 #define SOUND_NOT_FOUND "NOT_FOUND" // New macro for the fallback sound
 // --------------------------------------------------------
 
+// --- UPDATED: Marquee Data Point Structure ---
+struct DataPoint {
+  // Core Data
+  char url[256];
+  char label[5];
+  char jsonPath[128];
+  char format[32];
+
+  // Visuals
+  char icon[16];
+  int transitionEffect;
+  int scrollSpeed;
+  int textAlign;
+
+  // Live Data
+  bool isLiveData;
+  char liveDataTag[16];
+};
+
 // Structs are fully defined here so both files can access them
 struct ClockSettings {
   int destinationYear;
@@ -43,12 +62,23 @@ struct ClockSettings {
   int presentTimezoneIndex;
   unsigned long timeTravelAnimationDuration;
   int animationStyle;
-  int glitchEffectFrequency; // *** NEW SETTING ADDED ***
+  int glitchEffectFrequency;
+  int malfunctionFrequency; // <-- ADDED
   bool timeTravelVolumeFade;
-  bool windSpeedModeEnabled; // NEW
-  float longitude; // NEW
-  float latitude; // NEW
+  bool windSpeedModeEnabled;
+  float longitude;
+  float latitude;
+
+  // Global Marquee Settings
+  bool dataLinkEnabled;
+  int dataLinkTargetRow;
+  int dataLinkRefreshInterval;
+
+  // Data Points
+  int numDataPoints;
+  DataPoint dataPoints[5];
 };
+
 struct DisplayRow {
   Adafruit_7segment month;
   Adafruit_7segment day;
@@ -70,13 +100,14 @@ struct TimeZoneEntry {
 // Global declarations using 'extern'
 extern ClockSettings currentSettings;
 extern DisplayRow destRow, presRow, lastRow;
-extern DFRobotDFPlayerMini myDFPlayer; 
+extern DFRobotDFPlayerMini myDFPlayer;
 extern HardwareSerial dfpSerial;
 extern std::map<String, int> soundFiles;
 extern const bool ENABLE_HARDWARE;
 extern const bool ENABLE_I2C_HARDWARE;
 extern const TimeZoneEntry TZ_DATA[];
 extern const int NUM_TIMEZONE_OPTIONS;
+extern float currentWindSpeed;
 
 // Hardware Pin Definitions for I2C
 #define I2C_SDA_1 21
@@ -95,10 +126,10 @@ extern const int NUM_TIMEZONE_OPTIONS;
 #define ADDR_PRES_YEAR  0x76
 #define ADDR_PRES_TIME  0x77
 
-#define ADDR_LAST_MONTH 0x70 
-#define ADDR_LAST_DAY   0x71 
-#define ADDR_LAST_YEAR  0x72 
-#define ADDR_LAST_TIME  0x73 
+#define ADDR_LAST_MONTH 0x70
+#define ADDR_LAST_DAY   0x71
+#define ADDR_LAST_YEAR  0x72
+#define ADDR_LAST_TIME  0x73
 
 // Corrected pin assignments for DFP
 #define DFP_TX_PIN 17
@@ -116,9 +147,12 @@ void animateYearDisplay(DisplayRow &row);
 void animateTimeDisplay(DisplayRow &row);
 void animateAmPmDisplay(DisplayRow &row);
 void display88MphSpeed(float currentSpeed);
-void displayWindSpeed(float currentSpeed); // NEW
+void displayWindSpeed(float currentSpeed);
 void playSound(const char *soundName);
 void setupSoundFiles();
-void updateNormalClockDisplay(); // Forward declaration for use in other files
+void drawIcon(Adafruit_7segment &disp, const char* iconName);
+
+// *** FIX: Added prototype for function defined in the .ino file ***
+void runBootSequence();
 
 #endif // HARDWARE_CONTROL_H

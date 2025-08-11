@@ -233,7 +233,6 @@ body {
 .colon {
     opacity: 0.8;
 }
-/* More specific rules to ensure colors are applied correctly without !important */
 .circuit-row.destination .circuit-content,
 .circuit-row.destination .circuit-content span { color: #ff0000; }
 .circuit-row.present .circuit-content,
@@ -654,7 +653,7 @@ p.static-time-display {
     max-width: 500px;
     color: black;
 }
-#themeSelector {
+.theme-selector {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -841,9 +840,58 @@ body.time-travel-active {
     transition: left 1s linear;
 }
 
-/* =================================================================
-   == MOBILE RESPONSIVENESS                                       ==
-   ================================================================= */
+/* --- NEW Marquee and Validation Styles --- */
+.toggle-label {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 15px;
+}
+.data-point-block {
+    border-style: dashed;
+    border-width: 2px;
+    margin-top: 25px;
+    padding-top: 15px;
+}
+.data-point-block h4 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+    color: var(--highlight-text-color);
+}
+.test-api-btn {
+    background-color: #005f73;
+    border-color: #7df9ff;
+    color: #94d2bd;
+    margin-top: 20px;
+}
+.test-api-btn:hover {
+    background-color: #0a9396;
+    box-shadow: 0 0 10px rgba(125, 249, 255, 0.9);
+}
+input.invalid {
+    border-color: var(--invalid-input-border) !important;
+    box-shadow: 0 0 8px var(--invalid-input-shadow) !important;
+}
+.verification-status {
+    font-size: 0.8em;
+    font-weight: normal;
+    color: #ffcc00; /* Yellow for verifying */
+}
+.loading-spinner {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 2px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+    -webkit-animation: spin 1s ease-in-out infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@-webkit-keyframes spin { to { -webkit-transform: rotate(360deg); } }
+
 @media (max-width: 768px) {
     body {
         padding: 10px;
