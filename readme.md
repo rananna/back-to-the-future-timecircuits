@@ -61,15 +61,18 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
     * **Dynamic Sound Effects**: An integrated DFPlayer Mini MP3 module plays iconic movie sounds for events like time travel, button confirmations, and power-ups. The system dynamically scans the SD card for sound files, which must be named correctly (e.g., `TIME_TRAVEL.mp3`, `ACCELERATION.mp3`).
     * **Physical Time Travel Animations**: Trigger a physical animation on the hardware where all displays flicker with random dates and times before settling on the new present time.
     * **Multiple Animation Styles**: Choose from several animation styles via the web UI, including "Sequential Flicker," "Random Flicker," "All Displays Random," "Counting Up," and "Wave Flicker."
-    * **Random Glitch Effect**: A configurable "instability" setting allows for random, intermittent display glitches, making the prop feel more authentic.
+    * **Random Glitch & Malfunction Effects**: A configurable "instability" setting allows for random, intermittent display glitches. There's also a separately configurable chance for a more dramatic **"malfunction" sequence**, where displays go haywire, show an error message like "TIME CIRCUIT OVERLOAD," and simulate a full reboot sequence.
     * **Cinematic Boot Sequence**: A non-blocking startup sequence plays on the displays, showing messages like "88 MPH," "RECALIBRATING," and "CAPACITOR FULL".
 
-#### **Advanced Web Interface**
+#### **Advanced Web Interface & Data Link**
 * **Live Control**: A mobile-friendly web interface allows for full control over all the clock's settings.
 * **Thematic Header**: The UI header is a screen-accurate, real-time replica of the physical display, updating every second.
-* **Live Preview Mode**: See changes on the physical clock instantly as you adjust sliders and toggles in the UI, without needing to hit "Save".
-* **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal (`timecircuits`) for easy initial network setup. The device can also be configured to reset its WiFi credentials from the web UI.
-* **Customizable UI Themes**: Change the color scheme of the web interface to one of several included themes, such as "OUTATIME," "Plutonium Glow," or "Mr. Fusion".
+* **Data Link Marquee**: The most advanced feature is a fully configurable "Data Link" marquee. You can configure any of the three display rows to show real-time data from any JSON-based API on the web.
+* **API Templates**: The UI comes with pre-configured templates for fetching financial data (stocks, crypto), weather information (temperature, humidity), and even fun stats like the number of people in space.
+* **Custom Icons**: The marquee can display custom icons (e.g., SUN, CLOUD, WIFI, BTC) on the 14-segment displays alongside the data.
+* **Customizable Display**: For each data point, you can customize the API URL, JSON path, display label, format, icon, and scroll speed.
+* **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal named **BTTF-Clock-Setup** for easy initial network setup.
+* **Customizable UI Themes**: Change the color scheme of the web interface to one of several included themes, such as "OUTATIME," "Plutonium Glow," "88 MPH," "Mr. Fusion," or "Clock Tower".
 
 #### **Customization & Convenience**
 * **Live Wind Speedometer Mode**: Switch the "Last Time Departed" row into a real-time speedometer that shows the current wind speed for your geographic location, fetched from the Open-Meteo API.
@@ -124,8 +127,8 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 | **I2C Bus 1 (SCL)** | `GPIO 22` | Green | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. |
 | **I2C Bus 2 (SDA)** | `GPIO 25` | Blue | Connects to the SDA pin of the 4 "Last Time Departed" row displays. |
 | **I2C Bus 2 (SCL)** | `GPIO 26` | White | Connects to the SCL pin of the 4 "Last Time Departed" row displays. |
-| **DFPlayer Mini (RX)** | `GPIO 17` | Orange | Connects to the **TX** pin of the DFPlayer. **Cross this connection!** |
-| **DFPlayer Mini (TX)** | `GPIO 16` | Purple | Connects to the **RX** pin of the DFPlayer. **Cross this connection!** |
+| **DFPlayer Mini (RX)** | `GPIO 16` | Purple | Connects to the **TX** pin of the DFPlayer. This is `DFP_RX_PIN` in the code. |
+| **DFPlayer Mini (TX)** | `GPIO 17` | Orange | Connects to the **RX** pin of the DFPlayer. This is `DFP_TX_PIN` in the code. |
 | **Destination AM LED** | `GPIO 13` | | Connects to the anode (+) of the AM LED for the Destination row. |
 | **Destination PM LED** | `GPIO 14` | | Connects to the anode (+) of the PM LED for the Destination row. |
 | **Present AM LED** | `GPIO 32` | | Connects to the anode (+) of the AM LED for the Present row. |
@@ -171,8 +174,6 @@ This project uses two separate I2C buses to manage all 12 displays without addre
     Use the table below to configure the addresses for your displays. You will need to set addresses for two separate groups: one for I2C Bus 1 and one for I2C Bus 2.
 
     * **To bridge a jumper**: Use a soldering iron to apply a small amount of solder to connect the two pads. The connection should be a clean, solid bridge.
-
-    
 
     #### **Project-Specific Jumper Connections**
     This table outlines the exact solder jumper settings you'll need for each of the 12 display modules on both I2C buses to ensure they all have the correct, unique addresses required by the project code.
@@ -225,21 +226,22 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 ## 💡 Configuration & Usage
 
 1.  **First-Time WiFi Setup**:
-    * On the first boot, the ESP32 will create a WiFi network named `timecircuits`.
+    * On the first boot, the ESP32 will create a WiFi network named **BTTF-Clock-Setup**.
     * Connect to this network with your phone or computer. A captive portal should automatically open.
     * Select your home WiFi network, enter the password, and save. The device will then connect to your network and restart.
 
 2.  **Accessing the Web Interface**:
     * Once connected, the device will be accessible at `http://timecircuits.local/` from any device on the same network.
-    * Use the tabs—**Time Circuits**, **Temporal Controls**, and **Onboard Systems**—to configure all aspects of the clock.
+    * Use the tabs—**Time Circuits**, **Temporal Controls**, **Data Link**, and **Network & System**—to configure all aspects of the clock.
 
 3.  **Key Settings to Configure**:
-    * **Time Circuits Tab**: Set your destination year, select a "Famous Time Jump," and configure preset cycling.
-    * **Temporal Controls Tab**: Adjust display brightness, sound volume, animation styles, and the frequency of the random glitch effect.
-    * **Onboard Systems Tab**: Set your present time zone, sync with NTP servers, and manage network settings.
+    * **Time Circuits Tab**: Set your destination year, select a "Famous Time Jump," and add, update, or delete your own custom presets.
+    * **Temporal Controls Tab**: Adjust display brightness, sound volume, animation styles, and the frequency of the random glitch and malfunction effects.
+    * **Data Link Tab**: Enable and configure the marquee feature. Select a target display row, refresh interval, and set up individual API data points.
+    * **Network & System Tab**: Set your present time zone, sync with NTP servers, change the UI theme, and reset all settings to default.
 
 4.  **Engage Time Circuits!**:
-    * After making changes, the **"Engage Time Circuits (Save All Settings)"** button will glow. Click it to save your configuration to the device's permanent memory. A time travel animation will play on the physical display to confirm the save.
+    * After making changes, the **"Engage Time Circuits (Save All Settings)"** button will become enabled. Click it to save your configuration to the device's permanent memory. A time travel animation will play on the physical display to confirm the save.
 
 ---
 
@@ -275,7 +277,7 @@ Having trouble? Here are some common issues and their solutions.
 * **Only some of my displays work.**
     * This is almost always an **I2C address conflict**. Each display on the *same bus* must have a unique address. Carefully re-check the solder jumpers on the back of each display module to ensure they match the addresses listed in the wiring section.
 
-* **I can't connect to the `timecircuits` WiFi network.**
+* **I can't connect to the `BTTF-Clock-Setup` WiFi network.**
     * This hotspot is only created on the very first boot or after the WiFi credentials have been reset. If the device has already connected to your home network, it will not appear again. To re-trigger it, you must either reset the credentials from the web UI or re-flash the device after clearing the preferences.
 
 * **The web interface shows "Not Found" or is missing content.**
