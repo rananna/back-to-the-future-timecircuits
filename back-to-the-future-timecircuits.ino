@@ -70,6 +70,7 @@ bool ntpSyncRequested = false;
 WiFiManager wifiManager;
 AsyncWebServer server(80);
 Preferences preferences;
+
 // Animation and sleep state
 bool isAnimating = false;
 unsigned long animationStartTime = 0;
@@ -88,6 +89,7 @@ unsigned long glitchStartTime = 0;
 unsigned long lastPresetCycleTime = 0;
 int currentPresetIndex = 0;
 float currentWindSpeed = 0.0;
+
 // Marquee Display Engine Variables
 enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
 MarqueeState marqueeState = M_IDLE;
@@ -102,7 +104,7 @@ bool isFetchingData = false;
 int dataPointFetchFailures[5] = {0, 0, 0, 0, 0};
 const int MAX_FETCH_FAILURES = 3;
 
-// --- ADDED: Malfunction State Variables ---
+// --- Malfunction State Variables ---
 bool isMalfunctioning = false;
 unsigned long malfunctionStartTime = 0;
 enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
@@ -113,7 +115,7 @@ void startTimeTravelAnimation();
 void handleDisplayAnimation();
 void handleBootSequence();
 void handleGlitchEffect();
-void handleMalfunction(); // <-- ADDED
+void handleMalfunction();
 void restoreDisplayAfterGlitch();
 void handlePresetCycling();
 void handleSleepSchedule();
@@ -121,6 +123,7 @@ void updateNormalClockDisplay();
 void fetchDataLink();
 void updateMarqueeDisplay();
 void fetchWindSpeed();
+
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
     strncpy(path_copy, path, sizeof(path_copy) - 1);
@@ -197,12 +200,12 @@ void setupWebRoutes() {
     doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
     doc["animationStyle"] = currentSettings.animationStyle;
     doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency;
-    doc["malfunctionFrequency"] = currentSettings.malfunctionFrequency; // <-- ADDED
+    doc["malfunctionFrequency"] = currentSettings.malfunctionFrequency;
     doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
     doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade;
     doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
-String jsonString;
+    String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
@@ -215,14 +218,12 @@ String jsonString;
     response += "\"dataPoints\":[";
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
         response += "{";
-        
-response += "\"url\":\"" + String(currentSettings.dataPoints[i].url) + "\",";
-  
+        response += "\"url\":\"" + String(currentSettings.dataPoints[i].url) + "\",";
         response += "\"label\":\"" + String(currentSettings.dataPoints[i].label) + "\",";
         response += "\"jsonPath\":\"" + String(currentSettings.dataPoints[i].jsonPath) + "\",";
         response += "\"format\":\"" + String(currentSettings.dataPoints[i].format) + "\",";
         response += "\"icon\":\"" + String(currentSettings.dataPoints[i].icon) + "\",";
-response += "\"scrollSpeed\":" + String(currentSettings.dataPoints[i].scrollSpeed) + ",";
+        response += "\"scrollSpeed\":" + String(currentSettings.dataPoints[i].scrollSpeed) + ",";
         response += "\"isLiveData\":" + String(currentSettings.dataPoints[i].isLiveData ? "true" : "false") + ",";
         response += "\"liveDataTag\":\"" + String(currentSettings.dataPoints[i].liveDataTag) + "\"";
         response += "}";
@@ -258,11 +259,10 @@ response += "\"scrollSpeed\":" + String(currentSettings.dataPoints[i].scrollSpee
     };
     currentSettings.destinationYear = getParamInt("destinationYear", currentSettings.destinationYear);
     currentSettings.destinationTimezoneIndex = getParamInt("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex);
-    if 
-(request->hasParam("lastTimeDepartedYear", true)) {
+    if (request->hasParam("lastTimeDepartedYear", true)) {
         currentSettings.lastTimeDepartedYear = getParamInt("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear);
         currentSettings.lastTimeDepartedMonth = getParamInt("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth);
-currentSettings.lastTimeDepartedDay = getParamInt("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay);
+        currentSettings.lastTimeDepartedDay = getParamInt("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay);
         currentSettings.lastTimeDepartedHour = getParamInt("lastTimeDepartedHour", currentSettings.lastTimeDepartedHour);
         currentSettings.lastTimeDepartedMinute = getParamInt("lastTimeDepartedMinute", currentSettings.lastTimeDepartedMinute);
     }
@@ -277,16 +277,15 @@ currentSettings.lastTimeDepartedDay = getParamInt("lastTimeDepartedDay", current
     currentSettings.animationStyle = getParamInt("animationStyle", currentSettings.animationStyle);
     currentSettings.glitchEffectFrequency = getParamInt("glitchEffectFrequency", currentSettings.glitchEffectFrequency);
     currentSettings.malfunctionFrequency = getParamInt("malfunctionFrequency", currentSettings.malfunctionFrequency);
-// <-- ADDED
     currentSettings.notificationVolume = getParamInt("notificationVolume", currentSettings.notificationVolume);
-currentSettings.timeTravelSoundToggle = (getParamValue("timeTravelSoundToggle") == "true");
+    currentSettings.timeTravelSoundToggle = (getParamValue("timeTravelSoundToggle") == "true");
     currentSettings.timeTravelVolumeFade = (getParamValue("timeTravelVolumeFade") == "true");
     currentSettings.presentTimezoneIndex = getParamInt("presentTimezoneIndex", currentSettings.presentTimezoneIndex);
     currentSettings.displayFormat24h = (getParamValue("displayFormat24h") == "true");
-currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
+    currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
     currentSettings.dataLinkTargetRow = getParamInt("dataLinkTargetRow", currentSettings.dataLinkTargetRow);
     currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
-if (request->hasParam("numDataPoints", true)) {
+    if (request->hasParam("numDataPoints", true)) {
         int numDataPoints = getParamInt("numDataPoints", currentSettings.numDataPoints);
         if (numDataPoints > 5) numDataPoints = 5;
         currentSettings.numDataPoints = numDataPoints;
@@ -345,7 +344,6 @@ if (request->hasParam("numDataPoints", true)) {
             preset["value"] = value;
             break;
         }
- 
     }
     String newPresetsJson;
     serializeJson(doc, newPresetsJson);
@@ -364,8 +362,7 @@ if (request->hasParam("numDataPoints", true)) {
             break;
         }
     }
-   
-String newPresetsJson;
+    String newPresetsJson;
     serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
     request->send(200, "text/plain", "Preset deleted!");
@@ -400,15 +397,13 @@ String newPresetsJson;
         DeserializationError error = deserializeJson(doc, http.getStream());
         if (error == DeserializationError::Ok) {
             JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), path.c_str());
-        
-    if (!value.isNull()) {
+            if (!value.isNull()) {
                 request->send(200, "application/json", "{\"success\":true, \"value\":\"" + value.as<String>() + "\"}");
             } else {
                 request->send(200, "application/json", "{\"success\":false, \"error\":\"JSON Path not found.\"}");
             }
         } else {
-            request->send(200, 
-"application/json", "{\"success\":false, \"error\":\"JSON Parsing Failed.\"}");
+            request->send(200, "application/json", "{\"success\":false, \"error\":\"JSON Parsing Failed.\"}");
         }
     } else {
         request->send(200, "application/json", "{\"success\":false, \"error\":\"HTTP Error: " + String(httpCode) + "\"}");
@@ -469,8 +464,7 @@ void loop() {
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
     struct tm timeinfo;
-    if(getLocalTime(&timeinfo, 5000)){ timeSynchronized = true;
-    }
+    if(getLocalTime(&timeinfo, 5000)){ timeSynchronized = true; }
     else { timeSynchronized = false; }
     currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
     lastNtpUpdate = millis();
@@ -479,10 +473,9 @@ void loop() {
 }
 
 void startTimeTravelAnimation() {
-    if (isAnimating) { return;
-    }
+    if (isAnimating) { return; }
     isAnimating = true;
-animationStartTime = millis();
+    animationStartTime = millis();
     currentPhase = ANIM_FLICKER;
     #if ENABLE_HARDWARE
     if (currentSettings.timeTravelSoundToggle) {
@@ -574,9 +567,9 @@ void handleMalfunction() {
     case MAL_REBOOT:
       // Step 3: Simulate a reboot
       blankAllDisplays(); // Turn off all displays
-      runBootSequence();  // Trigger the existing boot sequence
+      runBootSequence(); // Trigger the existing boot sequence
       
-      // FIX: Removed the following two lines to allow the boot sequence to complete.
+      // FIX: The following two lines were correctly removed to allow the boot sequence to complete.
       // isMalfunctioning = false;
       // currentMalfunctionPhase = MAL_INACTIVE;
       break;
@@ -589,18 +582,29 @@ void runBootSequence() {
   bootStateStartTime = millis();
 }
 
+// --- BUG FIX: Corrected Boot Sequence Handler ---
 void handleBootSequence() {
   if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
   unsigned long elapsed = millis() - bootStateStartTime;
+
   if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
     bootState = static_cast<BootSequenceState>(bootState + 1);
     bootStateStartTime = millis();
+
     if (bootState >= BOOT_COMPLETE) {
       bootState = BOOT_COMPLETE;
       updateNormalClockDisplay();
+
+      // **RECOMMENDED FIX IMPLEMENTED HERE**
+      // Reset malfunction state only after the boot sequence has finished.
+      if (isMalfunctioning) {
+        isMalfunctioning = false;
+        currentMalfunctionPhase = MAL_INACTIVE;
+      }
       return;
     }
   }
+
   #if ENABLE_HARDWARE
   switch (bootState) {
     case BOOT_88MPH:
@@ -633,7 +637,7 @@ void handleGlitchEffect() {
     lastGlitchTime = millis();
     if (random(100) < currentSettings.glitchEffectFrequency) {
       
-      // MODIFIED: Check for a major malfunction
+      // Check for a major malfunction
       if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
         isMalfunctioning = true;
         malfunctionStartTime = millis();
@@ -686,15 +690,15 @@ void handleSleepSchedule() {
 }
 
 void updateNormalClockDisplay() {
-  if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return; // <-- ADDED isMalfunctioning
-#if ENABLE_HARDWARE
+  if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return;
+  #if ENABLE_HARDWARE
   if (timeSynchronized) {
     time_t now;
     time(&now);
     struct tm timeinfo;
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
-localtime_r(&now, &timeinfo);
+    localtime_r(&now, &timeinfo);
     updateDisplayRow(presRow, timeinfo, timeinfo.tm_year + 1900);
     setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
     tzset();
@@ -753,12 +757,9 @@ void fetchDataLink() {
                     fetchedValue = value.as<String>();
                     if (fetchedValue.length() > 256) fetchedValue = fetchedValue.substring(0, 256);
                     fetchSuccess = true;
-                } else { fetchedValue = "PATH ERR";
-                }
-            } else { fetchedValue = "JSON ERR";
-            }
-        } else { fetchedValue = "HTTP ERR";
-        }
+                } else { fetchedValue = "PATH ERR"; }
+            } else { fetchedValue = "JSON ERR"; }
+        } else { fetchedValue = "HTTP ERR"; }
         http.end();
     }
     if (fetchSuccess) {
