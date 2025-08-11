@@ -60,8 +60,8 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 * **Audio-Visual Experience**:
     * **Dynamic Sound Effects**: An integrated DFPlayer Mini MP3 module plays iconic movie sounds for events like time travel, button confirmations, and power-ups. The system dynamically scans the SD card for sound files, which must be named correctly (e.g., `TIME_TRAVEL.mp3`, `ACCELERATION.mp3`).
     * **Physical Time Travel Animations**: Trigger a physical animation on the hardware where all displays flicker with random dates and times before settling on the new present time.
-    * **Multiple Animation Styles**: Choose from several animation styles via the web UI, including "Sequential Flicker," "Random Flicker," "All Displays Random," "Counting Up," and "Wave Flicker."
-    * **Random Glitch & Malfunction Effects**: A configurable "instability" setting allows for random, intermittent display glitches. There's also a separately configurable chance for a more dramatic **"malfunction" sequence**, where displays go haywire, show an error message like "TIME CIRCUIT OVERLOAD," and simulate a full reboot sequence.
+    * **Multiple Animation Styles**: Choose from several animation styles via the web UI, including "Sequential Flicker," "Random Flicker," "All Displays Random," "Counting Up," and "Wave Flicker".
+    * **Random Glitch & Malfunction Effects**: A configurable "instability" setting allows for random, intermittent display glitches for an authentic feel. There's also a separately configurable chance for a more dramatic **"malfunction" sequence**, where displays go haywire, show an error message like "TIME CIRCUIT OVERLOAD," and simulate a full reboot.
     * **Cinematic Boot Sequence**: A non-blocking startup sequence plays on the displays, showing messages like "88 MPH," "RECALIBRATING," and "CAPACITOR FULL".
 
 #### **Advanced Web Interface & Data Link**
@@ -127,8 +127,8 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 | **I2C Bus 1 (SCL)** | `GPIO 22` | Green | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. |
 | **I2C Bus 2 (SDA)** | `GPIO 25` | Blue | Connects to the SDA pin of the 4 "Last Time Departed" row displays. |
 | **I2C Bus 2 (SCL)** | `GPIO 26` | White | Connects to the SCL pin of the 4 "Last Time Departed" row displays. |
-| **DFPlayer Mini (RX)** | `GPIO 16` | Purple | Connects to the **TX** pin of the DFPlayer. **Cross this connection!** |
-| **DFPlayer Mini (TX)** | `GPIO 17` | Orange | Connects to the **RX** pin of the DFPlayer. **Cross this connection!** |
+| **DFPlayer Mini (RX)** | `GPIO 16` | Purple | Connects to the **TX** pin of the DFPlayer. This is `DFP_RX_PIN` in the code. **Cross this connection!** |
+| **DFPlayer Mini (TX)** | `GPIO 17` | Orange | Connects to the **RX** pin of the DFPlayer. This is `DFP_TX_PIN` in the code. **Cross this connection!** |
 | **Destination AM LED** | `GPIO 13` | | Connects to the anode (+) of the AM LED for the Destination row. |
 | **Destination PM LED** | `GPIO 14` | | Connects to the anode (+) of the PM LED for the Destination row. |
 | **Present AM LED** | `GPIO 32` | | Connects to the anode (+) of the AM LED for the Present row. |
@@ -269,7 +269,7 @@ For those who want to understand the inner workings of the Time Circuits clock, 
     * **Bus 2 (`GPIO 25/26`)**: Controls the four displays for the "Last Time Departed" row.
     This dual-bus architecture allows all twelve displays to be controlled independently without address conflicts.
 
-* **Animation State Machine**: The complex time travel animations are managed by a **state machine** within the main `.ino` file. When an animation is triggered, a global variable (`currentPhase`) transitions through a series of states (e.g., `ANIM_FLICKER`, `ANIM_DIM_OUT`). The main `loop()` function checks the current state and the time elapsed since the last state change to determine what to show on the displays and what sounds to play. This non-blocking approach is crucial because it allows the ESP32 to handle complex, multi-second animations without freezing or becoming unresponsive, ensuring the web server and other functions continue to work seamlessly in the background.
+* **Animation State Machine**: The complex time travel animations are managed by a **state machine** within the main `.ino` file. When an animation is triggered, a global variable (`currentPhase`) transitions through a series of states (e.g., `ANIM_FLICKER`, `ANIM_COMPLETE`). The main `loop()` function checks the current state and the time elapsed since the last state change to determine what to show on the displays and what sounds to play. This non-blocking approach is crucial because it allows the ESP32 to handle complex, multi-second animations without freezing or becoming unresponsive, ensuring the web server and other functions continue to work seamlessly in the background.
 
 ---
 ## ❓ Troubleshooting
