@@ -37,6 +37,7 @@ ClockSettings currentSettings;
 ClockSettings defaultSettings = {
   1955, 4, 22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15, true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
   4000, ANIMATION_SEQUENTIAL_FLICKER, 0, 25, true, false, -80.52, 43.47,
+  "", "", // OWM and AV API Keys
   // Marquee Defaults
   false, 2, 10, 0, {}
 };
@@ -70,7 +71,6 @@ bool ntpSyncRequested = false;
 WiFiManager wifiManager;
 AsyncWebServer server(80);
 Preferences preferences;
-
 // Animation and sleep state
 bool isAnimating = false;
 unsigned long animationStartTime = 0;
@@ -89,7 +89,6 @@ unsigned long glitchStartTime = 0;
 unsigned long lastPresetCycleTime = 0;
 int currentPresetIndex = 0;
 float currentWindSpeed = 0.0;
-
 // Marquee Display Engine Variables
 enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
 MarqueeState marqueeState = M_IDLE;
@@ -104,7 +103,7 @@ bool isFetchingData = false;
 int dataPointFetchFailures[5] = {0, 0, 0, 0, 0};
 const int MAX_FETCH_FAILURES = 3;
 
-// --- Malfunction State Variables ---
+// --- ADDED: Malfunction State Variables ---
 bool isMalfunctioning = false;
 unsigned long malfunctionStartTime = 0;
 enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
@@ -115,7 +114,7 @@ void startTimeTravelAnimation();
 void handleDisplayAnimation();
 void handleBootSequence();
 void handleGlitchEffect();
-void handleMalfunction();
+void handleMalfunction(); // <-- ADDED
 void restoreDisplayAfterGlitch();
 void handlePresetCycling();
 void handleSleepSchedule();
@@ -123,7 +122,6 @@ void updateNormalClockDisplay();
 void fetchDataLink();
 void updateMarqueeDisplay();
 void fetchWindSpeed();
-
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
     strncpy(path_copy, path, sizeof(path_copy) - 1);
@@ -211,6 +209,8 @@ void setupWebRoutes() {
   });
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
     String response = "{";
+    response += "\"openWeatherMapApiKey\":\"" + String(currentSettings.openWeatherMapApiKey) + "\",";
+    response += "\"alphaVantageApiKey\":\"" + String(currentSettings.alphaVantageApiKey) + "\",";
     response += "\"dataLinkEnabled\":" + String(currentSettings.dataLinkEnabled ? "true" : "false") + ",";
     response += "\"dataLinkTargetRow\":" + String(currentSettings.dataLinkTargetRow) + ",";
     response += "\"dataLinkRefreshInterval\":" + String(currentSettings.dataLinkRefreshInterval) + ",";
@@ -257,6 +257,15 @@ void setupWebRoutes() {
         if (request->hasParam(name, true)) return request->getParam(name, true)->value();
         return "";
     };
+
+    String owmKey = getParamValue("openWeatherMapApiKey");
+    strncpy(currentSettings.openWeatherMapApiKey, owmKey.c_str(), sizeof(currentSettings.openWeatherMapApiKey) - 1);
+    currentSettings.openWeatherMapApiKey[sizeof(currentSettings.openWeatherMapApiKey) - 1] = '\0';
+
+    String avKey = getParamValue("alphaVantageApiKey");
+    strncpy(currentSettings.alphaVantageApiKey, avKey.c_str(), sizeof(currentSettings.alphaVantageApiKey) - 1);
+    currentSettings.alphaVantageApiKey[sizeof(currentSettings.alphaVantageApiKey) - 1] = '\0';
+    
     currentSettings.destinationYear = getParamInt("destinationYear", currentSettings.destinationYear);
     currentSettings.destinationTimezoneIndex = getParamInt("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex);
     if (request->hasParam("lastTimeDepartedYear", true)) {
@@ -285,7 +294,7 @@ void setupWebRoutes() {
     currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
     currentSettings.dataLinkTargetRow = getParamInt("dataLinkTargetRow", currentSettings.dataLinkTargetRow);
     currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
-    if (request->hasParam("numDataPoints", true)) {
+if (request->hasParam("numDataPoints", true)) {
         int numDataPoints = getParamInt("numDataPoints", currentSettings.numDataPoints);
         if (numDataPoints > 5) numDataPoints = 5;
         currentSettings.numDataPoints = numDataPoints;
@@ -390,6 +399,13 @@ void setupWebRoutes() {
     String url = request->getParam("url", true)->value();
     String path = request->getParam("path", true)->value();
     HTTPClient http;
+
+    if (url.indexOf("openweathermap.org") != -1 && strlen(currentSettings.openWeatherMapApiKey) > 0) {
+        url += "&appid=" + String(currentSettings.openWeatherMapApiKey);
+    } else if (url.indexOf("alphavantage.co") != -1 && strlen(currentSettings.alphaVantageApiKey) > 0) {
+        url += "&apikey=" + String(currentSettings.alphaVantageApiKey);
+    }
+    
     http.begin(url);
     int httpCode = http.GET();
     if (httpCode == HTTP_CODE_OK) {
@@ -513,7 +529,6 @@ void handleDisplayAnimation() {
   #endif
 }
 
-// --- BUG FIX: Corrected Malfunction Handler ---
 void handleMalfunction() {
   #if ENABLE_HARDWARE
   if (!isMalfunctioning) return;
@@ -521,39 +536,30 @@ void handleMalfunction() {
 
   switch (currentMalfunctionPhase) {
     case MAL_HAYWIRE:
-      // Step 1: Displays go haywire for 3 seconds
       if (elapsed < 3000) {
         if (millis() - lastAnimationFrameTime > 100) {
-          // Flash "8888" or random garbage on all displays
-          destRow.month.print("8888");
-          destRow.day.print("8888"); destRow.year.print("8888"); destRow.time.print("8888");
+          destRow.month.print("8888"); destRow.day.print("8888"); destRow.year.print("8888"); destRow.time.print("8888");
           presRow.month.print("8888"); presRow.day.print("8888"); presRow.year.print("8888"); presRow.time.print("8888");
           lastRow.month.print("8888"); lastRow.day.print("8888"); lastRow.year.print("8888"); lastRow.time.print("8888");
           
           destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
           presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-          lastRow.month.writeDisplay();
-          lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+          lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
           
           lastAnimationFrameTime = millis();
         }
       } else {
-        malfunctionStartTime = millis(); // Reset timer for next phase
+        malfunctionStartTime = millis();
         currentMalfunctionPhase = MAL_ERROR_MESSAGE;
       }
       break;
 
     case MAL_ERROR_MESSAGE:
-      // Step 2: Show error message for 4 seconds
       if (elapsed < 4000) {
-        // Display "TIME CIRCUIT OVERLOAD" across the top two rows
-        destRow.month.print("TIME");
-        destRow.day.print("CIRC"); destRow.year.print("UIT "); destRow.time.print("OVER");
+        destRow.month.print("TIME"); destRow.day.print("CIRC"); destRow.year.print("UIT "); destRow.time.print("OVER");
         presRow.month.print("LOAD"); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
         
-        // Display "FLUX OFFLINE" on the bottom row
-        lastRow.month.print("FLUX");
-        lastRow.day.print("OFFL"); lastRow.year.print("INE "); lastRow.time.clear();
+        lastRow.month.print("FLUX"); lastRow.day.print("OFFL"); lastRow.year.print("INE "); lastRow.time.clear();
 
         destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
         presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
@@ -565,13 +571,8 @@ void handleMalfunction() {
       break;
 
     case MAL_REBOOT:
-      // Step 3: Simulate a reboot
-      blankAllDisplays(); // Turn off all displays
-      runBootSequence(); // Trigger the existing boot sequence
-      
-      // FIX: The following two lines were correctly removed to allow the boot sequence to complete.
-      // isMalfunctioning = false;
-      // currentMalfunctionPhase = MAL_INACTIVE;
+      blankAllDisplays();
+      runBootSequence();
       break;
   }
   #endif
@@ -582,29 +583,18 @@ void runBootSequence() {
   bootStateStartTime = millis();
 }
 
-// --- BUG FIX: Corrected Boot Sequence Handler ---
 void handleBootSequence() {
   if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
   unsigned long elapsed = millis() - bootStateStartTime;
-
   if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
     bootState = static_cast<BootSequenceState>(bootState + 1);
     bootStateStartTime = millis();
-
     if (bootState >= BOOT_COMPLETE) {
       bootState = BOOT_COMPLETE;
       updateNormalClockDisplay();
-
-      // **RECOMMENDED FIX IMPLEMENTED HERE**
-      // Reset malfunction state only after the boot sequence has finished.
-      if (isMalfunctioning) {
-        isMalfunctioning = false;
-        currentMalfunctionPhase = MAL_INACTIVE;
-      }
       return;
     }
   }
-
   #if ENABLE_HARDWARE
   switch (bootState) {
     case BOOT_88MPH:
@@ -637,7 +627,6 @@ void handleGlitchEffect() {
     lastGlitchTime = millis();
     if (random(100) < currentSettings.glitchEffectFrequency) {
       
-      // Check for a major malfunction
       if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
         isMalfunctioning = true;
         malfunctionStartTime = millis();
@@ -646,7 +635,6 @@ void handleGlitchEffect() {
         isGlitching = true;
         glitchStartTime = millis();
         #if ENABLE_HARDWARE
-        // Simple glitch
         animateDisplayRowRandomly(destRow);
         animateDisplayRowRandomly(presRow);
         animateDisplayRowRandomly(lastRow);
@@ -660,7 +648,6 @@ void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
     if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
-        // Future implementation: Logic to cycle presets
     }
 }
 
@@ -691,7 +678,7 @@ void handleSleepSchedule() {
 
 void updateNormalClockDisplay() {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return;
-  #if ENABLE_HARDWARE
+#if ENABLE_HARDWARE
   if (timeSynchronized) {
     time_t now;
     time(&now);
@@ -748,7 +735,15 @@ void fetchDataLink() {
         } else { fetchedValue = "LIVE ERR"; }
     } else {
         HTTPClient http;
-        http.begin(point.url);
+        String url = String(point.url);
+
+        if (url.indexOf("openweathermap.org") != -1 && strlen(currentSettings.openWeatherMapApiKey) > 0) {
+            url += "&appid=" + String(currentSettings.openWeatherMapApiKey);
+        } else if (url.indexOf("alphavantage.co") != -1 && strlen(currentSettings.alphaVantageApiKey) > 0) {
+            url += "&apikey=" + String(currentSettings.alphaVantageApiKey);
+        }
+        
+        http.begin(url);
         if (http.GET() == HTTP_CODE_OK) {
             DynamicJsonDocument doc(8192);
             if (deserializeJson(doc, http.getStream()) == DeserializationError::Ok) {

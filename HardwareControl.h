@@ -69,6 +69,11 @@ struct ClockSettings {
   float longitude;
   float latitude;
 
+  // --- MODIFIED: Added fields for API keys ---
+  char openWeatherMapApiKey[64];
+  char alphaVantageApiKey[64];
+  // ------------------------------------------
+
   // Global Marquee Settings
   bool dataLinkEnabled;
   int dataLinkTargetRow;

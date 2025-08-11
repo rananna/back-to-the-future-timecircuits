@@ -7,21 +7,21 @@ let anyInputInvalid = false; // Flag for form validation
 // Pre-defined templates for the Data Link feature
 const apiTemplates = {
     // Finance
-    nasdaq: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey=YOUR_KEY', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    sp500: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=YOUR_KEY', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    tsx: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT&apikey=YOUR_KEY', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    usdcad: { url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD&apikey=YOUR_KEY', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 200 },
+    nasdaq: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    sp500: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    tsx: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    usdcad: { url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 200 },
     crypto: { url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC', format: '%L | $%V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
 
     // Weather & Environment
     windSpeed: { url: 'INTERNAL', label: 'WIND', jsonPath: 'speed', icon: 'WIND', format: '%L | %V MPH', isLiveData: true, liveDataTag: 'WIND_SPEED', scrollSpeed: 150 },
-    feelsLike: { url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_KEY&units=metric', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD', format: '%L | %V C', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    humidity: { url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_KEY&units=metric', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN', format: '%L | %V PCT', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    uvIndex: { url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_KEY', label: 'UV', jsonPath: 'value', icon: 'SUN', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    aqi: { url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_KEY', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    feelsLike: { url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD', format: '%L | %V C', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    humidity: { url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN', format: '%L | %V PCT', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    uvIndex: { url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON', label: 'UV', jsonPath: 'value', icon: 'SUN', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    aqi: { url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
     
     // Fun & Social
-    youtube: { url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID&key=YOUR_KEY', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 250 },
+    youtube: { url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 250 },
     space: { url: 'http://api.open-notify.org/astros.json', label: 'ASTRO', jsonPath: 'number', icon: 'WIFI', format: '%L | %V IN SPACE', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
 };
 
@@ -154,7 +154,6 @@ function applySettings(timecircuits, temporal, datalink) {
         const arrMin = String(temporal.arrivalMinute).padStart(2, '0');
         document.getElementById('arrivalTime').value = `${arrHour}:${arrMin}`;
         
-        // MODIFIED: Added 'malfunctionFrequency' to the list of sliders
         ['brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'presetCycleInterval', 'glitchEffectFrequency', 'malfunctionFrequency'].forEach(id => {
             const slider = document.getElementById(id);
             if (slider) {
@@ -178,6 +177,12 @@ function applySettings(timecircuits, temporal, datalink) {
 }
 
 function applyDataLinkSettings(datalink) {
+    if (datalink.openWeatherMapApiKey) {
+        document.getElementById('openWeatherMapApiKey').value = datalink.openWeatherMapApiKey;
+    }
+    if (datalink.alphaVantageApiKey) {
+        document.getElementById('alphaVantageApiKey').value = datalink.alphaVantageApiKey;
+    }
     document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
     document.getElementById('dataLinkEnabled').dispatchEvent(new Event('change'));
     document.getElementById('dataLinkTargetRow').value = datalink.dataLinkTargetRow;
@@ -436,7 +441,9 @@ function saveSettings() {
     showLoading('saveSettingsBtn', true);
     const formData = new URLSearchParams();
     
-    // MODIFIED: Added 'malfunctionFrequency' to the list of settings
+    formData.append('openWeatherMapApiKey', document.getElementById('openWeatherMapApiKey').value);
+    formData.append('alphaVantageApiKey', document.getElementById('alphaVantageApiKey').value);
+
     const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkTargetRow', 'dataLinkRefreshInterval'];
     
     for (const id of settingsToSave) {

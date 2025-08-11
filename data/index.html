@@ -207,8 +207,15 @@
                      </div>
                 </div>
                 <div class="setting-group">
-                    <h3>API Data Points</h3>
-                    <label for="apiTemplateSelector">Load a Template (for Data Point 1):</label>
+                    <h3>API Data Points & Keys</h3>
+                    <div class="api-key-section">
+                        <label for="openWeatherMapApiKey">OpenWeatherMap API Key:</label>
+                        <input type="password" id="openWeatherMapApiKey" placeholder="Enter your OpenWeatherMap key">
+                        <label for="alphaVantageApiKey">AlphaVantage API Key:</label>
+                        <input type="password" id="alphaVantageApiKey" placeholder="Enter your AlphaVantage key">
+                    </div>
+                    <hr>
+                     <label for="apiTemplateSelector">Load a Template (for Data Point 1):</label>
                     <select id="apiTemplateSelector">
                         <option value="">-- Select a Template --</option>
                         <optgroup label="Finance">
