@@ -5,15 +5,18 @@ let anyInputInvalid = false;
 
 const apiExamples = {
     '': { name: '-- Select an Example --', url: '' },
-    'weather_temp': { name: 'Weather: Temperature', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current_weather=true' },
-    'weather_wind': { name: 'Weather: Wind Speed', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current_weather=true' },
-    'stock_tsla': { name: 'Stock: Tesla (Requires Key)', url: 'https://finnhub.io/api/v1/quote?symbol=TSLA&token=YOUR_API_KEY' },
     'stock_aapl': { name: 'Stock: Apple (Requires Key)', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=YOUR_API_KEY' },
-    'btc': { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd' },
-    'space': { name: 'Fun: People in Space', url: 'http://api.open-notify.org/astros.json' },
-    'cat_fact': { name: 'Fun: Random Cat Fact', url: 'https://catfact.ninja/fact' },
-    'joke': { name: 'Fun: Get a Random Joke', url: 'https://official-joke-api.appspot.com/random_joke' },
-    'bored': { name: 'Fun: Get an Activity Idea', url: 'https://bored-api.appbrewery.com/random' },
+    'crypto_btc': { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd' },
+    'weather_temp_f': { name: 'Weather: Temp (°F)', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=temperature_2m&temperature_unit=fahrenheit' },
+    'weather_humidity': { name: 'Weather: Humidity', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=relative_humidity_2m' },
+    'space_astros': { name: 'Space: People in Space', url: 'http://api.open-notify.org/astros.json' },
+    'space_iss_lat': { name: 'Space: ISS Latitude', url: 'http://api.open-notify.org/iss-now.json' },
+    'utility_ip': { name: 'Utility: My Public IP', url: 'https://api.ipify.org?format=json' },
+    'utility_day_of_year': { name: 'Utility: Day of Year', url: 'http://worldtimeapi.org/api/ip' },
+    'fun_history': { name: 'Fun: On This Day in History', url: 'https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/events/08/12'},
+    'fun_mcu': { name: 'Fun: Next MCU Movie', url: 'https://www.whenisthenextmcufilm.com/api'},
+    'fun_joke': { name: 'Fun: Random Joke Setup', url: 'https://official-joke-api.appspot.com/random_joke' },
+    'fun_bored': { name: 'Fun: Activity Idea', url: 'https://www.boredapi.com/api/activity' },
 };
 
 
