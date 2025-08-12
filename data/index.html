@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ESP32 BTTF Clock</title>
+    <title>Temporal Interface</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,6 +9,7 @@
 <body class="theme-time-circuits">
     <div id="messageBanner" class="message-banner"></div>
     <div class="container">
+        <h1>Temporal Interface</h1>
         <div class="header-circuits">
             <div class="circuit-row destination">
                 <div class="circuit-label">DESTINATION TIME</div>
@@ -53,7 +54,6 @@
                 </div>
             </div>
         </div>
-        <h1>Back to the Future Clock</h1>
         <div class="tab-nav">
             <button class="tab-link active" onclick="openTab(event, 'TimeCircuits')" data-tab="TimeCircuits">Time Circuits</button>
             <button class="tab-link" onclick="openTab(event, 'DisplaySound')" data-tab="DisplaySound">Temporal Controls</button>
@@ -118,13 +118,16 @@
                 <input type="time" id="departureTime" name="departureTime">
                 <label for="arrivalTime">Arrival Time:</label>
                 <input type="time" id="arrivalTime" name="arrivalTime">
-                <div class="sleep-schedule-visual">
-                    <div id="sleepScheduleBar" class="sleep-schedule-bar"></div>
-                    <div id="currentTimeMarker"></div>
-                    <span class="sleep-time-display">12AM</span>
-                    <span class="sleep-time-display">6AM</span>
-                    <span class="sleep-time-display">12PM</span>
-                    <span class="sleep-time-display">6PM</span>
+                <div class="sleep-schedule-container">
+                    <div class="awake-time-label">Awake Time</div>
+                    <div class="sleep-schedule-visual">
+                        <div id="sleepScheduleBar" class="sleep-schedule-bar"></div>
+                        <div id="currentTimeMarker"></div>
+                        <span class="sleep-time-display">12AM</span>
+                        <span class="sleep-time-display">6AM</span>
+                        <span class="sleep-time-display">12PM</span>
+                        <span class="sleep-time-display">6PM</span>
+                    </div>
                 </div>
             </div>
             <div class="setting-group">

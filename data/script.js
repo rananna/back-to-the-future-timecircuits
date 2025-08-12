@@ -126,16 +126,63 @@ function populatePresetsSelect(data) {
     }
 }
 
+function updateLastDepartedDisplay(year, month, day, hour, minute) {
+    const is24h = document.getElementById('displayFormat24h').checked;
+    let displayHour = parseInt(hour, 10);
+    let ampm = '';
+
+    if (!is24h) {
+        ampm = displayHour >= 12 ? ' PM' : ' AM';
+        if (displayHour > 12) displayHour -= 12;
+        if (displayHour === 0) displayHour = 12;
+    }
+
+    const monthStr = String(month).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const hourStr = String(displayHour).padStart(2, '0');
+    const minuteStr = String(minute).padStart(2, '0');
+
+    const formattedDate = `${monthStr}/${dayStr}/${year}`;
+    const formattedTime = `${hourStr}:${minuteStr}${ampm}`;
+    document.getElementById('lastTimeDepartedDisplay').textContent = `${formattedDate} ${formattedTime}`;
+
+    document.getElementById('lastTimeDepartedYear').textContent = year;
+    document.getElementById('lastTimeDepartedMonth').textContent = month;
+    document.getElementById('lastTimeDepartedDay').textContent = day;
+    document.getElementById('lastTimeDepartedHour').textContent = hour;
+    document.getElementById('lastTimeDepartedMinute').textContent = minute;
+
+    const presetValue = `${year}-${monthStr}-${dayStr}-${String(hour).padStart(2, '0')}-${minuteStr}`;
+    const presetSelect = document.getElementById('presetDateSelect');
+    let found = false;
+    for (const option of presetSelect.options) {
+        if (option.value === presetValue) {
+            presetSelect.value = presetValue;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        presetSelect.value = "";
+    }
+    
+    const selectedOption = presetSelect.options[presetSelect.selectedIndex];
+    const isCustom = selectedOption && selectedOption.parentElement.label === 'Custom Time Jumps';
+    document.getElementById('presetActions').classList.toggle('hidden', !isCustom);
+}
+
 function applySettings(timecircuits, temporal, datalink) {
     if(timecircuits) {
         document.getElementById('destinationYear').value = timecircuits.destinationYear;
         document.getElementById('destinationTimezoneSelect').value = timecircuits.destinationTimezoneIndex;
-        document.getElementById('lastTimeDepartedYear').textContent = timecircuits.lastTimeDepartedYear;
-        document.getElementById('lastTimeDepartedMonth').textContent = timecircuits.lastTimeDepartedMonth;
-        document.getElementById('lastTimeDepartedDay').textContent = timecircuits.lastTimeDepartedDay;
-        document.getElementById('lastTimeDepartedHour').textContent = timecircuits.lastTimeDepartedHour;
-        document.getElementById('lastTimeDepartedMinute').textContent = timecircuits.lastTimeDepartedMinute;
         document.getElementById('presentTimezoneSelect').value = timecircuits.presentTimezoneIndex;
+        updateLastDepartedDisplay(
+            timecircuits.lastTimeDepartedYear,
+            timecircuits.lastTimeDepartedMonth,
+            timecircuits.lastTimeDepartedDay,
+            timecircuits.lastTimeDepartedHour,
+            timecircuits.lastTimeDepartedMinute
+        );
     }
     if(temporal) {
         const depHour = String(temporal.departureHour).padStart(2, '0');
@@ -210,6 +257,15 @@ function attachEventListeners() {
         openTab(e, tabName);
         if (tabName === 'DataLink' && !isDataLinkLoaded) loadDataLinkSettings();
     });
+    
+    const timezoneChangeHandler = () => {
+        setSettingsChanged(true);
+        updateHeaderClocks(new Date());
+    };
+    document.getElementById('destinationTimezoneSelect').onchange = timezoneChangeHandler;
+    document.getElementById('presentTimezoneSelect').onchange = timezoneChangeHandler;
+    document.getElementById('destinationYear').oninput = () => updateHeaderClocks(new Date());
+
     document.getElementById('presetDateSelect').onchange = applySelectedPreset;
     document.getElementById('addPresetBtn').onclick = addPreset;
     document.getElementById('updatePresetBtn').onclick = updatePreset;
@@ -393,40 +449,20 @@ function applyApiTemplate(templateName) {
 function applySelectedPreset(event) {
     const select = event.target;
     const value = select.value;
+    if (!value) return;
+
+    const [year, month, day, hour, minute] = value.split('-');
+    updateLastDepartedDisplay(year, month, day, hour, minute);
+
     const selectedOption = select.options[select.selectedIndex];
     const isCustom = selectedOption.parentElement.label === 'Custom Time Jumps';
-
-    document.getElementById('presetActions').classList.toggle('hidden', !isCustom);
-
-    if (!value) return;
-    const [year, month, day, hour, minute] = value.split('-');
-    
-    document.getElementById('destinationYear').value = year;
-    document.getElementById('lastTimeDepartedYear').textContent = year;
-    document.getElementById('lastTimeDepartedMonth').textContent = month;
-    document.getElementById('lastTimeDepartedDay').textContent = day;
-    document.getElementById('lastTimeDepartedHour').textContent = hour;
-    document.getElementById('lastTimeDepartedMinute').textContent = minute;
-    
-    const is24h = document.getElementById('displayFormat24h').checked;
-    let displayHour = parseInt(hour, 10);
-    let ampm = '';
-    if (!is24h) {
-        ampm = displayHour >= 12 ? ' PM' : ' AM';
-        if (displayHour > 12) displayHour -= 12;
-        if (displayHour === 0) displayHour = 12;
-    }
-    const formattedDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
-    const formattedTime = `${String(displayHour).padStart(2, '0')}:${minute.padStart(2, '0')}${ampm}`;
-    document.getElementById('lastTimeDepartedDisplay').textContent = `${formattedDate} ${formattedTime}`;
-    
     if (isCustom) {
         document.getElementById('presetName').value = selectedOption.textContent;
-        document.getElementById('presetDate').value = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
-        document.getElementById('presetTime').value = `${hour.padStart(2,'0')}:${minute.padStart(2,'0')}`;
+        document.getElementById('presetDate').value = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        document.getElementById('presetTime').value = `${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
     }
 
-    showMessage(`Time Circuits set to: ${selectedOption.text}`, 'info');
+    showMessage(`Last Time Departed set to: ${selectedOption.text}`, 'info');
     setSettingsChanged(true);
     updateHeaderClocks(new Date());
 }
@@ -593,19 +629,32 @@ function updateSleepVisual() {
     const depTotalMins = depH * 60 + depM;
     const arrTotalMins = arrH * 60 + arrM;
     const bar = document.getElementById('sleepScheduleBar');
-    let startPercent, widthPercent;
-    if (depTotalMins < arrTotalMins) {
-        startPercent = (depTotalMins / 1440) * 100;
-        widthPercent = ((arrTotalMins - depTotalMins) / 1440) * 100;
-    } else {
-        const toMidnight = 1440 - depTotalMins;
-        const afterMidnight = arrTotalMins;
-        startPercent = (depTotalMins / 1440) * 100;
-        widthPercent = ((toMidnight + afterMidnight) / 1440) * 100;
+    let bar2 = document.getElementById('sleepScheduleBar2');
+    if (!bar2) {
+        bar2 = document.createElement('div');
+        bar2.id = 'sleepScheduleBar2';
+        bar2.className = 'sleep-schedule-bar';
+        document.querySelector('.sleep-schedule-visual').prepend(bar2);
     }
-    bar.style.left = `${startPercent}%`;
-    bar.style.width = `${widthPercent}%`;
+
+    // The awake time is from arrival to departure.
+    if (arrTotalMins < depTotalMins) {
+        // Single bar for awake time within the same day.
+        bar.style.left = `${(arrTotalMins / 1440) * 100}%`;
+        bar.style.width = `${((depTotalMins - arrTotalMins) / 1440) * 100}%`;
+        bar2.style.width = '0%'; // Hide second bar.
+    } else {
+        // Two bars for awake time that spans across midnight.
+        // Bar 1: from arrival to midnight.
+        bar.style.left = `${(arrTotalMins / 1440) * 100}%`;
+        bar.style.width = `${((1440 - arrTotalMins) / 1440) * 100}%`;
+
+        // Bar 2: from midnight to departure.
+        bar2.style.left = '0%';
+        bar2.style.width = `${(depTotalMins / 1440) * 100}%`;
+    }
 }
+
 
 function showLoading(buttonId, isLoading) {
     const button = document.getElementById(buttonId);
