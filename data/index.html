@@ -194,6 +194,7 @@
                         <option value="">-- Select a Template to Edit --</option>
                     </select>
                     <button id="newApiTemplateBtn" class="action-button">New</button>
+                    <button id="restoreDefaultsBtn" class="action-button">Restore Defaults</button>
                 </div>
                 <form id="apiTemplateForm" class="preset-adder" onsubmit="return false;">
                     <input type="hidden" id="apiTemplateKey">
@@ -209,7 +210,8 @@
                         <input type="text" id="apiTemplateIcon" placeholder="Icon">
                     </div>
                     <div class="preset-buttons">
-                        <button id="addApiTemplateBtn" type="button">Save as New Template</button>
+                        <button id="updateApiTemplateBtn" type="button" class="action-button" disabled>Update Selected Template</button>
+                        <button id="saveNewApiTemplateBtn" type="button">Save as New Template</button>
                         <button id="duplicateApiTemplateBtn" type="button" class="action-button" disabled>Duplicate Selected</button>
                         <button id="deleteApiTemplateBtn" type="button" class="delete-button" disabled>Delete Selected</button>
                     </div>

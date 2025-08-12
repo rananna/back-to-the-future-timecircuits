@@ -3,21 +3,21 @@ let timezoneOptions = [];
 let isDataLinkLoaded = false;
 let anyInputInvalid = false;
 
-// Default templates, will be overwritten by saved data if it exists.
-// This object is now complete and corrected.
+// Default templates, updated to use headerName and headerValue
 let apiTemplates = {
-    nasdaq: { name: 'Stock: NASDAQ Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey={API_KEY}', apiKey: '', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V' },
-    sp500: { name: 'Stock: S&P 500 Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey={API_KEY}', apiKey: '', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V' },
-    tsx: { name: 'Stock: TSX Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT&apikey={API_KEY}', apiKey: '', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V' },
-    usdcad: { name: 'FX: USD to CAD', url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD&apikey={API_KEY}', apiKey: '', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY', format: '%L | %V' },
-    crypto: { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', apiKey: '', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC', format: '%L | $%V' },
-    windSpeed: { name: 'Live: Wind Speed', url: 'INTERNAL', apiKey: '', label: 'WIND', jsonPath: 'speed', icon: 'WIND', format: '%L | %V MPH', isLiveData: true, liveDataTag: 'WIND_SPEED' },
-    feelsLike: { name: 'Weather: Feels Like Temp', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid={API_KEY}', apiKey: '', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD', format: '%L | %V C' },
-    humidity: { name: 'Weather: Humidity', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid={API_KEY}', apiKey: '', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN', format: '%L | %V PCT' },
-    uvIndex: { name: 'Weather: UV Index', url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON&appid={API_KEY}', apiKey: '', label: 'UV', jsonPath: 'value', icon: 'SUN', format: '%L | %V' },
-    aqi: { name: 'Weather: Air Quality (AQI)', url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON&appid={API_KEY}', apiKey: '', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT', format: '%L | %V' },
-    youtube: { name: 'Social: YouTube Subs', url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID&key={API_KEY}', apiKey: '', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP', format: '%L | %V' },
-    space: { name: 'Fun: People in Space', url: 'http://api.open-notify.org/astros.json', apiKey: '', label: 'ASTRO', jsonPath: 'number', icon: 'WIFI', format: '%L | %V IN SPACE' },
+    goldprice: { name: 'Commodity: Gold Price', url: 'https://api.api-ninjas.com/v1/goldprice', headerName: 'X-Api-Key', headerValue: '', label: 'GOLD', jsonPath: 'price', icon: 'MONEY' },
+    crypto: { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', headerName: '', headerValue: '', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC' },
+    windSpeed: { name: 'Live: Wind Speed', url: 'INTERNAL', headerName: '', headerValue: '', label: 'WIND', jsonPath: 'speed', icon: 'WIND', isLiveData: true, liveDataTag: 'WIND_SPEED' },
+    nasdaq: { name: 'Stock: NASDAQ Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey={API_KEY}', headerName: '', headerValue: '', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK' },
+    sp500: { name: 'Stock: S&P 500 Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey={API_KEY}', headerName: '', headerValue: '', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK' },
+    tsx: { name: 'Stock: TSX Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT&apikey={API_KEY}', headerName: '', headerValue: '', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK' },
+    usdcad: { name: 'FX: USD to CAD', url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD&apikey={API_KEY}', headerName: '', headerValue: '', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY' },
+    feelsLike: { name: 'Weather: Feels Like Temp', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid={API_KEY}', headerName: '', headerValue: '', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD' },
+    humidity: { name: 'Weather: Humidity', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid={API_KEY}', headerName: '', headerValue: '', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN' },
+    uvIndex: { name: 'Weather: UV Index', url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON&appid={API_KEY}', headerName: '', headerValue: '', label: 'UV', jsonPath: 'value', icon: 'SUN' },
+    aqi: { name: 'Weather: Air Quality (AQI)', url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON&appid={API_KEY}', headerName: '', headerValue: '', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT' },
+    youtube: { name: 'Social: YouTube Subs', url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID&key={API_KEY}', headerName: '', headerValue: '', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP' },
+    space: { name: 'Fun: People in Space', url: 'http://api.open-notify.org/astros.json', headerName: '', headerValue: '', label: 'ASTRO', jsonPath: 'number', icon: 'WIFI' },
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -286,7 +286,8 @@ function attachEventListeners() {
 
     document.getElementById('apiTemplateSelector').onchange = editApiTemplate;
     document.getElementById('newApiTemplateBtn').onclick = clearApiTemplateForm;
-    document.getElementById('addApiTemplateBtn').onclick = addOrUpdateApiTemplate;
+    document.getElementById('saveNewApiTemplateBtn').onclick = saveNewApiTemplate;
+    document.getElementById('updateApiTemplateBtn').onclick = updateApiTemplate;
     document.getElementById('duplicateApiTemplateBtn').onclick = duplicateApiTemplate;
     document.getElementById('deleteApiTemplateBtn').onclick = deleteApiTemplate;
 
@@ -454,7 +455,8 @@ function updateDataPointsUI(numPoints) {
                     <select class="api-template-select" data-index="${i}"><option value="">-- Manual URL --</option></select>
                     <input type="hidden" id="dp_isLiveData_${i}" value="false">
                     <input type="hidden" id="dp_liveDataTag_${i}" value="">
-                    <input type="hidden" id="dp_apiKeyName_${i}" value="">
+                    <input type="hidden" id="dp_headerName_${i}" value="">
+                    <input type="hidden" id="dp_headerValue_${i}" value="">
                     <div id="api_fields_${i}">
                         <label for="dp_url_${i}">API URL:</label>
                         <input type="text" id="dp_url_${i}" placeholder="Select a template or enter full URL">
@@ -545,7 +547,8 @@ function saveSettings() {
             formData.append(`dp_scrollSpeed_${i}`, document.getElementById(`dp_scrollSpeed_${i}`).value);
             formData.append(`dp_isLiveData_${i}`, document.getElementById(`dp_isLiveData_${i}`).value);
             formData.append(`dp_liveDataTag_${i}`, document.getElementById(`dp_liveDataTag_${i}`).value);
-            formData.append(`dp_apiKeyName_${i}`, document.getElementById(`dp_apiKeyName_${i}`).value);
+            formData.append(`dp_headerName_${i}`, document.getElementById(`dp_headerName_${i}`).value);
+            formData.append(`dp_headerValue_${i}`, document.getElementById(`dp_headerValue_${i}`).value);
         }
     }
     fetch('/api/saveSettings', { method: 'POST', body: formData })
@@ -758,15 +761,14 @@ function updateAllDataPointTemplateMenus() {
             if (templateKey) {
                 const template = apiTemplates[templateKey];
                 document.getElementById(`dp_url_${index}`).value = template.url;
-                document.getElementById(`dp_apiKeyName_${index}`).value = templateKey;
+                document.getElementById(`dp_headerName_${index}`).value = template.headerName || '';
+                document.getElementById(`dp_headerValue_${index}`).value = template.headerValue || '';
                 document.getElementById(`dp_label_${index}`).value = template.label;
                 document.getElementById(`dp_path_${index}`).value = template.jsonPath;
                 document.getElementById(`dp_icon_${index}`).value = template.icon;
                 document.getElementById(`dp_format_${index}`).value = template.format || '%L | %V';
                 document.getElementById(`dp_isLiveData_${index}`).value = template.isLiveData || false;
                 document.getElementById(`dp_liveDataTag_${index}`).value = template.liveDataTag || '';
-            } else {
-                document.getElementById(`dp_apiKeyName_${index}`).value = '';
             }
         };
     });
@@ -776,28 +778,48 @@ function clearApiTemplateForm() {
     document.getElementById('apiTemplateForm').reset();
     document.getElementById('apiTemplateKey').value = '';
     document.getElementById('apiTemplateSelector').value = '';
-    document.getElementById('addApiTemplateBtn').textContent = 'Save as New Template';
+    document.getElementById('updateApiTemplateBtn').disabled = true;
     document.getElementById('duplicateApiTemplateBtn').disabled = true;
     document.getElementById('deleteApiTemplateBtn').disabled = true;
 }
 
-function addOrUpdateApiTemplate() {
+function saveNewApiTemplate() {
+    const name = document.getElementById('apiTemplateName').value.trim();
+    if (!name) {
+        showMessage('Template Name is required.', 'error');
+        return;
+    }
+    const templateKey = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (apiTemplates[templateKey]) {
+        showMessage('A template with this name already exists.', 'error');
+        return;
+    }
+    updateApiTemplate(templateKey);
+}
+
+function updateApiTemplate(key) {
+    const isUpdate = typeof key === 'string';
+    const templateKey = isUpdate ? key : document.getElementById('apiTemplateSelector').value;
+
+    if (!isUpdate && !templateKey) {
+        showMessage('No template selected to update.', 'error');
+        return;
+    }
+
     const name = document.getElementById('apiTemplateName').value.trim();
     const url = document.getElementById('apiTemplateUrl').value.trim();
-    const apiKey = document.getElementById('apiTemplateApiKey').value.trim();
+    const headerName = document.getElementById('apiTemplateHeaderName').value.trim();
+    const headerValue = document.getElementById('apiTemplateHeaderValue').value.trim();
     const jsonPath = document.getElementById('apiTemplateJsonPath').value.trim();
     const label = document.getElementById('apiTemplateLabel').value.trim();
     const icon = document.getElementById('apiTemplateIcon').value.trim();
-    const key = document.getElementById('apiTemplateKey').value;
 
     if (!name || !url || !jsonPath || !label) {
         showMessage('Name, URL, JSON Path, and Label are required.', 'error');
         return;
     }
 
-    const newTemplate = { name, url, apiKey, jsonPath, label, icon, format: '%L | %V' };
-    const templateKey = key || name.toLowerCase().replace(/[^a-z0-9]/g, '');
-
+    const newTemplate = { name, url, headerName, headerValue, jsonPath, label, icon };
     apiTemplates[templateKey] = newTemplate;
     
     populateApiTemplateDropdown();
@@ -807,7 +829,7 @@ function addOrUpdateApiTemplate() {
 }
 
 function editApiTemplate(event) {
-    const key = event.target ? event.target.value : event;
+    const key = event.target.value;
     if (!key) {
         clearApiTemplateForm();
         return;
@@ -815,12 +837,13 @@ function editApiTemplate(event) {
     const template = apiTemplates[key];
     document.getElementById('apiTemplateName').value = template.name || '';
     document.getElementById('apiTemplateUrl').value = template.url;
-    document.getElementById('apiTemplateApiKey').value = template.apiKey || '';
+    document.getElementById('apiTemplateHeaderName').value = template.headerName || '';
+    document.getElementById('apiTemplateHeaderValue').value = template.headerValue || '';
     document.getElementById('apiTemplateJsonPath').value = template.jsonPath;
     document.getElementById('apiTemplateLabel').value = template.label;
     document.getElementById('apiTemplateIcon').value = template.icon || '';
     document.getElementById('apiTemplateKey').value = key;
-    document.getElementById('addApiTemplateBtn').textContent = 'Save Changes to this Template';
+    document.getElementById('updateApiTemplateBtn').disabled = false;
     document.getElementById('duplicateApiTemplateBtn').disabled = false;
     document.getElementById('deleteApiTemplateBtn').disabled = false;
 }
@@ -867,6 +890,6 @@ function duplicateApiTemplate() {
 
     populateApiTemplateDropdown();
     document.getElementById('apiTemplateSelector').value = newKey;
-    editApiTemplate(newKey);
+    editApiTemplate({ target: { value: newKey } });
     saveApiTemplates();
 }
