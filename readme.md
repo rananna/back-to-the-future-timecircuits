@@ -249,35 +249,66 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 
 ### 💡 Adding Real-Time Data with the API Wizard (Example)
 
-The "Data Link" feature lets you display real-time data from almost any online API. The new **API Wizard** makes this process incredibly simple, even without technical knowledge.
+The "Data Link" feature is one of the most powerful aspects of this project, allowing you to display real-time data from almost any online API directly on your time circuits. The **API Wizard** makes this process incredibly simple, even if you have no technical knowledge of APIs or JSON.
 
 ---
-#### **Example: Displaying the Current Temperature**
 
-Let's set up a data point to show the current temperature for New York City.
+#### **Example: Displaying the Current Temperature with a Custom Prefix and Suffix**
 
-#### **Step 1: Go to the "Data Link" Tab**
-* Navigate to the **Data Link** tab in the web interface. Make sure the "Enable Data Link Marquee" switch is turned on.
+Let's walk through setting up a data point to show the current temperature for New York City, formatted as "**TEMP | : 18.3°C**".
 
-#### **Step 2: Enter the API URL**
-* In the "API Data Points" section, find a data point (e.g., "Data Point 1").
-* Select **"Weather: Temperature"** from the **"API Examples"** dropdown. The URL for the Open-Meteo API will be filled in automatically.
-* *Note: You can change the `latitude` and `longitude` in the URL to get the weather for your location!*
+#### **Step 1: Navigate to the "Data Link" Tab**
 
-#### **Step 3: Analyze the Data**
-* Click the **"Analyze API"** button. The clock will connect to the URL and show you the data it found. It will look something like this:
+* In the web interface, click on the **Data Link** tab.
+* Make sure the **"Enable Data Link Marquee"** toggle switch is turned on.
 
-    * `current_weather:`
-        * `temperature: 18.3`
-        * `windspeed: 10.2`
-        * `weathercode: 3`
+#### **Step 2: Choose an Example or Enter a URL**
 
-#### **Step 4: Select the Data and Finalize**
-* You don't need to know what a "JSON Path" is. Simply **click on the `temperature: 18.3` item** in the list.
-* The wizard will automatically select this data point and ask you to fill in the final details:
-    * **Label (4 chars)**: `TEMP`
-    * **Suffix**: `C` (since the API returns Celsius).
-    * **Format**: A good format would be `%L: %V%S` to display "TEMP: 18.3C".
+* In the "API Data Points" section, find an available data point (e.g., "Data Point 1").
+* You can use a pre-filled example. From the **"API Examples"** dropdown, select **"Weather: Temperature"**. The URL for the Open-Meteo API will be filled in for you.
+    * *Note: You can easily change the `latitude` and `longitude` values in the URL to get the weather for your own location!*
+
+#### **Step 3: Analyze the API Data**
+
+* Click the **"Analyze API"** button next to the URL field.
+* The clock will connect to the URL and fetch the data. A new section will appear below the button, showing you the structure of the data it found. For the weather example, it will look something like this:
+
+    ```
+    Click the data point you want to display:
+    • current_weather:
+        • temperature: "18.3"
+        • windspeed: "10.2"
+        • weathercode: "3"
+    ```
+
+#### **Step 4: Select Your Value and Reveal Final Details**
+
+* You don't need to understand what a "JSON Path" is. Simply **click on the `temperature: "18.3"` item** in the list.
+* Once you click it, two things happen:
+    1.  The wizard confirms your selection: **`Selected: current_weather.temperature`**.
+    2.  A new form section with the final details appears, which was previously hidden. This is where you can set the prefix and suffix.
+
+#### **Step 5: Set the Prefix, Suffix, and Format**
+
+Now you can customize how the data is displayed.
+
+* **Label (4 chars)**: The wizard will suggest a label like `TEMP`. This is the short, static text that appears first on the display row.
+* **Prefix**: This is text that comes *before* the value. Since we want a space after the colon, enter a **Prefix** of **`: `** (a colon followed by a space).
+* **Suffix**: This is text that comes *after* the value. For our example, enter a **Suffix** of **`°C`**.
+* **Format**: This string controls the final output. The default is `%L | %P%V%S`, which means:
+    * `%L` = Label
+    * `|` = Separator for scrolling text
+    * `%P` = Prefix
+    * `%V` = Value (the data you selected)
+    * `%S` = Suffix
+
+    For our example, the default format is perfect. It will result in the static part showing "**TEMP**" and the scrolling part showing "**: 18.3°C**".
+
+
+
+#### **Step 6: Engage Time Circuits!**
+
 * Click the main **"Engage Time Circuits (Save All Settings)"** button at the bottom of the page.
+* A time travel animation will play on your physical display, and your settings will be saved.
 
-Your clock will now periodically fetch and display the current temperature!
+Your clock's Data Link marquee will now periodically fetch the live temperature and display it with your custom formatting!
