@@ -3,19 +3,21 @@ let timezoneOptions = [];
 let isDataLinkLoaded = false;
 let anyInputInvalid = false;
 
-const apiTemplates = {
-    nasdaq: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey=YOUR_API_KEY', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    sp500: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=YOUR_API_KEY', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    tsx: { url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT&apikey=YOUR_API_KEY', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    usdcad: { url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD&apikey=YOUR_API_KEY', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 200 },
-    crypto: { url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC', format: '%L | $%V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    windSpeed: { url: 'INTERNAL', label: 'WIND', jsonPath: 'speed', icon: 'WIND', format: '%L | %V MPH', isLiveData: true, liveDataTag: 'WIND_SPEED', scrollSpeed: 150 },
-    feelsLike: { url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid=YOUR_API_KEY', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD', format: '%L | %V C', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    humidity: { url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid=YOUR_API_KEY', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN', format: '%L | %V PCT', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    uvIndex: { url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_API_KEY', label: 'UV', jsonPath: 'value', icon: 'SUN', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    aqi: { url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_API_KEY', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    youtube: { url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID&key=YOUR_API_KEY', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 250 },
-    space: { url: 'http://api.open-notify.org/astros.json', label: 'ASTRO', jsonPath: 'number', icon: 'WIFI', format: '%L | %V IN SPACE', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+// Default templates, will be overwritten by saved data if it exists
+// All templates now have a 'name' property for display
+let apiTemplates = {
+    nasdaq: { name: 'Stock: NASDAQ Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey=YOUR_API_KEY', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    sp500: { name: 'Stock: S&P 500 Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=YOUR_API_KEY', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    tsx: { name: 'Stock: TSX Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT&apikey=YOUR_API_KEY', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    usdcad: { name: 'FX: USD to CAD', url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD&apikey=YOUR_API_KEY', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 200 },
+    crypto: { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC', format: '%L | $%V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    windSpeed: { name: 'Live: Wind Speed', url: 'INTERNAL', label: 'WIND', jsonPath: 'speed', icon: 'WIND', format: '%L | %V MPH', isLiveData: true, liveDataTag: 'WIND_SPEED', scrollSpeed: 150 },
+    feelsLike: { name: 'Weather: Feels Like Temp', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid=YOUR_API_KEY', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD', format: '%L | %V C', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    humidity: { name: 'Weather: Humidity', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid=YOUR_API_KEY', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN', format: '%L | %V PCT', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    uvIndex: { name: 'Weather: UV Index', url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_API_KEY', label: 'UV', jsonPath: 'value', icon: 'SUN', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    aqi: { name: 'Weather: Air Quality (AQI)', url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_API_KEY', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    youtube: { name: 'Social: YouTube Subs', url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID&key=YOUR_API_KEY', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 250 },
+    space: { name: 'Fun: People in Space', url: 'http://api.open-notify.org/astros.json', label: 'ASTRO', jsonPath: 'number', icon: 'WIFI', format: '%L | %V IN SPACE', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -43,18 +45,28 @@ function initializeUI() {
         '/api/settings/datalink',
         '/api/timezones',
         '/api/getPresets',
-        '/api/getTheme'
+        '/api/getTheme',
+        '/api/getApiTemplates'
     ];
-    const promises = initialEndpoints.map(url => fetch(url).then(res => res.ok ? (url.endsWith('Theme') ? res.text() : res.json()) : Promise.reject(new Error(`Request to ${url} failed`))));
+    const promises = initialEndpoints.map(url => fetch(url).then(res => {
+        if (!res.ok) return Promise.reject(new Error(`Request to ${url} failed`));
+        if (url.endsWith('Theme')) return res.text();
+        return res.json();
+    }));
 
     Promise.all(promises)
         .then(results => {
-            const [timecircuits, temporal, datalink, timezones, presets, theme] = results;
+            const [timecircuits, temporal, datalink, timezones, presets, theme, savedTemplates] = results;
             
+            if (Object.keys(savedTemplates).length > 0) {
+                apiTemplates = savedTemplates;
+            }
+
             document.body.className = theme;
             
             populateTimezoneSelects(timezones);
             populatePresetsSelect(presets);
+            renderApiTemplateList();
             
             applySettings(timecircuits, temporal, datalink);
             document.querySelector('.header-circuits').classList.add('visible');
@@ -215,15 +227,6 @@ function applySettings(timecircuits, temporal, datalink) {
 }
 
 function applyDataLinkSettings(datalink) {
-    if (datalink.openWeatherMapApiKey) {
-        document.getElementById('openWeatherMapApiKey').value = datalink.openWeatherMapApiKey;
-    }
-    if (datalink.alphaVantageApiKey) {
-        document.getElementById('alphaVantageApiKey').value = datalink.alphaVantageApiKey;
-    }
-    if (datalink.youtubeApiKey) {
-        document.getElementById('youtubeApiKey').value = datalink.youtubeApiKey;
-    }
     document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
     document.getElementById('dataLinkEnabled').dispatchEvent(new Event('change'));
     document.getElementById('dataLinkTargetRow').value = datalink.dataLinkTargetRow;
@@ -270,6 +273,9 @@ function attachEventListeners() {
     document.getElementById('addPresetBtn').onclick = addPreset;
     document.getElementById('updatePresetBtn').onclick = updatePreset;
     document.getElementById('deletePresetBtn').onclick = deletePreset;
+
+    document.getElementById('addApiTemplateBtn').onclick = addOrUpdateApiTemplate;
+
     document.getElementById('dataLinkEnabled').onchange = (e) => {
         document.getElementById('dataLinkSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
         setSettingsChanged(true);
@@ -279,9 +285,7 @@ function attachEventListeners() {
         updateDataPointsUI(parseInt(e.target.value, 10));
         setSettingsChanged(true);
     };
-    document.getElementById('apiTemplateSelector').onchange = (e) => {
-        if (e.target.value) applyApiTemplate(e.target.value);
-    };
+    
     document.querySelectorAll('input, select').forEach(el => {
         el.addEventListener('change', () => setSettingsChanged(true));
         el.addEventListener('input', (e) => {
@@ -418,32 +422,33 @@ function updateDataPointsUI(numPoints) {
             for (let i = 0; i < numPoints; i++) {
                 const block = document.createElement('div');
                 block.className = 'setting-group data-point-block';
-                block.innerHTML = `<h4>Data Point ${i + 1}</h4><input type="hidden" id="dp_isLiveData_${i}" value="false"><input type="hidden" id="dp_liveDataTag_${i}" value=""><div id="api_fields_${i}"><label for="dp_url_${i}">API URL:</label><input type="text" id="dp_url_${i}" placeholder="http://..."><label for="dp_path_${i}">JSON Path:</label><input type="text" id="dp_path_${i}" placeholder="data.value[0]"></div><div class="preset-date-inputs"><div style="width:100%"><label for="dp_label_${i}">Label (4 chars):</label><input type="text" id="dp_label_${i}" maxlength="4"></div><div style="width:100%"><label for="dp_icon_${i}">Icon:</label><input type="text" id="dp_icon_${i}" placeholder="e.g., SUN, BTC"></div></div><label for="dp_format_${i}">Format (%L, %V, |):</label><input type="text" id="dp_format_${i}" placeholder="%L | %V"><hr><label for="dp_scrollSpeed_${i}">Scroll Speed (ms/step): <span id="dp_scrollSpeed_val_${i}">150</span></label><input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150"><button class="test-api-btn" data-index="${i}">Test API</button>`;
+                block.innerHTML = `<h4>Data Point ${i + 1}</h4>
+                    <label for="apiTemplateSelector_${i}">Load a Template:</label>
+                    <select class="api-template-select" data-index="${i}"><option value="">-- Manual URL --</option></select>
+                    <input type="hidden" id="dp_isLiveData_${i}" value="false">
+                    <input type="hidden" id="dp_liveDataTag_${i}" value="">
+                    <div id="api_fields_${i}">
+                        <label for="dp_url_${i}">API URL:</label>
+                        <input type="text" id="dp_url_${i}" placeholder="Select a template or enter full URL">
+                        <label for="dp_path_${i}">JSON Path:</label>
+                        <input type="text" id="dp_path_${i}" placeholder="data.value[0]">
+                    </div>
+                    <div class="preset-date-inputs">
+                        <div style="width:100%"><label for="dp_label_${i}">Label (4 chars):</label><input type="text" id="dp_label_${i}" maxlength="4"></div>
+                        <div style="width:100%"><label for="dp_icon_${i}">Icon:</label><input type="text" id="dp_icon_${i}" placeholder="e.g., SUN, BTC"></div>
+                    </div>
+                    <label for="dp_format_${i}">Format (%L, %V, |):</label><input type="text" id="dp_format_${i}" placeholder="%L | %V">
+                    <hr>
+                    <label for="dp_scrollSpeed_${i}">Scroll Speed (ms/step): <span id="dp_scrollSpeed_val_${i}">150</span></label>
+                    <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150">
+                    <button class="test-api-btn" data-index="${i}">Test API</button>`;
                 container.appendChild(block);
             }
             document.querySelectorAll('.test-api-btn').forEach(btn => btn.onclick = testApi);
+            updateAllDataPointTemplateMenus();
         }
         resolve();
     });
-}
-
-function applyApiTemplate(templateName) {
-    const template = apiTemplates[templateName];
-    if (template && document.getElementById('dp_url_0')) {
-        document.getElementById('dp_url_0').value = template.url;
-        document.getElementById('dp_label_0').value = template.label;
-        document.getElementById('dp_path_0').value = template.jsonPath;
-        document.getElementById('dp_icon_0').value = template.icon;
-        document.getElementById('dp_format_0').value = template.format;
-        document.getElementById('dp_isLiveData_0').value = template.isLiveData;
-        document.getElementById('dp_liveDataTag_0').value = template.liveDataTag;
-        document.getElementById('api_fields_0').style.display = template.isLiveData ? 'none' : 'block';
-        const scrollSlider = document.getElementById('dp_scrollSpeed_0');
-        scrollSlider.value = template.scrollSpeed;
-        scrollSlider.dispatchEvent(new Event('input'));
-        showMessage(`Template "${templateName}" applied to Data Point 1.`, 'success');
-        setSettingsChanged(true);
-    }
 }
 
 function applySelectedPreset(event) {
@@ -469,11 +474,8 @@ function applySelectedPreset(event) {
 
 function saveSettings() {
     showLoading('saveSettingsBtn', true);
+    saveApiTemplates(); // Save templates first
     const formData = new URLSearchParams();
-    
-    formData.append('openWeatherMapApiKey', document.getElementById('openWeatherMapApiKey').value);
-    formData.append('alphaVantageApiKey', document.getElementById('alphaVantageApiKey').value);
-    formData.append('youtubeApiKey', document.getElementById('youtubeApiKey').value);
 
     const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkTargetRow', 'dataLinkRefreshInterval'];
     
@@ -637,24 +639,17 @@ function updateSleepVisual() {
         document.querySelector('.sleep-schedule-visual').prepend(bar2);
     }
 
-    // The awake time is from arrival to departure.
     if (arrTotalMins < depTotalMins) {
-        // Single bar for awake time within the same day.
         bar.style.left = `${(arrTotalMins / 1440) * 100}%`;
         bar.style.width = `${((depTotalMins - arrTotalMins) / 1440) * 100}%`;
-        bar2.style.width = '0%'; // Hide second bar.
+        bar2.style.width = '0%';
     } else {
-        // Two bars for awake time that spans across midnight.
-        // Bar 1: from arrival to midnight.
         bar.style.left = `${(arrTotalMins / 1440) * 100}%`;
         bar.style.width = `${((1440 - arrTotalMins) / 1440) * 100}%`;
-
-        // Bar 2: from midnight to departure.
         bar2.style.left = '0%';
         bar2.style.width = `${(depTotalMins / 1440) * 100}%`;
     }
 }
-
 
 function showLoading(buttonId, isLoading) {
     const button = document.getElementById(buttonId);
@@ -681,4 +676,121 @@ function showMessage(message, type = 'info', duration = 4000) {
         banner.style.opacity = '0';
         setTimeout(() => banner.style.visibility = 'hidden', 500);
     }, duration);
+}
+
+// --- API Template Functions ---
+async function saveApiTemplates() {
+    try {
+        const response = await fetch('/api/saveApiTemplates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(apiTemplates)
+        });
+        const text = await response.text();
+        if (response.ok) {
+            showMessage('API Templates saved!', 'success');
+        } else {
+            showMessage(`Error saving templates: ${text}`, 'error');
+        }
+    } catch (err) {
+        showMessage(`Network error saving templates: ${err.message}`, 'error');
+    }
+}
+
+function renderApiTemplateList() {
+    const container = document.getElementById('apiTemplateListContainer');
+    container.innerHTML = '';
+    if (Object.keys(apiTemplates).length === 0) {
+        container.innerHTML = '<p style="text-align:center;">No API templates defined.</p>';
+    } else {
+        for (const key in apiTemplates) {
+            const template = apiTemplates[key];
+            const displayName = template.name || template.label || key;
+            const displayUrl = template.url || 'No URL defined';
+
+            const templateDiv = document.createElement('div');
+            templateDiv.className = 'api-template-item';
+            templateDiv.innerHTML = `<span><strong>${displayName}</strong><br><small>${displayUrl}</small></span>
+                <div>
+                    <button class="action-button" onclick="editApiTemplate('${key}')">Edit</button>
+                    <button class="delete-button" onclick="deleteApiTemplate('${key}')">Delete</button>
+                </div>`;
+            container.appendChild(templateDiv);
+        }
+    }
+    updateAllDataPointTemplateMenus();
+}
+
+function updateAllDataPointTemplateMenus() {
+    document.querySelectorAll('.api-template-select').forEach(select => {
+        const selectedValue = select.value;
+        while (select.options.length > 1) select.remove(1);
+        for (const key in apiTemplates) {
+            const template = apiTemplates[key];
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = template.name || template.label || key;
+            select.appendChild(option);
+        }
+        select.value = selectedValue;
+        select.onchange = (e) => {
+            const templateKey = e.target.value;
+            const index = e.target.dataset.index;
+            if (templateKey) {
+                const template = apiTemplates[templateKey];
+                document.getElementById(`dp_url_${index}`).value = template.url;
+                document.getElementById(`dp_label_${index}`).value = template.label;
+                document.getElementById(`dp_path_${index}`).value = template.jsonPath;
+                document.getElementById(`dp_icon_${index}`).value = template.icon;
+                document.getElementById(`dp_format_${index}`).value = template.format || '%L | %V';
+                document.getElementById(`dp_isLiveData_${index}`).value = template.isLiveData || false;
+                document.getElementById(`dp_liveDataTag_${index}`).value = template.liveDataTag || '';
+            }
+        };
+    });
+}
+
+function addOrUpdateApiTemplate() {
+    const name = document.getElementById('apiTemplateName').value.trim();
+    const url = document.getElementById('apiTemplateUrl').value.trim();
+    const jsonPath = document.getElementById('apiTemplateJsonPath').value.trim();
+    const label = document.getElementById('apiTemplateLabel').value.trim();
+    const icon = document.getElementById('apiTemplateIcon').value.trim();
+    const key = document.getElementById('apiTemplateKey').value;
+
+    if (!name || !url || !jsonPath || !label) {
+        showMessage('Name, URL, JSON Path, and Label are required for a template.', 'error');
+        return;
+    }
+
+    const newTemplate = { name, url, jsonPath, label, icon, format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 };
+    const templateKey = key || name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    apiTemplates[templateKey] = newTemplate;
+    
+    document.getElementById('apiTemplateForm').reset();
+    document.getElementById('apiTemplateKey').value = '';
+    document.getElementById('addApiTemplateBtn').textContent = 'Add/Update Template';
+
+    renderApiTemplateList();
+    saveApiTemplates();
+}
+
+function editApiTemplate(key) {
+    const template = apiTemplates[key];
+    document.getElementById('apiTemplateName').value = template.name || template.label || key;
+    document.getElementById('apiTemplateUrl').value = template.url;
+    document.getElementById('apiTemplateJsonPath').value = template.jsonPath;
+    document.getElementById('apiTemplateLabel').value = template.label;
+    document.getElementById('apiTemplateIcon').value = template.icon;
+    document.getElementById('apiTemplateKey').value = key;
+    document.getElementById('addApiTemplateBtn').textContent = 'Update Template';
+}
+
+function deleteApiTemplate(key) {
+    if (confirm(`Are you sure you want to delete the template "${apiTemplates[key].name || key}"?`)) {
+        delete apiTemplates[key];
+        renderApiTemplateList();
+        saveApiTemplates();
+    }
 }

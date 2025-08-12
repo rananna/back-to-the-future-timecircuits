@@ -59,9 +59,6 @@ struct ClockSettings {
   bool windSpeedModeEnabled;
   float longitude;
   float latitude;
-  char openWeatherMapApiKey[64];
-  char alphaVantageApiKey[64];
-  char youtubeApiKey[64];
   bool dataLinkEnabled;
   int dataLinkTargetRow;
   int dataLinkRefreshInterval;

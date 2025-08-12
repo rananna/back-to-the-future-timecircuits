@@ -8,6 +8,7 @@
 #include <WiFiUdp.h>
 #include <time.h>
 #include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
 #include <LittleFS.h>
 #include <HTTPClient.h>
 
@@ -17,8 +18,9 @@
   #define LED_BUILTIN 2
 #endif
 
-#define PREFERENCES_KEY "settings_v2"
+#define PREFERENCES_KEY "settings_v3"
 #define THEME_PREF_KEY "ui_theme"
+#define API_TEMPLATES_FILE "/api_templates.json"
 
 #define NTP_SUCCESS_INTERVAL_MS 3600000
 #define ANIMATION_UPDATE_INTERVAL_MS 50
@@ -29,12 +31,9 @@ ClockSettings currentSettings;
 ClockSettings defaultSettings = {
   1955, 4, 22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15, true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
   4000, ANIMATION_SEQUENTIAL_FLICKER, 0, 25, true, false, -80.52, 43.47,
-  // API Keys
-  "", "", "",
   // Marquee Defaults
   false, 2, 10, 0, {}
 };
-
 const TimeZoneEntry TZ_DATA[] = {
   { "UTC0", "UTC", "Etc/UTC", "Global" },
   { "EST5EDT,M3.2.0,M11.1.0", "Eastern (New York)", "America/New_York", "Americas" },
@@ -44,8 +43,8 @@ const TimeZoneEntry TZ_DATA[] = {
   { "AKST9AKDT,M3.2.0,M11.1.0", "Alaska (Anchorage)", "America/Anchorage", "Americas" },
   { "MST7", "Mountain (Phoenix, No DST)", "America/Phoenix", "Americas" },
   { "HST10", "Hawaii (Honolulu, No DST)", "Pacific/Honolulu", "Americas" },
-  { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/Africa" },
-  { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Africa" }
+  { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe/Africa" },
+  { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe/Africa" }
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
 
@@ -134,45 +133,6 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     return current;
 }
 
-void loadApiKeys() {
-  File configFile = LittleFS.open("/config.json", "r");
-  if (!configFile) {
-    ESP_LOGW("Config", "config.json not found. API keys will be empty.");
-    return;
-  }
-
-  StaticJsonDocument<256> doc;
-  DeserializationError error = deserializeJson(doc, configFile);
-  if (error) {
-    ESP_LOGE("Config", "Failed to parse config.json: %s", error.c_str());
-    configFile.close();
-    return;
-  }
-
-  strncpy(currentSettings.openWeatherMapApiKey, doc["openWeatherMapApiKey"] | "", sizeof(currentSettings.openWeatherMapApiKey) - 1);
-  strncpy(currentSettings.alphaVantageApiKey, doc["alphaVantageApiKey"] | "", sizeof(currentSettings.alphaVantageApiKey) - 1);
-  strncpy(currentSettings.youtubeApiKey, doc["youtubeApiKey"] | "", sizeof(currentSettings.youtubeApiKey) - 1);
-  configFile.close();
-}
-
-void saveApiKeys() {
-  File configFile = LittleFS.open("/config.json", "w");
-  if (!configFile) {
-    ESP_LOGE("Config", "Failed to open config.json for writing");
-    return;
-  }
-
-  StaticJsonDocument<256> doc;
-  doc["openWeatherMapApiKey"] = currentSettings.openWeatherMapApiKey;
-  doc["alphaVantageApiKey"] = currentSettings.alphaVantageApiKey;
-  doc["youtubeApiKey"] = currentSettings.youtubeApiKey;
-
-  if (serializeJson(doc, configFile) == 0) {
-    ESP_LOGE("Config", "Failed to write to config.json");
-  }
-  configFile.close();
-}
-
 void saveSettings() {
   preferences.putBytes(PREFERENCES_KEY, &currentSettings, sizeof(currentSettings));
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -202,6 +162,26 @@ void setupWebRoutes() {
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/script.js", "application/javascript"); });
   server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(200, "text/plain", "READY"); });
   
+  server.on("/api/getApiTemplates", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (LittleFS.exists(API_TEMPLATES_FILE)) {
+      request->send(LittleFS, API_TEMPLATES_FILE, "application/json");
+    } else {
+      request->send(200, "application/json", "{}");
+    }
+  });
+
+  AsyncCallbackJsonWebHandler* saveTemplatesHandler = new AsyncCallbackJsonWebHandler("/api/saveApiTemplates", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    File file = LittleFS.open(API_TEMPLATES_FILE, "w");
+    if (!file) {
+      request->send(500, "text/plain", "Failed to open templates file for writing.");
+      return;
+    }
+    serializeJson(json, file);
+    file.close();
+    request->send(200, "text/plain", "API Templates saved.");
+  });
+  server.addHandler(saveTemplatesHandler);
+
   server.on("/api/settings/timecircuits", HTTP_GET, [](AsyncWebServerRequest *request) {
     StaticJsonDocument<256> doc;
     doc["destinationYear"] = currentSettings.destinationYear;
@@ -216,7 +196,6 @@ void setupWebRoutes() {
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
-  
   server.on("/api/settings/temporal", HTTP_GET, [](AsyncWebServerRequest *request) {
     StaticJsonDocument<384> doc;
     doc["departureHour"] = currentSettings.departureHour;
@@ -238,42 +217,37 @@ void setupWebRoutes() {
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
-  
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String response = "{";
-    response += "\"openWeatherMapApiKey\":\"" + String(currentSettings.openWeatherMapApiKey) + "\",";
-    response += "\"alphaVantageApiKey\":\"" + String(currentSettings.alphaVantageApiKey) + "\",";
-    response += "\"youtubeApiKey\":\"" + String(currentSettings.youtubeApiKey) + "\",";
-    response += "\"dataLinkEnabled\":" + String(currentSettings.dataLinkEnabled ? "true" : "false") + ",";
-    response += "\"dataLinkTargetRow\":" + String(currentSettings.dataLinkTargetRow) + ",";
-    response += "\"dataLinkRefreshInterval\":" + String(currentSettings.dataLinkRefreshInterval) + ",";
-    response += "\"numDataPoints\":" + String(currentSettings.numDataPoints) + ",";
-    response += "\"dataPoints\":[";
+    DynamicJsonDocument doc(4096);
+    doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
+    doc["dataLinkTargetRow"] = currentSettings.dataLinkTargetRow;
+    doc["dataLinkRefreshInterval"] = currentSettings.dataLinkRefreshInterval;
+    doc["numDataPoints"] = currentSettings.numDataPoints;
+    
+    JsonArray dataPoints = doc.createNestedArray("dataPoints");
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
-        response += "{";
-        response += "\"url\":\"" + String(currentSettings.dataPoints[i].url) + "\",";
-        response += "\"label\":\"" + String(currentSettings.dataPoints[i].label) + "\",";
-        response += "\"jsonPath\":\"" + String(currentSettings.dataPoints[i].jsonPath) + "\",";
-        response += "\"format\":\"" + String(currentSettings.dataPoints[i].format) + "\",";
-        response += "\"icon\":\"" + String(currentSettings.dataPoints[i].icon) + "\",";
-        response += "\"scrollSpeed\":" + String(currentSettings.dataPoints[i].scrollSpeed) + ",";
-        response += "\"isLiveData\":" + String(currentSettings.dataPoints[i].isLiveData ? "true" : "false") + ",";
-        response += "\"liveDataTag\":\"" + String(currentSettings.dataPoints[i].liveDataTag) + "\"";
-        response += "}";
-        if (i < currentSettings.numDataPoints - 1) response += ",";
+        JsonObject dp = dataPoints.createNestedObject();
+        dp["url"] = currentSettings.dataPoints[i].url;
+        dp["label"] = currentSettings.dataPoints[i].label;
+        dp["jsonPath"] = currentSettings.dataPoints[i].jsonPath;
+        dp["format"] = currentSettings.dataPoints[i].format;
+        dp["icon"] = currentSettings.dataPoints[i].icon;
+        dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
+        dp["isLiveData"] = currentSettings.dataPoints[i].isLiveData;
+        dp["liveDataTag"] = currentSettings.dataPoints[i].liveDataTag;
     }
-    response += "]}";
+
+    String response;
+    serializeJson(doc, response);
     request->send(200, "application/json", response);
   });
   
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send_P(200, "application/json", TZ_JSON);
   });
-  
   server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "application/json", preferences.getString("customPresets", "[]"));
   });
-  
   server.on("/api/time", HTTP_GET, [](AsyncWebServerRequest *request) {
     time_t now;
     time(&now);
@@ -284,7 +258,6 @@ void setupWebRoutes() {
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
-  
   server.on("/api/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request){
     auto getParamInt = [&](const String& name, int defaultValue) -> int {
         if (request->hasParam(name, true)) return request->getParam(name, true)->value().toInt();
@@ -294,10 +267,6 @@ void setupWebRoutes() {
         if (request->hasParam(name, true)) return request->getParam(name, true)->value();
         return "";
     };
-
-    strncpy(currentSettings.openWeatherMapApiKey, getParamValue("openWeatherMapApiKey").c_str(), sizeof(currentSettings.openWeatherMapApiKey) - 1);
-    strncpy(currentSettings.alphaVantageApiKey, getParamValue("alphaVantageApiKey").c_str(), sizeof(currentSettings.alphaVantageApiKey) - 1);
-    strncpy(currentSettings.youtubeApiKey, getParamValue("youtubeApiKey").c_str(), sizeof(currentSettings.youtubeApiKey) - 1);
 
     currentSettings.destinationYear = getParamInt("destinationYear", currentSettings.destinationYear);
     currentSettings.destinationTimezoneIndex = getParamInt("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex);
@@ -329,35 +298,22 @@ void setupWebRoutes() {
     currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
 
     if (request->hasParam("numDataPoints", true)) {
-        int numDataPoints = getParamInt("numDataPoints", currentSettings.numDataPoints);
+        int numDataPoints = getParamInt("numDataPoints", 0);
         if (numDataPoints > 5) numDataPoints = 5;
         currentSettings.numDataPoints = numDataPoints;
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
-            String url = getParamValue("dp_url_" + String(i));
-            strncpy(currentSettings.dataPoints[i].url, url.c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
-            currentSettings.dataPoints[i].url[sizeof(currentSettings.dataPoints[i].url) - 1] = '\0';
-            String label = getParamValue("dp_label_" + String(i));
-            strncpy(currentSettings.dataPoints[i].label, label.c_str(), sizeof(currentSettings.dataPoints[i].label) - 1);
-            currentSettings.dataPoints[i].label[sizeof(currentSettings.dataPoints[i].label) - 1] = '\0';
-            String path = getParamValue("dp_path_" + String(i));
-            strncpy(currentSettings.dataPoints[i].jsonPath, path.c_str(), sizeof(currentSettings.dataPoints[i].jsonPath) - 1);
-            currentSettings.dataPoints[i].jsonPath[sizeof(currentSettings.dataPoints[i].jsonPath) - 1] = '\0';
-            String format = getParamValue("dp_format_" + String(i));
-            strncpy(currentSettings.dataPoints[i].format, format.c_str(), sizeof(currentSettings.dataPoints[i].format) - 1);
-            currentSettings.dataPoints[i].format[sizeof(currentSettings.dataPoints[i].format) - 1] = '\0';
-            String icon = getParamValue("dp_icon_" + String(i));
-            strncpy(currentSettings.dataPoints[i].icon, icon.c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
-            currentSettings.dataPoints[i].icon[sizeof(currentSettings.dataPoints[i].icon) - 1] = '\0';
-            String tag = getParamValue("dp_liveDataTag_" + String(i));
-            strncpy(currentSettings.dataPoints[i].liveDataTag, tag.c_str(), sizeof(currentSettings.dataPoints[i].liveDataTag) - 1);
-            currentSettings.dataPoints[i].liveDataTag[sizeof(currentSettings.dataPoints[i].liveDataTag) - 1] = '\0';
+            strncpy(currentSettings.dataPoints[i].url, getParamValue("dp_url_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
+            strncpy(currentSettings.dataPoints[i].label, getParamValue("dp_label_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].label) - 1);
+            strncpy(currentSettings.dataPoints[i].jsonPath, getParamValue("dp_path_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].jsonPath) - 1);
+            strncpy(currentSettings.dataPoints[i].format, getParamValue("dp_format_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].format) - 1);
+            strncpy(currentSettings.dataPoints[i].icon, getParamValue("dp_icon_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
+            strncpy(currentSettings.dataPoints[i].liveDataTag, getParamValue("dp_liveDataTag_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].liveDataTag) - 1);
             currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
             currentSettings.dataPoints[i].isLiveData = (getParamValue("dp_isLiveData_" + String(i)) == "true");
         }
     }
     
     saveSettings();
-    saveApiKeys();
 
     #if ENABLE_HARDWARE
     myDFPlayer.volume(currentSettings.notificationVolume);
@@ -380,7 +336,6 @@ void setupWebRoutes() {
     preferences.putString("customPresets", newPresetsJson);
     request->send(200, "text/plain", "Custom preset saved!");
   });
-  
   server.on("/api/updatePreset", HTTP_POST, [](AsyncWebServerRequest *request){
     String name = request->getParam("name", true)->value();
     String value = request->getParam("value", true)->value();
@@ -399,7 +354,6 @@ void setupWebRoutes() {
     preferences.putString("customPresets", newPresetsJson);
     request->send(200, "text/plain", "Preset updated!");
   });
-  
   server.on("/api/deletePreset", HTTP_POST, [](AsyncWebServerRequest *request){
     String name = request->getParam("name", true)->value();
     String presetsJson = preferences.getString("customPresets", "[]");
@@ -417,31 +371,26 @@ void setupWebRoutes() {
     preferences.putString("customPresets", newPresetsJson);
     request->send(200, "text/plain", "Preset deleted!");
   });
-  
   server.on("/api/resetSettings", HTTP_POST, [](AsyncWebServerRequest *request){
     preferences.remove("customPresets");
     preferences.remove(THEME_PREF_KEY);
-    LittleFS.remove("/config.json");
+    LittleFS.remove(API_TEMPLATES_FILE);
     currentSettings = defaultSettings;
     saveSettings();
     request->send(200, "text/plain", "Settings have been reset to default.");
   });
-  
   server.on("/api/syncTime", HTTP_POST, [](AsyncWebServerRequest *request){
     ntpSyncRequested = true;
     request->send(200, "text/plain", "NTP time sync requested.");
   });
-  
   server.on("/api/getTheme", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/plain", preferences.getString(THEME_PREF_KEY, "theme-time-circuits"));
   });
-  
   server.on("/api/setTheme", HTTP_POST, [](AsyncWebServerRequest *request){
     String theme = request->getParam("theme", true)->value();
     preferences.putString(THEME_PREF_KEY, theme);
     request->send(200, "text/plain", "Theme saved.");
   });
-  
   server.on("/api/testDataPoint", HTTP_POST, [](AsyncWebServerRequest *request){
     String url = request->getParam("url", true)->value();
     String path = request->getParam("path", true)->value();
@@ -475,7 +424,6 @@ void setup() {
   if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed."); while(1); }
   preferences.begin("bttf-clock", false);
   loadSettings();
-  loadApiKeys();
   #if ENABLE_HARDWARE
   setupPhysicalDisplay();
   dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
@@ -568,7 +516,7 @@ void handleDisplayAnimation() {
       }
       #endif
       break;
-    }
+  }
   #endif
 }
 
@@ -576,7 +524,6 @@ void handleMalfunction() {
   #if ENABLE_HARDWARE
   if (!isMalfunctioning) return;
   unsigned long elapsed = millis() - malfunctionStartTime;
-
   switch (currentMalfunctionPhase) {
     case MAL_HAYWIRE:
       if (elapsed < 3000) {
@@ -598,7 +545,6 @@ void handleMalfunction() {
         currentMalfunctionPhase = MAL_ERROR_MESSAGE;
       }
       break;
-
     case MAL_ERROR_MESSAGE:
       if (elapsed < 4000) {
         destRow.month.print("TIME");
@@ -608,7 +554,8 @@ void handleMalfunction() {
         lastRow.day.print("OFFL"); lastRow.year.print("INE "); lastRow.time.clear();
 
         destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay();
+        presRow.time.writeDisplay();
         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
       } else {
         malfunctionStartTime = millis();
@@ -706,7 +653,6 @@ void handleSleepSchedule() {
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) : 
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     #if ENABLE_HARDWARE
@@ -772,7 +718,6 @@ void fetchDataLink() {
     DataPoint point = currentSettings.dataPoints[currentPointToFetch];
     String fetchedValue = "";
     bool fetchSuccess = false;
-    
     if (point.isLiveData) {
         if (String(point.liveDataTag) == "WIND_SPEED") {
             fetchWindSpeed();
@@ -821,11 +766,9 @@ void fetchDataLink() {
 void updateMarqueeDisplay() {
     #if ENABLE_HARDWARE
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0) return;
-    
     DisplayRow* targetRow = &lastRow;
     if (currentSettings.dataLinkTargetRow == 0) targetRow = &destRow;
     if (currentSettings.dataLinkTargetRow == 1) targetRow = &presRow;
-    
     if (marqueeState == M_IDLE) {
         currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
         marqueeScrollPosition = 0;
@@ -838,7 +781,6 @@ void updateMarqueeDisplay() {
     String staticPart = content;
     String scrollPart = "";
     int pipePos = content.indexOf('|');
-    
     if (pipePos != -1) {
         staticPart = content.substring(0, pipePos);
         scrollPart = content.substring(pipePos + 1);
@@ -850,7 +792,6 @@ void updateMarqueeDisplay() {
     targetRow->month.print(staticPart.c_str());
     targetRow->month.writeDisplay();
     drawIcon(targetRow->day, point.icon);
-    
     String canvas = "   " + scrollPart + "   ";
     if (canvas.length() <= 8) {
         targetRow->year.clear();

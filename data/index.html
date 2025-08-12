@@ -210,38 +210,24 @@
                      </div>
                 </div>
                 <div class="setting-group">
-                    <h3>API Data Points & Keys</h3>
-                    <div class="api-key-section">
-                        <label for="openWeatherMapApiKey">OpenWeatherMap API Key:</label>
-                        <input type="password" id="openWeatherMapApiKey" placeholder="Enter your OpenWeatherMap key">
-                        <label for="alphaVantageApiKey">AlphaVantage API Key:</label>
-                        <input type="password" id="alphaVantageApiKey" placeholder="Enter your AlphaVantage key">
-                        <label for="youtubeApiKey">YouTube/Google API Key:</label>
-                        <input type="password" id="youtubeApiKey" placeholder="Enter your Google API key">
-                    </div>
-                    <hr>
-                     <label for="apiTemplateSelector">Load a Template (for Data Point 1):</label>
-                    <select id="apiTemplateSelector">
-                        <option value="">-- Select a Template --</option>
-                        <optgroup label="Finance">
-                            <option value="nasdaq">Stock: NASDAQ Index</option>
-                            <option value="sp500">Stock: S&P 500 Index</option>
-                            <option value="tsx">Stock: TSX Index</option>
-                            <option value="usdcad">FX: USD to CAD</option>
-                            <option value="crypto">Crypto: Bitcoin Price</option>
-                        </optgroup>
-                        <optgroup label="Weather & Environment">
-                            <option value="windSpeed">Live: Wind Speed</option>
-                            <option value="feelsLike">Weather: Feels Like Temp</option>
-                            <option value="humidity">Weather: Humidity</option>
-                            <option value="uvIndex">Weather: UV Index</option>
-                            <option value="aqi">Weather: Air Quality (AQI)</option>
-                        </optgroup>
-                        <optgroup label="Fun & Social">
-                             <option value="youtube">Social: YouTube Subs</option>
-                             <option value="space">Fun: People in Space</option>
-                        </optgroup>
-                    </select>
+                    <h3>Editable API Templates</h3>
+                    <div id="apiTemplateListContainer">
+                        </div>
+                    <form id="apiTemplateForm" class="preset-adder" onsubmit="return false;">
+                        <h4>Add/Update an API Template</h4>
+                        <input type="hidden" id="apiTemplateKey">
+                        <input type="text" id="apiTemplateName" placeholder="Template Name (e.g., Stock: Apple)">
+                        <input type="text" id="apiTemplateUrl" placeholder="API URL with your key">
+                        <input type="text" id="apiTemplateJsonPath" placeholder="JSON Path">
+                        <div class="preset-date-inputs">
+                            <input type="text" id="apiTemplateLabel" placeholder="Label (4 chars)">
+                            <input type="text" id="apiTemplateIcon" placeholder="Icon">
+                        </div>
+                        <button id="addApiTemplateBtn" type="button">Add/Update Template</button>
+                    </form>
+                </div>
+                <div class="setting-group">
+                    <h3>API Data Points</h3>
                      <label for="numDataPoints">Number of Data Points: <span id="numDataPointsValue">1</span></label>
                      <div class="slider-container">
                          <input type="range" id="numDataPoints" min="0" max="5" value="1">
