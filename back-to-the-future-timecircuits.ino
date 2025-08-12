@@ -258,7 +258,8 @@ void setupWebRoutes() {
         dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
         dp["isLiveData"] = currentSettings.dataPoints[i].isLiveData;
         dp["liveDataTag"] = currentSettings.dataPoints[i].liveDataTag;
-        dp["apiKeyName"] = currentSettings.dataPoints[i].apiKeyName;
+        dp["headerName"] = currentSettings.dataPoints[i].headerName;
+        dp["headerValue"] = currentSettings.dataPoints[i].headerValue;
     }
 
     String response;
@@ -332,7 +333,8 @@ void setupWebRoutes() {
             strncpy(currentSettings.dataPoints[i].format, getParamValue("dp_format_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].format) - 1);
             strncpy(currentSettings.dataPoints[i].icon, getParamValue("dp_icon_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
             strncpy(currentSettings.dataPoints[i].liveDataTag, getParamValue("dp_liveDataTag_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].liveDataTag) - 1);
-            strncpy(currentSettings.dataPoints[i].apiKeyName, getParamValue("dp_apiKeyName_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].apiKeyName) - 1);
+            strncpy(currentSettings.dataPoints[i].headerName, getParamValue("dp_headerName_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].headerName) - 1);
+            strncpy(currentSettings.dataPoints[i].headerValue, getParamValue("dp_headerValue_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].headerValue) - 1);
             currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
             currentSettings.dataPoints[i].isLiveData = (getParamValue("dp_isLiveData_" + String(i)) == "true");
         }
@@ -759,14 +761,6 @@ void fetchDataLink() {
     String fetchedValue = "";
     bool fetchSuccess = false;
 
-    String finalUrl = String(point.url);
-    if (String(point.apiKeyName) != "") {
-        if (apiTemplatesDoc.containsKey(point.apiKeyName)) {
-            String apiKey = apiTemplatesDoc[point.apiKeyName]["apiKey"];
-            finalUrl.replace("{API_KEY}", apiKey);
-        }
-    }
-
     if (point.isLiveData) {
         if (String(point.liveDataTag) == "WIND_SPEED") {
             fetchWindSpeed();
@@ -777,7 +771,10 @@ void fetchDataLink() {
         } else { fetchedValue = "LIVE ERR"; }
     } else {
         HTTPClient http;
-        http.begin(finalUrl);
+        http.begin(point.url);
+        if (String(point.headerName) != "") {
+            http.addHeader(point.headerName, point.headerValue);
+        }
         if (http.GET() == HTTP_CODE_OK) {
             DynamicJsonDocument doc(8192);
             if (deserializeJson(doc, http.getStream()) == DeserializationError::Ok) {

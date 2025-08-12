@@ -3,12 +3,21 @@ let timezoneOptions = [];
 let isDataLinkLoaded = false;
 let anyInputInvalid = false;
 
-// Default templates, will be overwritten by saved data if it exists
+// Default templates, will be overwritten by saved data if it exists.
+// This object is now complete and corrected.
 let apiTemplates = {
-    nasdaq: { name: 'Stock: NASDAQ Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey={API_KEY}', apiKey: 'YOUR_KEY_HERE', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK' },
-    crypto: { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', apiKey: '', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC' },
-    windSpeed: { name: 'Live: Wind Speed', url: 'INTERNAL', apiKey: '', label: 'WIND', jsonPath: 'speed', icon: 'WIND', isLiveData: true, liveDataTag: 'WIND_SPEED' },
-    // ... other default templates with name and apiKey properties
+    nasdaq: { name: 'Stock: NASDAQ Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey={API_KEY}', apiKey: '', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V' },
+    sp500: { name: 'Stock: S&P 500 Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey={API_KEY}', apiKey: '', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V' },
+    tsx: { name: 'Stock: TSX Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT&apikey={API_KEY}', apiKey: '', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V' },
+    usdcad: { name: 'FX: USD to CAD', url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD&apikey={API_KEY}', apiKey: '', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY', format: '%L | %V' },
+    crypto: { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', apiKey: '', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC', format: '%L | $%V' },
+    windSpeed: { name: 'Live: Wind Speed', url: 'INTERNAL', apiKey: '', label: 'WIND', jsonPath: 'speed', icon: 'WIND', format: '%L | %V MPH', isLiveData: true, liveDataTag: 'WIND_SPEED' },
+    feelsLike: { name: 'Weather: Feels Like Temp', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid={API_KEY}', apiKey: '', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD', format: '%L | %V C' },
+    humidity: { name: 'Weather: Humidity', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid={API_KEY}', apiKey: '', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN', format: '%L | %V PCT' },
+    uvIndex: { name: 'Weather: UV Index', url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON&appid={API_KEY}', apiKey: '', label: 'UV', jsonPath: 'value', icon: 'SUN', format: '%L | %V' },
+    aqi: { name: 'Weather: Air Quality (AQI)', url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON&appid={API_KEY}', apiKey: '', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT', format: '%L | %V' },
+    youtube: { name: 'Social: YouTube Subs', url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID&key={API_KEY}', apiKey: '', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP', format: '%L | %V' },
+    space: { name: 'Fun: People in Space', url: 'http://api.open-notify.org/astros.json', apiKey: '', label: 'ASTRO', jsonPath: 'number', icon: 'WIFI', format: '%L | %V IN SPACE' },
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -57,7 +66,7 @@ function initializeUI() {
             
             populateTimezoneSelects(timezones);
             populatePresetsSelect(presets);
-            renderApiTemplateList();
+            populateApiTemplateDropdown();
             
             applySettings(timecircuits, temporal, datalink);
             document.querySelector('.header-circuits').classList.add('visible');
@@ -275,7 +284,11 @@ function attachEventListeners() {
     document.getElementById('updatePresetBtn').onclick = updatePreset;
     document.getElementById('deletePresetBtn').onclick = deletePreset;
 
+    document.getElementById('apiTemplateSelector').onchange = editApiTemplate;
+    document.getElementById('newApiTemplateBtn').onclick = clearApiTemplateForm;
     document.getElementById('addApiTemplateBtn').onclick = addOrUpdateApiTemplate;
+    document.getElementById('duplicateApiTemplateBtn').onclick = duplicateApiTemplate;
+    document.getElementById('deleteApiTemplateBtn').onclick = deleteApiTemplate;
 
     document.getElementById('dataLinkEnabled').onchange = (e) => {
         document.getElementById('dataLinkSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
@@ -330,7 +343,7 @@ function scrollToSettings(tabName, elementId) {
             if (element) {
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-        }, 100); // Small delay to ensure tab is visible
+        }, 100);
     }
 }
 
@@ -713,29 +726,18 @@ async function saveApiTemplates() {
     }
 }
 
-function renderApiTemplateList() {
-    const container = document.getElementById('apiTemplateListContainer');
-    container.innerHTML = '';
-    if (Object.keys(apiTemplates).length === 0) {
-        container.innerHTML = '<p style="text-align:center;">No API templates defined.</p>';
-    } else {
-        for (const key in apiTemplates) {
-            const template = apiTemplates[key];
-            const displayName = template.name || template.label || key;
-            const displayUrl = template.url || 'No URL defined';
-
-            const templateDiv = document.createElement('div');
-            templateDiv.className = 'api-template-item';
-            templateDiv.innerHTML = `<span><strong>${displayName}</strong><br><small>${displayUrl}</small></span>
-                <div>
-                    <button class="action-button" onclick="duplicateApiTemplate('${key}')">Duplicate</button>
-                    <button class="action-button" onclick="editApiTemplate('${key}')">Edit</button>
-                    <button class="delete-button" onclick="deleteApiTemplate('${key}')">Delete</button>
-                </div>`;
-            container.appendChild(templateDiv);
-        }
+function populateApiTemplateDropdown() {
+    const select = document.getElementById('apiTemplateSelector');
+    const selectedValue = select.value;
+    while (select.options.length > 1) select.remove(1);
+    for (const key in apiTemplates) {
+        const template = apiTemplates[key];
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = template.name || key;
+        select.appendChild(option);
     }
-    updateAllDataPointTemplateMenus();
+    select.value = selectedValue;
 }
 
 function updateAllDataPointTemplateMenus() {
@@ -746,7 +748,7 @@ function updateAllDataPointTemplateMenus() {
             const template = apiTemplates[key];
             const option = document.createElement('option');
             option.value = key;
-            option.textContent = template.name || template.label || key;
+            option.textContent = template.name || key;
             select.appendChild(option);
         }
         select.value = selectedValue;
@@ -755,9 +757,8 @@ function updateAllDataPointTemplateMenus() {
             const index = e.target.dataset.index;
             if (templateKey) {
                 const template = apiTemplates[templateKey];
-                let finalUrl = template.url;
-                document.getElementById(`dp_url_${index}`).value = finalUrl;
-                document.getElementById(`dp_apiKeyName_${index}`).value = templateKey; // Link to template for backend substitution
+                document.getElementById(`dp_url_${index}`).value = template.url;
+                document.getElementById(`dp_apiKeyName_${index}`).value = templateKey;
                 document.getElementById(`dp_label_${index}`).value = template.label;
                 document.getElementById(`dp_path_${index}`).value = template.jsonPath;
                 document.getElementById(`dp_icon_${index}`).value = template.icon;
@@ -769,6 +770,15 @@ function updateAllDataPointTemplateMenus() {
             }
         };
     });
+}
+
+function clearApiTemplateForm() {
+    document.getElementById('apiTemplateForm').reset();
+    document.getElementById('apiTemplateKey').value = '';
+    document.getElementById('apiTemplateSelector').value = '';
+    document.getElementById('addApiTemplateBtn').textContent = 'Save as New Template';
+    document.getElementById('duplicateApiTemplateBtn').disabled = true;
+    document.getElementById('deleteApiTemplateBtn').disabled = true;
 }
 
 function addOrUpdateApiTemplate() {
@@ -790,15 +800,18 @@ function addOrUpdateApiTemplate() {
 
     apiTemplates[templateKey] = newTemplate;
     
-    document.getElementById('apiTemplateForm').reset();
-    document.getElementById('apiTemplateKey').value = '';
-    document.getElementById('addApiTemplateBtn').textContent = 'Add/Update Template';
+    populateApiTemplateDropdown();
+    document.getElementById('apiTemplateSelector').value = templateKey;
 
-    renderApiTemplateList();
     saveApiTemplates();
 }
 
-function editApiTemplate(key) {
+function editApiTemplate(event) {
+    const key = event.target ? event.target.value : event;
+    if (!key) {
+        clearApiTemplateForm();
+        return;
+    }
     const template = apiTemplates[key];
     document.getElementById('apiTemplateName').value = template.name || '';
     document.getElementById('apiTemplateUrl').value = template.url;
@@ -807,23 +820,53 @@ function editApiTemplate(key) {
     document.getElementById('apiTemplateLabel').value = template.label;
     document.getElementById('apiTemplateIcon').value = template.icon || '';
     document.getElementById('apiTemplateKey').value = key;
-    document.getElementById('addApiTemplateBtn').textContent = 'Update Template';
+    document.getElementById('addApiTemplateBtn').textContent = 'Save Changes to this Template';
+    document.getElementById('duplicateApiTemplateBtn').disabled = false;
+    document.getElementById('deleteApiTemplateBtn').disabled = false;
 }
 
-function deleteApiTemplate(key) {
+function deleteApiTemplate() {
+    const key = document.getElementById('apiTemplateSelector').value;
+    if (!key) return;
     if (confirm(`Are you sure you want to delete the template "${apiTemplates[key].name || key}"?`)) {
         delete apiTemplates[key];
-        renderApiTemplateList();
+        clearApiTemplateForm();
+        populateApiTemplateDropdown();
         saveApiTemplates();
     }
 }
 
-function duplicateApiTemplate(key) {
+function duplicateApiTemplate() {
+    const key = document.getElementById('apiTemplateSelector').value;
+    if (!key) return;
+    
     const original = apiTemplates[key];
-    const newKey = key + '_copy';
-    const newTemplate = JSON.parse(JSON.stringify(original)); // Deep copy
-    newTemplate.name = `(Copy) ${original.name || key}`;
+    let newKey = key;
+    let newName = original.name || key;
+
+    let i = 1;
+    do {
+      newKey = `${key}_copy${i}`;
+      i++;
+    } while(apiTemplates[newKey]);
+
+    if (newName.includes('(Copy')) {
+        newName = newName.substring(0, newName.lastIndexOf('(') -1);
+    }
+    let copyNum = 1;
+    let tempName = `${newName} (Copy ${copyNum})`;
+    while(Object.values(apiTemplates).some(t => t.name === tempName)) {
+        copyNum++;
+        tempName = `${newName} (Copy ${copyNum})`;
+    }
+    newName = tempName;
+
+    const newTemplate = JSON.parse(JSON.stringify(original));
+    newTemplate.name = newName;
     apiTemplates[newKey] = newTemplate;
-    renderApiTemplateList();
+
+    populateApiTemplateDropdown();
+    document.getElementById('apiTemplateSelector').value = newKey;
+    editApiTemplate(newKey);
     saveApiTemplates();
 }

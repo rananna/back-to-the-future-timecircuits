@@ -23,6 +23,7 @@
 5.  [🔌 Wiring & Schematics](#-wiring--schematics)
 6.  [🚀 Installation & Setup](#-installation--setup)
 7.  [💡 Configuration & Usage](#-configuration--usage)
+    * [Adding a New API Template (Example)](#-adding-a-new-api-template-example)
 8.  [🔬 Theory of Operation](#-theory-of-operation)
 9.  [❓ Troubleshooting](#-troubleshooting)
 10. [🤝 Contributing](#-contributing)
@@ -67,8 +68,8 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 #### **Advanced Web Interface & Data Link**
 * **Live Control**: A mobile-friendly web interface allows for full control over all the clock's settings.
 * **Thematic Header**: The UI header is a screen-accurate, real-time replica of the physical display, updating every second.
-* **Data Link Marquee**: The most advanced feature is a fully configurable "Data Link" marquee. You can configure any of the three display rows to show real-time data from any JSON-based API on the web.
-* **API Templates**: The UI comes with pre-configured templates for fetching financial data (stocks, crypto), weather information (temperature, humidity), and even fun stats like the number of people in space.
+* **Data Link Marquee**: The most advanced feature is a fully configurable "Data Link" marquee. You can configure any of the three display rows to show real-time data from any JSON-based API on the web. The system supports both simple APIs and those requiring header-based authentication (e.g., `X-Api-Key`), allowing you to connect directly to a wide range of services without needing an intermediary like Pipedream.
+* **Editable API Templates**: The UI comes with pre-configured templates for fetching financial data, weather information, and more. You can edit these defaults, delete them, or create your own from scratch. All your templates are saved to the ESP32's flash memory, so your configurations are permanent.
 * **Custom Icons**: The marquee can display custom icons (e.g., SUN, CLOUD, WIFI, BTC) on the 14-segment displays alongside the data.
 * **Customizable Display**: For each data point, you can customize the API URL, JSON path, display label, format, icon, and scroll speed.
 * **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal named **BTTF-Clock-Setup** for easy initial network setup.
@@ -158,9 +159,7 @@ This project uses two separate I2C buses to manage all 12 displays without addre
     * **This is a critical step!** This project's code and the web interface files in the `data` folder require more space than the default Arduino partition scheme provides. You must change this setting to avoid upload errors.
     * In the Arduino IDE, navigate to `Tools` -> `Partition Scheme`.
     * Select **"Minimal SPIFFS (1.9MB APP with OTA/1.5MB SPIFFS)"** from the dropdown menu. This allocates enough space for both the main program and the web data.
-    * 
-
-3.  **Install Libraries**:
+    * 3.  **Install Libraries**:
     * Open the Arduino Library Manager (`Sketch` -> `Include Library` -> `Manage Libraries...`) and install the following:
         * `Adafruit GFX Library`
         * `Adafruit LED Backpack`
@@ -249,66 +248,43 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 4.  **Engage Time Circuits!**:
     * After making changes, the **"Engage Time Circuits (Save All Settings)"** button will become enabled. Click it to save your configuration to the device's permanent memory. A time travel animation will play on the physical display to confirm the save.
 
----
+### 💡 Adding a New API Template (Example)
 
-## 🔬 Theory of Operation
-
-For those who want to understand the inner workings of the Time Circuits clock, this section provides a high-level overview of the project's architecture.
-
-* **The Brain: ESP32**: The entire project is orchestrated by a single **ESP32** microcontroller. This powerful chip was chosen for its dual-core processor, ample memory, and, most importantly, its built-in Wi-Fi and Bluetooth capabilities. It's responsible for everything from driving the displays and playing sounds to running the web server for the control interface.
-
-* **Code Structure**: The project is divided into several key files:
-    * `back-to-the-future-timecircuits.ino`: The main sketch file containing the `setup()` and `loop()` functions, as well as all the application logic, web server routes, and animation state machines.
-    * `HardwareControl.h` / `.cpp`: These files encapsulate all the low-level hardware control functions, such as initializing the displays, setting brightness, and playing sounds. This separation keeps the main `.ino` file cleaner and more focused on the application logic.
-    * `data/`: This directory contains the HTML, CSS, and JavaScript files for the web interface, which are uploaded to the ESP32's LittleFS (flash memory).
-
-* **Web-Based Control (REST API)**: The clock is controlled via a web interface hosted directly on the ESP32 using the `ESPAsyncWebServer` library. Your phone or computer communicates with the clock using a simple **REST API**. When you change a setting in the web UI (like the destination year), your browser sends an HTTP request to an API endpoint on the ESP32 (e.g., `POST /api/saveSettings`). The ESP32 code parses this request, updates the settings, and saves them to its flash memory.
-
-* **Dual I2C Buses**: The project uses twelve 14-segment display modules, but the I2C protocol, which is used to control them, only supports eight unique addresses per bus (`0x70` to `0x77`). To overcome this limitation, the project leverages the ESP32's ability to create multiple I2C buses on different GPIO pins.
-    * **Bus 1 (`GPIO 21/22`)**: Controls the eight displays for the "Destination Time" and "Present Time" rows.
-    * **Bus 2 (`GPIO 25/26`)**: Controls the four displays for the "Last Time Departed" row.
-    This dual-bus architecture allows all twelve displays to be controlled independently without address conflicts.
-
-* **Animation State Machine**: The complex time travel animations are managed by a **state machine** within the main `.ino` file. When an animation is triggered, a global variable (`currentPhase`) transitions through a series of states (e.g., `ANIM_FLICKER`, `ANIM_COMPLETE`). The main `loop()` function checks the current state and the time elapsed since the last state change to determine what to show on the displays and what sounds to play. This non-blocking approach is crucial because it allows the ESP32 to handle complex, multi-second animations without freezing or becoming unresponsive, ensuring the web server and other functions continue to work seamlessly in the background.
+Here is a detailed, step-by-step guide on how to add a new API template to the user interface, using a real-world example.
 
 ---
-## ❓ Troubleshooting
+#### ## Example: Adding a Currency Conversion Rate API
+For this example, we'll create a template to fetch the current exchange rate between the Canadian Dollar (CAD) and the US Dollar (USD). We will use a free service called **ExchangeRate-API**.
 
-Having trouble? Here are some common issues and their solutions.
+#### **Step 1: Get the API Details**
 
-* **My displays are not turning on or are behaving erratically.**
-    * **Check Power:** Ensure your 5V power supply can provide **at least 2 Amps**. Powering everything from a computer's USB port may not be sufficient and is a common cause of instability. Verify all VCC and GND connections are secure and that all components share a common ground.
-    * **Check I2C Wiring:** Double-check your SDA and SCL connections for both I2C buses. A single loose wire can cause the entire bus to fail.
+First, you need the specific URL and your personal API key from the service.
 
-* **Only some of my displays work.**
-    * This is almost always an **I2C address conflict**. Each display on the *same bus* must have a unique address. Carefully re-check the solder jumpers on the back of each display module to ensure they match the addresses listed in the wiring section.
+1.  **Sign Up for a Free Key**: Go to [exchangerate-api.com](https://www.exchangerate-api.com) and sign up for a "Free Plan." After confirming your email, you will be taken to your dashboard.
+2.  **Get Your API Key**: On your dashboard, you will see your API key. It's a long string of letters and numbers. Copy this key.
+    * **Example Key**: `123456abcdef7890ghijkl`
+3.  **Find the API URL**: The documentation shows that the URL to get the latest rates for a specific currency (like USD) is:
+    * `https://v6.exchangerate-api.com/v6/YOUR_API_KEY/latest/USD`
 
-* **I can't connect to the `BTTF-Clock-Setup` WiFi network.**
-    * This hotspot is only created on the very first boot or after the WiFi credentials have been reset. If the device has already connected to your home network, it will not appear again. To re-trigger it, you must either reset the credentials from the web UI or re-flash the device after clearing the preferences.
+#### **Step 2: Examine the JSON Response**
 
-* **The web interface shows "Not Found" or is missing content.**
-    * This means the LittleFS filesystem data was not uploaded correctly. Re-run the `Tools -> ESP32 Sketch Data Upload` step in the Arduino IDE. Make sure your `data` folder is correctly placed within your sketch directory.
+Before you can fill out the form, you need to know what the data from the API looks like so you can target the specific piece of information you want. If you paste the URL (with your key) into a browser, you will see a JSON response that looks like this:
 
-* **No sounds are playing.**
-    * **Check Wiring:** Verify the RX/TX connections between the ESP32 and the DFPlayer Mini. Remember that the ESP32's TX connects to the player's RX and vice-versa.
-    * **Check SD Card:** Ensure your MicroSD card is formatted as **FAT32**. Create a folder named `mp3` in the root directory and place your `.mp3` files inside it. The filenames must be exact, as specified in the "Prepare the SD Card" section.
-
----
-
-## 🤝 Contributing
-
-Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
-
-1.  Fork the Project
-2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the Branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
-
----
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE.txt` for more information.
+```json
+{
+    "result": "success",
+    "documentation": "[https://www.exchangerate-api.com/docs](https://www.exchangerate-api.com/docs)",
+    "terms_of_use": "[https://www.exchangerate-api.com/terms](https://www.exchangerate-api.com/terms)",
+    "time_last_update_unix": 1662940801,
+    "time_last_update_utc": "Mon, 12 Sep 2022 00:00:01 +0000",
+    "time_next_update_unix": 1663027201,
+    "time_next_update_utc": "Tue, 13 Sep 2022 00:00:01 +0000",
+    "base_code": "USD",
+    "conversion_rates": {
+        "USD": 1,
+        "EUR": 0.988,
+        "GBP": 0.856,
+        "CAD": 1.298,
+        "...": "..."
+    }
+}

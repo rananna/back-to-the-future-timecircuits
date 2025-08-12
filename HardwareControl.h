@@ -33,7 +33,8 @@ struct DataPoint {
   int scrollSpeed;
   bool isLiveData;
   char liveDataTag[16];
-  char apiKeyName[32]; // <-- New field to link to a template key
+  char headerName[64];  // <-- New field for the auth header name
+  char headerValue[128]; // <-- New field for the auth header value (API key)
 };
 
 struct ClockSettings {
