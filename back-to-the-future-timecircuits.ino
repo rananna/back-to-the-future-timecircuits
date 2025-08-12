@@ -31,9 +31,10 @@ ClockSettings currentSettings;
 ClockSettings defaultSettings = {
   1955, 4, 22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15, true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
   4000, ANIMATION_SEQUENTIAL_FLICKER, 0, 25, true, false, -80.52, 43.47,
-  // Marquee Defaults
   false, 2, 10, 0, {}
 };
+DynamicJsonDocument apiTemplatesDoc(4096);
+
 const TimeZoneEntry TZ_DATA[] = {
   { "UTC0", "UTC", "Etc/UTC", "Global" },
   { "EST5EDT,M3.2.0,M11.1.0", "Eastern (New York)", "America/New_York", "Americas" },
@@ -111,6 +112,7 @@ void updateNormalClockDisplay();
 void fetchDataLink();
 void updateMarqueeDisplay();
 void fetchWindSpeed();
+void loadApiTemplates();
 
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
@@ -156,6 +158,19 @@ void loadSettings() {
   tzset();
 }
 
+void loadApiTemplates() {
+  File file = LittleFS.open(API_TEMPLATES_FILE, "r");
+  if (file) {
+    DeserializationError error = deserializeJson(apiTemplatesDoc, file);
+    if (error) {
+      ESP_LOGE("Templates", "Failed to parse API templates file.");
+    }
+    file.close();
+  } else {
+    ESP_LOGW("Templates", "API templates file not found.");
+  }
+}
+
 void setupWebRoutes() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/index.html", "text/html"); });
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/style.css", "text/css"); });
@@ -178,9 +193,17 @@ void setupWebRoutes() {
     }
     serializeJson(json, file);
     file.close();
+    loadApiTemplates(); // Reload into memory after saving
     request->send(200, "text/plain", "API Templates saved.");
   });
   server.addHandler(saveTemplatesHandler);
+
+  server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
+    #if ENABLE_HARDWARE
+    playSound("EASTER_EGG");
+    #endif
+    request->send(200, "text/plain", "Great Scott!");
+  });
 
   server.on("/api/settings/timecircuits", HTTP_GET, [](AsyncWebServerRequest *request) {
     StaticJsonDocument<256> doc;
@@ -235,6 +258,7 @@ void setupWebRoutes() {
         dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
         dp["isLiveData"] = currentSettings.dataPoints[i].isLiveData;
         dp["liveDataTag"] = currentSettings.dataPoints[i].liveDataTag;
+        dp["apiKeyName"] = currentSettings.dataPoints[i].apiKeyName;
     }
 
     String response;
@@ -308,6 +332,7 @@ void setupWebRoutes() {
             strncpy(currentSettings.dataPoints[i].format, getParamValue("dp_format_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].format) - 1);
             strncpy(currentSettings.dataPoints[i].icon, getParamValue("dp_icon_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
             strncpy(currentSettings.dataPoints[i].liveDataTag, getParamValue("dp_liveDataTag_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].liveDataTag) - 1);
+            strncpy(currentSettings.dataPoints[i].apiKeyName, getParamValue("dp_apiKeyName_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].apiKeyName) - 1);
             currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
             currentSettings.dataPoints[i].isLiveData = (getParamValue("dp_isLiveData_" + String(i)) == "true");
         }
@@ -397,7 +422,9 @@ void setupWebRoutes() {
     HTTPClient http;
     http.begin(url);
     int httpCode = http.GET();
-    if (httpCode == HTTP_CODE_OK) {
+    String errorMsg = "";
+    if (httpCode > 0) {
+      if (httpCode == HTTP_CODE_OK) {
         DynamicJsonDocument doc(8192);
         DeserializationError error = deserializeJson(doc, http.getStream());
         if (error == DeserializationError::Ok) {
@@ -405,13 +432,25 @@ void setupWebRoutes() {
             if (!value.isNull()) {
                 request->send(200, "application/json", "{\"success\":true, \"value\":\"" + value.as<String>() + "\"}");
             } else {
-                request->send(200, "application/json", "{\"success\":false, \"error\":\"JSON Path not found.\"}");
+                errorMsg = "JSON Path not found.";
             }
         } else {
-            request->send(200, "application/json", "{\"success\":false, \"error\":\"JSON Parsing Failed.\"}");
+            errorMsg = "JSON Parsing Failed.";
         }
+      } else {
+        if (httpCode == 401 || httpCode == 403) {
+          errorMsg = "Authorization Error. Check API Key.";
+        } else if (httpCode == 404) {
+          errorMsg = "Not Found. Check URL Path.";
+        } else {
+          errorMsg = "HTTP Error: " + String(httpCode);
+        }
+      }
     } else {
-        request->send(200, "application/json", "{\"success\":false, \"error\":\"HTTP Error: " + String(httpCode) + "\"}");
+      errorMsg = "HTTP request failed.";
+    }
+    if (errorMsg != "") {
+      request->send(200, "application/json", "{\"success\":false, \"error\":\"" + errorMsg + "\"}");
     }
     http.end();
   });
@@ -424,6 +463,7 @@ void setup() {
   if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed."); while(1); }
   preferences.begin("bttf-clock", false);
   loadSettings();
+  loadApiTemplates();
   #if ENABLE_HARDWARE
   setupPhysicalDisplay();
   dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
@@ -718,6 +758,15 @@ void fetchDataLink() {
     DataPoint point = currentSettings.dataPoints[currentPointToFetch];
     String fetchedValue = "";
     bool fetchSuccess = false;
+
+    String finalUrl = String(point.url);
+    if (String(point.apiKeyName) != "") {
+        if (apiTemplatesDoc.containsKey(point.apiKeyName)) {
+            String apiKey = apiTemplatesDoc[point.apiKeyName]["apiKey"];
+            finalUrl.replace("{API_KEY}", apiKey);
+        }
+    }
+
     if (point.isLiveData) {
         if (String(point.liveDataTag) == "WIND_SPEED") {
             fetchWindSpeed();
@@ -728,7 +777,7 @@ void fetchDataLink() {
         } else { fetchedValue = "LIVE ERR"; }
     } else {
         HTTPClient http;
-        http.begin(point.url);
+        http.begin(finalUrl);
         if (http.GET() == HTTP_CODE_OK) {
             DynamicJsonDocument doc(8192);
             if (deserializeJson(doc, http.getStream()) == DeserializationError::Ok) {

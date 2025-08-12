@@ -11,7 +11,7 @@
     <div class="container">
         <h1>Temporal Interface</h1>
         <div class="header-circuits">
-            <div class="circuit-row destination">
+            <div class="circuit-row destination" id="header-dest">
                 <div class="circuit-label">DESTINATION TIME</div>
                 <div class="circuit-content">
                     <div class="circuit-display">
@@ -25,7 +25,7 @@
                     </div>
                 </div>
             </div>
-            <div class="circuit-row present">
+            <div class="circuit-row present" id="header-pres">
                 <div class="circuit-label">PRESENT TIME</div>
                 <div class="circuit-content">
                     <div class="circuit-display">
@@ -39,7 +39,7 @@
                     </div>
                 </div>
             </div>
-            <div class="circuit-row last-departed">
+            <div class="circuit-row last-departed" id="header-last">
                 <div class="circuit-label">LAST TIME DEPARTED</div>
                 <div class="circuit-content">
                     <div class="circuit-display">
@@ -61,7 +61,7 @@
             <button class="tab-link" onclick="openTab(event, 'System')" data-tab="System">Network & System</button>
         </div>
         <div id="TimeCircuits" class="tab-content" style="display: block;">
-            <div class="setting-group">
+            <div class="setting-group" id="destinationTimeSettings">
                 <h3>Destination Time & Year</h3>
                 <label for="destinationTimezoneSelect">Time Zone:</label>
                 <select id="destinationTimezoneSelect"></select>
@@ -72,7 +72,7 @@
                     </div>
                 </div>
             </div>
-            <div class="setting-group">
+            <div class="setting-group" id="lastDepartedSettings">
                 <h3>Last Time Departed & Presets</h3>
                 <p id="lastTimeDepartedDisplay" class="static-time-display">-- -- ---- --:-- --</p>
                 <div style="display:none;">
@@ -188,6 +188,24 @@
         </div>
         <div id="DataLink" class="tab-content">
             <div class="setting-group">
+                <h3>Editable API Templates</h3>
+                <div id="apiTemplateListContainer">
+                </div>
+                <form id="apiTemplateForm" class="preset-adder" onsubmit="return false;">
+                    <h4>Add/Update an API Template</h4>
+                    <input type="hidden" id="apiTemplateKey">
+                    <input type="text" id="apiTemplateName" placeholder="Template Name (e.g., Stock: Apple)">
+                    <input type="text" id="apiTemplateUrl" placeholder="URL with {API_KEY} placeholder">
+                    <input type="password" id="apiTemplateApiKey" placeholder="API Key">
+                    <input type="text" id="apiTemplateJsonPath" placeholder="JSON Path">
+                    <div class="preset-date-inputs">
+                        <input type="text" id="apiTemplateLabel" placeholder="Label (4 chars)">
+                        <input type="text" id="apiTemplateIcon" placeholder="Icon">
+                    </div>
+                    <button id="addApiTemplateBtn" type="button">Add/Update Template</button>
+                </form>
+            </div>
+            <div class="setting-group">
                 <h3>Data Link Configuration</h3>
                 <label for="dataLinkEnabled" class="toggle-label">Enable Data Link Marquee</label>
                 <label class="toggle-switch">
@@ -210,23 +228,6 @@
                      </div>
                 </div>
                 <div class="setting-group">
-                    <h3>Editable API Templates</h3>
-                    <div id="apiTemplateListContainer">
-                        </div>
-                    <form id="apiTemplateForm" class="preset-adder" onsubmit="return false;">
-                        <h4>Add/Update an API Template</h4>
-                        <input type="hidden" id="apiTemplateKey">
-                        <input type="text" id="apiTemplateName" placeholder="Template Name (e.g., Stock: Apple)">
-                        <input type="text" id="apiTemplateUrl" placeholder="API URL with your key">
-                        <input type="text" id="apiTemplateJsonPath" placeholder="JSON Path">
-                        <div class="preset-date-inputs">
-                            <input type="text" id="apiTemplateLabel" placeholder="Label (4 chars)">
-                            <input type="text" id="apiTemplateIcon" placeholder="Icon">
-                        </div>
-                        <button id="addApiTemplateBtn" type="button">Add/Update Template</button>
-                    </form>
-                </div>
-                <div class="setting-group">
                     <h3>API Data Points</h3>
                      <label for="numDataPoints">Number of Data Points: <span id="numDataPointsValue">1</span></label>
                      <div class="slider-container">
@@ -237,7 +238,7 @@
             </div>
         </div>
         <div id="System" class="tab-content">
-            <div class="setting-group">
+            <div class="setting-group" id="presentTimeSettings">
                  <h3>Present Time</h3>
                 <p>Time Synchronized: <span id="timeSyncStatus">No</span></p>
                 <label for="presentTimezoneSelect">Time Zone:</label>
@@ -275,6 +276,7 @@
             </div>
             <div class="setting-group">
                 <h3>Device Actions</h3>
+                <button id="greatScottBtn">⚡ Great Scott!</button>
                 <button id="resetDefaultsBtn" class="reset-button">Reset All Settings to Default</button>
             </div>
         </div>

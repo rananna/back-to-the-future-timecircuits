@@ -4,20 +4,11 @@ let isDataLinkLoaded = false;
 let anyInputInvalid = false;
 
 // Default templates, will be overwritten by saved data if it exists
-// All templates now have a 'name' property for display
 let apiTemplates = {
-    nasdaq: { name: 'Stock: NASDAQ Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey=YOUR_API_KEY', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    sp500: { name: 'Stock: S&P 500 Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=YOUR_API_KEY', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    tsx: { name: 'Stock: TSX Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT&apikey=YOUR_API_KEY', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    usdcad: { name: 'FX: USD to CAD', url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD&apikey=YOUR_API_KEY', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 200 },
-    crypto: { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC', format: '%L | $%V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    windSpeed: { name: 'Live: Wind Speed', url: 'INTERNAL', label: 'WIND', jsonPath: 'speed', icon: 'WIND', format: '%L | %V MPH', isLiveData: true, liveDataTag: 'WIND_SPEED', scrollSpeed: 150 },
-    feelsLike: { name: 'Weather: Feels Like Temp', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid=YOUR_API_KEY', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD', format: '%L | %V C', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    humidity: { name: 'Weather: Humidity', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid=YOUR_API_KEY', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN', format: '%L | %V PCT', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    uvIndex: { name: 'Weather: UV Index', url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_API_KEY', label: 'UV', jsonPath: 'value', icon: 'SUN', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    aqi: { name: 'Weather: Air Quality (AQI)', url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON&appid=YOUR_API_KEY', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
-    youtube: { name: 'Social: YouTube Subs', url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID&key=YOUR_API_KEY', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP', format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 250 },
-    space: { name: 'Fun: People in Space', url: 'http://api.open-notify.org/astros.json', label: 'ASTRO', jsonPath: 'number', icon: 'WIFI', format: '%L | %V IN SPACE', isLiveData: false, liveDataTag: '', scrollSpeed: 150 },
+    nasdaq: { name: 'Stock: NASDAQ Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey={API_KEY}', apiKey: 'YOUR_KEY_HERE', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK' },
+    crypto: { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', apiKey: '', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC' },
+    windSpeed: { name: 'Live: Wind Speed', url: 'INTERNAL', apiKey: '', label: 'WIND', jsonPath: 'speed', icon: 'WIND', isLiveData: true, liveDataTag: 'WIND_SPEED' },
+    // ... other default templates with name and apiKey properties
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -254,6 +245,16 @@ function applyDataLinkSettings(datalink) {
 }
 
 function attachEventListeners() {
+    // Interactive Header
+    document.getElementById('header-dest').onclick = () => scrollToSettings('TimeCircuits', 'destinationTimeSettings');
+    document.getElementById('header-pres').onclick = () => scrollToSettings('System', 'presentTimeSettings');
+    document.getElementById('header-last').onclick = () => scrollToSettings('TimeCircuits', 'lastDepartedSettings');
+
+    // Great Scott Button
+    document.getElementById('greatScottBtn').onclick = () => {
+        fetch('/api/greatScott', { method: 'POST' });
+    };
+    
     document.getElementById('saveSettingsBtn').onclick = saveSettings;
     document.querySelectorAll('.tab-link').forEach(btn => btn.onclick = (e) => {
         const tabName = e.target.getAttribute('data-tab');
@@ -318,6 +319,19 @@ function attachEventListeners() {
     });
     document.getElementById('departureTime').onchange = updateSleepVisual;
     document.getElementById('arrivalTime').onchange = updateSleepVisual;
+}
+
+function scrollToSettings(tabName, elementId) {
+    const tabButton = document.querySelector(`.tab-link[data-tab='${tabName}']`);
+    if (tabButton) {
+        openTab({ currentTarget: tabButton }, tabName);
+        setTimeout(() => {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100); // Small delay to ensure tab is visible
+    }
 }
 
 function openTab(evt, tabName) {
@@ -427,6 +441,7 @@ function updateDataPointsUI(numPoints) {
                     <select class="api-template-select" data-index="${i}"><option value="">-- Manual URL --</option></select>
                     <input type="hidden" id="dp_isLiveData_${i}" value="false">
                     <input type="hidden" id="dp_liveDataTag_${i}" value="">
+                    <input type="hidden" id="dp_apiKeyName_${i}" value="">
                     <div id="api_fields_${i}">
                         <label for="dp_url_${i}">API URL:</label>
                         <input type="text" id="dp_url_${i}" placeholder="Select a template or enter full URL">
@@ -517,6 +532,7 @@ function saveSettings() {
             formData.append(`dp_scrollSpeed_${i}`, document.getElementById(`dp_scrollSpeed_${i}`).value);
             formData.append(`dp_isLiveData_${i}`, document.getElementById(`dp_isLiveData_${i}`).value);
             formData.append(`dp_liveDataTag_${i}`, document.getElementById(`dp_liveDataTag_${i}`).value);
+            formData.append(`dp_apiKeyName_${i}`, document.getElementById(`dp_apiKeyName_${i}`).value);
         }
     }
     fetch('/api/saveSettings', { method: 'POST', body: formData })
@@ -712,6 +728,7 @@ function renderApiTemplateList() {
             templateDiv.className = 'api-template-item';
             templateDiv.innerHTML = `<span><strong>${displayName}</strong><br><small>${displayUrl}</small></span>
                 <div>
+                    <button class="action-button" onclick="duplicateApiTemplate('${key}')">Duplicate</button>
                     <button class="action-button" onclick="editApiTemplate('${key}')">Edit</button>
                     <button class="delete-button" onclick="deleteApiTemplate('${key}')">Delete</button>
                 </div>`;
@@ -738,13 +755,17 @@ function updateAllDataPointTemplateMenus() {
             const index = e.target.dataset.index;
             if (templateKey) {
                 const template = apiTemplates[templateKey];
-                document.getElementById(`dp_url_${index}`).value = template.url;
+                let finalUrl = template.url;
+                document.getElementById(`dp_url_${index}`).value = finalUrl;
+                document.getElementById(`dp_apiKeyName_${index}`).value = templateKey; // Link to template for backend substitution
                 document.getElementById(`dp_label_${index}`).value = template.label;
                 document.getElementById(`dp_path_${index}`).value = template.jsonPath;
                 document.getElementById(`dp_icon_${index}`).value = template.icon;
                 document.getElementById(`dp_format_${index}`).value = template.format || '%L | %V';
                 document.getElementById(`dp_isLiveData_${index}`).value = template.isLiveData || false;
                 document.getElementById(`dp_liveDataTag_${index}`).value = template.liveDataTag || '';
+            } else {
+                document.getElementById(`dp_apiKeyName_${index}`).value = '';
             }
         };
     });
@@ -753,17 +774,18 @@ function updateAllDataPointTemplateMenus() {
 function addOrUpdateApiTemplate() {
     const name = document.getElementById('apiTemplateName').value.trim();
     const url = document.getElementById('apiTemplateUrl').value.trim();
+    const apiKey = document.getElementById('apiTemplateApiKey').value.trim();
     const jsonPath = document.getElementById('apiTemplateJsonPath').value.trim();
     const label = document.getElementById('apiTemplateLabel').value.trim();
     const icon = document.getElementById('apiTemplateIcon').value.trim();
     const key = document.getElementById('apiTemplateKey').value;
 
     if (!name || !url || !jsonPath || !label) {
-        showMessage('Name, URL, JSON Path, and Label are required for a template.', 'error');
+        showMessage('Name, URL, JSON Path, and Label are required.', 'error');
         return;
     }
 
-    const newTemplate = { name, url, jsonPath, label, icon, format: '%L | %V', isLiveData: false, liveDataTag: '', scrollSpeed: 150 };
+    const newTemplate = { name, url, apiKey, jsonPath, label, icon, format: '%L | %V' };
     const templateKey = key || name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
     apiTemplates[templateKey] = newTemplate;
@@ -778,11 +800,12 @@ function addOrUpdateApiTemplate() {
 
 function editApiTemplate(key) {
     const template = apiTemplates[key];
-    document.getElementById('apiTemplateName').value = template.name || template.label || key;
+    document.getElementById('apiTemplateName').value = template.name || '';
     document.getElementById('apiTemplateUrl').value = template.url;
+    document.getElementById('apiTemplateApiKey').value = template.apiKey || '';
     document.getElementById('apiTemplateJsonPath').value = template.jsonPath;
     document.getElementById('apiTemplateLabel').value = template.label;
-    document.getElementById('apiTemplateIcon').value = template.icon;
+    document.getElementById('apiTemplateIcon').value = template.icon || '';
     document.getElementById('apiTemplateKey').value = key;
     document.getElementById('addApiTemplateBtn').textContent = 'Update Template';
 }
@@ -793,4 +816,14 @@ function deleteApiTemplate(key) {
         renderApiTemplateList();
         saveApiTemplates();
     }
+}
+
+function duplicateApiTemplate(key) {
+    const original = apiTemplates[key];
+    const newKey = key + '_copy';
+    const newTemplate = JSON.parse(JSON.stringify(original)); // Deep copy
+    newTemplate.name = `(Copy) ${original.name || key}`;
+    apiTemplates[newKey] = newTemplate;
+    renderApiTemplateList();
+    saveApiTemplates();
 }

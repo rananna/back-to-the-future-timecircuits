@@ -30,11 +30,10 @@ struct DataPoint {
   char jsonPath[128];
   char format[32];
   char icon[16];
-  int transitionEffect;
   int scrollSpeed;
-  int textAlign;
   bool isLiveData;
   char liveDataTag[16];
+  char apiKeyName[32]; // <-- New field to link to a template key
 };
 
 struct ClockSettings {
@@ -73,10 +72,6 @@ struct DisplayRow {
   Adafruit_7segment time;
   const uint8_t amPin;
   const uint8_t pmPin;
-};
-
-struct SoundFile {
-  String name;
 };
 
 struct TimeZoneEntry {
