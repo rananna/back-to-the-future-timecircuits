@@ -24,6 +24,7 @@
 6.  [🚀 Installation & Setup](#-installation--setup)
 7.  [💡 Configuration & Usage](#-configuration--usage)
     * [Adding Real-Time Data with the API Wizard (Example)](#-adding-real-time-data-with-the-api-wizard-example)
+    * [20 API Ideas for the Time Circuits Display](#-20-api-ideas-for-the-time-circuits-display)
 8.  [🔬 Theory of Operation](#-theory-of-operation)
 9.  [❓ Troubleshooting](#-troubleshooting)
 10. [🤝 Contributing](#-contributing)
@@ -312,3 +313,32 @@ Now you can customize how the data is displayed.
 * A time travel animation will play on your physical display, and your settings will be saved.
 
 Your clock's Data Link marquee will now periodically fetch the live temperature and display it with your custom formatting!
+
+---
+
+### 💡 20 API Ideas for the Time Circuits Display
+
+Here are 20 diverse API data examples, categorized for finance, weather, space, productivity, and fun, showing how each segment of the display line could be used effectively.
+
+| # | Use Case | Month (3) | Day (2) | Year (4) | Time (4) | Example Display |
+|:---:|:---|:---:|:---:|:---:|:---:|:---|
+| 1 | **Stock Price** | `APL` | `$ ` | `175` | `.43` | `APL  $   175.43` |
+| 2 | **Stock % Change** | `APL` | `CH` | `+1.2` | `5%` | `APL  CH  +1.25%` |
+| 3 | **Crypto Price** | `BTC` | `K$` | `68.5` | ` ` | `BTC  K$  68.5` |
+| 4 | **Market Index** | `SPX` | ` ` | `5465` | `.3` | `SPX      5465.3` |
+| 5 | **Temperature (°F)** | `NYC` | `F ` | `72` | `DEG` | `NYC  F   72  DEG` |
+| 6 | **"Feels Like"** | `NYC` | `FL` | `75` | `DEG` | `NYC  FL  75  DEG` |
+| 7 | **Humidity** | `NYC` | `HM` | `55` | `%` | `NYC  HM  55%` |
+| 8 | **Wind Speed** | `NYC` | `WND` | `10` | `MPH` | `NYC  WND  10  MPH` |
+| 9 | **ISS Position** | `ISS` | `POS` | `48.8N`| `2.3E` | `ISS  POS 48.8N 2.3E` |
+| 10 | **People in Space** | `PPL` | `IN` | `SPCE` | `10` | `PPL  IN  SPCE  10` |
+| 11 | **Mars Rover Sol** | `ROV` | `SOL` | `1234` | | `ROV  SOL 1234` |
+| 12 | **Sun Distance** | `SUN` | `DST` | `93M` | `MI` | `SUN  DST 93M  MI` |
+| 13 | **Public IP** | `NET` | `IP` | *[scroll]* | *`ing`* | `NET  IP  192.168.1.100`|
+| 14 | **Day / Week** | `DATE`| `D/W` | `225` | `/32` | `DATE D/W 225  /32` |
+| 15 | **Network Speed**| `NET` | `D/L` | `250` | `MBPS` | `NET  D/L 250 MBPS` |
+| 16 | **GitHub Commits** | `GIT` | `CMT` | `12` | `TDY` | `GIT  CMT 12  TDY` |
+| 17 | **YT Subscribers** | `SUBS`| `K ` | `[scroll]`| | `SUBS K   1250K` |
+| 18 | **Twitch Viewers** | `LIVE`| `VW` | `12.5` | `K` | `LIVE VW  12.5K` |
+| 19 | **Holiday Countdown** | `XMAS`| ` ` | `135` | `DAYS` | `XMAS     135 DAYS` |
+| 20 | **Game Server Users**| `CS2` | ` ` | `750K` | ` ` | `CS2      750K` |

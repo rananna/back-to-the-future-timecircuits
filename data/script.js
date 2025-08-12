@@ -2,23 +2,32 @@ let settingsChanged = false;
 let timezoneOptions = [];
 let isDataLinkLoaded = false;
 let anyInputInvalid = false;
+let analyzedDataCache = {};
+let selectedPathInfo = { index: null, path: null };
 
 const apiExamples = {
     '': { name: '-- Select an Example --', url: '' },
-    'stock_aapl': { name: 'Stock: Apple (Requires Key)', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=YOUR_API_KEY' },
-    'crypto_btc': { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd' },
-    'weather_temp_f': { name: 'Weather: Temp (°F)', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=temperature_2m&temperature_unit=fahrenheit' },
+    'stock_aapl_price': { name: 'Stock: Apple Price', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=YOUR_API_KEY' },
+    'stock_aapl_change': { name: 'Stock: Apple Change %', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=YOUR_API_KEY' },
+    'crypto_btc_price': { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd' },
+    'crypto_eth_change': { name: 'Crypto: Ethereum Change %', url: 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&include_24hr_change=true' },
+    'weather_temp': { name: 'Weather: Temperature (°F)', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=temperature_2m&temperature_unit=fahrenheit' },
+    'weather_feels_like': { name: 'Weather: Feels Like (°F)', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=apparent_temperature&temperature_unit=fahrenheit' },
     'weather_humidity': { name: 'Weather: Humidity', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=relative_humidity_2m' },
+    'weather_wind_speed': { name: 'Weather: Wind Speed', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=wind_speed_10m&wind_speed_unit=mph' },
+    'space_iss_pos': { name: 'Space: ISS Position', url: 'http://api.open-notify.org/iss-now.json' },
     'space_astros': { name: 'Space: People in Space', url: 'http://api.open-notify.org/astros.json' },
-    'space_iss_lat': { name: 'Space: ISS Latitude', url: 'http://api.open-notify.org/iss-now.json' },
-    'utility_ip': { name: 'Utility: My Public IP', url: 'https://api.ipify.org?format=json' },
-    'utility_day_of_year': { name: 'Utility: Day of Year', url: 'http://worldtimeapi.org/api/ip' },
-    'fun_history': { name: 'Fun: On This Day in History', url: 'https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/events/08/12'},
-    'fun_mcu': { name: 'Fun: Next MCU Movie', url: 'https://www.whenisthenextmcufilm.com/api'},
-    'fun_joke': { name: 'Fun: Random Joke Setup', url: 'https://official-joke-api.appspot.com/random_joke' },
-    'fun_bored': { name: 'Fun: Activity Idea', url: 'https://www.boredapi.com/api/activity' },
+    'space_mars_sol': { name: 'Space: Mars Rover Sol', url: 'https://api.maas2.apollorion.com/' },
+    'space_sun_dist': { name: 'Space: Sun Distance', url: 'https://api.le-systeme-solaire.net/rest/bodies/soleil' },
+    'util_ip': { name: 'Utility: Public IP', url: 'http://ip-api.com/json' },
+    'util_network_info': { name: 'Utility: Network Info', url: 'http://ip-api.com/json' },
+    'util_day_of_year': { name: 'Utility: Day of Year', url: 'http://worldtimeapi.org/api/ip' },
+    'util_github_commits': { name: 'Utility: GitHub Commits', url: 'https://api.github.com/repos/octocat/Hello-World/commits' },
+    'fun_yt_subs': { name: 'Fun: YouTube Subscribers', url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=UC_x5XG1OV2P6uZZ5FSM9Ttw&key=YOUR_API_KEY' },
+    'fun_twitch_viewers': { name: 'Fun: Twitch Viewers', url: 'https://api.twitch.tv/helix/streams?user_login=shroud' },
+    'fun_holiday_countdown': { name: 'Fun: Holiday Countdown (see note)', url: 'http://worldtimeapi.org/api/ip' },
+    'fun_game_users': { name: 'Fun: Game Server Users', url: 'https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=730' }
 };
-
 
 document.addEventListener('DOMContentLoaded', () => {
     function waitForServerReady() {
@@ -232,15 +241,30 @@ function applyDataLinkSettings(datalink) {
         if (datalink.dataPoints) {
             datalink.dataPoints.forEach((point, i) => {
                 document.getElementById(`dp_url_${i}`).value = point.url || '';
-                document.getElementById(`dp_label_${i}`).value = point.label || '';
-                document.getElementById(`dp_path_${i}`).value = point.jsonPath || '';
-                document.getElementById(`dp_prefix_${i}`).value = point.prefix || '';
-                document.getElementById(`dp_suffix_${i}`).value = point.suffix || '';
-                document.getElementById(`dp_format_${i}`).value = point.format || '';
-                document.getElementById(`dp_icon_${i}`).value = point.icon || '';
-                const scrollSlider = document.getElementById(`dp_scrollSpeed_${i}`);
-                scrollSlider.value = point.scrollSpeed || 150;
-                scrollSlider.dispatchEvent(new Event('input'));
+                document.getElementById(`dp_scroll_enabled_${i}`).checked = point.scrollEnabled || false;
+                
+                ['month', 'day', 'year', 'time'].forEach(segment => {
+                    const configDiv = document.getElementById(`config_${i}_${segment}`);
+                    const mode = point[`${segment}Mode`] || 'static';
+                    const value = point[`${segment}Value`] || '';
+
+                    configDiv.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('active');
+                    configDiv.querySelector(`.mode-btn[data-mode="${mode === 'static' ? 'api' : 'static'}"]`).classList.remove('active');
+                    document.getElementById(`dp_input_${i}_${segment}`).value = value;
+                });
+
+                if (point.icon) {
+                    const iconSelect = document.querySelector(`#config_${i}_day .icon-select`);
+                    iconSelect.value = point.icon;
+                    if (point.icon) {
+                        const textInput = document.getElementById(`dp_input_${i}_day`);
+                        textInput.disabled = true;
+                        textInput.value = '';
+                    }
+                }
+                
+                handleScrollingToggle({ target: document.getElementById(`dp_scroll_enabled_${i}`) });
+                updateLivePreview({ target: document.getElementById(`dp_input_${i}_month`) });
             });
         }
     });
@@ -318,6 +342,27 @@ function attachEventListeners() {
     document.getElementById('arrivalTime').onchange = updateSleepVisual;
 }
 
+function applySelectedPreset(event) {
+    const select = event.target;
+    const value = select.value;
+    if (!value) return;
+
+    const [year, month, day, hour, minute] = value.split('-');
+    updateLastDepartedDisplay(year, month, day, hour, minute);
+
+    const selectedOption = select.options[select.selectedIndex];
+    const isCustom = selectedOption.parentElement.label === 'Custom Time Jumps';
+    if (isCustom) {
+        document.getElementById('presetName').value = selectedOption.textContent;
+        document.getElementById('presetDate').value = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        document.getElementById('presetTime').value = `${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
+    }
+
+    showMessage(`Last Time Departed set to: ${selectedOption.text}`, 'info');
+    setSettingsChanged(true);
+    updateHeaderClocks(new Date());
+}
+
 function scrollToSettings(tabName, elementId) {
     const tabButton = document.querySelector(`.tab-link[data-tab='${tabName}']`);
     if (tabButton) {
@@ -342,16 +387,6 @@ function setSettingsChanged(isChanged) {
     settingsChanged = isChanged;
     const saveBtn = document.getElementById('saveSettingsBtn');
     saveBtn.disabled = !isChanged || anyInputInvalid;
-}
-
-function validateDataPointField(event) {
-    const el = event.target;
-    el.classList.remove('invalid');
-    if (el.id.startsWith('dp_format_') && el.value && !el.value.includes('%V')) {
-        el.classList.add('invalid');
-    }
-    anyInputInvalid = !!document.querySelector('.invalid');
-    setSettingsChanged(true);
 }
 
 function updateHeaderClocks(presentTimeRaw) {
@@ -433,33 +468,45 @@ function updateDataPointsUI(numPoints) {
             for (let i = 0; i < numPoints; i++) {
                 const block = document.createElement('div');
                 block.className = 'setting-group data-point-block';
-                block.innerHTML = `<h4>Data Point ${i + 1}</h4>
-                    <label for="api_example_${i}">API Examples (optional):</label>
-                    <select id="api_example_${i}" class="api-example-select" data-index="${i}"></select>
-
-                    <label for="dp_url_${i}">API URL:</label>
-                    <input type="text" id="dp_url_${i}" placeholder="http://api.example.com/data.json">
-                    <button class="analyze-api-btn" data-index="${i}">Analyze API</button>
-                    <div class="api-wizard-results" id="wizard_results_${i}"></div>
-                    <div class="api-final-details" id="final_details_${i}" style="display:none;">
-                        <input type="hidden" id="dp_path_${i}">
-                        <div class="preset-date-inputs">
-                            <div style="width:100%"><label for="dp_label_${i}">Label (4 chars):</label><input type="text" id="dp_label_${i}" maxlength="4" placeholder="DATA"></div>
-                            <div style="width:100%"><label for="dp_icon_${i}">Icon:</label><input type="text" id="dp_icon_${i}" placeholder="e.g., SUN, BTC"></div>
+                block.innerHTML = `
+                    <h4>Data Point ${i + 1}</h4>
+                    <div class="api-wizard-main">
+                        <label for="api_example_${i}">API Examples (optional):</label>
+                        <select id="api_example_${i}" class="api-example-select" data-index="${i}"></select>
+                        <label for="dp_url_${i}">API URL:</label>
+                        <input type="text" id="dp_url_${i}" placeholder="http://api.example.com/data.json">
+                        <button class="analyze-api-btn" data-index="${i}">Analyze API</button>
+                    </div>
+                    <div class="segmented-form-container" id="form_container_${i}">
+                        <div class="api-wizard-results" id="wizard_results_${i}"></div>
+                        <div class="segmented-inputs-column">
+                            ${generateSegmentInput(i, 'month', 'MONTH (3)')}
+                            ${generateSegmentInput(i, 'day', 'DAY (2)')}
+                            ${generateSegmentInput(i, 'year', 'YEAR (4)')}
+                            ${generateSegmentInput(i, 'time', 'TIME (4)')}
                         </div>
-                        <div class="preset-date-inputs">
-                            <div style="width:100%"><label for="dp_prefix_${i}">Prefix:</label><input type="text" id="dp_prefix_${i}" maxlength="16" placeholder="e.g., $"></div>
-                            <div style="width:100%"><label for="dp_suffix_${i}">Suffix:</label><input type="text" id="dp_suffix_${i}" maxlength="16" placeholder="e.g., USD"></div>
+                        <div class="scrolling-toggle">
+                            <label for="dp_scroll_enabled_${i}" class="toggle-label">Enable Scrolling:</label>
+                            <label class="toggle-switch small">
+                                <input type="checkbox" id="dp_scroll_enabled_${i}" data-index="${i}">
+                                <span class="slider round"></span>
+                            </label>
                         </div>
-                        <label for="dp_format_${i}">Format (%L, %V, %P, %S, |):</label><input type="text" id="dp_format_${i}" value="%L | %P%V%S">
-                        <hr>
-                        <label for="dp_scrollSpeed_${i}">Scroll Speed (ms/step): <span id="dp_scrollSpeed_val_${i}">150</span></label>
-                        <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150" oninput="document.getElementById('dp_scrollSpeed_val_${i}').textContent=this.value">
-                    </div>`;
+                    </div>
+                    <div class="live-preview-container">
+                        <label>Live Preview:</label>
+                        <div class="live-preview" id="live_preview_${i}">
+                            <div class="segment month"></div>
+                            <div class="segment day"></div>
+                            <div class="segment year"></div>
+                            <div class="segment time"></div>
+                        </div>
+                    </div>
+                `;
                 container.appendChild(block);
             }
             populateApiExampleDropdowns();
-            document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
+            attachDataPointEventListeners();
         }
         resolve();
     });
@@ -473,34 +520,230 @@ function populateApiExampleDropdowns() {
             option.textContent = apiExamples[key].name;
             select.appendChild(option);
         }
+    });
+}
+
+function generateSegmentInput(index, segment, label) {
+    let iconDropdown = '';
+    if (segment === 'day') {
+        iconDropdown = `
+            <select class="icon-select" data-index="${index}" data-segment="${segment}">
+                <option value="">-- No Icon --</option>
+                <option value="SUN">SUN</option>
+                <option value="CLOUD">CLOUD</option>
+                <option value="WIFI">WIFI</option>
+                <option value="BTC">BTC</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="HEART">HEART</option>
+                <option value="STAR">STAR</option>
+                <option value="TEMP">TEMP</option>
+                <option value="WIND">WIND</option>
+                <option value="RISE">RISE</option>
+                <option value="FALL">FALL</option>
+                <option value="MAIL">MAIL</option>
+                <option value="USER">USER</option>
+            </select>
+        `;
+    }
+    return `
+        <div class="segment-config" id="config_${index}_${segment}">
+            <label>${label}</label>
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="static" data-index="${index}" data-segment="${segment}">Txt</button>
+                <button class="mode-btn" data-mode="api" data-index="${index}" data-segment="${segment}">API</button>
+            </div>
+            <input type="text" class="segment-input" id="dp_input_${index}_${segment}" data-index="${index}" data-segment="${segment}">
+            ${iconDropdown}
+        </div>
+    `;
+}
+
+function attachDataPointEventListeners() {
+    document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
+    document.querySelectorAll('.api-example-select').forEach(select => {
         select.onchange = (e) => {
             const index = e.target.dataset.index;
             const url = apiExamples[e.target.value].url;
             document.getElementById(`dp_url_${index}`).value = url;
         };
     });
+    document.querySelectorAll('.mode-btn').forEach(btn => btn.onclick = toggleSegmentMode);
+    
+    document.querySelectorAll('.segment-input').forEach(input => {
+        input.oninput = (e) => {
+            if (e.target.dataset.segment === 'day') {
+                const { index } = e.target.dataset;
+                const iconSelect = document.getElementById(`config_${index}_day`).querySelector('.icon-select');
+                if (iconSelect) iconSelect.value = '';
+            }
+            updateLivePreview(e);
+        };
+    });
+
+    document.querySelectorAll('.icon-select').forEach(select => {
+        select.onchange = (e) => {
+            const { index } = e.target.dataset;
+            const textInput = document.getElementById(`dp_input_${index}_day`);
+            if (e.target.value) {
+                textInput.value = '';
+                textInput.disabled = true;
+            } else {
+                textInput.disabled = false;
+            }
+            updateLivePreview(e);
+        };
+    });
+
+    document.querySelectorAll('input[type="checkbox"][id^="dp_scroll_enabled_"]').forEach(checkbox => {
+        checkbox.onchange = handleScrollingToggle;
+    });
 }
 
-
-function applySelectedPreset(event) {
-    const select = event.target;
-    const value = select.value;
-    if (!value) return;
-
-    const [year, month, day, hour, minute] = value.split('-');
-    updateLastDepartedDisplay(year, month, day, hour, minute);
-
-    const selectedOption = select.options[select.selectedIndex];
-    const isCustom = selectedOption.parentElement.label === 'Custom Time Jumps';
-    if (isCustom) {
-        document.getElementById('presetName').value = selectedOption.textContent;
-        document.getElementById('presetDate').value = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        document.getElementById('presetTime').value = `${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
+function toggleSegmentMode(event) {
+    const { index, segment, mode } = event.target.dataset;
+    const configDiv = document.getElementById(`config_${index}_${segment}`);
+    const input = document.getElementById(`dp_input_${index}_${segment}`);
+    
+    if (mode === 'api' && selectedPathInfo.index == index && selectedPathInfo.path) {
+        configDiv.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        input.value = `$.${selectedPathInfo.path}`;
+        clearSelectedPath();
+    } else if (mode === 'api') {
+        showMessage('Please select a value from the API analysis results first.', 'error');
+    } else {
+        configDiv.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
     }
 
-    showMessage(`Last Time Departed set to: ${selectedOption.text}`, 'info');
+    updateLivePreview(event);
+}
+
+function handleScrollingToggle(event) {
+    const { index } = event.target.dataset;
+    const isChecked = event.target.checked;
+    const yearConfig = document.getElementById(`config_${index}_year`);
+    const timeConfig = document.getElementById(`config_${index}_time`);
+
+    if (isChecked) {
+        yearConfig.querySelector('label').textContent = 'SCROLLING TEXT (8+)';
+        timeConfig.style.display = 'none';
+    } else {
+        yearConfig.querySelector('label').textContent = 'YEAR (4)';
+        timeConfig.style.display = 'flex';
+    }
+    updateLivePreview(event);
+}
+
+function startApiWizard(event) {
+    const index = event.target.getAttribute('data-index');
+    const url = document.getElementById(`dp_url_${index}`).value;
+    const resultsContainer = document.getElementById(`wizard_results_${index}`);
+    
+    if (!url) {
+        showMessage('Please enter an API URL first.', 'error');
+        return;
+    }
+    
+    resultsContainer.innerHTML = '<span class="loading-spinner"></span> Analyzing...';
+    
+    fetch('/api/testDataPoint', { 
+        method: 'POST', 
+        body: new URLSearchParams({ url, path: '' })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            analyzedDataCache[index] = data.value;
+            displayApiWizardResults(index, data.value);
+        } else {
+            showMessage(`Error: ${data.error}`, 'error');
+            resultsContainer.innerHTML = `<span class="error-text">${data.error}</span>`;
+        }
+    })
+    .catch(err => {
+        showMessage(`Network Error: ${err.message}`, 'error');
+        resultsContainer.innerHTML = `<span class="error-text">Network error.</span>`;
+    });
+}
+
+function displayApiWizardResults(index, jsonData) {
+    const container = document.getElementById(`wizard_results_${index}`);
+    container.innerHTML = '<strong>Click the data point you want to use:</strong>';
+    const list = document.createElement('ul');
+    list.className = 'wizard-list';
+
+    const buildList = (obj, parentPath = '') => {
+        for (const key in obj) {
+            const currentPath = parentPath ? `${parentPath}.${key}` : key;
+            const value = obj[key];
+            const li = document.createElement('li');
+
+            if (typeof value === 'object' && value !== null) {
+                li.innerHTML = `<span class="wizard-key">${key}:</span>`;
+                const subList = document.createElement('ul');
+                buildList(value, currentPath).forEach(item => subList.appendChild(item));
+                li.appendChild(subList);
+            } else {
+                li.innerHTML = `<button class="wizard-clickable-item" data-index="${index}" data-path="${currentPath}"><span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(value)}"</span></button>`;
+            }
+            list.appendChild(li);
+        }
+        return list.childNodes;
+    };
+    
+    buildList(jsonData);
+    container.appendChild(list);
+    container.querySelectorAll('.wizard-clickable-item').forEach(btn => btn.onclick = selectApiWizardValue);
+}
+
+function selectApiWizardValue(event) {
+    const { index, path } = event.currentTarget.dataset;
+    selectedPathInfo = { index: parseInt(index), path: path };
+    
+    const container = document.getElementById(`form_container_${index}`);
+    container.classList.add('path-selected');
+    
+    const resultsContainer = document.getElementById(`wizard_results_${index}`);
+    resultsContainer.innerHTML = `<p class="wizard-selection"><strong>Path Selected:</strong> \`${path}\`<br>Now click the glowing 'API' button for the segment you want to assign this to.</p>`;
+}
+
+function clearSelectedPath() {
+    if (selectedPathInfo.index !== null) {
+        const container = document.getElementById(`form_container_${selectedPathInfo.index}`);
+        container.classList.remove('path-selected');
+    }
+    selectedPathInfo = { index: null, path: null };
+}
+
+function updateLivePreview(event) {
+    const { index } = event.target.dataset;
+    const preview = document.getElementById(`live_preview_${index}`);
+    
+    ['month', 'day', 'year', 'time'].forEach(segment => {
+        const configDiv = document.getElementById(`config_${index}_${segment}`);
+        const input = document.getElementById(`dp_input_${index}_${segment}`);
+        const previewSegment = preview.querySelector(`.segment.${segment}`);
+        const mode = configDiv.querySelector('.mode-btn.active').dataset.mode;
+        
+        let displayValue = input.value;
+        if (segment === 'day') {
+            const iconSelect = configDiv.querySelector('.icon-select');
+            if (iconSelect && iconSelect.value) {
+                displayValue = iconSelect.value;
+            }
+        }
+
+        if (mode === 'api') {
+            displayValue = `{${displayValue.replace('$.', '')}}`;
+        }
+        
+        const maxLength = previewSegment.className.includes('year') || previewSegment.className.includes('time') ? 4 : (previewSegment.className.includes('day') ? 2 : 3);
+        previewSegment.textContent = displayValue.substring(0, maxLength);
+    });
+
     setSettingsChanged(true);
-    updateHeaderClocks(new Date());
 }
 
 function saveSettings() {
@@ -534,21 +777,29 @@ function saveSettings() {
     const arrivalTime = document.getElementById('arrivalTime').value.split(':');
     formData.append('arrivalHour', arrivalTime[0]);
     formData.append('arrivalMinute', arrivalTime[1]);
+
     if (isDataLinkLoaded) {
         const numDataPoints = document.getElementById('numDataPoints').value;
         formData.append('numDataPoints', numDataPoints);
         for (let i = 0; i < numDataPoints; i++) {
-            if (!document.getElementById(`dp_url_${i}`)) break;
             formData.append(`dp_url_${i}`, document.getElementById(`dp_url_${i}`).value);
-            formData.append(`dp_label_${i}`, document.getElementById(`dp_label_${i}`).value);
-            formData.append(`dp_path_${i}`, document.getElementById(`dp_path_${i}`).value);
-            formData.append(`dp_prefix_${i}`, document.getElementById(`dp_prefix_${i}`).value);
-            formData.append(`dp_suffix_${i}`, document.getElementById(`dp_suffix_${i}`).value);
-            formData.append(`dp_format_${i}`, document.getElementById(`dp_format_${i}`).value);
-            formData.append(`dp_icon_${i}`, document.getElementById(`dp_icon_${i}`).value);
-            formData.append(`dp_scrollSpeed_${i}`, document.getElementById(`dp_scrollSpeed_${i}`).value);
+            formData.append(`dp_scroll_enabled_${i}`, document.getElementById(`dp_scroll_enabled_${i}`).checked);
+            
+            ['month', 'day', 'year', 'time'].forEach(segment => {
+                const configDiv = document.getElementById(`config_${i}_${segment}`);
+                const mode = configDiv.querySelector('.mode-btn.active').dataset.mode;
+                const value = document.getElementById(`dp_input_${i}_${segment}`).value;
+                formData.append(`dp_${i}_${segment}_mode`, mode);
+                formData.append(`dp_${i}_${segment}_value`, value);
+
+                if (segment === 'day') {
+                    const icon = configDiv.querySelector('.icon-select').value;
+                    formData.append(`dp_${i}_icon`, icon);
+                }
+            });
         }
     }
+    
     fetch('/api/saveSettings', { method: 'POST', body: formData })
         .then(res => res.text())
         .then(text => {
@@ -687,103 +938,4 @@ function showMessage(message, type = 'info', duration = 4000) {
         banner.style.opacity = '0';
         setTimeout(() => banner.style.visibility = 'hidden', 500);
     }, duration);
-}
-
-// --- NEW API WIZARD FUNCTIONS ---
-
-function startApiWizard(event) {
-    const index = event.target.getAttribute('data-index');
-    const url = document.getElementById(`dp_url_${index}`).value;
-    const resultsContainer = document.getElementById(`wizard_results_${index}`);
-    
-    if (!url) {
-        showMessage('Please enter an API URL first.', 'error');
-        return;
-    }
-    
-    resultsContainer.innerHTML = '<span class="loading-spinner"></span> Analyzing...';
-    
-    fetch('/api/testDataPoint', { 
-        method: 'POST', 
-        body: new URLSearchParams({ url, path: '' }) // Send empty path to get full JSON
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            displayApiWizardResults(index, data.value);
-        } else {
-            showMessage(`Error: ${data.error}`, 'error');
-            resultsContainer.innerHTML = `<span class="error-text">${data.error}</span>`;
-        }
-    })
-    .catch(err => {
-        showMessage(`Network Error: ${err.message}`, 'error');
-        resultsContainer.innerHTML = `<span class="error-text">Network error.</span>`;
-    });
-}
-
-function displayApiWizardResults(index, jsonData) {
-    const container = document.getElementById(`wizard_results_${index}`);
-    container.innerHTML = '<strong>Click the data point you want to display:</strong>';
-    const list = document.createElement('ul');
-    list.className = 'wizard-list';
-    
-    // Recursively build the list of clickable items
-    const buildList = (obj, parentPath = '') => {
-        for (const key in obj) {
-            const currentPath = parentPath ? `${parentPath}.${key}` : key;
-            const value = obj[key];
-            const li = document.createElement('li');
-
-            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                li.textContent = `${key}:`;
-                li.className = 'wizard-object-key';
-                const subList = document.createElement('ul');
-                buildList(value, currentPath).forEach(item => subList.appendChild(item));
-                li.appendChild(subList);
-            } else if (Array.isArray(value)) {
-                 li.textContent = `${key}[...]:`;
-                 li.className = 'wizard-object-key';
-                 const subList = document.createElement('ul');
-                 // For arrays, let's just show the first item's keys if it's an object
-                 if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
-                     buildList(value[0], `${currentPath}[0]`).forEach(item => subList.appendChild(item));
-                 }
-                 li.appendChild(subList);
-            } else {
-                li.innerHTML = `<span class="wizard-key">${key}:</span> <span class="wizard-value">"${String(value)}"</span>`;
-                li.className = 'wizard-clickable-item';
-                li.onclick = () => selectApiWizardValue(index, currentPath, String(value));
-            }
-            list.appendChild(li);
-        }
-        return list.childNodes;
-    };
-    
-    buildList(jsonData);
-    container.appendChild(list);
-}
-
-function selectApiWizardValue(index, path, value) {
-    // Hide the wizard results
-    const resultsContainer = document.getElementById(`wizard_results_${index}`);
-    resultsContainer.innerHTML = `<p class="wizard-selection"><strong>Selected:</strong> ${path} <span class="wizard-change-btn">(Change)</span></p>`;
-    resultsContainer.querySelector('.wizard-change-btn').onclick = (e) => {
-        const btn = e.target.closest('.data-point-block').querySelector('.analyze-api-btn');
-        btn.click();
-    };
-
-    // Populate the hidden path field
-    document.getElementById(`dp_path_${index}`).value = path;
-
-    // Show the final details form
-    const finalDetails = document.getElementById(`final_details_${index}`);
-    finalDetails.style.display = 'block';
-
-    // Suggest a label based on the key
-    const labelSuggestion = path.split('.').pop().replace(/\[\d+\]/,'').substring(0, 4).toUpperCase();
-    document.getElementById(`dp_label_${index}`).value = labelSuggestion;
-
-    showMessage(`Value "${value}" selected. Please confirm the label and format.`, 'success');
-    setSettingsChanged(true);
 }
