@@ -3,22 +3,19 @@ let timezoneOptions = [];
 let isDataLinkLoaded = false;
 let anyInputInvalid = false;
 
-// Default templates, updated to use headerName and headerValue
-let apiTemplates = {
-    goldprice: { name: 'Commodity: Gold Price', url: 'https://api.api-ninjas.com/v1/goldprice', headerName: 'X-Api-Key', headerValue: '', label: 'GOLD', jsonPath: 'price', icon: 'MONEY' },
-    crypto: { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', headerName: '', headerValue: '', label: 'BTC', jsonPath: 'bitcoin.usd', icon: 'BTC' },
-    windSpeed: { name: 'Live: Wind Speed', url: 'INTERNAL', headerName: '', headerValue: '', label: 'WIND', jsonPath: 'speed', icon: 'WIND', isLiveData: true, liveDataTag: 'WIND_SPEED' },
-    nasdaq: { name: 'Stock: NASDAQ Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NDAQ&apikey={API_KEY}', headerName: '', headerValue: '', label: 'NASDAQ', jsonPath: 'Global Quote.05. price', icon: 'STOCK' },
-    sp500: { name: 'Stock: S&P 500 Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey={API_KEY}', headerName: '', headerValue: '', label: 'S&P500', jsonPath: 'Global Quote.05. price', icon: 'STOCK' },
-    tsx: { name: 'Stock: TSX Index', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XIU.TRT&apikey={API_KEY}', headerName: '', headerValue: '', label: 'TSX', jsonPath: 'Global Quote.05. price', icon: 'STOCK' },
-    usdcad: { name: 'FX: USD to CAD', url: 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CAD&apikey={API_KEY}', headerName: '', headerValue: '', label: 'USDCAD', jsonPath: 'Realtime Currency Exchange Rate.5. Exchange Rate', icon: 'MONEY' },
-    feelsLike: { name: 'Weather: Feels Like Temp', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid={API_KEY}', headerName: '', headerValue: '', label: 'FEELS', jsonPath: 'main.feels_like', icon: 'CLOUD' },
-    humidity: { name: 'Weather: Humidity', url: 'https://api.openweathermap.org/data/2.5/weather?lat=YOUR_LAT&lon=YOUR_LON&units=metric&appid={API_KEY}', headerName: '', headerValue: '', label: 'HUMD', jsonPath: 'main.humidity', icon: 'RAIN' },
-    uvIndex: { name: 'Weather: UV Index', url: 'https://api.openweathermap.org/data/2.5/uvi?lat=YOUR_LAT&lon=YOUR_LON&appid={API_KEY}', headerName: '', headerValue: '', label: 'UV', jsonPath: 'value', icon: 'SUN' },
-    aqi: { name: 'Weather: Air Quality (AQI)', url: 'https://api.openweathermap.org/data/2.5/air_pollution?lat=YOUR_LAT&lon=YOUR_LON&appid={API_KEY}', headerName: '', headerValue: '', label: 'AQI', jsonPath: 'list[0].main.aqi', icon: 'ALERT' },
-    youtube: { name: 'Social: YouTube Subs', url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=YOUR_CHANNEL_ID&key={API_KEY}', headerName: '', headerValue: '', label: 'SUBS', jsonPath: 'items[0].statistics.subscriberCount', icon: 'UP' },
-    space: { name: 'Fun: People in Space', url: 'http://api.open-notify.org/astros.json', headerName: '', headerValue: '', label: 'ASTRO', jsonPath: 'number', icon: 'WIFI' },
+const apiExamples = {
+    '': { name: '-- Select an Example --', url: '' },
+    'weather_temp': { name: 'Weather: Temperature', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current_weather=true' },
+    'weather_wind': { name: 'Weather: Wind Speed', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current_weather=true' },
+    'stock_tsla': { name: 'Stock: Tesla (Requires Key)', url: 'https://finnhub.io/api/v1/quote?symbol=TSLA&token=YOUR_API_KEY' },
+    'stock_aapl': { name: 'Stock: Apple (Requires Key)', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=YOUR_API_KEY' },
+    'btc': { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd' },
+    'space': { name: 'Fun: People in Space', url: 'http://api.open-notify.org/astros.json' },
+    'cat_fact': { name: 'Fun: Random Cat Fact', url: 'https://catfact.ninja/fact' },
+    'joke': { name: 'Fun: Get a Random Joke', url: 'https://official-joke-api.appspot.com/random_joke' },
+    'bored': { name: 'Fun: Get an Activity Idea', url: 'https://bored-api.appbrewery.com/random' },
 };
+
 
 document.addEventListener('DOMContentLoaded', () => {
     function waitForServerReady() {
@@ -45,8 +42,7 @@ function initializeUI() {
         '/api/settings/datalink',
         '/api/timezones',
         '/api/getPresets',
-        '/api/getTheme',
-        '/api/getApiTemplates'
+        '/api/getTheme'
     ];
     const promises = initialEndpoints.map(url => fetch(url).then(res => {
         if (!res.ok) return Promise.reject(new Error(`Request to ${url} failed`));
@@ -56,17 +52,12 @@ function initializeUI() {
 
     Promise.all(promises)
         .then(results => {
-            const [timecircuits, temporal, datalink, timezones, presets, theme, savedTemplates] = results;
+            const [timecircuits, temporal, datalink, timezones, presets, theme] = results;
             
-            if (Object.keys(savedTemplates).length > 0) {
-                apiTemplates = savedTemplates;
-            }
-
             document.body.className = theme;
             
             populateTimezoneSelects(timezones);
             populatePresetsSelect(presets);
-            populateApiTemplateDropdown();
             
             applySettings(timecircuits, temporal, datalink);
             document.querySelector('.header-circuits').classList.add('visible');
@@ -237,29 +228,25 @@ function applyDataLinkSettings(datalink) {
     updateDataPointsUI(datalink.numDataPoints).then(() => {
         if (datalink.dataPoints) {
             datalink.dataPoints.forEach((point, i) => {
-                document.getElementById(`dp_url_${i}`).value = point.url;
-                document.getElementById(`dp_label_${i}`).value = point.label;
-                document.getElementById(`dp_path_${i}`).value = point.jsonPath;
-                document.getElementById(`dp_format_${i}`).value = point.format;
-                document.getElementById(`dp_icon_${i}`).value = point.icon;
+                document.getElementById(`dp_url_${i}`).value = point.url || '';
+                document.getElementById(`dp_label_${i}`).value = point.label || '';
+                document.getElementById(`dp_path_${i}`).value = point.jsonPath || '';
+                document.getElementById(`dp_prefix_${i}`).value = point.prefix || '';
+                document.getElementById(`dp_suffix_${i}`).value = point.suffix || '';
+                document.getElementById(`dp_format_${i}`).value = point.format || '';
+                document.getElementById(`dp_icon_${i}`).value = point.icon || '';
                 const scrollSlider = document.getElementById(`dp_scrollSpeed_${i}`);
-                scrollSlider.value = point.scrollSpeed;
+                scrollSlider.value = point.scrollSpeed || 150;
                 scrollSlider.dispatchEvent(new Event('input'));
-                document.getElementById(`dp_isLiveData_${i}`).value = point.isLiveData;
-                document.getElementById(`dp_liveDataTag_${i}`).value = point.liveDataTag;
-                document.getElementById(`api_fields_${i}`).style.display = point.isLiveData ? 'none' : 'block';
             });
         }
     });
 }
 
 function attachEventListeners() {
-    // Interactive Header
     document.getElementById('header-dest').onclick = () => scrollToSettings('TimeCircuits', 'destinationTimeSettings');
     document.getElementById('header-pres').onclick = () => scrollToSettings('System', 'presentTimeSettings');
     document.getElementById('header-last').onclick = () => scrollToSettings('TimeCircuits', 'lastDepartedSettings');
-
-    // Great Scott Button
     document.getElementById('greatScottBtn').onclick = () => {
         fetch('/api/greatScott', { method: 'POST' });
     };
@@ -283,13 +270,6 @@ function attachEventListeners() {
     document.getElementById('addPresetBtn').onclick = addPreset;
     document.getElementById('updatePresetBtn').onclick = updatePreset;
     document.getElementById('deletePresetBtn').onclick = deletePreset;
-
-    document.getElementById('apiTemplateSelector').onchange = editApiTemplate;
-    document.getElementById('newApiTemplateBtn').onclick = clearApiTemplateForm;
-    document.getElementById('saveNewApiTemplateBtn').onclick = saveNewApiTemplate;
-    document.getElementById('updateApiTemplateBtn').onclick = updateApiTemplate;
-    document.getElementById('duplicateApiTemplateBtn').onclick = duplicateApiTemplate;
-    document.getElementById('deleteApiTemplateBtn').onclick = deleteApiTemplate;
 
     document.getElementById('dataLinkEnabled').onchange = (e) => {
         document.getElementById('dataLinkSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
@@ -451,35 +431,53 @@ function updateDataPointsUI(numPoints) {
                 const block = document.createElement('div');
                 block.className = 'setting-group data-point-block';
                 block.innerHTML = `<h4>Data Point ${i + 1}</h4>
-                    <label for="apiTemplateSelector_${i}">Load a Template:</label>
-                    <select class="api-template-select" data-index="${i}"><option value="">-- Manual URL --</option></select>
-                    <input type="hidden" id="dp_isLiveData_${i}" value="false">
-                    <input type="hidden" id="dp_liveDataTag_${i}" value="">
-                    <input type="hidden" id="dp_headerName_${i}" value="">
-                    <input type="hidden" id="dp_headerValue_${i}" value="">
-                    <div id="api_fields_${i}">
-                        <label for="dp_url_${i}">API URL:</label>
-                        <input type="text" id="dp_url_${i}" placeholder="Select a template or enter full URL">
-                        <label for="dp_path_${i}">JSON Path:</label>
-                        <input type="text" id="dp_path_${i}" placeholder="data.value[0]">
-                    </div>
-                    <div class="preset-date-inputs">
-                        <div style="width:100%"><label for="dp_label_${i}">Label (4 chars):</label><input type="text" id="dp_label_${i}" maxlength="4"></div>
-                        <div style="width:100%"><label for="dp_icon_${i}">Icon:</label><input type="text" id="dp_icon_${i}" placeholder="e.g., SUN, BTC"></div>
-                    </div>
-                    <label for="dp_format_${i}">Format (%L, %V, |):</label><input type="text" id="dp_format_${i}" placeholder="%L | %V">
-                    <hr>
-                    <label for="dp_scrollSpeed_${i}">Scroll Speed (ms/step): <span id="dp_scrollSpeed_val_${i}">150</span></label>
-                    <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150">
-                    <button class="test-api-btn" data-index="${i}">Test API</button>`;
+                    <label for="api_example_${i}">API Examples (optional):</label>
+                    <select id="api_example_${i}" class="api-example-select" data-index="${i}"></select>
+
+                    <label for="dp_url_${i}">API URL:</label>
+                    <input type="text" id="dp_url_${i}" placeholder="http://api.example.com/data.json">
+                    <button class="analyze-api-btn" data-index="${i}">Analyze API</button>
+                    <div class="api-wizard-results" id="wizard_results_${i}"></div>
+                    <div class="api-final-details" id="final_details_${i}" style="display:none;">
+                        <input type="hidden" id="dp_path_${i}">
+                        <div class="preset-date-inputs">
+                            <div style="width:100%"><label for="dp_label_${i}">Label (4 chars):</label><input type="text" id="dp_label_${i}" maxlength="4" placeholder="DATA"></div>
+                            <div style="width:100%"><label for="dp_icon_${i}">Icon:</label><input type="text" id="dp_icon_${i}" placeholder="e.g., SUN, BTC"></div>
+                        </div>
+                        <div class="preset-date-inputs">
+                            <div style="width:100%"><label for="dp_prefix_${i}">Prefix:</label><input type="text" id="dp_prefix_${i}" maxlength="16" placeholder="e.g., $"></div>
+                            <div style="width:100%"><label for="dp_suffix_${i}">Suffix:</label><input type="text" id="dp_suffix_${i}" maxlength="16" placeholder="e.g., USD"></div>
+                        </div>
+                        <label for="dp_format_${i}">Format (%L, %V, %P, %S, |):</label><input type="text" id="dp_format_${i}" value="%L | %P%V%S">
+                        <hr>
+                        <label for="dp_scrollSpeed_${i}">Scroll Speed (ms/step): <span id="dp_scrollSpeed_val_${i}">150</span></label>
+                        <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150" oninput="document.getElementById('dp_scrollSpeed_val_${i}').textContent=this.value">
+                    </div>`;
                 container.appendChild(block);
             }
-            document.querySelectorAll('.test-api-btn').forEach(btn => btn.onclick = testApi);
-            updateAllDataPointTemplateMenus();
+            populateApiExampleDropdowns();
+            document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
         }
         resolve();
     });
 }
+
+function populateApiExampleDropdowns() {
+    document.querySelectorAll('.api-example-select').forEach(select => {
+        for (const key in apiExamples) {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = apiExamples[key].name;
+            select.appendChild(option);
+        }
+        select.onchange = (e) => {
+            const index = e.target.dataset.index;
+            const url = apiExamples[e.target.value].url;
+            document.getElementById(`dp_url_${index}`).value = url;
+        };
+    });
+}
+
 
 function applySelectedPreset(event) {
     const select = event.target;
@@ -504,7 +502,6 @@ function applySelectedPreset(event) {
 
 function saveSettings() {
     showLoading('saveSettingsBtn', true);
-    saveApiTemplates(); // Save templates first
     const formData = new URLSearchParams();
 
     const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkTargetRow', 'dataLinkRefreshInterval'];
@@ -542,13 +539,11 @@ function saveSettings() {
             formData.append(`dp_url_${i}`, document.getElementById(`dp_url_${i}`).value);
             formData.append(`dp_label_${i}`, document.getElementById(`dp_label_${i}`).value);
             formData.append(`dp_path_${i}`, document.getElementById(`dp_path_${i}`).value);
+            formData.append(`dp_prefix_${i}`, document.getElementById(`dp_prefix_${i}`).value);
+            formData.append(`dp_suffix_${i}`, document.getElementById(`dp_suffix_${i}`).value);
             formData.append(`dp_format_${i}`, document.getElementById(`dp_format_${i}`).value);
             formData.append(`dp_icon_${i}`, document.getElementById(`dp_icon_${i}`).value);
             formData.append(`dp_scrollSpeed_${i}`, document.getElementById(`dp_scrollSpeed_${i}`).value);
-            formData.append(`dp_isLiveData_${i}`, document.getElementById(`dp_isLiveData_${i}`).value);
-            formData.append(`dp_liveDataTag_${i}`, document.getElementById(`dp_liveDataTag_${i}`).value);
-            formData.append(`dp_headerName_${i}`, document.getElementById(`dp_headerName_${i}`).value);
-            formData.append(`dp_headerValue_${i}`, document.getElementById(`dp_headerValue_${i}`).value);
         }
     }
     fetch('/api/saveSettings', { method: 'POST', body: formData })
@@ -634,26 +629,6 @@ function fetchTime() {
         });
 }
 
-function testApi(event) {
-    const index = event.target.getAttribute('data-index');
-    const url = document.getElementById(`dp_url_${index}`).value;
-    const path = document.getElementById(`dp_path_${index}`).value;
-    if (!url || !path) {
-        showMessage('URL and JSON Path are required to test.', 'error');
-        return;
-    }
-    showMessage('Testing API...', 'info');
-    fetch('/api/testDataPoint', { method: 'POST', body: new URLSearchParams({ url, path }) })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                showMessage(`Success! Got value: ${data.value}`, 'success');
-            } else {
-                showMessage(`Error: ${data.error}`, 'error');
-            }
-        });
-}
-
 function updateSleepVisual() {
     const depTime = document.getElementById('departureTime').value;
     const arrTime = document.getElementById('arrivalTime').value;
@@ -671,15 +646,16 @@ function updateSleepVisual() {
         document.querySelector('.sleep-schedule-visual').prepend(bar2);
     }
 
-    if (arrTotalMins < depTotalMins) {
-        bar.style.left = `${(arrTotalMins / 1440) * 100}%`;
-        bar.style.width = `${((depTotalMins - arrTotalMins) / 1440) * 100}%`;
+    if (arrTotalMins < depTotalMins) { // Normal overnight case
+        const sleepDuration = (1440 - depTotalMins) + arrTotalMins;
+        bar.style.left = `${(depTotalMins / 1440) * 100}%`;
+        bar.style.width = `${(sleepDuration / 1440) * 100}%`;
         bar2.style.width = '0%';
-    } else {
-        bar.style.left = `${(arrTotalMins / 1440) * 100}%`;
-        bar.style.width = `${((1440 - arrTotalMins) / 1440) * 100}%`;
-        bar2.style.left = '0%';
-        bar2.style.width = `${(depTotalMins / 1440) * 100}%`;
+    } else { // Same day sleep
+        const sleepDuration = arrTotalMins - depTotalMins;
+        bar.style.left = `${(depTotalMins / 1440) * 100}%`;
+        bar.style.width = `${(sleepDuration / 1440) * 100}%`;
+        bar2.style.width = '0%';
     }
 }
 
@@ -710,186 +686,101 @@ function showMessage(message, type = 'info', duration = 4000) {
     }, duration);
 }
 
-// --- API Template Functions ---
-async function saveApiTemplates() {
-    try {
-        const response = await fetch('/api/saveApiTemplates', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(apiTemplates)
-        });
-        const text = await response.text();
-        if (response.ok) {
-            showMessage('API Templates saved!', 'success');
+// --- NEW API WIZARD FUNCTIONS ---
+
+function startApiWizard(event) {
+    const index = event.target.getAttribute('data-index');
+    const url = document.getElementById(`dp_url_${index}`).value;
+    const resultsContainer = document.getElementById(`wizard_results_${index}`);
+    
+    if (!url) {
+        showMessage('Please enter an API URL first.', 'error');
+        return;
+    }
+    
+    resultsContainer.innerHTML = '<span class="loading-spinner"></span> Analyzing...';
+    
+    fetch('/api/testDataPoint', { 
+        method: 'POST', 
+        body: new URLSearchParams({ url, path: '' }) // Send empty path to get full JSON
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            displayApiWizardResults(index, data.value);
         } else {
-            showMessage(`Error saving templates: ${text}`, 'error');
+            showMessage(`Error: ${data.error}`, 'error');
+            resultsContainer.innerHTML = `<span class="error-text">${data.error}</span>`;
         }
-    } catch (err) {
-        showMessage(`Network error saving templates: ${err.message}`, 'error');
-    }
-}
-
-function populateApiTemplateDropdown() {
-    const select = document.getElementById('apiTemplateSelector');
-    const selectedValue = select.value;
-    while (select.options.length > 1) select.remove(1);
-    for (const key in apiTemplates) {
-        const template = apiTemplates[key];
-        const option = document.createElement('option');
-        option.value = key;
-        option.textContent = template.name || key;
-        select.appendChild(option);
-    }
-    select.value = selectedValue;
-}
-
-function updateAllDataPointTemplateMenus() {
-    document.querySelectorAll('.api-template-select').forEach(select => {
-        const selectedValue = select.value;
-        while (select.options.length > 1) select.remove(1);
-        for (const key in apiTemplates) {
-            const template = apiTemplates[key];
-            const option = document.createElement('option');
-            option.value = key;
-            option.textContent = template.name || key;
-            select.appendChild(option);
-        }
-        select.value = selectedValue;
-        select.onchange = (e) => {
-            const templateKey = e.target.value;
-            const index = e.target.dataset.index;
-            if (templateKey) {
-                const template = apiTemplates[templateKey];
-                document.getElementById(`dp_url_${index}`).value = template.url;
-                document.getElementById(`dp_headerName_${index}`).value = template.headerName || '';
-                document.getElementById(`dp_headerValue_${index}`).value = template.headerValue || '';
-                document.getElementById(`dp_label_${index}`).value = template.label;
-                document.getElementById(`dp_path_${index}`).value = template.jsonPath;
-                document.getElementById(`dp_icon_${index}`).value = template.icon;
-                document.getElementById(`dp_format_${index}`).value = template.format || '%L | %V';
-                document.getElementById(`dp_isLiveData_${index}`).value = template.isLiveData || false;
-                document.getElementById(`dp_liveDataTag_${index}`).value = template.liveDataTag || '';
-            }
-        };
+    })
+    .catch(err => {
+        showMessage(`Network Error: ${err.message}`, 'error');
+        resultsContainer.innerHTML = `<span class="error-text">Network error.</span>`;
     });
 }
 
-function clearApiTemplateForm() {
-    document.getElementById('apiTemplateForm').reset();
-    document.getElementById('apiTemplateKey').value = '';
-    document.getElementById('apiTemplateSelector').value = '';
-    document.getElementById('updateApiTemplateBtn').disabled = true;
-    document.getElementById('duplicateApiTemplateBtn').disabled = true;
-    document.getElementById('deleteApiTemplateBtn').disabled = true;
-}
-
-function saveNewApiTemplate() {
-    const name = document.getElementById('apiTemplateName').value.trim();
-    if (!name) {
-        showMessage('Template Name is required.', 'error');
-        return;
-    }
-    const templateKey = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (apiTemplates[templateKey]) {
-        showMessage('A template with this name already exists.', 'error');
-        return;
-    }
-    updateApiTemplate(templateKey);
-}
-
-function updateApiTemplate(key) {
-    const isUpdate = typeof key === 'string';
-    const templateKey = isUpdate ? key : document.getElementById('apiTemplateSelector').value;
-
-    if (!isUpdate && !templateKey) {
-        showMessage('No template selected to update.', 'error');
-        return;
-    }
-
-    const name = document.getElementById('apiTemplateName').value.trim();
-    const url = document.getElementById('apiTemplateUrl').value.trim();
-    const headerName = document.getElementById('apiTemplateHeaderName').value.trim();
-    const headerValue = document.getElementById('apiTemplateHeaderValue').value.trim();
-    const jsonPath = document.getElementById('apiTemplateJsonPath').value.trim();
-    const label = document.getElementById('apiTemplateLabel').value.trim();
-    const icon = document.getElementById('apiTemplateIcon').value.trim();
-
-    if (!name || !url || !jsonPath || !label) {
-        showMessage('Name, URL, JSON Path, and Label are required.', 'error');
-        return;
-    }
-
-    const newTemplate = { name, url, headerName, headerValue, jsonPath, label, icon };
-    apiTemplates[templateKey] = newTemplate;
+function displayApiWizardResults(index, jsonData) {
+    const container = document.getElementById(`wizard_results_${index}`);
+    container.innerHTML = '<strong>Click the data point you want to display:</strong>';
+    const list = document.createElement('ul');
+    list.className = 'wizard-list';
     
-    populateApiTemplateDropdown();
-    document.getElementById('apiTemplateSelector').value = templateKey;
+    // Recursively build the list of clickable items
+    const buildList = (obj, parentPath = '') => {
+        for (const key in obj) {
+            const currentPath = parentPath ? `${parentPath}.${key}` : key;
+            const value = obj[key];
+            const li = document.createElement('li');
 
-    saveApiTemplates();
-}
-
-function editApiTemplate(event) {
-    const key = event.target.value;
-    if (!key) {
-        clearApiTemplateForm();
-        return;
-    }
-    const template = apiTemplates[key];
-    document.getElementById('apiTemplateName').value = template.name || '';
-    document.getElementById('apiTemplateUrl').value = template.url;
-    document.getElementById('apiTemplateHeaderName').value = template.headerName || '';
-    document.getElementById('apiTemplateHeaderValue').value = template.headerValue || '';
-    document.getElementById('apiTemplateJsonPath').value = template.jsonPath;
-    document.getElementById('apiTemplateLabel').value = template.label;
-    document.getElementById('apiTemplateIcon').value = template.icon || '';
-    document.getElementById('apiTemplateKey').value = key;
-    document.getElementById('updateApiTemplateBtn').disabled = false;
-    document.getElementById('duplicateApiTemplateBtn').disabled = false;
-    document.getElementById('deleteApiTemplateBtn').disabled = false;
-}
-
-function deleteApiTemplate() {
-    const key = document.getElementById('apiTemplateSelector').value;
-    if (!key) return;
-    if (confirm(`Are you sure you want to delete the template "${apiTemplates[key].name || key}"?`)) {
-        delete apiTemplates[key];
-        clearApiTemplateForm();
-        populateApiTemplateDropdown();
-        saveApiTemplates();
-    }
-}
-
-function duplicateApiTemplate() {
-    const key = document.getElementById('apiTemplateSelector').value;
-    if (!key) return;
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                li.textContent = `${key}:`;
+                li.className = 'wizard-object-key';
+                const subList = document.createElement('ul');
+                buildList(value, currentPath).forEach(item => subList.appendChild(item));
+                li.appendChild(subList);
+            } else if (Array.isArray(value)) {
+                 li.textContent = `${key}[...]:`;
+                 li.className = 'wizard-object-key';
+                 const subList = document.createElement('ul');
+                 // For arrays, let's just show the first item's keys if it's an object
+                 if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
+                     buildList(value[0], `${currentPath}[0]`).forEach(item => subList.appendChild(item));
+                 }
+                 li.appendChild(subList);
+            } else {
+                li.innerHTML = `<span class="wizard-key">${key}:</span> <span class="wizard-value">"${String(value)}"</span>`;
+                li.className = 'wizard-clickable-item';
+                li.onclick = () => selectApiWizardValue(index, currentPath, String(value));
+            }
+            list.appendChild(li);
+        }
+        return list.childNodes;
+    };
     
-    const original = apiTemplates[key];
-    let newKey = key;
-    let newName = original.name || key;
+    buildList(jsonData);
+    container.appendChild(list);
+}
 
-    let i = 1;
-    do {
-      newKey = `${key}_copy${i}`;
-      i++;
-    } while(apiTemplates[newKey]);
+function selectApiWizardValue(index, path, value) {
+    // Hide the wizard results
+    const resultsContainer = document.getElementById(`wizard_results_${index}`);
+    resultsContainer.innerHTML = `<p class="wizard-selection"><strong>Selected:</strong> ${path} <span class="wizard-change-btn">(Change)</span></p>`;
+    resultsContainer.querySelector('.wizard-change-btn').onclick = (e) => {
+        const btn = e.target.closest('.data-point-block').querySelector('.analyze-api-btn');
+        btn.click();
+    };
 
-    if (newName.includes('(Copy')) {
-        newName = newName.substring(0, newName.lastIndexOf('(') -1);
-    }
-    let copyNum = 1;
-    let tempName = `${newName} (Copy ${copyNum})`;
-    while(Object.values(apiTemplates).some(t => t.name === tempName)) {
-        copyNum++;
-        tempName = `${newName} (Copy ${copyNum})`;
-    }
-    newName = tempName;
+    // Populate the hidden path field
+    document.getElementById(`dp_path_${index}`).value = path;
 
-    const newTemplate = JSON.parse(JSON.stringify(original));
-    newTemplate.name = newName;
-    apiTemplates[newKey] = newTemplate;
+    // Show the final details form
+    const finalDetails = document.getElementById(`final_details_${index}`);
+    finalDetails.style.display = 'block';
 
-    populateApiTemplateDropdown();
-    document.getElementById('apiTemplateSelector').value = newKey;
-    editApiTemplate({ target: { value: newKey } });
-    saveApiTemplates();
+    // Suggest a label based on the key
+    const labelSuggestion = path.split('.').pop().replace(/\[\d+\]/,'').substring(0, 4).toUpperCase();
+    document.getElementById(`dp_label_${index}`).value = labelSuggestion;
+
+    showMessage(`Value "${value}" selected. Please confirm the label and format.`, 'success');
+    setSettingsChanged(true);
 }

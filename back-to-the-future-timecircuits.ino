@@ -29,8 +29,8 @@
 
 ClockSettings currentSettings;
 ClockSettings defaultSettings = {
-  1955, 4, 22, 0, 7, 0, 1, 21, 1985, 10, 26, 5, 15, true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
-  4000, ANIMATION_SEQUENTIAL_FLICKER, 0, 25, true, false, -80.52, 43.47,
+  1955, 4, 22, 0, 7, 0, 1985, 10, 26, 1, 21, 5, 15, true, 15, 10, false, THEME_TIME_CIRCUITS, 1,
+  4000, ANIMATION_SEQUENTIAL_FLICKER, 0, 25, true, -80.52, 43.47,
   false, 2, 10, 0, {}
 };
 DynamicJsonDocument apiTemplatesDoc(4096);
@@ -113,6 +113,8 @@ void fetchDataLink();
 void updateMarqueeDisplay();
 void fetchWindSpeed();
 void loadApiTemplates();
+void runBootSequence();
+
 
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
@@ -177,34 +179,12 @@ void setupWebRoutes() {
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/script.js", "application/javascript"); });
   server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(200, "text/plain", "READY"); });
   
-  server.on("/api/getApiTemplates", HTTP_GET, [](AsyncWebServerRequest *request){
-    if (LittleFS.exists(API_TEMPLATES_FILE)) {
-      request->send(LittleFS, API_TEMPLATES_FILE, "application/json");
-    } else {
-      request->send(200, "application/json", "{}");
-    }
-  });
-
-  AsyncCallbackJsonWebHandler* saveTemplatesHandler = new AsyncCallbackJsonWebHandler("/api/saveApiTemplates", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    File file = LittleFS.open(API_TEMPLATES_FILE, "w");
-    if (!file) {
-      request->send(500, "text/plain", "Failed to open templates file for writing.");
-      return;
-    }
-    serializeJson(json, file);
-    file.close();
-    loadApiTemplates(); // Reload into memory after saving
-    request->send(200, "text/plain", "API Templates saved.");
-  });
-  server.addHandler(saveTemplatesHandler);
-
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
     #if ENABLE_HARDWARE
     playSound("EASTER_EGG");
     #endif
     request->send(200, "text/plain", "Great Scott!");
   });
-
   server.on("/api/settings/timecircuits", HTTP_GET, [](AsyncWebServerRequest *request) {
     StaticJsonDocument<256> doc;
     doc["destinationYear"] = currentSettings.destinationYear;
@@ -253,13 +233,11 @@ void setupWebRoutes() {
         dp["url"] = currentSettings.dataPoints[i].url;
         dp["label"] = currentSettings.dataPoints[i].label;
         dp["jsonPath"] = currentSettings.dataPoints[i].jsonPath;
+        dp["prefix"] = currentSettings.dataPoints[i].prefix;
+        dp["suffix"] = currentSettings.dataPoints[i].suffix;
         dp["format"] = currentSettings.dataPoints[i].format;
         dp["icon"] = currentSettings.dataPoints[i].icon;
         dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
-        dp["isLiveData"] = currentSettings.dataPoints[i].isLiveData;
-        dp["liveDataTag"] = currentSettings.dataPoints[i].liveDataTag;
-        dp["headerName"] = currentSettings.dataPoints[i].headerName;
-        dp["headerValue"] = currentSettings.dataPoints[i].headerValue;
     }
 
     String response;
@@ -321,7 +299,6 @@ void setupWebRoutes() {
     currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
     currentSettings.dataLinkTargetRow = getParamInt("dataLinkTargetRow", currentSettings.dataLinkTargetRow);
     currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
-
     if (request->hasParam("numDataPoints", true)) {
         int numDataPoints = getParamInt("numDataPoints", 0);
         if (numDataPoints > 5) numDataPoints = 5;
@@ -330,13 +307,11 @@ void setupWebRoutes() {
             strncpy(currentSettings.dataPoints[i].url, getParamValue("dp_url_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
             strncpy(currentSettings.dataPoints[i].label, getParamValue("dp_label_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].label) - 1);
             strncpy(currentSettings.dataPoints[i].jsonPath, getParamValue("dp_path_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].jsonPath) - 1);
+            strncpy(currentSettings.dataPoints[i].prefix, getParamValue("dp_prefix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].prefix) - 1);
+            strncpy(currentSettings.dataPoints[i].suffix, getParamValue("dp_suffix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].suffix) - 1);
             strncpy(currentSettings.dataPoints[i].format, getParamValue("dp_format_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].format) - 1);
             strncpy(currentSettings.dataPoints[i].icon, getParamValue("dp_icon_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
-            strncpy(currentSettings.dataPoints[i].liveDataTag, getParamValue("dp_liveDataTag_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].liveDataTag) - 1);
-            strncpy(currentSettings.dataPoints[i].headerName, getParamValue("dp_headerName_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].headerName) - 1);
-            strncpy(currentSettings.dataPoints[i].headerValue, getParamValue("dp_headerValue_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].headerValue) - 1);
             currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
-            currentSettings.dataPoints[i].isLiveData = (getParamValue("dp_isLiveData_" + String(i)) == "true");
         }
     }
     
@@ -349,7 +324,6 @@ void setupWebRoutes() {
     request->send(200, "text/plain", "Settings Saved! Engaging Time Circuits...");
     startTimeTravelAnimation();
   });
-  
   server.on("/api/addPreset", HTTP_POST, [](AsyncWebServerRequest *request){
     String presetsJson = preferences.getString("customPresets", "[]");
     DynamicJsonDocument doc(2048);
@@ -393,7 +367,8 @@ void setupWebRoutes() {
             break;
         }
     }
-    String newPresetsJson;
+   
+   String newPresetsJson;
     serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
     request->send(200, "text/plain", "Preset deleted!");
@@ -420,48 +395,50 @@ void setupWebRoutes() {
   });
   server.on("/api/testDataPoint", HTTP_POST, [](AsyncWebServerRequest *request){
     String url = request->getParam("url", true)->value();
-    String path = request->getParam("path", true)->value();
+    String path = request->hasParam("path", true) ? request->getParam("path", true)->value() : "";
     HTTPClient http;
     http.begin(url);
     int httpCode = http.GET();
     String errorMsg = "";
+
     if (httpCode > 0) {
-      if (httpCode == HTTP_CODE_OK) {
-        DynamicJsonDocument doc(8192);
-        DeserializationError error = deserializeJson(doc, http.getStream());
-        if (error == DeserializationError::Ok) {
-            JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), path.c_str());
-            if (!value.isNull()) {
-                request->send(200, "application/json", "{\"success\":true, \"value\":\"" + value.as<String>() + "\"}");
+        if (httpCode == HTTP_CODE_OK) {
+            String payload = http.getString();
+            DynamicJsonDocument doc(8192);
+            DeserializationError error = deserializeJson(doc, payload);
+            if (error == DeserializationError::Ok) {
+                if (path.length() == 0) {
+                    request->send(200, "application/json", "{\"success\":true, \"value\":" + payload + "}");
+                } else {
+                    JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), path.c_str());
+                    if (!value.isNull()) {
+                        request->send(200, "application/json", "{\"success\":true, \"value\":\"" + value.as<String>() + "\"}");
+                    } else {
+                        errorMsg = "JSON Path not found.";
+                    }
+                }
             } else {
-                errorMsg = "JSON Path not found.";
+                errorMsg = "JSON Parsing Failed: " + String(error.c_str());
             }
         } else {
-            errorMsg = "JSON Parsing Failed.";
+            errorMsg = "HTTP Error: " + String(httpCode);
         }
-      } else {
-        if (httpCode == 401 || httpCode == 403) {
-          errorMsg = "Authorization Error. Check API Key.";
-        } else if (httpCode == 404) {
-          errorMsg = "Not Found. Check URL Path.";
-        } else {
-          errorMsg = "HTTP Error: " + String(httpCode);
-        }
-      }
     } else {
-      errorMsg = "HTTP request failed.";
+        errorMsg = "HTTP request failed.";
     }
+
     if (errorMsg != "") {
-      request->send(200, "application/json", "{\"success\":false, \"error\":\"" + errorMsg + "\"}");
+        request->send(200, "application/json", "{\"success\":false, \"error\":\"" + errorMsg + "\"}");
     }
     http.end();
-  });
+});
 }
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n\n--- BOOTING ---");
+ 
+   Serial.println("\n\n--- BOOTING ---");
   if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed."); while(1); }
   preferences.begin("bttf-clock", false);
   loadSettings();
@@ -476,7 +453,8 @@ void setup() {
   #endif
   wifiManager.autoConnect("BTTF-Clock-Setup");
   ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
-  if (MDNS.begin(MDNS_HOSTNAME)) { MDNS.addService("http", "tcp", 80); }
+  if (MDNS.begin(MDNS_HOSTNAME)) { MDNS.addService("http", "tcp", 80);
+  }
   setupWebRoutes();
   server.begin();
   ESP_LOGI("Web", "HTTP server started.");
@@ -484,7 +462,7 @@ void setup() {
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
   runBootSequence();
-}
+ }
 
 void loop() {
   ArduinoOTA.handle();
@@ -558,7 +536,7 @@ void handleDisplayAnimation() {
       }
       #endif
       break;
-  }
+    }
   #endif
 }
 
@@ -570,15 +548,13 @@ void handleMalfunction() {
     case MAL_HAYWIRE:
       if (elapsed < 3000) {
         if (millis() - lastAnimationFrameTime > 100) {
-          destRow.month.print("8888");
-          destRow.day.print("8888"); destRow.year.print("8888"); destRow.time.print("8888");
-          presRow.month.print("8888"); presRow.day.print("8888"); presRow.year.print("8888"); presRow.time.print("8888");
-          lastRow.month.print("8888"); lastRow.day.print("8888"); lastRow.year.print("8888"); lastRow.time.print("8888");
+          printToDisplay(destRow.month, "8888"); printToDisplay(destRow.day, "8888"); printToDisplay(destRow.year, "8888"); printToDisplay(destRow.time, "8888");
+          printToDisplay(presRow.month, "8888"); printToDisplay(presRow.day, "8888"); printToDisplay(presRow.year, "8888"); printToDisplay(presRow.time, "8888");
+          printToDisplay(lastRow.month, "8888"); printToDisplay(lastRow.day, "8888"); printToDisplay(lastRow.year, "8888"); printToDisplay(lastRow.time, "8888");
           
           destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
           presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-          lastRow.month.writeDisplay();
-          lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+          lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
           
           lastAnimationFrameTime = millis();
         }
@@ -589,15 +565,12 @@ void handleMalfunction() {
       break;
     case MAL_ERROR_MESSAGE:
       if (elapsed < 4000) {
-        destRow.month.print("TIME");
-        destRow.day.print("CIRC"); destRow.year.print("UIT "); destRow.time.print("OVER");
-        presRow.month.print("LOAD"); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
-        lastRow.month.print("FLUX");
-        lastRow.day.print("OFFL"); lastRow.year.print("INE "); lastRow.time.clear();
+        printToDisplay(destRow.month, "TIME"); printToDisplay(destRow.day, "CIRC"); printToDisplay(destRow.year, "UIT "); printToDisplay(destRow.time, "OVER");
+        printToDisplay(presRow.month, "LOAD"); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
+        printToDisplay(lastRow.month, "FLUX"); printToDisplay(lastRow.day, "OFFL"); printToDisplay(lastRow.year, "INE "); lastRow.time.clear();
 
         destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay();
-        presRow.time.writeDisplay();
+        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
       } else {
         malfunctionStartTime = millis();
@@ -609,14 +582,14 @@ void handleMalfunction() {
       blankAllDisplays();
       runBootSequence();
       break;
-  }
+    }
   #endif
 }
 
 void runBootSequence() {
   bootState = BOOT_START;
   bootStateStartTime = millis();
-}
+  }
 
 void handleBootSequence() {
   if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
@@ -636,11 +609,11 @@ void handleBootSequence() {
       display88MphSpeed(88.0);
       break;
     case BOOT_RECALIBRATING:
-      destRow.month.print("RECA"); destRow.day.print("LIBR"); destRow.year.print("ATIN"); destRow.time.print("G");
+      printToDisplay(destRow.month, "RECA"); printToDisplay(destRow.day, "LIBR"); printToDisplay(destRow.year, "ATIN"); printToDisplay(destRow.time, "G");
       destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
       break;
     case BOOT_CAPACITOR:
-      presRow.month.print("CAPA"); presRow.day.print("CITO"); presRow.year.print("R"); presRow.time.print("FULL");
+      printToDisplay(presRow.month, "CAPA"); printToDisplay(presRow.day, "CITO"); printToDisplay(presRow.year, "R"); printToDisplay(presRow.time, "FULL");
       presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
       break;
     default:
@@ -742,14 +715,15 @@ void fetchWindSpeed() {
   String apiURL = "http://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 2) + "&longitude=" + String(currentSettings.longitude, 2) + "&current_weather=true";
   http.begin(apiURL);
   if (http.GET() == HTTP_CODE_OK) {
+    String payload = http.getString();
     DynamicJsonDocument doc(1024);
-    deserializeJson(doc, http.getStream());
+    deserializeJson(doc, payload);
     if (doc.containsKey("current_weather")) {
       currentWindSpeed = doc["current_weather"]["windspeed"];
     }
   }
   http.end();
-}
+  }
 
 void fetchDataLink() {
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0 || isFetchingData) return;
@@ -760,39 +734,29 @@ void fetchDataLink() {
     DataPoint point = currentSettings.dataPoints[currentPointToFetch];
     String fetchedValue = "";
     bool fetchSuccess = false;
-
-    if (point.isLiveData) {
-        if (String(point.liveDataTag) == "WIND_SPEED") {
-            fetchWindSpeed();
-            char speedStr[8];
-            dtostrf(currentWindSpeed * 0.621371, 4, 1, speedStr);
-            fetchedValue = String(speedStr);
-            fetchSuccess = true;
-        } else { fetchedValue = "LIVE ERR"; }
-    } else {
-        HTTPClient http;
-        http.begin(point.url);
-        if (String(point.headerName) != "") {
-            http.addHeader(point.headerName, point.headerValue);
-        }
-        if (http.GET() == HTTP_CODE_OK) {
-            DynamicJsonDocument doc(8192);
-            if (deserializeJson(doc, http.getStream()) == DeserializationError::Ok) {
-                JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), point.jsonPath);
-                if (!value.isNull()) {
-                    fetchedValue = value.as<String>();
-                    if (fetchedValue.length() > 256) fetchedValue = fetchedValue.substring(0, 256);
-                    fetchSuccess = true;
-                } else { fetchedValue = "PATH ERR"; }
-            } else { fetchedValue = "JSON ERR"; }
-        } else { fetchedValue = "HTTP ERR"; }
-        http.end();
-    }
+    
+    HTTPClient http;
+    http.begin(point.url);
+    if (http.GET() == HTTP_CODE_OK) {
+        String payload = http.getString();
+        DynamicJsonDocument doc(8192);
+        if (deserializeJson(doc, payload) == DeserializationError::Ok) {
+            JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), point.jsonPath);
+            if (!value.isNull()) {
+                fetchedValue = value.as<String>();
+                if (fetchedValue.length() > 256) fetchedValue = fetchedValue.substring(0, 256);
+                fetchSuccess = true;
+            } else { fetchedValue = "PATH ERR"; }
+        } else { fetchedValue = "JSON ERR"; }
+    } else { fetchedValue = "HTTP ERR"; }
+    http.end();
 
     if (fetchSuccess) {
         String format = String(point.format);
         format.replace("%L", point.label);
+        format.replace("%P", point.prefix);
         format.replace("%V", fetchedValue);
+        format.replace("%S", point.suffix);
         displayPages[currentPointToFetch] = format;
         lastGoodDisplayPages[currentPointToFetch] = format;
         dataPointFetchFailures[currentPointToFetch] = 0;
@@ -834,16 +798,16 @@ void updateMarqueeDisplay() {
     }
     
     staticPart.trim();
-    targetRow->month.clear();
-    targetRow->month.print(staticPart.c_str());
+    printToDisplay(targetRow->month, staticPart.c_str());
     targetRow->month.writeDisplay();
+
     drawIcon(targetRow->day, point.icon);
     String canvas = "   " + scrollPart + "   ";
     if (canvas.length() <= 8) {
         targetRow->year.clear();
         targetRow->time.clear();
-        targetRow->year.print(canvas.substring(0,4));
-        targetRow->time.print(canvas.substring(4));
+        printToDisplay(targetRow->year, canvas.substring(0,4).c_str());
+        printToDisplay(targetRow->time, canvas.substring(4).c_str());
         targetRow->year.writeDisplay();
         targetRow->time.writeDisplay();
         if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 5000) {
@@ -864,8 +828,8 @@ void updateMarqueeDisplay() {
         String viewport = canvas.substring(marqueeScrollPosition, marqueeScrollPosition + 8);
         targetRow->year.clear();
         targetRow->time.clear();
-        targetRow->year.print(viewport.substring(0,4));
-        targetRow->time.print(viewport.substring(4));
+        printToDisplay(targetRow->year, viewport.substring(0,4).c_str());
+        printToDisplay(targetRow->time, viewport.substring(4).c_str());
         targetRow->year.writeDisplay();
         targetRow->time.writeDisplay();
     }

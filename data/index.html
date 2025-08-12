@@ -188,36 +188,6 @@
         </div>
         <div id="DataLink" class="tab-content">
             <div class="setting-group">
-                <h3>Editable API Templates</h3>
-                <div class="contextual-control-group">
-                    <select id="apiTemplateSelector">
-                        <option value="">-- Select a Template to Edit --</option>
-                    </select>
-                    <button id="newApiTemplateBtn" class="action-button">New</button>
-                    <button id="restoreDefaultsBtn" class="action-button">Restore Defaults</button>
-                </div>
-                <form id="apiTemplateForm" class="preset-adder" onsubmit="return false;">
-                    <input type="hidden" id="apiTemplateKey">
-                    <input type="text" id="apiTemplateName" placeholder="Template Name (e.g., Gold Price)">
-                    <input type="text" id="apiTemplateUrl" placeholder="API URL">
-                    <div class="preset-date-inputs">
-                        <input type="text" id="apiTemplateHeaderName" placeholder="Header Name (e.g., X-Api-Key)">
-                        <input type="password" id="apiTemplateHeaderValue" placeholder="Header Value (Your API Key)">
-                    </div>
-                    <input type="text" id="apiTemplateJsonPath" placeholder="JSON Path">
-                    <div class="preset-date-inputs">
-                        <input type="text" id="apiTemplateLabel" placeholder="Label (4 chars)">
-                        <input type="text" id="apiTemplateIcon" placeholder="Icon">
-                    </div>
-                    <div class="preset-buttons">
-                        <button id="updateApiTemplateBtn" type="button" class="action-button" disabled>Update Selected Template</button>
-                        <button id="saveNewApiTemplateBtn" type="button">Save as New Template</button>
-                        <button id="duplicateApiTemplateBtn" type="button" class="action-button" disabled>Duplicate Selected</button>
-                        <button id="deleteApiTemplateBtn" type="button" class="delete-button" disabled>Delete Selected</button>
-                    </div>
-                </form>
-            </div>
-            <div class="setting-group">
                 <h3>Data Link Configuration</h3>
                 <label for="dataLinkEnabled" class="toggle-label">Enable Data Link Marquee</label>
                 <label class="toggle-switch">

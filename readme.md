@@ -23,7 +23,7 @@
 5.  [🔌 Wiring & Schematics](#-wiring--schematics)
 6.  [🚀 Installation & Setup](#-installation--setup)
 7.  [💡 Configuration & Usage](#-configuration--usage)
-    * [Adding a New API Template (Example)](#-adding-a-new-api-template-example)
+    * [Adding Real-Time Data with the API Wizard (Example)](#-adding-real-time-data-with-the-api-wizard-example)
 8.  [🔬 Theory of Operation](#-theory-of-operation)
 9.  [❓ Troubleshooting](#-troubleshooting)
 10. [🤝 Contributing](#-contributing)
@@ -69,7 +69,6 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 * **Live Control**: A mobile-friendly web interface allows for full control over all the clock's settings.
 * **Thematic Header**: The UI header is a screen-accurate, real-time replica of the physical display, updating every second.
 * **Data Link Marquee**: The most advanced feature is a fully configurable "Data Link" marquee. You can configure any of the three display rows to show real-time data from any JSON-based API on the web. The system supports both simple APIs and those requiring header-based authentication (e.g., `X-Api-Key`), allowing you to connect directly to a wide range of services without needing an intermediary like Pipedream.
-* **Editable API Templates**: The UI comes with pre-configured templates for fetching financial data, weather information, and more. You can edit these defaults, delete them, or create your own from scratch. All your templates are saved to the ESP32's flash memory, so your configurations are permanent.
 * **Custom Icons**: The marquee can display custom icons (e.g., SUN, CLOUD, WIFI, BTC) on the 14-segment displays alongside the data.
 * **Customizable Display**: For each data point, you can customize the API URL, JSON path, display label, format, icon, and scroll speed.
 * **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal named **BTTF-Clock-Setup** for easy initial network setup.
@@ -248,43 +247,37 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 4.  **Engage Time Circuits!**:
     * After making changes, the **"Engage Time Circuits (Save All Settings)"** button will become enabled. Click it to save your configuration to the device's permanent memory. A time travel animation will play on the physical display to confirm the save.
 
-### 💡 Adding a New API Template (Example)
+### 💡 Adding Real-Time Data with the API Wizard (Example)
 
-Here is a detailed, step-by-step guide on how to add a new API template to the user interface, using a real-world example.
+The "Data Link" feature lets you display real-time data from almost any online API. The new **API Wizard** makes this process incredibly simple, even without technical knowledge.
 
 ---
-#### ## Example: Adding a Currency Conversion Rate API
-For this example, we'll create a template to fetch the current exchange rate between the Canadian Dollar (CAD) and the US Dollar (USD). We will use a free service called **ExchangeRate-API**.
+#### **Example: Displaying the Current Temperature**
 
-#### **Step 1: Get the API Details**
+Let's set up a data point to show the current temperature for New York City.
 
-First, you need the specific URL and your personal API key from the service.
+#### **Step 1: Go to the "Data Link" Tab**
+* Navigate to the **Data Link** tab in the web interface. Make sure the "Enable Data Link Marquee" switch is turned on.
 
-1.  **Sign Up for a Free Key**: Go to [exchangerate-api.com](https://www.exchangerate-api.com) and sign up for a "Free Plan." After confirming your email, you will be taken to your dashboard.
-2.  **Get Your API Key**: On your dashboard, you will see your API key. It's a long string of letters and numbers. Copy this key.
-    * **Example Key**: `123456abcdef7890ghijkl`
-3.  **Find the API URL**: The documentation shows that the URL to get the latest rates for a specific currency (like USD) is:
-    * `https://v6.exchangerate-api.com/v6/YOUR_API_KEY/latest/USD`
+#### **Step 2: Enter the API URL**
+* In the "API Data Points" section, find a data point (e.g., "Data Point 1").
+* Select **"Weather: Temperature"** from the **"API Examples"** dropdown. The URL for the Open-Meteo API will be filled in automatically.
+* *Note: You can change the `latitude` and `longitude` in the URL to get the weather for your location!*
 
-#### **Step 2: Examine the JSON Response**
+#### **Step 3: Analyze the Data**
+* Click the **"Analyze API"** button. The clock will connect to the URL and show you the data it found. It will look something like this:
 
-Before you can fill out the form, you need to know what the data from the API looks like so you can target the specific piece of information you want. If you paste the URL (with your key) into a browser, you will see a JSON response that looks like this:
+    * `current_weather:`
+        * `temperature: 18.3`
+        * `windspeed: 10.2`
+        * `weathercode: 3`
 
-```json
-{
-    "result": "success",
-    "documentation": "[https://www.exchangerate-api.com/docs](https://www.exchangerate-api.com/docs)",
-    "terms_of_use": "[https://www.exchangerate-api.com/terms](https://www.exchangerate-api.com/terms)",
-    "time_last_update_unix": 1662940801,
-    "time_last_update_utc": "Mon, 12 Sep 2022 00:00:01 +0000",
-    "time_next_update_unix": 1663027201,
-    "time_next_update_utc": "Tue, 13 Sep 2022 00:00:01 +0000",
-    "base_code": "USD",
-    "conversion_rates": {
-        "USD": 1,
-        "EUR": 0.988,
-        "GBP": 0.856,
-        "CAD": 1.298,
-        "...": "..."
-    }
-}
+#### **Step 4: Select the Data and Finalize**
+* You don't need to know what a "JSON Path" is. Simply **click on the `temperature: 18.3` item** in the list.
+* The wizard will automatically select this data point and ask you to fill in the final details:
+    * **Label (4 chars)**: `TEMP`
+    * **Suffix**: `C` (since the API returns Celsius).
+    * **Format**: A good format would be `%L: %V%S` to display "TEMP: 18.3C".
+* Click the main **"Engage Time Circuits (Save All Settings)"** button at the bottom of the page.
+
+Your clock will now periodically fetch and display the current temperature!
