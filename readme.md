@@ -24,6 +24,7 @@
 6.  [🚀 Installation & Setup](#-installation--setup)
 7.  [💡 Configuration & Usage](#-configuration--usage)
     * [Adding Real-Time Data with the API Wizard (Example)](#-adding-real-time-data-with-the-api-wizard-example)
+    * [Using the MQTT Data Link](#-using-the-mqtt-data-link)
     * [20 API Ideas for the Time Circuits Display](#-20-api-ideas-for-the-time-circuits-display)
 8.  [🔬 Theory of Operation](#-theory-of-operation)
 9.  [❓ Troubleshooting](#-troubleshooting)
@@ -70,6 +71,7 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 * **Live Control**: A mobile-friendly web interface allows for full control over all the clock's settings.
 * **Thematic Header**: The UI header is a screen-accurate, real-time replica of the physical display, updating every second.
 * **Data Link Marquee**: The most advanced feature is a fully configurable "Data Link" marquee. You can configure any of the three display rows to show real-time data from any JSON-based API on the web. The system supports both simple APIs and those requiring header-based authentication (e.g., `X-Api-Key`), allowing you to connect directly to a wide range of services without needing an intermediary like Pipedream.
+* **MQTT Integration**: In addition to polling web APIs, data points can be configured to subscribe to an **MQTT broker**. This allows for efficient, real-time data pushes from smart home devices, sensors, or other services on your local network.
 * **Custom Icons**: The marquee can display custom icons (e.g., SUN, CLOUD, WIFI, BTC) on the 14-segment displays alongside the data.
 * **Customizable Display**: For each data point, you can customize the API URL, JSON path, display label, format, icon, and scroll speed.
 * **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal named **BTTF-Clock-Setup** for easy initial network setup.
@@ -313,6 +315,44 @@ Now you can customize how the data is displayed.
 * A time travel animation will play on your physical display, and your settings will be saved.
 
 Your clock's Data Link marquee will now periodically fetch the live temperature and display it with your custom formatting!
+
+---
+### 💡 Using the MQTT Data Link
+
+For more advanced or real-time applications, the Data Link feature can connect to an **MQTT broker**. This is ideal for integrating with smart home platforms (like Home Assistant) or custom sensor projects, as it relies on data being pushed to the clock instead of the clock polling a web server.
+
+#### How It Works
+
+The MQTT functionality is designed to be flexible, allowing you to configure both a central MQTT broker and specific topics for individual data points.
+
+**1. Global Broker Configuration**
+First, you set up the connection to your MQTT broker once, and all MQTT-based data points will use this same connection.
+
+* **UI Location:** In the "Data Link" tab, you'll find a "Global MQTT Broker Settings" section.
+* **Fields:**
+    * **MQTT Broker Address:** The IP address or hostname of your MQTT broker (e.g., `192.168.1.100` or `broker.emqx.io`).
+    * **MQTT Port:** The port for the broker, which is typically `1883` for unencrypted connections.
+    * **MQTT Username (optional):** If your broker requires authentication.
+    * **MQTT Password (optional):** The password for the specified username.
+
+When you save your settings, the ESP32 will use these credentials to establish a persistent connection to your broker.
+
+**2. Configuring a Data Point for MQTT**
+Once the global broker is set up, you can configure any of the five available data points to listen for messages on a specific MQTT topic.
+
+* **Data Source Selection:** For each data point, there is a "Data Source" dropdown menu. Select **"MQTT Broker"**.
+* **MQTT Topic:** When you select "MQTT Broker", the UI will reveal a new field labeled **"MQTT Topic"**. Here, you enter the exact MQTT topic you want the clock to subscribe to (e.g., `/home/livingroom/temperature`).
+
+**3. How the Data Is Handled**
+The system can handle two types of MQTT payloads automatically:
+
+1.  **JSON Payload (Structured Data):** If the message received on the topic is a JSON object, you can use the familiar `MONTH`, `DAY`, `YEAR`, and `TIME` path fields to extract specific values, just like with a Web API.
+    * **Example:** If your MQTT topic `home/weather` publishes the payload `{"temp": 72, "humidity": 45}`, you could set the `TIME` path to `temp` to display "72".
+
+2.  **Plain Text Payload (Simple Data):** If the payload is **not** a valid JSON object, the system automatically treats the entire message as the value for the `TIME` display field. The `MONTH`, `DAY`, and `YEAR` fields will be left blank.
+    * **Example:** If your MQTT topic `home/status` simply publishes the text `ONLINE`, the `TIME` display will show "ONLINE".
+
+This dual-handling makes the feature very versatile, as it can work with complex data from sensors or simple status updates from other smart home devices without requiring any changes to the clock's code.
 
 ---
 

@@ -12,10 +12,8 @@
 #define I2C_SCL_1 22
 #define I2C_SDA_2 25
 #define I2C_SCL_2 26
-
 #define DFP_RX_PIN 16
 #define DFP_TX_PIN 17
-
 #define DEST_AM_PIN 13
 #define DEST_PM_PIN 14
 #define PRES_AM_PIN 32
@@ -28,26 +26,28 @@
 
 // --- ENUMS & DATA STRUCTURES ---
 enum Theme {
-  THEME_TIME_CIRCUITS,
-  THEME_OUTATIME,
-  THEME_88MPH,
-  THEME_PLUTONIUM_GLOW,
-  THEME_MR_FUSION,
-  THEME_CLOCK_TOWER
+  THEME_TIME_CIRCUITS, THEME_OUTATIME, THEME_88MPH,
+  THEME_PLUTONIUM_GLOW, THEME_MR_FUSION, THEME_CLOCK_TOWER
 };
 
+enum DataSourceType { DATA_SOURCE_API, DATA_SOURCE_MQTT };
+
+// Corrected DataPoint struct with all original and new fields
 struct DataPoint {
   char url[256];
-  char label[5];
-  char jsonPath[128];
+  char monthPath[128];
+  char dayPath[128];
+  char yearPath[128];
+  char timePath[128];
   char prefix[16];
   char suffix[16];
-  char format[64];
   char icon[16];
   int scrollSpeed;
-  int pauseDuration;
+  DataSourceType dataSourceType;
+  char mqttTopic[128];
 };
 
+// Corrected ClockSettings struct with all original and new fields
 struct ClockSettings {
   int destinationYear;
   int destinationTimezoneIndex;
@@ -74,45 +74,38 @@ struct ClockSettings {
   int dataLinkRefreshInterval;
   int numDataPoints;
   DataPoint dataPoints[5];
+  char mqttBroker[128];
+  int mqttPort;
+  char mqttUser[64];
+  char mqttPassword[64];
 };
 
 struct DisplayRow {
-    Adafruit_AlphaNum4 month;
-    Adafruit_AlphaNum4 day;
-    Adafruit_AlphaNum4 year;
-    Adafruit_AlphaNum4 time;
+    Adafruit_AlphaNum4 month; Adafruit_AlphaNum4 day;
+    Adafruit_AlphaNum4 year; Adafruit_AlphaNum4 time;
 };
 
 struct TimeZoneEntry {
-  const char* tzString;
-  const char* displayName;
-  const char* ianaTzName;
-  const char* region;
+  const char* tzString; const char* displayName;
+  const char* ianaTzName; const char* region;
 };
 
 enum AnimationStyle {
-  ANIMATION_SEQUENTIAL_FLICKER,
-  ANIMATION_RANDOM_FLICKER,
-  ANIMATION_ALL_DISPLAYS_RANDOM,
-  ANIMATION_COUNTING_UP,
-  ANIMATION_WAVE_FLICKER
+  ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
+  ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER
 };
 
-// --- GLOBAL HARDWARE OBJECTS (DECLARED EXTERN) ---
 #if ENABLE_HARDWARE
-extern TwoWire I2C_1;
-extern TwoWire I2C_2;
+extern TwoWire I2C_1; extern TwoWire I2C_2;
 extern DisplayRow destRow, presRow, lastRow;
 extern HardwareSerial dfpSerial;
 extern DFRobotDFPlayerMini myDFPlayer;
 #endif
 
-// --- FUNCTION PROTOTYPES ---
 void setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year);
 void animateDisplayRowRandomly(DisplayRow& row);
 void blankAllDisplays();
-void display88MphSpeed(float speed);
 void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
 void playSound(const char* soundName);
 void setupSoundFiles();

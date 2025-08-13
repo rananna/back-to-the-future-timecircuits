@@ -197,6 +197,17 @@
             </div>
             <div id="dataLinkSettingsContainer" style="display:none;">
                 <div class="setting-group">
+                    <h3>Global MQTT Broker Settings</h3>
+                    <label for="mqttBroker">MQTT Broker Address:</label>
+                    <input type="text" id="mqttBroker" placeholder="e.g., 192.168.1.100">
+                    <label for="mqttPort">MQTT Port:</label>
+                    <input type="number" id="mqttPort" value="1883">
+                    <label for="mqttUser">MQTT Username (optional):</label>
+                    <input type="text" id="mqttUser">
+                    <label for="mqttPassword">MQTT Password (optional):</label>
+                    <input type="password" id="mqttPassword">
+                </div>
+                <div class="setting-group">
                      <h3>Global Marquee Settings</h3>
                      <label for="dataLinkTargetRow">Target Display Row:</label>
                      <select id="dataLinkTargetRow">
@@ -210,7 +221,7 @@
                      </div>
                 </div>
                 <div class="setting-group">
-                    <h3>API Data Points</h3>
+                    <h3>Data Points</h3>
                      <label for="numDataPoints">Number of Data Points: <span id="numDataPointsValue">1</span></label>
                      <div class="slider-container">
                          <input type="range" id="numDataPoints" min="0" max="5" value="1">
