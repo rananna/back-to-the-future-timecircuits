@@ -65,18 +65,18 @@ function initializeUI() {
     Promise.all(promises)
         .then(results => {
             const [timecircuits, temporal, datalink, timezones, presets, theme] = results;
-            
+
             document.body.className = theme;
-            
+
             populateTimezoneSelects(timezones);
             populatePresetsSelect(presets);
-            
+
             applySettings(timecircuits, temporal, datalink);
             document.querySelector('.header-circuits').classList.add('visible');
             fetchTime();
             setInterval(fetchTime, 1000);
             attachEventListeners();
-            
+
             showMessage('System Online', 'success');
         })
         .catch(error => {
@@ -180,7 +180,7 @@ function updateLastDepartedDisplay(year, month, day, hour, minute) {
     if (!found) {
         presetSelect.value = "";
     }
-    
+
     const selectedOption = presetSelect.options[presetSelect.selectedIndex];
     const isCustom = selectedOption && selectedOption.parentElement.label === 'Custom Time Jumps';
     document.getElementById('presetActions').classList.toggle('hidden', !isCustom);
@@ -206,7 +206,7 @@ function applySettings(timecircuits, temporal, datalink) {
         const arrHour = String(temporal.arrivalHour).padStart(2, '0');
         const arrMin = String(temporal.arrivalMinute).padStart(2, '0');
         document.getElementById('arrivalTime').value = `${arrHour}:${arrMin}`;
-        
+
         ['brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'presetCycleInterval', 'glitchEffectFrequency', 'malfunctionFrequency'].forEach(id => {
             const slider = document.getElementById(id);
             if (slider) {
@@ -242,7 +242,13 @@ function applyDataLinkSettings(datalink) {
             datalink.dataPoints.forEach((point, i) => {
                 document.getElementById(`dp_url_${i}`).value = point.url || '';
                 document.getElementById(`dp_scroll_enabled_${i}`).checked = point.scrollEnabled || false;
-                
+
+                const pauseSlider = document.getElementById(`dp_pauseDuration_${i}`);
+                if (pauseSlider) {
+                    pauseSlider.value = point.pauseDuration || 5;
+                    document.getElementById(`dp_pauseDuration_${i}Value`).textContent = pauseSlider.value;
+                }
+
                 ['month', 'day', 'year', 'time'].forEach(segment => {
                     const configDiv = document.getElementById(`config_${i}_${segment}`);
                     const mode = point[`${segment}Mode`] || 'static';
@@ -262,7 +268,7 @@ function applyDataLinkSettings(datalink) {
                         textInput.value = '';
                     }
                 }
-                
+
                 handleScrollingToggle({ target: document.getElementById(`dp_scroll_enabled_${i}`) });
                 updateLivePreview({ target: document.getElementById(`dp_input_${i}_month`) });
             });
@@ -277,14 +283,14 @@ function attachEventListeners() {
     document.getElementById('greatScottBtn').onclick = () => {
         fetch('/api/greatScott', { method: 'POST' });
     };
-    
+
     document.getElementById('saveSettingsBtn').onclick = saveSettings;
     document.querySelectorAll('.tab-link').forEach(btn => btn.onclick = (e) => {
         const tabName = e.target.getAttribute('data-tab');
         openTab(e, tabName);
         if (tabName === 'DataLink' && !isDataLinkLoaded) loadDataLinkSettings();
     });
-    
+
     const timezoneChangeHandler = () => {
         setSettingsChanged(true);
         updateHeaderClocks(new Date());
@@ -307,7 +313,7 @@ function attachEventListeners() {
         updateDataPointsUI(parseInt(e.target.value, 10));
         setSettingsChanged(true);
     };
-    
+
     document.querySelectorAll('input, select').forEach(el => {
         el.addEventListener('change', () => setSettingsChanged(true));
         el.addEventListener('input', (e) => {
@@ -492,6 +498,11 @@ function updateDataPointsUI(numPoints) {
                                 <span class="slider round"></span>
                             </label>
                         </div>
+                        <hr>
+                        <label for="dp_pauseDuration_${i}">Pause Duration (sec): <span id="dp_pauseDuration_${i}Value">5</span></label>
+                        <div class="slider-container">
+                             <input type="range" id="dp_pauseDuration_${i}" min="1" max="30" value="5" data-index="${i}">
+                        </div>
                     </div>
                     <div class="live-preview-container">
                         <label>Live Preview:</label>
@@ -569,7 +580,7 @@ function attachDataPointEventListeners() {
         };
     });
     document.querySelectorAll('.mode-btn').forEach(btn => btn.onclick = toggleSegmentMode);
-    
+
     document.querySelectorAll('.segment-input').forEach(input => {
         input.oninput = (e) => {
             if (e.target.dataset.segment === 'day') {
@@ -598,13 +609,20 @@ function attachDataPointEventListeners() {
     document.querySelectorAll('input[type="checkbox"][id^="dp_scroll_enabled_"]').forEach(checkbox => {
         checkbox.onchange = handleScrollingToggle;
     });
+
+    document.querySelectorAll('input[id^="dp_pauseDuration_"]').forEach(slider => {
+        slider.oninput = (e) => {
+            document.getElementById(`${e.target.id}Value`).textContent = e.target.value;
+            setSettingsChanged(true);
+        };
+    });
 }
 
 function toggleSegmentMode(event) {
     const { index, segment, mode } = event.target.dataset;
     const configDiv = document.getElementById(`config_${index}_${segment}`);
     const input = document.getElementById(`dp_input_${index}_${segment}`);
-    
+
     if (mode === 'api' && selectedPathInfo.index == index && selectedPathInfo.path) {
         configDiv.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
         event.target.classList.add('active');
@@ -640,16 +658,16 @@ function startApiWizard(event) {
     const index = event.target.getAttribute('data-index');
     const url = document.getElementById(`dp_url_${index}`).value;
     const resultsContainer = document.getElementById(`wizard_results_${index}`);
-    
+
     if (!url) {
         showMessage('Please enter an API URL first.', 'error');
         return;
     }
-    
+
     resultsContainer.innerHTML = '<span class="loading-spinner"></span> Analyzing...';
-    
-    fetch('/api/testDataPoint', { 
-        method: 'POST', 
+
+    fetch('/api/testDataPoint', {
+        method: 'POST',
         body: new URLSearchParams({ url, path: '' })
     })
     .then(res => res.json())
@@ -692,7 +710,7 @@ function displayApiWizardResults(index, jsonData) {
         }
         return list.childNodes;
     };
-    
+
     buildList(jsonData);
     container.appendChild(list);
     container.querySelectorAll('.wizard-clickable-item').forEach(btn => btn.onclick = selectApiWizardValue);
@@ -701,10 +719,10 @@ function displayApiWizardResults(index, jsonData) {
 function selectApiWizardValue(event) {
     const { index, path } = event.currentTarget.dataset;
     selectedPathInfo = { index: parseInt(index), path: path };
-    
+
     const container = document.getElementById(`form_container_${index}`);
     container.classList.add('path-selected');
-    
+
     const resultsContainer = document.getElementById(`wizard_results_${index}`);
     resultsContainer.innerHTML = `<p class="wizard-selection"><strong>Path Selected:</strong> \`${path}\`<br>Now click the glowing 'API' button for the segment you want to assign this to.</p>`;
 }
@@ -720,13 +738,13 @@ function clearSelectedPath() {
 function updateLivePreview(event) {
     const { index } = event.target.dataset;
     const preview = document.getElementById(`live_preview_${index}`);
-    
+
     ['month', 'day', 'year', 'time'].forEach(segment => {
         const configDiv = document.getElementById(`config_${index}_${segment}`);
         const input = document.getElementById(`dp_input_${index}_${segment}`);
         const previewSegment = preview.querySelector(`.segment.${segment}`);
         const mode = configDiv.querySelector('.mode-btn.active').dataset.mode;
-        
+
         let displayValue = input.value;
         if (segment === 'day') {
             const iconSelect = configDiv.querySelector('.icon-select');
@@ -738,7 +756,7 @@ function updateLivePreview(event) {
         if (mode === 'api') {
             displayValue = `{${displayValue.replace('$.', '')}}`;
         }
-        
+
         const maxLength = previewSegment.className.includes('year') || previewSegment.className.includes('time') ? 4 : (previewSegment.className.includes('day') ? 2 : 3);
         previewSegment.textContent = displayValue.substring(0, maxLength);
     });
@@ -751,7 +769,7 @@ function saveSettings() {
     const formData = new URLSearchParams();
 
     const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkTargetRow', 'dataLinkRefreshInterval'];
-    
+
     for (const id of settingsToSave) {
         const element = document.getElementById(id);
         if (element) {
@@ -784,7 +802,8 @@ function saveSettings() {
         for (let i = 0; i < numDataPoints; i++) {
             formData.append(`dp_url_${i}`, document.getElementById(`dp_url_${i}`).value);
             formData.append(`dp_scroll_enabled_${i}`, document.getElementById(`dp_scroll_enabled_${i}`).checked);
-            
+            formData.append(`dp_pauseDuration_${i}`, document.getElementById(`dp_pauseDuration_${i}`).value);
+
             ['month', 'day', 'year', 'time'].forEach(segment => {
                 const configDiv = document.getElementById(`config_${i}_${segment}`);
                 const mode = configDiv.querySelector('.mode-btn.active').dataset.mode;
@@ -799,7 +818,7 @@ function saveSettings() {
             });
         }
     }
-    
+
     fetch('/api/saveSettings', { method: 'POST', body: formData })
         .then(res => res.text())
         .then(text => {

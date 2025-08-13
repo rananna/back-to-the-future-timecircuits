@@ -178,7 +178,6 @@ void setupWebRoutes() {
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/style.css", "text/css"); });
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/script.js", "application/javascript"); });
   server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(200, "text/plain", "READY"); });
-  
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
     #if ENABLE_HARDWARE
     playSound("EASTER_EGG");
@@ -226,7 +225,7 @@ void setupWebRoutes() {
     doc["dataLinkTargetRow"] = currentSettings.dataLinkTargetRow;
     doc["dataLinkRefreshInterval"] = currentSettings.dataLinkRefreshInterval;
     doc["numDataPoints"] = currentSettings.numDataPoints;
-    
+
     JsonArray dataPoints = doc.createNestedArray("dataPoints");
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
         JsonObject dp = dataPoints.createNestedObject();
@@ -238,13 +237,13 @@ void setupWebRoutes() {
         dp["format"] = currentSettings.dataPoints[i].format;
         dp["icon"] = currentSettings.dataPoints[i].icon;
         dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
+        dp["pauseDuration"] = currentSettings.dataPoints[i].pauseDuration;
     }
 
     String response;
     serializeJson(doc, response);
     request->send(200, "application/json", response);
   });
-  
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send_P(200, "application/json", TZ_JSON);
   });
@@ -312,15 +311,16 @@ void setupWebRoutes() {
             strncpy(currentSettings.dataPoints[i].format, getParamValue("dp_format_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].format) - 1);
             strncpy(currentSettings.dataPoints[i].icon, getParamValue("dp_icon_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
             currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
+            currentSettings.dataPoints[i].pauseDuration = getParamInt("dp_pauseDuration_" + String(i), 5);
         }
     }
-    
+
     saveSettings();
 
     #if ENABLE_HARDWARE
     myDFPlayer.volume(currentSettings.notificationVolume);
     #endif
-    
+
     request->send(200, "text/plain", "Settings Saved! Engaging Time Circuits...");
     startTimeTravelAnimation();
   });
@@ -349,6 +349,7 @@ void setupWebRoutes() {
             preset["value"] = value;
             break;
         }
+
     }
     String newPresetsJson;
     serializeJson(doc, newPresetsJson);
@@ -367,7 +368,7 @@ void setupWebRoutes() {
             break;
         }
     }
-   
+
    String newPresetsJson;
     serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
@@ -405,11 +406,13 @@ void setupWebRoutes() {
         if (httpCode == HTTP_CODE_OK) {
             String payload = http.getString();
             DynamicJsonDocument doc(8192);
+
             DeserializationError error = deserializeJson(doc, payload);
             if (error == DeserializationError::Ok) {
                 if (path.length() == 0) {
                     request->send(200, "application/json", "{\"success\":true, \"value\":" + payload + "}");
                 } else {
+
                     JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), path.c_str());
                     if (!value.isNull()) {
                         request->send(200, "application/json", "{\"success\":true, \"value\":\"" + value.as<String>() + "\"}");
@@ -437,7 +440,7 @@ void setupWebRoutes() {
 void setup() {
   Serial.begin(115200);
   delay(1000);
- 
+
    Serial.println("\n\n--- BOOTING ---");
   if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed."); while(1); }
   preferences.begin("bttf-clock", false);
@@ -536,7 +539,7 @@ void handleDisplayAnimation() {
       }
       #endif
       break;
-    }
+  }
   #endif
 }
 
@@ -548,14 +551,16 @@ void handleMalfunction() {
     case MAL_HAYWIRE:
       if (elapsed < 3000) {
         if (millis() - lastAnimationFrameTime > 100) {
-          printToDisplay(destRow.month, "8888"); printToDisplay(destRow.day, "8888"); printToDisplay(destRow.year, "8888"); printToDisplay(destRow.time, "8888");
+          printToDisplay(destRow.month, "8888");
+          printToDisplay(destRow.day, "8888"); printToDisplay(destRow.year, "8888"); printToDisplay(destRow.time, "8888");
           printToDisplay(presRow.month, "8888"); printToDisplay(presRow.day, "8888"); printToDisplay(presRow.year, "8888"); printToDisplay(presRow.time, "8888");
-          printToDisplay(lastRow.month, "8888"); printToDisplay(lastRow.day, "8888"); printToDisplay(lastRow.year, "8888"); printToDisplay(lastRow.time, "8888");
-          
+          printToDisplay(lastRow.month, "8888"); printToDisplay(lastRow.day, "8888"); printToDisplay(lastRow.year, "8888");
+          printToDisplay(lastRow.time, "8888");
+
           destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
           presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
           lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-          
+
           lastAnimationFrameTime = millis();
         }
       } else {
@@ -565,10 +570,10 @@ void handleMalfunction() {
       break;
     case MAL_ERROR_MESSAGE:
       if (elapsed < 4000) {
-        printToDisplay(destRow.month, "TIME"); printToDisplay(destRow.day, "CIRC"); printToDisplay(destRow.year, "UIT "); printToDisplay(destRow.time, "OVER");
+        printToDisplay(destRow.month, "TIME");
+        printToDisplay(destRow.day, "CIRC"); printToDisplay(destRow.year, "UIT "); printToDisplay(destRow.time, "OVER");
         printToDisplay(presRow.month, "LOAD"); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
         printToDisplay(lastRow.month, "FLUX"); printToDisplay(lastRow.day, "OFFL"); printToDisplay(lastRow.year, "INE "); lastRow.time.clear();
-
         destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
         presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
@@ -582,14 +587,14 @@ void handleMalfunction() {
       blankAllDisplays();
       runBootSequence();
       break;
-    }
+  }
   #endif
 }
 
 void runBootSequence() {
   bootState = BOOT_START;
   bootStateStartTime = millis();
-  }
+}
 
 void handleBootSequence() {
   if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
@@ -666,7 +671,7 @@ void handleSleepSchedule() {
   int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
-                        (now_minutes >= sleep_minutes && now_minutes < wake_minutes) : 
+                        (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
@@ -723,18 +728,18 @@ void fetchWindSpeed() {
     }
   }
   http.end();
-  }
+}
 
 void fetchDataLink() {
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0 || isFetchingData) return;
     if (millis() - lastDataLinkFetch < (unsigned long)currentSettings.dataLinkRefreshInterval * 60 * 1000 / currentSettings.numDataPoints) return;
-    
+
     isFetchingData = true;
     lastDataLinkFetch = millis();
     DataPoint point = currentSettings.dataPoints[currentPointToFetch];
     String fetchedValue = "";
     bool fetchSuccess = false;
-    
+
     HTTPClient http;
     http.begin(point.url);
     if (http.GET() == HTTP_CODE_OK) {
@@ -746,11 +751,12 @@ void fetchDataLink() {
                 fetchedValue = value.as<String>();
                 if (fetchedValue.length() > 256) fetchedValue = fetchedValue.substring(0, 256);
                 fetchSuccess = true;
-            } else { fetchedValue = "PATH ERR"; }
-        } else { fetchedValue = "JSON ERR"; }
+            } else { fetchedValue = "PATH ERR";
+            }
+        } else { fetchedValue = "JSON ERR";
+        }
     } else { fetchedValue = "HTTP ERR"; }
     http.end();
-
     if (fetchSuccess) {
         String format = String(point.format);
         format.replace("%L", point.label);
@@ -768,7 +774,7 @@ void fetchDataLink() {
             displayPages[currentPointToFetch] = lastGoodDisplayPages[currentPointToFetch];
         }
     }
-    
+
     currentPointToFetch = (currentPointToFetch + 1) % currentSettings.numDataPoints;
     isFetchingData = false;
 }
@@ -779,13 +785,14 @@ void updateMarqueeDisplay() {
     DisplayRow* targetRow = &lastRow;
     if (currentSettings.dataLinkTargetRow == 0) targetRow = &destRow;
     if (currentSettings.dataLinkTargetRow == 1) targetRow = &presRow;
+
     if (marqueeState == M_IDLE) {
         currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
         marqueeScrollPosition = 0;
         marqueeState = M_PAUSED;
         lastMarqueeStateChange = millis();
     }
-    
+
     DataPoint point = currentSettings.dataPoints[currentPageIndex];
     String content = displayPages[currentPageIndex];
     String staticPart = content;
@@ -796,13 +803,15 @@ void updateMarqueeDisplay() {
         scrollPart = content.substring(pipePos + 1);
         scrollPart.trim();
     }
-    
+
     staticPart.trim();
     printToDisplay(targetRow->month, staticPart.c_str());
     targetRow->month.writeDisplay();
 
     drawIcon(targetRow->day, point.icon);
+
     String canvas = "   " + scrollPart + "   ";
+
     if (canvas.length() <= 8) {
         targetRow->year.clear();
         targetRow->time.clear();
@@ -810,11 +819,12 @@ void updateMarqueeDisplay() {
         printToDisplay(targetRow->time, canvas.substring(4).c_str());
         targetRow->year.writeDisplay();
         targetRow->time.writeDisplay();
-        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 5000) {
+
+        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > (unsigned long)point.pauseDuration * 1000) {
              marqueeState = M_IDLE;
         }
     } else {
-        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 3000) {
+        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > (unsigned long)point.pauseDuration * 1000) {
             marqueeState = M_SCROLLING;
             lastMarqueeStateChange = millis();
         }

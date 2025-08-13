@@ -45,6 +45,7 @@ struct DataPoint {
   char format[64];
   char icon[16];
   int scrollSpeed;
+  int pauseDuration;
 };
 
 struct ClockSettings {
