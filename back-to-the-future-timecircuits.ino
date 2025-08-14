@@ -68,6 +68,7 @@ Preferences preferences;
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 unsigned long lastMqttReconnectAttempt = 0;
+bool mqttReconnectRequired = false;
 
 bool isAnimating = false;
 unsigned long animationStartTime = 0;
@@ -98,7 +99,6 @@ int marqueeScrollPosition = 0;
 bool isFetchingData = false;
 int dataPointFetchFailures[5] = {0, 0, 0, 0, 0};
 const int MAX_FETCH_FAILURES = 3;
-
 bool isMalfunctioning = false;
 unsigned long malfunctionStartTime = 0;
 enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
@@ -119,8 +119,6 @@ void loadApiTemplates();
 void runBootSequence();
 void setupMqtt();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
-
-
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
     strncpy(path_copy, path, sizeof(path_copy) - 1);
@@ -179,7 +177,6 @@ void saveSettings() {
   preferences.putInt("mqttPort", currentSettings.mqttPort);
   preferences.putString("mqttUser", currentSettings.mqttUser);
   preferences.putString("mqttPass", currentSettings.mqttPassword);
-  
   for (int i = 0; i < 5; i++) {
     String prefix = "dp" + String(i) + "_";
     preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url);
@@ -199,9 +196,6 @@ void saveSettings() {
   
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
-  if (WiFi.status() == WL_CONNECTED) {
-    setupMqtt();
-  }
 }
 
 void loadSettings() {
@@ -209,7 +203,6 @@ void loadSettings() {
   
   bool needsInit = !preferences.isKey("destYear");
   preferences.end();
-
   if (needsInit) {
     ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
     currentSettings.destinationYear = 1955;
@@ -268,14 +261,13 @@ void loadSettings() {
     currentSettings.presentTimezoneIndex = preferences.getInt("presTzIndex");
     currentSettings.presetCycleInterval = preferences.getInt("presetCycle");
     currentSettings.displayFormat24h = preferences.getBool("format24h");
-    currentSettings.theme = preferences.getInt("theme");
+    currentSettings.theme = preferences.getInt("theme", THEME_TIME_CIRCUITS);
     currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval");
     currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration");
     currentSettings.animationStyle = preferences.getInt("animStyle");
     currentSettings.glitchEffectFrequency = preferences.getInt("glitchFreq");
     currentSettings.malfunctionFrequency = preferences.getInt("malfuncFreq");
     currentSettings.timeTravelVolumeFade = preferences.getBool("volFade");
-    
     currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
     currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
     currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
@@ -285,7 +277,6 @@ void loadSettings() {
     currentSettings.mqttPort = preferences.getInt("mqttPort");
     strncpy(currentSettings.mqttUser, preferences.getString("mqttUser", "").c_str(), sizeof(currentSettings.mqttUser) - 1);
     strncpy(currentSettings.mqttPassword, preferences.getString("mqttPass", "").c_str(), sizeof(currentSettings.mqttPassword) - 1);
-
     for (int i = 0; i < 5; i++) {
       String prefix = "dp" + String(i) + "_";
       strncpy(currentSettings.dataPoints[i].url, preferences.getString((prefix + "url").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
@@ -387,6 +378,7 @@ void setupWebRoutes() {
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
         JsonObject dp = dataPoints.createNestedObject();
         dp["url"] = currentSettings.dataPoints[i].url;
+  
         dp["monthPath"] = currentSettings.dataPoints[i].monthPath;
         dp["dayPath"] = currentSettings.dataPoints[i].dayPath;
         dp["yearPath"] = currentSettings.dataPoints[i].yearPath;
@@ -407,7 +399,10 @@ void setupWebRoutes() {
     request->send_P(200, "application/json", TZ_JSON);
   });
   server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "application/json", preferences.getString("customPresets", "[]"));
+    preferences.begin(PREFERENCES_NAMESPACE, true);
+    String presets = preferences.getString("customPresets", "[]");
+    preferences.end();
+    request->send(200, "application/json", presets);
   });
   server.on("/api/time", HTTP_GET, [](AsyncWebServerRequest *request) {
     time_t now;
@@ -428,9 +423,13 @@ void setupWebRoutes() {
         if (request->hasParam(name, true)) return request->getParam(name, true)->value();
         return "";
     };
+
+    String oldMqttBroker = currentSettings.mqttBroker;
+    int oldMqttPort = currentSettings.mqttPort;
     
     currentSettings.destinationYear = getParamInt("destinationYear", currentSettings.destinationYear);
     currentSettings.destinationTimezoneIndex = getParamInt("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex);
+ 
     if (request->hasParam("lastTimeDepartedYear", true)) {
         currentSettings.lastTimeDepartedYear = getParamInt("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear);
         currentSettings.lastTimeDepartedMonth = getParamInt("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth);
@@ -458,12 +457,10 @@ void setupWebRoutes() {
     currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
     currentSettings.dataLinkTargetRow = getParamInt("dataLinkTargetRow", currentSettings.dataLinkTargetRow);
     currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
-
     strncpy(currentSettings.mqttBroker, getParamValue("mqttBroker").c_str(), sizeof(currentSettings.mqttBroker) - 1);
     currentSettings.mqttPort = getParamInt("mqttPort", 1883);
     strncpy(currentSettings.mqttUser, getParamValue("mqttUser").c_str(), sizeof(currentSettings.mqttUser) - 1);
     strncpy(currentSettings.mqttPassword, getParamValue("mqttPassword").c_str(), sizeof(currentSettings.mqttPassword) - 1);
-
     if (request->hasParam("numDataPoints", true)) {
         int numDataPoints = getParamInt("numDataPoints", 0);
         if (numDataPoints > 5) numDataPoints = 5;
@@ -488,6 +485,14 @@ void setupWebRoutes() {
     }
 
     saveSettings();
+
+    if (oldMqttBroker != currentSettings.mqttBroker || oldMqttPort != currentSettings.mqttPort) {
+        if (mqttClient.connected()) {
+            mqttClient.disconnect();
+        }
+        mqttReconnectRequired = true;
+    }
+
     #if ENABLE_HARDWARE
     myDFPlayer.volume(currentSettings.notificationVolume);
     #endif
@@ -496,9 +501,15 @@ void setupWebRoutes() {
     startTimeTravelAnimation();
   });
   server.on("/api/addPreset", HTTP_POST, [](AsyncWebServerRequest *request){
+    preferences.begin(PREFERENCES_NAMESPACE, false);
     String presetsJson = preferences.getString("customPresets", "[]");
     DynamicJsonDocument doc(2048);
-    deserializeJson(doc, presetsJson);
+    DeserializationError error = deserializeJson(doc, presetsJson);
+    if (error) {
+        request->send(500, "text/plain", "Failed to parse presets");
+        preferences.end();
+        return;
+    }
     JsonArray presets = doc.as<JsonArray>();
     JsonObject newPreset = presets.createNestedObject();
     newPreset["name"] = request->getParam("name", true)->value();
@@ -506,9 +517,11 @@ void setupWebRoutes() {
     String newPresetsJson;
     serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
+    preferences.end();
     request->send(200, "text/plain", "Custom preset saved!");
   });
   server.on("/api/updatePreset", HTTP_POST, [](AsyncWebServerRequest *request){
+    preferences.begin(PREFERENCES_NAMESPACE, false);
     String name = request->getParam("name", true)->value();
     String value = request->getParam("value", true)->value();
     String presetsJson = preferences.getString("customPresets", "[]");
@@ -524,9 +537,11 @@ void setupWebRoutes() {
     String newPresetsJson;
     serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
+    preferences.end();
     request->send(200, "text/plain", "Preset updated!");
   });
   server.on("/api/deletePreset", HTTP_POST, [](AsyncWebServerRequest *request){
+    preferences.begin(PREFERENCES_NAMESPACE, false);
     String name = request->getParam("name", true)->value();
     String presetsJson = preferences.getString("customPresets", "[]");
     DynamicJsonDocument doc(2048);
@@ -541,6 +556,7 @@ void setupWebRoutes() {
     String newPresetsJson;
     serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
+    preferences.end();
     request->send(200, "text/plain", "Preset deleted!");
   });
   server.on("/api/resetSettings", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -558,11 +574,28 @@ void setupWebRoutes() {
     request->send(200, "text/plain", "NTP time sync requested.");
   });
   server.on("/api/getTheme", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", preferences.getString(THEME_PREF_KEY, "theme-time-circuits"));
+      preferences.begin(PREFERENCES_NAMESPACE, true);
+      String themeName = preferences.getString(THEME_PREF_KEY, "theme-time-circuits");
+      preferences.end();
+      request->send(200, "text/plain", themeName);
   });
   server.on("/api/setTheme", HTTP_POST, [](AsyncWebServerRequest *request){
     String theme = request->getParam("theme", true)->value();
+    
+    int themeEnum = THEME_TIME_CIRCUITS; // Default
+    if (theme == "theme-outatime") themeEnum = THEME_OUTATIME;
+    else if (theme == "theme-88mph") themeEnum = THEME_88MPH;
+    else if (theme == "theme-plutonium-glow") themeEnum = THEME_PLUTONIUM_GLOW;
+    else if (theme == "theme-mr-fusion") themeEnum = THEME_MR_FUSION;
+    else if (theme == "theme-clock-tower") themeEnum = THEME_CLOCK_TOWER;
+
+    preferences.begin(PREFERENCES_NAMESPACE, false);
     preferences.putString(THEME_PREF_KEY, theme);
+    preferences.putInt("theme", themeEnum);
+    preferences.end();
+    
+    currentSettings.theme = themeEnum;
+
     request->send(200, "text/plain", "Theme saved.");
   });
   server.on("/api/testDataPoint", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -577,11 +610,13 @@ void setupWebRoutes() {
         if (httpCode == HTTP_CODE_OK) {
             String payload = http.getString();
             DynamicJsonDocument doc(8192);
+     
             DeserializationError error = deserializeJson(doc, payload);
             if (error == DeserializationError::Ok) {
                 if (path.length() == 0) {
                     request->send(200, "application/json", "{\"success\":true, \"value\":" + payload + "}");
                 } else {
+        
                     JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), path.c_str());
                     if (!value.isNull()) {
                         request->send(200, "application/json", "{\"success\":true, \"value\":\"" + value.as<String>() + "\"}");
@@ -634,7 +669,6 @@ void reconnectMqtt() {
     if (connected) {
       ESP_LOGI("MQTT", "Connected to broker!");
       mqttClient.publish(MQTT_STATUS_TOPIC, "online", true);
-      
       for (int i = 0; i < currentSettings.numDataPoints; i++) {
         if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && strlen(currentSettings.dataPoints[i].mqttTopic) > 0) {
           mqttClient.subscribe(currentSettings.dataPoints[i].mqttTopic);
@@ -690,7 +724,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
                  for(int j=0; j<4; ++j) displayPages[i][j] = lastGoodDisplayPages[i][j];
             }
         }
-        break; 
+        break;
     }
   }
 }
@@ -700,7 +734,8 @@ void setup() {
   delay(1000);
 
   Serial.println("\n\n--- BOOTING ---");
-  if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed."); while(1); }
+  if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed.");
+  while(1); }
   
   loadSettings();
   loadApiTemplates();
@@ -728,13 +763,14 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    if (!mqttClient.connected()) {
+  if (WiFi.status() == WL_CONNECTED && strlen(currentSettings.mqttBroker) > 0) {
+    if (mqttReconnectRequired || !mqttClient.connected()) {
       unsigned long now = millis();
       if (now - lastMqttReconnectAttempt > MQTT_RECONNECT_INTERVAL_MS) {
         lastMqttReconnectAttempt = now;
+        setupMqtt();
         reconnectMqtt();
+        mqttReconnectRequired = false;
       }
     }
     mqttClient.loop();
@@ -804,13 +840,11 @@ void handleDisplayAnimation() {
     case ANIM_COMPLETE:
       isAnimating = false;
       updateNormalClockDisplay();
-      #if ENABLE_HARDWARE
       if(currentSettings.timeTravelSoundToggle){
         playSound("ARRIVAL_THUD");
       }
-      #endif
       break;
-    }
+  }
   #endif
 }
 
@@ -822,9 +856,11 @@ void handleMalfunction() {
     case MAL_HAYWIRE:
       if (elapsed < 3000) {
         if (millis() - lastAnimationFrameTime > 100) {
-          printToDisplay(destRow.month, "8888"); printToDisplay(destRow.day, "8888"); printToDisplay(destRow.year, "8888"); printToDisplay(destRow.time, "8888");
+          printToDisplay(destRow.month, "8888");
+          printToDisplay(destRow.day, "8888"); printToDisplay(destRow.year, "8888"); printToDisplay(destRow.time, "8888");
           printToDisplay(presRow.month, "8888"); printToDisplay(presRow.day, "8888"); printToDisplay(presRow.year, "8888"); printToDisplay(presRow.time, "8888");
-          printToDisplay(lastRow.month, "8888"); printToDisplay(lastRow.day, "8888"); printToDisplay(lastRow.year, "8888"); printToDisplay(lastRow.time, "8888");
+          printToDisplay(lastRow.month, "8888"); printToDisplay(lastRow.day, "8888"); printToDisplay(lastRow.year, "8888");
+          printToDisplay(lastRow.time, "8888");
           destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
           presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
           lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
@@ -837,7 +873,8 @@ void handleMalfunction() {
       break;
     case MAL_ERROR_MESSAGE:
       if (elapsed < 4000) {
-        printToDisplay(destRow.month, "TIME"); printToDisplay(destRow.day, "CIRC"); printToDisplay(destRow.year, "UIT "); printToDisplay(destRow.time, "OVER");
+        printToDisplay(destRow.month, "TIME");
+        printToDisplay(destRow.day, "CIRC"); printToDisplay(destRow.year, "UIT "); printToDisplay(destRow.time, "OVER");
         printToDisplay(presRow.month, "LOAD"); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
         printToDisplay(lastRow.month, "FLUX"); printToDisplay(lastRow.day, "OFFL"); printToDisplay(lastRow.year, "INE "); lastRow.time.clear();
         destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
@@ -852,7 +889,7 @@ void handleMalfunction() {
       blankAllDisplays();
       runBootSequence();
       break;
-    }
+  }
   #endif
 }
 
@@ -876,7 +913,8 @@ void handleBootSequence() {
   #if ENABLE_HARDWARE
   switch (bootState) {
     case BOOT_88MPH:
-      // display88MphSpeed(88.0); // This function is not defined in the provided code
+      // display88MphSpeed(88.0);
+      // This function is not defined in the provided code
       break;
     case BOOT_RECALIBRATING:
       printToDisplay(destRow.month, "RECA"); printToDisplay(destRow.day, "LIBR"); printToDisplay(destRow.year, "ATIN"); printToDisplay(destRow.time, "G");
@@ -981,7 +1019,6 @@ void updateNormalClockDisplay() {
 
 void fetchDataLink() {
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0 || isFetchingData) return;
-    
     DataPoint point = currentSettings.dataPoints[currentPointToFetch];
     if (point.dataSourceType == DATA_SOURCE_MQTT) {
         currentPointToFetch = (currentPointToFetch + 1) % currentSettings.numDataPoints;
@@ -989,7 +1026,6 @@ void fetchDataLink() {
     }
 
     if (millis() - lastDataLinkFetch < (unsigned long)currentSettings.dataLinkRefreshInterval * 60 * 1000 / currentSettings.numDataPoints) return;
-
     isFetchingData = true;
     lastDataLinkFetch = millis();
     
@@ -1027,7 +1063,6 @@ void updateMarqueeDisplay() {
     DisplayRow* targetRow = &lastRow;
     if (currentSettings.dataLinkTargetRow == 0) targetRow = &destRow;
     if (currentSettings.dataLinkTargetRow == 1) targetRow = &presRow;
-
     if (marqueeState == M_IDLE) {
         currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
         marqueeScrollPosition = 0;
@@ -1036,14 +1071,12 @@ void updateMarqueeDisplay() {
     }
     
     DataPoint point = currentSettings.dataPoints[currentPageIndex];
-
     printToDisplay(targetRow->month, displayPages[currentPageIndex][0].c_str());
     printToDisplay(targetRow->day, displayPages[currentPageIndex][1].c_str());
     printToDisplay(targetRow->year, displayPages[currentPageIndex][2].c_str());
 
     String timeContent = String(point.prefix) + displayPages[currentPageIndex][3] + String(point.suffix);
     String canvas = "   " + timeContent + "   ";
-    
     if (canvas.length() <= 4) {
         printToDisplay(targetRow->time, canvas.c_str());
     } else {

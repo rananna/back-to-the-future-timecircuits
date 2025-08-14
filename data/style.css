@@ -958,6 +958,47 @@ body.time-travel-active {
     color: var(--invalid-input-border);
 }
 
+.marquee-preview-container {
+    margin-top: 25px;
+    padding-top: 15px;
+    border-top: 1px dashed var(--input-border);
+}
+.marquee-preview {
+    background-color: #000;
+    border: 2px solid #555;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    color: #ff0000;
+    font-size: 1.2em;
+    overflow: hidden;
+}
+.marquee-preview span {
+    text-align: center;
+}
+.preview-month { flex-basis: 22%; }
+.preview-day { flex-basis: 22%; }
+.preview-year { flex-basis: 22%; }
+.preview-time-container {
+    flex-basis: 34%;
+    overflow: hidden;
+    position: relative;
+    height: 1.5em;
+}
+.preview-time {
+    position: absolute;
+    white-space: nowrap;
+    line-height: 1.5em;
+}
+@keyframes scroll-left {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+}
 
 @media (max-width: 768px) {
     body {

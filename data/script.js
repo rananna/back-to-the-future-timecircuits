@@ -59,7 +59,7 @@ function initializeUI() {
 
     Promise.all(promises).then(results => {
         const [timecircuits, temporal, datalink, timezones, presets, theme] = results;
-        document.body.className = theme;
+        document.body.className = theme.trim();
         populateTimezoneSelects(timezones);
         populatePresetsSelect(presets);
         applySettings(timecircuits, temporal, datalink);
@@ -128,7 +128,7 @@ function updateLastDepartedDisplay(year, month, day, hour, minute) {
     let displayHour = parseInt(hour, 10);
     let ampm = '';
     if (!is24h) {
-        ampm = displayHour >= 12 ? ' PM' : ' AM';
+        ampm = displayHour >= 12 ? 'PM' : 'AM';
         if (displayHour > 12) displayHour -= 12;
         if (displayHour === 0) displayHour = 12;
     }
@@ -201,6 +201,7 @@ function applyDataLinkSettings(datalink) {
                 document.getElementById(`dp_icon_${i}`).value = point.icon || '';
                 document.getElementById(`dp_scrollSpeed_${i}`).value = point.scrollSpeed || 150;
                 document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
+                updateMarqueePreview(i);
             });
         }
     });
@@ -309,7 +310,7 @@ function updateHeaderClocks(presentTimeRaw) {
         const formatted = formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24h);
         if (!formatted) return;
         const [hour, minute, second] = formatted.time.split(' ')[0].split(':');
-        const ampm = formatted.time.split(' ').length > 1 ? formatted.time.split(' ')[1] : '';
+        const ampm = (formatted.time.split(' ').length > 1 ? formatted.time.split(' ')[1] : '').trim();
         const [monthNum, day, year] = formatted.date.split('/');
         const setContent = (id, text) => { document.getElementById(id).textContent = text; };
         setContent(`header-${prefix}-month`, months[parseInt(monthNum, 10) - 1] || '---');
@@ -416,14 +417,58 @@ function updateDataPointsUI(numPoints) {
 
                     <label for="dp_scrollSpeed_${i}">Scroll Speed (ms/char): <span id="dp_scrollSpeed_${i}Value">150</span></label>
                     <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150">
+                    
+                    <div class="marquee-preview-container">
+                        <label>Live Preview:</label>
+                        <div class="marquee-preview" id="marquee_preview_${i}">
+                            <span class="preview-month">MON</span>
+                            <span class="preview-day">DAY</span>
+                            <span class="preview-year">YEAR</span>
+                            <div class="preview-time-container">
+                                <span class="preview-time">TIME</span>
+                            </div>
+                        </div>
+                    </div>
                 `;
                 container.appendChild(block);
             }
             populateApiExampleDropdowns();
             attachDataPointEventListeners();
+            for (let i = 0; i < numPoints; i++) {
+                updateMarqueePreview(i);
+            }
         }
         resolve();
     });
+}
+
+function updateMarqueePreview(index) {
+    const month = document.getElementById(`dp_monthPath_${index}`).value || "MON";
+    const day = document.getElementById(`dp_dayPath_${index}`).value || "DAY";
+    const year = document.getElementById(`dp_yearPath_${index}`).value || "YEAR";
+    const timeValue = document.getElementById(`dp_timePath_${index}`).value || "TIME";
+    const prefix = document.getElementById(`dp_prefix_${index}`).value;
+    const suffix = document.getElementById(`dp_suffix_${index}`).value;
+
+    document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = month.substring(0, 4).toUpperCase();
+    document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 4).toUpperCase();
+    document.querySelector(`#marquee_preview_${index} .preview-year`).textContent = year.substring(0, 4).toUpperCase();
+    
+    const timeText = `${prefix}${timeValue}${suffix}`;
+    const timeSpan = document.querySelector(`#marquee_preview_${index} .preview-time`);
+    timeSpan.textContent = timeText;
+
+    const timeContainer = document.querySelector(`#marquee_preview_${index} .preview-time-container`);
+    timeSpan.style.animation = 'none';
+    void timeContainer.offsetWidth; 
+
+    if (timeText.length > 4) {
+        const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
+        const duration = (timeText.length + 4) * (scrollSpeed / 1000);
+        timeSpan.style.animation = `scroll-left ${duration}s linear infinite`;
+    } else {
+        timeSpan.style.animation = '';
+    }
 }
 
 function populateApiExampleDropdowns() {
@@ -451,6 +496,21 @@ function attachDataPointEventListeners() {
             const index = e.target.dataset.index;
             document.getElementById(`dp_url_${index}`).value = apiExamples[e.target.value].url;
         };
+    });
+    document.querySelectorAll('.data-point-block input, .data-point-block select').forEach(input => {
+        input.addEventListener('input', (e) => {
+            let target = e.target;
+            while(target && !target.classList.contains('data-point-block')) {
+                target = target.parentElement;
+            }
+            if (target) {
+                const h4 = target.querySelector('h4');
+                if(h4) {
+                    const index = parseInt(h4.textContent.replace('Data Point ', ''), 10) - 1;
+                    updateMarqueePreview(index);
+                }
+            }
+        });
     });
 }
 
@@ -509,6 +569,7 @@ function displayApiWizardResults(index, jsonData) {
     container.querySelectorAll('.wizard-map-btn').forEach(btn => btn.onclick = (e) => {
         const { path, index, target } = e.target.dataset;
         document.getElementById(`dp_${target}Path_${index}`).value = path;
+        updateMarqueePreview(index);
         showMessage(`Mapped "${path}" to ${target.toUpperCase()}`, 'success', 2000);
     });
 }
