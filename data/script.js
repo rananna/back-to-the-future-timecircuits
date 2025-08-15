@@ -791,15 +791,24 @@ function updateSleepVisual() {
     const [arrH, arrM] = arrTime.split(':').map(Number);
     const depTotalMins = depH * 60 + depM;
     const arrTotalMins = arrH * 60 + arrM;
-    const bar = document.getElementById('sleepScheduleBar');
-    if (arrTotalMins < depTotalMins) {
-        const sleepDuration = (1440 - depTotalMins) + arrTotalMins;
-        bar.style.left = `${(depTotalMins / 1440) * 100}%`;
-        bar.style.width = `${(sleepDuration / 1440) * 100}%`;
-    } else {
+    const bar1 = document.getElementById('sleepScheduleBar');
+    const bar2 = document.getElementById('sleepScheduleBar2');
+
+    if (arrTotalMins < depTotalMins) { // This is the overnight case
+        // First part of the bar: from departure time to midnight
+        const duration1 = 1440 - depTotalMins;
+        bar1.style.left = `${(depTotalMins / 1440) * 100}%`;
+        bar1.style.width = `${(duration1 / 1440) * 100}%`;
+
+        // Second part of the bar: from midnight to arrival time
+        bar2.style.left = '0%';
+        bar2.style.width = `${(arrTotalMins / 1440) * 100}%`;
+        bar2.style.display = 'block';
+    } else { // This is the same-day case
         const sleepDuration = arrTotalMins - depTotalMins;
-        bar.style.left = `${(depTotalMins / 1440) * 100}%`;
-        bar.style.width = `${(sleepDuration / 1440) * 100}%`;
+        bar1.style.left = `${(depTotalMins / 1440) * 100}%`;
+        bar1.style.width = `${(sleepDuration / 1440) * 100}%`;
+        bar2.style.display = 'none'; // Hide the second bar
     }
 }
 

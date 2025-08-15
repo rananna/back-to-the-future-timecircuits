@@ -773,14 +773,20 @@ body.time-travel-active {
     left: 0;
 }
 .sleep-time-display {
-    position: relative;
+    position: absolute;
     z-index: 1;
     font-size: 0.85em;
     color: var(--bg-color);
     font-weight: bold;
     text-shadow: none;
     pointer-events: none;
+    top: 50%;
+    transform: translate(-50%, -50%);
 }
+.sleep-time-display.time-0 { left: 5%; }
+.sleep-time-display.time-6 { left: 25%; }
+.sleep-time-display.time-12 { left: 50%; }
+.sleep-time-display.time-18 { left: 75%; }
 .preset-adder {
     margin-top: 30px;
     padding-top: 20px;
