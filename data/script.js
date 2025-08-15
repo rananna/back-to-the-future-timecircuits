@@ -28,23 +28,32 @@ const apiExamples = {
     'fun_game_users': { name: 'Fun: Game Server Users', url: 'https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=730' }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    function waitForServerReady() {
-        fetch('/api/isReady')
-            .then(response => {
-                if (response.ok) {
-                    console.log("Server is ready. Initializing UI.");
-                    initializeUI();
-                } else {
-                    setTimeout(waitForServerReady, 1000);
-                }
-            })
-            .catch(error => {
-                setTimeout(waitForServerReady, 1000);
-            });
+async function checkServerReady(retries = 5, delay = 1000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch('/api/isReady');
+            if (response.ok) {
+                console.log("Server is ready.");
+                return true;
+            }
+        } catch (error) {
+            console.log(`Attempt ${i + 1} failed. Retrying...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
     }
-    waitForServerReady();
+    return false;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const isReady = await checkServerReady();
+    if (isReady) {
+        initializeUI();
+    } else {
+        document.body.innerHTML = '<div class="container"><h1>Connection Failed</h1><p>Could not connect to the Time Circuits device. Please check the connection and refresh the page.</p></div>';
+        showMessage('Could not connect to device.', 'error', 10000);
+    }
 });
+
 
 function initializeUI() {
     const initialEndpoints = [
@@ -190,9 +199,7 @@ function applyDataLinkSettings(datalink) {
         if (datalink.dataPoints) {
             datalink.dataPoints.forEach((point, i) => {
                 document.getElementById(`dp_dataSourceType_${i}`).value = point.dataSourceType === 1 ? 'mqtt' : 'api';
-                document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
                 document.getElementById(`dp_displayMode_${i}`).value = point.displayMode || 0;
-                document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
                 document.getElementById(`dp_url_${i}`).value = point.url || '';
                 document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
                 document.getElementById(`dp_dayPath_${i}`).value = point.dayPath || '';
@@ -206,6 +213,10 @@ function applyDataLinkSettings(datalink) {
                 document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
                 document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
                 document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
+                
+                // Manually trigger change events to ensure UI consistency
+                document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
+                document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
                 updateMarqueePreview(i);
             });
         }
@@ -507,15 +518,14 @@ function updateMarqueePreview(index) {
     } else { // Scrolling Text
         const text = document.getElementById(`dp_scrollingText_${index}`).value || "PREVIEW";
         const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
-        previewSpan.textContent = text.substring(0, 13); // Show first 13 characters
+        previewSpan.textContent = text; 
         previewSpan.classList.remove('scrolling-text');
         
         if (text.length > 13) {
             const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
-            const duration = (text.length + 13) * (scrollSpeed / 1000); // Adjust for container width
+            const duration = (text.length) * (scrollSpeed / 100); 
             previewSpan.style.animationDuration = `${duration}s`;
             requestAnimationFrame(() => {
-                previewSpan.textContent = text; // Use full text for scrolling animation
                 previewSpan.classList.add('scrolling-text');
             });
         }
@@ -627,22 +637,19 @@ function displayApiWizardResults(index, jsonData) {
             }
             list.appendChild(li);
         }
-        return list.childNodes;
     };
     buildList(jsonData);
     container.appendChild(list);
     container.querySelectorAll('.wizard-map-btn').forEach(btn => btn.onclick = (e) => {
         const { path, index, target } = e.target.dataset;
-        document.getElementById(`dp_${target}Path_${index}`)?.focus();
-        document.getElementById(`dp_${target}Path_${index}`)?.select();
-        document.execCommand('insertText', false, path);
-        
-        // Also handle the scrolling text field
-        if (target === 'scrollingText') {
-             document.getElementById(`dp_${target}_${index}`).value = path;
-        }
+        const elementId = (target === 'scrollingText') ? `dp_scrollingText_${index}` : `dp_${target}Path_${index}`;
+        const targetElement = document.getElementById(elementId);
 
-        updateMarqueePreview(index);
+        if(targetElement){
+            targetElement.value = path;
+            targetElement.dispatchEvent(new Event('input')); // Trigger preview update
+        }
+        
         showMessage(`Mapped "${path}" to ${target.toUpperCase()}`, 'success', 2000);
     });
 }
@@ -681,7 +688,8 @@ function saveSettings() {
             formData.append(`dp_dataSourceType_${i}`, document.getElementById(`dp_dataSourceType_${i}`).value === 'mqtt' ? 1 : 0);
             formData.append(`dp_displayMode_${i}`, document.getElementById(`dp_displayMode_${i}`).value);
             ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText'].forEach(field => {
-                formData.append(`dp_${field}_${i}`, document.getElementById(`dp_${field}_${i}`).value);
+                const el = document.getElementById(`dp_${field}_${i}`);
+                if (el) formData.append(`dp_${field}_${i}`, el.value);
             });
         }
     }
