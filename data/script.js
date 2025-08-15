@@ -309,7 +309,7 @@ function updateHeaderClocks(presentTimeRaw) {
         const timezoneIndex = parseInt(timezoneSelect.value, 10) || 0;
         const formatted = formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24h);
         if (!formatted) return;
-        const [hour, minute, second] = formatted.time.split(' ')[0].split(':');
+        const [hour, minute] = formatted.time.split(' ')[0].split(':');
         const ampm = (formatted.time.split(' ').length > 1 ? formatted.time.split(' ')[1] : '').trim();
         const [monthNum, day, year] = formatted.date.split('/');
         const setContent = (id, text) => { document.getElementById(id).textContent = text; };
@@ -318,7 +318,6 @@ function updateHeaderClocks(presentTimeRaw) {
         setContent(`header-${prefix}-year`, yearOverride || year || '0000');
         setContent(`header-${prefix}-hour`, hour || '00');
         setContent(`header-${prefix}-minute`, minute || '00');
-        setContent(`header-${prefix}-second`, second || '00');
         setContent(`header-${prefix}-ampm`, is24h ? '' : ampm);
     };
     const presentUnixTimestamp = presentTimeRaw.getTime() / 1000;
@@ -378,7 +377,7 @@ function updateDataPointsUI(numPoints) {
                         <button class="analyze-api-btn" data-index="${i}">Analyze API</button>
                         <div class="api-wizard-results" id="wizard_results_${i}"></div>
                     </div>
-                    
+
                     <div id="dp_mqtt_container_${i}" style="display: none;">
                         <label for="dp_mqttTopic_${i}">MQTT Topic:</label>
                         <input type="text" id="dp_mqttTopic_${i}" placeholder="e.g., /home/livingroom/temperature">
@@ -417,7 +416,7 @@ function updateDataPointsUI(numPoints) {
 
                     <label for="dp_scrollSpeed_${i}">Scroll Speed (ms/char): <span id="dp_scrollSpeed_${i}Value">150</span></label>
                     <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150">
-                    
+
                     <div class="marquee-preview-container">
                         <label>Live Preview:</label>
                         <div class="marquee-preview" id="marquee_preview_${i}">
@@ -453,14 +452,14 @@ function updateMarqueePreview(index) {
     document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = month.substring(0, 4).toUpperCase();
     document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 4).toUpperCase();
     document.querySelector(`#marquee_preview_${index} .preview-year`).textContent = year.substring(0, 4).toUpperCase();
-    
+
     const timeText = `${prefix}${timeValue}${suffix}`;
     const timeSpan = document.querySelector(`#marquee_preview_${index} .preview-time`);
     timeSpan.textContent = timeText;
 
     const timeContainer = document.querySelector(`#marquee_preview_${index} .preview-time-container`);
     timeSpan.style.animation = 'none';
-    void timeContainer.offsetWidth; 
+    void timeContainer.offsetWidth;
 
     if (timeText.length > 4) {
         const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
@@ -554,7 +553,7 @@ function displayApiWizardResults(index, jsonData) {
                 buildList(value, currentPath).forEach(item => subList.appendChild(item));
                 li.appendChild(subList);
             } else {
-                li.innerHTML = `<span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(value)}"</span> 
+                li.innerHTML = `<span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(value)}"</span>
                 <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="month">M</button>
                 <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="day">D</button>
                 <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="year">Y</button>

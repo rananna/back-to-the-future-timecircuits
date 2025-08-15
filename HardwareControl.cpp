@@ -12,12 +12,22 @@ DFRobotDFPlayerMini myDFPlayer;
 #endif
 
 // --- HELPER FUNCTION ---
-// Correctly writes a string to a 4-character alphanumeric display.
-void printToDisplay(Adafruit_AlphaNum4 &display, const char* text) {
+// Correctly writes a string to a 4-character alphanumeric display with justification.
+// Justification: 0 = left, 1 = right, 2 = center
+void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0) {
   display.clear();
-  for (int i=0; i<4; i++) {
-    if (i < strlen(text)) {
-      display.writeDigitAscii(i, text[i]);
+  int len = strlen(text);
+  int startPos = 0;
+
+  if (justification == 1) { // Right Justify
+    startPos = 4 - len;
+  } else if (justification == 2) { // Center Justify
+    startPos = (4 - len) / 2;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    if (i >= startPos && i < (startPos + len)) {
+      display.writeDigitAscii(i, text[i - startPos]);
     } else {
       display.writeDigitAscii(i, ' '); // Clear remaining characters
     }
@@ -52,16 +62,27 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year) {
   char buffer[5];
   const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
-  printToDisplay(row.month, months[timeinfo.tm_mon]);
+  // Month (3 chars, right justified)
+  printToDisplay(row.month, months[timeinfo.tm_mon], 1);
 
+  // Day (2 chars, center justified)
   sprintf(buffer, "%02d", timeinfo.tm_mday);
-  printToDisplay(row.day, buffer);
+  printToDisplay(row.day, buffer, 2);
 
+  // Year (4 chars)
   sprintf(buffer, "%04d", year);
   printToDisplay(row.year, buffer);
 
-  sprintf(buffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
-  printToDisplay(row.time, buffer);
+  // Time (4 chars with decimal point, e.g., 01.21)
+  char timeBuffer[5];
+  sprintf(timeBuffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
+  row.time.clear();
+  row.time.writeDigitAscii(0, timeBuffer[0]);
+  // Set the decimal point on the second digit by ORing the ASCII char with 0x80
+  row.time.writeDigitAscii(1, timeBuffer[1] | 0x80);
+  row.time.writeDigitAscii(2, timeBuffer[2]);
+  row.time.writeDigitAscii(3, timeBuffer[3]);
+
 
   // Write the buffer to all displays in the row
   row.month.writeDisplay();
@@ -81,12 +102,12 @@ void animateDisplayRowRandomly(DisplayRow& row) {
 
     // Animate month
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-    printToDisplay(row.month, months[random(0,12)]);
+    printToDisplay(row.month, months[random(0,12)], 1); // Right justified
     row.month.writeDisplay();
 
     // Animate day
     sprintf(buffer, "%02d", random(1, 32));
-    printToDisplay(row.day, buffer);
+    printToDisplay(row.day, buffer, 2); // Center justified
     row.day.writeDisplay();
 
     // Animate time
@@ -101,7 +122,7 @@ void blankAllDisplays() {
   destRow.month.clear(); destRow.day.clear(); destRow.year.clear(); destRow.time.clear();
   presRow.month.clear(); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
   lastRow.month.clear(); lastRow.day.clear(); lastRow.year.clear(); lastRow.time.clear();
-  
+
   destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
   presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
   lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
@@ -110,7 +131,7 @@ void blankAllDisplays() {
 
 void display88MphSpeed(float speed) {
   #if ENABLE_HARDWARE
-  printToDisplay(lastRow.day, "88");
+  printToDisplay(lastRow.day, "88", 2);
   printToDisplay(lastRow.year, "MPH");
   lastRow.day.writeDisplay();
   lastRow.year.writeDisplay();

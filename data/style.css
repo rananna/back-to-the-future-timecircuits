@@ -179,7 +179,7 @@ body {
     width: 100%;
     box-sizing: border-box;
     transition: background-color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
-    margin: 20px auto; 
+    margin: 20px auto;
 }
 
 .header-circuits {
@@ -1020,7 +1020,7 @@ body.time-travel-active {
         padding: 12px 8px;
         font-size: 0.8em;
     }
-    
+
     .header-circuits {
         padding: 10px;
         grid-template-columns: 1fr;
@@ -1106,4 +1106,49 @@ body.time-travel-active {
         width: 30px;
         height: 30px;
     }
+}
+
+/* NEW RULES FOR 13-DIGIT LAYOUT */
+
+/* Add a dot after the hour to simulate the decimal point */
+.circuit-time .hour {
+    position: relative;
+    padding-right: 5px; /* Make space for the dot */
+}
+
+.circuit-time .hour::after {
+    content: '.';
+    position: absolute;
+    right: -2px;
+    bottom: -4px; /* Adjust vertical position */
+    font-size: 1.5em; /* Make the dot bigger */
+}
+
+/* Adjust spacing to better reflect the 3-2-4-4 hardware layout */
+.circuit-content {
+    gap: 12px;
+}
+
+.circuit-display {
+    gap: 8px;
+}
+
+.circuit-time {
+    gap: 0; /* Remove gap between hour and minute */
+}
+
+/* Give month and day spans a more representative width */
+.circuit-display .month {
+    min-width: 3ch;
+    text-align: right;
+}
+
+.circuit-display .day {
+    min-width: 2.5ch;
+    text-align: center;
+}
+
+.circuit-display .year {
+    min-width: 4ch;
+    text-align: center;
 }
