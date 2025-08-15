@@ -96,6 +96,7 @@ int currentPointToFetch = 0;
 unsigned long lastDataLinkFetch = 0;
 unsigned long lastMarqueeStateChange = 0;
 int marqueeScrollPosition = 0;
+int marqueeScrollPositionYear = 0;
 bool isFetchingData = false;
 int dataPointFetchFailures[5] = {0, 0, 0, 0, 0};
 const int MAX_FETCH_FAILURES = 3;
@@ -190,6 +191,8 @@ void saveSettings() {
     preferences.putInt((prefix + "scroll").c_str(), currentSettings.dataPoints[i].scrollSpeed);
     preferences.putInt((prefix + "srcType").c_str(), (int)currentSettings.dataPoints[i].dataSourceType);
     preferences.putString((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
+    preferences.putString((prefix + "yearPrefix").c_str(), currentSettings.dataPoints[i].yearPrefix);
+    preferences.putString((prefix + "yearSuffix").c_str(), currentSettings.dataPoints[i].yearSuffix);
   }
 
   preferences.end();
@@ -289,6 +292,8 @@ void loadSettings() {
       currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
       currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
       strncpy(currentSettings.dataPoints[i].mqttTopic, preferences.getString((prefix + "topic").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].mqttTopic) - 1);
+      strncpy(currentSettings.dataPoints[i].yearPrefix, preferences.getString((prefix + "yearPrefix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].yearPrefix) - 1);
+      strncpy(currentSettings.dataPoints[i].yearSuffix, preferences.getString((prefix + "yearSuffix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].yearSuffix) - 1);
     }
     preferences.end();
   }
@@ -388,6 +393,8 @@ void setupWebRoutes() {
         dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
         dp["dataSourceType"] = (int)currentSettings.dataPoints[i].dataSourceType;
         dp["mqttTopic"] = currentSettings.dataPoints[i].mqttTopic;
+        dp["yearPrefix"] = currentSettings.dataPoints[i].yearPrefix;
+        dp["yearSuffix"] = currentSettings.dataPoints[i].yearSuffix;
     }
 
     String response;
@@ -478,6 +485,8 @@ void setupWebRoutes() {
                 strncpy(currentSettings.dataPoints[i].icon, getParamValue("dp_icon_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
                 currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
                 strncpy(currentSettings.dataPoints[i].mqttTopic, getParamValue("dp_mqttTopic_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].mqttTopic) - 1);
+                strncpy(currentSettings.dataPoints[i].yearPrefix, getParamValue("dp_yearPrefix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].yearPrefix) - 1);
+                strncpy(currentSettings.dataPoints[i].yearSuffix, getParamValue("dp_yearSuffix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].yearSuffix) - 1);
             } else {
                 memset(&currentSettings.dataPoints[i], 0, sizeof(DataPoint));
             }
@@ -1071,6 +1080,7 @@ void updateMarqueeDisplay() {
     if (marqueeState == M_IDLE) {
         currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
         marqueeScrollPosition = 0;
+        marqueeScrollPositionYear = 0;
         marqueeState = M_PAUSED;
         lastMarqueeStateChange = millis();
     }
@@ -1078,26 +1088,57 @@ void updateMarqueeDisplay() {
     DataPoint point = currentSettings.dataPoints[currentPageIndex];
     printToDisplay(targetRow->month, displayPages[currentPageIndex][0].c_str());
     printToDisplay(targetRow->day, displayPages[currentPageIndex][1].c_str());
-    printToDisplay(targetRow->year, displayPages[currentPageIndex][2].c_str());
 
+    String yearContent = String(point.yearPrefix) + displayPages[currentPageIndex][2] + String(point.yearSuffix);
     String timeContent = String(point.prefix) + displayPages[currentPageIndex][3] + String(point.suffix);
-    String canvas = "   " + timeContent + "   ";
-    if (canvas.length() <= 4) {
-        printToDisplay(targetRow->time, canvas.c_str());
+
+    String yearCanvas = "   " + yearContent + "   ";
+    if (yearCanvas.length() <= 4) {
+        printToDisplay(targetRow->year, yearCanvas.c_str());
     } else {
-        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 2000) {
-            marqueeState = M_SCROLLING;
-            lastMarqueeStateChange = millis();
-        }
-        if (marqueeState == M_SCROLLING && millis() - lastMarqueeStateChange > (unsigned long)point.scrollSpeed) {
-            marqueeScrollPosition++;
-            lastMarqueeStateChange = millis();
-            if (marqueeScrollPosition > canvas.length() - 4) {
-                marqueeState = M_IDLE;
-            }
-        }
-        String viewport = canvas.substring(marqueeScrollPosition, marqueeScrollPosition + 4);
+        String yearViewport = yearCanvas.substring(marqueeScrollPositionYear, marqueeScrollPositionYear + 4);
+        printToDisplay(targetRow->year, yearViewport.c_str());
+    }
+
+    String timeCanvas = "   " + timeContent + "   ";
+    if (timeCanvas.length() <= 4) {
+        printToDisplay(targetRow->time, timeCanvas.c_str());
+    } else {
+        String viewport = timeCanvas.substring(marqueeScrollPosition, marqueeScrollPosition + 4);
         printToDisplay(targetRow->time, viewport.c_str());
+    }
+
+    if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 2000) {
+        marqueeState = M_SCROLLING;
+        lastMarqueeStateChange = millis();
+    }
+
+    if (marqueeState == M_SCROLLING && millis() - lastMarqueeStateChange > (unsigned long)point.scrollSpeed) {
+        lastMarqueeStateChange = millis();
+        bool timeDone = false;
+        bool yearDone = false;
+
+        if (timeCanvas.length() > 4) {
+            marqueeScrollPosition++;
+            if (marqueeScrollPosition > timeCanvas.length() - 4) {
+                timeDone = true;
+            }
+        } else {
+            timeDone = true;
+        }
+
+        if (yearCanvas.length() > 4) {
+            marqueeScrollPositionYear++;
+            if (marqueeScrollPositionYear > yearCanvas.length() - 4) {
+                yearDone = true;
+            }
+        } else {
+            yearDone = true;
+        }
+
+        if (timeDone && yearDone) {
+            marqueeState = M_IDLE;
+        }
     }
 
     targetRow->month.writeDisplay();

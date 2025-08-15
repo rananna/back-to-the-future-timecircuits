@@ -201,6 +201,8 @@ function applyDataLinkSettings(datalink) {
                 document.getElementById(`dp_icon_${i}`).value = point.icon || '';
                 document.getElementById(`dp_scrollSpeed_${i}`).value = point.scrollSpeed || 150;
                 document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
+                document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
+                document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
                 updateMarqueePreview(i);
             });
         }
@@ -385,18 +387,28 @@ function updateDataPointsUI(numPoints) {
 
                     <div class="time-circuit-row">
                         <label for="dp_monthPath_${i}" class="time-circuit-label">MONTH</label>
-                        <input type="text" id="dp_monthPath_${i}" class="time-circuit-input">
+                        <input type="text" id="dp_monthPath_${i}" class="time-circuit-input" maxlength="3">
                     </div>
                     <div class="time-circuit-row">
                         <label for="dp_dayPath_${i}" class="time-circuit-label">DAY</label>
-                        <input type="text" id="dp_dayPath_${i}" class="time-circuit-input">
+                        <input type="text" id="dp_dayPath_${i}" class="time-circuit-input" maxlength="2">
                         <select id="dp_icon_${i}" style="width: 100px; margin-left: 10px;">
                             <option value="">Icon</option><option value="SUN">Sun</option><option value="CLOUD">Cloud</option><option value="RAIN">Rain</option><option value="SNOW">Snow</option><option value="STORM">Storm</option><option value="WIND">Wind</option><option value="UP">Up</option><option value="DOWN">Down</option><option value="EQUAL">Equal</option><option value="WIFI">WiFi</option><option value="HOME">Home</option><option value="WORK">Work</option><option value="CAR">Car</option><option value="BIKE">Bike</option><option value="RUN">Run</option><option value="HEART">Heart</option><option value="MONEY">Money</option><option value="CLOCK">Clock</option><option value="CAL">Calendar</option>
                         </select>
                     </div>
-                    <div class="time-circuit-row">
-                        <label for="dp_yearPath_${i}" class="time-circuit-label">YEAR</label>
-                        <input type="text" id="dp_yearPath_${i}" class="time-circuit-input">
+                    <div class="time-format-group">
+                        <div class="time-circuit-row">
+                            <label for="dp_yearPath_${i}" class="time-circuit-label">YEAR</label>
+                            <input type="text" id="dp_yearPath_${i}" class="time-circuit-input">
+                        </div>
+                        <div class="time-circuit-row">
+                            <label for="dp_yearPrefix_${i}" class="time-circuit-label">[PREFIX]</label>
+                            <input type="text" id="dp_yearPrefix_${i}" class="time-circuit-input" maxlength="15">
+                        </div>
+                        <div class="time-circuit-row">
+                            <label for="dp_yearSuffix_${i}" class="time-circuit-label">[SUFFIX]</label>
+                            <input type="text" id="dp_yearSuffix_${i}" class="time-circuit-input" maxlength="15">
+                        </div>
                     </div>
 
                     <div class="time-format-group">
@@ -422,7 +434,9 @@ function updateDataPointsUI(numPoints) {
                         <div class="marquee-preview" id="marquee_preview_${i}">
                             <span class="preview-month">MON</span>
                             <span class="preview-day">DAY</span>
-                            <span class="preview-year">YEAR</span>
+                            <div class="preview-year-container">
+                                <span class="preview-year">YEAR</span>
+                            </div>
                             <div class="preview-time-container">
                                 <span class="preview-time">TIME</span>
                             </div>
@@ -444,14 +458,30 @@ function updateDataPointsUI(numPoints) {
 function updateMarqueePreview(index) {
     const month = document.getElementById(`dp_monthPath_${index}`).value || "MON";
     const day = document.getElementById(`dp_dayPath_${index}`).value || "DAY";
-    const year = document.getElementById(`dp_yearPath_${index}`).value || "YEAR";
+    const yearValue = document.getElementById(`dp_yearPath_${index}`).value || "YEAR";
+    const yearPrefix = document.getElementById(`dp_yearPrefix_${index}`).value;
+    const yearSuffix = document.getElementById(`dp_yearSuffix_${index}`).value;
     const timeValue = document.getElementById(`dp_timePath_${index}`).value || "TIME";
     const prefix = document.getElementById(`dp_prefix_${index}`).value;
     const suffix = document.getElementById(`dp_suffix_${index}`).value;
 
-    document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = month.substring(0, 4).toUpperCase();
-    document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 4).toUpperCase();
-    document.querySelector(`#marquee_preview_${index} .preview-year`).textContent = year.substring(0, 4).toUpperCase();
+    document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = month.substring(0, 3).toUpperCase();
+    document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 2).toUpperCase();
+
+    const yearText = `${yearPrefix}${yearValue}${yearSuffix}`;
+    const yearSpan = document.querySelector(`#marquee_preview_${index} .preview-year`);
+    yearSpan.textContent = yearText;
+    const yearContainer = document.querySelector(`#marquee_preview_${index} .preview-year-container`);
+    yearSpan.style.animation = 'none';
+    void yearContainer.offsetWidth;
+
+    if (yearText.length > 4) {
+        const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
+        const duration = (yearText.length + 4) * (scrollSpeed / 1000);
+        yearSpan.style.animation = `scroll-left ${duration}s linear infinite`;
+    } else {
+        yearSpan.style.animation = '';
+    }
 
     const timeText = `${prefix}${timeValue}${suffix}`;
     const timeSpan = document.querySelector(`#marquee_preview_${index} .preview-time`);
@@ -605,7 +635,7 @@ function saveSettings() {
         formData.append('numDataPoints', numDataPoints);
         for (let i = 0; i < numDataPoints; i++) {
             formData.append(`dp_dataSourceType_${i}`, document.getElementById(`dp_dataSourceType_${i}`).value === 'mqtt' ? 1 : 0);
-            ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic'].forEach(field => {
+            ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix'].forEach(field => {
                 formData.append(`dp_${field}_${i}`, document.getElementById(`dp_${field}_${i}`).value);
             });
         }

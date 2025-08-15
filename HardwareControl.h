@@ -45,6 +45,8 @@ struct DataPoint {
   int scrollSpeed;
   DataSourceType dataSourceType;
   char mqttTopic[128];
+  char yearPrefix[16];
+  char yearSuffix[16];
 };
 
 // Corrected ClockSettings struct with all original and new fields
@@ -109,6 +111,6 @@ void blankAllDisplays();
 void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
 void playSound(const char* soundName);
 void setupSoundFiles();
-void printToDisplay(Adafruit_AlphaNum4 &display, const char* text);
+void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
 
 #endif // HARDWARE_CONTROL_H

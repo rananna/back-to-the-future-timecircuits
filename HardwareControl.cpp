@@ -14,7 +14,7 @@ DFRobotDFPlayerMini myDFPlayer;
 // --- HELPER FUNCTION ---
 // Correctly writes a string to a 4-character alphanumeric display with justification.
 // Justification: 0 = left, 1 = right, 2 = center
-void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0) {
+void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification) {
   display.clear();
   int len = strlen(text);
   int startPos = 0;
