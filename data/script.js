@@ -467,37 +467,29 @@ function updateMarqueePreview(index) {
 
     document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = month.substring(0, 3).toUpperCase();
     document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 2).toUpperCase();
+    
+    const setupScrolling = (text, valueSpan) => {
+        valueSpan.textContent = text;
+        valueSpan.classList.remove('scrolling-text');
+
+        if (text.length > 4) {
+            const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
+            const duration = (text.length + 4) * (scrollSpeed / 1000);
+            valueSpan.style.animationDuration = `${duration}s`;
+            
+            requestAnimationFrame(() => {
+                valueSpan.classList.add('scrolling-text');
+            });
+        }
+    };
 
     const yearText = `${yearPrefix}${yearValue}${yearSuffix}`;
     const yearSpan = document.querySelector(`#marquee_preview_${index} .preview-year`);
-    yearSpan.textContent = yearText;
-    const yearContainer = document.querySelector(`#marquee_preview_${index} .preview-year-container`);
-    yearSpan.style.animation = 'none';
-    void yearContainer.offsetWidth;
-
-    if (yearText.length > 4) {
-        const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
-        const duration = (yearText.length + 4) * (scrollSpeed / 1000);
-        yearSpan.style.animation = `scroll-left ${duration}s linear infinite`;
-    } else {
-        yearSpan.style.animation = '';
-    }
+    setupScrolling(yearText, yearSpan);
 
     const timeText = `${prefix}${timeValue}${suffix}`;
     const timeSpan = document.querySelector(`#marquee_preview_${index} .preview-time`);
-    timeSpan.textContent = timeText;
-
-    const timeContainer = document.querySelector(`#marquee_preview_${index} .preview-time-container`);
-    timeSpan.style.animation = 'none';
-    void timeContainer.offsetWidth;
-
-    if (timeText.length > 4) {
-        const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
-        const duration = (timeText.length + 4) * (scrollSpeed / 1000);
-        timeSpan.style.animation = `scroll-left ${duration}s linear infinite`;
-    } else {
-        timeSpan.style.animation = '';
-    }
+    setupScrolling(timeText, timeSpan);
 }
 
 function populateApiExampleDropdowns() {

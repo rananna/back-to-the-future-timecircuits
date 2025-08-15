@@ -982,19 +982,28 @@ body.time-travel-active {
     text-align: center;
 }
 .preview-month { flex-basis: 22%; }
-.preview-day { flex-basis: 22%; }
-.preview-year { flex-basis: 22%; }
-.preview-time-container {
-    flex-basis: 34%;
+.preview-day { flex-basis: 15%; }
+.preview-year-container, .preview-time-container {
     overflow: hidden;
     position: relative;
     height: 1.5em;
+    flex-shrink: 0;
 }
-.preview-time {
+.preview-year-container { flex-basis: 22%; }
+.preview-time-container { flex-basis: 34%; }
+
+.preview-year, .preview-time {
     position: absolute;
     white-space: nowrap;
     line-height: 1.5em;
 }
+
+.scrolling-text {
+    animation-name: scroll-left;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+
 @keyframes scroll-left {
     0% { transform: translateX(100%); }
     100% { transform: translateX(-100%); }
