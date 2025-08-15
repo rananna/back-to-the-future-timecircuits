@@ -191,6 +191,8 @@ function applyDataLinkSettings(datalink) {
             datalink.dataPoints.forEach((point, i) => {
                 document.getElementById(`dp_dataSourceType_${i}`).value = point.dataSourceType === 1 ? 'mqtt' : 'api';
                 document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
+                document.getElementById(`dp_displayMode_${i}`).value = point.displayMode || 0;
+                document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
                 document.getElementById(`dp_url_${i}`).value = point.url || '';
                 document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
                 document.getElementById(`dp_dayPath_${i}`).value = point.dayPath || '';
@@ -203,6 +205,7 @@ function applyDataLinkSettings(datalink) {
                 document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
                 document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
                 document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
+                document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
                 updateMarqueePreview(i);
             });
         }
@@ -385,63 +388,76 @@ function updateDataPointsUI(numPoints) {
                         <input type="text" id="dp_mqttTopic_${i}" placeholder="e.g., /home/livingroom/temperature">
                     </div>
 
-                    <div class="time-circuit-row">
-                        <label for="dp_monthPath_${i}" class="time-circuit-label">MONTH</label>
-                        <input type="text" id="dp_monthPath_${i}" class="time-circuit-input" maxlength="3">
-                    </div>
-                    <div class="time-circuit-row">
-                        <label for="dp_dayPath_${i}" class="time-circuit-label">DAY</label>
-                        <input type="text" id="dp_dayPath_${i}" class="time-circuit-input" maxlength="2">
-                        <select id="dp_icon_${i}" style="width: 100px; margin-left: 10px;">
-                            <option value="">Icon</option><option value="SUN">Sun</option><option value="CLOUD">Cloud</option><option value="RAIN">Rain</option><option value="SNOW">Snow</option><option value="STORM">Storm</option><option value="WIND">Wind</option><option value="UP">Up</option><option value="DOWN">Down</option><option value="EQUAL">Equal</option><option value="WIFI">WiFi</option><option value="HOME">Home</option><option value="WORK">Work</option><option value="CAR">Car</option><option value="BIKE">Bike</option><option value="RUN">Run</option><option value="HEART">Heart</option><option value="MONEY">Money</option><option value="CLOCK">Clock</option><option value="CAL">Calendar</option>
-                        </select>
-                    </div>
-                    <div class="time-format-group">
+                    <label for="dp_displayMode_${i}" style="margin-top: 20px;">Display Mode:</label>
+                    <select id="dp_displayMode_${i}" class="display-mode-select" data-index="${i}">
+                        <option value="0">Four Column Data</option>
+                        <option value="1">Scrolling Text</option>
+                    </select>
+
+                    <div class="display-mode-container" id="four_column_container_${i}">
                         <div class="time-circuit-row">
-                            <label for="dp_yearPath_${i}" class="time-circuit-label">YEAR</label>
-                            <input type="text" id="dp_yearPath_${i}" class="time-circuit-input">
+                            <label for="dp_monthPath_${i}" class="time-circuit-label">MONTH</label>
+                            <input type="text" id="dp_monthPath_${i}" class="time-circuit-input" maxlength="3">
                         </div>
                         <div class="time-circuit-row">
-                            <label for="dp_yearPrefix_${i}" class="time-circuit-label">[PREFIX]</label>
-                            <input type="text" id="dp_yearPrefix_${i}" class="time-circuit-input" maxlength="15">
+                            <label for="dp_dayPath_${i}" class="time-circuit-label">DAY</label>
+                            <input type="text" id="dp_dayPath_${i}" class="time-circuit-input" maxlength="3">
+                            <select id="dp_icon_${i}" style="width: 100px; margin-left: 10px;">
+                                <option value="">Icon</option><option value="SUN">Sun</option><option value="CLOUD">Cloud</option><option value="RAIN">Rain</option><option value="SNOW">Snow</option><option value="STORM">Storm</option><option value="WIND">Wind</option><option value="UP">Up</option><option value="DOWN">Down</option><option value="EQUAL">Equal</option><option value="WIFI">WiFi</option><option value="HOME">Home</option><option value="WORK">Work</option><option value="CAR">Car</option><option value="BIKE">Bike</option><option value="RUN">Run</option><option value="HEART">Heart</option><option value="MONEY">Money</option><option value="CLOCK">Clock</option><option value="CAL">Calendar</option>
+                            </select>
                         </div>
-                        <div class="time-circuit-row">
-                            <label for="dp_yearSuffix_${i}" class="time-circuit-label">[SUFFIX]</label>
-                            <input type="text" id="dp_yearSuffix_${i}" class="time-circuit-input" maxlength="15">
+                        <div class="time-format-group">
+                            <div class="time-circuit-row">
+                                <label for="dp_yearPath_${i}" class="time-circuit-label">YEAR</label>
+                                <input type="text" id="dp_yearPath_${i}" class="time-circuit-input">
+                            </div>
+                            <div class="time-circuit-row">
+                                <label for="dp_yearPrefix_${i}" class="time-circuit-label">[PREFIX]</label>
+                                <input type="text" id="dp_yearPrefix_${i}" class="time-circuit-input" maxlength="15">
+                            </div>
+                            <div class="time-circuit-row">
+                                <label for="dp_yearSuffix_${i}" class="time-circuit-label">[SUFFIX]</label>
+                                <input type="text" id="dp_yearSuffix_${i}" class="time-circuit-input" maxlength="15">
+                            </div>
+                        </div>
+                        <div class="time-format-group">
+                            <div class="time-circuit-row">
+                                <label for="dp_timePath_${i}" class="time-circuit-label">TIME</label>
+                                <input type="text" id="dp_timePath_${i}" class="time-circuit-input">
+                            </div>
+                            <div class="time-circuit-row">
+                                <label for="dp_prefix_${i}" class="time-circuit-label">[PREFIX]</label>
+                                <input type="text" id="dp_prefix_${i}" class="time-circuit-input" maxlength="15">
+                            </div>
+                            <div class="time-circuit-row">
+                                <label for="dp_suffix_${i}" class="time-circuit-label">[SUFFIX]</label>
+                                <input type="text" id="dp_suffix_${i}" class="time-circuit-input" maxlength="15">
+                            </div>
+                        </div>
+                        <div class="marquee-preview-container">
+                            <label>Live Preview:</label>
+                            <div class="marquee-preview" id="marquee_preview_${i}">
+                                <span class="preview-month">MON</span>
+                                <span class="preview-day">DAY</span>
+                                <div class="preview-year-container"><span class="preview-year">YEAR</span></div>
+                                <div class="preview-time-container"><span class="preview-time">TIME</span></div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="time-format-group">
-                        <div class="time-circuit-row">
-                            <label for="dp_timePath_${i}" class="time-circuit-label">TIME</label>
-                            <input type="text" id="dp_timePath_${i}" class="time-circuit-input">
-                        </div>
-                        <div class="time-circuit-row">
-                            <label for="dp_prefix_${i}" class="time-circuit-label">[PREFIX]</label>
-                            <input type="text" id="dp_prefix_${i}" class="time-circuit-input" maxlength="15">
-                        </div>
-                        <div class="time-circuit-row">
-                            <label for="dp_suffix_${i}" class="time-circuit-label">[SUFFIX]</label>
-                            <input type="text" id="dp_suffix_${i}" class="time-circuit-input" maxlength="15">
+                    <div class="display-mode-container" id="scrolling_text_container_${i}" style="display: none;">
+                        <label for="dp_scrollingText_${i}" style="margin-top: 15px;">Scrolling Text:</label>
+                        <input type="text" id="dp_scrollingText_${i}" placeholder="Enter text to scroll...">
+                        <div class="marquee-preview-container">
+                            <label>Live Preview (13 Chars):</label>
+                            <div class="marquee-preview-13" id="marquee_preview_13_${i}">
+                                <span class="preview-scrolling-text">PREVIEW</span>
+                            </div>
                         </div>
                     </div>
 
-                    <label for="dp_scrollSpeed_${i}">Scroll Speed (ms/char): <span id="dp_scrollSpeed_${i}Value">150</span></label>
+                    <label for="dp_scrollSpeed_${i}" style="margin-top: 20px;">Scroll Speed (ms/char): <span id="dp_scrollSpeed_${i}Value">150</span></label>
                     <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150">
-
-                    <div class="marquee-preview-container">
-                        <label>Live Preview:</label>
-                        <div class="marquee-preview" id="marquee_preview_${i}">
-                            <span class="preview-month">MON</span>
-                            <span class="preview-day">DAY</span>
-                            <div class="preview-year-container">
-                                <span class="preview-year">YEAR</span>
-                            </div>
-                            <div class="preview-time-container">
-                                <span class="preview-time">TIME</span>
-                            </div>
-                        </div>
-                    </div>
                 `;
                 container.appendChild(block);
             }
@@ -456,40 +472,54 @@ function updateDataPointsUI(numPoints) {
 }
 
 function updateMarqueePreview(index) {
-    const month = document.getElementById(`dp_monthPath_${index}`).value || "MON";
-    const day = document.getElementById(`dp_dayPath_${index}`).value || "DAY";
-    const yearValue = document.getElementById(`dp_yearPath_${index}`).value || "YEAR";
-    const yearPrefix = document.getElementById(`dp_yearPrefix_${index}`).value;
-    const yearSuffix = document.getElementById(`dp_yearSuffix_${index}`).value;
-    const timeValue = document.getElementById(`dp_timePath_${index}`).value || "TIME";
-    const prefix = document.getElementById(`dp_prefix_${index}`).value;
-    const suffix = document.getElementById(`dp_suffix_${index}`).value;
+    const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
 
-    document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = month.substring(0, 3).toUpperCase();
-    document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 2).toUpperCase();
-    
-    const setupScrolling = (text, valueSpan) => {
-        valueSpan.textContent = text;
-        valueSpan.classList.remove('scrolling-text');
+    if (displayMode === '0') { // Four Column
+        const month = document.getElementById(`dp_monthPath_${index}`).value || "MON";
+        const day = document.getElementById(`dp_dayPath_${index}`).value || "DAY";
+        const yearValue = document.getElementById(`dp_yearPath_${index}`).value || "YEAR";
+        const yearPrefix = document.getElementById(`dp_yearPrefix_${index}`).value;
+        const yearSuffix = document.getElementById(`dp_yearSuffix_${index}`).value;
+        const timeValue = document.getElementById(`dp_timePath_${index}`).value || "TIME";
+        const prefix = document.getElementById(`dp_prefix_${index}`).value;
+        const suffix = document.getElementById(`dp_suffix_${index}`).value;
 
-        if (text.length > 4) {
+        document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = month.substring(0, 3).toUpperCase();
+        document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 3).toUpperCase();
+        
+        const setupScrolling = (text, valueSpan) => {
+            valueSpan.textContent = text;
+            valueSpan.classList.remove('scrolling-text');
+            if (text.length > 4) {
+                const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
+                const duration = (text.length + 4) * (scrollSpeed / 1000);
+                valueSpan.style.animationDuration = `${duration}s`;
+                requestAnimationFrame(() => { valueSpan.classList.add('scrolling-text'); });
+            }
+        };
+
+        const yearText = `${yearPrefix}${yearValue}${yearSuffix}`;
+        const yearSpan = document.querySelector(`#marquee_preview_${index} .preview-year`);
+        setupScrolling(yearText, yearSpan);
+        const timeText = `${prefix}${timeValue}${suffix}`;
+        const timeSpan = document.querySelector(`#marquee_preview_${index} .preview-time`);
+        setupScrolling(timeText, timeSpan);
+    } else { // Scrolling Text
+        const text = document.getElementById(`dp_scrollingText_${index}`).value || "PREVIEW";
+        const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
+        previewSpan.textContent = text.substring(0, 13); // Show first 13 characters
+        previewSpan.classList.remove('scrolling-text');
+        
+        if (text.length > 13) {
             const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
-            const duration = (text.length + 4) * (scrollSpeed / 1000);
-            valueSpan.style.animationDuration = `${duration}s`;
-            
+            const duration = (text.length + 13) * (scrollSpeed / 1000); // Adjust for container width
+            previewSpan.style.animationDuration = `${duration}s`;
             requestAnimationFrame(() => {
-                valueSpan.classList.add('scrolling-text');
+                previewSpan.textContent = text; // Use full text for scrolling animation
+                previewSpan.classList.add('scrolling-text');
             });
         }
-    };
-
-    const yearText = `${yearPrefix}${yearValue}${yearSuffix}`;
-    const yearSpan = document.querySelector(`#marquee_preview_${index} .preview-year`);
-    setupScrolling(yearText, yearSpan);
-
-    const timeText = `${prefix}${timeValue}${suffix}`;
-    const timeSpan = document.querySelector(`#marquee_preview_${index} .preview-time`);
-    setupScrolling(timeText, timeSpan);
+    }
 }
 
 function populateApiExampleDropdowns() {
@@ -511,6 +541,17 @@ function attachDataPointEventListeners() {
             document.getElementById(`dp_mqtt_container_${index}`).style.display = e.target.value === 'mqtt' ? 'block' : 'none';
         };
     });
+
+    document.querySelectorAll('.display-mode-select').forEach(select => {
+        select.onchange = (e) => {
+            const index = e.target.dataset.index;
+            const isScrolling = e.target.value === '1';
+            document.getElementById(`four_column_container_${index}`).style.display = isScrolling ? 'none' : 'block';
+            document.getElementById(`scrolling_text_container_${index}`).style.display = isScrolling ? 'block' : 'none';
+            updateMarqueePreview(index);
+        };
+    });
+
     document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
     document.querySelectorAll('.api-example-select').forEach(select => {
         select.onchange = (e) => {
@@ -561,7 +602,7 @@ function startApiWizard(event) {
 
 function displayApiWizardResults(index, jsonData) {
     const container = document.getElementById(`wizard_results_${index}`);
-    container.innerHTML = '<strong>Click a value to map it to a display:</strong>';
+    container.innerHTML = '<strong>Click a button to map its value to a display field:</strong>';
     const list = document.createElement('ul');
     list.className = 'wizard-list';
     const buildList = (obj, parentPath = '') => {
@@ -576,20 +617,31 @@ function displayApiWizardResults(index, jsonData) {
                 li.appendChild(subList);
             } else {
                 li.innerHTML = `<span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(value)}"</span>
-                <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="month">M</button>
-                <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="day">D</button>
-                <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="year">Y</button>
-                <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="time">T</button>`;
+                <div style="display:inline-block; margin-left:10px;">
+                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="month">M</button>
+                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="day">D</button>
+                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="year">Y</button>
+                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="time">T</button>
+                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="scrollingText">Scroll</button>
+                </div>`;
             }
             list.appendChild(li);
         }
         return list.childNodes;
     };
-    buildList(jsonData).forEach(item => list.appendChild(item));
+    buildList(jsonData);
     container.appendChild(list);
     container.querySelectorAll('.wizard-map-btn').forEach(btn => btn.onclick = (e) => {
         const { path, index, target } = e.target.dataset;
-        document.getElementById(`dp_${target}Path_${index}`).value = path;
+        document.getElementById(`dp_${target}Path_${index}`)?.focus();
+        document.getElementById(`dp_${target}Path_${index}`)?.select();
+        document.execCommand('insertText', false, path);
+        
+        // Also handle the scrolling text field
+        if (target === 'scrollingText') {
+             document.getElementById(`dp_${target}_${index}`).value = path;
+        }
+
         updateMarqueePreview(index);
         showMessage(`Mapped "${path}" to ${target.toUpperCase()}`, 'success', 2000);
     });
@@ -627,7 +679,8 @@ function saveSettings() {
         formData.append('numDataPoints', numDataPoints);
         for (let i = 0; i < numDataPoints; i++) {
             formData.append(`dp_dataSourceType_${i}`, document.getElementById(`dp_dataSourceType_${i}`).value === 'mqtt' ? 1 : 0);
-            ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix'].forEach(field => {
+            formData.append(`dp_displayMode_${i}`, document.getElementById(`dp_displayMode_${i}`).value);
+            ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText'].forEach(field => {
                 formData.append(`dp_${field}_${i}`, document.getElementById(`dp_${field}_${i}`).value);
             });
         }

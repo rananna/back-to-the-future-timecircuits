@@ -75,6 +75,8 @@ void setupWebRoutes() {
         dp["mqttTopic"] = currentSettings.dataPoints[i].mqttTopic;
         dp["yearPrefix"] = currentSettings.dataPoints[i].yearPrefix;
         dp["yearSuffix"] = currentSettings.dataPoints[i].yearSuffix;
+        dp["displayMode"] = (int)currentSettings.dataPoints[i].displayMode; // <-- NEW
+        dp["scrollingText"] = currentSettings.dataPoints[i].scrollingText; // <-- NEW
     }
 
     String response;
@@ -166,6 +168,8 @@ void setupWebRoutes() {
                 strncpy(currentSettings.dataPoints[i].mqttTopic, getParamValue("dp_mqttTopic_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].mqttTopic) - 1);
                 strncpy(currentSettings.dataPoints[i].yearPrefix, getParamValue("dp_yearPrefix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].yearPrefix) - 1);
                 strncpy(currentSettings.dataPoints[i].yearSuffix, getParamValue("dp_yearSuffix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].yearSuffix) - 1);
+                currentSettings.dataPoints[i].displayMode = (DisplayMode)getParamInt("dp_displayMode_" + String(i), 0); // <-- NEW
+                strncpy(currentSettings.dataPoints[i].scrollingText, getParamValue("dp_scrollingText_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].scrollingText) - 1); // <-- NEW
             } else {
                 memset(&currentSettings.dataPoints[i], 0, sizeof(DataPoint));
             }

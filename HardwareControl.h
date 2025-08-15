@@ -22,7 +22,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0
+#define ENABLE_HARDWARE 1 // Set to 1 to enable hardware, 0 to disable
 
 // --- ENUMS & DATA STRUCTURES ---
 enum Theme {
@@ -31,6 +31,7 @@ enum Theme {
 };
 
 enum DataSourceType { DATA_SOURCE_API, DATA_SOURCE_MQTT };
+enum DisplayMode { FOUR_COLUMN, SCROLLING_TEXT }; // <-- NEW
 
 // Corrected DataPoint struct with all original and new fields
 struct DataPoint {
@@ -47,6 +48,8 @@ struct DataPoint {
   char mqttTopic[128];
   char yearPrefix[16];
   char yearSuffix[16];
+  DisplayMode displayMode; // <-- NEW
+  char scrollingText[256]; // <-- NEW
 };
 
 // Corrected ClockSettings struct with all original and new fields

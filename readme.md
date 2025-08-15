@@ -25,6 +25,7 @@
 7.  [💡 Configuration & Usage](#-configuration--usage)
     * [Adding Real-Time Data with the API Wizard (Example)](#-adding-real-time-data-with-the-api-wizard-example)
     * [Using the MQTT Data Link](#-using-the-mqtt-data-link)
+    * [New! Scrolling Text Display Mode](#-new-scrolling-text-display-mode)
     * [20 API Ideas for the Time Circuits Display](#-20-api-ideas-for-the-time-circuits-display)
 8.  [🔬 Theory of Operation](#-theory-of-operation)
 9.  [❓ Troubleshooting](#-troubleshooting)
@@ -73,7 +74,7 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 * **Data Link Marquee**: The most advanced feature is a fully configurable "Data Link" marquee. You can configure any of the three display rows to show real-time data from any JSON-based API on the web. The system supports both simple APIs and those requiring header-based authentication (e.g., `X-Api-Key`), allowing you to connect directly to a wide range of services without needing an intermediary like Pipedream.
 * **MQTT Integration**: In addition to polling web APIs, data points can be configured to subscribe to an **MQTT broker**. This allows for efficient, real-time data pushes from smart home devices, sensors, or other services on your local network.
 * **Custom Icons**: The marquee can display custom icons (e.g., SUN, CLOUD, WIFI, BTC) on the 14-segment displays alongside the data.
-* **Customizable Display**: For each data point, you can customize the API URL, JSON path, display label, format, icon, and scroll speed.
+* **Customizable Display**: For each data point, you can customize the API URL, JSON path, display label, format, icon, and scroll speed. You can also switch between the standard "Four Column" data display and a new "Scrolling Text" mode for longer messages.
 * **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal named **BTTF-Clock-Setup** for easy initial network setup.
 * **Customizable UI Themes**: Change the color scheme of the web interface to one of several included themes, such as "OUTATIME," "Plutonium Glow," "88 MPH," "Mr. Fusion," or "Clock Tower".
 
@@ -295,7 +296,7 @@ Let's walk through setting up a data point to show the current temperature for N
 
 Now you can customize how the data is displayed.
 
-* **Label (4 chars)**: The wizard will suggest a label like `TEMP`. This is the short, static text that appears first on the display row.
+* **Label (3 chars)**: The wizard will suggest a label like `TEMP`. This is the short, static text that appears first on the display row.
 * **Prefix**: This is text that comes *before* the value. Since we want a space after the colon, enter a **Prefix** of **`: `** (a colon followed by a space).
 * **Suffix**: This is text that comes *after* the value. For our example, enter a **Suffix** of **`°C`**.
 * **Format**: This string controls the final output. The default is `%L | %P%V%S`, which means:
@@ -353,6 +354,20 @@ The system can handle two types of MQTT payloads automatically:
     * **Example:** If your MQTT topic `home/status` simply publishes the text `ONLINE`, the `TIME` display will show "ONLINE".
 
 This dual-handling makes the feature very versatile, as it can work with complex data from sensors or simple status updates from other smart home devices without requiring any changes to the clock's code.
+
+---
+
+### 💡 New! Scrolling Text Display Mode
+
+In addition to the standard "Four Column" data display, each Data Link point can be configured to use a **Scrolling Text** mode. This is perfect for displaying longer pieces of information like news headlines, song titles, or custom messages that wouldn't fit in the normal layout.
+
+#### How to Configure It
+
+1.  **Navigate to the "Data Link" Tab**: Find the Data Point you want to configure.
+2.  **Select Display Mode**: You will see a new **"Display Mode"** dropdown menu. Change this from "Four Column Data" to "**Scrolling Text**".
+3.  **Enter Your Text**: A new "Scrolling Text" input field will appear. You can enter your text directly here, or use the **API Wizard** to map a JSON path to this field to fetch dynamic text from a URL.
+4.  **Preview**: A new **13-character preview** will show you how your text will look on the display.
+5.  **Engage Time Circuits**: Save your settings, and the text will begin scrolling across the entire 16-character width of the selected display row.
 
 ---
 
