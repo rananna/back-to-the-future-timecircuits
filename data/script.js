@@ -238,7 +238,28 @@ function attachEventListeners() {
         document.getElementById(id).onchange = () => { setSettingsChanged(true); updateHeaderClocks(new Date()); };
     });
     document.getElementById('destinationYear').oninput = () => updateHeaderClocks(new Date());
-    document.getElementById('presetDateSelect').onchange = applySelectedPreset;
+    
+    // START: Bug Fix for Preset Buttons
+    document.getElementById('presetDateSelect').onchange = (event) => {
+        applySelectedPreset(event);
+    
+        const select = event.target;
+        const selectedOption = select.options[select.selectedIndex];
+        const presetActions = document.getElementById('presetActions');
+        const isCustomPreset = selectedOption.parentElement.label === 'Custom Time Jumps';
+    
+        if (isCustomPreset) {
+            presetActions.classList.remove('hidden');
+            document.getElementById('presetName').value = selectedOption.textContent;
+            const [year, month, day, hour, minute] = selectedOption.value.split('-');
+            document.getElementById('presetDate').value = `${year}-${month}-${day}`;
+            document.getElementById('presetTime').value = `${hour}:${minute}`;
+        } else {
+            presetActions.classList.add('hidden');
+        }
+    };
+    // END: Bug Fix for Preset Buttons
+
     document.getElementById('addPresetBtn').onclick = addPreset;
     document.getElementById('updatePresetBtn').onclick = updatePreset;
     document.getElementById('deletePresetBtn').onclick = deletePreset;
