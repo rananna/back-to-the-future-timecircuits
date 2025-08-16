@@ -31,15 +31,17 @@ enum Theme {
 };
 
 enum DataSourceType { DATA_SOURCE_API, DATA_SOURCE_MQTT };
-enum DisplayMode { FOUR_COLUMN, SCROLLING_TEXT }; // <-- NEW
+enum DisplayMode { FOUR_COLUMN, SCROLLING_TEXT };
+// **FIXED**: Renamed enum members to avoid conflict with system libraries
+enum HttpMethod { METHOD_GET, METHOD_POST };
 
 // Corrected DataPoint struct with all original and new fields
 struct DataPoint {
-  char url[256];
-  char monthPath[128];
-  char dayPath[128];
-  char yearPath[128];
-  char timePath[128];
+  char url[192]; // Reduced from 256
+  char monthPath[64]; // Reduced from 128
+  char dayPath[64]; // Reduced from 128
+  char yearPath[64]; // Reduced from 128
+  char timePath[64]; // Reduced from 128
   char prefix[16];
   char suffix[16];
   char icon[16];
@@ -48,8 +50,14 @@ struct DataPoint {
   char mqttTopic[128];
   char yearPrefix[16];
   char yearSuffix[16];
-  DisplayMode displayMode; // <-- NEW
-  char scrollingText[256]; // <-- NEW
+  DisplayMode displayMode;
+  char scrollingText[128]; // Reduced from 256
+  char authHeaderKey[64];
+  char authHeaderValue[128];
+  HttpMethod httpMethod;
+  char requestBody[256]; // Reduced from 512
+  // --- MODIFIED ---
+  char apiExampleKey[64];
 };
 
 // Corrected ClockSettings struct with all original and new fields

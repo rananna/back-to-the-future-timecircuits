@@ -1,7 +1,7 @@
 #include "web_server.h"
+#include "certs.h"
+#include "api_templates.h"
 
-// This is the full function moved from the .ino file.
-// It sets up all the HTTP endpoints for the web interface.
 void setupWebRoutes() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/index.html", "text/html"); });
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/style.css", "text/css"); });
@@ -49,7 +49,7 @@ void setupWebRoutes() {
     request->send(200, "application/json", jsonString);
   });
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
-    DynamicJsonDocument doc(4096);
+    DynamicJsonDocument doc(2048);
     doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
     doc["dataLinkTargetRow"] = currentSettings.dataLinkTargetRow;
     doc["dataLinkRefreshInterval"] = currentSettings.dataLinkRefreshInterval;
@@ -75,8 +75,11 @@ void setupWebRoutes() {
         dp["mqttTopic"] = currentSettings.dataPoints[i].mqttTopic;
         dp["yearPrefix"] = currentSettings.dataPoints[i].yearPrefix;
         dp["yearSuffix"] = currentSettings.dataPoints[i].yearSuffix;
-        dp["displayMode"] = (int)currentSettings.dataPoints[i].displayMode; // <-- NEW
-        dp["scrollingText"] = currentSettings.dataPoints[i].scrollingText; // <-- NEW
+        dp["displayMode"] = (int)currentSettings.dataPoints[i].displayMode;
+        dp["scrollingText"] = currentSettings.dataPoints[i].scrollingText;
+        dp["authHeaderKey"] = currentSettings.dataPoints[i].authHeaderKey;
+        dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue;
+        dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey;
     }
 
     String response;
@@ -168,8 +171,11 @@ void setupWebRoutes() {
                 strncpy(currentSettings.dataPoints[i].mqttTopic, getParamValue("dp_mqttTopic_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].mqttTopic) - 1);
                 strncpy(currentSettings.dataPoints[i].yearPrefix, getParamValue("dp_yearPrefix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].yearPrefix) - 1);
                 strncpy(currentSettings.dataPoints[i].yearSuffix, getParamValue("dp_yearSuffix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].yearSuffix) - 1);
-                currentSettings.dataPoints[i].displayMode = (DisplayMode)getParamInt("dp_displayMode_" + String(i), 0); // <-- NEW
-                strncpy(currentSettings.dataPoints[i].scrollingText, getParamValue("dp_scrollingText_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].scrollingText) - 1); // <-- NEW
+                currentSettings.dataPoints[i].displayMode = (DisplayMode)getParamInt("dp_displayMode_" + String(i), 0);
+                strncpy(currentSettings.dataPoints[i].scrollingText, getParamValue("dp_scrollingText_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].scrollingText) - 1);
+                strncpy(currentSettings.dataPoints[i].authHeaderKey, getParamValue("dp_authHeaderKey_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].authHeaderKey) - 1);
+                strncpy(currentSettings.dataPoints[i].authHeaderValue, getParamValue("dp_authHeaderValue_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].authHeaderValue) - 1);
+                strncpy(currentSettings.dataPoints[i].apiExampleKey, getParamValue("dp_apiExampleKey_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].apiExampleKey) - 1);
             } else {
                 memset(&currentSettings.dataPoints[i], 0, sizeof(DataPoint));
             }
@@ -257,7 +263,7 @@ void setupWebRoutes() {
     preferences.end();
     preferences.remove("customPresets");
     preferences.remove(THEME_PREF_KEY);
-    LittleFS.remove(API_TEMPLATES_FILE);
+    LittleFS.remove("/api_templates.json");
     loadSettings();
     request->send(200, "text/plain", "Settings have been reset to default.");
   });
@@ -271,10 +277,13 @@ void setupWebRoutes() {
       preferences.end();
       request->send(200, "text/plain", themeName);
   });
+  server.on("/api/api_examples", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "application/json", apiTemplates);
+  });
   server.on("/api/setTheme", HTTP_POST, [](AsyncWebServerRequest *request){
     String theme = request->getParam("theme", true)->value();
 
-    int themeEnum = THEME_TIME_CIRCUITS; // Default
+    int themeEnum = THEME_TIME_CIRCUITS;
     if (theme == "theme-outatime") themeEnum = THEME_OUTATIME;
     else if (theme == "theme-88mph") themeEnum = THEME_88MPH;
     else if (theme == "theme-plutonium-glow") themeEnum = THEME_PLUTONIUM_GLOW;
@@ -290,44 +299,81 @@ void setupWebRoutes() {
 
     request->send(200, "text/plain", "Theme saved.");
   });
+  
   server.on("/api/testDataPoint", HTTP_POST, [](AsyncWebServerRequest *request){
-    String url = request->getParam("url", true)->value();
-    String path = request->hasParam("path", true) ? request->getParam("path", true)->value() : "";
+    String apiExampleKey;
+    if (request->hasParam("api_example_key", true)) {
+        apiExampleKey = request->getParam("api_example_key", true)->value();
+    } else {
+        request->send(400, "application/json", "{\"success\":false, \"error\":\"Missing api_example_key parameter.\"}");
+        return;
+    }
+
+    String authKey = request->hasParam("authKey", true) ? request->getParam("authKey", true)->value() : "";
+    String authValue = request->hasParam("authValue", true) ? request->getParam("authValue", true)->value() : "";
+
+    DynamicJsonDocument doc(2048);
+    deserializeJson(doc, apiTemplates);
+    String url = doc[apiExampleKey]["url"];
+
+    if (url.isEmpty() || url == "null") {
+        request->send(400, "application/json", "{\"success\":false, \"error\":\"Invalid API key provided to server.\"}");
+        return;
+    }
+    
+    ESP_LOGI("API_WIZARD", "Free heap before test request: %u bytes", ESP.getFreeHeap());
+    ESP_LOGI("API_WIZARD", "Testing URL for key '%s': %s", apiExampleKey.c_str(), url.c_str());
+
     HTTPClient http;
-    http.begin(url);
-    int httpCode = http.GET();
-    String errorMsg = "";
+    WiFiClientSecure client;
+    client.setInsecure(); // SSL verification disabled for debugging.
+    
+    if (http.begin(client, url)) {
+        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+        http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
+        if (authKey.length() > 0 && authValue.length() > 0) {
+            http.addHeader(authKey, authValue);
+            ESP_LOGI("API_WIZARD", "Using auth header: %s", authKey.c_str());
+        }
+        http.setTimeout(10000); // 10-second timeout to prevent watchdog reset
+        int httpCode = http.GET();
+        ESP_LOGI("API_WIZARD", "HTTP response code: %d", httpCode);
+        String errorMsg = "";
 
-    if (httpCode > 0) {
-        if (httpCode == HTTP_CODE_OK) {
-            String payload = http.getString();
-            DynamicJsonDocument doc(8192);
-
-            DeserializationError error = deserializeJson(doc, payload);
-            if (error == DeserializationError::Ok) {
-                if (path.length() == 0) {
-                    request->send(200, "application/json", "{\"success\":true, \"value\":" + payload + "}");
+        if (httpCode > 0) {
+            if (httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+                DynamicJsonDocument responseDoc(2048);
+                DeserializationError error = deserializeJson(responseDoc, payload);
+                if (error == DeserializationError::Ok) {
+                    ESP_LOGI("API_WIZARD", "JSON parsing successful");
+                    // Re-construct the JSON properly to ensure it's valid for the browser
+                    DynamicJsonDocument finalDoc(4096);
+                    finalDoc["success"] = true;
+                    finalDoc["value"] = responseDoc.as<JsonVariant>();
+                    String finalPayload;
+                    serializeJson(finalDoc, finalPayload);
+                    request->send(200, "application/json", finalPayload);
                 } else {
-                    JsonVariant value = getJsonVariant(doc.as<JsonVariant>(), path.c_str());
-                    if (!value.isNull()) {
-                        request->send(200, "application/json", "{\"success\":true, \"value\":\"" + value.as<String>() + "\"}");
-                    } else {
-                        errorMsg = "JSON Path not found.";
-                    }
+                    ESP_LOGE("API_WIZARD", "JSON parsing failed: %s", error.c_str());
+                    errorMsg = "JSON Parsing Failed: " + String(error.c_str());
                 }
             } else {
-                errorMsg = "JSON Parsing Failed: " + String(error.c_str());
+                errorMsg = "HTTP Error: " + String(httpCode);
             }
         } else {
-            errorMsg = "HTTP Error: " + String(httpCode);
+            ESP_LOGE("API_WIZARD", "HTTP request failed: %s", http.errorToString(httpCode).c_str());
+            errorMsg = "HTTP request failed: " + http.errorToString(httpCode);
+        }
+        
+        http.end();
+
+        if (errorMsg != "") {
+            request->send(200, "application/json", "{\"success\":false, \"error\":\"" + errorMsg + "\"}");
         }
     } else {
-        errorMsg = "HTTP request failed.";
+        ESP_LOGE("API_WIZARD", "Failed to connect to host");
+        request->send(200, "application/json", "{\"success\":false, \"error\":\"Connection failed.\"}");
     }
-
-    if (errorMsg != "") {
-        request->send(200, "application/json", "{\"success\":false, \"error\":\"" + errorMsg + "\"}");
-    }
-    http.end();
   });
 }

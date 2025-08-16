@@ -5,18 +5,21 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <PubSubClient.h>
-#include <LittleFS.h>      // <-- ADDED
-#include <HTTPClient.h>    // <-- ADDED
+#include <LittleFS.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include "HardwareControl.h"
+#include "certs.h" // Include the new certificate header
 
 // Define constants that the web routes need access to
 #define THEME_PREF_KEY "ui_theme"
-#define API_TEMPLATES_FILE "/api_templates.json"
 #define PREFERENCES_NAMESPACE "bttf-clock"
 
 // Extern variables: these are defined in the main .ino file
 extern AsyncWebServer server;
 extern ClockSettings currentSettings;
+extern String apiTemplatesJson;
+// REMOVED the extern char rootCACert[2048]; declaration
 extern Preferences preferences;
 extern bool timeSynchronized;
 extern bool ntpSyncRequested;

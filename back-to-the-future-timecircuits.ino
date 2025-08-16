@@ -12,17 +12,16 @@
 #include <LittleFS.h>
 #include <HTTPClient.h>
 #include <PubSubClient.h>
+#include <WiFiClientSecure.h>
 
 #include "HardwareControl.h"
-#include "web_server.h" // Include the new web server header
+#include "web_server.h"
+#include "certs.h" 
+#include "api_templates.h"
 
 #ifndef LED_BUILTIN
   #define LED_BUILTIN 2
 #endif
-
-#define THEME_PREF_KEY "ui_theme"
-#define API_TEMPLATES_FILE "/api_templates.json"
-#define PREFERENCES_NAMESPACE "bttf-clock"
 
 #define NTP_SUCCESS_INTERVAL_MS 3600000
 #define ANIMATION_UPDATE_INTERVAL_MS 50
@@ -34,8 +33,15 @@
 #define MQTT_LWT_MESSAGE "offline"
 
 ClockSettings currentSettings;
-DynamicJsonDocument apiTemplatesDoc(4096);
+struct MarqueeData {
+  char month[16];
+  char day[16];
+  char year[32];
+  char time[32];
+};
 
+MarqueeData displayPages[5];
+MarqueeData lastGoodDisplayPages[5];
 const TimeZoneEntry TZ_DATA[] = {
   { "UTC0", "UTC", "Etc/UTC", "Global" },
   { "EST5EDT,M3.2.0,M11.1.0", "Eastern (New York)", "America/New_York", "Americas" },
@@ -45,7 +51,7 @@ const TimeZoneEntry TZ_DATA[] = {
   { "AKST9AKDT,M3.2.0,M11.1.0", "Alaska (Anchorage)", "America/Anchorage", "Americas" },
   { "MST7", "Mountain (Phoenix, No DST)", "America/Phoenix", "Americas" },
   { "HST10", "Hawaii (Honolulu, No DST)", "Pacific/Honolulu", "Americas" },
-  { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe/Africa" },
+  { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/Africa" },
   { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe/Africa" }
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
@@ -90,8 +96,6 @@ int currentPresetIndex = 0;
 float currentWindSpeed = 0.0;
 enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
 MarqueeState marqueeState = M_IDLE;
-String displayPages[5][4]; // For Month, Day, Year, Time
-String lastGoodDisplayPages[5][4];
 int currentPageIndex = 0;
 int currentPointToFetch = 0;
 unsigned long lastDataLinkFetch = 0;
@@ -117,7 +121,7 @@ void handleSleepSchedule();
 void updateNormalClockDisplay();
 void fetchDataLink();
 void updateMarqueeDisplay();
-void loadApiTemplates();
+void listAllFiles();
 void runBootSequence();
 void setupMqtt();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
@@ -144,7 +148,6 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
 
 void saveSettings() {
   preferences.begin(PREFERENCES_NAMESPACE, false);
-
   preferences.putInt("destYear", currentSettings.destinationYear);
   preferences.putInt("destTzIndex", currentSettings.destinationTimezoneIndex);
   preferences.putInt("depHour", currentSettings.departureHour);
@@ -169,17 +172,14 @@ void saveSettings() {
   preferences.putInt("glitchFreq", currentSettings.glitchEffectFrequency);
   preferences.putInt("malfuncFreq", currentSettings.malfunctionFrequency);
   preferences.putBool("volFade", currentSettings.timeTravelVolumeFade);
-
   preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
   preferences.putInt("dlTargetRow", currentSettings.dataLinkTargetRow);
   preferences.putInt("dlRefresh", currentSettings.dataLinkRefreshInterval);
   preferences.putInt("numDataPoints", currentSettings.numDataPoints);
-
   preferences.putString("mqttBroker", currentSettings.mqttBroker);
   preferences.putInt("mqttPort", currentSettings.mqttPort);
   preferences.putString("mqttUser", currentSettings.mqttUser);
   preferences.putString("mqttPass", currentSettings.mqttPassword);
-  
   for (int i = 0; i < 5; i++) {
     String prefix = "dp" + String(i) + "_";
     preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url);
@@ -195,15 +195,15 @@ void saveSettings() {
     preferences.putString((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
     preferences.putString((prefix + "yearPrefix").c_str(), currentSettings.dataPoints[i].yearPrefix);
     preferences.putString((prefix + "yearSuffix").c_str(), currentSettings.dataPoints[i].yearSuffix);
-    
-    // START: MODIFIED SECTION
     preferences.putInt((prefix + "dispMode").c_str(), (int)currentSettings.dataPoints[i].displayMode);
     preferences.putString((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText);
-    // END: MODIFIED SECTION
+    preferences.putString((prefix + "authKey").c_str(), currentSettings.dataPoints[i].authHeaderKey);
+    preferences.putString((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue);
+    preferences.putInt((prefix + "httpMethod").c_str(), (int)currentSettings.dataPoints[i].httpMethod);
+    preferences.putString((prefix + "reqBody").c_str(), currentSettings.dataPoints[i].requestBody);
+    preferences.putString((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey);
   }
-
   preferences.end();
-
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
 }
@@ -281,12 +281,10 @@ void loadSettings() {
     currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
     currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
     currentSettings.numDataPoints = preferences.getInt("numDataPoints");
-
     strncpy(currentSettings.mqttBroker, preferences.getString("mqttBroker", "").c_str(), sizeof(currentSettings.mqttBroker) - 1);
     currentSettings.mqttPort = preferences.getInt("mqttPort");
     strncpy(currentSettings.mqttUser, preferences.getString("mqttUser", "").c_str(), sizeof(currentSettings.mqttUser) - 1);
     strncpy(currentSettings.mqttPassword, preferences.getString("mqttPass", "").c_str(), sizeof(currentSettings.mqttPassword) - 1);
-    
     for (int i = 0; i < 5; i++) {
       String prefix = "dp" + String(i) + "_";
       strncpy(currentSettings.dataPoints[i].url, preferences.getString((prefix + "url").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
@@ -302,11 +300,13 @@ void loadSettings() {
       strncpy(currentSettings.dataPoints[i].mqttTopic, preferences.getString((prefix + "topic").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].mqttTopic) - 1);
       strncpy(currentSettings.dataPoints[i].yearPrefix, preferences.getString((prefix + "yearPrefix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].yearPrefix) - 1);
       strncpy(currentSettings.dataPoints[i].yearSuffix, preferences.getString((prefix + "yearSuffix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].yearSuffix) - 1);
-      
-      // START: MODIFIED SECTION
       currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
       strncpy(currentSettings.dataPoints[i].scrollingText, preferences.getString((prefix + "scrollTxt").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].scrollingText) - 1);
-      // END: MODIFIED SECTION
+      strncpy(currentSettings.dataPoints[i].authHeaderKey, preferences.getString((prefix + "authKey").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].authHeaderKey) - 1);
+      strncpy(currentSettings.dataPoints[i].authHeaderValue, preferences.getString((prefix + "authVal").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].authHeaderValue) - 1);
+      currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
+      strncpy(currentSettings.dataPoints[i].requestBody, preferences.getString((prefix + "reqBody").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].requestBody) - 1);
+      strncpy(currentSettings.dataPoints[i].apiExampleKey, preferences.getString((prefix + "apiKey").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].apiExampleKey) - 1);
     }
     preferences.end();
   }
@@ -321,17 +321,20 @@ void loadSettings() {
   tzset();
 }
 
-void loadApiTemplates() {
-  File file = LittleFS.open(API_TEMPLATES_FILE, "r");
-  if (file) {
-    DeserializationError error = deserializeJson(apiTemplatesDoc, file);
-    if (error) {
-      ESP_LOGE("Templates", "Failed to parse API templates file.");
-    }
-    file.close();
-  } else {
-    ESP_LOGW("Templates", "API templates file not found.");
+void listAllFiles() {
+  Serial.println(F("\n--- Listing all files in LittleFS ---"));
+  File root = LittleFS.open("/");
+  File file = root.openNextFile();
+  while(file){
+      Serial.print(F("  FILE: "));
+      Serial.print(file.name());
+      Serial.print(F("\tSIZE: "));
+      Serial.println(file.size());
+      file.close();
+      file = root.openNextFile();
   }
+  Serial.println(F("--- End of file list ---\n"));
+  root.close();
 }
 
 void setupMqtt() {
@@ -346,12 +349,10 @@ void setupMqtt() {
 
 void reconnectMqtt() {
   if (strlen(currentSettings.mqttBroker) == 0) return;
-
   if (!mqttClient.connected()) {
     ESP_LOGI("MQTT", "Attempting MQTT connection...");
     String clientId = "BTTF-Clock-";
     clientId += String(random(0xffff), HEX);
-
     bool connected = false;
     if (strlen(currentSettings.mqttUser) > 0) {
         connected = mqttClient.connect(clientId.c_str(), currentSettings.mqttUser, currentSettings.mqttPassword, MQTT_STATUS_TOPIC, 1, true, MQTT_LWT_MESSAGE);
@@ -386,35 +387,33 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if (point.dataSourceType == DATA_SOURCE_MQTT && strcmp(point.mqttTopic, topic) == 0) {
         DynamicJsonDocument doc(1024);
         DeserializationError error = deserializeJson(doc, message);
-
         bool success = false;
         if (error == DeserializationError::Ok) {
             auto fetch = [&](const char* path) {
                 return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
             };
-            displayPages[i][0] = strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "";
-            displayPages[i][1] = strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "";
-            displayPages[i][2] = strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "";
-            displayPages[i][3] = strlen(point.timePath) > 0 ? fetch(point.timePath) : "";
+            strncpy(displayPages[i].month, (strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "").c_str(), sizeof(displayPages[i].month) - 1);
+            strncpy(displayPages[i].day, (strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "").c_str(), sizeof(displayPages[i].day) - 1);
+            strncpy(displayPages[i].year, (strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "").c_str(), sizeof(displayPages[i].year) - 1);
+            strncpy(displayPages[i].time, (strlen(point.timePath) > 0 ? fetch(point.timePath) : "").c_str(), sizeof(displayPages[i].time) - 1);
             success = true;
         } else {
-            // If it's not JSON, treat the whole payload as the "time" field
-            displayPages[i][0] = "";
-            displayPages[i][1] = "";
-            displayPages[i][2] = "";
-            displayPages[i][3] = message;
+            strncpy(displayPages[i].month, "", sizeof(displayPages[i].month) - 1);
+            strncpy(displayPages[i].day, "", sizeof(displayPages[i].day) - 1);
+            strncpy(displayPages[i].year, "", sizeof(displayPages[i].year) - 1);
+            strncpy(displayPages[i].time, message.c_str(), sizeof(displayPages[i].time) - 1);
             success = true;
         }
 
         if (success) {
-            for(int j=0; j<4; ++j) lastGoodDisplayPages[i][j] = displayPages[i][j];
+            memcpy(&lastGoodDisplayPages[i], &displayPages[i], sizeof(MarqueeData));
             dataPointFetchFailures[i] = 0;
         } else {
             dataPointFetchFailures[i]++;
             if (dataPointFetchFailures[i] >= MAX_FETCH_FAILURES) {
-                displayPages[i][3] = "MQTT FAIL";
+                strncpy(displayPages[i].time, "MQTT FAIL", sizeof(displayPages[i].time) - 1);
             } else {
-                 for(int j=0; j<4; ++j) displayPages[i][j] = lastGoodDisplayPages[i][j];
+                memcpy(&displayPages[i], &lastGoodDisplayPages[i], sizeof(MarqueeData));
             }
         }
         break;
@@ -426,12 +425,14 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  Serial.println("\n\n--- BOOTING ---");
-  if (!LittleFS.begin(true)) { ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed.");
-  while(1); }
-
+  Serial.println(F("\n\n--- BOOTING ---"));
+  if (!LittleFS.begin(true)) {
+    ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed.");
+    while(1);
+  }
+  
+  listAllFiles();
   loadSettings();
-  loadApiTemplates();
   #if ENABLE_HARDWARE
   setupPhysicalDisplay();
   dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
@@ -442,7 +443,8 @@ void setup() {
   #endif
   wifiManager.autoConnect("BTTF-Clock-Setup");
   ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
-  if (MDNS.begin(MDNS_HOSTNAME)) { MDNS.addService("http", "tcp", 80);
+  if (MDNS.begin(MDNS_HOSTNAME)) {
+    MDNS.addService("http", "tcp", 80);
   }
   setupWebRoutes();
   server.begin();
@@ -451,6 +453,9 @@ void setup() {
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
   setupMqtt();
+  // HEAP MONITORING
+  ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
+
   runBootSequence();
 }
 
@@ -492,9 +497,11 @@ void loop() {
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
     struct tm timeinfo;
-    if(getLocalTime(&timeinfo, 5000)){ timeSynchronized = true;
+    if(getLocalTime(&timeinfo, 5000)){
+      timeSynchronized = true;
+    } else {
+      timeSynchronized = false;
     }
-    else { timeSynchronized = false; }
     currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
     lastNtpUpdate = millis();
     ntpSyncRequested = false;
@@ -502,8 +509,7 @@ void loop() {
 }
 
 void startTimeTravelAnimation() {
-    if (isAnimating) { return;
-    }
+    if (isAnimating) { return; }
     isAnimating = true;
     animationStartTime = millis();
     currentPhase = ANIM_FLICKER;
@@ -608,8 +614,6 @@ void handleBootSequence() {
   #if ENABLE_HARDWARE
   switch (bootState) {
     case BOOT_88MPH:
-      // display88MphSpeed(88.0);
-      // This function is not defined in the provided code
       break;
     case BOOT_RECALIBRATING:
       printToDisplay(destRow.month, "REC", 1); printToDisplay(destRow.day, "AL", 2); printToDisplay(destRow.year, "IBRA"); printToDisplay(destRow.time, "TING");
@@ -723,35 +727,74 @@ void fetchDataLink() {
     }
 
     if (millis() - lastDataLinkFetch < (unsigned long)currentSettings.dataLinkRefreshInterval * 60 * 1000 / currentSettings.numDataPoints) return;
+    ESP_LOGI("DataLink", "Starting data fetch for point %d", currentPointToFetch);
     isFetchingData = true;
     lastDataLinkFetch = millis();
+    ESP_LOGI("Memory", "Free heap before HTTPS request: %u bytes", ESP.getFreeHeap());
 
     HTTPClient http;
-    http.begin(point.url);
-    int httpCode = http.GET();
-    if (httpCode == HTTP_CODE_OK) {
-        String payload = http.getString();
-        DynamicJsonDocument doc(8192);
-        if (deserializeJson(doc, payload) == DeserializationError::Ok) {
-            auto fetch = [&](const char* path) {
-                return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
-            };
-            displayPages[currentPointToFetch][0] = strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "";
-            displayPages[currentPointToFetch][1] = strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "";
-            displayPages[currentPointToFetch][2] = strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "";
-            displayPages[currentPointToFetch][3] = strlen(point.timePath) > 0 ? fetch(point.timePath) : "";
-            for(int j=0; j<4; ++j) lastGoodDisplayPages[currentPointToFetch][j] = displayPages[currentPointToFetch][j];
-            dataPointFetchFailures[currentPointToFetch] = 0;
-        } else {
-             displayPages[currentPointToFetch][3] = "JSON ERR";
+    WiFiClientSecure client;
+    client.setInsecure(); // SSL verification disabled for debugging.
+    
+    ESP_LOGI("DataLink", "Fetching URL: %s", point.url);
+    if (http.begin(client, point.url)) {
+        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+        http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
+        if (strlen(point.authHeaderKey) > 0 && strlen(point.authHeaderValue) > 0) {
+            http.addHeader(point.authHeaderKey, point.authHeaderValue);
+            ESP_LOGI("DataLink", "Using auth header: %s", point.authHeaderKey);
         }
+        
+        http.setTimeout(10000); // 10-second timeout to prevent watchdog reset
+
+        int httpCode;
+        if (point.httpMethod == METHOD_POST) {
+            http.addHeader("Content-Type", "application/json");
+            http.addHeader("Content-Length", String(strlen(point.requestBody)));
+            httpCode = http.POST(point.requestBody);
+        } else {
+            httpCode = http.GET();
+        }
+
+        ESP_LOGI("DataLink", "HTTP response code: %d", httpCode);
+        if (httpCode > 0) {
+            if (httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+                DynamicJsonDocument doc(2048);
+                DeserializationError error = deserializeJson(doc, payload);
+                if (error == DeserializationError::Ok) {
+                    ESP_LOGI("DataLink", "JSON parsing successful");
+                    auto fetch = [&](const char* path) {
+                        return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
+                    };
+                    strncpy(displayPages[currentPointToFetch].month, (strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "").c_str(), sizeof(displayPages[currentPointToFetch].month) - 1);
+                    strncpy(displayPages[currentPointToFetch].day, (strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "").c_str(), sizeof(displayPages[currentPointToFetch].day) - 1);
+                    strncpy(displayPages[currentPointToFetch].year, (strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "").c_str(), sizeof(displayPages[currentPointToFetch].year) - 1);
+                    strncpy(displayPages[currentPointToFetch].time, (strlen(point.timePath) > 0 ? fetch(point.timePath) : "").c_str(), sizeof(displayPages[currentPointToFetch].time) - 1);
+                    
+                    memcpy(&lastGoodDisplayPages[currentPointToFetch], &displayPages[currentPointToFetch], sizeof(MarqueeData));
+                    dataPointFetchFailures[currentPointToFetch] = 0;
+                } else {
+                     ESP_LOGE("DataLink", "JSON parsing failed: %s", error.c_str());
+                    strncpy(displayPages[currentPointToFetch].time, "JSON ERR", sizeof(displayPages[currentPointToFetch].time) - 1);
+                }
+            } else {
+                String errorStr = "ERR " + String(httpCode);
+                strncpy(displayPages[currentPointToFetch].time, errorStr.c_str(), sizeof(displayPages[currentPointToFetch].time) - 1);
+            }
+        } else {
+            ESP_LOGE("DataLink", "HTTP request failed: %s", http.errorToString(httpCode).c_str());
+            strncpy(displayPages[currentPointToFetch].time, "HTTP FAIL", sizeof(displayPages[currentPointToFetch].time) - 1);
+        }
+        http.end();
     } else {
-        displayPages[currentPointToFetch][3] = "HTTP ERR";
+        ESP_LOGE("DataLink", "Failed to connect to host");
+        strncpy(displayPages[currentPointToFetch].time, "DNS/CNCT ERR", sizeof(displayPages[currentPointToFetch].time) - 1);
     }
-    http.end();
 
     currentPointToFetch = (currentPointToFetch + 1) % currentSettings.numDataPoints;
     isFetchingData = false;
+    ESP_LOGI("DataLink", "Data fetch for point %d finished", currentPointToFetch > 0 ? currentPointToFetch - 1 : currentSettings.numDataPoints - 1);
 }
 
 void updateMarqueeDisplay() {
@@ -769,11 +812,16 @@ void updateMarqueeDisplay() {
     }
 
     DataPoint point = currentSettings.dataPoints[currentPageIndex];
-    printToDisplay(targetRow->month, displayPages[currentPageIndex][0].c_str());
-    printToDisplay(targetRow->day, displayPages[currentPageIndex][1].c_str());
+    printToDisplay(targetRow->month, displayPages[currentPageIndex].month);
+    
+    if (strlen(point.icon) > 0) {
+        drawIcon(targetRow->day, point.icon);
+    } else {
+        printToDisplay(targetRow->day, displayPages[currentPageIndex].day);
+    }
 
-    String yearContent = String(point.yearPrefix) + displayPages[currentPageIndex][2] + String(point.yearSuffix);
-    String timeContent = String(point.prefix) + displayPages[currentPageIndex][3] + String(point.suffix);
+    String yearContent = String(point.yearPrefix) + displayPages[currentPageIndex].year + String(point.yearSuffix);
+    String timeContent = String(point.prefix) + displayPages[currentPageIndex].time + String(point.suffix);
     String yearCanvas = "   " + yearContent + "   ";
     if (yearCanvas.length() <= 4) {
         printToDisplay(targetRow->year, yearCanvas.c_str());

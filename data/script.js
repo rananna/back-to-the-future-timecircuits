@@ -3,30 +3,11 @@ let timezoneOptions = [];
 let isDataLinkLoaded = false;
 let anyInputInvalid = false;
 let analyzedDataCache = {};
+let apiExamples = {}; // This will be populated on load
 
-const apiExamples = {
-    '': { name: '-- Select an Example --', url: '' },
-    'stock_aapl_price': { name: 'Stock: Apple Price', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=YOUR_API_KEY' },
-    'stock_aapl_change': { name: 'Stock: Apple Change %', url: 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=YOUR_API_KEY' },
-    'crypto_btc_price': { name: 'Crypto: Bitcoin Price', url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd' },
-    'crypto_eth_change': { name: 'Crypto: Ethereum Change %', url: 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&include_24hr_change=true' },
-    'weather_temp': { name: 'Weather: Temperature (°F)', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=temperature_2m&temperature_unit=fahrenheit' },
-    'weather_feels_like': { name: 'Weather: Feels Like (°F)', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=apparent_temperature&temperature_unit=fahrenheit' },
-    'weather_humidity': { name: 'Weather: Humidity', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=relative_humidity_2m' },
-    'weather_wind_speed': { name: 'Weather: Wind Speed', url: 'https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=wind_speed_10m&wind_speed_unit=mph' },
-    'space_iss_pos': { name: 'Space: ISS Position', url: 'http://api.open-notify.org/iss-now.json' },
-    'space_astros': { name: 'Space: People in Space', url: 'http://api.open-notify.org/astros.json' },
-    'space_mars_sol': { name: 'Space: Mars Rover Sol', url: 'https://api.maas2.apollorion.com/' },
-    'space_sun_dist': { name: 'Space: Sun Distance', url: 'https://api.le-systeme-solaire.net/rest/bodies/soleil' },
-    'util_ip': { name: 'Utility: Public IP', url: 'http://ip-api.com/json' },
-    'util_network_info': { name: 'Utility: Network Info', url: 'http://ip-api.com/json' },
-    'util_day_of_year': { name: 'Utility: Day of Year', url: 'http://worldtimeapi.org/api/ip' },
-    'util_github_commits': { name: 'Utility: GitHub Commits', url: 'https://api.github.com/repos/octocat/Hello-World/commits' },
-    'fun_yt_subs': { name: 'Fun: YouTube Subscribers', url: 'https://www.googleapis.com/youtube/v3/channels?part=statistics&id=UC_x5XG1OV2P6uZZ5FSM9Ttw&key=YOUR_API_KEY' },
-    'fun_twitch_viewers': { name: 'Fun: Twitch Viewers', url: 'https://api.twitch.tv/helix/streams?user_login=shroud' },
-    'fun_holiday_countdown': { name: 'Fun: Holiday Countdown (see note)', url: 'http://worldtimeapi.org/api/ip' },
-    'fun_game_users': { name: 'Fun: Game Server Users', url: 'https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=730' }
-};
+// NEW: A cache to store modified URLs for each data point during the session
+let dataPointStateCache = {};
+let lastFocusedApiExample = {};
 
 async function checkServerReady(retries = 5, delay = 1000) {
     for (let i = 0; i < retries; i++) {
@@ -54,20 +35,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+async function initializeUI() {
+    try {
+        const initialEndpoints = [
+            '/api/settings/timecircuits', '/api/settings/temporal',
+            '/api/settings/datalink', '/api/timezones',
+            '/api/getPresets', '/api/getTheme', '/api/api_examples'
+        ];
+        const promises = initialEndpoints.map(url => fetch(url).then(res => {
+            if (!res.ok) return Promise.reject(new Error(`Request to ${url} failed`));
+            return url.endsWith('Theme') ? res.text() : res.json();
+        }));
 
-function initializeUI() {
-    const initialEndpoints = [
-        '/api/settings/timecircuits', '/api/settings/temporal',
-        '/api/settings/datalink', '/api/timezones',
-        '/api/getPresets', '/api/getTheme'
-    ];
-    const promises = initialEndpoints.map(url => fetch(url).then(res => {
-        if (!res.ok) return Promise.reject(new Error(`Request to ${url} failed`));
-        return url.endsWith('Theme') ? res.text() : res.json();
-    }));
+        const [timecircuits, temporal, datalink, timezones, presets, theme, examples] = await Promise.all(promises);
+        
+        window.apiExamples = examples; // Store examples globally for access
 
-    Promise.all(promises).then(results => {
-        const [timecircuits, temporal, datalink, timezones, presets, theme] = results;
         document.body.className = theme.trim();
         populateTimezoneSelects(timezones);
         populatePresetsSelect(presets);
@@ -77,11 +60,13 @@ function initializeUI() {
         setInterval(fetchTime, 1000);
         attachEventListeners();
         showMessage('System Online', 'success');
-    }).catch(error => {
+
+    } catch (error) {
         console.error("Failed during essential initialization:", error);
         showMessage(`Critical error loading settings: ${error.message}. Please refresh.`, 'error');
-    });
+    }
 }
+
 
 function loadDataLinkSettings() {
     if (isDataLinkLoaded) return;
@@ -213,10 +198,16 @@ function applyDataLinkSettings(datalink) {
                 document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
                 document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
                 document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
+                document.getElementById(`dp_authHeaderKey_${i}`).value = point.authHeaderKey || '';
+                document.getElementById(`dp_authHeaderValue_${i}`).value = point.authHeaderValue || '';
+                document.getElementById(`dp_httpMethod_${i}`).value = point.httpMethod || 0;
+                document.getElementById(`dp_requestBody_${i}`).value = point.requestBody || '';
+                // --- MODIFIED ---
+                document.getElementById(`api_example_${i}`).value = point.apiExampleKey || '';
                 
-                // Manually trigger change events to ensure UI consistency
                 document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
                 document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
+                document.getElementById(`dp_httpMethod_${i}`).dispatchEvent(new Event('change'));
                 updateMarqueePreview(i);
             });
         }
@@ -239,7 +230,6 @@ function attachEventListeners() {
     });
     document.getElementById('destinationYear').oninput = () => updateHeaderClocks(new Date());
     
-    // START: Bug Fix for Preset Buttons
     document.getElementById('presetDateSelect').onchange = (event) => {
         applySelectedPreset(event);
     
@@ -258,7 +248,6 @@ function attachEventListeners() {
             presetActions.classList.add('hidden');
         }
     };
-    // END: Bug Fix for Preset Buttons
 
     document.getElementById('addPresetBtn').onclick = addPreset;
     document.getElementById('updatePresetBtn').onclick = updatePreset;
@@ -396,6 +385,10 @@ function updateDataPointsUI(numPoints) {
         container.innerHTML = '';
         if (numPoints > 0) {
             for (let i = 0; i < numPoints; i++) {
+                // Initialize cache for this data point if it doesn't exist
+                if (!dataPointStateCache[i]) {
+                    dataPointStateCache[i] = { modifiedUrls: {} };
+                }
                 const block = document.createElement('div');
                 block.className = 'setting-group data-point-block';
                 block.innerHTML = `
@@ -409,8 +402,22 @@ function updateDataPointsUI(numPoints) {
                     <div id="dp_api_container_${i}">
                         <label for="api_example_${i}">API Examples (optional):</label>
                         <select id="api_example_${i}" class="api-example-select" data-index="${i}"></select>
+                        <label for="dp_httpMethod_${i}">HTTP Method:</label>
+                        <select id="dp_httpMethod_${i}" class="http-method-select" data-index="${i}">
+                            <option value="0">GET</option>
+                            <option value="1">POST</option>
+                        </select>
                         <label for="dp_url_${i}">API URL:</label>
                         <input type="text" id="dp_url_${i}" placeholder="http://api.example.com/data.json">
+                        <div id="dp_post_body_container_${i}" style="display: none;">
+                            <label for="dp_requestBody_${i}">Request Body (JSON):</label>
+                            <textarea id="dp_requestBody_${i}" placeholder='{"key": "value"}' rows="4"></textarea>
+                            <div class="validation-message" id="dp_requestBody_validation_${i}"></div>
+                        </div>
+                        <label for="dp_authHeaderKey_${i}">Auth Header Key (optional):</label>
+                        <input type="text" id="dp_authHeaderKey_${i}" placeholder="e.g., X-API-Key">
+                        <label for="dp_authHeaderValue_${i}">Auth Header Value (optional):</label>
+                        <input type="text" id="dp_authHeaderValue_${i}" placeholder="e.g., your-api-key">
                         <button class="analyze-api-btn" data-index="${i}">Analyze API</button>
                         <div class="api-wizard-results" id="wizard_results_${i}"></div>
                     </div>
@@ -506,7 +513,7 @@ function updateDataPointsUI(numPoints) {
 function updateMarqueePreview(index) {
     const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
 
-    if (displayMode === '0') { // Four Column
+    if (displayMode === '0') { 
         const month = document.getElementById(`dp_monthPath_${index}`).value || "MON";
         const day = document.getElementById(`dp_dayPath_${index}`).value || "DAY";
         const yearValue = document.getElementById(`dp_yearPath_${index}`).value || "YEAR";
@@ -536,7 +543,7 @@ function updateMarqueePreview(index) {
         const timeText = `${prefix}${timeValue}${suffix}`;
         const timeSpan = document.querySelector(`#marquee_preview_${index} .preview-time`);
         setupScrolling(timeText, timeSpan);
-    } else { // Scrolling Text
+    } else { 
         const text = document.getElementById(`dp_scrollingText_${index}`).value || "PREVIEW";
         const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
         previewSpan.textContent = text; 
@@ -555,14 +562,22 @@ function updateMarqueePreview(index) {
 
 function populateApiExampleDropdowns() {
     document.querySelectorAll('.api-example-select').forEach(select => {
-        Object.keys(apiExamples).forEach(key => {
+        select.innerHTML = '';
+        
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '-- Select an Example --';
+        select.appendChild(defaultOption);
+
+        for (const key in window.apiExamples) {
             const option = document.createElement('option');
             option.value = key;
-            option.textContent = apiExamples[key].name;
+            option.textContent = window.apiExamples[key].name;
             select.appendChild(option);
-        });
+        }
     });
 }
+
 
 function attachDataPointEventListeners() {
     document.querySelectorAll('.data-source-select').forEach(select => {
@@ -583,15 +598,47 @@ function attachDataPointEventListeners() {
         };
     });
 
-    document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
-    document.querySelectorAll('.api-example-select').forEach(select => {
+    document.querySelectorAll('.http-method-select').forEach(select => {
         select.onchange = (e) => {
             const index = e.target.dataset.index;
-            document.getElementById(`dp_url_${index}`).value = apiExamples[e.target.value].url;
+            const isPost = e.target.value === '1';
+            document.getElementById(`dp_post_body_container_${index}`).style.display = isPost ? 'block' : 'none';
         };
     });
-    document.querySelectorAll('.data-point-block input, .data-point-block select').forEach(input => {
+
+    document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
+
+    // --- MODIFIED ---
+    document.querySelectorAll('.api-example-select').forEach(select => {
+        select.addEventListener('focus', (e) => {
+            const index = e.target.dataset.index;
+            lastFocusedApiExample[index] = e.target.value;
+        });
+
+        select.addEventListener('change', (e) => {
+            const index = e.target.dataset.index;
+            const urlInput = document.getElementById(`dp_url_${index}`);
+            const previousKey = lastFocusedApiExample[index];
+            if (previousKey) {
+                dataPointStateCache[index].modifiedUrls[previousKey] = urlInput.value;
+            }
+            const newKey = e.target.value;
+            const cachedUrl = dataPointStateCache[index].modifiedUrls[newKey];
+            
+            if (cachedUrl) {
+                urlInput.value = cachedUrl;
+            } else {
+                const templateUrl = window.apiExamples[newKey]?.url;
+                urlInput.value = templateUrl || '';
+            }
+        });
+    });
+    
+    document.querySelectorAll('.data-point-block input, .data-point-block select, .data-point-block textarea').forEach(input => {
         input.addEventListener('input', (e) => {
+            if (e.target.id.includes('requestBody')) {
+                validateJson(e.target);
+            }
             let target = e.target;
             while(target && !target.classList.contains('data-point-block')) {
                 target = target.parentElement;
@@ -607,27 +654,68 @@ function attachDataPointEventListeners() {
     });
 }
 
+function validateJson(textarea) {
+    const validationMessage = document.getElementById(`${textarea.id}_validation`);
+    try {
+        if (textarea.value.trim() !== '') {
+            JSON.parse(textarea.value);
+        }
+        textarea.classList.remove('invalid');
+        validationMessage.textContent = '';
+        return true;
+    } catch (e) {
+        textarea.classList.add('invalid');
+        validationMessage.textContent = e.message;
+        return false;
+    }
+}
+
 function startApiWizard(event) {
     const index = event.target.getAttribute('data-index');
-    const url = document.getElementById(`dp_url_${index}`).value;
-    if (!url) {
-        showMessage('Please enter an API URL first.', 'error');
+    const apiExampleKey = document.getElementById(`api_example_${index}`).value;
+    const authKey = document.getElementById(`dp_authHeaderKey_${index}`).value;
+    const authValue = document.getElementById(`dp_authHeaderValue_${index}`).value;
+    const button = event.target;
+
+    if (!apiExampleKey) {
+        showMessage('Please select an API Example from the dropdown first.', 'error');
         return;
     }
+
     const resultsContainer = document.getElementById(`wizard_results_${index}`);
     resultsContainer.innerHTML = '<span class="loading-spinner"></span> Analyzing...';
-    fetch('/api/testDataPoint', { method: 'POST', body: new URLSearchParams({ url }) })
-        .then(res => res.json()).then(data => {
+    button.disabled = true;
+    
+    const formData = new URLSearchParams({ api_example_key: apiExampleKey, authKey, authValue });
+
+    fetch('/api/testDataPoint', { method: 'POST', body: formData })
+        .then(response => {
+            // First, clone the response so we can read it twice
+            const clonedResponse = response.clone();
+            // Try to parse as JSON. If it works, continue the chain.
+            return response.json().catch(() => {
+                // If JSON parsing fails, get the raw text and log it for debugging.
+                return clonedResponse.text().then(text => {
+                    console.error("Server response was not valid JSON. Raw text:", text);
+                    // Throw a new error to be caught by the final .catch()
+                    throw new Error("Received non-JSON response from server.");
+                });
+            });
+        })
+        .then(data => {
             if (data.success) {
                 analyzedDataCache[index] = data.value;
                 displayApiWizardResults(index, data.value);
             } else {
-                showMessage(`Error: ${data.error}`, 'error');
+                showMessage(`API Error: ${data.error}`, 'error');
                 resultsContainer.innerHTML = `<span class="error-text">${data.error}</span>`;
             }
         }).catch(err => {
-            showMessage(`Network Error: ${err.message}`, 'error');
-            resultsContainer.innerHTML = `<span class="error-text">Network error.</span>`;
+            // This will catch both network errors and the custom error thrown above.
+            showMessage(`Network or Parsing Error: ${err.message}`, 'error');
+            resultsContainer.innerHTML = `<span class="error-text">Network or response parsing error. Check console for details.</span>`;
+        }).finally(() => {
+            button.disabled = false;
         });
 }
 
@@ -668,7 +756,7 @@ function displayApiWizardResults(index, jsonData) {
 
         if(targetElement){
             targetElement.value = path;
-            targetElement.dispatchEvent(new Event('input')); // Trigger preview update
+            targetElement.dispatchEvent(new Event('input'));
         }
         
         showMessage(`Mapped "${path}" to ${target.toUpperCase()}`, 'success', 2000);
@@ -708,10 +796,12 @@ function saveSettings() {
         for (let i = 0; i < numDataPoints; i++) {
             formData.append(`dp_dataSourceType_${i}`, document.getElementById(`dp_dataSourceType_${i}`).value === 'mqtt' ? 1 : 0);
             formData.append(`dp_displayMode_${i}`, document.getElementById(`dp_displayMode_${i}`).value);
-            ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText'].forEach(field => {
+            ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'httpMethod', 'requestBody'].forEach(field => {
                 const el = document.getElementById(`dp_${field}_${i}`);
                 if (el) formData.append(`dp_${field}_${i}`, el.value);
             });
+            // --- MODIFIED ---
+            formData.append(`dp_apiExampleKey_${i}`, document.getElementById(`api_example_${i}`).value);
         }
     }
 
@@ -724,6 +814,10 @@ function saveSettings() {
             setTimeout(() => document.body.classList.remove('time-travel-active'), duration);
         }).catch(err => showMessage(`Error: ${err.message}`, 'error'))
         .finally(() => showLoading('saveSettingsBtn', false));
+
+    console.log("Data being sent to server:", Object.fromEntries(formData));
+
+    fetch('/api/saveSettings', { method: 'POST', body: formData })
 }
 
 function addPreset() {
@@ -794,21 +888,19 @@ function updateSleepVisual() {
     const bar1 = document.getElementById('sleepScheduleBar');
     const bar2 = document.getElementById('sleepScheduleBar2');
 
-    if (arrTotalMins < depTotalMins) { // This is the overnight case
-        // First part of the bar: from departure time to midnight
+    if (arrTotalMins < depTotalMins) { 
         const duration1 = 1440 - depTotalMins;
         bar1.style.left = `${(depTotalMins / 1440) * 100}%`;
         bar1.style.width = `${(duration1 / 1440) * 100}%`;
 
-        // Second part of the bar: from midnight to arrival time
         bar2.style.left = '0%';
         bar2.style.width = `${(arrTotalMins / 1440) * 100}%`;
         bar2.style.display = 'block';
-    } else { // This is the same-day case
+    } else { 
         const sleepDuration = arrTotalMins - depTotalMins;
         bar1.style.left = `${(depTotalMins / 1440) * 100}%`;
         bar1.style.width = `${(sleepDuration / 1440) * 100}%`;
-        bar2.style.display = 'none'; // Hide the second bar
+        bar2.style.display = 'none';
     }
 }
 
