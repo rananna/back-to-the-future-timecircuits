@@ -685,7 +685,7 @@ function updateDataPointsUI(numPoints) {
 function getDisplayValue(path, placeholder, index) {
     if (!path) return placeholder;
 
-    if (analyzedDataCache[index]) {
+    if (analyzedDataCache[index] !== undefined) {
         const resolvedValue = getValueFromPath(analyzedDataCache[index], path);
         if (resolvedValue !== null && resolvedValue !== undefined) {
             return resolvedValue;
