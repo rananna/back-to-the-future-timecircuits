@@ -45,7 +45,12 @@ struct MarqueeData {
 MarqueeData displayPages[5];
 MarqueeData lastGoodDisplayPages[5];
 const TimeZoneEntry TZ_DATA[] = {
+  // Global
   { "UTC0", "UTC", "Etc/UTC", "Global" },
+
+  // Americas
+  { "NST3:30NDT,M3.2.0,M11.1.0", "Newfoundland (St. John's)", "America/St_Johns", "Americas" },
+  { "AST4ADT,M3.2.0,M11.1.0", "Atlantic (Halifax)", "America/Halifax", "Americas" },
   { "EST5EDT,M3.2.0,M11.1.0", "Eastern (New York)", "America/New_York", "Americas" },
   { "CST6CDT,M3.2.0,M11.1.0", "Central (Chicago)", "America/Chicago", "Americas" },
   { "MST7MDT,M3.2.0,M11.1.0", "Mountain (Denver)", "America/Denver", "Americas" },
@@ -53,12 +58,41 @@ const TimeZoneEntry TZ_DATA[] = {
   { "AKST9AKDT,M3.2.0,M11.1.0", "Alaska (Anchorage)", "America/Anchorage", "Americas" },
   { "MST7", "Mountain (Phoenix, No DST)", "America/Phoenix", "Americas" },
   { "HST10", "Hawaii (Honolulu, No DST)", "Pacific/Honolulu", "Americas" },
-  { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/Africa" },
-  { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe/Africa" }
+
+  // Europe
+  { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe" },
+  { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
+  { "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
+  { "<+03>-3", "Moscow Standard Time", "Europe/Moscow", "Europe" },
+  { "<+03>-3", "Turkey Time (Istanbul)", "Europe/Istanbul", "Europe" },
+
+  // Asia
+  { "IST-5:30", "Indian Standard Time (Kolkata)", "Asia/Kolkata", "Asia" },
+  { "<+08>-8", "Singapore Standard Time", "Asia/Singapore", "Asia" },
+  { "CST-8", "China Standard Time (Shanghai)", "Asia/Shanghai", "Asia" },
+  { "KST-9", "Korea Standard Time (Seoul)", "Asia/Seoul", "Asia" },
+  { "JST-9", "Japan Standard Time (Tokyo)", "Asia/Tokyo", "Asia" },
+  { "<+04>-4", "Gulf Standard Time (Dubai)", "Asia/Dubai", "Asia" },
+  
+  // Australia & Oceania
+  { "AWST-8", "AWST (Perth)", "Australia/Perth", "Australia & Oceania" },
+  { "AEST-10AEDT,M10.1.0,M4.1.0/3", "AEST/AEDT (Sydney)", "Australia/Sydney", "Australia & Oceania" },
+  { "NZST-12NZDT,M9.5.0,M4.1.0/3", "NZST/NZDT (Auckland)", "Pacific/Auckland", "Australia & Oceania" },
+  { "ChST-10", "Chamorro Time (Guam)", "Pacific/Guam", "Australia & Oceania" },
+  
+  // Africa
+  { "WAT-1", "West Africa Time (Lagos)", "Africa/Lagos", "Africa" },
+  { "SAST-2", "South Africa Standard Time", "Africa/Johannesburg", "Africa" },
+  { "EET-2", "EET (Cairo)", "Africa/Cairo", "Africa" },
+  { "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
+
+  // South America
+  { "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
+  { "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
 
-const char TZ_JSON[] PROGMEM = "{\"Global\":[{\"value\":0,\"text\":\"UTC\",\"ianaTzName\":\"Etc/UTC\"}],\"Americas\":[{\"value\":1,\"text\":\"Eastern (New York)\",\"ianaTzName\":\"America/New_York\"},{\"value\":2,\"text\":\"Central (Chicago)\",\"ianaTzName\":\"America/Chicago\"},{\"value\":3,\"text\":\"Mountain (Denver)\",\"ianaTzName\":\"America/Denver\"},{\"value\":4,\"text\":\"Pacific (Los Angeles)\",\"ianaTzName\":\"America/Los_Angeles\"},{\"value\":5,\"text\":\"Alaska (Anchorage)\",\"ianaTzName\":\"America/Anchorage\"},{\"value\":6,\"text\":\"Mountain (Phoenix, No DST)\",\"ianaTzName\":\"America/Phoenix\"},{\"value\":7,\"text\":\"Hawaii (Honolulu, No DST)\",\"ianaTzName\":\"Pacific/Honolulu\"}],\"Europe/Africa\":[{\"value\":8,\"text\":\"GMT/BST (London)\",\"ianaTzName\":\"Europe/London\"},{\"value\":9,\"text\":\"CET/CEST (Berlin)\",\"ianaTzName\":\"Europe/Berlin\"}]}";
+const char TZ_JSON[] PROGMEM = "{\"Global\":[{\"value\":0,\"text\":\"UTC\",\"ianaTzName\":\"Etc/UTC\"}],\"Americas\":[{\"value\":1,\"text\":\"Newfoundland (St. John's)\",\"ianaTzName\":\"America/St_Johns\"},{\"value\":2,\"text\":\"Atlantic (Halifax)\",\"ianaTzName\":\"America/Halifax\"},{\"value\":3,\"text\":\"Eastern (New York)\",\"ianaTzName\":\"America/New_York\"},{\"value\":4,\"text\":\"Central (Chicago)\",\"ianaTzName\":\"America/Chicago\"},{\"value\":5,\"text\":\"Mountain (Denver)\",\"ianaTzName\":\"America/Denver\"},{\"value\":6,\"text\":\"Pacific (Los Angeles)\",\"ianaTzName\":\"America/Los_Angeles\"},{\"value\":7,\"text\":\"Alaska (Anchorage)\",\"ianaTzName\":\"America/Anchorage\"},{\"value\":8,\"text\":\"Mountain (Phoenix, No DST)\",\"ianaTzName\":\"America/Phoenix\"},{\"value\":9,\"text\":\"Hawaii (Honolulu, No DST)\",\"ianaTzName\":\"Pacific/Honolulu\"}],\"Europe\":[{\"value\":10,\"text\":\"GMT/BST (London)\",\"ianaTzName\":\"Europe/London\"},{\"value\":11,\"text\":\"CET/CEST (Berlin)\",\"ianaTzName\":\"Europe/Berlin\"},{\"value\":12,\"text\":\"EET/EEST (Athens)\",\"ianaTzName\":\"Europe/Athens\"},{\"value\":13,\"text\":\"Moscow Standard Time\",\"ianaTzName\":\"Europe/Moscow\"},{\"value\":14,\"text\":\"Turkey Time (Istanbul)\",\"ianaTzName\":\"Europe/Istanbul\"}],\"Asia\":[{\"value\":15,\"text\":\"Indian Standard Time (Kolkata)\",\"ianaTzName\":\"Asia/Kolkata\"},{\"value\":16,\"text\":\"Singapore Standard Time\",\"ianaTzName\":\"Asia/Singapore\"},{\"value\":17,\"text\":\"China Standard Time (Shanghai)\",\"ianaTzName\":\"Asia/Shanghai\"},{\"value\":18,\"text\":\"Korea Standard Time (Seoul)\",\"ianaTzName\":\"Asia/Seoul\"},{\"value\":19,\"text\":\"Japan Standard Time (Tokyo)\",\"ianaTzName\":\"Asia/Tokyo\"},{\"value\":20,\"text\":\"Gulf Standard Time (Dubai)\",\"ianaTzName\":\"Asia/Dubai\"}],\"Australia & Oceania\":[{\"value\":21,\"text\":\"AWST (Perth)\",\"ianaTzName\":\"Australia/Perth\"},{\"value\":22,\"text\":\"AEST/AEDT (Sydney)\",\"ianaTzName\":\"Australia/Sydney\"},{\"value\":23,\"text\":\"NZST/NZDT (Auckland)\",\"ianaTzName\":\"Pacific/Auckland\"},{\"value\":24,\"text\":\"Chamorro Time (Guam)\",\"ianaTzName\":\"Pacific/Guam\"}],\"Africa\":[{\"value\":25,\"text\":\"West Africa Time (Lagos)\",\"ianaTzName\":\"Africa/Lagos\"},{\"value\":26,\"text\":\"South Africa Standard Time\",\"ianaTzName\":\"Africa/Johannesburg\"},{\"value\":27,\"text\":\"EET (Cairo)\",\"ianaTzName\":\"Africa/Cairo\"},{\"value\":28,\"text\":\"East Africa Time (Nairobi)\",\"ianaTzName\":\"Africa/Nairobi\"}],\"South America\":[{\"value\":29,\"text\":\"Brasilia Time (Sao Paulo)\",\"ianaTzName\":\"America/Sao_Paulo\"},{\"value\":30,\"text\":\"Argentina Time (Buenos Aires)\",\"ianaTzName\":\"America/Argentina/Buenos_Aires\"}]}";
 const char STYLE_0[] PROGMEM = "Sequential Flicker";
 const char STYLE_1[] PROGMEM = "Random Flicker";
 const char STYLE_2[] PROGMEM = "All Displays Random";
@@ -114,13 +148,11 @@ volatile int requestsCompleted = 0;
 
 // Mutex for protecting shared display data
 SemaphoreHandle_t xDisplayDataMutex;
-
 // Struct to pass parameters to the data fetching task
 struct FetchDataParams {
     int pointIndex;
 int totalRequests;
 };
-
 void fetchDataTask(void* p);
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
@@ -140,11 +172,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length);
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
 strncpy(path_copy, path, sizeof(path_copy) - 1);
-    path_copy[sizeof(path_copy) - 1] = '\0';
+path_copy[sizeof(path_copy) - 1] = '\0';
     JsonVariant current = root;
     char* context = NULL;
 char* token = strtok_r(path_copy, ".[]", &context);
-    while (token != NULL) {
+while (token != NULL) {
         if (current.isNull()) return JsonVariant();
 if (current.is<JsonObject>()) {
             current = current[token];
@@ -397,11 +429,11 @@ for (int i = 0; i < length; i++) {
   for (int i = 0; i < currentSettings.numDataPoints; i++) {
     DataPoint point = currentSettings.dataPoints[i];
 if (point.dataSourceType == DATA_SOURCE_MQTT && strcmp(point.mqttTopic, topic) == 0) {
-        DynamicJsonDocument doc(512); // Reduced size for efficiency
+        DynamicJsonDocument doc(512);
+// Reduced size for efficiency
 DeserializationError error = deserializeJson(doc, message);
         bool success = false;
-        
-        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             if (error == DeserializationError::Ok) {
                 auto fetch = [&](const char* path) {
                     return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
@@ -431,7 +463,7 @@ if (dataPointFetchFailures[i] >= MAX_FETCH_FAILURES) {
 }
             }
             xSemaphoreGive(xDisplayDataMutex);
-        }
+}
         break;
 }
   }
@@ -439,7 +471,7 @@ if (dataPointFetchFailures[i] >= MAX_FETCH_FAILURES) {
 
 void fetchDataTask(void* p) {
     FetchDataParams* params = (FetchDataParams*)p;
-    int pointIndex = params->pointIndex;
+int pointIndex = params->pointIndex;
 int totalRequests = params->totalRequests;
     delete params;
 
@@ -463,7 +495,8 @@ DynamicJsonDocument doc(2048);
                 // Lock mutex before writing to shared data
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     auto fetch = [&](const char* path) {
-                        return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
+                   
+     return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
 };
                     strncpy(displayPages[pointIndex].month, (strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "").c_str(), sizeof(displayPages[pointIndex].month) - 1);
 strncpy(displayPages[pointIndex].day, (strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "").c_str(), sizeof(displayPages[pointIndex].day) - 1);
@@ -472,25 +505,26 @@ strncpy(displayPages[pointIndex].time, (strlen(point.timePath) > 0 ? fetch(point
                     
                     memcpy(&lastGoodDisplayPages[pointIndex], &displayPages[pointIndex], sizeof(MarqueeData));
                     dataPointFetchFailures[pointIndex] = 0;
-                    xSemaphoreGive(xDisplayDataMutex); // Release mutex
+                    xSemaphoreGive(xDisplayDataMutex);
+// Release mutex
 }
 } else {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     dataPointFetchFailures[pointIndex]++;
-                    xSemaphoreGive(xDisplayDataMutex);
+xSemaphoreGive(xDisplayDataMutex);
 }
 }
         } else {
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 dataPointFetchFailures[pointIndex]++;
-                xSemaphoreGive(xDisplayDataMutex);
+xSemaphoreGive(xDisplayDataMutex);
 }
 }
         http.end();
-    } else {
+} else {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             dataPointFetchFailures[pointIndex]++;
-            xSemaphoreGive(xDisplayDataMutex);
+xSemaphoreGive(xDisplayDataMutex);
 }
 }
     
@@ -503,10 +537,10 @@ strncpy(displayPages[pointIndex].time, (strlen(point.timePath) > 0 ? fetch(point
 
 
     requestsCompleted++;
-    if (requestsCompleted >= totalRequests) {
+if (requestsCompleted >= totalRequests) {
         isFetchingData = false;
 ESP_LOGI("DataLink", "All API requests finished.");
-    }
+}
 
     vTaskDelete(NULL);
 }
@@ -557,33 +591,31 @@ if (!LittleFS.begin(true)) {
   
   listAllFiles();
   loadSettings();
-  
-  // Create the mutex for thread-safe data access
+// Create the mutex for thread-safe data access
   xDisplayDataMutex = xSemaphoreCreateMutex();
 
 #if ENABLE_HARDWARE
   setupPhysicalDisplay();
   dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
-  if (myDFPlayer.begin(dfpSerial, true, false)) {
+if (myDFPlayer.begin(dfpSerial, true, false)) {
       myDFPlayer.volume(currentSettings.notificationVolume);
       setupSoundFiles();
 }
   #endif
   wifiManager.autoConnect("BTTF-Clock-Setup");
-  ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
+ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
   if (MDNS.begin(MDNS_HOSTNAME)) {
     MDNS.addService("http", "tcp", 80);
 }
   setupWebRoutes();
   server.begin();
-  ESP_LOGI("Web", "HTTP server started.");
+ESP_LOGI("Web", "HTTP server started.");
   configTime(0, 0, NTP_SERVERS[0]);
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
   setupMqtt();
 ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
-
-  runBootSequence();
+runBootSequence();
 }
 
 void loop() {
@@ -851,27 +883,25 @@ void updateMarqueeDisplay() {
 DisplayRow* targetRow = &lastRow;
     if (currentSettings.dataLinkTargetRow == 0) targetRow = &destRow;
     if (currentSettings.dataLinkTargetRow == 1) targetRow = &presRow;
-    
-    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (marqueeState == M_IDLE) {
             currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
 marqueeScrollPosition = 0;
             marqueeScrollPositionYear = 0;
             marqueeState = M_PAUSED;
             lastMarqueeStateChange = millis();
-        }
+}
 
         DataPoint point = currentSettings.dataPoints[currentPageIndex];
 printToDisplay(targetRow->month, displayPages[currentPageIndex].month);
-        
-        if (strlen(point.icon) > 0) {
+if (strlen(point.icon) > 0) {
             drawIcon(targetRow->day, point.icon);
 } else {
             printToDisplay(targetRow->day, displayPages[currentPageIndex].day);
 }
 
         String yearContent = String(point.yearPrefix) + displayPages[currentPageIndex].year + String(point.yearSuffix);
-        String timeContent = String(point.prefix) + displayPages[currentPageIndex].time + String(point.suffix);
+String timeContent = String(point.prefix) + displayPages[currentPageIndex].time + String(point.suffix);
         
         xSemaphoreGive(xDisplayDataMutex); // Release mutex after reading shared data
 
@@ -880,7 +910,7 @@ if (yearCanvas.length() <= 4) {
             printToDisplay(targetRow->year, yearCanvas.c_str());
 } else {
             String yearViewport = yearCanvas.substring(marqueeScrollPositionYear, marqueeScrollPositionYear + 4);
-            printToDisplay(targetRow->year, yearViewport.c_str());
+printToDisplay(targetRow->year, yearViewport.c_str());
 }
 
 String timeCanvas = "   " + timeContent + "   ";
@@ -888,7 +918,7 @@ if (timeCanvas.length() <= 4) {
             printToDisplay(targetRow->time, timeCanvas.c_str());
 } else {
             String viewport = timeCanvas.substring(marqueeScrollPosition, marqueeScrollPosition + 4);
-            printToDisplay(targetRow->time, viewport.c_str());
+printToDisplay(targetRow->time, viewport.c_str());
 }
 
         if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 2000) {
@@ -928,6 +958,6 @@ if (marqueeScrollPositionYear > yearCanvas.length() - 4) {
         targetRow->day.writeDisplay();
         targetRow->year.writeDisplay();
         targetRow->time.writeDisplay();
-    }
+}
     #endif
 }
