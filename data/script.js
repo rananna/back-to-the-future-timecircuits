@@ -352,7 +352,6 @@ function attachEventListeners() {
     document.getElementById('departureTime').onchange = updateSleepVisual;
     document.getElementById('arrivalTime').onchange = updateSleepVisual;
 
-    // --- MODIFIED --- Add global listener for Escape key to deselect wizard target
     document.addEventListener('keydown', (e) => {
         if (e.key === "Escape" && activeWizardTarget) {
             activeWizardTarget.classList.remove('is-wizard-target');
@@ -480,7 +479,12 @@ function scrollToSettings(tabName, elementId) {
         openTab({ currentTarget: tabButton }, tabName);
         setTimeout(() => {
             const element = document.getElementById(elementId);
-            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Optional: Add a temporary highlight effect
+                element.classList.add('highlight-saved');
+                setTimeout(() => element.classList.remove('highlight-saved'), 2000);
+            }
         }, 100);
     }
 }
@@ -495,6 +499,11 @@ function openTab(evt, tabName) {
 function setSettingsChanged(isChanged) {
     settingsChanged = isChanged;
     document.getElementById('saveSettingsBtn').disabled = !isChanged;
+    if (isChanged) {
+        document.getElementById('saveSettingsBtn').classList.add('needs-save');
+    } else {
+        document.getElementById('saveSettingsBtn').classList.remove('needs-save');
+    }
 }
 
 function updateHeaderClocks(presentTimeRaw) {
@@ -701,8 +710,6 @@ function getDisplayValue(path, placeholder, index) {
         }
     }
     
-    // If the path didn't resolve or no API data exists, check if it's a JSON-like path.
-    // If not, treat it as static text. Otherwise, return the placeholder.
     if (path.includes('.') || path.includes('[')) {
         return placeholder;
     } else {
@@ -858,18 +865,14 @@ function attachDataPointEventListeners() {
         });
     });
 
-    // --- MODIFIED --- This logic makes the wizard target highlight "sticky"
-    // and allows for deselection.
     document.querySelectorAll('.wizard-target-input').forEach(input => {
         input.addEventListener('click', (e) => {
             const clickedTarget = e.target;
 
-            // If the user clicks the currently active target, deactivate it.
             if (activeWizardTarget === clickedTarget) {
                 activeWizardTarget.classList.remove('is-wizard-target');
                 activeWizardTarget = null;
             } else {
-                // Otherwise, switch the active target to the new one.
                 if (activeWizardTarget) {
                     activeWizardTarget.classList.remove('is-wizard-target');
                 }

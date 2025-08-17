@@ -69,8 +69,7 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
     * **Cinematic Boot Sequence**: A non-blocking startup sequence plays on the displays, showing messages like "88 MPH," "RECALIBRATING," and "CAPACITOR FULL".
 
 #### **Advanced Web Interface & Data Link**
-* **Live Control**: A mobile-friendly web interface allows for full control over all the clock's settings.
-* **Thematic Header**: The UI header is a screen-accurate, real-time replica of the physical display, updating every second.
+* **Live, Interactive Header**: The UI header is a screen-accurate, real-time replica of the physical display that doubles as the primary control surface. Clicking on the **Destination, Present, or Last Time Departed** rows will instantly and smoothly navigate you to the corresponding settings section, creating an immersive and intuitive "what you see is what you edit" experience.
 * **Robust Non-Blocking Data Link**: The most advanced feature is a fully configurable "Data Link" marquee that uses the standard ESP32 libraries to make **non-blocking HTTPS requests**. Each request runs in its own dedicated task, ensuring that slow API servers will never freeze or stutter the clock's animations.
 * **MQTT Integration**: In addition to polling web APIs, data points can be configured to subscribe to an **MQTT broker**. This allows for efficient, real-time data pushes from smart home devices, sensors, or other services on your local network.
 * **Custom Icons**: The marquee can display custom icons (e.g., SUN, CLOUD, WIFI, BTC) on the 14-segment displays alongside the data.
