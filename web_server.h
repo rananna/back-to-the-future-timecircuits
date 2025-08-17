@@ -7,7 +7,6 @@
 #include <PubSubClient.h>
 #include <LittleFS.h>
 #include <WiFiClientSecure.h>
-#include <UrlParser.h>
 #include "HardwareControl.h"
 
 #define THEME_PREF_KEY "ui_theme"

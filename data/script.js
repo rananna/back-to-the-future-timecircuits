@@ -276,29 +276,14 @@ function attachEventListeners() {
         document.getElementById(id).onchange = () => { setSettingsChanged(true); updateHeaderClocks(new Date()); };
     });
     document.getElementById('destinationYear').oninput = () => updateHeaderClocks(new Date());
-    
-    document.getElementById('presetDateSelect').onchange = (event) => {
-        applySelectedPreset(event);
-    
-        const select = event.target;
-        const selectedOption = select.options[select.selectedIndex];
-        const presetActions = document.getElementById('presetActions');
-        const isCustomPreset = selectedOption.parentElement.label === 'Custom Time Jumps';
-    
-        if (isCustomPreset) {
-            presetActions.classList.remove('hidden');
-            document.getElementById('presetName').value = selectedOption.textContent;
-            const [year, month, day, hour, minute] = selectedOption.value.split('-');
-            document.getElementById('presetDate').value = `${year}-${month}-${day}`;
-            document.getElementById('presetTime').value = `${hour}:${minute}`;
-        } else {
-            presetActions.classList.add('hidden');
-        }
-    };
 
-    document.getElementById('addPresetBtn').onclick = addPreset;
-    document.getElementById('updatePresetBtn').onclick = updatePreset;
+    // UPDATED PRESET LOGIC
+    document.getElementById('presetDateSelect').onchange = handlePresetSelectionChange;
+    document.getElementById('savePresetBtn').onclick = handleSavePreset;
     document.getElementById('deletePresetBtn').onclick = deletePreset;
+    document.getElementById('newPresetBtn').onclick = resetPresetForm;
+
+
     document.getElementById('dataLinkEnabled').onchange = (e) => {
         document.getElementById('dataLinkSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
         setSettingsChanged(true);
@@ -337,6 +322,116 @@ function attachEventListeners() {
     });
     document.getElementById('departureTime').onchange = updateSleepVisual;
     document.getElementById('arrivalTime').onchange = updateSleepVisual;
+}
+
+// NEW: Handles switching between "add" and "edit" modes
+function handlePresetSelectionChange(event) {
+    applySelectedPreset(event); // This still sets the "Last Departed" display
+
+    const select = event.target;
+    const selectedOption = select.options[select.selectedIndex];
+    const isCustomPreset = selectedOption.parentElement.label === 'Custom Time Jumps';
+
+    if (isCustomPreset) {
+        // --- Enter Edit Mode ---
+        document.getElementById('presetFormTitle').textContent = 'Edit Selected Preset';
+        document.getElementById('savePresetBtn').textContent = 'Update Preset';
+        document.getElementById('deletePresetBtn').classList.remove('hidden');
+        document.getElementById('newPresetBtn').classList.remove('hidden');
+
+        // Populate form with selected preset's data
+        document.getElementById('presetName').value = selectedOption.textContent;
+        const [year, month, day, hour, minute] = selectedOption.value.split('-');
+        document.getElementById('presetDate').value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        document.getElementById('presetTime').value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    } else {
+        // --- Enter Add Mode (or no selection) ---
+        resetPresetForm(false); // Reset form but don't change dropdown
+    }
+}
+
+// NEW: A single function to either add or update
+function handleSavePreset() {
+    const select = document.getElementById('presetDateSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const isCustomPreset = selectedOption.parentElement.label === 'Custom Time Jumps';
+
+    if (isCustomPreset) {
+        updatePreset();
+    } else {
+        addPreset();
+    }
+}
+
+// NEW: Resets the form to its default "add" state
+function resetPresetForm(resetDropdown = true) {
+    document.getElementById('presetFormTitle').textContent = 'Add a New Custom Time Jump';
+    document.getElementById('savePresetBtn').textContent = 'Add to Presets';
+    document.getElementById('deletePresetBtn').classList.add('hidden');
+    document.getElementById('newPresetBtn').classList.add('hidden');
+
+    ['presetName', 'presetDate', 'presetTime'].forEach(id => document.getElementById(id).value = '');
+    if (resetDropdown) {
+        document.getElementById('presetDateSelect').value = '';
+    }
+}
+
+function addPreset() {
+    const name = document.getElementById('presetName').value;
+    const date = document.getElementById('presetDate').value;
+    const time = document.getElementById('presetTime').value;
+    if (!name || !date || !time) {
+        showMessage('Preset name, date, and time are required.', 'error');
+        return;
+    }
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
+    const value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${String(hour).padStart(2, '0')}-${String(minute).padStart(2, '0')}`;
+    fetch('/api/addPreset', { method: 'POST', body: new URLSearchParams({ name, value }) })
+        .then(res => res.text()).then(text => {
+            showMessage(text, 'success');
+            fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
+            resetPresetForm();
+        });
+}
+
+function updatePreset() {
+    const originalName = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
+    const newName = document.getElementById('presetName').value;
+    const date = document.getElementById('presetDate').value;
+    const time = document.getElementById('presetTime').value;
+
+    if (!newName || !date || !time) {
+        showMessage('Preset name, date, and time are required.', 'error');
+        return;
+    }
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
+    const value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${String(hour).padStart(2, '0')}-${String(minute).padStart(2, '0')}`;
+    
+    // We send both original name (to find it) and the new name/value to update
+    fetch('/api/updatePreset', { method: 'POST', body: new URLSearchParams({ name: originalName, newName: newName, value: value }) })
+        .then(res => res.text()).then(text => {
+            showMessage(text, 'success');
+            // Important: Fetch presets before resetting the form
+            fetch('/api/getPresets').then(res => res.json()).then(data => {
+                populatePresetsSelect(data);
+                resetPresetForm();
+            });
+        });
+}
+
+
+function deletePreset() {
+    const name = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
+    if (confirm(`Are you sure you want to delete the preset "${name}"?`)) {
+        fetch('/api/deletePreset', { method: 'POST', body: new URLSearchParams({ name }) })
+            .then(res => res.text()).then(text => {
+                showMessage(text, 'success');
+                fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
+                resetPresetForm();
+            });
+    }
 }
 
 function applySelectedPreset(event) {
@@ -883,56 +978,6 @@ function saveSettings() {
             setTimeout(() => document.body.classList.remove('time-travel-active'), duration);
         }).catch(err => showMessage(`Error: ${err.message}`, 'error'))
         .finally(() => showLoading('saveSettingsBtn', false));
-}
-
-function addPreset() {
-    const name = document.getElementById('presetName').value;
-    const date = document.getElementById('presetDate').value;
-    const time = document.getElementById('presetTime').value;
-    if (!name || !date || !time) {
-        showMessage('Preset name, date, and time are required.', 'error');
-        return;
-    }
-    const [year, month, day] = date.split('-');
-    const [hour, minute] = time.split(':');
-    const value = `${year}-${month}-${day}-${hour}-${minute}`;
-    fetch('/api/addPreset', { method: 'POST', body: new URLSearchParams({ name, value }) })
-        .then(res => res.text()).then(text => {
-            showMessage(text, 'success');
-            fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
-            ['presetName', 'presetDate', 'presetTime'].forEach(id => document.getElementById(id).value = '');
-        });
-}
-
-function updatePreset() {
-    const name = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
-    const date = document.getElementById('presetDate').value;
-    const time = document.getElementById('presetTime').value;
-    if (!name || !date || !time) {
-        showMessage('Preset name, date, and time are required.', 'error');
-        return;
-    }
-    const [year, month, day] = date.split('-');
-    const [hour, minute] = time.split(':');
-    const value = `${year}-${month}-${day}-${hour}-${minute}`;
-    fetch('/api/updatePreset', { method: 'POST', body: new URLSearchParams({ name, value }) })
-        .then(res => res.text()).then(text => {
-            showMessage(text, 'success');
-            fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
-        });
-}
-
-function deletePreset() {
-    const name = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
-    if (confirm(`Are you sure you want to delete the preset "${name}"?`)) {
-        fetch('/api/deletePreset', { method: 'POST', body: new URLSearchParams({ name }) })
-            .then(res => res.text()).then(text => {
-                showMessage(text, 'success');
-                fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
-                document.getElementById('presetActions').classList.add('hidden');
-                ['presetName', 'presetDate', 'presetTime'].forEach(id => document.getElementById(id).value = '');
-            });
-    }
 }
 
 function fetchTime() {

@@ -4,7 +4,6 @@
 #include <AsyncJson.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
-#include <UrlParser.h>
 
 AsyncWebSocket ws("/ws");
 
@@ -16,9 +15,6 @@ void makeApiRequestTask(void* p) {
     String authValue = params->authValue;
     uint32_t clientId = params->clientId;
     delete params; // Clean up the params object immediately
-
-    UrlParser parser;
-    parser.parse(urlStr.c_str());
 
     HTTPClient http;
     WiFiClientSecure client;
@@ -329,6 +325,7 @@ void setupWebRoutes() {
   server.on("/api/updatePreset", HTTP_POST, [](AsyncWebServerRequest *request){
     preferences.begin(PREFERENCES_NAMESPACE, false);
     String name = request->getParam("name", true)->value();
+    String newName = request->getParam("newName", true)->value();
     String value = request->getParam("value", true)->value();
     String presetsJson = preferences.getString("customPresets", "[]");
     DynamicJsonDocument doc(2048);
@@ -336,6 +333,7 @@ void setupWebRoutes() {
     JsonArray presets = doc.as<JsonArray>();
     for (JsonObject preset : presets) {
         if (preset["name"] == name) {
+            preset["name"] = newName;
             preset["value"] = value;
             break;
         }

@@ -79,31 +79,32 @@
                     <span id="lastTimeDepartedYear"></span><span id="lastTimeDepartedMonth"></span><span id="lastTimeDepartedDay"></span>
                     <span id="lastTimeDepartedHour"></span><span id="lastTimeDepartedMinute"></span>
                 </div>
+
                 <label for="presetDateSelect">Famous & Custom Time Jumps:</label>
-                <div class="contextual-control-group">
-                    <select id="presetDateSelect">
-                        <optgroup label="From the Movies">
-                            <option value="">-- Select a Famous Date --</option>
-                            <option value="1985-10-26-01-21">The First Time Travel (1985)</option>
-                            <option value="1955-11-05-06-00">Lightning Strike (1955)</option>
-                            <option value="2015-10-21-16-29">Future Arrival (2015)</option>
-                            <option value="1885-01-01-00-00">Arrival in the Old West (1885)</option>
-                        </optgroup>
-                    </select>
-                </div>
-                <div id="presetActions" class="preset-buttons hidden">
-                    <button id="updatePresetBtn" class="action-button">Update Selected Preset</button>
-                    <button id="deletePresetBtn" class="delete-button">Delete Selected Preset</button>
-                </div>
-                <div class="preset-adder">
-                    <h4>Add a New Custom Time Jump</h4>
+                <select id="presetDateSelect">
+                    <optgroup label="From the Movies">
+                        <option value="">-- Select a Famous Date --</option>
+                        <option value="1985-10-26-01-21">The First Time Travel (1985)</option>
+                        <option value="1955-11-05-06-00">Lightning Strike (1955)</option>
+                        <option value="2015-10-21-16-29">Future Arrival (2015)</option>
+                        <option value="1885-01-01-00-00">Arrival in the Old West (1885)</option>
+                    </optgroup>
+                </select>
+
+                <div id="presetFormContainer" class="preset-adder">
+                    <h4 id="presetFormTitle">Add a New Custom Time Jump</h4>
                     <input type="text" id="presetName" placeholder="Preset Name (e.g., My Birthday)">
                     <div class="preset-date-inputs">
                         <input type="date" id="presetDate">
                         <input type="time" id="presetTime">
                     </div>
-                    <button id="addPresetBtn">Add to Presets</button>
+                    <div id="presetActions" class="preset-buttons">
+                        <button id="savePresetBtn">Add to Presets</button>
+                        <button id="deletePresetBtn" class="delete-button hidden">Delete Selected Preset</button>
+                        <button id="newPresetBtn" class="action-button hidden" style="margin-top: 10px;">+ Create New Preset</button>
+                    </div>
                 </div>
+
                 <hr>
                 <label for="presetCycleInterval">Cycle Presets Every (min, 0=Off): <span id="presetCycleIntervalValue">10</span></label>
                 <div class="slider-container">
