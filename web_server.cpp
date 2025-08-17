@@ -1,50 +1,40 @@
 // Forcing a recompile to resolve build cache issues.
 #include "web_server.h"
-#include "certs.h"
 #include "api_templates.h"
 #include <AsyncJson.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <UrlParser.h>
 
-// Create a WebSocket object
 AsyncWebSocket ws("/ws");
 
-struct ApiTestParams {
-    String url;
-    String authKey;
-    String authValue;
-    uint32_t clientId; // Use the WebSocket client ID to send the response back
-};
-
-// This task now sends its result back over the WebSocket connection
-void apiTestTask(void *pvParameters) {
-    ESP_LOGI("API_TASK", "Task started.");
-    ApiTestParams *params = (ApiTestParams *)pvParameters;
-    String url = params->url;
+// This function runs in a separate task to prevent blocking
+void makeApiRequestTask(void* p) {
+    ApiTestParams* params = (ApiTestParams*)p;
+    String urlStr = params->url;
     String authKey = params->authKey;
     String authValue = params->authValue;
     uint32_t clientId = params->clientId;
+    delete params; // Clean up the params object immediately
 
-    delete params;
+    UrlParser parser;
+    parser.parse(urlStr.c_str());
 
     HTTPClient http;
     WiFiClientSecure client;
+    
+    // Use setInsecure to establish an encrypted connection without certificate validation
     client.setInsecure();
 
-    ESP_LOGI("API_TASK", "Attempting to connect to URL: %s", url.c_str());
-    
-    String responseString;
-    DynamicJsonDocument responseJson(4096);
-    responseJson["action"] = "apiResult"; // So the UI knows what this message is
-
-    if (http.begin(client, url)) {
-        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-        http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
+    if (http.begin(client, urlStr)) {
         if (authKey.length() > 0 && authValue.length() > 0) {
             http.addHeader(authKey, authValue);
         }
-        http.setTimeout(10000);
         
         int httpCode = http.GET();
-        ESP_LOGI("API_TASK", "HTTP response code: %d", httpCode);
+        String responseString;
+        DynamicJsonDocument responseJson(4096);
+        responseJson["action"] = "apiResult";
 
         if (httpCode > 0) {
             if (httpCode == HTTP_CODE_OK) {
@@ -66,17 +56,15 @@ void apiTestTask(void *pvParameters) {
             responseJson["status"] = "error";
             responseJson["payload"] = "Request Failed: " + http.errorToString(httpCode);
         }
+        
         http.end();
+        serializeJson(responseJson, responseString);
+        ws.text(clientId, responseString);
     } else {
-        responseJson["status"] = "error";
-        responseJson["payload"] = "Connection to host failed.";
+        ESP_LOGE("API_TASK", "Unable to connect to %s", urlStr.c_str());
     }
 
-    serializeJson(responseJson, responseString);
-    ws.text(clientId, responseString); // Send the result back to the specific client
-
-    ESP_LOGI("API_TASK", "Task finished, deleting.");
-    vTaskDelete(NULL);
+    vTaskDelete(NULL); // End the task
 }
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
@@ -88,39 +76,31 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
             data[len] = 0;
-            ESP_LOGI("WebSocket", "Received data: %s", (char*)data);
             
             DynamicJsonDocument doc(1024);
-            DeserializationError error = deserializeJson(doc, (char*)data);
-            if (error) {
-                ESP_LOGE("WebSocket", "JSON deserialization failed: %s", error.c_str());
-                return;
-            }
+            deserializeJson(doc, (char*)data);
 
             String action = doc["action"];
             if (action == "testApi") {
-                JsonObject apiData = doc["data"];
-                String url = apiData["url"];
-
-                if (url.isEmpty() || url == "null") {
-                    ESP_LOGE("WebSocket", "Invalid URL received.");
+                if (!timeSynchronized) {
+                    ESP_LOGE("WebSocket", "Time not sync'd, API call aborted.");
+                    String responseString;
+                    DynamicJsonDocument responseJson(256);
+                    responseJson["action"] = "apiResult";
+                    responseJson["status"] = "error";
+                    responseJson["payload"] = "Time not sync'd. Go to System->Sync Time.";
+                    serializeJson(responseJson, responseString);
+                    ws.text(client->id(), responseString);
                     return;
                 }
-                
-                ApiTestParams *params = new ApiTestParams();
-                params->url = url;
-                params->authKey = apiData["authKey"].as<String>();
-                params->authValue = apiData["authValue"].as<String>();
-                params->clientId = client->id();
 
-                xTaskCreate(
-                    apiTestTask,
-                    "apiTestTask",
-                    10240,
-                    (void*)params,
-                    1,
-                    NULL
-                );
+                String url = doc["data"]["url"];
+                String authKey = doc["data"]["authKey"];
+                String authValue = doc["data"]["authValue"];
+
+                ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id()};
+
+                xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
             }
         }
     }
@@ -135,7 +115,6 @@ void setupWebRoutes() {
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/script.js", "application/javascript"); });
   server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(200, "text/plain", "READY"); });
   
-  // All other API routes remain the same...
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
     #if ENABLE_HARDWARE
     playSound("EASTER_EGG");
@@ -215,7 +194,6 @@ void setupWebRoutes() {
     serializeJson(doc, response);
     request->send(200, "application/json", response);
   });
-    // ... KEEP ALL OTHER API ROUTES (saveSettings, getPresets, etc.) THE SAME ...
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send_P(200, "application/json", TZ_JSON);
   });
@@ -429,8 +407,6 @@ void setupWebRoutes() {
 
     request->send(200, "text/plain", "Theme saved.");
   });
-  
-  // We no longer need a dedicated HTTP endpoint for testing, it's all handled by WebSockets
   
   server.onNotFound([](AsyncWebServerRequest *request){
     request->send(404, "text/plain", "Not found");

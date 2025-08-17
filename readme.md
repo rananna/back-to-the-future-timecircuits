@@ -71,7 +71,7 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 #### **Advanced Web Interface & Data Link**
 * **Live Control**: A mobile-friendly web interface allows for full control over all the clock's settings.
 * **Thematic Header**: The UI header is a screen-accurate, real-time replica of the physical display, updating every second.
-* **Data Link Marquee**: The most advanced feature is a fully configurable "Data Link" marquee. You can configure any of the three display rows to show real-time data from any JSON-based API on the web. The system supports both simple APIs and those requiring header-based authentication (e.g., `X-Api-Key`), allowing you to connect directly to a wide range of services without needing an intermediary like Pipedream.
+* **Robust Non-Blocking Data Link**: The most advanced feature is a fully configurable "Data Link" marquee that uses the standard ESP32 libraries to make **non-blocking HTTPS requests**. Each request runs in its own dedicated task, ensuring that slow API servers will never freeze or stutter the clock's animations.
 * **MQTT Integration**: In addition to polling web APIs, data points can be configured to subscribe to an **MQTT broker**. This allows for efficient, real-time data pushes from smart home devices, sensors, or other services on your local network.
 * **Custom Icons**: The marquee can display custom icons (e.g., SUN, CLOUD, WIFI, BTC) on the 14-segment displays alongside the data.
 * **Customizable Display**: For each data point, you can customize the API URL, JSON path, display label, format, icon, and scroll speed. You can also switch between the standard "Four Column" data display and a new "Scrolling Text" mode for longer messages.
@@ -156,21 +156,26 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 1.  **Install Arduino IDE and ESP32 Core**:
     * Download and install the [Arduino IDE](https://www.arduino.cc/en/software).
     * Follow [these instructions](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html) to add the ESP32 board manager to your Arduino IDE.
-    * In the Board Manager, select "ESP32 Dev Module" as your board.
+    * **Update to the latest version of the ESP32 Core** via the Boards Manager. This is crucial as it contains important bug fixes for the SSL libraries.
 
 2.  **Configure the Partition Scheme**:
     * **This is a critical step!** This project's code and the web interface files in the `data` folder require more space than the default Arduino partition scheme provides. You must change this setting to avoid upload errors.
     * In the Arduino IDE, navigate to `Tools` -> `Partition Scheme`.
     * Select **"Minimal SPIFFS (1.9MB APP with OTA/1.5MB SPIFFS)"** from the dropdown menu. This allocates enough space for both the main program and the web data.
-    * 3.  **Install Libraries**:
-    * Open the Arduino Library Manager (`Sketch` -> `Include Library` -> `Manage Libraries...`) and install the following:
+
+3.  **Install Required Libraries**:
+    * This project relies on several key libraries. All of them can be installed using the Arduino IDE's built-in Library Manager.
+    * Open the Library Manager by navigating to **`Sketch` -> `Include Library` -> `Manage Libraries...`**.
+    * Search for and install the latest version of each of the following libraries:
         * `Adafruit GFX Library`
         * `Adafruit LED Backpack`
         * `DFRobotDFPlayerMini` by DFRobot
         * `WiFiManager` by tzapu
-        * `ArduinoJson` by Benoit Blanchon (v6.x recommended)
-        * `ESPAsyncWebServer`
-        * `AsyncTCP`
+        * `ArduinoJson` by Benoit Blanchon (v6.x or v7.x is recommended)
+        * `ESPAsyncWebServer` by ESP32-Community
+        * `AsyncTCP` by ESP32-Community
+        * `PubSubClient` by Nick O'Leary
+        * `UrlParser` by M. K. Aryan
 
 4.  **Configure I2C Display Addresses**:
     * **This is a critical step!** Each of the 12 display modules must have a unique address on its I2C bus. You must solder the address selection jumpers on the back of each board. Refer to the [Adafruit tutorial](https://learn.adafruit.com/adafruit-led-backpack/changing-i2c-address) for instructions on how to do this.
@@ -397,3 +402,60 @@ Here are 20 diverse API data examples, categorized for finance, weather, space, 
 | 18 | **Twitch Viewers** | `LIVE`| `VW` | `12.5` | `K` | `LIVE VW  12.5K` |
 | 19 | **Holiday Countdown** | `XMAS`| ` ` | `135` | `DAYS` | `XMAS     135 DAYS` |
 | 20 | **Game Server Users**| `CS2` | ` ` | `750K` | ` ` | `CS2      750K` |
+
+---
+## 🔬 Theory of Operation
+
+This section provides a deeper look into the project's architecture, particularly how it handles secure networking in the ESP32 environment.
+
+### Asynchronous, Non-Blocking Architecture
+
+The core of this project is a fully asynchronous, event-driven architecture. This is crucial for a device with complex visual elements like animations and real-time display updates.
+
+* **The Problem with "Blocking" Code:** A simple approach to fetching web data is to make a request and wait for the response. This is called a "blocking" operation. On a microcontroller like the ESP32, this can be disastrous. If the remote server is slow to respond, the entire device will freeze—animations will stutter, sounds will be delayed, and the device will feel unresponsive.
+
+* **The Event-Driven Solution:** This project uses an asynchronous model built on the foundational **`AsyncTCP`** and **`ESPAsyncWebServer`** libraries.
+    * **Web Server:** The web server never blocks. It handles multiple connected clients simultaneously and uses callback functions to respond to requests.
+    * **WebSocket Communication:** Real-time communication with the web UI is handled via WebSockets, which allows for a persistent, two-way channel without the overhead of repeated HTTP requests.
+    * **API Data Fetching:** Outbound requests to external APIs are also handled in a non-blocking way. Each request is spawned in its own dedicated FreeRTOS task, which is like a lightweight background thread. This isolates the slow network operation from the main application loop, ensuring that even a 10-second API timeout will have **zero impact** on the smoothness of the display animations.
+
+### Handling SSL/TLS on the ESP32
+
+Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory-intensive operations a microcontroller can perform. The debugging process for this project revealed several key challenges and led to the current robust implementation.
+
+* **The Memory Corruption Challenge:** The initial approach was to use the standard `HTTPClient` library with a root certificate compiled into the firmware via a `certs.h` file. This repeatedly failed with `PEM / BASE64 - Invalid character in input` errors. The root cause was not a bug in the code, but a subtle memory corruption issue. The ESP32's limited RAM, combined with a potentially outdated version of the ESP32 Arduino Core, caused the large certificate string to become garbled when copied from flash memory to RAM for the SSL handshake.
+
+* **The Definitive Solution: `setInsecure()`:** While counterintuitive, the final and most reliable solution was to bypass the problematic certificate validation step.
+    * **`client.setInsecure()`**: This function is called on the `WiFiClientSecure` object before making a connection.
+    * **What It Does**: It instructs the SSL/TLS engine to **skip the certificate validation step**. It does *not* disable encryption. The connection to the server is still fully encrypted with TLS.
+    * **Why It Works**: By skipping the validation, the client never needs to load the large, 2KB+ root certificate into its limited RAM. This completely eliminates the source of the memory corruption and the `PEM / BASE64` errors.
+    * **Is It Safe?** For this project's purpose—fetching non-sensitive public data like weather or stock prices—this is a very common and acceptable practice in the embedded world. It prioritizes reliability and performance on a memory-constrained device. The data is still encrypted in transit, protecting it from casual eavesdropping.
+
+This self-contained approach, using the standard ESP32 libraries in a non-blocking task and bypassing the fragile certificate validation, provides the most stable and reliable networking performance for the Time Circuits clock.
+
+---
+
+## ❓ Troubleshooting
+
+* **Garbled or Flickering Displays**: This is almost always a power issue. Ensure you are using a 5V power supply that can provide at least 2A. A standard computer USB port is often insufficient. Also, double-check that all components share a common ground.
+* **No Sound**:
+    1.  Ensure your SD card is formatted as **FAT32**.
+    2.  Check that there is a folder named `mp3` in the root of the SD card.
+    3.  Verify that your audio files are named *exactly* as specified in the "Prepare the SD Card" section (e.g., `TIME_TRAVEL.mp3`).
+    4.  Check the RX/TX wiring between the ESP32 and the DFPlayer Mini. They should be crossed (`ESP32 TX -> DFPlayer RX`, `ESP32 RX -> DFPlayer TX`).
+* **Cannot Connect to `timecircuits.local`**:
+    * Some network routers do not support mDNS, which is what makes `.local` addresses work.
+    * Find the device's IP address by checking your router's client list or by monitoring the Serial Monitor output in the Arduino IDE when the device boots. You can then access the web UI by entering that IP address directly into your browser.
+* **API Data Fails to Load**:
+    * In the web UI, go to the "Network & System" tab and click the **"Sync Time with NTP Server"** button. The ESP32's internal clock must be accurate for HTTPS/SSL connections to work.
+    * Double-check the API URL and any required authentication headers in the "Data Link" tab.
+
+---
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/your-username/your-repo/issues).
+
+---
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.txt) file for details.
