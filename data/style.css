@@ -1226,3 +1226,8 @@ body.time-travel-active {
     width: auto;
     margin-top: 0;
 }
+
+.wizard-target-input.is-wizard-target {
+    border-color: var(--slider-thumb-color);
+    box-shadow: 0 0 8px var(--slider-thumb-shadow);
+}

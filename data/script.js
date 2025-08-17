@@ -685,27 +685,39 @@ function updateDataPointsUI(numPoints) {
 function updateMarqueePreview(index) {
     const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
 
+    const getDisplayValue = (path, placeholder) => {
+        const isAnalyzed = analyzedDataCache[index] !== undefined;
+        if (isAnalyzed) {
+            const value = getValueFromPath(analyzedDataCache[index], path);
+            if (value !== null && value !== undefined) return value;
+        }
+        if (path && !path.includes('.') && !path.includes('[')) {
+            return path;
+        }
+        return placeholder;
+    };
+
     if (displayMode === '0') { // Four Column Data
         const monthPath = document.getElementById(`dp_monthPath_${index}`).value;
         const dayPath = document.getElementById(`dp_dayPath_${index}`).value;
         const yearPath = document.getElementById(`dp_yearPath_${index}`).value;
         const timePath = document.getElementById(`dp_timePath_${index}`).value;
 
-        const monthValue = getValueFromPath(analyzedDataCache[index], monthPath) || monthPath;
-        const dayValue = getValueFromPath(analyzedDataCache[index], dayPath) || dayPath;
+        const monthValue = getDisplayValue(monthPath, 'MON');
+        const dayValue = getDisplayValue(dayPath, 'DAY');
         
         const yearPrefix = document.getElementById(`dp_yearPrefix_${index}`).value;
         const yearSuffix = document.getElementById(`dp_yearSuffix_${index}`).value;
-        const yearData = getValueFromPath(analyzedDataCache[index], yearPath) || yearPath;
+        const yearData = getDisplayValue(yearPath, 'YEAR');
         const yearFinalValue = `${yearPrefix}${yearData}${yearSuffix}`;
 
         const prefix = document.getElementById(`dp_prefix_${index}`).value;
         const suffix = document.getElementById(`dp_suffix_${index}`).value;
-        const timeData = getValueFromPath(analyzedDataCache[index], timePath) || timePath;
+        const timeData = getDisplayValue(timePath, 'TIME');
         const timeFinalValue = `${prefix}${timeData}${suffix}`;
 
-        document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = monthValue.substring(0, 3).toUpperCase();
-        document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = dayValue.substring(0, 2).toUpperCase();
+        document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = String(monthValue).substring(0, 3).toUpperCase();
+        document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = String(dayValue).substring(0, 2).toUpperCase();
         
         const setupScrolling = (text, valueSpan) => {
             valueSpan.textContent = text;
@@ -720,9 +732,10 @@ function updateMarqueePreview(index) {
 
         setupScrolling(yearFinalValue, document.querySelector(`#marquee_preview_${index} .preview-year`));
         setupScrolling(timeFinalValue, document.querySelector(`#marquee_preview_${index} .preview-time`));
+
     } else { // Scrolling Text
         const scrollingPath = document.getElementById(`dp_scrollingText_${index}`).value;
-        const text = getValueFromPath(analyzedDataCache[index], scrollingPath) || scrollingPath;
+        const text = getDisplayValue(scrollingPath, 'PREVIEW');
         const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
         previewSpan.textContent = text;
         previewSpan.classList.remove('scrolling-text');
@@ -737,6 +750,7 @@ function updateMarqueePreview(index) {
         }
     }
 }
+
 
 function populateApiExampleDropdowns() {
     document.querySelectorAll('.api-example-select').forEach(select => {
@@ -1072,11 +1086,12 @@ function showMessage(message, type = 'info', duration = 4000) {
 }
 
 function getValueFromPath(obj, path) {
-    if (!path || !obj) return '';
+    if (!path || !obj) return null;
     try {
-        return path.split(/[.\[\]]+/).filter(Boolean).reduce((o, k) => (o || {})[k], obj) || '';
+        const value = path.split(/[.\[\]]+/).filter(Boolean).reduce((o, k) => (o || {})[k], obj);
+        return value !== undefined ? value : null;
     } catch (e) {
-        return '';
+        return null;
     }
 }
 

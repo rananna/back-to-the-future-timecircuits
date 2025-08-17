@@ -258,7 +258,7 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 
 ### 💡 Adding Real-Time Data with the API Wizard (Example)
 
-The "Data Link" feature is one of the most powerful aspects of this project, allowing you to display real-time data from almost any online API directly on your time circuits. The **API Wizard** makes this process incredibly simple, even if you have no technical knowledge of APIs or JSON.
+The "Data Link" feature is one of the most powerful aspects of this project, allowing you to display real-time data from almost any online API directly on your time circuits. The **API Wizard** makes this process incredibly simple, even if you have no technical knowledge of APIs or JSON. The live preview will update instantaneously as you type, showing you exactly how the final output will look.
 
 ---
 
@@ -299,7 +299,7 @@ Let's walk through setting up a data point to show the current temperature for N
 
 #### **Step 5: Set the Prefix, Suffix, and Format**
 
-Now you can customize how the data is displayed.
+Now you can customize how the data is displayed. As you type in the prefix and suffix fields, the **live preview** will update in real-time.
 
 * **Label (3 chars)**: The wizard will suggest a label like `TEMP`. This is the short, static text that appears first on the display row.
 * **Prefix**: This is text that comes *before* the value. Since we want a space after the colon, enter a **Prefix** of **`: `** (a colon followed by a space).
@@ -311,9 +311,7 @@ Now you can customize how the data is displayed.
     * `%V` = Value (the data you selected)
     * `%S` = Suffix
 
-    For our example, the default format is perfect. It will result in the static part showing "**TEMP**" and the scrolling part showing "**: 18.3°C**".
-
-
+    For our example, the default format is perfect. The live preview will now show "**TEMP**" in the static part and "**: 18.3°C**" in the scrolling part.
 
 #### **Step 6: Engage Time Circuits!**
 
