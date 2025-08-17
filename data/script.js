@@ -685,16 +685,20 @@ function updateDataPointsUI(numPoints) {
 function getDisplayValue(path, placeholder, index) {
     if (!path) return placeholder;
 
-    if (analyzedDataCache[index] !== undefined) {
+    if (analyzedDataCache[index]) {
         const resolvedValue = getValueFromPath(analyzedDataCache[index], path);
         if (resolvedValue !== null && resolvedValue !== undefined) {
             return resolvedValue;
         }
     }
     
-    // If the path didn't resolve or no API data exists, return the path itself.
-    // This allows for static text to be used.
-    return path;
+    // If the path didn't resolve or no API data exists, check if it's a JSON-like path.
+    // If not, treat it as static text. Otherwise, return the placeholder.
+    if (path.includes('.') || path.includes('[')) {
+        return placeholder;
+    } else {
+        return path;
+    }
 }
 
 
