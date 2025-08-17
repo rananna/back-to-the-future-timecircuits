@@ -8,6 +8,8 @@ let apiExamples = {}; // This will be populated on load
 
 let dataPointStateCache = {};
 let lastFocusedApiExample = {};
+let activeWizardTarget = null;
+let dataPointStatus = {};
 
 let ws;
 
@@ -24,20 +26,29 @@ function initWebSocket() {
         const msg = JSON.parse(event.data);
 
         if (msg.action === 'apiResult') {
-            const button = document.querySelector('.analyze-api-btn.analyzing');
+            const button = document.querySelector('.analyze-api-btn.analyzing, .dp-test-btn.analyzing');
             if (button) {
                  button.disabled = false;
                  button.classList.remove('analyzing');
+                 button.textContent = button.classList.contains('dp-test-btn') ? 'Test' : 'Analyze API';
                  const index = button.dataset.index;
-                 const resultsContainer = document.getElementById(`wizard_results_${index}`);
+                 updateDataPointStatus(index, msg.status === 'success');
+
                  if (msg.status === 'success') {
-                    console.log("CLIENT_DEBUG: Server reported success. API response data:", msg.payload);
                     analyzedDataCache[index] = msg.payload;
-                    displayApiWizardResults(index, msg.payload);
+                    if (button.classList.contains('analyze-api-btn')) {
+                        const resultsContainer = document.getElementById(`wizard_results_${index}`);
+                        displayApiWizardResults(index, msg.payload);
+                    } else {
+                        showMessage(`Data Point ${parseInt(index) + 1} test successful.`, 'success');
+                    }
+                    updateMarqueePreview(index);
                  } else {
-                    console.error("CLIENT_DEBUG: Server reported an API error:", msg.payload);
-                    showMessage(`API Error: ${msg.payload}`, 'error');
-                    resultsContainer.innerHTML = `<span class="error-text">${msg.payload}</span>`;
+                    const errorMsg = `API Error: ${msg.payload}`;
+                    showMessage(errorMsg, 'error');
+                    if (button.classList.contains('analyze-api-btn')) {
+                        document.getElementById(`wizard_results_${index}`).innerHTML = `<span class="error-text">${errorMsg}</span>`;
+                    }
                  }
             }
         }
@@ -83,8 +94,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function initializeUI() {
     try {
-        initWebSocket();
-
         const initialEndpoints = [
             '/api/settings/timecircuits', '/api/settings/temporal',
             '/api/settings/datalink', '/api/timezones',
@@ -104,6 +113,9 @@ async function initializeUI() {
         populatePresetsSelect(presets);
         applySettings(timecircuits, temporal, datalink);
         document.querySelector('.header-circuits').classList.add('visible');
+        
+        initWebSocket();
+
         fetchTime();
         setInterval(fetchTime, 1000);
         attachEventListeners();
@@ -178,7 +190,7 @@ function updateLastDepartedDisplay(year, month, day, hour, minute) {
     const dayStr = String(day).padStart(2, '0');
     const hourStr = String(displayHour).padStart(2, '0');
     const minuteStr = String(minute).padStart(2, '0');
-    document.getElementById('lastTimeDepartedDisplay').textContent = `${monthStr}/${dayStr}/${year} ${hourStr}:${minuteStr}${ampm}`;
+    document.getElementById('lastTimeDepartedDisplay').textContent = `${monthStr}/${dayStr}/${year} ${hourStr}:${minuteStr} ${ampm}`.trim();
     document.getElementById('lastTimeDepartedYear').textContent = year;
     document.getElementById('lastTimeDepartedMonth').textContent = month;
     document.getElementById('lastTimeDepartedDay').textContent = day;
@@ -191,7 +203,6 @@ function applySettings(timecircuits, temporal, datalink) {
         document.getElementById('destinationYear').value = timecircuits.destinationYear;
         document.getElementById('destinationTimezoneSelect').value = timecircuits.destinationTimezoneIndex;
         document.getElementById('presentTimezoneSelect').value = timecircuits.presentTimezoneIndex;
-        updateLastDepartedDisplay(timecircuits.lastTimeDepartedYear, timecircuits.lastTimeDepartedMonth, timecircuits.lastTimeDepartedDay, timecircuits.lastTimeDepartedHour, timecircuits.lastTimeDepartedMinute);
     }
     if (temporal) {
         document.getElementById('departureTime').value = `${String(temporal.departureHour).padStart(2, '0')}:${String(temporal.departureMinute).padStart(2, '0')}`;
@@ -209,6 +220,11 @@ function applySettings(timecircuits, temporal, datalink) {
         });
         document.getElementById('animationStyleSelect').value = temporal.animationStyle;
     }
+
+    if (timecircuits) {
+        updateLastDepartedDisplay(timecircuits.lastTimeDepartedYear, timecircuits.lastTimeDepartedMonth, timecircuits.lastTimeDepartedDay, timecircuits.lastTimeDepartedHour, timecircuits.lastTimeDepartedMinute);
+    }
+    
     if (datalink) {
         applyDataLinkSettings(datalink);
         isDataLinkLoaded = true;
@@ -277,11 +293,24 @@ function attachEventListeners() {
     });
     document.getElementById('destinationYear').oninput = () => updateHeaderClocks(new Date());
 
-    // UPDATED PRESET LOGIC
     document.getElementById('presetDateSelect').onchange = handlePresetSelectionChange;
     document.getElementById('savePresetBtn').onclick = handleSavePreset;
     document.getElementById('deletePresetBtn').onclick = deletePreset;
     document.getElementById('newPresetBtn').onclick = resetPresetForm;
+
+    document.getElementById('displayFormat24h').addEventListener('change', () => {
+        const year = document.getElementById('lastTimeDepartedYear').textContent;
+        const month = document.getElementById('lastTimeDepartedMonth').textContent;
+        const day = document.getElementById('lastTimeDepartedDay').textContent;
+        const hour = document.getElementById('lastTimeDepartedHour').textContent;
+        const minute = document.getElementById('lastTimeDepartedMinute').textContent;
+
+        if (year && month && day && hour && minute) {
+            updateLastDepartedDisplay(year, month, day, hour, minute);
+        }
+        
+        fetchTime(); 
+    });
 
 
     document.getElementById('dataLinkEnabled').onchange = (e) => {
@@ -324,33 +353,28 @@ function attachEventListeners() {
     document.getElementById('arrivalTime').onchange = updateSleepVisual;
 }
 
-// NEW: Handles switching between "add" and "edit" modes
 function handlePresetSelectionChange(event) {
-    applySelectedPreset(event); // This still sets the "Last Departed" display
+    applySelectedPreset(event);
 
     const select = event.target;
     const selectedOption = select.options[select.selectedIndex];
     const isCustomPreset = selectedOption.parentElement.label === 'Custom Time Jumps';
 
     if (isCustomPreset) {
-        // --- Enter Edit Mode ---
         document.getElementById('presetFormTitle').textContent = 'Edit Selected Preset';
         document.getElementById('savePresetBtn').textContent = 'Update Preset';
         document.getElementById('deletePresetBtn').classList.remove('hidden');
         document.getElementById('newPresetBtn').classList.remove('hidden');
 
-        // Populate form with selected preset's data
         document.getElementById('presetName').value = selectedOption.textContent;
         const [year, month, day, hour, minute] = selectedOption.value.split('-');
         document.getElementById('presetDate').value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         document.getElementById('presetTime').value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
     } else {
-        // --- Enter Add Mode (or no selection) ---
-        resetPresetForm(false); // Reset form but don't change dropdown
+        resetPresetForm(false);
     }
 }
 
-// NEW: A single function to either add or update
 function handleSavePreset() {
     const select = document.getElementById('presetDateSelect');
     const selectedOption = select.options[select.selectedIndex];
@@ -363,7 +387,6 @@ function handleSavePreset() {
     }
 }
 
-// NEW: Resets the form to its default "add" state
 function resetPresetForm(resetDropdown = true) {
     document.getElementById('presetFormTitle').textContent = 'Add a New Custom Time Jump';
     document.getElementById('savePresetBtn').textContent = 'Add to Presets';
@@ -408,12 +431,10 @@ function updatePreset() {
     const [year, month, day] = date.split('-');
     const [hour, minute] = time.split(':');
     const value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${String(hour).padStart(2, '0')}-${String(minute).padStart(2, '0')}`;
-
-    // We send both original name (to find it) and the new name/value to update
+    
     fetch('/api/updatePreset', { method: 'POST', body: new URLSearchParams({ name: originalName, newName: newName, value: value }) })
         .then(res => res.text()).then(text => {
             showMessage(text, 'success');
-            // Important: Fetch presets before resetting the form
             fetch('/api/getPresets').then(res => res.json()).then(data => {
                 populatePresetsSelect(data);
                 resetPresetForm();
@@ -533,7 +554,17 @@ function updateDataPointsUI(numPoints) {
                 const block = document.createElement('div');
                 block.className = 'setting-group data-point-block';
                 block.innerHTML = `
-                    <h4>Data Point ${i + 1}</h4>
+                    <div class="dp-header">
+                        <div class="dp-title-group">
+                            <span class="dp-status-indicator" id="dp_status_${i}"></span>
+                            <h4>Data Point ${i + 1}</h4>
+                        </div>
+                        <div class="dp-action-bar">
+                            <button class="action-button dp-clear-btn" data-index="${i}">Clear</button>
+                            <button class="action-button dp-dup-btn" data-index="${i}">Duplicate</button>
+                            <button class="action-button dp-test-btn" data-index="${i}">Test</button>
+                        </div>
+                    </div>
                     <label for="dp_dataSourceType_${i}">Data Source:</label>
                     <select id="dp_dataSourceType_${i}" class="data-source-select" data-index="${i}">
                         <option value="api">Web API (HTTP)</option>
@@ -576,12 +607,12 @@ function updateDataPointsUI(numPoints) {
 
                     <div class="display-mode-container" id="four_column_container_${i}">
                         <div class="time-circuit-row">
-                            <label for="dp_monthPath_${i}" class="time-circuit-label">MONTH (3 char)</label>
-                            <input type="text" id="dp_monthPath_${i}" class="time-circuit-input" maxlength="3">
+                            <label for="dp_monthPath_${i}" class="time-circuit-label">MONTH</label>
+                            <input type="text" id="dp_monthPath_${i}" class="time-circuit-input wizard-target-input" maxlength="3">
                         </div>
                         <div class="time-circuit-row">
-                            <label for="dp_dayPath_${i}" class="time-circuit-label">DAY (2 char)</label>
-                            <input type="text" id="dp_dayPath_${i}" class="time-circuit-input" maxlength="2">
+                            <label for="dp_dayPath_${i}" class="time-circuit-label">DAY</label>
+                            <input type="text" id="dp_dayPath_${i}" class="time-circuit-input wizard-target-input" maxlength="2">
                             <select id="dp_icon_${i}" style="width: 100px; margin-left: 10px;">
                                 <option value="">Icon</option><option value="SUN">Sun</option><option value="CLOUD">Cloud</option><option value="RAIN">Rain</option><option value="SNOW">Snow</option><option value="STORM">Storm</option><option value="WIND">Wind</option><option value="UP">Up</option><option value="DOWN">Down</option><option value="EQUAL">Equal</option><option value="WIFI">WiFi</option><option value="HOME">Home</option><option value="WORK">Work</option><option value="CAR">Car</option><option value="BIKE">Bike</option><option value="RUN">Run</option><option value="HEART">Heart</option><option value="MONEY">Money</option><option value="CLOCK">Clock</option><option value="CAL">Calendar</option>
                             </select>
@@ -589,7 +620,7 @@ function updateDataPointsUI(numPoints) {
                         <div class="time-format-group">
                             <div class="time-circuit-row">
                                 <label for="dp_yearPath_${i}" class="time-circuit-label">YEAR</label>
-                                <input type="text" id="dp_yearPath_${i}" class="time-circuit-input">
+                                <input type="text" id="dp_yearPath_${i}" class="time-circuit-input wizard-target-input">
                             </div>
                             <div class="time-circuit-row">
                                 <label for="dp_yearPrefix_${i}" class="time-circuit-label">[PREFIX]</label>
@@ -603,7 +634,7 @@ function updateDataPointsUI(numPoints) {
                         <div class="time-format-group">
                             <div class="time-circuit-row">
                                 <label for="dp_timePath_${i}" class="time-circuit-label">TIME</label>
-                                <input type="text" id="dp_timePath_${i}" class="time-circuit-input">
+                                <input type="text" id="dp_timePath_${i}" class="time-circuit-input wizard-target-input">
                             </div>
                             <div class="time-circuit-row">
                                 <label for="dp_prefix_${i}" class="time-circuit-label">[PREFIX]</label>
@@ -627,7 +658,7 @@ function updateDataPointsUI(numPoints) {
 
                     <div class="display-mode-container" id="scrolling_text_container_${i}" style="display: none;">
                         <label for="dp_scrollingText_${i}" style="margin-top: 15px;">Scrolling Text:</label>
-                        <input type="text" id="dp_scrollingText_${i}" placeholder="Enter text to scroll...">
+                        <input type="text" id="dp_scrollingText_${i}" class="wizard-target-input" placeholder="Enter text or map a value...">
                         <div class="marquee-preview-container">
                             <label>Live Preview (13 Chars):</label>
                             <div class="marquee-preview-13" id="marquee_preview_13_${i}">
@@ -654,19 +685,28 @@ function updateDataPointsUI(numPoints) {
 function updateMarqueePreview(index) {
     const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
 
-    if (displayMode === '0') {
-        const month = document.getElementById(`dp_monthPath_${index}`).value || "MON";
-        const day = document.getElementById(`dp_dayPath_${index}`).value || "DAY";
-        const yearValue = document.getElementById(`dp_yearPath_${index}`).value || "YEAR";
+    if (displayMode === '0') { // Four Column Data
+        const monthPath = document.getElementById(`dp_monthPath_${index}`).value;
+        const dayPath = document.getElementById(`dp_dayPath_${index}`).value;
+        const yearPath = document.getElementById(`dp_yearPath_${index}`).value;
+        const timePath = document.getElementById(`dp_timePath_${index}`).value;
+
+        const monthValue = getValueFromPath(analyzedDataCache[index], monthPath) || monthPath;
+        const dayValue = getValueFromPath(analyzedDataCache[index], dayPath) || dayPath;
+        
         const yearPrefix = document.getElementById(`dp_yearPrefix_${index}`).value;
         const yearSuffix = document.getElementById(`dp_yearSuffix_${index}`).value;
-        const timeValue = document.getElementById(`dp_timePath_${index}`).value || "TIME";
+        const yearData = getValueFromPath(analyzedDataCache[index], yearPath) || yearPath;
+        const yearFinalValue = `${yearPrefix}${yearData}${yearSuffix}`;
+
         const prefix = document.getElementById(`dp_prefix_${index}`).value;
         const suffix = document.getElementById(`dp_suffix_${index}`).value;
+        const timeData = getValueFromPath(analyzedDataCache[index], timePath) || timePath;
+        const timeFinalValue = `${prefix}${timeData}${suffix}`;
 
-        document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = month.substring(0, 3).toUpperCase();
-        document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 2).toUpperCase();
-
+        document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = monthValue.substring(0, 3).toUpperCase();
+        document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = dayValue.substring(0, 2).toUpperCase();
+        
         const setupScrolling = (text, valueSpan) => {
             valueSpan.textContent = text;
             valueSpan.classList.remove('scrolling-text');
@@ -678,18 +718,15 @@ function updateMarqueePreview(index) {
             }
         };
 
-        const yearText = `${yearPrefix}${yearValue}${yearSuffix}`;
-        const yearSpan = document.querySelector(`#marquee_preview_${index} .preview-year`);
-        setupScrolling(yearText, yearSpan);
-        const timeText = `${prefix}${timeValue}${suffix}`;
-        const timeSpan = document.querySelector(`#marquee_preview_${index} .preview-time`);
-        setupScrolling(timeText, timeSpan);
-    } else {
-        const text = document.getElementById(`dp_scrollingText_${index}`).value || "PREVIEW";
+        setupScrolling(yearFinalValue, document.querySelector(`#marquee_preview_${index} .preview-year`));
+        setupScrolling(timeFinalValue, document.querySelector(`#marquee_preview_${index} .preview-time`));
+    } else { // Scrolling Text
+        const scrollingPath = document.getElementById(`dp_scrollingText_${index}`).value;
+        const text = getValueFromPath(analyzedDataCache[index], scrollingPath) || scrollingPath;
         const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
         previewSpan.textContent = text;
         previewSpan.classList.remove('scrolling-text');
-
+        
         if (text.length > 13) {
             const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
             const duration = (text.length) * (scrollSpeed / 100);
@@ -721,33 +758,27 @@ function populateApiExampleDropdowns() {
 
 
 function attachDataPointEventListeners() {
-    document.querySelectorAll('.data-source-select').forEach(select => {
+    document.querySelectorAll('.data-source-select, .display-mode-select, .http-method-select').forEach(select => {
         select.onchange = (e) => {
             const index = e.target.dataset.index;
-            document.getElementById(`dp_api_container_${index}`).style.display = e.target.value === 'api' ? 'block' : 'none';
-            document.getElementById(`dp_mqtt_container_${index}`).style.display = e.target.value === 'mqtt' ? 'block' : 'none';
-        };
-    });
+            const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
+            const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
+            const httpMethod = document.getElementById(`dp_httpMethod_${index}`).value;
 
-    document.querySelectorAll('.display-mode-select').forEach(select => {
-        select.onchange = (e) => {
-            const index = e.target.dataset.index;
-            const isScrolling = e.target.value === '1';
-            document.getElementById(`four_column_container_${index}`).style.display = isScrolling ? 'none' : 'block';
-            document.getElementById(`scrolling_text_container_${index}`).style.display = isScrolling ? 'block' : 'none';
+            document.getElementById(`dp_api_container_${index}`).style.display = dataSource === 'api' ? 'block' : 'none';
+            document.getElementById(`dp_mqtt_container_${index}`).style.display = dataSource === 'mqtt' ? 'block' : 'none';
+            document.getElementById(`four_column_container_${index}`).style.display = displayMode === '0' ? 'block' : 'none';
+            document.getElementById(`scrolling_text_container_${index}`).style.display = displayMode === '1' ? 'block' : 'none';
+            document.getElementById(`dp_post_body_container_${index}`).style.display = httpMethod === '1' ? 'block' : 'none';
+            
             updateMarqueePreview(index);
         };
     });
 
-    document.querySelectorAll('.http-method-select').forEach(select => {
-        select.onchange = (e) => {
-            const index = e.target.dataset.index;
-            const isPost = e.target.value === '1';
-            document.getElementById(`dp_post_body_container_${index}`).style.display = isPost ? 'block' : 'none';
-        };
-    });
-
     document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
+    document.querySelectorAll('.dp-clear-btn').forEach(btn => btn.onclick = clearDataPointFields);
+    document.querySelectorAll('.dp-dup-btn').forEach(btn => btn.onclick = duplicateDataPoint);
+    document.querySelectorAll('.dp-test-btn').forEach(btn => btn.onclick = testDataPoint);
 
     document.querySelectorAll('.api-example-select').forEach(select => {
         select.addEventListener('focus', (e) => {
@@ -776,20 +807,24 @@ function attachDataPointEventListeners() {
 
     document.querySelectorAll('.data-point-block input, .data-point-block select, .data-point-block textarea').forEach(input => {
         input.addEventListener('input', (e) => {
+            const indexMatch = e.target.id.match(/_(\d+)$/);
+            if (!indexMatch) return;
+            const index = indexMatch[1];
+
             if (e.target.id.includes('requestBody')) {
                 validateJson(e.target);
             }
-            let target = e.target;
-            while(target && !target.classList.contains('data-point-block')) {
-                target = target.parentElement;
+            updateMarqueePreview(index);
+        });
+    });
+
+    document.querySelectorAll('.wizard-target-input').forEach(input => {
+        input.addEventListener('click', (e) => {
+            if (activeWizardTarget) {
+                activeWizardTarget.classList.remove('is-wizard-target');
             }
-            if (target) {
-                const h4 = target.querySelector('h4');
-                if(h4) {
-                    const index = parseInt(h4.textContent.replace('Data Point ', ''), 10) - 1;
-                    updateMarqueePreview(index);
-                }
-            }
+            activeWizardTarget = e.target;
+            activeWizardTarget.classList.add('is-wizard-target');
         });
     });
 }
@@ -846,22 +881,29 @@ function startApiWizard(event) {
     ws.send(JSON.stringify(message));
 }
 
-// *** THIS IS THE NEW, BULLETPROOF FUNCTION ***
 function displayApiWizardResults(index, jsonData) {
     const container = document.getElementById(`wizard_results_${index}`);
-    container.innerHTML = '<strong>Click a button to map its value to a display field:</strong>';
+    const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
+    
+    let instructions = '';
+    if (displayMode === '0') {
+        instructions = 'Click a form field (Month, Day, etc.), then click a value below to map it.';
+    } else {
+        instructions = 'Click the "Scrolling Text" field, then click a value below to map it.';
+    }
+    container.innerHTML = `<strong>${instructions}</strong>`;
+
     const mainList = document.createElement('ul');
     mainList.className = 'wizard-list';
 
     const buildListRecursive = (data, parentPath = '') => {
         const elements = [];
 
-        // Handle arrays
         if (Array.isArray(data)) {
             data.forEach((item, i) => {
                 const currentPath = `${parentPath}[${i}]`;
                 const li = document.createElement('li');
-
+                
                 if (typeof item === 'object' && item !== null) {
                     li.innerHTML = `<span class="wizard-key">[${i}]:</span>`;
                     const subList = document.createElement('ul');
@@ -869,18 +911,10 @@ function displayApiWizardResults(index, jsonData) {
                     childElements.forEach(el => subList.appendChild(el));
                     li.appendChild(subList);
                 } else {
-                     li.innerHTML = `<span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(item)}"</span>
-                        <div class="wizard-buttons">
-                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="month">M</button>
-                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="day">D</button>
-                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="year">Y</button>
-                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="time">T</button>
-                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="scrollingText">Scroll</button>
-                        </div>`;
+                     li.innerHTML = `<span class="wizard-clickable-item" data-path="${currentPath}"><span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(item)}"</span></span>`;
                 }
                 elements.push(li);
             });
-        // Handle objects
         } else if (typeof data === 'object' && data !== null) {
             for (const key in data) {
                 const currentPath = parentPath ? `${parentPath}.${key}` : key;
@@ -894,14 +928,7 @@ function displayApiWizardResults(index, jsonData) {
                     childElements.forEach(el => subList.appendChild(el));
                     li.appendChild(subList);
                 } else {
-                    li.innerHTML = `<span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(value)}"</span>
-                        <div class="wizard-buttons">
-                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="month">M</button>
-                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="day">D</button>
-                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="year">Y</button>
-                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="time">T</button>
-                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="scrollingText">Scroll</button>
-                        </div>`;
+                    li.innerHTML = `<span class="wizard-clickable-item" data-path="${currentPath}"><span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(value)}"</span></span>`;
                 }
                 elements.push(li);
             }
@@ -913,17 +940,20 @@ function displayApiWizardResults(index, jsonData) {
     allElements.forEach(el => mainList.appendChild(el));
     container.appendChild(mainList);
 
-    container.querySelectorAll('.wizard-map-btn').forEach(btn => btn.onclick = (e) => {
-        const { path, index, target } = e.target.dataset;
-        const elementId = (target === 'scrollingText') ? `dp_scrollingText_${index}` : `dp_${target}Path_${index}`;
-        const targetElement = document.getElementById(elementId);
+    container.querySelectorAll('.wizard-clickable-item').forEach(item => {
+        item.onclick = (e) => {
+            if (activeWizardTarget) {
+                const path = e.currentTarget.dataset.path;
+                activeWizardTarget.value = path;
+                activeWizardTarget.dispatchEvent(new Event('input')); 
+                showMessage(`Mapped "${path}" to the selected field.`, 'success', 2000);
 
-        if(targetElement){
-            targetElement.value = path;
-            targetElement.dispatchEvent(new Event('input'));
-        }
-
-        showMessage(`Mapped "${path}" to ${target.toUpperCase()}`, 'success', 2000);
+                activeWizardTarget.classList.remove('is-wizard-target');
+                activeWizardTarget = null;
+            } else {
+                showMessage('Click a form field first to select it as the target.', 'error');
+            }
+        };
     });
 }
 
@@ -1039,4 +1069,105 @@ function showMessage(message, type = 'info', duration = 4000) {
         banner.style.opacity = '0';
         setTimeout(() => banner.style.visibility = 'hidden', 500);
     }, duration);
+}
+
+function getValueFromPath(obj, path) {
+    if (!path || !obj) return '';
+    try {
+        return path.split(/[.\[\]]+/).filter(Boolean).reduce((o, k) => (o || {})[k], obj) || '';
+    } catch (e) {
+        return '';
+    }
+}
+
+function updateDataPointStatus(index, isSuccess) {
+    const indicator = document.getElementById(`dp_status_${index}`);
+    if (indicator) {
+        indicator.className = 'dp-status-indicator'; // Reset
+        indicator.classList.add(isSuccess ? 'success' : 'error');
+    }
+    dataPointStatus[index] = isSuccess;
+}
+
+function clearDataPointFields(event) {
+    const index = event.target.dataset.index;
+    const fields = ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'requestBody'];
+    fields.forEach(field => {
+        const el = document.getElementById(`dp_${field}_${index}`);
+        if (el) el.value = '';
+    });
+    
+    document.getElementById(`wizard_results_${index}`).innerHTML = '';
+    delete analyzedDataCache[index];
+    updateMarqueePreview(index);
+    showMessage(`Data Point ${parseInt(index) + 1} fields cleared.`, 'info');
+    setSettingsChanged(true);
+}
+
+function duplicateDataPoint(event) {
+    const sourceIndex = parseInt(event.target.dataset.index, 10);
+    const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
+    
+    if (numDataPoints >= 5) {
+        showMessage('Cannot duplicate, maximum number of data points reached.', 'error');
+        return;
+    }
+
+    const targetIndex = numDataPoints;
+    
+    document.getElementById('numDataPoints').value = targetIndex + 1;
+    document.getElementById('numDataPointsValue').textContent = targetIndex + 1;
+    updateDataPointsUI(targetIndex + 1).then(() => {
+        const fields = ['dataSourceType', 'displayMode', 'url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'httpMethod', 'requestBody', 'api_example'];
+        fields.forEach(field => {
+            const sourceEl = document.getElementById(`dp_${field}_${sourceIndex}`);
+            const targetEl = document.getElementById(`dp_${field}_${targetIndex}`);
+            if (sourceEl && targetEl) {
+                targetEl.value = sourceEl.value;
+                targetEl.dispatchEvent(new Event('change'));
+            }
+        });
+        showMessage(`Data Point ${sourceIndex + 1} duplicated to Data Point ${targetIndex + 1}.`, 'success');
+        setSettingsChanged(true);
+    });
+}
+
+
+function testDataPoint(event) {
+    const index = event.target.dataset.index;
+    const button = event.target;
+    
+    const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
+    if (dataSource !== 'api') {
+        showMessage('Test is only available for API data points.', 'error');
+        return;
+    }
+
+    const apiUrl = document.getElementById(`dp_url_${index}`).value;
+    const authKey = document.getElementById(`dp_authHeaderKey_${index}`).value;
+    const authValue = document.getElementById(`dp_authHeaderValue_${index}`).value;
+
+    if (!apiUrl) {
+        showMessage('Please enter an API URL first.', 'error');
+        return;
+    }
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showMessage('Data Link channel is not open. Please wait.', 'error');
+        return;
+    }
+
+    button.disabled = true;
+    button.classList.add('analyzing');
+    button.innerHTML = '<span class="loading-spinner"></span>';
+
+    const message = {
+        action: "testApi",
+        data: {
+            url: apiUrl,
+            authKey: authKey,
+            authValue: authValue
+        }
+    };
+    ws.send(JSON.stringify(message));
 }

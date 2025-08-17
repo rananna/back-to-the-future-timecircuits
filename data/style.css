@@ -883,7 +883,7 @@ body.time-travel-active {
 }
 .data-point-block h4 {
     margin-top: 0;
-    margin-bottom: 20px;
+    margin-bottom: 0;
     text-align: center;
     color: var(--highlight-text-color);
 }
@@ -934,19 +934,24 @@ body.time-travel-active {
 .wizard-value {
     color: var(--highlight-text-color);
 }
+
 .wizard-clickable-item {
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    color: inherit;
-    padding: 5px;
-    margin: 0;
-    border-radius: 3px;
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
 }
+
 .wizard-clickable-item:hover {
     background-color: var(--button-hover-bg);
 }
+
+.wizard-target-input.is-wizard-target {
+    border-color: var(--slider-thumb-color);
+    box-shadow: 0 0 8px var(--slider-thumb-shadow);
+}
+
+
 .wizard-selection {
     font-size: 0.9em;
     padding: 10px;
@@ -1010,7 +1015,6 @@ body.time-travel-active {
     animation-iteration-count: infinite;
 }
 
-/* NEW scrolling preview */
 .marquee-preview-13 {
     background-color: #000;
     border: 2px solid #555;
@@ -1018,7 +1022,7 @@ body.time-travel-active {
     padding: 10px;
     margin-top: 10px;
     font-family: 'Share Tech Mono', monospace;
-    color: #00ff00; /* Green for this preview */
+    color: #00ff00;
     font-size: 1.2em;
     overflow: hidden;
     white-space: nowrap;
@@ -1143,23 +1147,19 @@ body.time-travel-active {
     }
 }
 
-/* NEW RULES FOR 13-DIGIT LAYOUT */
-
-/* Add a dot after the hour to simulate the decimal point */
 .circuit-time .hour {
     position: relative;
-    padding-right: 5px; /* Make space for the dot */
+    padding-right: 5px;
 }
 
 .circuit-time .hour::after {
     content: '.';
     position: absolute;
     right: -2px;
-    bottom: -4px; /* Adjust vertical position */
-    font-size: 1.5em; /* Make the dot bigger */
+    bottom: -4px;
+    font-size: 1.5em;
 }
 
-/* Adjust spacing to better reflect the 3-2-4-4 hardware layout */
 .circuit-content {
     gap: 12px;
 }
@@ -1169,10 +1169,9 @@ body.time-travel-active {
 }
 
 .circuit-time {
-    gap: 0; /* Remove gap between hour and minute */
+    gap: 0;
 }
 
-/* Give month and day spans a more representative width */
 .circuit-display .month {
     min-width: 3ch;
     text-align: right;
@@ -1186,4 +1185,44 @@ body.time-travel-active {
 .circuit-display .year {
     min-width: 4ch;
     text-align: center;
+}
+
+.dp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.dp-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dp-status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: grey;
+}
+
+.dp-status-indicator.success {
+    background-color: #00ff00;
+}
+
+.dp-status-indicator.error {
+    background-color: #ff0000;
+}
+
+.dp-action-bar {
+    display: flex;
+    gap: 8px;
+}
+
+.dp-action-bar .action-button {
+    padding: 5px 10px;
+    font-size: 0.85em;
+    width: auto;
+    margin-top: 0;
 }
