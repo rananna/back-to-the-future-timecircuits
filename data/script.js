@@ -687,13 +687,20 @@ function updateMarqueePreview(index) {
 
     const getDisplayValue = (path, placeholder) => {
         const isAnalyzed = analyzedDataCache[index] !== undefined;
+        let value = null;
+
         if (isAnalyzed) {
-            const value = getValueFromPath(analyzedDataCache[index], path);
-            if (value !== null && value !== undefined) return value;
+            value = getValueFromPath(analyzedDataCache[index], path);
         }
-        if (path && !path.includes('.') && !path.includes('[')) {
+        
+        if (value !== null && value !== undefined) {
+            return value;
+        }
+        
+        if (path && (!path.includes('.') && !path.includes('['))) {
             return path;
         }
+
         return placeholder;
     };
 
