@@ -14,6 +14,7 @@
 #include <PubSubClient.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <freertos/semphr.h>
 
 #include "HardwareControl.h"
 #include "web_server.h"
@@ -111,10 +112,13 @@ enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT
 MalfunctionPhase currentMalfunctionPhase = MAL_INACTIVE;
 volatile int requestsCompleted = 0;
 
+// Mutex for protecting shared display data
+SemaphoreHandle_t xDisplayDataMutex;
+
 // Struct to pass parameters to the data fetching task
 struct FetchDataParams {
     int pointIndex;
-    int totalRequests;
+int totalRequests;
 };
 
 void fetchDataTask(void* p);
@@ -135,20 +139,20 @@ void setupMqtt();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
-    strncpy(path_copy, path, sizeof(path_copy) - 1);
+strncpy(path_copy, path, sizeof(path_copy) - 1);
     path_copy[sizeof(path_copy) - 1] = '\0';
     JsonVariant current = root;
     char* context = NULL;
-    char* token = strtok_r(path_copy, ".[]", &context);
+char* token = strtok_r(path_copy, ".[]", &context);
     while (token != NULL) {
         if (current.isNull()) return JsonVariant();
-        if (current.is<JsonObject>()) {
+if (current.is<JsonObject>()) {
             current = current[token];
-        } else if (current.is<JsonArray>()) {
+} else if (current.is<JsonArray>()) {
             current = current[atoi(token)];
-        } else {
+} else {
             return JsonVariant();
-        }
+}
         token = strtok_r(NULL, ".[]", &context);
     }
     return current;
@@ -163,7 +167,7 @@ void saveSettings() {
   preferences.putInt("arrHour", currentSettings.arrivalHour);
   preferences.putInt("arrMinute", currentSettings.arrivalMinute);
   preferences.putInt("lastYear", currentSettings.lastTimeDepartedYear);
-  preferences.putInt("lastMonth", currentSettings.lastTimeDepartedMonth);
+preferences.putInt("lastMonth", currentSettings.lastTimeDepartedMonth);
   preferences.putInt("lastDay", currentSettings.lastTimeDepartedDay);
   preferences.putInt("lastHour", currentSettings.lastTimeDepartedHour);
   preferences.putInt("lastMinute", currentSettings.lastTimeDepartedMinute);
@@ -173,7 +177,7 @@ void saveSettings() {
   preferences.putInt("presTzIndex", currentSettings.presentTimezoneIndex);
   preferences.putInt("presetCycle", currentSettings.presetCycleInterval);
   preferences.putBool("format24h", currentSettings.displayFormat24h);
-  preferences.putInt("theme", currentSettings.theme);
+preferences.putInt("theme", currentSettings.theme);
   preferences.putInt("animInterval", currentSettings.timeTravelAnimationInterval);
   preferences.putInt("animDuration", currentSettings.timeTravelAnimationDuration);
   preferences.putInt("animStyle", currentSettings.animationStyle);
@@ -183,34 +187,34 @@ void saveSettings() {
   preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
   preferences.putInt("dlTargetRow", currentSettings.dataLinkTargetRow);
   preferences.putInt("dlRefresh", currentSettings.dataLinkRefreshInterval);
-  preferences.putInt("numDataPoints", currentSettings.numDataPoints);
+preferences.putInt("numDataPoints", currentSettings.numDataPoints);
   preferences.putString("mqttBroker", currentSettings.mqttBroker);
   preferences.putInt("mqttPort", currentSettings.mqttPort);
   preferences.putString("mqttUser", currentSettings.mqttUser);
   preferences.putString("mqttPass", currentSettings.mqttPassword);
-  for (int i = 0; i < 5; i++) {
+for (int i = 0; i < 5; i++) {
     String prefix = "dp" + String(i) + "_";
-    preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url);
+preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url);
     preferences.putString((prefix + "monthPath").c_str(), currentSettings.dataPoints[i].monthPath);
     preferences.putString((prefix + "dayPath").c_str(), currentSettings.dataPoints[i].dayPath);
     preferences.putString((prefix + "yearPath").c_str(), currentSettings.dataPoints[i].yearPath);
     preferences.putString((prefix + "timePath").c_str(), currentSettings.dataPoints[i].timePath);
-    preferences.putString((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefix);
+preferences.putString((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefix);
     preferences.putString((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffix);
     preferences.putString((prefix + "icon").c_str(), currentSettings.dataPoints[i].icon);
     preferences.putInt((prefix + "scroll").c_str(), currentSettings.dataPoints[i].scrollSpeed);
     preferences.putInt((prefix + "srcType").c_str(), (int)currentSettings.dataPoints[i].dataSourceType);
-    preferences.putString((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
+preferences.putString((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
     preferences.putString((prefix + "yearPrefix").c_str(), currentSettings.dataPoints[i].yearPrefix);
     preferences.putString((prefix + "yearSuffix").c_str(), currentSettings.dataPoints[i].yearSuffix);
     preferences.putInt((prefix + "dispMode").c_str(), (int)currentSettings.dataPoints[i].displayMode);
     preferences.putString((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText);
-    preferences.putString((prefix + "authKey").c_str(), currentSettings.dataPoints[i].authHeaderKey);
+preferences.putString((prefix + "authKey").c_str(), currentSettings.dataPoints[i].authHeaderKey);
     preferences.putString((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue);
     preferences.putInt((prefix + "httpMethod").c_str(), (int)currentSettings.dataPoints[i].httpMethod);
     preferences.putString((prefix + "reqBody").c_str(), currentSettings.dataPoints[i].requestBody);
     preferences.putString((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey);
-  }
+}
   preferences.end();
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
@@ -220,123 +224,123 @@ void loadSettings() {
   preferences.begin(PREFERENCES_NAMESPACE, true);
   bool needsInit = !preferences.isKey("destYear");
   preferences.end();
-  if (needsInit) {
+if (needsInit) {
     ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
     currentSettings.destinationYear = 1955;
     currentSettings.destinationTimezoneIndex = 4;
-    currentSettings.departureHour = 22;
+currentSettings.departureHour = 22;
     currentSettings.departureMinute = 0;
     currentSettings.arrivalHour = 7;
     currentSettings.arrivalMinute = 0;
     currentSettings.lastTimeDepartedYear = 1985;
     currentSettings.lastTimeDepartedMonth = 10;
-    currentSettings.lastTimeDepartedDay = 26;
+currentSettings.lastTimeDepartedDay = 26;
     currentSettings.lastTimeDepartedHour = 1;
     currentSettings.lastTimeDepartedMinute = 21;
     currentSettings.brightness = 5;
     currentSettings.notificationVolume = 15;
     currentSettings.timeTravelSoundToggle = true;
-    currentSettings.presentTimezoneIndex = 1;
+currentSettings.presentTimezoneIndex = 1;
     currentSettings.presetCycleInterval = 10;
     currentSettings.displayFormat24h = false;
     currentSettings.theme = THEME_TIME_CIRCUITS;
     currentSettings.timeTravelAnimationInterval = 15;
     currentSettings.timeTravelAnimationDuration = 4000;
-    currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
+currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
     currentSettings.glitchEffectFrequency = 0;
     currentSettings.malfunctionFrequency = 25;
     currentSettings.timeTravelVolumeFade = true;
     currentSettings.dataLinkEnabled = false;
     currentSettings.dataLinkTargetRow = 2;
-    currentSettings.dataLinkRefreshInterval = 10;
+currentSettings.dataLinkRefreshInterval = 10;
     currentSettings.numDataPoints = 0;
     strcpy(currentSettings.mqttBroker, "broker.emqx.io");
     currentSettings.mqttPort = 1883;
     strcpy(currentSettings.mqttUser, "");
     strcpy(currentSettings.mqttPassword, "");
-    for (int i = 0; i < 5; i++) {
+for (int i = 0; i < 5; i++) {
         memset(&currentSettings.dataPoints[i], 0, sizeof(DataPoint));
-    }
+}
     saveSettings();
   } else {
     ESP_LOGI("SETTINGS", "Loading settings from NVS.");
     preferences.begin(PREFERENCES_NAMESPACE, true);
-    currentSettings.destinationYear = preferences.getInt("destYear");
+currentSettings.destinationYear = preferences.getInt("destYear");
     currentSettings.destinationTimezoneIndex = preferences.getInt("destTzIndex");
     currentSettings.departureHour = preferences.getInt("depHour");
     currentSettings.departureMinute = preferences.getInt("depMinute");
     currentSettings.arrivalHour = preferences.getInt("arrHour");
     currentSettings.arrivalMinute = preferences.getInt("arrMinute");
-    currentSettings.lastTimeDepartedYear = preferences.getInt("lastYear");
+currentSettings.lastTimeDepartedYear = preferences.getInt("lastYear");
     currentSettings.lastTimeDepartedMonth = preferences.getInt("lastMonth");
     currentSettings.lastTimeDepartedDay = preferences.getInt("lastDay");
     currentSettings.lastTimeDepartedHour = preferences.getInt("lastHour");
     currentSettings.lastTimeDepartedMinute = preferences.getInt("lastMinute");
     currentSettings.brightness = preferences.getUChar("brightness");
-    currentSettings.notificationVolume = preferences.getUChar("volume");
+currentSettings.notificationVolume = preferences.getUChar("volume");
     currentSettings.timeTravelSoundToggle = preferences.getBool("soundToggle");
     currentSettings.presentTimezoneIndex = preferences.getInt("presTzIndex");
     currentSettings.presetCycleInterval = preferences.getInt("presetCycle");
     currentSettings.displayFormat24h = preferences.getBool("format24h");
     currentSettings.theme = preferences.getInt("theme", THEME_TIME_CIRCUITS);
-    currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval");
+currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval");
     currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration");
     currentSettings.animationStyle = preferences.getInt("animStyle");
     currentSettings.glitchEffectFrequency = preferences.getInt("glitchFreq");
     currentSettings.malfunctionFrequency = preferences.getInt("malfuncFreq");
     currentSettings.timeTravelVolumeFade = preferences.getBool("volFade");
-    currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
+currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
     currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
     currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
     currentSettings.numDataPoints = preferences.getInt("numDataPoints");
     strncpy(currentSettings.mqttBroker, preferences.getString("mqttBroker", "").c_str(), sizeof(currentSettings.mqttBroker) - 1);
-    currentSettings.mqttPort = preferences.getInt("mqttPort");
+currentSettings.mqttPort = preferences.getInt("mqttPort");
     strncpy(currentSettings.mqttUser, preferences.getString("mqttUser", "").c_str(), sizeof(currentSettings.mqttUser) - 1);
     strncpy(currentSettings.mqttPassword, preferences.getString("mqttPass", "").c_str(), sizeof(currentSettings.mqttPassword) - 1);
-    for (int i = 0; i < 5; i++) {
+for (int i = 0; i < 5; i++) {
       String prefix = "dp" + String(i) + "_";
-      strncpy(currentSettings.dataPoints[i].url, preferences.getString((prefix + "url").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
+strncpy(currentSettings.dataPoints[i].url, preferences.getString((prefix + "url").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
       strncpy(currentSettings.dataPoints[i].monthPath, preferences.getString((prefix + "monthPath").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].monthPath) - 1);
-      strncpy(currentSettings.dataPoints[i].dayPath, preferences.getString((prefix + "dayPath").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].dayPath) - 1);
+strncpy(currentSettings.dataPoints[i].dayPath, preferences.getString((prefix + "dayPath").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].dayPath) - 1);
       strncpy(currentSettings.dataPoints[i].yearPath, preferences.getString((prefix + "yearPath").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].yearPath) - 1);
-      strncpy(currentSettings.dataPoints[i].timePath, preferences.getString((prefix + "timePath").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].timePath) - 1);
+strncpy(currentSettings.dataPoints[i].timePath, preferences.getString((prefix + "timePath").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].timePath) - 1);
       strncpy(currentSettings.dataPoints[i].prefix, preferences.getString((prefix + "prefix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].prefix) - 1);
-      strncpy(currentSettings.dataPoints[i].suffix, preferences.getString((prefix + "suffix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].suffix) - 1);
+strncpy(currentSettings.dataPoints[i].suffix, preferences.getString((prefix + "suffix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].suffix) - 1);
       strncpy(currentSettings.dataPoints[i].icon, preferences.getString((prefix + "icon").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
-      currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
+currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
       currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
       strncpy(currentSettings.dataPoints[i].mqttTopic, preferences.getString((prefix + "topic").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].mqttTopic) - 1);
-      strncpy(currentSettings.dataPoints[i].yearPrefix, preferences.getString((prefix + "yearPrefix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].yearPrefix) - 1);
+strncpy(currentSettings.dataPoints[i].yearPrefix, preferences.getString((prefix + "yearPrefix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].yearPrefix) - 1);
       strncpy(currentSettings.dataPoints[i].yearSuffix, preferences.getString((prefix + "yearSuffix").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].yearSuffix) - 1);
-      currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
+currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
       strncpy(currentSettings.dataPoints[i].scrollingText, preferences.getString((prefix + "scrollTxt").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].scrollingText) - 1);
-      strncpy(currentSettings.dataPoints[i].authHeaderKey, preferences.getString((prefix + "authKey").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].authHeaderKey) - 1);
+strncpy(currentSettings.dataPoints[i].authHeaderKey, preferences.getString((prefix + "authKey").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].authHeaderKey) - 1);
       strncpy(currentSettings.dataPoints[i].authHeaderValue, preferences.getString((prefix + "authVal").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].authHeaderValue) - 1);
-      currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
+currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
       strncpy(currentSettings.dataPoints[i].requestBody, preferences.getString((prefix + "reqBody").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].requestBody) - 1);
-      strncpy(currentSettings.dataPoints[i].apiExampleKey, preferences.getString((prefix + "apiKey").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].apiExampleKey) - 1);
+strncpy(currentSettings.dataPoints[i].apiExampleKey, preferences.getString((prefix + "apiKey").c_str(), "").c_str(), sizeof(currentSettings.dataPoints[i].apiExampleKey) - 1);
     }
     preferences.end();
-  }
+}
 
   if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
     currentSettings.presentTimezoneIndex = 0;
-  }
+}
   if (currentSettings.destinationTimezoneIndex < 0 || currentSettings.destinationTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
     currentSettings.destinationTimezoneIndex = 0;
-  }
+}
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
 }
 
 void listAllFiles() {
   Serial.println(F("\n--- Listing all files in LittleFS ---"));
-  File root = LittleFS.open("/");
+File root = LittleFS.open("/");
   File file = root.openNextFile();
   while(file){
       Serial.print(F("  FILE: "));
       Serial.print(file.name());
-      Serial.print(F("\tSIZE: "));
+Serial.print(F("\tSIZE: "));
       Serial.println(file.size());
       file.close();
       file = root.openNextFile();
@@ -349,7 +353,7 @@ void setupMqtt() {
   if (strlen(currentSettings.mqttBroker) == 0) {
     ESP_LOGI("MQTT", "Broker not configured. Skipping MQTT setup.");
     return;
-  }
+}
   mqttClient.setServer(currentSettings.mqttBroker, currentSettings.mqttPort);
   mqttClient.setCallback(mqttCallback);
   ESP_LOGI("MQTT", "Client configured for broker %s:%d", currentSettings.mqttBroker, currentSettings.mqttPort);
@@ -359,127 +363,149 @@ void reconnectMqtt() {
   if (strlen(currentSettings.mqttBroker) == 0) return;
   if (!mqttClient.connected()) {
     ESP_LOGI("MQTT", "Attempting MQTT connection...");
-    String clientId = "BTTF-Clock-";
+String clientId = "BTTF-Clock-";
     clientId += String(random(0xffff), HEX);
     bool connected = false;
-    if (strlen(currentSettings.mqttUser) > 0) {
+if (strlen(currentSettings.mqttUser) > 0) {
         connected = mqttClient.connect(clientId.c_str(), currentSettings.mqttUser, currentSettings.mqttPassword, MQTT_STATUS_TOPIC, 1, true, MQTT_LWT_MESSAGE);
-    } else {
+} else {
         connected = mqttClient.connect(clientId.c_str(), MQTT_STATUS_TOPIC, 1, true, MQTT_LWT_MESSAGE);
-    }
+}
 
     if (connected) {
       ESP_LOGI("MQTT", "Connected to broker!");
       mqttClient.publish(MQTT_STATUS_TOPIC, "online", true);
-      for (int i = 0; i < currentSettings.numDataPoints; i++) {
+for (int i = 0; i < currentSettings.numDataPoints; i++) {
         if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && strlen(currentSettings.dataPoints[i].mqttTopic) > 0) {
           mqttClient.subscribe(currentSettings.dataPoints[i].mqttTopic);
-          ESP_LOGI("MQTT", "Subscribed to topic: %s", currentSettings.dataPoints[i].mqttTopic);
+ESP_LOGI("MQTT", "Subscribed to topic: %s", currentSettings.dataPoints[i].mqttTopic);
         }
       }
     } else {
       ESP_LOGE("MQTT", "Failed to connect, rc=%d. Will try again in 5 seconds.", mqttClient.state());
-    }
+}
   }
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message;
-  for (int i = 0; i < length; i++) {
+for (int i = 0; i < length; i++) {
     message += (char)payload[i];
-  }
+}
   ESP_LOGI("MQTT", "Message arrived [%s] %s", topic, message.c_str());
 
   for (int i = 0; i < currentSettings.numDataPoints; i++) {
     DataPoint point = currentSettings.dataPoints[i];
-    if (point.dataSourceType == DATA_SOURCE_MQTT && strcmp(point.mqttTopic, topic) == 0) {
-        DynamicJsonDocument doc(1024);
-        DeserializationError error = deserializeJson(doc, message);
+if (point.dataSourceType == DATA_SOURCE_MQTT && strcmp(point.mqttTopic, topic) == 0) {
+        DynamicJsonDocument doc(512); // Reduced size for efficiency
+DeserializationError error = deserializeJson(doc, message);
         bool success = false;
-        if (error == DeserializationError::Ok) {
-            auto fetch = [&](const char* path) {
-                return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
-            };
-            strncpy(displayPages[i].month, (strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "").c_str(), sizeof(displayPages[i].month) - 1);
-            strncpy(displayPages[i].day, (strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "").c_str(), sizeof(displayPages[i].day) - 1);
-            strncpy(displayPages[i].year, (strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "").c_str(), sizeof(displayPages[i].year) - 1);
-            strncpy(displayPages[i].time, (strlen(point.timePath) > 0 ? fetch(point.timePath) : "").c_str(), sizeof(displayPages[i].time) - 1);
-            success = true;
-        } else {
-            strncpy(displayPages[i].month, "", sizeof(displayPages[i].month) - 1);
-            strncpy(displayPages[i].day, "", sizeof(displayPages[i].day) - 1);
-            strncpy(displayPages[i].year, "", sizeof(displayPages[i].year) - 1);
-            strncpy(displayPages[i].time, message.c_str(), sizeof(displayPages[i].time) - 1);
-            success = true;
-        }
+        
+        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+            if (error == DeserializationError::Ok) {
+                auto fetch = [&](const char* path) {
+                    return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
+};
+                strncpy(displayPages[i].month, (strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "").c_str(), sizeof(displayPages[i].month) - 1);
+strncpy(displayPages[i].day, (strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "").c_str(), sizeof(displayPages[i].day) - 1);
+strncpy(displayPages[i].year, (strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "").c_str(), sizeof(displayPages[i].year) - 1);
+strncpy(displayPages[i].time, (strlen(point.timePath) > 0 ? fetch(point.timePath) : "").c_str(), sizeof(displayPages[i].time) - 1);
+                success = true;
+} else {
+                strncpy(displayPages[i].month, "", sizeof(displayPages[i].month) - 1);
+strncpy(displayPages[i].day, "", sizeof(displayPages[i].day) - 1);
+                strncpy(displayPages[i].year, "", sizeof(displayPages[i].year) - 1);
+                strncpy(displayPages[i].time, message.c_str(), sizeof(displayPages[i].time) - 1);
+                success = true;
+}
 
-        if (success) {
-            memcpy(&lastGoodDisplayPages[i], &displayPages[i], sizeof(MarqueeData));
-            dataPointFetchFailures[i] = 0;
-        } else {
-            dataPointFetchFailures[i]++;
-            if (dataPointFetchFailures[i] >= MAX_FETCH_FAILURES) {
-                strncpy(displayPages[i].time, "MQTT FAIL", sizeof(displayPages[i].time) - 1);
+            if (success) {
+                memcpy(&lastGoodDisplayPages[i], &displayPages[i], sizeof(MarqueeData));
+dataPointFetchFailures[i] = 0;
             } else {
-                memcpy(&displayPages[i], &lastGoodDisplayPages[i], sizeof(MarqueeData));
+                dataPointFetchFailures[i]++;
+if (dataPointFetchFailures[i] >= MAX_FETCH_FAILURES) {
+                    strncpy(displayPages[i].time, "MQTT FAIL", sizeof(displayPages[i].time) - 1);
+} else {
+                    memcpy(&displayPages[i], &lastGoodDisplayPages[i], sizeof(MarqueeData));
+}
             }
+            xSemaphoreGive(xDisplayDataMutex);
         }
         break;
-    }
+}
   }
 }
 
 void fetchDataTask(void* p) {
     FetchDataParams* params = (FetchDataParams*)p;
     int pointIndex = params->pointIndex;
-    int totalRequests = params->totalRequests;
+int totalRequests = params->totalRequests;
     delete params;
 
     DataPoint point = currentSettings.dataPoints[pointIndex];
     HTTPClient http;
     WiFiClientSecure client;
-    client.setInsecure(); // Bypassing certificate validation
+    client.setInsecure();
+// Bypassing certificate validation
 
     if (http.begin(client, point.url)) {
         if (strlen(point.authHeaderKey) > 0 && strlen(point.authHeaderValue) > 0) {
             http.addHeader(point.authHeaderKey, point.authHeaderValue);
-        }
+}
         
         int httpCode = http.GET();
-        if (httpCode == HTTP_CODE_OK) {
+if (httpCode == HTTP_CODE_OK) {
             String payload = http.getString();
-            DynamicJsonDocument doc(2048);
+DynamicJsonDocument doc(2048);
             DeserializationError error = deserializeJson(doc, payload);
             if (error == DeserializationError::Ok) {
-                auto fetch = [&](const char* path) {
-                    return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
-                };
-                strncpy(displayPages[pointIndex].month, (strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "").c_str(), sizeof(displayPages[pointIndex].month) - 1);
-                strncpy(displayPages[pointIndex].day, (strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "").c_str(), sizeof(displayPages[pointIndex].day) - 1);
-                strncpy(displayPages[pointIndex].year, (strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "").c_str(), sizeof(displayPages[pointIndex].year) - 1);
-                strncpy(displayPages[pointIndex].time, (strlen(point.timePath) > 0 ? fetch(point.timePath) : "").c_str(), sizeof(displayPages[pointIndex].time) - 1);
-                
-                memcpy(&lastGoodDisplayPages[pointIndex], &displayPages[pointIndex], sizeof(MarqueeData));
-                dataPointFetchFailures[pointIndex] = 0;
-            } else {
-                dataPointFetchFailures[pointIndex]++;
-            }
+                // Lock mutex before writing to shared data
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    auto fetch = [&](const char* path) {
+                        return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
+};
+                    strncpy(displayPages[pointIndex].month, (strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "").c_str(), sizeof(displayPages[pointIndex].month) - 1);
+strncpy(displayPages[pointIndex].day, (strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "").c_str(), sizeof(displayPages[pointIndex].day) - 1);
+strncpy(displayPages[pointIndex].year, (strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "").c_str(), sizeof(displayPages[pointIndex].year) - 1);
+strncpy(displayPages[pointIndex].time, (strlen(point.timePath) > 0 ? fetch(point.timePath) : "").c_str(), sizeof(displayPages[pointIndex].time) - 1);
+                    
+                    memcpy(&lastGoodDisplayPages[pointIndex], &displayPages[pointIndex], sizeof(MarqueeData));
+                    dataPointFetchFailures[pointIndex] = 0;
+                    xSemaphoreGive(xDisplayDataMutex); // Release mutex
+}
+} else {
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    dataPointFetchFailures[pointIndex]++;
+                    xSemaphoreGive(xDisplayDataMutex);
+}
+}
         } else {
-            dataPointFetchFailures[pointIndex]++;
-        }
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                dataPointFetchFailures[pointIndex]++;
+                xSemaphoreGive(xDisplayDataMutex);
+}
+}
         http.end();
     } else {
-        dataPointFetchFailures[pointIndex]++;
+        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+            dataPointFetchFailures[pointIndex]++;
+            xSemaphoreGive(xDisplayDataMutex);
+}
+}
+    
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        if (dataPointFetchFailures[pointIndex] >= MAX_FETCH_FAILURES) {
+            strncpy(displayPages[pointIndex].time, "API FAIL", sizeof(displayPages[pointIndex].time) - 1);
+}
+        xSemaphoreGive(xDisplayDataMutex);
     }
 
-    if (dataPointFetchFailures[pointIndex] >= MAX_FETCH_FAILURES) {
-        strncpy(displayPages[pointIndex].time, "API FAIL", sizeof(displayPages[pointIndex].time) - 1);
-    }
 
     requestsCompleted++;
     if (requestsCompleted >= totalRequests) {
         isFetchingData = false;
-        ESP_LOGI("DataLink", "All API requests finished.");
+ESP_LOGI("DataLink", "All API requests finished.");
     }
 
     vTaskDelete(NULL);
@@ -489,33 +515,31 @@ void fetchDataTask(void* p) {
 void fetchDataLink() {
     if (!timeSynchronized || !currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0 || isFetchingData) {
         return;
-    }
+}
     if (millis() - lastDataLinkFetch < (unsigned long)currentSettings.dataLinkRefreshInterval * 60 * 1000) {
         return;
-    }
+}
     
     lastDataLinkFetch = millis();
     isFetchingData = true;
     requestsCompleted = 0;
-    
-    int apiRequestsToMake = 0;
+int apiRequestsToMake = 0;
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
         if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_API) {
             apiRequestsToMake++;
-        }
+}
     }
 
     if (apiRequestsToMake == 0) {
         isFetchingData = false;
-        return;
+return;
     }
 
     ESP_LOGI("DataLink", "Starting parallel fetch for %d API data points.", apiRequestsToMake);
-
-    for (int i = 0; i < currentSettings.numDataPoints; i++) {
+for (int i = 0; i < currentSettings.numDataPoints; i++) {
         if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_API) {
             FetchDataParams* params = new FetchDataParams{i, apiRequestsToMake};
-            xTaskCreate(fetchDataTask, "fetchDataTask", 8192, params, 1, NULL);
+xTaskCreate(fetchDataTask, "fetchDataTask", 8192, params, 1, NULL);
         }
     }
 }
@@ -526,26 +550,30 @@ void setup() {
   delay(1000);
 
   Serial.println(F("\n\n--- BOOTING ---"));
-  if (!LittleFS.begin(true)) {
+if (!LittleFS.begin(true)) {
     ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed.");
     while(1);
   }
   
   listAllFiles();
   loadSettings();
-  #if ENABLE_HARDWARE
+  
+  // Create the mutex for thread-safe data access
+  xDisplayDataMutex = xSemaphoreCreateMutex();
+
+#if ENABLE_HARDWARE
   setupPhysicalDisplay();
   dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
   if (myDFPlayer.begin(dfpSerial, true, false)) {
       myDFPlayer.volume(currentSettings.notificationVolume);
       setupSoundFiles();
-  }
+}
   #endif
   wifiManager.autoConnect("BTTF-Clock-Setup");
   ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
   if (MDNS.begin(MDNS_HOSTNAME)) {
     MDNS.addService("http", "tcp", 80);
-  }
+}
   setupWebRoutes();
   server.begin();
   ESP_LOGI("Web", "HTTP server started.");
@@ -553,69 +581,69 @@ void setup() {
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
   setupMqtt();
-  ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
+ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
 
   runBootSequence();
 }
 
 void loop() {
   ArduinoOTA.handle();
-  if (WiFi.status() == WL_CONNECTED && strlen(currentSettings.mqttBroker) > 0) {
+if (WiFi.status() == WL_CONNECTED && strlen(currentSettings.mqttBroker) > 0) {
     if (mqttReconnectRequired || !mqttClient.connected()) {
       unsigned long now = millis();
-      if (now - lastMqttReconnectAttempt > MQTT_RECONNECT_INTERVAL_MS) {
+if (now - lastMqttReconnectAttempt > MQTT_RECONNECT_INTERVAL_MS) {
         lastMqttReconnectAttempt = now;
         setupMqtt();
         reconnectMqtt();
-        mqttReconnectRequired = false;
+mqttReconnectRequired = false;
       }
     }
     mqttClient.loop();
   }
 
   handleBootSequence();
-  if (isMalfunctioning) {
+if (isMalfunctioning) {
     handleMalfunction();
   } else if (!isAnimating) {
     restoreDisplayAfterGlitch();
     handleGlitchEffect();
     handlePresetCycling();
     handleSleepSchedule();
-    if (currentSettings.dataLinkEnabled) {
+if (currentSettings.dataLinkEnabled) {
       fetchDataLink();
       updateMarqueeDisplay();
     } else {
       updateNormalClockDisplay();
-    }
+}
   }
 
   handleDisplayAnimation();
   static unsigned long lastNtpUpdate = 0;
-  if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > NTP_SUCCESS_INTERVAL_MS)) {
+if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > NTP_SUCCESS_INTERVAL_MS)) {
     configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
     struct tm timeinfo;
     if(getLocalTime(&timeinfo, 5000)){
       timeSynchronized = true;
-    } else {
+} else {
       timeSynchronized = false;
-    }
+}
     currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
     lastNtpUpdate = millis();
     ntpSyncRequested = false;
-  }
+}
 }
 
 void startTimeTravelAnimation() {
     if (isAnimating) { return; }
     isAnimating = true;
     animationStartTime = millis();
-    currentPhase = ANIM_FLICKER;
+currentPhase = ANIM_FLICKER;
     #if ENABLE_HARDWARE
     if (currentSettings.timeTravelSoundToggle) {
         playSound("ACCELERATION");
-    }
+}
     #endif
 }
 
@@ -623,24 +651,24 @@ void handleDisplayAnimation() {
   #if ENABLE_HARDWARE
   if (!isAnimating) return;
   unsigned long currentTime = millis();
-  unsigned long elapsed = currentTime - animationStartTime;
+unsigned long elapsed = currentTime - animationStartTime;
   switch (currentPhase) {
     case ANIM_FLICKER:
         if (elapsed >= currentSettings.timeTravelAnimationDuration) {
             currentPhase = ANIM_COMPLETE;
-        } else if (currentTime - lastAnimationFrameTime > ANIMATION_UPDATE_INTERVAL_MS) {
+} else if (currentTime - lastAnimationFrameTime > ANIMATION_UPDATE_INTERVAL_MS) {
             animateDisplayRowRandomly(destRow);
-            animateDisplayRowRandomly(presRow);
+animateDisplayRowRandomly(presRow);
             animateDisplayRowRandomly(lastRow);
             lastAnimationFrameTime = currentTime;
         }
         break;
-    case ANIM_COMPLETE:
+case ANIM_COMPLETE:
       isAnimating = false;
       updateNormalClockDisplay();
       if(currentSettings.timeTravelSoundToggle){
         playSound("ARRIVAL_THUD");
-      }
+}
       break;
   }
   #endif
@@ -649,47 +677,47 @@ void handleDisplayAnimation() {
 void handleMalfunction() {
   #if ENABLE_HARDWARE
   if (!isMalfunctioning) return;
-  unsigned long elapsed = millis() - malfunctionStartTime;
+unsigned long elapsed = millis() - malfunctionStartTime;
   switch (currentMalfunctionPhase) {
     case MAL_HAYWIRE:
       if (elapsed < 3000) {
         if (millis() - lastAnimationFrameTime > 100) {
           printToDisplay(destRow.month, "888", 1);
-          printToDisplay(destRow.day, "88", 2); printToDisplay(destRow.year, "8888"); printToDisplay(destRow.time, "8888");
+printToDisplay(destRow.day, "88", 2); printToDisplay(destRow.year, "8888"); printToDisplay(destRow.time, "8888");
           printToDisplay(presRow.month, "888", 1); printToDisplay(presRow.day, "88", 2); printToDisplay(presRow.year, "8888"); printToDisplay(presRow.time, "8888");
           printToDisplay(lastRow.month, "888", 1);
-          printToDisplay(lastRow.day, "88", 2); printToDisplay(lastRow.year, "8888");
+printToDisplay(lastRow.day, "88", 2); printToDisplay(lastRow.year, "8888");
           printToDisplay(lastRow.time, "8888");
           destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
           presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
           lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-          lastAnimationFrameTime = millis();
+lastAnimationFrameTime = millis();
         }
       } else {
         malfunctionStartTime = millis();
-        currentMalfunctionPhase = MAL_ERROR_MESSAGE;
+currentMalfunctionPhase = MAL_ERROR_MESSAGE;
       }
       break;
-    case MAL_ERROR_MESSAGE:
+case MAL_ERROR_MESSAGE:
       if (elapsed < 4000) {
         printToDisplay(destRow.month, "TIM", 1);
-        printToDisplay(destRow.day, "CI", 2); printToDisplay(destRow.year, "RCUT"); printToDisplay(destRow.time, "OVER");
+printToDisplay(destRow.day, "CI", 2); printToDisplay(destRow.year, "RCUT"); printToDisplay(destRow.time, "OVER");
         printToDisplay(presRow.month, "LOA", 1); printToDisplay(presRow.day, "D", 2); presRow.year.clear(); presRow.time.clear();
         printToDisplay(lastRow.month, "FLX", 1);
-        printToDisplay(lastRow.day, "OF", 2); printToDisplay(lastRow.year, "FLIN"); lastRow.time.clear();
+printToDisplay(lastRow.day, "OF", 2); printToDisplay(lastRow.year, "FLIN"); lastRow.time.clear();
         destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
         presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-      } else {
+} else {
         malfunctionStartTime = millis();
         currentMalfunctionPhase = MAL_REBOOT;
-      }
+}
       break;
     case MAL_REBOOT:
       blankAllDisplays();
       runBootSequence();
       break;
-  }
+}
   #endif
 }
 
@@ -701,59 +729,59 @@ void runBootSequence() {
 void handleBootSequence() {
   if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
   unsigned long elapsed = millis() - bootStateStartTime;
-  if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
+if (elapsed > BOOT_STATE_CHANGE_INTERVAL_MS) {
     bootState = static_cast<BootSequenceState>(bootState + 1);
     bootStateStartTime = millis();
-    if (bootState >= BOOT_COMPLETE) {
+if (bootState >= BOOT_COMPLETE) {
       bootState = BOOT_COMPLETE;
       updateNormalClockDisplay();
       return;
-    }
+}
   }
   #if ENABLE_HARDWARE
   switch (bootState) {
     case BOOT_88MPH:
       break;
-    case BOOT_RECALIBRATING:
+case BOOT_RECALIBRATING:
       printToDisplay(destRow.month, "REC", 1); printToDisplay(destRow.day, "AL", 2); printToDisplay(destRow.year, "IBRA"); printToDisplay(destRow.time, "TING");
       destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay();
-      destRow.time.writeDisplay();
+destRow.time.writeDisplay();
       break;
     case BOOT_CAPACITOR:
       printToDisplay(presRow.month, "CAP", 1); printToDisplay(presRow.day, "AC", 2); printToDisplay(presRow.year, "ITOR"); printToDisplay(presRow.time, "FULL");
       presRow.month.writeDisplay();
-      presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
       break;
     default:
       break;
-  }
+}
   #endif
 }
 
 void restoreDisplayAfterGlitch() {
   if (isGlitching && millis() - glitchStartTime > 150) {
     updateNormalClockDisplay();
-    isGlitching = false;
+isGlitching = false;
   }
 }
 
 void handleGlitchEffect() {
   if (isAnimating || isDisplayAsleep || isGlitching || isMalfunctioning || currentSettings.glitchEffectFrequency == 0) return;
-  if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
+if (millis() - lastGlitchTime > GLITCH_EFFECT_INTERVAL_MS) {
     lastGlitchTime = millis();
-    if (random(100) < currentSettings.glitchEffectFrequency) {
+if (random(100) < currentSettings.glitchEffectFrequency) {
       if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
         isMalfunctioning = true;
-        malfunctionStartTime = millis();
+malfunctionStartTime = millis();
         currentMalfunctionPhase = MAL_HAYWIRE;
       } else {
         isGlitching = true;
-        glitchStartTime = millis();
+glitchStartTime = millis();
         #if ENABLE_HARDWARE
         animateDisplayRowRandomly(destRow);
         animateDisplayRowRandomly(presRow);
         animateDisplayRowRandomly(lastRow);
-        #endif
+#endif
       }
     }
   }
@@ -761,9 +789,9 @@ void handleGlitchEffect() {
 
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
-    }
+}
 }
 
 void handleSleepSchedule() {
@@ -771,20 +799,20 @@ void handleSleepSchedule() {
   struct tm timeinfo;
   getLocalTime(&timeinfo);
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-  int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
+int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
-  bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
+bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-  if (shouldBeAsleep && !isDisplayAsleep) {
+if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     #if ENABLE_HARDWARE
     blankAllDisplays();
     playSound("SLEEP_ON");
-    #endif
+#endif
   } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
-    #if ENABLE_HARDWARE
+#if ENABLE_HARDWARE
     updateNormalClockDisplay();
     playSound("CONFIRM_ON");
     #endif
@@ -793,24 +821,24 @@ void handleSleepSchedule() {
 
 void updateNormalClockDisplay() {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return;
-  #if ENABLE_HARDWARE
+#if ENABLE_HARDWARE
   if (timeSynchronized) {
     time_t now;
     time(&now);
     struct tm timeinfo;
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
-    localtime_r(&now, &timeinfo);
+localtime_r(&now, &timeinfo);
     updateDisplayRow(presRow, timeinfo, timeinfo.tm_year + 1900);
     setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
     tzset();
     localtime_r(&now, &timeinfo);
     updateDisplayRow(destRow, timeinfo, currentSettings.destinationYear);
-    struct tm lastTimeDepartedInfo = {0};
+struct tm lastTimeDepartedInfo = {0};
     lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
     lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
     lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
-    lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
+lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
     lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
     updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
   }
@@ -820,80 +848,86 @@ void updateNormalClockDisplay() {
 void updateMarqueeDisplay() {
     #if ENABLE_HARDWARE
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0) return;
-    DisplayRow* targetRow = &lastRow;
+DisplayRow* targetRow = &lastRow;
     if (currentSettings.dataLinkTargetRow == 0) targetRow = &destRow;
     if (currentSettings.dataLinkTargetRow == 1) targetRow = &presRow;
-    if (marqueeState == M_IDLE) {
-        currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
-        marqueeScrollPosition = 0;
-        marqueeScrollPositionYear = 0;
-        marqueeState = M_PAUSED;
-        lastMarqueeStateChange = millis();
-    }
-
-    DataPoint point = currentSettings.dataPoints[currentPageIndex];
-    printToDisplay(targetRow->month, displayPages[currentPageIndex].month);
     
-    if (strlen(point.icon) > 0) {
-        drawIcon(targetRow->day, point.icon);
-    } else {
-        printToDisplay(targetRow->day, displayPages[currentPageIndex].day);
-    }
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        if (marqueeState == M_IDLE) {
+            currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
+marqueeScrollPosition = 0;
+            marqueeScrollPositionYear = 0;
+            marqueeState = M_PAUSED;
+            lastMarqueeStateChange = millis();
+        }
 
-    String yearContent = String(point.yearPrefix) + displayPages[currentPageIndex].year + String(point.yearSuffix);
-    String timeContent = String(point.prefix) + displayPages[currentPageIndex].time + String(point.suffix);
-    String yearCanvas = "   " + yearContent + "   ";
-    if (yearCanvas.length() <= 4) {
-        printToDisplay(targetRow->year, yearCanvas.c_str());
-    } else {
-        String yearViewport = yearCanvas.substring(marqueeScrollPositionYear, marqueeScrollPositionYear + 4);
-        printToDisplay(targetRow->year, yearViewport.c_str());
-    }
+        DataPoint point = currentSettings.dataPoints[currentPageIndex];
+printToDisplay(targetRow->month, displayPages[currentPageIndex].month);
+        
+        if (strlen(point.icon) > 0) {
+            drawIcon(targetRow->day, point.icon);
+} else {
+            printToDisplay(targetRow->day, displayPages[currentPageIndex].day);
+}
 
-    String timeCanvas = "   " + timeContent + "   ";
-    if (timeCanvas.length() <= 4) {
-        printToDisplay(targetRow->time, timeCanvas.c_str());
-    } else {
-        String viewport = timeCanvas.substring(marqueeScrollPosition, marqueeScrollPosition + 4);
-        printToDisplay(targetRow->time, viewport.c_str());
-    }
+        String yearContent = String(point.yearPrefix) + displayPages[currentPageIndex].year + String(point.yearSuffix);
+        String timeContent = String(point.prefix) + displayPages[currentPageIndex].time + String(point.suffix);
+        
+        xSemaphoreGive(xDisplayDataMutex); // Release mutex after reading shared data
 
-    if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 2000) {
-        marqueeState = M_SCROLLING;
-        lastMarqueeStateChange = millis();
-    }
+String yearCanvas = "   " + yearContent + "   ";
+if (yearCanvas.length() <= 4) {
+            printToDisplay(targetRow->year, yearCanvas.c_str());
+} else {
+            String yearViewport = yearCanvas.substring(marqueeScrollPositionYear, marqueeScrollPositionYear + 4);
+            printToDisplay(targetRow->year, yearViewport.c_str());
+}
 
-    if (marqueeState == M_SCROLLING && millis() - lastMarqueeStateChange > (unsigned long)point.scrollSpeed) {
-        lastMarqueeStateChange = millis();
-        bool timeDone = false;
-        bool yearDone = false;
+String timeCanvas = "   " + timeContent + "   ";
+if (timeCanvas.length() <= 4) {
+            printToDisplay(targetRow->time, timeCanvas.c_str());
+} else {
+            String viewport = timeCanvas.substring(marqueeScrollPosition, marqueeScrollPosition + 4);
+            printToDisplay(targetRow->time, viewport.c_str());
+}
 
-        if (timeCanvas.length() > 4) {
-            marqueeScrollPosition++;
-            if (marqueeScrollPosition > timeCanvas.length() - 4) {
+        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 2000) {
+            marqueeState = M_SCROLLING;
+lastMarqueeStateChange = millis();
+        }
+
+        if (marqueeState == M_SCROLLING && millis() - lastMarqueeStateChange > (unsigned long)point.scrollSpeed) {
+            lastMarqueeStateChange = millis();
+bool timeDone = false;
+            bool yearDone = false;
+
+            if (timeCanvas.length() > 4) {
+                marqueeScrollPosition++;
+if (marqueeScrollPosition > timeCanvas.length() - 4) {
+                    timeDone = true;
+}
+            } else {
                 timeDone = true;
-            }
-        } else {
-            timeDone = true;
-        }
+}
 
-        if (yearCanvas.length() > 4) {
-            marqueeScrollPositionYear++;
-            if (marqueeScrollPositionYear > yearCanvas.length() - 4) {
+            if (yearCanvas.length() > 4) {
+                marqueeScrollPositionYear++;
+if (marqueeScrollPositionYear > yearCanvas.length() - 4) {
+                    yearDone = true;
+}
+            } else {
                 yearDone = true;
-            }
-        } else {
-            yearDone = true;
+}
+
+            if (timeDone && yearDone) {
+                marqueeState = M_IDLE;
+}
         }
 
-        if (timeDone && yearDone) {
-            marqueeState = M_IDLE;
-        }
+        targetRow->month.writeDisplay();
+        targetRow->day.writeDisplay();
+        targetRow->year.writeDisplay();
+        targetRow->time.writeDisplay();
     }
-
-    targetRow->month.writeDisplay();
-    targetRow->day.writeDisplay();
-    targetRow->year.writeDisplay();
-    targetRow->time.writeDisplay();
     #endif
 }

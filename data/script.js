@@ -96,7 +96,7 @@ async function initializeUI() {
         }));
 
         const [timecircuits, temporal, datalink, timezones, presets, theme, examples] = await Promise.all(promises);
-        
+
         window.apiExamples = examples;
 
         document.body.className = theme.trim();
@@ -251,7 +251,7 @@ function applyDataLinkSettings(datalink) {
                 document.getElementById(`dp_httpMethod_${i}`).value = point.httpMethod || 0;
                 document.getElementById(`dp_requestBody_${i}`).value = point.requestBody || '';
                 document.getElementById(`api_example_${i}`).value = point.apiExampleKey || '';
-                
+
                 document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
                 document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
                 document.getElementById(`dp_httpMethod_${i}`).dispatchEvent(new Event('change'));
@@ -408,7 +408,7 @@ function updatePreset() {
     const [year, month, day] = date.split('-');
     const [hour, minute] = time.split(':');
     const value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${String(hour).padStart(2, '0')}-${String(minute).padStart(2, '0')}`;
-    
+
     // We send both original name (to find it) and the new name/value to update
     fetch('/api/updatePreset', { method: 'POST', body: new URLSearchParams({ name: originalName, newName: newName, value: value }) })
         .then(res => res.text()).then(text => {
@@ -576,12 +576,12 @@ function updateDataPointsUI(numPoints) {
 
                     <div class="display-mode-container" id="four_column_container_${i}">
                         <div class="time-circuit-row">
-                            <label for="dp_monthPath_${i}" class="time-circuit-label">MONTH</label>
+                            <label for="dp_monthPath_${i}" class="time-circuit-label">MONTH (3 char)</label>
                             <input type="text" id="dp_monthPath_${i}" class="time-circuit-input" maxlength="3">
                         </div>
                         <div class="time-circuit-row">
-                            <label for="dp_dayPath_${i}" class="time-circuit-label">DAY</label>
-                            <input type="text" id="dp_dayPath_${i}" class="time-circuit-input" maxlength="3">
+                            <label for="dp_dayPath_${i}" class="time-circuit-label">DAY (2 char)</label>
+                            <input type="text" id="dp_dayPath_${i}" class="time-circuit-input" maxlength="2">
                             <select id="dp_icon_${i}" style="width: 100px; margin-left: 10px;">
                                 <option value="">Icon</option><option value="SUN">Sun</option><option value="CLOUD">Cloud</option><option value="RAIN">Rain</option><option value="SNOW">Snow</option><option value="STORM">Storm</option><option value="WIND">Wind</option><option value="UP">Up</option><option value="DOWN">Down</option><option value="EQUAL">Equal</option><option value="WIFI">WiFi</option><option value="HOME">Home</option><option value="WORK">Work</option><option value="CAR">Car</option><option value="BIKE">Bike</option><option value="RUN">Run</option><option value="HEART">Heart</option><option value="MONEY">Money</option><option value="CLOCK">Clock</option><option value="CAL">Calendar</option>
                             </select>
@@ -654,7 +654,7 @@ function updateDataPointsUI(numPoints) {
 function updateMarqueePreview(index) {
     const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
 
-    if (displayMode === '0') { 
+    if (displayMode === '0') {
         const month = document.getElementById(`dp_monthPath_${index}`).value || "MON";
         const day = document.getElementById(`dp_dayPath_${index}`).value || "DAY";
         const yearValue = document.getElementById(`dp_yearPath_${index}`).value || "YEAR";
@@ -665,8 +665,8 @@ function updateMarqueePreview(index) {
         const suffix = document.getElementById(`dp_suffix_${index}`).value;
 
         document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = month.substring(0, 3).toUpperCase();
-        document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 3).toUpperCase();
-        
+        document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = day.substring(0, 2).toUpperCase();
+
         const setupScrolling = (text, valueSpan) => {
             valueSpan.textContent = text;
             valueSpan.classList.remove('scrolling-text');
@@ -684,15 +684,15 @@ function updateMarqueePreview(index) {
         const timeText = `${prefix}${timeValue}${suffix}`;
         const timeSpan = document.querySelector(`#marquee_preview_${index} .preview-time`);
         setupScrolling(timeText, timeSpan);
-    } else { 
+    } else {
         const text = document.getElementById(`dp_scrollingText_${index}`).value || "PREVIEW";
         const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
-        previewSpan.textContent = text; 
+        previewSpan.textContent = text;
         previewSpan.classList.remove('scrolling-text');
-        
+
         if (text.length > 13) {
             const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
-            const duration = (text.length) * (scrollSpeed / 100); 
+            const duration = (text.length) * (scrollSpeed / 100);
             previewSpan.style.animationDuration = `${duration}s`;
             requestAnimationFrame(() => {
                 previewSpan.classList.add('scrolling-text');
@@ -704,7 +704,7 @@ function updateMarqueePreview(index) {
 function populateApiExampleDropdowns() {
     document.querySelectorAll('.api-example-select').forEach(select => {
         select.innerHTML = '';
-        
+
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
         defaultOption.textContent = '-- Select an Example --';
@@ -764,7 +764,7 @@ function attachDataPointEventListeners() {
             }
             const newKey = e.target.value;
             const cachedUrl = dataPointStateCache[index].modifiedUrls[newKey];
-            
+
             if (cachedUrl) {
                 urlInput.value = cachedUrl;
             } else {
@@ -773,7 +773,7 @@ function attachDataPointEventListeners() {
             }
         });
     });
-    
+
     document.querySelectorAll('.data-point-block input, .data-point-block select, .data-point-block textarea').forEach(input => {
         input.addEventListener('input', (e) => {
             if (e.target.id.includes('requestBody')) {
@@ -861,7 +861,7 @@ function displayApiWizardResults(index, jsonData) {
             data.forEach((item, i) => {
                 const currentPath = `${parentPath}[${i}]`;
                 const li = document.createElement('li');
-                
+
                 if (typeof item === 'object' && item !== null) {
                     li.innerHTML = `<span class="wizard-key">[${i}]:</span>`;
                     const subList = document.createElement('ul');
@@ -922,7 +922,7 @@ function displayApiWizardResults(index, jsonData) {
             targetElement.value = path;
             targetElement.dispatchEvent(new Event('input'));
         }
-        
+
         showMessage(`Mapped "${path}" to ${target.toUpperCase()}`, 'success', 2000);
     });
 }
@@ -998,7 +998,7 @@ function updateSleepVisual() {
     const bar1 = document.getElementById('sleepScheduleBar');
     const bar2 = document.getElementById('sleepScheduleBar2');
 
-    if (arrTotalMins < depTotalMins) { 
+    if (arrTotalMins < depTotalMins) {
         const duration1 = 1440 - depTotalMins;
         bar1.style.left = `${(depTotalMins / 1440) * 100}%`;
         bar1.style.width = `${(duration1 / 1440) * 100}%`;
@@ -1006,7 +1006,7 @@ function updateSleepVisual() {
         bar2.style.left = '0%';
         bar2.style.width = `${(arrTotalMins / 1440) * 100}%`;
         bar2.style.display = 'block';
-    } else { 
+    } else {
         const sleepDuration = arrTotalMins - depTotalMins;
         bar1.style.left = `${(depTotalMins / 1440) * 100}%`;
         bar1.style.width = `${(sleepDuration / 1440) * 100}%`;

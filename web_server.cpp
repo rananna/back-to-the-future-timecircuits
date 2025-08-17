@@ -96,7 +96,12 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 
                 ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id()};
 
-                xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
+                // Check if task creation was successful to prevent memory leaks
+                BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
+                if (taskCreated != pdPASS) {
+                    ESP_LOGE("WebSocket", "Failed to create API test task. Deleting params to prevent leak.");
+                    delete params;
+                }
             }
         }
     }
