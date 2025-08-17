@@ -759,6 +759,15 @@ function updateMarqueePreview(index) {
     }
 }
 
+function getProcessedUrl(index) {
+    let apiUrl = document.getElementById(`dp_url_${index}`).value;
+    const authValue = document.getElementById(`dp_authHeaderValue_${index}`).value;
+    if (apiUrl.includes('YOUR_API_KEY') && authValue) {
+        return apiUrl.replace('YOUR_API_KEY', authValue);
+    }
+    return apiUrl;
+}
+
 
 function populateApiExampleDropdowns() {
     document.querySelectorAll('.api-example-select').forEach(select => {
@@ -869,7 +878,7 @@ function validateJson(textarea) {
 
 function startApiWizard(event) {
     const index = event.target.getAttribute('data-index');
-    const apiUrl = document.getElementById(`dp_url_${index}`).value;
+    const apiUrl = getProcessedUrl(index);
     const authKey = document.getElementById(`dp_authHeaderKey_${index}`).value;
     const authValue = document.getElementById(`dp_authHeaderValue_${index}`).value;
     const button = event.target;
@@ -1013,10 +1022,11 @@ function saveSettings() {
         for (let i = 0; i < numDataPoints; i++) {
             formData.append(`dp_dataSourceType_${i}`, document.getElementById(`dp_dataSourceType_${i}`).value === 'mqtt' ? 1 : 0);
             formData.append(`dp_displayMode_${i}`, document.getElementById(`dp_displayMode_${i}`).value);
-            ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'httpMethod', 'requestBody'].forEach(field => {
+            ['monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'httpMethod', 'requestBody'].forEach(field => {
                 const el = document.getElementById(`dp_${field}_${i}`);
                 if (el) formData.append(`dp_${field}_${i}`, el.value);
             });
+            formData.append(`dp_url_${i}`, getProcessedUrl(i));
             formData.append(`dp_apiExampleKey_${i}`, document.getElementById(`api_example_${i}`).value);
         }
     }
@@ -1166,7 +1176,7 @@ function testDataPoint(event) {
         return;
     }
 
-    const apiUrl = document.getElementById(`dp_url_${index}`).value;
+    const apiUrl = getProcessedUrl(index);
     const authKey = document.getElementById(`dp_authHeaderKey_${index}`).value;
     const authValue = document.getElementById(`dp_authHeaderValue_${index}`).value;
 
