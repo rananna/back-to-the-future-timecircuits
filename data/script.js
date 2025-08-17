@@ -631,8 +631,8 @@ function updateDataPointsUI(numPoints) {
                         <div class="time-circuit-row">
                             <label for="dp_dayPath_${i}" class="time-circuit-label">DAY</label>
                             <input type="text" id="dp_dayPath_${i}" class="time-circuit-input wizard-target-input" maxlength="2">
-                            <select id="dp_icon_${i}" style="width: 100px; margin-left: 10px;">
-                                <option value="">Icon</option><option value="SUN">Sun</option><option value="CLOUD">Cloud</option><option value="RAIN">Rain</option><option value="SNOW">Snow</option><option value="STORM">Storm</option><option value="WIND">Wind</option><option value="UP">Up</option><option value="DOWN">Down</option><option value="EQUAL">Equal</option><option value="WIFI">WiFi</option><option value="HOME">Home</option><option value="WORK">Work</option><option value="CAR">Car</option><option value="BIKE">Bike</option><option value="RUN">Run</option><option value="HEART">Heart</option><option value="MONEY">Money</option><option value="CLOCK">Clock</option><option value="CAL">Calendar</option>
+                            <select id="dp_icon_${i}" class="icon-select" data-index="${i}" style="width: 100px; margin-left: 10px;">
+                                <option value="">No Icon</option><option value="SUN">Sun</option><option value="CLOUD">Cloud</option><option value="RAIN">Rain</option><option value="SNOW">Snow</option><option value="STORM">Storm</option><option value="WIND">Wind</option><option value="UP">Up</option><option value="DOWN">Down</option><option value="EQUAL">Equal</option><option value="WIFI">WiFi</option><option value="HOME">Home</option><option value="WORK">Work</option><option value="CAR">Car</option><option value="BIKE">Bike</option><option value="RUN">Run</option><option value="HEART">Heart</option><option value="MONEY">Money</option><option value="CLOCK">Clock</option><option value="CAL">Calendar</option>
                             </select>
                         </div>
                         <div class="time-format-group">
@@ -718,6 +718,31 @@ function getDisplayValue(path, placeholder, index) {
 }
 
 
+function getIconSvg(iconName) {
+    const icons = {
+        'SUN': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M12,9c-1.65,0-3,1.35-3,3s1.35,3,3,3s3-1.35,3-3S13.65,9,12,9 M12,16c-2.21,0-4-1.79-4-4s1.79-4,4-4s4,1.79,4,4 S14.21,16,12,16 M12,4V1 M4,12H1 M20,12h3 M12,20v3 M6.34,6.34l-2.12-2.12 M17.66,17.66l2.12,2.12 M6.34,17.66l-2.12,2.12 M17.66,6.34l2.12-2.12"/></svg>',
+        'CLOUD': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M19.35,10.04C18.67,6.59,15.64,4,12,4C9.11,4,6.6,5.64,5.35,8.04C2.34,8.36,0,10.91,0,14c0,3.31,2.69,6,6,6h13 c2.76,0,5-2.24,5-5C24,12.36,21.95,10.22,19.35,10.04z"/></svg>',
+        'RAIN': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M19.35,10.04C18.67,6.59,15.64,4,12,4C9.11,4,6.6,5.64,5.35,8.04C2.34,8.36,0,10.91,0,14c0,3.31,2.69,6,6,6h13 c2.76,0,5-2.24,5-5C24,12.36,21.95,10.22,19.35,10.04z M7,16H5v-2h2V16z M11,16H9v-2h2V16z M15,16h-2v-2h2V16z"/></svg>',
+        'SNOW': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M19,13h-2v2h2V13z M12,11l-1,1l1,1l1-1L12,11z M16,9h-2v2h2V9z M19,9h-2v2h2V9z M21,12l-1-1l-1,1l1,1 L21,12z M12,15l-1,1l1,1l1-1L12,15z M3,12l1,1l1-1l-1-1L3,12z M8,9H6v2h2V9z M5,13H3v2h2V13z M12,5l1-1l-1-1l-1,1L12,5z M12,19 l-1-1l1-1l1,1L12,19z M5,9H3v2h2V9z M8,13H6v2h2V13z"/></svg>',
+        'STORM': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M19.35,10.04C18.67,6.59,15.64,4,12,4C9.11,4,6.6,5.64,5.35,8.04C2.34,8.36,0,10.91,0,14c0,3.31,2.69,6,6,6h13 c2.76,0,5-2.24,5-5C24,12.36,21.95,10.22,19.35,10.04z M13,18v3l-2.5-2.5L13,18z M15,14l-2.5,2.5L10,14h5z"/></svg>',
+        'WIND': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M9.5,8H4V6h5.5C11.43,6,13,7.57,13,9.5S11.43,13,9.5,13H2v2h7.5c2.76,0,5-2.24,5-5S12.26,8,9.5,8z M20,18v-2h-8.5 c-1.85,0-3.35-1.5-3.35-3.35S7.65,9.3,9.5,9.3H17v2h-7.5C8.57,11.3,7,12.87,7,14.65c0,1.79,1.45,3.25,3.25,3.25H20z"/></svg>',
+        'UP': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M7,14l5-5l5,5H7z"/></svg>',
+        'DOWN': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M7,10l5,5l5-5H7z"/></svg>',
+        'EQUAL': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M19,10H5V8h14V10z M19,16H5v-2h14V16z"/></svg>',
+        'WIFI': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M1,9l2,2c4.97-4.97,13.03-4.97,18,0l2-2C18.93,4.93,5.07,4.93,1,9z M5,13l2,2c2.76-2.76,7.24-2.76,10,0l2-2 C16.93,8.93,7.07,8.93,5,13z M9,17l3,3l3-3C12.93,14.93,11.07,14.93,9,17z"/></svg>',
+        'HOME': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M10,20v-6h4v6h5v-8h3L12,3L2,12h3v8H10z"/></svg>',
+        'WORK': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M20,6h-4V4c0-1.11-0.89-2-2-2h-4C8.89,2,8,2.89,8,4v2H4C2.89,6,2,6.89,2,8v10c0,1.11,0.89,2,2,2h16c1.11,0,2-0.89,2-2V8 C22,6.89,21.11,6,20,6z M10,4h4v2h-4V4z"/></svg>',
+        'CAR': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M18.92,6.01C18.72,5.42,18.16,5,17.5,5h-11C5.84,5,5.28,5.42,5.08,6.01L3,12v8c0,0.55,0.45,1,1,1h1c0.55,0,1-0.45,1-1v-1h12 v1c0,0.55,0.45,1,1,1h1c0.55,0,1-0.45,1-1v-8L18.92,6.01z M6.5,15C5.67,15,5,14.33,5,13.5S5.67,12,6.5,12s1.5,0.67,1.5,1.5 S7.33,15,6.5,15z M17.5,15c-0.83,0-1.5-0.67-1.5-1.5s0.67-1.5,1.5-1.5s1.5,0.67,1.5,1.5S18.33,15,17.5,15z M5,10l1.5-4h11L19,10 H5z"/></svg>',
+        'BIKE': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M15.5,6.5c0-1.65-1.35-3-3-3s-3,1.35-3,3s1.35,3,3,3S15.5,8.15,15.5,6.5z M6,16c-1.1,0-2,0.9-2,2s0.9,2,2,2s2-0.9,2-2 S7.1,16,6,16z M18,16c-1.1,0-2,0.9-2,2s0.9,2,2,2s2-0.9,2-2S19.1,16,18,16z M14.8,11.5l-2.8,2.8l-4-4L6,12.3V14h11v-2.12 L14.8,11.5z"/></svg>',
+        'RUN': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M13.5,5.5c1.1,0,2-0.9,2-2s-0.9-2-2-2s-2,0.9-2,2S12.4,5.5,13.5,5.5z M9.8,8.9L7,11.7V18h2v-6l2.1-2.1l0.9,0.9L13.8,12 H18v-2h-3.4l-2.8-2.8L9.8,8.9z"/></svg>',
+        'HEART': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M12,21.35l-1.45-1.32C5.4,15.36,2,12.28,2,8.5C2,5.42,4.42,3,7.5,3c1.74,0,3.41,0.81,4.5,2.09C13.09,3.81,14.76,3,16.5,3 C19.58,3,22,5.42,22,8.5c0,3.78-3.4,6.86-8.55,11.54L12,21.35z"/></svg>',
+        'MONEY': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M15,16h-2v-1h2c0.55,0,1-0.45,1-1s-0.45-1-1-1h-3c-0.55,0-1,0.45-1,1v3c0,0.55,0.45,1,1,1h3c0.55,0,1-0.45,1-1s-0.45-1-1-1 H15z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8s3.59-8,8-8s8,3.59,8,8 S16.41,20,12,20z M9,12H7v1h2c0.55,0,1-0.45,1-1s-0.45-1-1-1H7c-0.55,0-1,0.45-1,1v3c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1 s-0.45-1-1-1H9V12z"/></svg>',
+        'CLOCK': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M16.25,16.25L11,13V7h1.5v5.25l4.5,2.67 L16.25,16.25z"/></svg>',
+        'CAL': '<svg viewBox="0 0 24 24" class="icon-svg"><path d="M19,4h-1V2h-2v2H8V2H6v2H5C3.89,4,3,4.89,3,6v14c0,1.11,0.89,2,2,2h14c1.11,0,2-0.89,2-2V6C21,4.89,20.11,4,19,4z M19,20H5 V9h14V20z M19,7H5V6h14V7z M7,11h2v2H7V11z M11,11h2v2h-2V11z M15,11h2v2h-2V11z"/></svg>',
+    };
+    return icons[iconName] || '';
+}
+
 function updateMarqueePreview(index) {
     const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
 
@@ -726,6 +751,7 @@ function updateMarqueePreview(index) {
         const dayPath = document.getElementById(`dp_dayPath_${index}`).value;
         const yearPath = document.getElementById(`dp_yearPath_${index}`).value;
         const timePath = document.getElementById(`dp_timePath_${index}`).value;
+        const icon = document.getElementById(`dp_icon_${index}`).value;
 
         let monthValue = getDisplayValue(monthPath, 'MON', index);
         let dayValue = getDisplayValue(dayPath, 'DAY', index);
@@ -741,7 +767,13 @@ function updateMarqueePreview(index) {
         const timeFinalValue = `${prefix}${timeValue}${suffix}`;
 
         document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = String(monthValue).substring(0, 3).toUpperCase();
-        document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = String(dayValue).substring(0, 2).toUpperCase();
+
+        const dayPreview = document.querySelector(`#marquee_preview_${index} .preview-day`);
+        if (icon) {
+            dayPreview.innerHTML = getIconSvg(icon);
+        } else {
+            dayPreview.textContent = String(dayValue).substring(0, 2).toUpperCase();
+        }
         
         const setupScrolling = (text, valueSpan) => {
             valueSpan.textContent = text;
@@ -822,6 +854,19 @@ function attachDataPointEventListeners() {
         };
     });
 
+    document.querySelectorAll('.icon-select').forEach(select => {
+        select.onchange = (e) => {
+            const index = e.target.dataset.index;
+            const dayInput = document.getElementById(`dp_dayPath_${index}`);
+            if (e.target.value) {
+                dayInput.value = '';
+                dayInput.disabled = true;
+            } else {
+                dayInput.disabled = false;
+            }
+        };
+    });
+
     document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
     document.querySelectorAll('.dp-clear-btn').forEach(btn => btn.onclick = clearDataPointFields);
     document.querySelectorAll('.dp-dup-btn').forEach(btn => btn.onclick = duplicateDataPoint);
@@ -857,6 +902,10 @@ function attachDataPointEventListeners() {
             const indexMatch = e.target.id.match(/_(\d+)$/);
             if (!indexMatch) return;
             const index = indexMatch[1];
+            
+            if (e.target.id.startsWith('dp_dayPath_')) {
+                document.getElementById(`dp_icon_${index}`).value = '';
+            }
 
             if (e.target.id.includes('requestBody')) {
                 validateJson(e.target);

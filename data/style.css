@@ -379,6 +379,12 @@ select::-ms-expand {
     display: none;
 }
 
+input[type="text"]:disabled {
+    background-color: #333;
+    color: #888;
+    cursor: not-allowed;
+}
+
 input[type="number"].invalid,
 input[type="date"].invalid,
 input[type="time"].invalid {
@@ -993,7 +999,7 @@ body.time-travel-active {
     text-align: center;
 }
 .preview-month { flex-basis: 22%; }
-.preview-day { flex-basis: 15%; }
+.preview-day { flex-basis: 15%; display: flex; justify-content: center; align-items: center; }
 .preview-year-container, .preview-time-container {
     overflow: hidden;
     position: relative;
@@ -1230,4 +1236,10 @@ body.time-travel-active {
 .wizard-target-input.is-wizard-target {
     border-color: var(--slider-thumb-color);
     box-shadow: 0 0 8px var(--slider-thumb-shadow);
+}
+
+.icon-svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
 }
