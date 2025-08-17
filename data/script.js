@@ -351,6 +351,15 @@ function attachEventListeners() {
     });
     document.getElementById('departureTime').onchange = updateSleepVisual;
     document.getElementById('arrivalTime').onchange = updateSleepVisual;
+
+    // --- MODIFIED --- Add global listener for Escape key to deselect wizard target
+    document.addEventListener('keydown', (e) => {
+        if (e.key === "Escape" && activeWizardTarget) {
+            activeWizardTarget.classList.remove('is-wizard-target');
+            activeWizardTarget = null;
+            showMessage('Wizard target deselected.', 'info', 2000);
+        }
+    });
 }
 
 function handlePresetSelectionChange(event) {
@@ -849,13 +858,24 @@ function attachDataPointEventListeners() {
         });
     });
 
+    // --- MODIFIED --- This logic makes the wizard target highlight "sticky"
+    // and allows for deselection.
     document.querySelectorAll('.wizard-target-input').forEach(input => {
         input.addEventListener('click', (e) => {
-            if (activeWizardTarget) {
+            const clickedTarget = e.target;
+
+            // If the user clicks the currently active target, deactivate it.
+            if (activeWizardTarget === clickedTarget) {
                 activeWizardTarget.classList.remove('is-wizard-target');
+                activeWizardTarget = null;
+            } else {
+                // Otherwise, switch the active target to the new one.
+                if (activeWizardTarget) {
+                    activeWizardTarget.classList.remove('is-wizard-target');
+                }
+                activeWizardTarget = clickedTarget;
+                activeWizardTarget.classList.add('is-wizard-target');
             }
-            activeWizardTarget = e.target;
-            activeWizardTarget.classList.add('is-wizard-target');
         });
     });
 }
