@@ -155,6 +155,7 @@ void drawIcon(Adafruit_AlphaNum4& display, const char* iconName) {
     printToDisplay(display, iconName);
   }
   display.writeDisplay();
+  //TEST
   #endif
 }
 

@@ -1,12 +1,141 @@
+// Forcing a recompile to resolve build cache issues.
 #include "web_server.h"
 #include "certs.h"
 #include "api_templates.h"
+#include <AsyncJson.h>
+
+// Create a WebSocket object
+AsyncWebSocket ws("/ws");
+
+struct ApiTestParams {
+    String url;
+    String authKey;
+    String authValue;
+    uint32_t clientId; // Use the WebSocket client ID to send the response back
+};
+
+// This task now sends its result back over the WebSocket connection
+void apiTestTask(void *pvParameters) {
+    ESP_LOGI("API_TASK", "Task started.");
+    ApiTestParams *params = (ApiTestParams *)pvParameters;
+    String url = params->url;
+    String authKey = params->authKey;
+    String authValue = params->authValue;
+    uint32_t clientId = params->clientId;
+
+    delete params;
+
+    HTTPClient http;
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    ESP_LOGI("API_TASK", "Attempting to connect to URL: %s", url.c_str());
+    
+    String responseString;
+    DynamicJsonDocument responseJson(4096);
+    responseJson["action"] = "apiResult"; // So the UI knows what this message is
+
+    if (http.begin(client, url)) {
+        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+        http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
+        if (authKey.length() > 0 && authValue.length() > 0) {
+            http.addHeader(authKey, authValue);
+        }
+        http.setTimeout(10000);
+        
+        int httpCode = http.GET();
+        ESP_LOGI("API_TASK", "HTTP response code: %d", httpCode);
+
+        if (httpCode > 0) {
+            if (httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+                DynamicJsonDocument payloadDoc(4096);
+                DeserializationError error = deserializeJson(payloadDoc, payload);
+                if (error == DeserializationError::Ok) {
+                    responseJson["status"] = "success";
+                    responseJson["payload"] = payloadDoc.as<JsonVariant>();
+                } else {
+                    responseJson["status"] = "error";
+                    responseJson["payload"] = "JSON Parsing Failed: " + String(error.c_str());
+                }
+            } else {
+                responseJson["status"] = "error";
+                responseJson["payload"] = "HTTP Error: " + String(httpCode);
+            }
+        } else {
+            responseJson["status"] = "error";
+            responseJson["payload"] = "Request Failed: " + http.errorToString(httpCode);
+        }
+        http.end();
+    } else {
+        responseJson["status"] = "error";
+        responseJson["payload"] = "Connection to host failed.";
+    }
+
+    serializeJson(responseJson, responseString);
+    ws.text(clientId, responseString); // Send the result back to the specific client
+
+    ESP_LOGI("API_TASK", "Task finished, deleting.");
+    vTaskDelete(NULL);
+}
+
+void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+    if (type == WS_EVT_CONNECT) {
+        ESP_LOGI("WebSocket", "Client #%u connected from %s", client->id(), client->remoteIP().toString().c_str());
+    } else if (type == WS_EVT_DISCONNECT) {
+        ESP_LOGI("WebSocket", "Client #%u disconnected", client->id());
+    } else if (type == WS_EVT_DATA) {
+        AwsFrameInfo *info = (AwsFrameInfo*)arg;
+        if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+            data[len] = 0;
+            ESP_LOGI("WebSocket", "Received data: %s", (char*)data);
+            
+            DynamicJsonDocument doc(1024);
+            DeserializationError error = deserializeJson(doc, (char*)data);
+            if (error) {
+                ESP_LOGE("WebSocket", "JSON deserialization failed: %s", error.c_str());
+                return;
+            }
+
+            String action = doc["action"];
+            if (action == "testApi") {
+                JsonObject apiData = doc["data"];
+                String url = apiData["url"];
+
+                if (url.isEmpty() || url == "null") {
+                    ESP_LOGE("WebSocket", "Invalid URL received.");
+                    return;
+                }
+                
+                ApiTestParams *params = new ApiTestParams();
+                params->url = url;
+                params->authKey = apiData["authKey"].as<String>();
+                params->authValue = apiData["authValue"].as<String>();
+                params->clientId = client->id();
+
+                xTaskCreate(
+                    apiTestTask,
+                    "apiTestTask",
+                    10240,
+                    (void*)params,
+                    1,
+                    NULL
+                );
+            }
+        }
+    }
+}
 
 void setupWebRoutes() {
+  ws.onEvent(onWsEvent);
+  server.addHandler(&ws);
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/index.html", "text/html"); });
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/style.css", "text/css"); });
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/script.js", "application/javascript"); });
   server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(200, "text/plain", "READY"); });
+  
+  // All other API routes remain the same...
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
     #if ENABLE_HARDWARE
     playSound("EASTER_EGG");
@@ -86,6 +215,7 @@ void setupWebRoutes() {
     serializeJson(doc, response);
     request->send(200, "application/json", response);
   });
+    // ... KEEP ALL OTHER API ROUTES (saveSettings, getPresets, etc.) THE SAME ...
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send_P(200, "application/json", TZ_JSON);
   });
@@ -300,80 +430,9 @@ void setupWebRoutes() {
     request->send(200, "text/plain", "Theme saved.");
   });
   
-  server.on("/api/testDataPoint", HTTP_POST, [](AsyncWebServerRequest *request){
-    String apiExampleKey;
-    if (request->hasParam("api_example_key", true)) {
-        apiExampleKey = request->getParam("api_example_key", true)->value();
-    } else {
-        request->send(400, "application/json", "{\"success\":false, \"error\":\"Missing api_example_key parameter.\"}");
-        return;
-    }
-
-    String authKey = request->hasParam("authKey", true) ? request->getParam("authKey", true)->value() : "";
-    String authValue = request->hasParam("authValue", true) ? request->getParam("authValue", true)->value() : "";
-
-    DynamicJsonDocument doc(2048);
-    deserializeJson(doc, apiTemplates);
-    String url = doc[apiExampleKey]["url"];
-
-    if (url.isEmpty() || url == "null") {
-        request->send(400, "application/json", "{\"success\":false, \"error\":\"Invalid API key provided to server.\"}");
-        return;
-    }
-    
-    ESP_LOGI("API_WIZARD", "Free heap before test request: %u bytes", ESP.getFreeHeap());
-    ESP_LOGI("API_WIZARD", "Testing URL for key '%s': %s", apiExampleKey.c_str(), url.c_str());
-
-    HTTPClient http;
-    WiFiClientSecure client;
-    client.setInsecure(); // SSL verification disabled for debugging.
-    
-    if (http.begin(client, url)) {
-        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-        http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
-        if (authKey.length() > 0 && authValue.length() > 0) {
-            http.addHeader(authKey, authValue);
-            ESP_LOGI("API_WIZARD", "Using auth header: %s", authKey.c_str());
-        }
-        http.setTimeout(10000); // 10-second timeout to prevent watchdog reset
-        int httpCode = http.GET();
-        ESP_LOGI("API_WIZARD", "HTTP response code: %d", httpCode);
-        String errorMsg = "";
-
-        if (httpCode > 0) {
-            if (httpCode == HTTP_CODE_OK) {
-                String payload = http.getString();
-                DynamicJsonDocument responseDoc(2048);
-                DeserializationError error = deserializeJson(responseDoc, payload);
-                if (error == DeserializationError::Ok) {
-                    ESP_LOGI("API_WIZARD", "JSON parsing successful");
-                    // Re-construct the JSON properly to ensure it's valid for the browser
-                    DynamicJsonDocument finalDoc(4096);
-                    finalDoc["success"] = true;
-                    finalDoc["value"] = responseDoc.as<JsonVariant>();
-                    String finalPayload;
-                    serializeJson(finalDoc, finalPayload);
-                    request->send(200, "application/json", finalPayload);
-                } else {
-                    ESP_LOGE("API_WIZARD", "JSON parsing failed: %s", error.c_str());
-                    errorMsg = "JSON Parsing Failed: " + String(error.c_str());
-                }
-            } else {
-                errorMsg = "HTTP Error: " + String(httpCode);
-            }
-        } else {
-            ESP_LOGE("API_WIZARD", "HTTP request failed: %s", http.errorToString(httpCode).c_str());
-            errorMsg = "HTTP request failed: " + http.errorToString(httpCode);
-        }
-        
-        http.end();
-
-        if (errorMsg != "") {
-            request->send(200, "application/json", "{\"success\":false, \"error\":\"" + errorMsg + "\"}");
-        }
-    } else {
-        ESP_LOGE("API_WIZARD", "Failed to connect to host");
-        request->send(200, "application/json", "{\"success\":false, \"error\":\"Connection failed.\"}");
-    }
+  // We no longer need a dedicated HTTP endpoint for testing, it's all handled by WebSockets
+  
+  server.onNotFound([](AsyncWebServerRequest *request){
+    request->send(404, "text/plain", "Not found");
   });
 }

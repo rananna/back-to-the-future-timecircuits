@@ -1,3 +1,4 @@
+// Forcing a recompile to resolve build cache issues.
 #include "esp_log.h"
 #include <WiFi.h>
 #include <ArduinoOTA.h>
@@ -421,6 +422,84 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
+// Structure to pass data to the data link background task
+struct DataLinkParams {
+    int pointIndex;
+};
+
+// Background task for fetching data link data
+void fetchDataLinkTask(void *pvParameters) {
+    DataLinkParams *params = (DataLinkParams *)pvParameters;
+    int pointIndex = params->pointIndex;
+    delete params;
+
+    DataPoint point = currentSettings.dataPoints[pointIndex];
+    
+    ESP_LOGI("DataLink", "Task: Starting data fetch for point %d", pointIndex);
+    
+    HTTPClient http;
+    WiFiClientSecure client;
+    client.setInsecure();
+    
+    if (http.begin(client, point.url)) {
+        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+        http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
+        if (strlen(point.authHeaderKey) > 0 && strlen(point.authHeaderValue) > 0) {
+            http.addHeader(point.authHeaderKey, point.authHeaderValue);
+        }
+        
+        http.setTimeout(10000);
+
+        int httpCode;
+        if (point.httpMethod == METHOD_POST) {
+            http.addHeader("Content-Type", "application/json");
+            httpCode = http.POST(point.requestBody);
+        } else {
+            httpCode = http.GET();
+        }
+
+        ESP_LOGI("DataLink", "Task: HTTP response code: %d", httpCode);
+        if (httpCode > 0) {
+            if (httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+                DynamicJsonDocument doc(2048);
+                DeserializationError error = deserializeJson(doc, payload);
+                if (error == DeserializationError::Ok) {
+                    ESP_LOGI("DataLink", "Task: JSON parsing successful");
+                    auto fetch = [&](const char* path) {
+                        return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
+                    };
+                    strncpy(displayPages[pointIndex].month, (strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "").c_str(), sizeof(displayPages[pointIndex].month) - 1);
+                    strncpy(displayPages[pointIndex].day, (strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "").c_str(), sizeof(displayPages[pointIndex].day) - 1);
+                    strncpy(displayPages[pointIndex].year, (strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "").c_str(), sizeof(displayPages[pointIndex].year) - 1);
+                    strncpy(displayPages[pointIndex].time, (strlen(point.timePath) > 0 ? fetch(point.timePath) : "").c_str(), sizeof(displayPages[pointIndex].time) - 1);
+                    
+                    memcpy(&lastGoodDisplayPages[pointIndex], &displayPages[pointIndex], sizeof(MarqueeData));
+                    dataPointFetchFailures[pointIndex] = 0;
+                } else {
+                     ESP_LOGE("DataLink", "Task: JSON parsing failed: %s", error.c_str());
+                    strncpy(displayPages[pointIndex].time, "JSON ERR", sizeof(displayPages[pointIndex].time) - 1);
+                }
+            } else {
+                String errorStr = "ERR " + String(httpCode);
+                strncpy(displayPages[pointIndex].time, errorStr.c_str(), sizeof(displayPages[pointIndex].time) - 1);
+            }
+        } else {
+            ESP_LOGE("DataLink", "Task: HTTP request failed: %s", http.errorToString(httpCode).c_str());
+            strncpy(displayPages[pointIndex].time, "HTTP FAIL", sizeof(displayPages[pointIndex].time) - 1);
+        }
+        http.end();
+    } else {
+        ESP_LOGE("DataLink", "Task: Failed to connect to host");
+        strncpy(displayPages[pointIndex].time, "DNS/CNCT ERR", sizeof(displayPages[pointIndex].time) - 1);
+    }
+
+    isFetchingData = false;
+    ESP_LOGI("DataLink", "Task: Data fetch for point %d finished", pointIndex);
+    vTaskDelete(NULL);
+}
+
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -453,7 +532,6 @@ void setup() {
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
   setupMqtt();
-  // HEAP MONITORING
   ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
 
   runBootSequence();
@@ -720,81 +798,32 @@ void updateNormalClockDisplay() {
 
 void fetchDataLink() {
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0 || isFetchingData) return;
+    
+    if (millis() - lastDataLinkFetch < (unsigned long)currentSettings.dataLinkRefreshInterval * 60 * 1000 / currentSettings.numDataPoints) return;
+    
+    isFetchingData = true;
+    lastDataLinkFetch = millis();
+    
     DataPoint point = currentSettings.dataPoints[currentPointToFetch];
     if (point.dataSourceType == DATA_SOURCE_MQTT) {
         currentPointToFetch = (currentPointToFetch + 1) % currentSettings.numDataPoints;
+        isFetchingData = false;
         return;
     }
-
-    if (millis() - lastDataLinkFetch < (unsigned long)currentSettings.dataLinkRefreshInterval * 60 * 1000 / currentSettings.numDataPoints) return;
-    ESP_LOGI("DataLink", "Starting data fetch for point %d", currentPointToFetch);
-    isFetchingData = true;
-    lastDataLinkFetch = millis();
-    ESP_LOGI("Memory", "Free heap before HTTPS request: %u bytes", ESP.getFreeHeap());
-
-    HTTPClient http;
-    WiFiClientSecure client;
-    client.setInsecure(); // SSL verification disabled for debugging.
     
-    ESP_LOGI("DataLink", "Fetching URL: %s", point.url);
-    if (http.begin(client, point.url)) {
-        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-        http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
-        if (strlen(point.authHeaderKey) > 0 && strlen(point.authHeaderValue) > 0) {
-            http.addHeader(point.authHeaderKey, point.authHeaderValue);
-            ESP_LOGI("DataLink", "Using auth header: %s", point.authHeaderKey);
-        }
-        
-        http.setTimeout(10000); // 10-second timeout to prevent watchdog reset
+    DataLinkParams *params = new DataLinkParams();
+    params->pointIndex = currentPointToFetch;
 
-        int httpCode;
-        if (point.httpMethod == METHOD_POST) {
-            http.addHeader("Content-Type", "application/json");
-            http.addHeader("Content-Length", String(strlen(point.requestBody)));
-            httpCode = http.POST(point.requestBody);
-        } else {
-            httpCode = http.GET();
-        }
-
-        ESP_LOGI("DataLink", "HTTP response code: %d", httpCode);
-        if (httpCode > 0) {
-            if (httpCode == HTTP_CODE_OK) {
-                String payload = http.getString();
-                DynamicJsonDocument doc(2048);
-                DeserializationError error = deserializeJson(doc, payload);
-                if (error == DeserializationError::Ok) {
-                    ESP_LOGI("DataLink", "JSON parsing successful");
-                    auto fetch = [&](const char* path) {
-                        return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
-                    };
-                    strncpy(displayPages[currentPointToFetch].month, (strlen(point.monthPath) > 0 ? fetch(point.monthPath) : "").c_str(), sizeof(displayPages[currentPointToFetch].month) - 1);
-                    strncpy(displayPages[currentPointToFetch].day, (strlen(point.dayPath) > 0 ? fetch(point.dayPath) : "").c_str(), sizeof(displayPages[currentPointToFetch].day) - 1);
-                    strncpy(displayPages[currentPointToFetch].year, (strlen(point.yearPath) > 0 ? fetch(point.yearPath) : "").c_str(), sizeof(displayPages[currentPointToFetch].year) - 1);
-                    strncpy(displayPages[currentPointToFetch].time, (strlen(point.timePath) > 0 ? fetch(point.timePath) : "").c_str(), sizeof(displayPages[currentPointToFetch].time) - 1);
-                    
-                    memcpy(&lastGoodDisplayPages[currentPointToFetch], &displayPages[currentPointToFetch], sizeof(MarqueeData));
-                    dataPointFetchFailures[currentPointToFetch] = 0;
-                } else {
-                     ESP_LOGE("DataLink", "JSON parsing failed: %s", error.c_str());
-                    strncpy(displayPages[currentPointToFetch].time, "JSON ERR", sizeof(displayPages[currentPointToFetch].time) - 1);
-                }
-            } else {
-                String errorStr = "ERR " + String(httpCode);
-                strncpy(displayPages[currentPointToFetch].time, errorStr.c_str(), sizeof(displayPages[currentPointToFetch].time) - 1);
-            }
-        } else {
-            ESP_LOGE("DataLink", "HTTP request failed: %s", http.errorToString(httpCode).c_str());
-            strncpy(displayPages[currentPointToFetch].time, "HTTP FAIL", sizeof(displayPages[currentPointToFetch].time) - 1);
-        }
-        http.end();
-    } else {
-        ESP_LOGE("DataLink", "Failed to connect to host");
-        strncpy(displayPages[currentPointToFetch].time, "DNS/CNCT ERR", sizeof(displayPages[currentPointToFetch].time) - 1);
-    }
+    xTaskCreate(
+        fetchDataLinkTask,
+        "fetchDataLinkTask",
+        10240,
+        (void*)params,
+        1,
+        NULL
+    );
 
     currentPointToFetch = (currentPointToFetch + 1) % currentSettings.numDataPoints;
-    isFetchingData = false;
-    ESP_LOGI("DataLink", "Data fetch for point %d finished", currentPointToFetch > 0 ? currentPointToFetch - 1 : currentSettings.numDataPoints - 1);
 }
 
 void updateMarqueeDisplay() {

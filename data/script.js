@@ -1,3 +1,4 @@
+// Forcing a recompile to resolve build cache issues.
 let settingsChanged = false;
 let timezoneOptions = [];
 let isDataLinkLoaded = false;
@@ -5,20 +6,65 @@ let anyInputInvalid = false;
 let analyzedDataCache = {};
 let apiExamples = {}; // This will be populated on load
 
-// NEW: A cache to store modified URLs for each data point during the session
 let dataPointStateCache = {};
 let lastFocusedApiExample = {};
+
+let ws;
+
+function initWebSocket() {
+    ws = new WebSocket('ws://' + window.location.host + '/ws');
+
+    ws.onopen = function() {
+        console.log("CLIENT_DEBUG: WebSocket connection established.");
+        showMessage('Data Link channel open', 'success', 2000);
+    };
+
+    ws.onmessage = function(event) {
+        console.log("CLIENT_DEBUG: WebSocket message received:", event.data);
+        const msg = JSON.parse(event.data);
+
+        if (msg.action === 'apiResult') {
+            const button = document.querySelector('.analyze-api-btn.analyzing');
+            if (button) {
+                 button.disabled = false;
+                 button.classList.remove('analyzing');
+                 const index = button.dataset.index;
+                 const resultsContainer = document.getElementById(`wizard_results_${index}`);
+                 if (msg.status === 'success') {
+                    console.log("CLIENT_DEBUG: Server reported success. API response data:", msg.payload);
+                    analyzedDataCache[index] = msg.payload;
+                    displayApiWizardResults(index, msg.payload);
+                 } else {
+                    console.error("CLIENT_DEBUG: Server reported an API error:", msg.payload);
+                    showMessage(`API Error: ${msg.payload}`, 'error');
+                    resultsContainer.innerHTML = `<span class="error-text">${msg.payload}</span>`;
+                 }
+            }
+        }
+    };
+
+    ws.onclose = function() {
+        console.log("CLIENT_DEBUG: WebSocket connection closed. Attempting to reconnect...");
+        showMessage('Data Link channel closed. Retrying...', 'error', 3000);
+        setTimeout(initWebSocket, 3000);
+    };
+
+    ws.onerror = function(err) {
+        console.error('CLIENT_DEBUG: WebSocket error:', err);
+    };
+}
+
 
 async function checkServerReady(retries = 5, delay = 1000) {
     for (let i = 0; i < retries; i++) {
         try {
             const response = await fetch('/api/isReady');
             if (response.ok) {
-                console.log("Server is ready.");
+                console.log("CLIENT_DEBUG: Server is ready.");
                 return true;
             }
         } catch (error) {
-            console.log(`Attempt ${i + 1} failed. Retrying...`);
+            console.log(`CLIENT_DEBUG: Server readiness check, attempt ${i + 1} failed. Retrying...`);
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
@@ -37,6 +83,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function initializeUI() {
     try {
+        initWebSocket();
+
         const initialEndpoints = [
             '/api/settings/timecircuits', '/api/settings/temporal',
             '/api/settings/datalink', '/api/timezones',
@@ -49,7 +97,7 @@ async function initializeUI() {
 
         const [timecircuits, temporal, datalink, timezones, presets, theme, examples] = await Promise.all(promises);
         
-        window.apiExamples = examples; // Store examples globally for access
+        window.apiExamples = examples;
 
         document.body.className = theme.trim();
         populateTimezoneSelects(timezones);
@@ -62,7 +110,7 @@ async function initializeUI() {
         showMessage('System Online', 'success');
 
     } catch (error) {
-        console.error("Failed during essential initialization:", error);
+        console.error("CLIENT_DEBUG: Failed during essential initialization:", error);
         showMessage(`Critical error loading settings: ${error.message}. Please refresh.`, 'error');
     }
 }
@@ -77,7 +125,7 @@ function loadDataLinkSettings() {
             isDataLinkLoaded = true;
             showMessage('Data Link settings loaded.', 'success');
         }).catch(error => {
-            console.error("Failed to load Data Link settings:", error);
+            console.error("CLIENT_DEBUG: Failed to load Data Link settings:", error);
             showMessage(`Error loading Data Link: ${error.message}`, 'error');
         });
 }
@@ -202,7 +250,6 @@ function applyDataLinkSettings(datalink) {
                 document.getElementById(`dp_authHeaderValue_${i}`).value = point.authHeaderValue || '';
                 document.getElementById(`dp_httpMethod_${i}`).value = point.httpMethod || 0;
                 document.getElementById(`dp_requestBody_${i}`).value = point.requestBody || '';
-                // --- MODIFIED ---
                 document.getElementById(`api_example_${i}`).value = point.apiExampleKey || '';
                 
                 document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
@@ -385,7 +432,6 @@ function updateDataPointsUI(numPoints) {
         container.innerHTML = '';
         if (numPoints > 0) {
             for (let i = 0; i < numPoints; i++) {
-                // Initialize cache for this data point if it doesn't exist
                 if (!dataPointStateCache[i]) {
                     dataPointStateCache[i] = { modifiedUrls: {} };
                 }
@@ -608,7 +654,6 @@ function attachDataPointEventListeners() {
 
     document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
 
-    // --- MODIFIED ---
     document.querySelectorAll('.api-example-select').forEach(select => {
         select.addEventListener('focus', (e) => {
             const index = e.target.dataset.index;
@@ -672,83 +717,107 @@ function validateJson(textarea) {
 
 function startApiWizard(event) {
     const index = event.target.getAttribute('data-index');
-    const apiExampleKey = document.getElementById(`api_example_${index}`).value;
+    const apiUrl = document.getElementById(`dp_url_${index}`).value;
     const authKey = document.getElementById(`dp_authHeaderKey_${index}`).value;
     const authValue = document.getElementById(`dp_authHeaderValue_${index}`).value;
     const button = event.target;
 
-    if (!apiExampleKey) {
-        showMessage('Please select an API Example from the dropdown first.', 'error');
+    console.log(`CLIENT_DEBUG: Starting API Wizard for index ${index}. URL: ${apiUrl}`);
+
+    if (!apiUrl) {
+        showMessage('Please enter an API URL first.', 'error');
+        return;
+    }
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showMessage('Data Link channel is not open. Please wait.', 'error');
         return;
     }
 
     const resultsContainer = document.getElementById(`wizard_results_${index}`);
     resultsContainer.innerHTML = '<span class="loading-spinner"></span> Analyzing...';
     button.disabled = true;
-    
-    const formData = new URLSearchParams({ api_example_key: apiExampleKey, authKey, authValue });
+    button.classList.add('analyzing');
 
-    fetch('/api/testDataPoint', { method: 'POST', body: formData })
-        .then(response => {
-            // First, clone the response so we can read it twice
-            const clonedResponse = response.clone();
-            // Try to parse as JSON. If it works, continue the chain.
-            return response.json().catch(() => {
-                // If JSON parsing fails, get the raw text and log it for debugging.
-                return clonedResponse.text().then(text => {
-                    console.error("Server response was not valid JSON. Raw text:", text);
-                    // Throw a new error to be caught by the final .catch()
-                    throw new Error("Received non-JSON response from server.");
-                });
-            });
-        })
-        .then(data => {
-            if (data.success) {
-                analyzedDataCache[index] = data.value;
-                displayApiWizardResults(index, data.value);
-            } else {
-                showMessage(`API Error: ${data.error}`, 'error');
-                resultsContainer.innerHTML = `<span class="error-text">${data.error}</span>`;
-            }
-        }).catch(err => {
-            // This will catch both network errors and the custom error thrown above.
-            showMessage(`Network or Parsing Error: ${err.message}`, 'error');
-            resultsContainer.innerHTML = `<span class="error-text">Network or response parsing error. Check console for details.</span>`;
-        }).finally(() => {
-            button.disabled = false;
-        });
+    const message = {
+        action: "testApi",
+        data: {
+            url: apiUrl,
+            authKey: authKey,
+            authValue: authValue
+        }
+    };
+
+    ws.send(JSON.stringify(message));
 }
 
+// *** THIS IS THE NEW, BULLETPROOF FUNCTION ***
 function displayApiWizardResults(index, jsonData) {
     const container = document.getElementById(`wizard_results_${index}`);
     container.innerHTML = '<strong>Click a button to map its value to a display field:</strong>';
-    const list = document.createElement('ul');
-    list.className = 'wizard-list';
-    const buildList = (obj, parentPath = '') => {
-        for (const key in obj) {
-            const currentPath = parentPath ? `${parentPath}.${key}` : key;
-            const value = obj[key];
-            const li = document.createElement('li');
-            if (typeof value === 'object' && value !== null) {
-                li.innerHTML = `<span class="wizard-key">${key}:</span>`;
-                const subList = document.createElement('ul');
-                buildList(value, currentPath).forEach(item => subList.appendChild(item));
-                li.appendChild(subList);
-            } else {
-                li.innerHTML = `<span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(value)}"</span>
-                <div style="display:inline-block; margin-left:10px;">
-                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="month">M</button>
-                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="day">D</button>
-                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="year">Y</button>
-                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="time">T</button>
-                    <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="scrollingText">Scroll</button>
-                </div>`;
+    const mainList = document.createElement('ul');
+    mainList.className = 'wizard-list';
+
+    const buildListRecursive = (data, parentPath = '') => {
+        const elements = [];
+
+        // Handle arrays
+        if (Array.isArray(data)) {
+            data.forEach((item, i) => {
+                const currentPath = `${parentPath}[${i}]`;
+                const li = document.createElement('li');
+                
+                if (typeof item === 'object' && item !== null) {
+                    li.innerHTML = `<span class="wizard-key">[${i}]:</span>`;
+                    const subList = document.createElement('ul');
+                    const childElements = buildListRecursive(item, currentPath);
+                    childElements.forEach(el => subList.appendChild(el));
+                    li.appendChild(subList);
+                } else {
+                     li.innerHTML = `<span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(item)}"</span>
+                        <div class="wizard-buttons">
+                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="month">M</button>
+                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="day">D</button>
+                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="year">Y</button>
+                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="time">T</button>
+                            <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="scrollingText">Scroll</button>
+                        </div>`;
+                }
+                elements.push(li);
+            });
+        // Handle objects
+        } else if (typeof data === 'object' && data !== null) {
+            for (const key in data) {
+                const currentPath = parentPath ? `${parentPath}.${key}` : key;
+                const value = data[key];
+                const li = document.createElement('li');
+
+                if (typeof value === 'object' && value !== null) {
+                    li.innerHTML = `<span class="wizard-key">${key}:</span>`;
+                    const subList = document.createElement('ul');
+                    const childElements = buildListRecursive(value, currentPath);
+                    childElements.forEach(el => subList.appendChild(el));
+                    li.appendChild(subList);
+                } else {
+                    li.innerHTML = `<span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(value)}"</span>
+                        <div class="wizard-buttons">
+                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="month">M</button>
+                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="day">D</button>
+                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="year">Y</button>
+                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="time">T</button>
+                           <button class="wizard-map-btn" data-path="${currentPath}" data-index="${index}" data-target="scrollingText">Scroll</button>
+                        </div>`;
+                }
+                elements.push(li);
             }
-            list.appendChild(li);
         }
+        return elements;
     };
-    buildList(jsonData);
-    container.appendChild(list);
+
+    const allElements = buildListRecursive(jsonData);
+    allElements.forEach(el => mainList.appendChild(el));
+    container.appendChild(mainList);
+
     container.querySelectorAll('.wizard-map-btn').forEach(btn => btn.onclick = (e) => {
         const { path, index, target } = e.target.dataset;
         const elementId = (target === 'scrollingText') ? `dp_scrollingText_${index}` : `dp_${target}Path_${index}`;
@@ -762,6 +831,7 @@ function displayApiWizardResults(index, jsonData) {
         showMessage(`Mapped "${path}" to ${target.toUpperCase()}`, 'success', 2000);
     });
 }
+
 
 function saveSettings() {
     showLoading('saveSettingsBtn', true);
@@ -800,7 +870,6 @@ function saveSettings() {
                 const el = document.getElementById(`dp_${field}_${i}`);
                 if (el) formData.append(`dp_${field}_${i}`, el.value);
             });
-            // --- MODIFIED ---
             formData.append(`dp_apiExampleKey_${i}`, document.getElementById(`api_example_${i}`).value);
         }
     }
@@ -814,10 +883,6 @@ function saveSettings() {
             setTimeout(() => document.body.classList.remove('time-travel-active'), duration);
         }).catch(err => showMessage(`Error: ${err.message}`, 'error'))
         .finally(() => showLoading('saveSettingsBtn', false));
-
-    console.log("Data being sent to server:", Object.fromEntries(formData));
-
-    fetch('/api/saveSettings', { method: 'POST', body: formData })
 }
 
 function addPreset() {
