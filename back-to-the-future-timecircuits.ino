@@ -60,6 +60,7 @@ const TimeZoneEntry TZ_DATA[] = {
   { "HST10", "Hawaii (Honolulu, No DST)", "Pacific/Honolulu", "Americas" },
 
   // Europe
+ 
   { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe" },
   { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
   { "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
@@ -87,7 +88,8 @@ const TimeZoneEntry TZ_DATA[] = {
   { "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
 
   // South America
-  { "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
+  
+{ "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
   { "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
@@ -895,9 +897,9 @@ marqueeScrollPosition = 0;
         DataPoint point = currentSettings.dataPoints[currentPageIndex];
 printToDisplay(targetRow->month, displayPages[currentPageIndex].month);
 if (strlen(point.icon) > 0) {
-            drawIcon(targetRow->day, point.icon);
+    printToDisplay(targetRow->day, point.icon, 2);
 } else {
-            printToDisplay(targetRow->day, displayPages[currentPageIndex].day);
+    printToDisplay(targetRow->day, displayPages[currentPageIndex].day, 2);
 }
 
         String yearContent = String(point.yearPrefix) + displayPages[currentPageIndex].year + String(point.yearSuffix);

@@ -138,27 +138,6 @@ void display88MphSpeed(float speed) {
   #endif
 }
 
-void drawIcon(Adafruit_AlphaNum4& display, const char* iconName) {
-  #if ENABLE_HARDWARE
-  display.clear();
-  if (strcmp(iconName, "SUN") == 0) {
-    // Custom character for a sun icon
-    display.writeDigitRaw(1, 0b0000101010001000);
-    display.writeDigitRaw(2, 0b0000101001001000);
-  } else if (strcmp(iconName, "CLOUD") == 0) {
-    // Custom character for a cloud icon
-    display.writeDigitRaw(0, 0b0000000011100011);
-    display.writeDigitRaw(1, 0b0000000011111111);
-    display.writeDigitRaw(2, 0b0000000011111111);
-    display.writeDigitRaw(3, 0b0000000011100011);
-  } else {
-    printToDisplay(display, iconName);
-  }
-  display.writeDisplay();
-  //TEST
-  #endif
-}
-
 void playSound(const char* soundName) {
   #if ENABLE_HARDWARE
   if (strcmp(soundName, "TIME_TRAVEL") == 0) myDFPlayer.playMp3Folder(1);
