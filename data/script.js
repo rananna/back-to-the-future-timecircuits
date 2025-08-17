@@ -682,27 +682,24 @@ function updateDataPointsUI(numPoints) {
     });
 }
 
+function getDisplayValue(path, placeholder, index) {
+    if (!path) return placeholder;
+
+    if (analyzedDataCache[index] !== undefined) {
+        const resolvedValue = getValueFromPath(analyzedDataCache[index], path);
+        if (resolvedValue !== null && resolvedValue !== undefined) {
+            return resolvedValue;
+        }
+    }
+    
+    // If the path didn't resolve or no API data exists, return the path itself.
+    // This allows for static text to be used.
+    return path;
+}
+
+
 function updateMarqueePreview(index) {
     const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
-
-    const getDisplayValue = (path, placeholder) => {
-        const isAnalyzed = analyzedDataCache[index] !== undefined;
-        let value = null;
-
-        if (isAnalyzed) {
-            value = getValueFromPath(analyzedDataCache[index], path);
-        }
-        
-        if (value !== null && value !== undefined) {
-            return value;
-        }
-        
-        if (path && (!path.includes('.') && !path.includes('['))) {
-            return path;
-        }
-
-        return placeholder;
-    };
 
     if (displayMode === '0') { // Four Column Data
         const monthPath = document.getElementById(`dp_monthPath_${index}`).value;
@@ -710,18 +707,18 @@ function updateMarqueePreview(index) {
         const yearPath = document.getElementById(`dp_yearPath_${index}`).value;
         const timePath = document.getElementById(`dp_timePath_${index}`).value;
 
-        const monthValue = getDisplayValue(monthPath, 'MON');
-        const dayValue = getDisplayValue(dayPath, 'DAY');
-        
+        let monthValue = getDisplayValue(monthPath, 'MON', index);
+        let dayValue = getDisplayValue(dayPath, 'DAY', index);
+        let yearValue = getDisplayValue(yearPath, 'YEAR', index);
+        let timeValue = getDisplayValue(timePath, 'TIME', index);
+
         const yearPrefix = document.getElementById(`dp_yearPrefix_${index}`).value;
         const yearSuffix = document.getElementById(`dp_yearSuffix_${index}`).value;
-        const yearData = getDisplayValue(yearPath, 'YEAR');
-        const yearFinalValue = `${yearPrefix}${yearData}${yearSuffix}`;
+        const yearFinalValue = `${yearPrefix}${yearValue}${yearSuffix}`;
 
         const prefix = document.getElementById(`dp_prefix_${index}`).value;
         const suffix = document.getElementById(`dp_suffix_${index}`).value;
-        const timeData = getDisplayValue(timePath, 'TIME');
-        const timeFinalValue = `${prefix}${timeData}${suffix}`;
+        const timeFinalValue = `${prefix}${timeValue}${suffix}`;
 
         document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = String(monthValue).substring(0, 3).toUpperCase();
         document.querySelector(`#marquee_preview_${index} .preview-day`).textContent = String(dayValue).substring(0, 2).toUpperCase();
@@ -742,7 +739,7 @@ function updateMarqueePreview(index) {
 
     } else { // Scrolling Text
         const scrollingPath = document.getElementById(`dp_scrollingText_${index}`).value;
-        const text = getDisplayValue(scrollingPath, 'PREVIEW');
+        const text = getDisplayValue(scrollingPath, 'PREVIEW', index);
         const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
         previewSpan.textContent = text;
         previewSpan.classList.remove('scrolling-text');
