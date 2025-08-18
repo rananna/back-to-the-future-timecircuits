@@ -47,7 +47,7 @@ function initWebSocket() {
                     } else {
                         showMessage(`Data Point ${parseInt(index) + 1} test successful.`, 'success');
                     }
-                    updateMarqueePreview(index);
+                    updateMarqueePreview(index); // This line was missing!
                  } else {
                     const errorMsg = `API Error: ${msg.payload}`;
                     console.error(`CLIENT_DEBUG: API analysis for index ${index} failed. Error:`, msg.payload);
@@ -291,45 +291,43 @@ async function applyDataLinkSettings(datalink) {
     }
 }
 
-function handleDataLinkToggle(isWeatherMode) {
+function handleDataLinkToggle(changedToggleId) {
     const weatherToggle = document.getElementById('weatherModeEnabled');
     const dataLinkToggle = document.getElementById('dataLinkEnabled');
-    const weatherGroup = document.getElementById('weatherModeGroup');
-    const dataLinkGroup = document.getElementById('dataLinkGroup');
-    const weatherContainer = document.getElementById('weatherSettingsContainer');
-    const dataLinkContainer = document.getElementById('dataLinkSettingsContainer');
 
-    if (isWeatherMode) {
-        if (!weatherToggle.checked) {
-            weatherToggle.checked = true; // Prevent unchecking, effectively making the other toggle check
-            dataLinkToggle.checked = false;
-        } else {
-             dataLinkToggle.checked = false;
-        }
-    } else { // Data Link toggle was changed
-        if (!dataLinkToggle.checked) {
-            dataLinkToggle.checked = true; // Prevent unchecking
-            weatherToggle.checked = false;
-        } else {
-            weatherToggle.checked = false;
-        }
+    // If the changed toggle is now checked, uncheck the other one.
+    if (changedToggleId === 'weatherModeEnabled' && weatherToggle.checked) {
+        dataLinkToggle.checked = false;
+    } else if (changedToggleId === 'dataLinkEnabled' && dataLinkToggle.checked) {
+        weatherToggle.checked = false;
     }
 
+    // If the user's action resulted in both being unchecked, re-check the one they didn't touch.
+    // This enforces that at least one is always active.
+    if (!weatherToggle.checked && !dataLinkToggle.checked) {
+        if (changedToggleId === 'weatherModeEnabled') {
+             dataLinkToggle.checked = true; // User tried to uncheck weather, so re-activate datalink
+        } else {
+             weatherToggle.checked = true; // User tried to uncheck datalink, so re-activate weather
+        }
+    }
+    
     // Now, update the UI based on the final state of the toggles
     const isWeatherChecked = weatherToggle.checked;
     const isDataLinkChecked = dataLinkToggle.checked;
 
-    weatherContainer.style.display = isWeatherChecked ? 'block' : 'none';
-    dataLinkContainer.style.display = isDataLinkChecked ? 'block' : 'none';
+    document.getElementById('weatherSettingsContainer').style.display = isWeatherChecked ? 'block' : 'none';
+    document.getElementById('dataLinkSettingsContainer').style.display = isDataLinkChecked ? 'block' : 'none';
 
-    weatherGroup.classList.toggle('disabled', isDataLinkChecked);
-    dataLinkGroup.classList.toggle('disabled', isWeatherChecked);
+    document.getElementById('weatherModeGroup').classList.toggle('disabled', isDataLinkChecked);
+    document.getElementById('dataLinkGroup').classList.toggle('disabled', isWeatherChecked);
 
     if (isWeatherChecked) {
         fetchWeatherData();
     }
     setSettingsChanged(true);
 }
+
 
 function attachEventListeners() {
     const container = document.body;
@@ -345,27 +343,54 @@ function attachEventListeners() {
             }
         }
     };
-
     container.addEventListener('change', delegatedChangeHandler);
     container.addEventListener('input', delegatedChangeHandler);
-    
-    // Delegated click handler
+
     document.body.addEventListener('click', function(e) {
         const target = e.target;
         
-        if (target.id === 'saveSettingsBtn') saveSettings();
-        if (target.id === 'greatScottBtn') fetch('/api/greatScott', { method: 'POST' });
-        if (target.closest('#header-dest')) scrollToSettings('TimeCircuits', 'destinationTimeSettings');
-        if (target.closest('#header-pres')) scrollToSettings('System', 'presentTimeSettings');
-        if (target.closest('#header-last')) scrollToSettings('TimeCircuits', 'lastDepartedSettings');
-        if (target.id === 'savePresetBtn') handleSavePreset();
-        if (target.id === 'deletePresetBtn') deletePreset();
-        if (target.id === 'newPresetBtn') resetPresetForm();
-        if (target.id === 'refreshWeatherBtn') refreshWeatherData();
-        if (target.id === 'syncNtpBtn' || target.id === 'timeSyncStatus') {
-            showMessage('Requesting time sync...', 'info');
-            fetch('/api/syncTime', { method: 'POST' }).then(res => res.text()).then(text => showMessage(text, 'info'));
+        // Save button
+        if (target.id === 'saveSettingsBtn') {
+            saveSettings();
         }
+        // Great Scott button
+        if (target.id === 'greatScottBtn') {
+            fetch('/api/greatScott', { method: 'POST' });
+        }
+        // Header navigation
+        if (target.closest('#header-dest')) {
+             scrollToSettings('TimeCircuits', 'destinationTimeSettings');
+        }
+        if (target.closest('#header-pres')) {
+            scrollToSettings('System', 'presentTimeSettings');
+        }
+        if (target.closest('#header-last')) {
+            scrollToSettings('TimeCircuits', 'lastDepartedSettings');
+        }
+        // Tabs
+        const tabLink = target.closest('.tab-link');
+        if (tabLink) {
+            const tabName = tabLink.getAttribute('data-tab');
+            openTab({ currentTarget: tabLink }, tabName);
+            if (tabName === 'DataLink' && !isDataLinkLoaded) {
+                loadDataLinkSettings();
+            }
+        }
+        // Preset buttons
+        if(target.id === 'savePresetBtn') {
+            handleSavePreset();
+        }
+        if(target.id === 'deletePresetBtn') {
+            deletePreset();
+        }
+        if(target.id === 'newPresetBtn') {
+            resetPresetForm();
+        }
+        // Weather refresh
+        if (target.id === 'refreshWeatherBtn') {
+            refreshWeatherData();
+        }
+        // Reset and Sync
         if (target.id === 'resetDefaultsBtn') {
             if (confirm("Are you sure? This will reset all settings to their defaults.")) {
                 fetch('/api/resetSettings', { method: 'POST' })
@@ -375,14 +400,11 @@ function attachEventListeners() {
                     });
             }
         }
-
-        const tabLink = target.closest('.tab-link');
-        if (tabLink) {
-            const tabName = tabLink.getAttribute('data-tab');
-            openTab({ currentTarget: tabLink }, tabName);
-            if (tabName === 'DataLink' && !isDataLinkLoaded) loadDataLinkSettings();
+        if (target.id === 'syncNtpBtn' || target.id === 'timeSyncStatus') {
+            showMessage('Requesting time sync...', 'info');
+            fetch('/api/syncTime', { method: 'POST' }).then(res => res.text()).then(text => showMessage(text, 'info'));
         }
-
+        // Themes
         const themeOption = target.closest('.theme-option');
         if (themeOption) {
             const theme = themeOption.getAttribute('data-theme');
@@ -390,15 +412,21 @@ function attachEventListeners() {
             fetch('/api/setTheme', { method: 'POST', body: new URLSearchParams({ theme }) });
         }
     });
+    
+    // *** ROBUST EVENT DELEGATION FOR DYNAMIC ELEMENTS ***
+    const dataPointsContainer = document.getElementById('dataPointsConfigContainer');
 
-    // Event listeners for Data Point blocks (delegated from container)
-    document.getElementById('dataPointsConfigContainer').addEventListener('click', (e) => {
+    dataPointsContainer.addEventListener('click', (e) => {
         const target = e.target;
-        if (target.classList.contains('analyze-api-btn')) startApiWizard(e);
-        if (target.classList.contains('dp-clear-btn')) clearDataPointFields(e);
-        if (target.classList.contains('dp-dup-btn')) duplicateDataPoint(e);
-        if (target.classList.contains('dp-test-btn')) testDataPoint(e);
-        if (target.classList.contains('wizard-target-input')) {
+        if (target.classList.contains('analyze-api-btn')) {
+            startApiWizard(e);
+        } else if (target.classList.contains('dp-clear-btn')) {
+            clearDataPointFields(e);
+        } else if (target.classList.contains('dp-dup-btn')) {
+            duplicateDataPoint(e);
+        } else if (target.classList.contains('dp-test-btn')) {
+            testDataPoint(e);
+        } else if (target.classList.contains('wizard-target-input')) {
             document.querySelectorAll('.wizard-target-input').forEach(el => el.classList.remove('is-wizard-target'));
             if (activeWizardTarget !== target) {
                 activeWizardTarget = target;
@@ -409,8 +437,28 @@ function attachEventListeners() {
         }
     });
 
-    document.getElementById('weatherModeEnabled').addEventListener('change', () => handleDataLinkToggle(true));
-    document.getElementById('dataLinkEnabled').addEventListener('change', () => handleDataLinkToggle(false));
+    dataPointsContainer.addEventListener('change', (e) => {
+        const target = e.target;
+        if (target.classList.contains('api-example-select')) {
+            const index = target.dataset.index;
+            const exampleKey = target.value;
+            if (exampleKey && window.apiExamples[exampleKey]) {
+                document.getElementById(`dp_url_${index}`).value = window.apiExamples[exampleKey].url;
+                // Trigger input event for live preview update
+                document.getElementById(`dp_url_${index}`).dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+    });
+
+
+    // Specific listeners that need more complex logic
+    document.getElementById('weatherModeEnabled').addEventListener('change', (e) => handleDataLinkToggle(e.target.id));
+    document.getElementById('dataLinkEnabled').addEventListener('change', (e) => handleDataLinkToggle(e.target.id));
+
+    document.getElementById('numDataPoints').addEventListener('input', (e) => {
+        document.getElementById('numDataPointsValue').textContent = e.target.value;
+        updateDataPointsUI(parseInt(e.target.value, 10));
+    });
 
     document.getElementById('destinationYear').addEventListener('input', () => {
         updateHeaderClocks(new Date());
@@ -429,6 +477,7 @@ function attachEventListeners() {
         }
     });
 }
+
 
 function validateYearInput() {
     const input = document.getElementById('destinationYear');
