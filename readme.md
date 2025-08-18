@@ -62,24 +62,23 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
     * **NTP Synchronization**: Automatically fetches the current time from a pool of NTP servers (`pool.ntp.org`, `time.google.com`, `time.nist.gov`) to ensure the "Present Time" is always perfectly accurate.
     * **Full Time Zone Support**: Includes a comprehensive list of world time zones with automatic Daylight Saving Time adjustments. Both "Present Time" and "Destination Time" can be set to different time zones.
 * **Audio-Visual Experience**:
-    * **Dynamic Sound Effects**: An integrated DFPlayer Mini MP3 module plays iconic movie sounds for events like time travel, button confirmations, and power-ups. The system dynamically scans the SD card for sound files, which must be named correctly (e.g., `TIME_TRAVEL.mp3`, `ACCELERATION.mp3`).
+    * **Dynamic Sound Effects**: An integrated DFPlayer Mini MP3 module plays iconic movie sounds for events like time travel, button confirmations, and power-ups.
     * **Physical Time Travel Animations**: Trigger a physical animation on the hardware where all displays flicker with random dates and times before settling on the new present time.
-    * **Multiple Animation Styles**: Choose from several animation styles via the web UI, including "Sequential Flicker," "Random Flicker," "All Displays Random," "Counting Up," and "Wave Flicker".
+    * **Multiple Animation Styles**: Choose from 10 animation styles via the web UI, including "Sequential Flicker," "Random Flicker," "Tornado Flicker," "Capacitor Charge-Up," "Digital Rain," and "Timeline Skim".
     * **Random Glitch & Malfunction Effects**: A configurable "instability" setting allows for random, intermittent display glitches for an authentic feel. There's also a separately configurable chance for a more dramatic **"malfunction" sequence**, where displays go haywire, show an error message like "TIME CIRCUIT OVERLOAD," and simulate a full reboot.
-    * **Cinematic Boot Sequence**: A non-blocking startup sequence plays on the displays, showing messages like "88 MPH," "RECALIBRATING," and "CAPACITOR FULL".
+    * **Cinematic Boot Sequence**: A non-blocking startup sequence plays on the displays, showing messages like "RECALIBRATING," and "CAPACITOR FULL".
 
 #### **Advanced Web Interface & Data Link**
-* **Live, Interactive Header**: The UI header is a screen-accurate, real-time replica of the physical display that doubles as the primary control surface. Clicking on the **Destination, Present, or Last Time Departed** rows will instantly and smoothly navigate you to the corresponding settings section, creating an immersive and intuitive "what you see is what you edit" experience.
-* **Robust Non-Blocking Data Link**: The most advanced feature is a fully configurable "Data Link" marquee that uses the standard ESP32 libraries to make **non-blocking HTTPS requests**. Each request runs in its own dedicated task, ensuring that slow API servers will never freeze or stutter the clock's animations.
-* **MQTT Integration**: In addition to polling web APIs, data points can be configured to subscribe to an **MQTT broker**. This allows for efficient, real-time data pushes from smart home devices, sensors, or other services on your local network.
-* **Custom Icons**: The marquee can display custom icons (e.g., SUN, CLOUD, WIFI, BTC) on the 14-segment displays alongside the data.
-* **Customizable Display**: For each data point, you can customize the API URL, JSON path, display label, format, icon, and scroll speed. You can also switch between the standard "Four Column" data display and a new "Scrolling Text" mode for longer messages.
+* **Live, Interactive Header**: The UI header is a screen-accurate, real-time replica of the physical display. Clicking on the **Destination, Present, or Last Time Departed** rows instantly navigates you to the corresponding settings section.
+* **API Wizard**: An intuitive tool that fetches data from any JSON API, analyzes its structure, and allows you to map data points to display fields with a simple click, no coding required.
+* **Robust Non-Blocking Data Link**: The configurable "Data Link" marquee uses non-blocking HTTPS requests in dedicated tasks, ensuring that slow API servers will never freeze the clock's animations or display updates.
+* **MQTT Integration**: In addition to polling web APIs, data points can subscribe to an **MQTT broker** for efficient, real-time data pushes from smart home devices or other local services.
+* **Dual Display Modes**: Each data point can be shown in the standard "Four Column" format or as a full-width "Scrolling Text" message for longer information.
 * **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal named **BTTF-Clock-Setup** for easy initial network setup.
 * **Customizable UI Themes**: Change the color scheme of the web interface to one of several included themes, such as "OUTATIME," "Plutonium Glow," "88 MPH," "Mr. Fusion," or "Clock Tower".
 
 #### **Customization & Convenience**
-* **Live Wind Speedometer Mode**: Switch the "Last Time Departed" row into a real-time speedometer that shows the current wind speed for your geographic location, fetched from the Open-Meteo API.
-* **Preset Time Jumps**: The web UI comes pre-loaded with famous dates from the movies. You can also **add, update, and delete** your own custom date presets, which are saved on the device's flash memory.
+* **Full Preset Management**: The web UI comes pre-loaded with famous dates from the movies. You can also **add, update, and delete** your own custom date presets, which are saved on the device's flash memory.
 * **Power Saving "Sleep" Mode**: Displays can be configured to automatically turn off and on at user-defined "departure" and "arrival" times to save energy.
 * **Over-the-Air (OTA) Updates**: Update the firmware wirelessly over your WiFi network using the Arduino IDE, no physical connection required after the initial flash.
 
@@ -256,67 +255,53 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 
 ### 💡 Adding Real-Time Data with the API Wizard (Example)
 
-The "Data Link" feature is one of the most powerful aspects of this project, allowing you to display real-time data from almost any online API directly on your time circuits. The **API Wizard** makes this process incredibly simple, even if you have no technical knowledge of APIs or JSON. The live preview will update instantaneously as you type, showing you exactly how the final output will look.
+The "Data Link" feature is one of the most powerful aspects of this project, allowing you to display real-time data from almost any online API directly on your time circuits. The **API Wizard** makes this process incredibly simple, even if you have no technical knowledge of APIs or JSON.
 
 ---
 
-#### **Example: Displaying the Current Temperature with a Custom Prefix and Suffix**
+#### **Example: Displaying the Current Bitcoin Price**
 
-Let's walk through setting up a data point to show the current temperature for New York City, formatted as "**TEMP | : 18.3°C**".
+Let's walk through setting up a data point to show the current price of Bitcoin.
 
 #### **Step 1: Navigate to the "Data Link" Tab**
 
 * In the web interface, click on the **Data Link** tab.
 * Make sure the **"Enable Data Link Marquee"** toggle switch is turned on.
+* Set the "Number of Data Points" slider to at least 1.
 
-#### **Step 2: Choose an Example or Enter a URL**
+#### **Step 2: Choose an Example API**
 
-* In the "API Data Points" section, find an available data point (e.g., "Data Point 1").
-* You can use a pre-filled example. From the **"API Examples"** dropdown, select **"Weather: Temperature"**. The URL for the Open-Meteo API will be filled in for you.
-    * *Note: You can easily change the `latitude` and `longitude` values in the URL to get the weather for your own location!*
+* In the "Data Point 1" block, find the **"API Examples"** dropdown menu.
+* Select **"Crypto: Bitcoin Price"**. The URL for the CoinGecko API will be automatically filled in for you.
 
 #### **Step 3: Analyze the API Data**
 
-* Click the **"Analyze API"** button next to the URL field.
-* The clock will connect to the URL and fetch the data. A new section will appear below the button, showing you the structure of the data it found. For the weather example, it will look something like this:
+* Click the **"Analyze API"** button.
+* The clock will connect to the URL and fetch the live data. A new section will appear below, showing you the structure of the data it found. It will look something like this:
 
     ```
-    Click the data point you want to display:
-    • current_weather:
-        • temperature: "18.3"
-        • windspeed: "10.2"
-        • weathercode: "3"
+    Click a form field (Month, Day, etc.), then click a value below to map it.
+    • bitcoin:
+        • usd: 68500
     ```
 
-#### **Step 4: Select Your Value and Reveal Final Details**
+#### **Step 4: Map the Data to the Display**
 
-* You don't need to understand what a "JSON Path" is. Simply **click on the `temperature: "18.3"` item** in the list.
-* Once you click it, two things happen:
-    1.  The wizard confirms your selection: **`Selected: current_weather.temperature`**.
-    2.  A new form section with the final details appears, which was previously hidden. This is where you can set the prefix and suffix.
+This is where the magic happens. We want to display "BTC" in the MONTH field and the price in the YEAR field.
 
-#### **Step 5: Set the Prefix, Suffix, and Format**
+1.  **Click the "YEAR" input field**. It will become highlighted, indicating it's the target for the next value you select.
+2.  In the API results, **click on `usd: 68500`**.
+3.  The text `bitcoin.usd` will instantly appear in the YEAR field.
+4.  Now, type **`BTC`** directly into the **MONTH** input field.
 
-Now you can customize how the data is displayed. As you type in the prefix and suffix fields, the **live preview** will update in real-time.
+The live preview at the bottom of the section will immediately update to show something like: `BTC DAY 68500 TIME`.
 
-* **Label (3 chars)**: The wizard will suggest a label like `TEMP`. This is the short, static text that appears first on the display row.
-* **Prefix**: This is text that comes *before* the value. Since we want a space after the colon, enter a **Prefix** of **`: `** (a colon followed by a space).
-* **Suffix**: This is text that comes *after* the value. For our example, enter a **Suffix** of **`°C`**.
-* **Format**: This string controls the final output. The default is `%L | %P%V%S`, which means:
-    * `%L` = Label
-    * `|` = Separator for scrolling text
-    * `%P` = Prefix
-    * `%V` = Value (the data you selected)
-    * `%S` = Suffix
-
-    For our example, the default format is perfect. The live preview will now show "**TEMP**" in the static part and "**: 18.3°C**" in the scrolling part.
-
-#### **Step 6: Engage Time Circuits!**
+#### **Step 5: Engage Time Circuits!**
 
 * Click the main **"Engage Time Circuits (Save All Settings)"** button at the bottom of the page.
 * A time travel animation will play on your physical display, and your settings will be saved.
 
-Your clock's Data Link marquee will now periodically fetch the live temperature and display it with your custom formatting!
+Your clock's Data Link marquee will now periodically fetch the live Bitcoin price and display it!
 
 ---
 ### 💡 Using the MQTT Data Link
@@ -325,50 +310,35 @@ For more advanced or real-time applications, the Data Link feature can connect t
 
 #### How It Works
 
-The MQTT functionality is designed to be flexible, allowing you to configure both a central MQTT broker and specific topics for individual data points.
-
 **1. Global Broker Configuration**
-First, you set up the connection to your MQTT broker once, and all MQTT-based data points will use this same connection.
-
 * **UI Location:** In the "Data Link" tab, you'll find a "Global MQTT Broker Settings" section.
-* **Fields:**
-    * **MQTT Broker Address:** The IP address or hostname of your MQTT broker (e.g., `192.168.1.100` or `broker.emqx.io`).
-    * **MQTT Port:** The port for the broker, which is typically `1883` for unencrypted connections.
-    * **MQTT Username (optional):** If your broker requires authentication.
-    * **MQTT Password (optional):** The password for the specified username.
+* **Fields:** Set the IP address or hostname of your MQTT broker, along with the port and any required credentials.
 
 When you save your settings, the ESP32 will use these credentials to establish a persistent connection to your broker.
 
 **2. Configuring a Data Point for MQTT**
-Once the global broker is set up, you can configure any of the five available data points to listen for messages on a specific MQTT topic.
-
-* **Data Source Selection:** For each data point, there is a "Data Source" dropdown menu. Select **"MQTT Broker"**.
-* **MQTT Topic:** When you select "MQTT Broker", the UI will reveal a new field labeled **"MQTT Topic"**. Here, you enter the exact MQTT topic you want the clock to subscribe to (e.g., `/home/livingroom/temperature`).
+* **Data Source Selection:** For any data point, change the "Data Source" dropdown to **"MQTT Broker"**.
+* **MQTT Topic:** Enter the exact MQTT topic you want the clock to subscribe to (e.g., `/home/livingroom/temperature`).
 
 **3. How the Data Is Handled**
 The system can handle two types of MQTT payloads automatically:
 
-1.  **JSON Payload (Structured Data):** If the message received on the topic is a JSON object, you can use the familiar `MONTH`, `DAY`, `YEAR`, and `TIME` path fields to extract specific values, just like with a Web API.
-    * **Example:** If your MQTT topic `home/weather` publishes the payload `{"temp": 72, "humidity": 45}`, you could set the `TIME` path to `temp` to display "72".
-
-2.  **Plain Text Payload (Simple Data):** If the payload is **not** a valid JSON object, the system automatically treats the entire message as the value for the `TIME` display field. The `MONTH`, `DAY`, and `YEAR` fields will be left blank.
-    * **Example:** If your MQTT topic `home/status` simply publishes the text `ONLINE`, the `TIME` display will show "ONLINE".
-
-This dual-handling makes the feature very versatile, as it can work with complex data from sensors or simple status updates from other smart home devices without requiring any changes to the clock's code.
+1.  **JSON Payload (Structured Data):** If the message is a JSON object (e.g., `{"temp": 72, "humidity": 45}`), you can use the path fields (`monthPath`, `dayPath`, etc.) to extract specific values, just like with a Web API.
+2.  **Plain Text Payload (Simple Data):** If the payload is just text (e.g., `ONLINE`), the system automatically treats the entire message as the value for the `TIME` display field.
 
 ---
 
 ### 💡 New! Scrolling Text Display Mode
 
-In addition to the standard "Four Column" data display, each Data Link point can be configured to use a **Scrolling Text** mode. This is perfect for displaying longer pieces of information like news headlines, song titles, or custom messages that wouldn't fit in the normal layout.
+In addition to the standard "Four Column" data display, each Data Link point can be configured to use a **Scrolling Text** mode. This is perfect for displaying longer pieces of information like news headlines, song titles, or custom messages.
 
 #### How to Configure It
 
 1.  **Navigate to the "Data Link" Tab**: Find the Data Point you want to configure.
-2.  **Select Display Mode**: You will see a new **"Display Mode"** dropdown menu. Change this from "Four Column Data" to "**Scrolling Text**".
-3.  **Enter Your Text**: A new "Scrolling Text" input field will appear. You can enter your text directly here, or use the **API Wizard** to map a JSON path to this field to fetch dynamic text from a URL.
-4.  **Preview**: A new **13-character preview** will show you how your text will look on the display.
-5.  **Engage Time Circuits**: Save your settings, and the text will begin scrolling across the entire 16-character width of the selected display row.
+2.  **Select Display Mode**: Change the **"Display Mode"** dropdown to "**Scrolling Text**".
+3.  **Enter Your Text**: A new "Scrolling Text" input field will appear. You can enter static text directly, or use the **API Wizard** to map a JSON path to this field to fetch dynamic text from a URL.
+4.  **Preview**: A live 13-character preview will show you how your text will look on the display.
+5.  **Engage Time Circuits**: Save your settings, and the text will begin scrolling across the entire width of the selected display row.
 
 ---
 
@@ -419,7 +389,7 @@ The core of this project is a fully asynchronous, event-driven architecture. Thi
 
 Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory-intensive operations a microcontroller can perform. The debugging process for this project revealed several key challenges and led to the current robust implementation.
 
-* **The Memory Corruption Challenge:** The initial approach was to use the standard `HTTPClient` library with a root certificate compiled into the firmware via a `certs.h` file. This repeatedly failed with `PEM / BASE64 - Invalid character in input` errors. The root cause was not a bug in the code, but a subtle memory corruption issue. The ESP32's limited RAM, combined with a potentially outdated version of the ESP32 Arduino Core, caused the large certificate string to become garbled when copied from flash memory to RAM for the SSL handshake.
+* **The Memory Corruption Challenge:** An early approach using standard certificate validation repeatedly failed with `PEM / BASE64 - Invalid character in input` errors. The root cause was not a bug in the code, but a subtle memory corruption issue. The ESP32's limited RAM caused the large certificate string to become garbled when copied from flash memory to RAM for the SSL handshake.
 
 * **The Definitive Solution: `setInsecure()`:** While counterintuitive, the final and most reliable solution was to bypass the problematic certificate validation step.
     * **`client.setInsecure()`**: This function is called on the `WiFiClientSecure` object before making a connection.
@@ -427,7 +397,7 @@ Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory
     * **Why It Works**: By skipping the validation, the client never needs to load the large, 2KB+ root certificate into its limited RAM. This completely eliminates the source of the memory corruption and the `PEM / BASE64` errors.
     * **Is It Safe?** For this project's purpose—fetching non-sensitive public data like weather or stock prices—this is a very common and acceptable practice in the embedded world. It prioritizes reliability and performance on a memory-constrained device. The data is still encrypted in transit, protecting it from casual eavesdropping.
 
-This self-contained approach, using the standard ESP32 libraries in a non-blocking task and bypassing the fragile certificate validation, provides the most stable and reliable networking performance for the Time Circuits clock.
+This self-contained approach provides the most stable and reliable networking performance for the Time Circuits clock.
 
 ---
 
@@ -443,7 +413,7 @@ This self-contained approach, using the standard ESP32 libraries in a non-blocki
     * Some network routers do not support mDNS, which is what makes `.local` addresses work.
     * Find the device's IP address by checking your router's client list or by monitoring the Serial Monitor output in the Arduino IDE when the device boots. You can then access the web UI by entering that IP address directly into your browser.
 * **API Data Fails to Load**:
-    * In the web UI, go to the "Network & System" tab and click the **"Sync Time with NTP Server"** button. The ESP32's internal clock must be accurate for HTTPS/SSL connections to work.
+    * In the web UI, go to the "Network & System" tab and click the **"Calibrate Present Time"** button. The ESP32's internal clock must be accurate for HTTPS/SSL connections to work.
     * Double-check the API URL and any required authentication headers in the "Data Link" tab.
 
 ---
