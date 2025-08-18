@@ -426,6 +426,7 @@ function resetPresetForm(resetDropdown = true) {
     }
 }
 
+// --- FIX START: Rewrote function for reliability and instant UI update ---
 function addPreset() {
     const name = document.getElementById('presetName').value;
     const date = document.getElementById('presetDate').value;
@@ -437,13 +438,36 @@ function addPreset() {
     const [year, month, day] = date.split('-');
     const [hour, minute] = time.split(':');
     const value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${String(hour).padStart(2, '0')}-${String(minute).padStart(2, '0')}`;
+    
     fetch('/api/addPreset', { method: 'POST', body: new URLSearchParams({ name, value }) })
-        .then(res => res.text()).then(text => {
+        .then(res => {
+            if (!res.ok) {
+                throw new Error('Failed to save preset.');
+            }
+            return res.text();
+        })
+        .then(text => {
             showMessage(text, 'success');
-            fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
+            
+            const select = document.getElementById('presetDateSelect');
+            let customGroup = select.querySelector('optgroup[label="Custom Time Jumps"]');
+            
+            if (!customGroup) {
+                customGroup = document.createElement('optgroup');
+                customGroup.label = 'Custom Time Jumps';
+                select.appendChild(customGroup);
+            }
+            
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = name;
+            customGroup.appendChild(option);
+            
             resetPresetForm();
-        });
+        })
+        .catch(err => showMessage(`Error: ${err.message}`, 'error'));
 }
+// --- FIX END ---
 
 function updatePreset() {
     const originalName = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
@@ -462,10 +486,9 @@ function updatePreset() {
     fetch('/api/updatePreset', { method: 'POST', body: new URLSearchParams({ name: originalName, newName: newName, value: value }) })
         .then(res => res.text()).then(text => {
             showMessage(text, 'success');
-            fetch('/api/getPresets').then(res => res.json()).then(data => {
-                populatePresetsSelect(data);
-                resetPresetForm();
-            });
+            // Re-fetch to update the dropdown simply
+            fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
+            resetPresetForm();
         });
 }
 
@@ -1134,29 +1157,36 @@ function fetchTime() {
 }
 
 function updateSleepVisual() {
-    const depTime = document.getElementById('departureTime').value;
-    const arrTime = document.getElementById('arrivalTime').value;
+    const depTime = document.getElementById('departureTime').value; // This is now "Sleep Time"
+    const arrTime = document.getElementById('arrivalTime').value;   // This is now "Wake Time"
     if (!depTime || !arrTime) return;
+
     const [depH, depM] = depTime.split(':').map(Number);
     const [arrH, arrM] = arrTime.split(':').map(Number);
-    const depTotalMins = depH * 60 + depM;
-    const arrTotalMins = arrH * 60 + arrM;
+    const depTotalMins = depH * 60 + depM; // Time sleep begins
+    const arrTotalMins = arrH * 60 + arrM; // Time wake up happens
+
     const bar1 = document.getElementById('sleepScheduleBar');
     const bar2 = document.getElementById('sleepScheduleBar2');
 
+    // Case 1: Awake time is one continuous block (e.g., wake at 7am, sleep at 10pm)
     if (arrTotalMins < depTotalMins) {
-        const duration1 = 1440 - depTotalMins;
-        bar1.style.left = `${(depTotalMins / 1440) * 100}%`;
-        bar1.style.width = `${(duration1 / 1440) * 100}%`;
-
-        bar2.style.left = '0%';
-        bar2.style.width = `${(arrTotalMins / 1440) * 100}%`;
-        bar2.style.display = 'block';
-    } else {
-        const sleepDuration = arrTotalMins - depTotalMins;
-        bar1.style.left = `${(depTotalMins / 1440) * 100}%`;
-        bar1.style.width = `${(sleepDuration / 1440) * 100}%`;
+        const awakeDuration = depTotalMins - arrTotalMins;
+        bar1.style.left = `${(arrTotalMins / 1440) * 100}%`;
+        bar1.style.width = `${(awakeDuration / 1440) * 100}%`;
         bar2.style.display = 'none';
+    } 
+    // Case 2: Awake time is split into two blocks (e.g., sleep at 1am, wake at 9am)
+    // The awake time is from midnight to 1am, and from 9am to midnight.
+    else {
+        const firstAwakeDuration = depTotalMins; // from 00:00 to sleep time
+        bar1.style.left = '0%';
+        bar1.style.width = `${(firstAwakeDuration / 1440) * 100}%`;
+        
+        const secondAwakeDuration = 1440 - arrTotalMins; // from wake time to 24:00
+        bar2.style.left = `${(arrTotalMins / 1440) * 100}%`;
+        bar2.style.width = `${(secondAwakeDuration / 1440) * 100}%`;
+        bar2.style.display = 'block';
     }
 }
 
