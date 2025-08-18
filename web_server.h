@@ -31,10 +31,12 @@ struct ApiTestParams {
     uint32_t clientId;
 };
 
+// Forward declarations
 extern JsonVariant getJsonVariant(JsonVariant root, const char* path);
 extern void saveSettings();
 extern void loadSettings();
 extern void startTimeTravelAnimation();
+void fetchWeatherDataTask(void* p);
 
 void setupWebRoutes();
 

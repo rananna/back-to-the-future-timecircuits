@@ -233,6 +233,10 @@ void setupWebRoutes() {
         request->send(503, "application/json", "{\"error\":\"Weather data not available\"}");
     }
   });
+  server.on("/api/weather/refresh", HTTP_POST, [](AsyncWebServerRequest *request){
+    xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 4096, NULL, 1, NULL);
+    request->send(202, "text/plain", "Weather refresh triggered");
+  });
   server.on("/api/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request){
     auto getParamInt = [&](const String& name, int defaultValue) -> int {
         if (request->hasParam(name, true)) return request->getParam(name, true)->value().toInt();

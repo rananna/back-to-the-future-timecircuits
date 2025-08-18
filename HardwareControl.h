@@ -23,7 +23,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0// Set to 1 to enable hardware, 0 to disable
+#define ENABLE_HARDWARE 1 // Set to 1 to enable hardware, 0 to disable
 
 // --- ENUMS & DATA STRUCTURES ---
 enum Theme {
@@ -89,13 +89,10 @@ struct ClockSettings {
   bool weatherModeEnabled;
   float latitude;
   float longitude;
-  // --- FIX START: Add new fields for weather improvements ---
   std::string cityName;
   bool useMetricUnits;
-  // --- FIX END ---
 };
 
-// --- FIX START: Add WeatherData struct ---
 struct WeatherData {
   float temperature;
   float apparentTemperature;
@@ -104,9 +101,10 @@ struct WeatherData {
   int weatherCode;
   float dailyHigh;
   float dailyLow;
+  float hourlyTemp[3];
+  int hourlyCode[3];
   bool dataValid = false;
 };
-// --- FIX END ---
 
 struct DisplayRow {
     Adafruit_AlphaNum4 month; Adafruit_AlphaNum4 day;

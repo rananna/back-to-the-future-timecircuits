@@ -1,7 +1,6 @@
 // Forcing a recompile to resolve build cache issues.
 #include "esp_log.h"
 #include <WiFi.h>
-#include <ArduinoOTA.h>
 #include <WiFiManager.h>
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
@@ -20,7 +19,6 @@
 #include "HardwareControl.h"
 #include "web_server.h"
 #include "api_templates.h"
-// certs.h is no longer needed
 
 #ifndef LED_BUILTIN
   #define LED_BUILTIN 2
@@ -45,6 +43,10 @@ struct MarqueeData {
 
 MarqueeData displayPages[5];
 MarqueeData lastGoodDisplayPages[5];
+
+WeatherData currentWeatherData;
+std::string lastCityName = "";
+
 const TimeZoneEntry TZ_DATA[] = {
   // Global
   { "UTC0", "UTC", "Etc/UTC", "Global" },
@@ -167,9 +169,6 @@ struct FetchDataParams {
     int totalRequests;
 };
 
-WeatherData currentWeatherData;
-std::string lastCityName = "";
-
 void fetchDataTask(void* p);
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
@@ -207,6 +206,20 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
         token = strtok_r(NULL, ".[]", &context);
     }
     return current;
+}
+
+void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration) {
+    #if ENABLE_HARDWARE
+    printToDisplay(lastRow.month, month, 1);
+    printToDisplay(lastRow.day, day, 2);
+    printToDisplay(lastRow.year, year);
+    printToDisplay(lastRow.time, time);
+    lastRow.month.writeDisplay();
+    lastRow.day.writeDisplay();
+    lastRow.year.writeDisplay();
+    lastRow.time.writeDisplay();
+    delay(duration);
+    #endif
 }
 
 void saveSettings() {
@@ -429,7 +442,10 @@ const char* getIconForWeatherCode(int code) {
 void fetchWeatherDataTask(void* p) {
     if (currentSettings.cityName.empty()) {
         ESP_LOGE("Weather", "City name is empty, cannot fetch weather.");
-        currentWeatherData.dataValid = false;
+        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+            currentWeatherData.dataValid = false;
+            xSemaphoreGive(xDisplayDataMutex);
+        }
         vTaskDelete(NULL);
         return;
     }
@@ -443,6 +459,7 @@ void fetchWeatherDataTask(void* p) {
     }
     
     if (needsGeocoding) {
+        showTemporaryMessage("LOCA", "TI", "NG C", "ITY", 1000); 
         HTTPClient http;
         WiFiClientSecure client;
         client.setInsecure();
@@ -454,6 +471,7 @@ void fetchWeatherDataTask(void* p) {
                 DynamicJsonDocument doc(1024);
                 deserializeJson(doc, http.getStream());
                 if (doc.containsKey("results")) {
+                    showTemporaryMessage("CITY", "", "FOUN", "D", 1000);
                     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                         currentSettings.latitude = doc["results"][0]["latitude"];
                         currentSettings.longitude = doc["results"][0]["longitude"];
@@ -462,6 +480,7 @@ void fetchWeatherDataTask(void* p) {
                     }
                     ESP_LOGI("Weather", "Geocoded %s to Lat: %f, Lon: %f", currentSettings.cityName.c_str(), currentSettings.latitude, currentSettings.longitude);
                 } else {
+                     showTemporaryMessage("CITY", "", "NOT", "FND", 2000);
                      ESP_LOGE("Weather", "Geocoding failed for city: %s", currentSettings.cityName.c_str());
                      http.end();
                      vTaskDelete(NULL);
@@ -481,6 +500,8 @@ void fetchWeatherDataTask(void* p) {
                  "&longitude=" + String(currentSettings.longitude, 4) + 
                  "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
                  "&daily=temperature_2m_max,temperature_2m_min" + 
+                 "&hourly=temperature_2m,weather_code" +
+                 "&forecast_days=1" +
                  "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
 
     if (http.begin(client, weatherUrl)) {
@@ -499,6 +520,21 @@ void fetchWeatherDataTask(void* p) {
                     currentWeatherData.weatherCode = doc["current"]["weather_code"];
                     currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
                     currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
+
+                    time_t now;
+                    time(&now);
+                    struct tm timeinfo;
+                    localtime_r(&now, &timeinfo);
+                    int currentHour = timeinfo.tm_hour;
+
+                    for (int i = 0; i < 3; i++) {
+                        int forecastHour = currentHour + i + 1;
+                        if (forecastHour < 24) {
+                            currentWeatherData.hourlyTemp[i] = doc["hourly"]["temperature_2m"][forecastHour];
+                            currentWeatherData.hourlyCode[i] = doc["hourly"]["weather_code"][forecastHour];
+                        }
+                    }
+
                     currentWeatherData.dataValid = true;
                     ESP_LOGI("Weather", "Successfully fetched weather data.");
                 } else {
@@ -525,6 +561,8 @@ void fetchWeatherDataTask(void* p) {
 
     vTaskDelete(NULL);
 }
+
+
 
 void listAllFiles() {
   Serial.println(F("\n--- Listing all files in LittleFS ---"));
@@ -579,6 +617,7 @@ void reconnectMqtt() {
     }
   }
 }
+
 void handleWeatherDisplay() {
     #if ENABLE_HARDWARE
     if (!currentSettings.weatherModeEnabled) return;
@@ -594,7 +633,7 @@ void handleWeatherDisplay() {
             static unsigned long lastPageChange = 0;
             char buffer[6];
             if (millis() - lastPageChange > 4000) {
-                weatherPage = (weatherPage + 1) % 5;
+                weatherPage = (weatherPage + 1) % 8;
                 lastPageChange = millis();
             }
             
@@ -636,6 +675,27 @@ void handleWeatherDisplay() {
                     dtostrf(currentWeatherData.dailyLow, 4, 0, buffer);
                     printToDisplay(lastRow.time, buffer);
                     break;
+                case 5: // Forecast for Hour + 1
+                    printToDisplay(lastRow.month, "HR", 1);
+                    printToDisplay(lastRow.day, "+1", 2);
+                    dtostrf(currentWeatherData.hourlyTemp[0], 4, 1, buffer);
+                    printToDisplay(lastRow.year, buffer);
+                    printToDisplay(lastRow.time, getIconForWeatherCode(currentWeatherData.hourlyCode[0]));
+                    break;
+                case 6: // Forecast for Hour + 2
+                    printToDisplay(lastRow.month, "HR", 1);
+                    printToDisplay(lastRow.day, "+2", 2);
+                    dtostrf(currentWeatherData.hourlyTemp[1], 4, 1, buffer);
+                    printToDisplay(lastRow.year, buffer);
+                    printToDisplay(lastRow.time, getIconForWeatherCode(currentWeatherData.hourlyCode[1]));
+                    break;
+                case 7: // Forecast for Hour + 3
+                    printToDisplay(lastRow.month, "HR", 1);
+                    printToDisplay(lastRow.day, "+3", 2);
+                    dtostrf(currentWeatherData.hourlyTemp[2], 4, 1, buffer);
+                    printToDisplay(lastRow.year, buffer);
+                    printToDisplay(lastRow.time, getIconForWeatherCode(currentWeatherData.hourlyCode[2]));
+                    break;
             }
         }
         xSemaphoreGive(xDisplayDataMutex);
@@ -647,6 +707,7 @@ void handleWeatherDisplay() {
     }
     #endif
 }
+
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message;
   for (int i = 0; i < length; i++) {
@@ -844,7 +905,6 @@ void setup() {
 }
 
 void loop() {
-  ArduinoOTA.handle();
   if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
     if (mqttReconnectRequired || !mqttClient.connected()) {
       unsigned long now = millis();
@@ -1242,9 +1302,7 @@ void updateNormalClockDisplay() {
 void updateMarqueeDisplay() {
     #if ENABLE_HARDWARE
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0) return;
-    DisplayRow* targetRow = &lastRow;
-    if (currentSettings.dataLinkTargetRow == 0) targetRow = &destRow;
-    if (currentSettings.dataLinkTargetRow == 1) targetRow = &presRow;
+    DisplayRow* targetRow = &lastRow; // Data Link is always on the bottom row now
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (marqueeState == M_IDLE) {
             currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;

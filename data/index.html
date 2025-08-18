@@ -199,9 +199,10 @@
             </div>
         </div>
         <div id="DataLink" class="tab-content">
-            <div class="setting-group">
+            <p class="info-text">You can use either the Live Weather Display or the Data Link Marquee to control the bottom display row. Enabling one will disable the other.</p>
+            <div class="setting-group" id="weatherModeGroup">
                 <h3>Live Weather Display</h3>
-                <label for="weatherModeEnabled" class="toggle-label">Enable Live Weather (Bottom Row)</label>
+                <label for="weatherModeEnabled" class="toggle-label">Enable Live Weather</label>
                 <label class="toggle-switch">
                     <input type="checkbox" id="weatherModeEnabled">
                     <span class="slider round"></span>
@@ -239,48 +240,46 @@
                             <div class="loading-spinner"></div>
                         </div>
                     </div>
+                    <div class="weather-preview">
+                        <button id="refreshWeatherBtn" class="action-button">Refresh</button>
+                        <div id="weatherPreview" class="weather-preview-text"></div>
+                    </div>
                 </div>
             </div>
-            <div class="setting-group">
+            <div class="setting-group" id="dataLinkGroup">
                 <h3>Data Link Configuration</h3>
                 <label for="dataLinkEnabled" class="toggle-label">Enable Data Link Marquee</label>
                 <label class="toggle-switch">
                     <input type="checkbox" id="dataLinkEnabled">
                     <span class="slider round"></span>
                 </label>
-            </div>
-            <div id="dataLinkSettingsContainer" style="display:none;">
-                <div class="setting-group">
-                    <h3>Global MQTT Broker Settings</h3>
-                    <label for="mqttBroker">MQTT Broker Address:</label>
-                    <input type="text" id="mqttBroker" placeholder="e.g., 192.168.1.100">
-                    <label for="mqttPort">MQTT Port:</label>
-                    <input type="number" id="mqttPort" value="1883">
-                    <label for="mqttUser">MQTT Username (optional):</label>
-                    <input type="text" id="mqttUser">
-                    <label for="mqttPassword">MQTT Password (optional):</label>
-                    <input type="password" id="mqttPassword">
-                </div>
-                <div class="setting-group">
-                     <h3>Global Marquee Settings</h3>
-                     <label for="dataLinkTargetRow">Target Display Row:</label>
-                     <select id="dataLinkTargetRow">
-                         <option value="0">Top (Destination)</option>
-                         <option value="1">Middle (Present)</option>
-                         <option value="2">Bottom (Last Departed)</option>
-                     </select>
-                     <label for="dataLinkRefreshInterval">Refresh All Data Every (min): <span id="dataLinkRefreshIntervalValue">10</span></label>
-                     <div class="slider-container">
-                         <input type="range" id="dataLinkRefreshInterval" min="1" max="60" value="10">
-                     </div>
-                </div>
-                <div class="setting-group">
-                    <h3>Data Points</h3>
-                     <label for="numDataPoints">Number of Data Points: <span id="numDataPointsValue">1</span></label>
-                     <div class="slider-container">
-                         <input type="range" id="numDataPoints" min="0" max="5" value="1">
-                     </div>
-                     <div id="dataPointsConfigContainer"></div>
+                <div id="dataLinkSettingsContainer" style="display:none;">
+                    <div class="setting-group">
+                        <h3>Global MQTT Broker Settings</h3>
+                        <label for="mqttBroker">MQTT Broker Address:</label>
+                        <input type="text" id="mqttBroker" placeholder="e.g., 192.168.1.100">
+                        <label for="mqttPort">MQTT Port:</label>
+                        <input type="number" id="mqttPort" value="1883">
+                        <label for="mqttUser">MQTT Username (optional):</label>
+                        <input type="text" id="mqttUser">
+                        <label for="mqttPassword">MQTT Password (optional):</label>
+                        <input type="password" id="mqttPassword">
+                    </div>
+                    <div class="setting-group">
+                         <h3>Global Marquee Settings</h3>
+                         <label for="dataLinkRefreshInterval">Refresh All Data Every (min): <span id="dataLinkRefreshIntervalValue">10</span></label>
+                         <div class="slider-container">
+                             <input type="range" id="dataLinkRefreshInterval" min="1" max="60" value="10">
+                         </div>
+                    </div>
+                    <div class="setting-group">
+                        <h3>Data Points</h3>
+                         <label for="numDataPoints">Number of Data Points: <span id="numDataPointsValue">1</span></label>
+                         <div class="slider-container">
+                             <input type="range" id="numDataPoints" min="0" max="5" value="1">
+                         </div>
+                         <div id="dataPointsConfigContainer"></div>
+                    </div>
                 </div>
             </div>
         </div>

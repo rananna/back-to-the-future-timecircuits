@@ -122,7 +122,7 @@ async function initializeUI() {
         fetchTime();
         setInterval(fetchTime, 1000);
         fetchWeatherData();
-        weatherInterval = setInterval(fetchWeatherData, 30000);
+        weatherInterval = setInterval(fetchWeatherData, 300000); // Set to 5 minutes to match backend
         attachEventListeners();
         showMessage('System Online', 'success');
 
@@ -241,13 +241,17 @@ async function applySettings(timecircuits, temporal, datalink) {
 
 async function applyDataLinkSettings(datalink) {
     document.getElementById('weatherModeEnabled').checked = datalink.weatherModeEnabled;
+    document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
+    
     document.getElementById('weatherSettingsContainer').style.display = datalink.weatherModeEnabled ? 'block' : 'none';
+    document.getElementById('dataLinkSettingsContainer').style.display = datalink.dataLinkEnabled ? 'block' : 'none';
+
+    document.getElementById('weatherModeGroup').classList.toggle('disabled', datalink.dataLinkEnabled);
+    document.getElementById('dataLinkGroup').classList.toggle('disabled', datalink.weatherModeEnabled);
+
     document.getElementById('cityName').value = datalink.cityName || '';
     document.getElementById('useMetricUnits').checked = datalink.useMetricUnits;
     
-    document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
-    document.getElementById('dataLinkSettingsContainer').style.display = datalink.dataLinkEnabled ? 'block' : 'none';
-    document.getElementById('dataLinkTargetRow').value = datalink.dataLinkTargetRow;
     document.getElementById('dataLinkRefreshInterval').value = datalink.dataLinkRefreshInterval;
     document.getElementById('dataLinkRefreshIntervalValue').textContent = datalink.dataLinkRefreshInterval;
     document.getElementById('mqttBroker').value = datalink.mqttBroker || '';
@@ -312,6 +316,7 @@ function attachEventListeners() {
     document.getElementById('savePresetBtn').onclick = handleSavePreset;
     document.getElementById('deletePresetBtn').onclick = deletePreset;
     document.getElementById('newPresetBtn').onclick = resetPresetForm;
+    document.getElementById('refreshWeatherBtn').onclick = refreshWeatherData;
 
     document.getElementById('displayFormat24h').addEventListener('change', () => {
         const year = document.getElementById('lastTimeDepartedYear').textContent;
@@ -328,13 +333,27 @@ function attachEventListeners() {
     });
     
     document.getElementById('weatherModeEnabled').onchange = (e) => {
-        document.getElementById('weatherSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
+        const isChecked = e.target.checked;
+        document.getElementById('weatherSettingsContainer').style.display = isChecked ? 'block' : 'none';
+        document.getElementById('dataLinkGroup').classList.toggle('disabled', isChecked);
+        if (isChecked) {
+            document.getElementById('dataLinkEnabled').checked = false;
+            document.getElementById('dataLinkSettingsContainer').style.display = 'none';
+            document.getElementById('weatherModeGroup').classList.remove('disabled');
+            fetchWeatherData();
+        }
         if (!isLoading) setSettingsChanged(true);
-        fetchWeatherData();
     };
 
     document.getElementById('dataLinkEnabled').onchange = (e) => {
-        document.getElementById('dataLinkSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
+        const isChecked = e.target.checked;
+        document.getElementById('dataLinkSettingsContainer').style.display = isChecked ? 'block' : 'none';
+        document.getElementById('weatherModeGroup').classList.toggle('disabled', isChecked);
+        if (isChecked) {
+            document.getElementById('weatherModeEnabled').checked = false;
+            document.getElementById('weatherSettingsContainer').style.display = 'none';
+            document.getElementById('dataLinkGroup').classList.remove('disabled');
+        }
         if (!isLoading) setSettingsChanged(true);
     };
     document.getElementById('numDataPoints').oninput = (e) => {
@@ -1101,7 +1120,7 @@ function saveSettings() {
     showLoading('saveSettingsBtn', true);
     const formData = new URLSearchParams();
     
-    const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkTargetRow', 'dataLinkRefreshInterval', 'mqttBroker', 'mqttPort', 'mqttUser', 'mqttPassword', 'cityName'];
+    const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkRefreshInterval', 'mqttBroker', 'mqttPort', 'mqttUser', 'mqttPassword', 'cityName'];
     
     settingsToSave.forEach(id => {
         const element = document.getElementById(id);
@@ -1161,6 +1180,24 @@ function fetchTime() {
     });
 }
 
+function refreshWeatherData() {
+    const preview = document.getElementById('weatherPreview');
+    preview.textContent = 'Fetching...';
+    fetch('/api/weather/refresh', { method: 'POST' })
+        .then(res => {
+            if (res.ok) {
+                showMessage('Weather refresh triggered. Please wait a moment.', 'info');
+                setTimeout(fetchWeatherData, 3000); // Give server time to fetch
+            } else {
+                throw new Error('Failed to trigger refresh.');
+            }
+        })
+        .catch(err => {
+            showMessage(`Error: ${err.message}`, 'error');
+            preview.textContent = 'Error';
+        });
+}
+
 function fetchWeatherData() {
     if (!document.getElementById('weatherModeEnabled').checked) {
         document.getElementById('weatherDisplay').style.display = 'none';
@@ -1169,6 +1206,7 @@ function fetchWeatherData() {
 
     const weatherDisplay = document.getElementById('weatherDisplay');
     const loadingSpinner = weatherDisplay.querySelector('.loading-spinner-container');
+    const preview = document.getElementById('weatherPreview');
     loadingSpinner.style.display = 'block';
 
     fetch('/api/weather')
@@ -1189,10 +1227,14 @@ function fetchWeatherData() {
             document.getElementById('weatherHumidity').textContent = `${data.humidity}%`;
             document.getElementById('weatherWind').textContent = `${data.windSpeed.toFixed(1)}${speedUnit}`;
             document.getElementById('weatherHighLow').textContent = `${data.dailyHigh.toFixed(0)}° / ${data.dailyLow.toFixed(0)}°`;
+            
+            const city = document.getElementById('cityName').value;
+            preview.textContent = `Live data for ${city}: ${data.temperature.toFixed(1)}${tempUnit}`;
         })
         .catch(err => {
             console.warn("CLIENT_DEBUG: Could not fetch weather data:", err);
             weatherDisplay.style.display = 'none';
+            preview.textContent = 'Data not available. Check city name.';
         })
         .finally(() => {
             loadingSpinner.style.display = 'none';
