@@ -122,7 +122,7 @@ async function initializeUI() {
         fetchTime();
         setInterval(fetchTime, 1000);
         fetchWeatherData();
-        weatherInterval = setInterval(fetchWeatherData, 300000); // Set to 5 minutes to match backend
+        weatherInterval = setInterval(fetchWeatherData, 300000);
         attachEventListeners();
         showMessage('System Online', 'success');
 
@@ -1148,6 +1148,7 @@ function saveSettings() {
     formData.append('arrivalMinute', arrMin);
 
     if (isDataLinkLoaded) {
+        formData.append('dataLinkTargetRow', 2);
         const numDataPoints = document.getElementById('numDataPoints').value;
         formData.append('numDataPoints', numDataPoints);
         for (let i = 0; i < numDataPoints; i++) {

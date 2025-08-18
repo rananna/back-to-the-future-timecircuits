@@ -159,7 +159,6 @@ void setupWebRoutes() {
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
     DynamicJsonDocument doc(2048);
     doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
-    doc["dataLinkTargetRow"] = currentSettings.dataLinkTargetRow;
     doc["dataLinkRefreshInterval"] = currentSettings.dataLinkRefreshInterval;
     doc["numDataPoints"] = currentSettings.numDataPoints;
     doc["mqttBroker"] = currentSettings.mqttBroker.c_str();
@@ -282,7 +281,7 @@ void setupWebRoutes() {
     currentSettings.displayFormat24h = (getParamValue("displayFormat24h") == "true");
 
     currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
-    currentSettings.dataLinkTargetRow = getParamInt("dataLinkTargetRow", currentSettings.dataLinkTargetRow);
+    currentSettings.dataLinkTargetRow = 2; // Hardcoded to bottom row
     currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
     
     currentSettings.mqttBroker = getParamValue("mqttBroker").c_str();

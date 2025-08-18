@@ -1302,7 +1302,7 @@ void updateNormalClockDisplay() {
 void updateMarqueeDisplay() {
     #if ENABLE_HARDWARE
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0) return;
-    DisplayRow* targetRow = &lastRow; // Data Link is always on the bottom row now
+    DisplayRow* targetRow = &lastRow;
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (marqueeState == M_IDLE) {
             currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
