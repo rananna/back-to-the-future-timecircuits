@@ -1115,6 +1115,7 @@ function displayApiWizardResults(index, jsonData) {
     });
 }
 
+
 function saveSettings() {
     showLoading('saveSettingsBtn', true);
 
@@ -1224,6 +1225,7 @@ function saveSettings() {
     .catch(err => showMessage(`Error: ${err.message}`, 'error'))
     .finally(() => showLoading('saveSettingsBtn', false));
 }
+
 function fetchTime() {
     fetch('/api/time').then(res => res.json()).then(data => {
         document.getElementById('timeSyncStatus').textContent = data.timeSynchronized ? 'Yes' : 'No';
@@ -1234,19 +1236,31 @@ function fetchTime() {
 function refreshWeatherData() {
     const preview = document.getElementById('weatherPreview');
     preview.textContent = 'Fetching...';
-    fetch('/api/weather/refresh', { method: 'POST' })
-        .then(res => {
-            if (res.ok) {
-                showMessage('Weather refresh triggered. Please wait a moment.', 'info');
-                setTimeout(fetchWeatherData, 3000); // Give server time to fetch
-            } else {
-                throw new Error('Failed to trigger refresh.');
-            }
-        })
-        .catch(err => {
-            showMessage(`Error: ${err.message}`, 'error');
-            preview.textContent = 'Error';
-        });
+    
+    const city = document.getElementById('cityName').value;
+    if (!city) {
+        showMessage('Please enter a city name.', 'error');
+        preview.textContent = 'Enter a city';
+        return;
+    }
+
+    fetch('/api/weather/refresh', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cityName: city })
+    })
+    .then(res => {
+        if (res.ok) {
+            showMessage('Weather refresh triggered. Please wait a moment.', 'info');
+            setTimeout(fetchWeatherData, 3000); // Give server time to fetch
+        } else {
+            throw new Error('Failed to trigger refresh.');
+        }
+    })
+    .catch(err => {
+        showMessage(`Error: ${err.message}`, 'error');
+        preview.textContent = 'Error';
+    });
 }
 
 function fetchWeatherData() {

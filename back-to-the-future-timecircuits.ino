@@ -166,6 +166,12 @@ struct FetchDataParams {
     int pointIndex;
     int totalRequests;
 };
+
+struct WeatherTaskParams {
+    std::string cityName;
+    bool forceGeocode;
+};
+
 void fetchDataTask(void* p);
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
@@ -183,6 +189,7 @@ void listAllFiles();
 void runBootSequence();
 void setupMqtt();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
+void fetchWeatherData(WeatherTaskParams* params);
 
 // NEW FUNCTION to encode URL parameters
 String urlEncode(const char* msg) {
@@ -443,8 +450,12 @@ const char* getIconForWeatherCode(int code) {
     }
 }
 
-void fetchWeatherData(bool forceGeocode) {
-    if (currentSettings.cityName.empty()) {
+void fetchWeatherData(WeatherTaskParams* params) {
+    std::string taskCityName = params->cityName;
+    bool forceGeocode = params->forceGeocode;
+    delete params; // Clean up memory
+
+    if (taskCityName.empty()) {
         ESP_LOGE("Weather", "City name is empty, cannot fetch weather.");
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
@@ -456,7 +467,7 @@ void fetchWeatherData(bool forceGeocode) {
     bool needsGeocoding = forceGeocode;
     if (!forceGeocode) {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            if (currentSettings.cityName != lastCityName) {
+            if (taskCityName != lastCityName) {
                 needsGeocoding = true;
             }
             xSemaphoreGive(xDisplayDataMutex);
@@ -466,12 +477,12 @@ void fetchWeatherData(bool forceGeocode) {
     if (needsGeocoding) {
         bool geocodeSuccess = false;
         for (int i = 0; i < 3; i++) { // Retry up to 3 times
-            ESP_LOGI("Weather", "Geocoding attempt %d for %s", i + 1, currentSettings.cityName.c_str());
+            ESP_LOGI("Weather", "Geocoding attempt %d for %s", i + 1, taskCityName.c_str());
             showTemporaryMessage("GEO", "", "SRCH", "", 1000);
             HTTPClient http;
             WiFiClientSecure client;
             client.setInsecure();
-            String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(currentSettings.cityName.c_str());
+            String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(taskCityName.c_str());
             if (http.begin(client, geocodeUrl)) {
                 int httpCode = http.GET();
                 if (httpCode == HTTP_CODE_OK) {
@@ -482,10 +493,10 @@ void fetchWeatherData(bool forceGeocode) {
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                             currentSettings.latitude = doc["results"][0]["latitude"];
                             currentSettings.longitude = doc["results"][0]["longitude"];
-                            lastCityName = currentSettings.cityName;
+                            lastCityName = taskCityName; // Update the cache
                             xSemaphoreGive(xDisplayDataMutex);
                         }
-                        ESP_LOGI("Weather", "Geocoded %s to Lat: %f, Lon: %f", currentSettings.cityName.c_str(), currentSettings.latitude, currentSettings.longitude);
+                        ESP_LOGI("Weather", "Geocoded %s to Lat: %f, Lon: %f", taskCityName.c_str(), currentSettings.latitude, currentSettings.longitude);
                         geocodeSuccess = true;
                         http.end();
                         break; 
@@ -497,7 +508,7 @@ void fetchWeatherData(bool forceGeocode) {
         }
 
         if (!geocodeSuccess) {
-            ESP_LOGE("Weather", "Geocoding failed for city: %s after all retries.", currentSettings.cityName.c_str());
+            ESP_LOGE("Weather", "Geocoding failed for city: %s after all retries.", taskCityName.c_str());
             showTemporaryMessage("GEO", "", "FAIL", "", 2000);
             return;
         }
@@ -578,12 +589,14 @@ void fetchWeatherData(bool forceGeocode) {
 }
 
 void fetchWeatherDataTask(void* p) {
-    fetchWeatherData(false);
+    WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
+    fetchWeatherData(params);
     vTaskDelete(NULL);
 }
 
 void forceFetchWeatherDataTask(void* p) {
-    fetchWeatherData(true);
+    WeatherTaskParams* params = (WeatherTaskParams*)p;
+    fetchWeatherData(params);
     vTaskDelete(NULL);
 }
 
@@ -955,7 +968,8 @@ void loop() {
         static unsigned long lastWeatherFetch = 0;
         if (millis() - lastWeatherFetch > 300000) { // Fetch every 5 minutes
           lastWeatherFetch = millis();
-          xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, NULL, 1, NULL);
+          WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
+          xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL);
         }
       }
 

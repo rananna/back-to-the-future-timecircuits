@@ -30,6 +30,10 @@ struct ApiTestParams {
     String authValue;
     uint32_t clientId;
 };
+struct WeatherTaskParams {
+    std::string cityName;
+    bool forceGeocode;
+};
 
 // Forward declarations
 extern JsonVariant getJsonVariant(JsonVariant root, const char* path);
