@@ -8,6 +8,9 @@
 
 AsyncWebSocket ws("/ws");
 
+// Declare the new function that will be defined in the .ino file
+void forceFetchWeatherDataTask(void* p);
+
 // This function runs in a separate task to prevent blocking
 void makeApiRequestTask(void* p) {
     ApiTestParams* params = (ApiTestParams*)p;
@@ -233,7 +236,7 @@ void setupWebRoutes() {
     }
   });
   server.on("/api/weather/refresh", HTTP_POST, [](AsyncWebServerRequest *request){
-    xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, NULL, 1, NULL);
+    xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, NULL, 1, NULL);
     request->send(202, "text/plain", "Weather refresh triggered");
   });
   

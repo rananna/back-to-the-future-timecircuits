@@ -443,23 +443,24 @@ const char* getIconForWeatherCode(int code) {
     }
 }
 
-void fetchWeatherDataTask(void* p) {
+void fetchWeatherData(bool forceGeocode) {
     if (currentSettings.cityName.empty()) {
         ESP_LOGE("Weather", "City name is empty, cannot fetch weather.");
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
             xSemaphoreGive(xDisplayDataMutex);
         }
-        vTaskDelete(NULL);
         return;
     }
 
-    bool needsGeocoding = false;
-    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        if (currentSettings.cityName != lastCityName) {
-            needsGeocoding = true;
+    bool needsGeocoding = forceGeocode;
+    if (!forceGeocode) {
+        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+            if (currentSettings.cityName != lastCityName) {
+                needsGeocoding = true;
+            }
+            xSemaphoreGive(xDisplayDataMutex);
         }
-        xSemaphoreGive(xDisplayDataMutex);
     }
     
     if (needsGeocoding) {
@@ -498,7 +499,6 @@ void fetchWeatherDataTask(void* p) {
         if (!geocodeSuccess) {
             ESP_LOGE("Weather", "Geocoding failed for city: %s after all retries.", currentSettings.cityName.c_str());
             showTemporaryMessage("GEO", "", "FAIL", "", 2000);
-            vTaskDelete(NULL);
             return;
         }
     }
@@ -575,10 +575,17 @@ void fetchWeatherDataTask(void* p) {
       }
       showTemporaryMessage("API", "", "FAIL", "", 2000);
     }
+}
 
+void fetchWeatherDataTask(void* p) {
+    fetchWeatherData(false);
     vTaskDelete(NULL);
 }
 
+void forceFetchWeatherDataTask(void* p) {
+    fetchWeatherData(true);
+    vTaskDelete(NULL);
+}
 
 
 void listAllFiles() {
