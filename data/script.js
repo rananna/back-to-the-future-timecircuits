@@ -13,9 +13,7 @@ let dataPointStatus = {};
 
 let ws;
 
-// --- FIX START: Add a flag to track the initial loading state ---
 let isLoading = true;
-// --- FIX END ---
 
 function initWebSocket() {
     ws = new WebSocket('ws://' + window.location.host + '/ws');
@@ -115,7 +113,7 @@ async function initializeUI() {
         document.body.className = theme.trim();
         populateTimezoneSelects(timezones);
         populatePresetsSelect(presets);
-        await applySettings(timecircuits, temporal, datalink); // Make sure applySettings can be awaited
+        await applySettings(timecircuits, temporal, datalink);
         document.querySelector('.header-circuits').classList.add('visible');
         
         initWebSocket();
@@ -129,9 +127,7 @@ async function initializeUI() {
         console.error("CLIENT_DEBUG: Failed during essential initialization:", error);
         showMessage(`Critical error loading settings: ${error.message}. Please refresh.`, 'error');
     } finally {
-        // --- FIX START: Set isLoading to false after everything is done ---
         isLoading = false;
-        // --- FIX END ---
     }
 }
 
@@ -234,13 +230,18 @@ async function applySettings(timecircuits, temporal, datalink) {
     }
     
     if (datalink) {
-        await applyDataLinkSettings(datalink); // Await the data link settings
+        await applyDataLinkSettings(datalink);
         isDataLinkLoaded = true;
     }
     updateSleepVisual();
 }
 
 async function applyDataLinkSettings(datalink) {
+    document.getElementById('weatherModeEnabled').checked = datalink.weatherModeEnabled;
+    document.getElementById('weatherSettingsContainer').style.display = datalink.weatherModeEnabled ? 'block' : 'none';
+    document.getElementById('cityName').value = datalink.cityName || '';
+    document.getElementById('useMetricUnits').checked = datalink.useMetricUnits;
+    
     document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
     document.getElementById('dataLinkSettingsContainer').style.display = datalink.dataLinkEnabled ? 'block' : 'none';
     document.getElementById('dataLinkTargetRow').value = datalink.dataLinkTargetRow;
@@ -252,7 +253,7 @@ async function applyDataLinkSettings(datalink) {
     document.getElementById('mqttPassword').value = datalink.mqttPassword || '';
     document.getElementById('numDataPoints').value = datalink.numDataPoints;
     document.getElementById('numDataPointsValue').textContent = datalink.numDataPoints;
-    await updateDataPointsUI(datalink.numDataPoints); // Wait for UI to be created
+    await updateDataPointsUI(datalink.numDataPoints);
     if (datalink.dataPoints) {
         datalink.dataPoints.forEach((point, i) => {
             document.getElementById(`dp_dataSourceType_${i}`).value = point.dataSourceType === 1 ? 'mqtt' : 'api';
@@ -322,7 +323,11 @@ function attachEventListeners() {
         
         fetchTime(); 
     });
-
+    
+    document.getElementById('weatherModeEnabled').onchange = (e) => {
+        document.getElementById('weatherSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
+        if (!isLoading) setSettingsChanged(true);
+    };
 
     document.getElementById('dataLinkEnabled').onchange = (e) => {
         document.getElementById('dataLinkSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
@@ -335,18 +340,14 @@ function attachEventListeners() {
     };
     document.querySelectorAll('input, select').forEach(el => {
         el.addEventListener('change', () => {
-             // --- FIX START: Check isLoading flag ---
             if (!isLoading) setSettingsChanged(true);
-            // --- FIX END ---
         });
         el.addEventListener('input', (e) => {
-            // --- FIX START: Check isLoading flag ---
             if (!isLoading) {
                 const valueSpan = document.getElementById(`${e.target.id}Value`);
                 if (valueSpan) valueSpan.textContent = e.target.value;
                 setSettingsChanged(true);
             }
-            // --- FIX END ---
         });
     });
     document.getElementById('resetDefaultsBtn').onclick = () => {
@@ -426,7 +427,6 @@ function resetPresetForm(resetDropdown = true) {
     }
 }
 
-// --- FIX START: Rewrote function for reliability and instant UI update ---
 function addPreset() {
     const name = document.getElementById('presetName').value;
     const date = document.getElementById('presetDate').value;
@@ -467,7 +467,6 @@ function addPreset() {
         })
         .catch(err => showMessage(`Error: ${err.message}`, 'error'));
 }
-// --- FIX END ---
 
 function updatePreset() {
     const originalName = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
@@ -486,7 +485,6 @@ function updatePreset() {
     fetch('/api/updatePreset', { method: 'POST', body: new URLSearchParams({ name: originalName, newName: newName, value: value }) })
         .then(res => res.text()).then(text => {
             showMessage(text, 'success');
-            // Re-fetch to update the dropdown simply
             fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
             resetPresetForm();
         });
@@ -523,7 +521,6 @@ function scrollToSettings(tabName, elementId) {
             const element = document.getElementById(elementId);
             if (element) {
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Optional: Add a temporary highlight effect
                 element.classList.add('highlight-saved');
                 setTimeout(() => element.classList.remove('highlight-saved'), 2000);
             }
@@ -1099,7 +1096,9 @@ function displayApiWizardResults(index, jsonData) {
 function saveSettings() {
     showLoading('saveSettingsBtn', true);
     const formData = new URLSearchParams();
-    const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkTargetRow', 'dataLinkRefreshInterval', 'mqttBroker', 'mqttPort', 'mqttUser', 'mqttPassword'];
+    
+    const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkTargetRow', 'dataLinkRefreshInterval', 'mqttBroker', 'mqttPort', 'mqttUser', 'mqttPassword', 'cityName'];
+    
     settingsToSave.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
@@ -1110,9 +1109,11 @@ function saveSettings() {
             formData.append(key, element.value);
         }
     });
-    ['timeTravelSoundToggle', 'timeTravelVolumeFade', 'displayFormat24h', 'dataLinkEnabled'].forEach(id => {
+    
+    ['timeTravelSoundToggle', 'timeTravelVolumeFade', 'displayFormat24h', 'dataLinkEnabled', 'weatherModeEnabled', 'useMetricUnits'].forEach(id => {
         formData.append(id, document.getElementById(id).checked);
     });
+    
     ['lastTimeDepartedYear', 'lastTimeDepartedMonth', 'lastTimeDepartedDay', 'lastTimeDepartedHour', 'lastTimeDepartedMinute'].forEach(id => {
         formData.append(id, document.getElementById(id).textContent);
     });

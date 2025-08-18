@@ -200,6 +200,23 @@
         </div>
         <div id="DataLink" class="tab-content">
             <div class="setting-group">
+                <h3>Live Weather Display</h3>
+                <label for="weatherModeEnabled" class="toggle-label">Enable Live Weather (Bottom Row)</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="weatherModeEnabled">
+                    <span class="slider round"></span>
+                </label>
+                <div id="weatherSettingsContainer" style="display:none; margin-top: 15px;">
+                    <label for="cityName">City Name:</label>
+                    <input type="text" id="cityName" placeholder="e.g., New York">
+                    <label for="useMetricUnits" class="toggle-label">Use Metric Units (C°, km/h)</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="useMetricUnits">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="setting-group">
                 <h3>Data Link Configuration</h3>
                 <label for="dataLinkEnabled" class="toggle-label">Enable Data Link Marquee</label>
                 <label class="toggle-switch">

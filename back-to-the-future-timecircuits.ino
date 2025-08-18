@@ -164,6 +164,7 @@ struct FetchDataParams {
     int pointIndex;
     int totalRequests;
 };
+td::string lastCityName = "";
 void fetchDataTask(void* p);
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
@@ -237,6 +238,11 @@ void saveSettings() {
   preferences.putInt("mqttPort", currentSettings.mqttPort);
   preferences.putString("mqttUser", currentSettings.mqttUser.c_str());
   preferences.putString("mqttPass", currentSettings.mqttPassword.c_str());
+  preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
+  preferences.putString("cityName", currentSettings.cityName.c_str());
+  preferences.putBool("useMetric", currentSettings.useMetricUnits);
+  preferences.putFloat("latitude", currentSettings.latitude);
+  preferences.putFloat("longitude", currentSettings.longitude);
 
   for (int i = 0; i < 5; i++) {
     String prefix = "dp" + String(i) + "_";
@@ -304,6 +310,12 @@ void loadSettings() {
     currentSettings.mqttPort = 1883;
     currentSettings.mqttUser = "";
     currentSettings.mqttPassword = "";
+    currentSettings.weatherModeEnabled = false;
+    currentSettings.cityName = "New York";
+    currentSettings.useMetricUnits = false;
+    currentSettings.latitude = 40.7128;
+    currentSettings.longitude = -74.0060;
+
     for (int i = 0; i < 5; i++) {
         currentSettings.dataPoints[i] = {};
     }
@@ -342,6 +354,11 @@ void loadSettings() {
     currentSettings.mqttPort = preferences.getInt("mqttPort");
     currentSettings.mqttUser = preferences.getString("mqttUser", "").c_str();
     currentSettings.mqttPassword = preferences.getString("mqttPass", "").c_str();
+    currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
+    currentSettings.cityName = preferences.getString("cityName", "New York").c_str();
+    currentSettings.useMetricUnits = preferences.getBool("useMetric", false);
+    currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
+    currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
 
     for (int i = 0; i < 5; i++) {
       String prefix = "dp" + String(i) + "_";
@@ -378,6 +395,106 @@ void loadSettings() {
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
 }
+const char* getIconForWeatherCode(int code) {
+    switch (code) {
+        case 0: case 1: return "SU"; // Clear, Mainly clear
+        case 2: return "CL";         // Partly cloudy
+        case 3: return "CL";         // Overcast
+        case 45: case 48: return "CL"; // Fog
+        case 51: case 53: case 55: return "RN"; // Drizzle
+        case 61: case 63: case 65: return "RN"; // Rain
+        case 66: case 67: return "RN"; // Freezing Rain
+        case 71: case 73: case 75: return "SN"; // Snow
+        case 77: return "SN";         // Snow grains
+        case 80: case 81: case 82: return "RN"; // Rain showers
+        case 85: case 86: return "SN"; // Snow showers
+        case 95: case 96: case 99: return "ST"; // Thunderstorm
+        default: return "--";
+    }
+}
+
+void fetchWeatherDataTask(void* p) {
+    if (currentSettings.cityName.empty()) {
+        ESP_LOGE("Weather", "City name is empty, cannot fetch weather.");
+        currentWeatherData.dataValid = false;
+        vTaskDelete(NULL);
+        return;
+    }
+
+    // --- Step 1: Geocoding (only if city name changed) ---
+    if (currentSettings.cityName != lastCityName) {
+        HTTPClient http;
+        WiFiClientSecure client;
+        client.setInsecure();
+        String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + String(currentSettings.cityName.c_str());
+        
+        if (http.begin(client, geocodeUrl)) {
+            int httpCode = http.GET();
+            if (httpCode == HTTP_CODE_OK) {
+                DynamicJsonDocument doc(1024);
+                deserializeJson(doc, http.getStream());
+                if (doc.containsKey("results")) {
+                    currentSettings.latitude = doc["results"][0]["latitude"];
+                    currentSettings.longitude = doc["results"][0]["longitude"];
+                    ESP_LOGI("Weather", "Geocoded %s to Lat: %f, Lon: %f", currentSettings.cityName.c_str(), currentSettings.latitude, currentSettings.longitude);
+                } else {
+                     ESP_LOGE("Weather", "Geocoding failed for city: %s", currentSettings.cityName.c_str());
+                     http.end();
+                     vTaskDelete(NULL);
+                     return;
+                }
+            }
+            http.end();
+        }
+    }
+
+    // --- Step 2: Weather Fetch ---
+    HTTPClient http;
+    WiFiClientSecure client;
+    client.setInsecure();
+    String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
+    String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
+    String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 4) + 
+                 "&longitude=" + String(currentSettings.longitude, 4) + 
+                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
+                 "&daily=temperature_2m_max,temperature_2m_min" + 
+                 "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
+
+    if (http.begin(client, weatherUrl)) {
+        int httpCode = http.GET();
+        if (httpCode == HTTP_CODE_OK) {
+            String payload = http.getString();
+            DynamicJsonDocument doc(2048);
+            DeserializationError error = deserializeJson(doc, payload);
+
+            if (error == DeserializationError::Ok) {
+                currentWeatherData.temperature = doc["current"]["temperature_2m"];
+                currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
+                currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
+                currentWeatherData.humidity = doc["current"]["relative_humidity_2m"];
+                currentWeatherData.weatherCode = doc["current"]["weather_code"];
+                currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
+                currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
+                currentWeatherData.dataValid = true;
+                ESP_LOGI("Weather", "Successfully fetched weather data.");
+            } else {
+                currentWeatherData.dataValid = false;
+                ESP_LOGE("Weather", "Weather JSON parsing failed: %s", error.c_str());
+            }
+        } else {
+            currentWeatherData.dataValid = false;
+            ESP_LOGE("Weather", "Weather HTTP request failed, error: %s", http.errorToString(httpCode).c_str());
+        }
+        http.end();
+    } else {
+        currentWeatherData.dataValid = false;
+        ESP_LOGE("Weather", "Unable to connect to weather API.");
+    }
+
+    vTaskDelete(NULL);
+}
+
+
 
 void listAllFiles() {
   Serial.println(F("\n--- Listing all files in LittleFS ---"));
@@ -432,7 +549,76 @@ void reconnectMqtt() {
     }
   }
 }
+void handleWeatherDisplay() {
+    #if ENABLE_HARDWARE
+    if (!currentSettings.weatherModeEnabled || !currentWeatherData.dataValid) {
+        printToDisplay(lastRow.month, "WEA", 1);
+        printToDisplay(lastRow.day, "TH", 2);
+        printToDisplay(lastRow.year, "ER");
+        printToDisplay(lastRow.time, "----");
+        lastRow.month.writeDisplay();
+        lastRow.day.writeDisplay();
+        lastRow.year.writeDisplay();
+        lastRow.time.writeDisplay();
+        return;
+    }
 
+    static int weatherPage = 0;
+    static unsigned long lastPageChange = 0;
+    char buffer[6];
+
+    if (millis() - lastPageChange > 4000) {
+        weatherPage = (weatherPage + 1) % 5; // Now 5 pages
+        lastPageChange = millis();
+    }
+    
+    const char* icon = getIconForWeatherCode(currentWeatherData.weatherCode);
+
+    switch(weatherPage) {
+        case 0: // Temperature
+            printToDisplay(lastRow.month, "TEM", 1);
+            printToDisplay(lastRow.day, icon, 2);
+            dtostrf(currentWeatherData.temperature, 4, 1, buffer);
+            printToDisplay(lastRow.year, buffer);
+            printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
+            break;
+        case 1: // Apparent Temperature
+            printToDisplay(lastRow.month, "FEE", 1);
+            printToDisplay(lastRow.day, icon, 2);
+            dtostrf(currentWeatherData.apparentTemperature, 4, 1, buffer);
+            printToDisplay(lastRow.year, buffer);
+            printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
+            break;
+        case 2: // Wind Speed
+            printToDisplay(lastRow.month, "WIN", 1);
+            printToDisplay(lastRow.day, icon, 2);
+            dtostrf(currentWeatherData.windSpeed, 4, 1, buffer);
+            printToDisplay(lastRow.year, buffer);
+            printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "KMH" : "MPH");
+            break;
+        case 3: // Humidity
+            printToDisplay(lastRow.month, "HUM", 1);
+            printToDisplay(lastRow.day, icon, 2);
+            sprintf(buffer, "%d", currentWeatherData.humidity);
+            printToDisplay(lastRow.year, buffer);
+            printToDisplay(lastRow.time, "%");
+            break;
+        case 4: // Daily Forecast
+            printToDisplay(lastRow.month, "HI", 1);
+            printToDisplay(lastRow.day, "LO", 2);
+            dtostrf(currentWeatherData.dailyHigh, 4, 0, buffer);
+            printToDisplay(lastRow.year, buffer);
+            dtostrf(currentWeatherData.dailyLow, 4, 0, buffer);
+            printToDisplay(lastRow.time, buffer);
+            break;
+    }
+
+    lastRow.month.writeDisplay();
+    lastRow.day.writeDisplay();
+    lastRow.year.writeDisplay();
+    lastRow.time.writeDisplay();
+    #endif
+}
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message;
   for (int i = 0; i < length; i++) {

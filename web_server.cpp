@@ -20,7 +20,6 @@ void makeApiRequestTask(void* p) {
     HTTPClient http;
     WiFiClientSecure client;
     
-    // Use setInsecure to establish an encrypted connection without certificate validation
     client.setInsecure();
 
     if (http.begin(client, urlStr)) {
@@ -97,7 +96,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 
                 ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id()};
 
-                // Check if task creation was successful to prevent memory leaks
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
                     ESP_LOGE("WebSocket", "Failed to create API test task. Deleting params to prevent leak.");
@@ -168,6 +166,9 @@ void setupWebRoutes() {
     doc["mqttPort"] = currentSettings.mqttPort;
     doc["mqttUser"] = currentSettings.mqttUser.c_str();
     doc["mqttPassword"] = currentSettings.mqttPassword.c_str();
+    doc["weatherModeEnabled"] = currentSettings.weatherModeEnabled;
+    doc["cityName"] = currentSettings.cityName.c_str();
+    doc["useMetricUnits"] = currentSettings.useMetricUnits;
 
     JsonArray dataPoints = doc.createNestedArray("dataPoints");
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
@@ -224,6 +225,10 @@ void setupWebRoutes() {
         if (request->hasParam(name, true)) return request->getParam(name, true)->value();
         return "";
     };
+    auto getParamFloat = [&](const String& name, float defaultValue) -> float {
+        if (request->hasParam(name, true)) return request->getParam(name, true)->value().toFloat();
+        return defaultValue;
+    };
 
     std::string oldMqttBroker = currentSettings.mqttBroker;
     int oldMqttPort = currentSettings.mqttPort;
@@ -264,6 +269,10 @@ void setupWebRoutes() {
     currentSettings.mqttUser = getParamValue("mqttUser").c_str();
     currentSettings.mqttPassword = getParamValue("mqttPassword").c_str();
 
+    currentSettings.weatherModeEnabled = (getParamValue("weatherModeEnabled") == "true");
+    currentSettings.cityName = getParamValue("cityName").c_str();
+    currentSettings.useMetricUnits = (getParamValue("useMetricUnits") == "true");
+
     if (request->hasParam("numDataPoints", true)) {
         int numDataPoints = getParamInt("numDataPoints", 0);
         if (numDataPoints > 5) numDataPoints = 5;
@@ -290,7 +299,6 @@ void setupWebRoutes() {
                 currentSettings.dataPoints[i].apiExampleKey = getParamValue("dp_apiExampleKey_" + String(i)).c_str();
             } else {
                 currentSettings.dataPoints[i] = {};
-                // --- FIX START: Clear orphaned data from Preferences ---
                 preferences.begin(PREFERENCES_NAMESPACE, false);
                 String prefix = "dp" + String(i) + "_";
                 preferences.remove((prefix + "url").c_str());
@@ -314,7 +322,6 @@ void setupWebRoutes() {
                 preferences.remove((prefix + "reqBody").c_str());
                 preferences.remove((prefix + "apiKey").c_str());
                 preferences.end();
-                // --- FIX END ---
             }
         }
     }

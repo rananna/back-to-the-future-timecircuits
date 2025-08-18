@@ -2,7 +2,7 @@
 #define HARDWARE_CONTROL_H
 
 #include <Wire.h>
-#include <string> // <-- ADDED THIS LINE
+#include <string>
 #include "Adafruit_LEDBackpack.h"
 #include "Adafruit_GFX.h"
 #include "DFRobotDFPlayerMini.h"
@@ -35,7 +35,6 @@ enum DataSourceType { DATA_SOURCE_API, DATA_SOURCE_MQTT };
 enum DisplayMode { FOUR_COLUMN, SCROLLING_TEXT };
 enum HttpMethod { METHOD_GET, METHOD_POST };
 
-// --- FIX START: Replaced all char arrays with std::string ---
 struct DataPoint {
   std::string url;
   std::string monthPath;
@@ -78,8 +77,6 @@ struct ClockSettings {
   int glitchEffectFrequency;
   int malfunctionFrequency;
   bool timeTravelVolumeFade;
-  float latitude;
-  float longitude;
   bool dataLinkEnabled;
   int dataLinkTargetRow;
   int dataLinkRefreshInterval;
@@ -89,8 +86,14 @@ struct ClockSettings {
   int mqttPort;
   std::string mqttUser;
   std::string mqttPassword;
+  bool weatherModeEnabled;
+  float latitude;
+  float longitude;
+  // --- FIX START: Add new fields for weather improvements ---
+  std::string cityName;
+  bool useMetricUnits;
+  // --- FIX END ---
 };
-// --- FIX END ---
 
 struct DisplayRow {
     Adafruit_AlphaNum4 month; Adafruit_AlphaNum4 day;
