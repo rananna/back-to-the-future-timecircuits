@@ -70,6 +70,7 @@
                         <label for="destinationYear" class="time-circuit-label">YEAR</label>
                         <input type="number" id="destinationYear" class="time-circuit-input" min="1000" max="9999" value="1955">
                     </div>
+                    <div class="validation-message" id="destinationYearValidation"></div>
                 </div>
             </div>
             <div class="setting-group" id="lastDepartedSettings">
@@ -118,8 +119,8 @@
             </div>
         </div>
         <div id="DisplaySound" class="tab-content">
-            <div class="setting-group">
-                <h3>Departure/Arrival (Sleep) Times</h3>
+            <fieldset class="setting-group">
+                <legend>Departure/Arrival (Sleep) Times</legend>
                 <label for="departureTime">Departure Time:</label>
                 <input type="time" id="departureTime" name="departureTime">
                 <label for="arrivalTime">Arrival Time:</label>
@@ -136,9 +137,9 @@
                         <span class="sleep-time-display time-18">6PM</span>
                     </div>
                 </div>
-            </div>
-            <div class="setting-group">
-                <h3>Display</h3>
+            </fieldset>
+            <fieldset class="setting-group">
+                <legend>Display & Animation</legend>
                 <label for="brightness">Display Brightness: <span id="brightnessValue">5</span></label>
                 <div class="slider-container">
                     <input type="range" id="brightness" min="0" max="7">
@@ -148,7 +149,7 @@
                     <input type="checkbox" id="displayFormat24h">
                     <span class="slider round"></span>
                 </label>
-                <br>
+                <hr>
                 <label for="timeTravelAnimationDuration">Animation Duration (ms): <span id="timeTravelAnimationDurationValue">4000</span></label>
                 <div class="slider-container">
                     <input type="range" id="timeTravelAnimationDuration" min="1000" max="10000" step="100">
@@ -170,17 +171,25 @@
                     <option value="8">Waveform Collapse</option>
                     <option value="9">Timeline Skim</option>
                 </select>
-                <label for="glitchEffectFrequency">Glitch Instability (%): <span id="glitchEffectFrequencyValue">0</span></label>
+                <div class="tooltip-container">
+                    <label for="glitchEffectFrequency">Glitch Instability (%): <span id="glitchEffectFrequencyValue">0</span></label>
+                    <span class="tooltip-icon">?</span>
+                    <div class="tooltip-text">Percentage chance for a random, brief display flicker every minute. Adds an authentic, unstable feel.</div>
+                </div>
                 <div class="slider-container">
                     <input type="range" id="glitchEffectFrequency" min="0" max="100">
                 </div>
-                <label for="malfunctionFrequency">Malfunction Chance (1 in X): <span id="malfunctionFrequencyValue">25</span></label>
+                <div class="tooltip-container">
+                    <label for="malfunctionFrequency">Malfunction Chance (1 in X): <span id="malfunctionFrequencyValue">25</span></label>
+                    <span class="tooltip-icon">?</span>
+                    <div class="tooltip-text">Chance for a dramatic malfunction sequence instead of a simple glitch. A lower number means more frequent malfunctions.</div>
+                </div>
                 <div class="slider-container">
                     <input type="range" id="malfunctionFrequency" min="1" max="200" value="25">
                 </div>
-            </div>
-            <div class="setting-group">
-                <h3>Sound</h3>
+            </fieldset>
+            <fieldset class="setting-group">
+                <legend>Sound</legend>
                 <label for="notificationVolume">Volume: <span id="volumeValue">15</span></label>
                 <div class="slider-container">
                     <input type="range" id="notificationVolume" min="0" max="30">
@@ -196,7 +205,7 @@
                     <input type="checkbox" id="timeTravelVolumeFade">
                     <span class="slider round"></span>
                 </label>
-            </div>
+            </fieldset>
         </div>
         <div id="DataLink" class="tab-content">
             <p class="info-text">You can use either the Live Weather Display or the Data Link Marquee to control the bottom display row. Enabling one will disable the other.</p>
@@ -287,10 +296,12 @@
         <div id="System" class="tab-content">
             <div class="setting-group" id="presentTimeSettings">
                  <h3>Present Time</h3>
-                <p>Time Synchronized: <span id="timeSyncStatus">No</span></p>
+                 <div class="status-line" id="timeSyncStatusContainer">
+                     <p>Time Sync Status: <span id="timeSyncStatus" class="status-text status-no">Not Synchronized</span></p>
+                     <button id="syncNtpBtn" class="action-button">Calibrate</button>
+                 </div>
                 <label for="presentTimezoneSelect">Time Zone:</label>
                 <select id="presentTimezoneSelect"></select>
-                <button id="syncNtpBtn">Calibrate Present Time</button>
             </div>
             <div class="setting-group">
                 <h3>UI Theme</h3>
@@ -327,6 +338,8 @@
                 <button id="resetDefaultsBtn" class="reset-button">Reset All Settings to Default</button>
             </div>
         </div>
+    </div>
+    <div class="save-button-container">
         <button id="saveSettingsBtn" disabled>Engage Time Circuits (Save All Settings)</button>
     </div>
     <div id="customConfirm" class="modal">

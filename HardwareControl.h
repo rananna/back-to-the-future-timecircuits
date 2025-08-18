@@ -23,7 +23,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 1 // Set to 1 to enable hardware, 0 to disable
+#define ENABLE_HARDWARE 0 // Set to 1 to enable hardware, 0 to disable
 
 // --- ENUMS & DATA STRUCTURES ---
 enum Theme {
