@@ -1253,6 +1253,7 @@ body.time-travel-active {
     background-color: rgba(0, 0, 0, 0.2);
     border: 1px solid var(--input-border);
     border-radius: 8px;
+    position: relative;
 }
 
 .weather-item {
@@ -1275,4 +1276,17 @@ body.time-travel-active {
     font-weight: bold;
     color: var(--highlight-text-color);
     text-shadow: 0 0 5px var(--shadow-color);
+}
+
+.loading-spinner-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
 }

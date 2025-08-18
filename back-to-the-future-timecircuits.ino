@@ -434,8 +434,15 @@ void fetchWeatherDataTask(void* p) {
         return;
     }
 
-    // --- Step 1: Geocoding (only if city name changed) ---
-    if (currentSettings.cityName != lastCityName) {
+    bool needsGeocoding = false;
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        if (currentSettings.cityName != lastCityName) {
+            needsGeocoding = true;
+        }
+        xSemaphoreGive(xDisplayDataMutex);
+    }
+    
+    if (needsGeocoding) {
         HTTPClient http;
         WiFiClientSecure client;
         client.setInsecure();
@@ -447,8 +454,12 @@ void fetchWeatherDataTask(void* p) {
                 DynamicJsonDocument doc(1024);
                 deserializeJson(doc, http.getStream());
                 if (doc.containsKey("results")) {
-                    currentSettings.latitude = doc["results"][0]["latitude"];
-                    currentSettings.longitude = doc["results"][0]["longitude"];
+                    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                        currentSettings.latitude = doc["results"][0]["latitude"];
+                        currentSettings.longitude = doc["results"][0]["longitude"];
+                        lastCityName = currentSettings.cityName;
+                        xSemaphoreGive(xDisplayDataMutex);
+                    }
                     ESP_LOGI("Weather", "Geocoded %s to Lat: %f, Lon: %f", currentSettings.cityName.c_str(), currentSettings.latitude, currentSettings.longitude);
                 } else {
                      ESP_LOGE("Weather", "Geocoding failed for city: %s", currentSettings.cityName.c_str());
@@ -461,7 +472,6 @@ void fetchWeatherDataTask(void* p) {
         }
     }
 
-    // --- Step 2: Weather Fetch ---
     HTTPClient http;
     WiFiClientSecure client;
     client.setInsecure();
@@ -472,6 +482,7 @@ void fetchWeatherDataTask(void* p) {
                  "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
                  "&daily=temperature_2m_max,temperature_2m_min" + 
                  "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
+
     if (http.begin(client, weatherUrl)) {
         int httpCode = http.GET();
         if (httpCode == HTTP_CODE_OK) {
@@ -479,34 +490,41 @@ void fetchWeatherDataTask(void* p) {
             DynamicJsonDocument doc(2048);
             DeserializationError error = deserializeJson(doc, payload);
 
-            if (error == DeserializationError::Ok) {
-                currentWeatherData.temperature = doc["current"]["temperature_2m"];
-                currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
-                currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
-                currentWeatherData.humidity = doc["current"]["relative_humidity_2m"];
-                currentWeatherData.weatherCode = doc["current"]["weather_code"];
-                currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
-                currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
-                currentWeatherData.dataValid = true;
-                ESP_LOGI("Weather", "Successfully fetched weather data.");
-            } else {
-                currentWeatherData.dataValid = false;
-                ESP_LOGE("Weather", "Weather JSON parsing failed: %s", error.c_str());
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                if (error == DeserializationError::Ok) {
+                    currentWeatherData.temperature = doc["current"]["temperature_2m"];
+                    currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
+                    currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
+                    currentWeatherData.humidity = doc["current"]["relative_humidity_2m"];
+                    currentWeatherData.weatherCode = doc["current"]["weather_code"];
+                    currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
+                    currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
+                    currentWeatherData.dataValid = true;
+                    ESP_LOGI("Weather", "Successfully fetched weather data.");
+                } else {
+                    currentWeatherData.dataValid = false;
+                    ESP_LOGE("Weather", "Weather JSON parsing failed: %s", error.c_str());
+                }
+                xSemaphoreGive(xDisplayDataMutex);
             }
         } else {
-            currentWeatherData.dataValid = false;
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                currentWeatherData.dataValid = false;
+                xSemaphoreGive(xDisplayDataMutex);
+            }
             ESP_LOGE("Weather", "Weather HTTP request failed, error: %s", http.errorToString(httpCode).c_str());
         }
         http.end();
     } else {
-        currentWeatherData.dataValid = false;
+        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+            currentWeatherData.dataValid = false;
+            xSemaphoreGive(xDisplayDataMutex);
+        }
         ESP_LOGE("Weather", "Unable to connect to weather API.");
     }
 
     vTaskDelete(NULL);
 }
-
-
 
 void listAllFiles() {
   Serial.println(F("\n--- Listing all files in LittleFS ---"));
@@ -563,71 +581,70 @@ void reconnectMqtt() {
 }
 void handleWeatherDisplay() {
     #if ENABLE_HARDWARE
-    if (!currentSettings.weatherModeEnabled || !currentWeatherData.dataValid) {
-        printToDisplay(lastRow.month, "WEA", 1);
-        printToDisplay(lastRow.day, "TH", 2);
-        printToDisplay(lastRow.year, "ER");
-        printToDisplay(lastRow.time, "----");
+    if (!currentSettings.weatherModeEnabled) return;
+
+    if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        if (!currentWeatherData.dataValid) {
+            printToDisplay(lastRow.month, "WEA", 1);
+            printToDisplay(lastRow.day, "TH", 2);
+            printToDisplay(lastRow.year, "ER");
+            printToDisplay(lastRow.time, "----");
+        } else {
+            static int weatherPage = 0;
+            static unsigned long lastPageChange = 0;
+            char buffer[6];
+            if (millis() - lastPageChange > 4000) {
+                weatherPage = (weatherPage + 1) % 5;
+                lastPageChange = millis();
+            }
+            
+            const char* icon = getIconForWeatherCode(currentWeatherData.weatherCode);
+            switch(weatherPage) {
+                case 0: // Temperature
+                    printToDisplay(lastRow.month, "TEM", 1);
+                    printToDisplay(lastRow.day, icon, 2);
+                    dtostrf(currentWeatherData.temperature, 4, 1, buffer);
+                    printToDisplay(lastRow.year, buffer);
+                    printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
+                    break;
+                case 1: // Apparent Temperature
+                    printToDisplay(lastRow.month, "FEE", 1);
+                    printToDisplay(lastRow.day, icon, 2);
+                    dtostrf(currentWeatherData.apparentTemperature, 4, 1, buffer);
+                    printToDisplay(lastRow.year, buffer);
+                    printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
+                    break;
+                case 2: // Wind Speed
+                    printToDisplay(lastRow.month, "WIN", 1);
+                    printToDisplay(lastRow.day, icon, 2);
+                    dtostrf(currentWeatherData.windSpeed, 4, 1, buffer);
+                    printToDisplay(lastRow.year, buffer);
+                    printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "KMH" : "MPH");
+                    break;
+                case 3: // Humidity
+                    printToDisplay(lastRow.month, "HUM", 1);
+                    printToDisplay(lastRow.day, icon, 2);
+                    sprintf(buffer, "%d", currentWeatherData.humidity);
+                    printToDisplay(lastRow.year, buffer);
+                    printToDisplay(lastRow.time, "%");
+                    break;
+                case 4: // Daily Forecast
+                    printToDisplay(lastRow.month, "HI", 1);
+                    printToDisplay(lastRow.day, "LO", 2);
+                    dtostrf(currentWeatherData.dailyHigh, 4, 0, buffer);
+                    printToDisplay(lastRow.year, buffer);
+                    dtostrf(currentWeatherData.dailyLow, 4, 0, buffer);
+                    printToDisplay(lastRow.time, buffer);
+                    break;
+            }
+        }
+        xSemaphoreGive(xDisplayDataMutex);
+        
         lastRow.month.writeDisplay();
         lastRow.day.writeDisplay();
         lastRow.year.writeDisplay();
         lastRow.time.writeDisplay();
-        return;
     }
-
-    static int weatherPage = 0;
-    static unsigned long lastPageChange = 0;
-    char buffer[6];
-    if (millis() - lastPageChange > 4000) {
-        weatherPage = (weatherPage + 1) % 5;
-        // Now 5 pages
-        lastPageChange = millis();
-    }
-    
-    const char* icon = getIconForWeatherCode(currentWeatherData.weatherCode);
-    switch(weatherPage) {
-        case 0: // Temperature
-            printToDisplay(lastRow.month, "TEM", 1);
-            printToDisplay(lastRow.day, icon, 2);
-            dtostrf(currentWeatherData.temperature, 4, 1, buffer);
-            printToDisplay(lastRow.year, buffer);
-            printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
-            break;
-        case 1: // Apparent Temperature
-            printToDisplay(lastRow.month, "FEE", 1);
-            printToDisplay(lastRow.day, icon, 2);
-            dtostrf(currentWeatherData.apparentTemperature, 4, 1, buffer);
-            printToDisplay(lastRow.year, buffer);
-            printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
-            break;
-        case 2: // Wind Speed
-            printToDisplay(lastRow.month, "WIN", 1);
-            printToDisplay(lastRow.day, icon, 2);
-            dtostrf(currentWeatherData.windSpeed, 4, 1, buffer);
-            printToDisplay(lastRow.year, buffer);
-            printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "KMH" : "MPH");
-            break;
-        case 3: // Humidity
-            printToDisplay(lastRow.month, "HUM", 1);
-            printToDisplay(lastRow.day, icon, 2);
-            sprintf(buffer, "%d", currentWeatherData.humidity);
-            printToDisplay(lastRow.year, buffer);
-            printToDisplay(lastRow.time, "%");
-            break;
-        case 4: // Daily Forecast
-            printToDisplay(lastRow.month, "HI", 1);
-            printToDisplay(lastRow.day, "LO", 2);
-            dtostrf(currentWeatherData.dailyHigh, 4, 0, buffer);
-            printToDisplay(lastRow.year, buffer);
-            dtostrf(currentWeatherData.dailyLow, 4, 0, buffer);
-            printToDisplay(lastRow.time, buffer);
-            break;
-    }
-
-    lastRow.month.writeDisplay();
-    lastRow.day.writeDisplay();
-    lastRow.year.writeDisplay();
-    lastRow.time.writeDisplay();
     #endif
 }
 void mqttCallback(char* topic, byte* payload, unsigned int length) {

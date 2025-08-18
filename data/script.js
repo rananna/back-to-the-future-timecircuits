@@ -1167,6 +1167,10 @@ function fetchWeatherData() {
         return;
     }
 
+    const weatherDisplay = document.getElementById('weatherDisplay');
+    const loadingSpinner = weatherDisplay.querySelector('.loading-spinner-container');
+    loadingSpinner.style.display = 'block';
+
     fetch('/api/weather')
         .then(res => {
             if (res.ok) {
@@ -1179,7 +1183,7 @@ function fetchWeatherData() {
             const tempUnit = isMetric ? '°C' : '°F';
             const speedUnit = isMetric ? ' km/h' : ' mph';
 
-            document.getElementById('weatherDisplay').style.display = 'grid';
+            weatherDisplay.style.display = 'grid';
             document.getElementById('weatherTemp').textContent = `${data.temperature.toFixed(1)}${tempUnit}`;
             document.getElementById('weatherFeelsLike').textContent = `${data.apparentTemperature.toFixed(1)}${tempUnit}`;
             document.getElementById('weatherHumidity').textContent = `${data.humidity}%`;
@@ -1188,7 +1192,10 @@ function fetchWeatherData() {
         })
         .catch(err => {
             console.warn("CLIENT_DEBUG: Could not fetch weather data:", err);
-            document.getElementById('weatherDisplay').style.display = 'none';
+            weatherDisplay.style.display = 'none';
+        })
+        .finally(() => {
+            loadingSpinner.style.display = 'none';
         });
 }
 

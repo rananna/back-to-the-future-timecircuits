@@ -7,7 +7,6 @@
 #include <string>
 
 AsyncWebSocket ws("/ws");
-WeatherData currentWeatherData; // <-- ADD THIS LINE
 
 // This function runs in a separate task to prevent blocking
 void makeApiRequestTask(void* p) {
