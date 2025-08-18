@@ -167,11 +167,6 @@ struct FetchDataParams {
     int totalRequests;
 };
 
-struct WeatherTaskParams {
-    std::string cityName;
-    bool forceGeocode;
-};
-
 void fetchDataTask(void* p);
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
@@ -510,6 +505,10 @@ void fetchWeatherData(WeatherTaskParams* params) {
         if (!geocodeSuccess) {
             ESP_LOGE("Weather", "Geocoding failed for city: %s after all retries.", taskCityName.c_str());
             showTemporaryMessage("GEO", "", "FAIL", "", 2000);
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                currentWeatherData.dataValid = false;
+                xSemaphoreGive(xDisplayDataMutex);
+            }
             return;
         }
     }
