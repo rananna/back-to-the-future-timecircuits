@@ -61,6 +61,7 @@ const TimeZoneEntry TZ_DATA[] = {
   { "HST10", "Hawaii (Honolulu, No DST)", "Pacific/Honolulu", "Americas" },
 
   // Europe
+ 
   { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe" },
   { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
   { "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
@@ -88,7 +89,8 @@ const TimeZoneEntry TZ_DATA[] = {
   { "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
 
   // South America
-  { "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
+  
+{ "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
   { "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
@@ -164,7 +166,23 @@ struct FetchDataParams {
     int pointIndex;
     int totalRequests;
 };
-td::string lastCityName = "";
+
+// --- FIX START: Add WeatherData struct and currentWeatherData variable ---
+struct WeatherData {
+  float temperature;
+  float apparentTemperature;
+  float windSpeed;
+  int humidity;
+  int weatherCode;
+  float dailyHigh;
+  float dailyLow;
+  bool dataValid = false;
+};
+
+WeatherData currentWeatherData;
+std::string lastCityName = "";
+// --- FIX END ---
+
 void fetchDataTask(void* p);
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
@@ -203,6 +221,8 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     }
     return current;
 }
+
+
 
 void saveSettings() {
   preferences.begin(PREFERENCES_NAMESPACE, false);
