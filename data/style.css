@@ -1325,3 +1325,40 @@ body.time-travel-active {
     margin-bottom: 20px;
     font-size: 0.9em;
 }
+/* ... (all existing CSS rules) ... */
+
+.hourly-forecast-container {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px dashed var(--input-border);
+}
+
+.hourly-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 30%;
+}
+
+.hourly-time {
+    font-size: 0.8em;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.hourly-icon {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--highlight-text-color);
+    margin: 5px 0;
+}
+
+.hourly-temp {
+    font-size: 1em;
+    font-weight: bold;
+    color: var(--text-color);
+}

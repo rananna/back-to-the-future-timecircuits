@@ -524,39 +524,55 @@ void fetchWeatherData(WeatherTaskParams* params) {
         String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 4) + 
                      "&longitude=" + String(currentSettings.longitude, 4) + 
                      "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
-                     "&daily=temperature_2m_max,temperature_2m_min" + 
+                     "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max" + 
                      "&hourly=temperature_2m,weather_code" +
-                     "&forecast_days=1" +
+                     "&forecast_days=2" +
                      "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
         if (http.begin(client, weatherUrl)) {
             int httpCode = http.GET();
             if (httpCode == HTTP_CODE_OK) {
                 String payload = http.getString();
-                DynamicJsonDocument doc(2048);
+                DynamicJsonDocument doc(4096);
                 DeserializationError error = deserializeJson(doc, payload);
 
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (error == DeserializationError::Ok && !doc.containsKey("error")) {
+                        // Current weather
                         currentWeatherData.temperature = doc["current"]["temperature_2m"];
                         currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
                         currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
                         currentWeatherData.humidity = doc["current"]["relative_humidity_2m"];
                         currentWeatherData.weatherCode = doc["current"]["weather_code"];
+                        
+                        // Today's daily forecast
                         currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
                         currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
+                        currentWeatherData.sunrise = doc["daily"]["sunrise"][0];
+                        currentWeatherData.sunset = doc["daily"]["sunset"][0];
+                        currentWeatherData.precipitationProbability = doc["daily"]["precipitation_probability_max"][0];
+                        currentWeatherData.maxWindSpeed = doc["daily"]["wind_speed_10m_max"][0];
 
+                        // Tomorrow's forecast
+                        currentWeatherData.tomorrowHigh = doc["daily"]["temperature_2m_max"][1];
+                        currentWeatherData.tomorrowLow = doc["daily"]["temperature_2m_min"][1];
+                        currentWeatherData.tomorrowWeatherCode = doc["daily"]["weather_code"][1];
+
+                        // Hourly forecast
                         time_t now;
                         time(&now);
                         struct tm timeinfo;
                         localtime_r(&now, &timeinfo);
                         int currentHour = timeinfo.tm_hour;
+                        JsonArray hourly_temp = doc["hourly"]["temperature_2m"];
+                        JsonArray hourly_code = doc["hourly"]["weather_code"];
                         for (int j = 0; j < 3; j++) {
                             int forecastHour = currentHour + j + 1;
                             if (forecastHour < 24) {
-                                currentWeatherData.hourlyTemp[j] = doc["hourly"]["temperature_2m"][forecastHour];
-                                currentWeatherData.hourlyCode[j] = doc["hourly"]["weather_code"][forecastHour];
+                                currentWeatherData.hourlyTemp[j] = hourly_temp[forecastHour];
+                                currentWeatherData.hourlyCode[j] = hourly_code[forecastHour];
                             }
                         }
+                        
                         currentWeatherData.dataValid = true;
                         weatherSuccess = true;
                         ESP_LOGI("Weather", "Successfully fetched weather data.");
@@ -668,68 +684,55 @@ void handleWeatherDisplay() {
             static unsigned long lastPageChange = 0;
             char buffer[6];
             if (millis() - lastPageChange > 4000) {
-                weatherPage = (weatherPage + 1) % 8;
+                weatherPage = (weatherPage + 1) % 4; // Cycle through 4 pages now
                 lastPageChange = millis();
             }
             
             const char* icon = getIconForWeatherCode(currentWeatherData.weatherCode);
             switch(weatherPage) {
-                case 0: // Temperature
-                    printToDisplay(lastRow.month, "TEM", 1);
+                case 0: // Current Conditions
+                    printToDisplay(lastRow.month, "NOW", 1);
                     printToDisplay(lastRow.day, icon, 2);
                     dtostrf(currentWeatherData.temperature, 4, 1, buffer);
                     printToDisplay(lastRow.year, buffer);
                     printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
+                    digitalWrite(LAST_AM_PIN, LOW);
+                    digitalWrite(LAST_PM_PIN, LOW);
                     break;
-                case 1: // Apparent Temperature
-                    printToDisplay(lastRow.month, "FEE", 1);
-                    printToDisplay(lastRow.day, icon, 2);
-                    dtostrf(currentWeatherData.apparentTemperature, 4, 1, buffer);
+                case 1: // Tomorrow's Forecast
+                    printToDisplay(lastRow.month, "TMRW", 1);
+                    printToDisplay(lastRow.day, getIconForWeatherCode(currentWeatherData.tomorrowWeatherCode), 2);
+                    dtostrf(currentWeatherData.tomorrowHigh, 4, 0, buffer);
                     printToDisplay(lastRow.year, buffer);
-                    printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
-                    break;
-                case 2: // Wind Speed
-                    printToDisplay(lastRow.month, "WIN", 1);
-                    printToDisplay(lastRow.day, icon, 2);
-                    dtostrf(currentWeatherData.windSpeed, 4, 1, buffer);
-                    printToDisplay(lastRow.year, buffer);
-                    printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "KMH" : "MPH");
-                    break;
-                case 3: // Humidity
-                    printToDisplay(lastRow.month, "HUM", 1);
-                    printToDisplay(lastRow.day, icon, 2);
-                    sprintf(buffer, "%d", currentWeatherData.humidity);
-                    printToDisplay(lastRow.year, buffer);
-                    printToDisplay(lastRow.time, "%");
-                    break;
-                case 4: // Daily Forecast
-                    printToDisplay(lastRow.month, "HI", 1);
-                    printToDisplay(lastRow.day, "LO", 2);
-                    dtostrf(currentWeatherData.dailyHigh, 4, 0, buffer);
-                    printToDisplay(lastRow.year, buffer);
-                    dtostrf(currentWeatherData.dailyLow, 4, 0, buffer);
+                    dtostrf(currentWeatherData.tomorrowLow, 4, 0, buffer);
                     printToDisplay(lastRow.time, buffer);
+                    digitalWrite(LAST_AM_PIN, HIGH);
+                    digitalWrite(LAST_PM_PIN, LOW);
                     break;
-                case 5: // Forecast for Hour + 1
-                    printToDisplay(lastRow.month, "HR", 1);
-                    printToDisplay(lastRow.day, "+1", 2);
-                    dtostrf(currentWeatherData.hourlyTemp[0], 4, 1, buffer);
-                    printToDisplay(lastRow.year, buffer);
-                    printToDisplay(lastRow.time, getIconForWeatherCode(currentWeatherData.hourlyCode[0]));
+                case 2: // Wind and Rain
+                    printToDisplay(lastRow.month, "WIND", 1);
+                    dtostrf(currentWeatherData.maxWindSpeed, 2, 0, buffer);
+                    strcat(buffer, "M"); // Assuming MPH for display
+                    printToDisplay(lastRow.day, buffer, 2);
+                    printToDisplay(lastRow.year, "RAIN");
+                    sprintf(buffer, "%d%%", currentWeatherData.precipitationProbability);
+                    printToDisplay(lastRow.time, buffer);
+                    digitalWrite(LAST_AM_PIN, LOW);
+                    digitalWrite(LAST_PM_PIN, HIGH);
                     break;
-                case 6: // Forecast for Hour + 2
-                    printToDisplay(lastRow.month, "HR", 1);
-                    printToDisplay(lastRow.day, "+2", 2);
-                    dtostrf(currentWeatherData.hourlyTemp[1], 4, 1, buffer);
-                    printToDisplay(lastRow.year, buffer);
-                    printToDisplay(lastRow.time, getIconForWeatherCode(currentWeatherData.hourlyCode[1]));
-                    break;
-                case 7: // Forecast for Hour + 3
-                    printToDisplay(lastRow.month, "HR", 1);
-                    printToDisplay(lastRow.day, "+3", 2);
-                    dtostrf(currentWeatherData.hourlyTemp[2], 4, 1, buffer);
-                    printToDisplay(lastRow.year, buffer);
-                    printToDisplay(lastRow.time, getIconForWeatherCode(currentWeatherData.hourlyCode[2]));
+                case 3: // Sunrise / Sunset
+                    struct tm timeinfo;
+                    char timeStr[5];
+                    printToDisplay(lastRow.month, "SUN", 1);
+                    localtime_r(&currentWeatherData.sunrise, &timeinfo);
+                    sprintf(timeStr, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
+                    printToDisplay(lastRow.day, timeStr, 2);
+                    localtime_r(&currentWeatherData.sunset, &timeinfo);
+                    sprintf(timeStr, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
+                    printToDisplay(lastRow.year, timeStr);
+                    printToDisplay(lastRow.time, "RISE/SET");
+                    digitalWrite(LAST_AM_PIN, HIGH);
+                    digitalWrite(LAST_PM_PIN, HIGH);
                     break;
             }
         }
@@ -782,7 +785,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
                 if (dataPointFetchFailures[i] >= MAX_FETCH_FAILURES) {
                     displayPages[i].time = "MQTT FAIL";
                 } else {
-                    memcpy(&displayPages[i], &lastGoodDisplayPages[i], sizeof(MarqueeData));
+                    memcpy(&lastGoodDisplayPages[i], &lastGoodDisplayPages[i], sizeof(MarqueeData));
                 }
             }
             xSemaphoreGive(xDisplayDataMutex);

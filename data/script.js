@@ -1286,6 +1286,17 @@ function refreshWeatherData() {
     });
 }
 
+function getWeatherIcon(code) {
+    const icons = {
+        0: 'SU', 1: 'SU', 2: 'CL', 3: 'CL', 45: 'CL', 48: 'CL',
+        51: 'RN', 53: 'RN', 55: 'RN', 61: 'RN', 63: 'RN', 65: 'RN',
+        66: 'RN', 67: 'RN', 71: 'SN', 73: 'SN', 75: 'SN', 77: 'SN',
+        80: 'RN', 81: 'RN', 82: 'RN', 85: 'SN', 86: 'SN', 95: 'ST',
+        96: 'ST', 99: 'ST'
+    };
+    return icons[code] || '--';
+}
+
 function fetchWeatherData() {
     if (!document.getElementById('weatherModeEnabled').checked) {
         document.getElementById('weatherDisplay').style.display = 'none';
@@ -1318,6 +1329,29 @@ function fetchWeatherData() {
             
             const city = document.getElementById('cityName').value;
             preview.textContent = `Live data for ${city}: ${data.temperature.toFixed(1)}${tempUnit}`;
+
+            // --- Build Hourly Forecast ---
+            const hourlyContainer = document.getElementById('hourlyForecastContainer');
+            hourlyContainer.innerHTML = '';
+            const now = new Date();
+            let currentHour = now.getHours();
+
+            data.hourly.forEach((hour, index) => {
+                let forecastHour = (currentHour + index + 1) % 24;
+                let ampm = forecastHour >= 12 ? 'PM' : 'AM';
+                let displayHour = forecastHour % 12;
+                if (displayHour === 0) displayHour = 12;
+
+                const item = document.createElement('div');
+                item.className = 'hourly-item';
+                item.innerHTML = `
+                    <div class="hourly-time">${displayHour} ${ampm}</div>
+                    <div class="hourly-icon">${getWeatherIcon(hour.code)}</div>
+                    <div class="hourly-temp">${hour.temp.toFixed(0)}°</div>
+                `;
+                hourlyContainer.appendChild(item);
+            });
+
         })
         .catch(err => {
             console.warn("CLIENT_DEBUG: Could not fetch weather data:", err);
@@ -1325,6 +1359,7 @@ function fetchWeatherData() {
             ['weatherTemp', 'weatherFeelsLike', 'weatherHumidity', 'weatherWind', 'weatherHighLow'].forEach(id => {
                 document.getElementById(id).textContent = '--';
             });
+            document.getElementById('hourlyForecastContainer').innerHTML = ''; // Clear hourly on error
             preview.textContent = 'Data not available. Check city name.';
         })
         .finally(() => {

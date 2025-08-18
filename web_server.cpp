@@ -220,7 +220,7 @@ void setupWebRoutes() {
   });
   server.on("/api/weather", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (currentWeatherData.dataValid) {
-        StaticJsonDocument<256> doc;
+        StaticJsonDocument<512> doc;
         doc["temperature"] = currentWeatherData.temperature;
         doc["apparentTemperature"] = currentWeatherData.apparentTemperature;
         doc["windSpeed"] = currentWeatherData.windSpeed;
@@ -228,6 +228,14 @@ void setupWebRoutes() {
         doc["weatherCode"] = currentWeatherData.weatherCode;
         doc["dailyHigh"] = currentWeatherData.dailyHigh;
         doc["dailyLow"] = currentWeatherData.dailyLow;
+        
+        JsonArray hourly = doc.createNestedArray("hourly");
+        for (int i = 0; i < 3; i++) {
+            JsonObject hour = hourly.createNestedObject();
+            hour["temp"] = currentWeatherData.hourlyTemp[i];
+            hour["code"] = currentWeatherData.hourlyCode[i];
+        }
+
         String jsonString;
         serializeJson(doc, jsonString);
         request->send(200, "application/json", jsonString);

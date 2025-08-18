@@ -23,7 +23,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0 // Set to 1 to enable hardware, 0 to disable
+#define ENABLE_HARDWARE 1 // Set to 1 to enable hardware, 0 to disable
 
 // --- ENUMS & DATA STRUCTURES ---
 enum Theme {
@@ -103,6 +103,13 @@ struct WeatherData {
   float dailyLow;
   float hourlyTemp[3];
   int hourlyCode[3];
+  float tomorrowHigh;
+  float tomorrowLow;
+  int tomorrowWeatherCode;
+  int precipitationProbability;
+  float maxWindSpeed;
+  time_t sunrise; 
+  time_t sunset;
   bool dataValid = false;
 };
 
