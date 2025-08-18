@@ -291,6 +291,46 @@ async function applyDataLinkSettings(datalink) {
     }
 }
 
+function handleDataLinkToggle(isWeatherMode) {
+    const weatherToggle = document.getElementById('weatherModeEnabled');
+    const dataLinkToggle = document.getElementById('dataLinkEnabled');
+    const weatherGroup = document.getElementById('weatherModeGroup');
+    const dataLinkGroup = document.getElementById('dataLinkGroup');
+    const weatherContainer = document.getElementById('weatherSettingsContainer');
+    const dataLinkContainer = document.getElementById('dataLinkSettingsContainer');
+
+    if (isWeatherMode) {
+        if (!weatherToggle.checked) {
+            weatherToggle.checked = true; // Prevent unchecking, effectively making the other toggle check
+            dataLinkToggle.checked = false;
+        } else {
+             dataLinkToggle.checked = false;
+        }
+    } else { // Data Link toggle was changed
+        if (!dataLinkToggle.checked) {
+            dataLinkToggle.checked = true; // Prevent unchecking
+            weatherToggle.checked = false;
+        } else {
+            weatherToggle.checked = false;
+        }
+    }
+
+    // Now, update the UI based on the final state of the toggles
+    const isWeatherChecked = weatherToggle.checked;
+    const isDataLinkChecked = dataLinkToggle.checked;
+
+    weatherContainer.style.display = isWeatherChecked ? 'block' : 'none';
+    dataLinkContainer.style.display = isDataLinkChecked ? 'block' : 'none';
+
+    weatherGroup.classList.toggle('disabled', isDataLinkChecked);
+    dataLinkGroup.classList.toggle('disabled', isWeatherChecked);
+
+    if (isWeatherChecked) {
+        fetchWeatherData();
+    }
+    setSettingsChanged(true);
+}
+
 function attachEventListeners() {
     const container = document.body;
 
@@ -305,52 +345,28 @@ function attachEventListeners() {
             }
         }
     };
+
     container.addEventListener('change', delegatedChangeHandler);
     container.addEventListener('input', delegatedChangeHandler);
-
+    
+    // Delegated click handler
     document.body.addEventListener('click', function(e) {
-        // Save button
-        if (e.target.id === 'saveSettingsBtn') {
-            saveSettings();
+        const target = e.target;
+        
+        if (target.id === 'saveSettingsBtn') saveSettings();
+        if (target.id === 'greatScottBtn') fetch('/api/greatScott', { method: 'POST' });
+        if (target.closest('#header-dest')) scrollToSettings('TimeCircuits', 'destinationTimeSettings');
+        if (target.closest('#header-pres')) scrollToSettings('System', 'presentTimeSettings');
+        if (target.closest('#header-last')) scrollToSettings('TimeCircuits', 'lastDepartedSettings');
+        if (target.id === 'savePresetBtn') handleSavePreset();
+        if (target.id === 'deletePresetBtn') deletePreset();
+        if (target.id === 'newPresetBtn') resetPresetForm();
+        if (target.id === 'refreshWeatherBtn') refreshWeatherData();
+        if (target.id === 'syncNtpBtn' || target.id === 'timeSyncStatus') {
+            showMessage('Requesting time sync...', 'info');
+            fetch('/api/syncTime', { method: 'POST' }).then(res => res.text()).then(text => showMessage(text, 'info'));
         }
-        // Great Scott button
-        if (e.target.id === 'greatScottBtn') {
-            fetch('/api/greatScott', { method: 'POST' });
-        }
-        // Header navigation
-        if (e.target.closest('#header-dest')) {
-             scrollToSettings('TimeCircuits', 'destinationTimeSettings');
-        }
-        if (e.target.closest('#header-pres')) {
-            scrollToSettings('System', 'presentTimeSettings');
-        }
-        if (e.target.closest('#header-last')) {
-            scrollToSettings('TimeCircuits', 'lastDepartedSettings');
-        }
-        // Tabs
-        if (e.target.classList.contains('tab-link')) {
-            const tabName = e.target.getAttribute('data-tab');
-            openTab(e, tabName);
-            if (tabName === 'DataLink' && !isDataLinkLoaded) {
-                loadDataLinkSettings();
-            }
-        }
-        // Preset buttons
-        if(e.target.id === 'savePresetBtn') {
-            handleSavePreset();
-        }
-        if(e.target.id === 'deletePresetBtn') {
-            deletePreset();
-        }
-        if(e.target.id === 'newPresetBtn') {
-            resetPresetForm();
-        }
-        // Weather refresh
-        if (e.target.id === 'refreshWeatherBtn') {
-            refreshWeatherData();
-        }
-        // Reset and Sync
-        if (e.target.id === 'resetDefaultsBtn') {
+        if (target.id === 'resetDefaultsBtn') {
             if (confirm("Are you sure? This will reset all settings to their defaults.")) {
                 fetch('/api/resetSettings', { method: 'POST' })
                     .then(res => res.text()).then(text => {
@@ -359,18 +375,42 @@ function attachEventListeners() {
                     });
             }
         }
-        if (e.target.id === 'syncNtpBtn' || e.target.id === 'timeSyncStatus') {
-            showMessage('Requesting time sync...', 'info');
-            fetch('/api/syncTime', { method: 'POST' }).then(res => res.text()).then(text => showMessage(text, 'info'));
+
+        const tabLink = target.closest('.tab-link');
+        if (tabLink) {
+            const tabName = tabLink.getAttribute('data-tab');
+            openTab({ currentTarget: tabLink }, tabName);
+            if (tabName === 'DataLink' && !isDataLinkLoaded) loadDataLinkSettings();
         }
-        // Themes
-        const themeOption = e.target.closest('.theme-option');
+
+        const themeOption = target.closest('.theme-option');
         if (themeOption) {
             const theme = themeOption.getAttribute('data-theme');
             document.body.className = theme;
             fetch('/api/setTheme', { method: 'POST', body: new URLSearchParams({ theme }) });
         }
     });
+
+    // Event listeners for Data Point blocks (delegated from container)
+    document.getElementById('dataPointsConfigContainer').addEventListener('click', (e) => {
+        const target = e.target;
+        if (target.classList.contains('analyze-api-btn')) startApiWizard(e);
+        if (target.classList.contains('dp-clear-btn')) clearDataPointFields(e);
+        if (target.classList.contains('dp-dup-btn')) duplicateDataPoint(e);
+        if (target.classList.contains('dp-test-btn')) testDataPoint(e);
+        if (target.classList.contains('wizard-target-input')) {
+            document.querySelectorAll('.wizard-target-input').forEach(el => el.classList.remove('is-wizard-target'));
+            if (activeWizardTarget !== target) {
+                activeWizardTarget = target;
+                activeWizardTarget.classList.add('is-wizard-target');
+            } else {
+                activeWizardTarget = null;
+            }
+        }
+    });
+
+    document.getElementById('weatherModeEnabled').addEventListener('change', () => handleDataLinkToggle(true));
+    document.getElementById('dataLinkEnabled').addEventListener('change', () => handleDataLinkToggle(false));
 
     document.getElementById('destinationYear').addEventListener('input', () => {
         updateHeaderClocks(new Date());
