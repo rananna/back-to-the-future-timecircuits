@@ -13,6 +13,10 @@ let dataPointStatus = {};
 
 let ws;
 
+// --- FIX START: Add a flag to track the initial loading state ---
+let isLoading = true;
+// --- FIX END ---
+
 function initWebSocket() {
     ws = new WebSocket('ws://' + window.location.host + '/ws');
 
@@ -111,7 +115,7 @@ async function initializeUI() {
         document.body.className = theme.trim();
         populateTimezoneSelects(timezones);
         populatePresetsSelect(presets);
-        applySettings(timecircuits, temporal, datalink);
+        await applySettings(timecircuits, temporal, datalink); // Make sure applySettings can be awaited
         document.querySelector('.header-circuits').classList.add('visible');
         
         initWebSocket();
@@ -124,6 +128,10 @@ async function initializeUI() {
     } catch (error) {
         console.error("CLIENT_DEBUG: Failed during essential initialization:", error);
         showMessage(`Critical error loading settings: ${error.message}. Please refresh.`, 'error');
+    } finally {
+        // --- FIX START: Set isLoading to false after everything is done ---
+        isLoading = false;
+        // --- FIX END ---
     }
 }
 
@@ -198,7 +206,7 @@ function updateLastDepartedDisplay(year, month, day, hour, minute) {
     document.getElementById('lastTimeDepartedMinute').textContent = minute;
 }
 
-function applySettings(timecircuits, temporal, datalink) {
+async function applySettings(timecircuits, temporal, datalink) {
     if (timecircuits) {
         document.getElementById('destinationYear').value = timecircuits.destinationYear;
         document.getElementById('destinationTimezoneSelect').value = timecircuits.destinationTimezoneIndex;
@@ -226,13 +234,13 @@ function applySettings(timecircuits, temporal, datalink) {
     }
     
     if (datalink) {
-        applyDataLinkSettings(datalink);
+        await applyDataLinkSettings(datalink); // Await the data link settings
         isDataLinkLoaded = true;
     }
     updateSleepVisual();
 }
 
-function applyDataLinkSettings(datalink) {
+async function applyDataLinkSettings(datalink) {
     document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
     document.getElementById('dataLinkSettingsContainer').style.display = datalink.dataLinkEnabled ? 'block' : 'none';
     document.getElementById('dataLinkTargetRow').value = datalink.dataLinkTargetRow;
@@ -244,38 +252,38 @@ function applyDataLinkSettings(datalink) {
     document.getElementById('mqttPassword').value = datalink.mqttPassword || '';
     document.getElementById('numDataPoints').value = datalink.numDataPoints;
     document.getElementById('numDataPointsValue').textContent = datalink.numDataPoints;
-    updateDataPointsUI(datalink.numDataPoints).then(() => {
-        if (datalink.dataPoints) {
-            datalink.dataPoints.forEach((point, i) => {
-                document.getElementById(`dp_dataSourceType_${i}`).value = point.dataSourceType === 1 ? 'mqtt' : 'api';
-                document.getElementById(`dp_displayMode_${i}`).value = point.displayMode || 0;
-                document.getElementById(`dp_url_${i}`).value = point.url || '';
-                document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
-                document.getElementById(`dp_dayPath_${i}`).value = point.dayPath || '';
-                document.getElementById(`dp_yearPath_${i}`).value = point.yearPath || '';
-                document.getElementById(`dp_timePath_${i}`).value = point.timePath || '';
-                document.getElementById(`dp_prefix_${i}`).value = point.prefix || '';
-                document.getElementById(`dp_suffix_${i}`).value = point.suffix || '';
-                document.getElementById(`dp_icon_${i}`).value = point.icon || '';
-                document.getElementById(`dp_scrollSpeed_${i}`).value = point.scrollSpeed || 150;
-                document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
-                document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
-                document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
-                document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
-                document.getElementById(`dp_authHeaderKey_${i}`).value = point.authHeaderKey || '';
-                document.getElementById(`dp_authHeaderValue_${i}`).value = point.authHeaderValue || '';
-                document.getElementById(`dp_httpMethod_${i}`).value = point.httpMethod || 0;
-                document.getElementById(`dp_requestBody_${i}`).value = point.requestBody || '';
-                document.getElementById(`api_example_${i}`).value = point.apiExampleKey || '';
+    await updateDataPointsUI(datalink.numDataPoints); // Wait for UI to be created
+    if (datalink.dataPoints) {
+        datalink.dataPoints.forEach((point, i) => {
+            document.getElementById(`dp_dataSourceType_${i}`).value = point.dataSourceType === 1 ? 'mqtt' : 'api';
+            document.getElementById(`dp_displayMode_${i}`).value = point.displayMode || 0;
+            document.getElementById(`dp_url_${i}`).value = point.url || '';
+            document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
+            document.getElementById(`dp_dayPath_${i}`).value = point.dayPath || '';
+            document.getElementById(`dp_yearPath_${i}`).value = point.yearPath || '';
+            document.getElementById(`dp_timePath_${i}`).value = point.timePath || '';
+            document.getElementById(`dp_prefix_${i}`).value = point.prefix || '';
+            document.getElementById(`dp_suffix_${i}`).value = point.suffix || '';
+            document.getElementById(`dp_icon_${i}`).value = point.icon || '';
+            document.getElementById(`dp_scrollSpeed_${i}`).value = point.scrollSpeed || 150;
+            document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
+            document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
+            document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
+            document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
+            document.getElementById(`dp_authHeaderKey_${i}`).value = point.authHeaderKey || '';
+            document.getElementById(`dp_authHeaderValue_${i}`).value = point.authHeaderValue || '';
+            document.getElementById(`dp_httpMethod_${i}`).value = point.httpMethod || 0;
+            document.getElementById(`dp_requestBody_${i}`).value = point.requestBody || '';
+            document.getElementById(`api_example_${i}`).value = point.apiExampleKey || '';
 
-                document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
-                document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
-                document.getElementById(`dp_httpMethod_${i}`).dispatchEvent(new Event('change'));
-                updateMarqueePreview(i);
-            });
-        }
-    });
+            document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
+            document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
+            document.getElementById(`dp_httpMethod_${i}`).dispatchEvent(new Event('change'));
+            updateMarqueePreview(i);
+        });
+    }
 }
+
 
 function attachEventListeners() {
     document.getElementById('header-dest').onclick = () => scrollToSettings('TimeCircuits', 'destinationTimeSettings');
@@ -289,7 +297,10 @@ function attachEventListeners() {
         if (tabName === 'DataLink' && !isDataLinkLoaded) loadDataLinkSettings();
     });
     ['destinationTimezoneSelect', 'presentTimezoneSelect'].forEach(id => {
-        document.getElementById(id).onchange = () => { setSettingsChanged(true); updateHeaderClocks(new Date()); };
+        document.getElementById(id).onchange = () => { 
+            if (!isLoading) setSettingsChanged(true);
+            updateHeaderClocks(new Date()); 
+        };
     });
     document.getElementById('destinationYear').oninput = () => updateHeaderClocks(new Date());
 
@@ -315,19 +326,27 @@ function attachEventListeners() {
 
     document.getElementById('dataLinkEnabled').onchange = (e) => {
         document.getElementById('dataLinkSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
-        setSettingsChanged(true);
+        if (!isLoading) setSettingsChanged(true);
     };
     document.getElementById('numDataPoints').oninput = (e) => {
         document.getElementById('numDataPointsValue').textContent = e.target.value;
         updateDataPointsUI(parseInt(e.target.value, 10));
-        setSettingsChanged(true);
+        if (!isLoading) setSettingsChanged(true);
     };
     document.querySelectorAll('input, select').forEach(el => {
-        el.addEventListener('change', () => setSettingsChanged(true));
+        el.addEventListener('change', () => {
+             // --- FIX START: Check isLoading flag ---
+            if (!isLoading) setSettingsChanged(true);
+            // --- FIX END ---
+        });
         el.addEventListener('input', (e) => {
-            const valueSpan = document.getElementById(`${e.target.id}Value`);
-            if (valueSpan) valueSpan.textContent = e.target.value;
-            setSettingsChanged(true);
+            // --- FIX START: Check isLoading flag ---
+            if (!isLoading) {
+                const valueSpan = document.getElementById(`${e.target.id}Value`);
+                if (valueSpan) valueSpan.textContent = e.target.value;
+                setSettingsChanged(true);
+            }
+            // --- FIX END ---
         });
     });
     document.getElementById('resetDefaultsBtn').onclick = () => {
@@ -469,7 +488,7 @@ function applySelectedPreset(event) {
     const [year, month, day, hour, minute] = select.value.split('-');
     updateLastDepartedDisplay(year, month, day, hour, minute);
     showMessage(`Last Time Departed set to: ${select.options[select.selectedIndex].text}`, 'info');
-    setSettingsChanged(true);
+    if (!isLoading) setSettingsChanged(true);
     updateHeaderClocks(new Date());
 }
 
@@ -1199,7 +1218,7 @@ function clearDataPointFields(event) {
     delete analyzedDataCache[index];
     updateMarqueePreview(index);
     showMessage(`Data Point ${parseInt(index) + 1} fields cleared.`, 'info');
-    setSettingsChanged(true);
+    if (!isLoading) setSettingsChanged(true);
 }
 
 function duplicateDataPoint(event) {
@@ -1226,7 +1245,7 @@ function duplicateDataPoint(event) {
             }
         });
         showMessage(`Data Point ${sourceIndex + 1} duplicated to Data Point ${targetIndex + 1}.`, 'success');
-        setSettingsChanged(true);
+        if (!isLoading) setSettingsChanged(true);
     });
 }
 

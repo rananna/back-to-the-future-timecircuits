@@ -2,6 +2,7 @@
 #define HARDWARE_CONTROL_H
 
 #include <Wire.h>
+#include <string> // <-- ADDED THIS LINE
 #include "Adafruit_LEDBackpack.h"
 #include "Adafruit_GFX.h"
 #include "DFRobotDFPlayerMini.h"
@@ -22,7 +23,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 1// Set to 1 to enable hardware, 0 to disable
+#define ENABLE_HARDWARE 0// Set to 1 to enable hardware, 0 to disable
 
 // --- ENUMS & DATA STRUCTURES ---
 enum Theme {
@@ -32,35 +33,32 @@ enum Theme {
 
 enum DataSourceType { DATA_SOURCE_API, DATA_SOURCE_MQTT };
 enum DisplayMode { FOUR_COLUMN, SCROLLING_TEXT };
-// **FIXED**: Renamed enum members to avoid conflict with system libraries
 enum HttpMethod { METHOD_GET, METHOD_POST };
 
-// Corrected DataPoint struct with all original and new fields
+// --- FIX START: Replaced all char arrays with std::string ---
 struct DataPoint {
-  char url[192]; // Reduced from 256
-  char monthPath[64]; // Reduced from 128
-  char dayPath[64]; // Reduced from 128
-  char yearPath[64]; // Reduced from 128
-  char timePath[64]; // Reduced from 128
-  char prefix[16];
-  char suffix[16];
-  char icon[16];
+  std::string url;
+  std::string monthPath;
+  std::string dayPath;
+  std::string yearPath;
+  std::string timePath;
+  std::string prefix;
+  std::string suffix;
+  std::string icon;
   int scrollSpeed;
   DataSourceType dataSourceType;
-  char mqttTopic[128];
-  char yearPrefix[16];
-  char yearSuffix[16];
+  std::string mqttTopic;
+  std::string yearPrefix;
+  std::string yearSuffix;
   DisplayMode displayMode;
-  char scrollingText[128]; // Reduced from 256
-  char authHeaderKey[64];
-  char authHeaderValue[128];
+  std::string scrollingText;
+  std::string authHeaderKey;
+  std::string authHeaderValue;
   HttpMethod httpMethod;
-  char requestBody[256]; // Reduced from 512
-  // --- MODIFIED ---
-  char apiExampleKey[64];
+  std::string requestBody;
+  std::string apiExampleKey;
 };
 
-// Corrected ClockSettings struct with all original and new fields
 struct ClockSettings {
   int destinationYear;
   int destinationTimezoneIndex;
@@ -87,11 +85,12 @@ struct ClockSettings {
   int dataLinkRefreshInterval;
   int numDataPoints;
   DataPoint dataPoints[5];
-  char mqttBroker[128];
+  std::string mqttBroker;
   int mqttPort;
-  char mqttUser[64];
-  char mqttPassword[64];
+  std::string mqttUser;
+  std::string mqttPassword;
 };
+// --- FIX END ---
 
 struct DisplayRow {
     Adafruit_AlphaNum4 month; Adafruit_AlphaNum4 day;

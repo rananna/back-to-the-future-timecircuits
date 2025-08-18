@@ -4,6 +4,7 @@
 #include <AsyncJson.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
+#include <string>
 
 AsyncWebSocket ws("/ws");
 
@@ -163,32 +164,32 @@ void setupWebRoutes() {
     doc["dataLinkTargetRow"] = currentSettings.dataLinkTargetRow;
     doc["dataLinkRefreshInterval"] = currentSettings.dataLinkRefreshInterval;
     doc["numDataPoints"] = currentSettings.numDataPoints;
-    doc["mqttBroker"] = currentSettings.mqttBroker;
+    doc["mqttBroker"] = currentSettings.mqttBroker.c_str();
     doc["mqttPort"] = currentSettings.mqttPort;
-    doc["mqttUser"] = currentSettings.mqttUser;
-    doc["mqttPassword"] = currentSettings.mqttPassword;
+    doc["mqttUser"] = currentSettings.mqttUser.c_str();
+    doc["mqttPassword"] = currentSettings.mqttPassword.c_str();
 
     JsonArray dataPoints = doc.createNestedArray("dataPoints");
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
         JsonObject dp = dataPoints.createNestedObject();
-        dp["url"] = currentSettings.dataPoints[i].url;
-        dp["monthPath"] = currentSettings.dataPoints[i].monthPath;
-        dp["dayPath"] = currentSettings.dataPoints[i].dayPath;
-        dp["yearPath"] = currentSettings.dataPoints[i].yearPath;
-        dp["timePath"] = currentSettings.dataPoints[i].timePath;
-        dp["prefix"] = currentSettings.dataPoints[i].prefix;
-        dp["suffix"] = currentSettings.dataPoints[i].suffix;
-        dp["icon"] = currentSettings.dataPoints[i].icon;
+        dp["url"] = currentSettings.dataPoints[i].url.c_str();
+        dp["monthPath"] = currentSettings.dataPoints[i].monthPath.c_str();
+        dp["dayPath"] = currentSettings.dataPoints[i].dayPath.c_str();
+        dp["yearPath"] = currentSettings.dataPoints[i].yearPath.c_str();
+        dp["timePath"] = currentSettings.dataPoints[i].timePath.c_str();
+        dp["prefix"] = currentSettings.dataPoints[i].prefix.c_str();
+        dp["suffix"] = currentSettings.dataPoints[i].suffix.c_str();
+        dp["icon"] = currentSettings.dataPoints[i].icon.c_str();
         dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
         dp["dataSourceType"] = (int)currentSettings.dataPoints[i].dataSourceType;
-        dp["mqttTopic"] = currentSettings.dataPoints[i].mqttTopic;
-        dp["yearPrefix"] = currentSettings.dataPoints[i].yearPrefix;
-        dp["yearSuffix"] = currentSettings.dataPoints[i].yearSuffix;
+        dp["mqttTopic"] = currentSettings.dataPoints[i].mqttTopic.c_str();
+        dp["yearPrefix"] = currentSettings.dataPoints[i].yearPrefix.c_str();
+        dp["yearSuffix"] = currentSettings.dataPoints[i].yearSuffix.c_str();
         dp["displayMode"] = (int)currentSettings.dataPoints[i].displayMode;
-        dp["scrollingText"] = currentSettings.dataPoints[i].scrollingText;
-        dp["authHeaderKey"] = currentSettings.dataPoints[i].authHeaderKey;
-        dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue;
-        dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey;
+        dp["scrollingText"] = currentSettings.dataPoints[i].scrollingText.c_str();
+        dp["authHeaderKey"] = currentSettings.dataPoints[i].authHeaderKey.c_str();
+        dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue.c_str();
+        dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey.c_str();
     }
 
     String response;
@@ -224,7 +225,7 @@ void setupWebRoutes() {
         return "";
     };
 
-    String oldMqttBroker = currentSettings.mqttBroker;
+    std::string oldMqttBroker = currentSettings.mqttBroker;
     int oldMqttPort = currentSettings.mqttPort;
 
     currentSettings.destinationYear = getParamInt("destinationYear", currentSettings.destinationYear);
@@ -257,10 +258,12 @@ void setupWebRoutes() {
     currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
     currentSettings.dataLinkTargetRow = getParamInt("dataLinkTargetRow", currentSettings.dataLinkTargetRow);
     currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
-    strncpy(currentSettings.mqttBroker, getParamValue("mqttBroker").c_str(), sizeof(currentSettings.mqttBroker) - 1);
+    
+    currentSettings.mqttBroker = getParamValue("mqttBroker").c_str();
     currentSettings.mqttPort = getParamInt("mqttPort", 1883);
-    strncpy(currentSettings.mqttUser, getParamValue("mqttUser").c_str(), sizeof(currentSettings.mqttUser) - 1);
-    strncpy(currentSettings.mqttPassword, getParamValue("mqttPassword").c_str(), sizeof(currentSettings.mqttPassword) - 1);
+    currentSettings.mqttUser = getParamValue("mqttUser").c_str();
+    currentSettings.mqttPassword = getParamValue("mqttPassword").c_str();
+
     if (request->hasParam("numDataPoints", true)) {
         int numDataPoints = getParamInt("numDataPoints", 0);
         if (numDataPoints > 5) numDataPoints = 5;
@@ -268,25 +271,50 @@ void setupWebRoutes() {
         for (int i = 0; i < 5; i++) {
             if (i < numDataPoints) {
                 currentSettings.dataPoints[i].dataSourceType = (DataSourceType)getParamInt("dp_dataSourceType_" + String(i), 0);
-                strncpy(currentSettings.dataPoints[i].url, getParamValue("dp_url_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].url) - 1);
-                strncpy(currentSettings.dataPoints[i].monthPath, getParamValue("dp_monthPath_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].monthPath) - 1);
-                strncpy(currentSettings.dataPoints[i].dayPath, getParamValue("dp_dayPath_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].dayPath) - 1);
-                strncpy(currentSettings.dataPoints[i].yearPath, getParamValue("dp_yearPath_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].yearPath) - 1);
-                strncpy(currentSettings.dataPoints[i].timePath, getParamValue("dp_timePath_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].timePath) - 1);
-                strncpy(currentSettings.dataPoints[i].prefix, getParamValue("dp_prefix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].prefix) - 1);
-                strncpy(currentSettings.dataPoints[i].suffix, getParamValue("dp_suffix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].suffix) - 1);
-                strncpy(currentSettings.dataPoints[i].icon, getParamValue("dp_icon_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].icon) - 1);
+                currentSettings.dataPoints[i].url = getParamValue("dp_url_" + String(i)).c_str();
+                currentSettings.dataPoints[i].monthPath = getParamValue("dp_monthPath_" + String(i)).c_str();
+                currentSettings.dataPoints[i].dayPath = getParamValue("dp_dayPath_" + String(i)).c_str();
+                currentSettings.dataPoints[i].yearPath = getParamValue("dp_yearPath_" + String(i)).c_str();
+                currentSettings.dataPoints[i].timePath = getParamValue("dp_timePath_" + String(i)).c_str();
+                currentSettings.dataPoints[i].prefix = getParamValue("dp_prefix_" + String(i)).c_str();
+                currentSettings.dataPoints[i].suffix = getParamValue("dp_suffix_" + String(i)).c_str();
+                currentSettings.dataPoints[i].icon = getParamValue("dp_icon_" + String(i)).c_str();
                 currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
-                strncpy(currentSettings.dataPoints[i].mqttTopic, getParamValue("dp_mqttTopic_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].mqttTopic) - 1);
-                strncpy(currentSettings.dataPoints[i].yearPrefix, getParamValue("dp_yearPrefix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].yearPrefix) - 1);
-                strncpy(currentSettings.dataPoints[i].yearSuffix, getParamValue("dp_yearSuffix_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].yearSuffix) - 1);
+                currentSettings.dataPoints[i].mqttTopic = getParamValue("dp_mqttTopic_" + String(i)).c_str();
+                currentSettings.dataPoints[i].yearPrefix = getParamValue("dp_yearPrefix_" + String(i)).c_str();
+                currentSettings.dataPoints[i].yearSuffix = getParamValue("dp_yearSuffix_" + String(i)).c_str();
                 currentSettings.dataPoints[i].displayMode = (DisplayMode)getParamInt("dp_displayMode_" + String(i), 0);
-                strncpy(currentSettings.dataPoints[i].scrollingText, getParamValue("dp_scrollingText_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].scrollingText) - 1);
-                strncpy(currentSettings.dataPoints[i].authHeaderKey, getParamValue("dp_authHeaderKey_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].authHeaderKey) - 1);
-                strncpy(currentSettings.dataPoints[i].authHeaderValue, getParamValue("dp_authHeaderValue_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].authHeaderValue) - 1);
-                strncpy(currentSettings.dataPoints[i].apiExampleKey, getParamValue("dp_apiExampleKey_" + String(i)).c_str(), sizeof(currentSettings.dataPoints[i].apiExampleKey) - 1);
+                currentSettings.dataPoints[i].scrollingText = getParamValue("dp_scrollingText_" + String(i)).c_str();
+                currentSettings.dataPoints[i].authHeaderKey = getParamValue("dp_authHeaderKey_" + String(i)).c_str();
+                currentSettings.dataPoints[i].authHeaderValue = getParamValue("dp_authHeaderValue_" + String(i)).c_str();
+                currentSettings.dataPoints[i].apiExampleKey = getParamValue("dp_apiExampleKey_" + String(i)).c_str();
             } else {
-                memset(&currentSettings.dataPoints[i], 0, sizeof(DataPoint));
+                currentSettings.dataPoints[i] = {};
+                // --- FIX START: Clear orphaned data from Preferences ---
+                preferences.begin(PREFERENCES_NAMESPACE, false);
+                String prefix = "dp" + String(i) + "_";
+                preferences.remove((prefix + "url").c_str());
+                preferences.remove((prefix + "monthPath").c_str());
+                preferences.remove((prefix + "dayPath").c_str());
+                preferences.remove((prefix + "yearPath").c_str());
+                preferences.remove((prefix + "timePath").c_str());
+                preferences.remove((prefix + "prefix").c_str());
+                preferences.remove((prefix + "suffix").c_str());
+                preferences.remove((prefix + "icon").c_str());
+                preferences.remove((prefix + "scroll").c_str());
+                preferences.remove((prefix + "srcType").c_str());
+                preferences.remove((prefix + "topic").c_str());
+                preferences.remove((prefix + "yearPrefix").c_str());
+                preferences.remove((prefix + "yearSuffix").c_str());
+                preferences.remove((prefix + "dispMode").c_str());
+                preferences.remove((prefix + "scrollTxt").c_str());
+                preferences.remove((prefix + "authKey").c_str());
+                preferences.remove((prefix + "authVal").c_str());
+                preferences.remove((prefix + "httpMethod").c_str());
+                preferences.remove((prefix + "reqBody").c_str());
+                preferences.remove((prefix + "apiKey").c_str());
+                preferences.end();
+                // --- FIX END ---
             }
         }
     }
