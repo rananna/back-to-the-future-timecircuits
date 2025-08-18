@@ -1115,65 +1115,115 @@ function displayApiWizardResults(index, jsonData) {
     });
 }
 
-
 function saveSettings() {
     showLoading('saveSettingsBtn', true);
-    const formData = new URLSearchParams();
-    
-    const settingsToSave = ['destinationYear', 'destinationTimezoneSelect', 'presetCycleInterval', 'brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'animationStyleSelect', 'glitchEffectFrequency', 'malfunctionFrequency', 'presentTimezoneSelect', 'dataLinkRefreshInterval', 'mqttBroker', 'mqttPort', 'mqttUser', 'mqttPassword', 'cityName'];
-    
-    settingsToSave.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            let key = id;
-            if (id === 'destinationTimezoneSelect') key = 'destinationTimezoneIndex';
-            if (id === 'presentTimezoneSelect') key = 'presentTimezoneIndex';
-            if (id === 'animationStyleSelect') key = 'animationStyle';
-            formData.append(key, element.value);
-        }
-    });
-    
-    ['timeTravelSoundToggle', 'timeTravelVolumeFade', 'displayFormat24h', 'dataLinkEnabled', 'weatherModeEnabled', 'useMetricUnits'].forEach(id => {
-        formData.append(id, document.getElementById(id).checked);
-    });
-    
-    ['lastTimeDepartedYear', 'lastTimeDepartedMonth', 'lastTimeDepartedDay', 'lastTimeDepartedHour', 'lastTimeDepartedMinute'].forEach(id => {
-        formData.append(id, document.getElementById(id).textContent);
-    });
-    const [depHour, depMin] = document.getElementById('departureTime').value.split(':');
-    formData.append('departureHour', depHour);
-    formData.append('departureMinute', depMin);
-    const [arrHour, arrMin] = document.getElementById('arrivalTime').value.split(':');
-    formData.append('arrivalHour', arrHour);
-    formData.append('arrivalMinute', arrMin);
 
-    if (isDataLinkLoaded) {
-        formData.append('dataLinkTargetRow', 2);
-        const numDataPoints = document.getElementById('numDataPoints').value;
-        formData.append('numDataPoints', numDataPoints);
-        for (let i = 0; i < numDataPoints; i++) {
-            formData.append(`dp_dataSourceType_${i}`, document.getElementById(`dp_dataSourceType_${i}`).value === 'mqtt' ? 1 : 0);
-            formData.append(`dp_displayMode_${i}`, document.getElementById(`dp_displayMode_${i}`).value);
-            ['monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'httpMethod', 'requestBody'].forEach(field => {
-                const el = document.getElementById(`dp_${field}_${i}`);
-                if (el) formData.append(`dp_${field}_${i}`, el.value);
-            });
-            formData.append(`dp_url_${i}`, getProcessedUrl(i));
-            formData.append(`dp_apiExampleKey_${i}`, document.getElementById(`api_example_${i}`).value);
-        }
+    // Create a single object to hold all settings
+    const settings = {};
+
+    // Time Circuits & Temporal Settings
+    settings.destinationYear = parseInt(document.getElementById('destinationYear').value, 10);
+    settings.destinationTimezoneIndex = parseInt(document.getElementById('destinationTimezoneSelect').value, 10);
+    settings.presentTimezoneIndex = parseInt(document.getElementById('presentTimezoneSelect').value, 10);
+    
+    settings.lastTimeDepartedYear = parseInt(document.getElementById('lastTimeDepartedYear').textContent, 10);
+    settings.lastTimeDepartedMonth = parseInt(document.getElementById('lastTimeDepartedMonth').textContent, 10);
+    settings.lastTimeDepartedDay = parseInt(document.getElementById('lastTimeDepartedDay').textContent, 10);
+    settings.lastTimeDepartedHour = parseInt(document.getElementById('lastTimeDepartedHour').textContent, 10);
+    settings.lastTimeDepartedMinute = parseInt(document.getElementById('lastTimeDepartedMinute').textContent, 10);
+
+    const [depHour, depMin] = document.getElementById('departureTime').value.split(':');
+    settings.departureHour = parseInt(depHour, 10);
+    settings.departureMinute = parseInt(depMin, 10);
+
+    const [arrHour, arrMin] = document.getElementById('arrivalTime').value.split(':');
+    settings.arrivalHour = parseInt(arrHour, 10);
+    settings.arrivalMinute = parseInt(arrMin, 10);
+
+    settings.brightness = parseInt(document.getElementById('brightness').value, 10);
+    settings.notificationVolume = parseInt(document.getElementById('notificationVolume').value, 10);
+    settings.timeTravelAnimationDuration = parseInt(document.getElementById('timeTravelAnimationDuration').value, 10);
+    settings.timeTravelAnimationInterval = parseInt(document.getElementById('timeTravelAnimationInterval').value, 10);
+    settings.animationStyle = parseInt(document.getElementById('animationStyleSelect').value, 10);
+    settings.glitchEffectFrequency = parseInt(document.getElementById('glitchEffectFrequency').value, 10);
+    settings.malfunctionFrequency = parseInt(document.getElementById('malfunctionFrequency').value, 10);
+    settings.presetCycleInterval = parseInt(document.getElementById('presetCycleInterval').value, 10);
+
+    settings.timeTravelSoundToggle = document.getElementById('timeTravelSoundToggle').checked;
+    settings.timeTravelVolumeFade = document.getElementById('timeTravelVolumeFade').checked;
+    settings.displayFormat24h = document.getElementById('displayFormat24h').checked;
+
+    // Data Link & Weather Settings
+    settings.dataLinkEnabled = document.getElementById('dataLinkEnabled').checked;
+    settings.dataLinkRefreshInterval = parseInt(document.getElementById('dataLinkRefreshInterval').value, 10);
+    settings.mqttBroker = document.getElementById('mqttBroker').value;
+    settings.mqttPort = parseInt(document.getElementById('mqttPort').value, 10);
+    settings.mqttUser = document.getElementById('mqttUser').value;
+    settings.mqttPassword = document.getElementById('mqttPassword').value;
+
+    settings.weatherModeEnabled = document.getElementById('weatherModeEnabled').checked;
+    settings.cityName = document.getElementById('cityName').value;
+    settings.useMetricUnits = document.getElementById('useMetricUnits').checked;
+
+    const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
+    settings.numDataPoints = numDataPoints;
+    settings.dataPoints = [];
+    for (let i = 0; i < numDataPoints; i++) {
+        const point = {};
+        point.dataSourceType = document.getElementById(`dp_dataSourceType_${i}`).value === 'mqtt' ? 1 : 0;
+        point.displayMode = parseInt(document.getElementById(`dp_displayMode_${i}`).value, 10);
+        point.url = document.getElementById(`dp_url_${i}`).value;
+        point.monthPath = document.getElementById(`dp_monthPath_${i}`).value;
+        point.dayPath = document.getElementById(`dp_dayPath_${i}`).value;
+        point.yearPath = document.getElementById(`dp_yearPath_${i}`).value;
+        point.timePath = document.getElementById(`dp_timePath_${i}`).value;
+        point.prefix = document.getElementById(`dp_prefix_${i}`).value;
+        point.suffix = document.getElementById(`dp_suffix_${i}`).value;
+        point.icon = document.getElementById(`dp_icon_${i}`).value;
+        point.scrollSpeed = parseInt(document.getElementById(`dp_scrollSpeed_${i}`).value, 10);
+        point.mqttTopic = document.getElementById(`dp_mqttTopic_${i}`).value;
+        point.yearPrefix = document.getElementById(`dp_yearPrefix_${i}`).value;
+        point.yearSuffix = document.getElementById(`dp_yearSuffix_${i}`).value;
+        point.scrollingText = document.getElementById(`dp_scrollingText_${i}`).value;
+        point.authHeaderKey = document.getElementById(`dp_authHeaderKey_${i}`).value;
+        point.authHeaderValue = document.getElementById(`dp_authHeaderValue_${i}`).value;
+        point.httpMethod = parseInt(document.getElementById(`dp_httpMethod_${i}`).value, 10);
+        point.requestBody = document.getElementById(`dp_requestBody_${i}`).value;
+        point.apiExampleKey = document.getElementById(`api_example_${i}`).value;
+        settings.dataPoints.push(point);
     }
 
-    fetch('/api/saveSettings', { method: 'POST', body: formData })
-        .then(res => res.text()).then(text => {
-            showMessage(text, 'success');
-            setSettingsChanged(false);
-            const duration = parseInt(document.getElementById('timeTravelAnimationDuration').value, 10);
-            document.body.classList.add('time-travel-active');
-            setTimeout(() => document.body.classList.remove('time-travel-active'), duration);
-        }).catch(err => showMessage(`Error: ${err.message}`, 'error'))
-        .finally(() => showLoading('saveSettingsBtn', false));
+    fetch('/api/saveSettings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error(`Save failed with status: ${res.status}`);
+        }
+        return res.text();
+    })
+    .then(text => {
+        showMessage(text, 'success');
+        setSettingsChanged(false);
+        
+        // Now, trigger the animation in a separate call
+        return fetch('/api/triggerAnimation', { method: 'POST' });
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error('Failed to trigger animation');
+        }
+        const duration = settings.timeTravelAnimationDuration;
+        document.body.classList.add('time-travel-active');
+        setTimeout(() => document.body.classList.remove('time-travel-active'), duration);
+    })
+    .catch(err => showMessage(`Error: ${err.message}`, 'error'))
+    .finally(() => showLoading('saveSettingsBtn', false));
 }
-
 function fetchTime() {
     fetch('/api/time').then(res => res.json()).then(data => {
         document.getElementById('timeSyncStatus').textContent = data.timeSynchronized ? 'Yes' : 'No';

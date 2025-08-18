@@ -233,120 +233,91 @@ void setupWebRoutes() {
     }
   });
   server.on("/api/weather/refresh", HTTP_POST, [](AsyncWebServerRequest *request){
-    xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 4096, NULL, 1, NULL);
+    xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, NULL, 1, NULL);
     request->send(202, "text/plain", "Weather refresh triggered");
   });
-  server.on("/api/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request){
-    auto getParamInt = [&](const String& name, int defaultValue) -> int {
-        if (request->hasParam(name, true)) return request->getParam(name, true)->value().toInt();
-        return defaultValue;
-    };
-    auto getParamValue = [&](const String& name) -> String {
-        if (request->hasParam(name, true)) return request->getParam(name, true)->value();
-        return "";
-    };
-    auto getParamFloat = [&](const String& name, float defaultValue) -> float {
-        if (request->hasParam(name, true)) return request->getParam(name, true)->value().toFloat();
-        return defaultValue;
-    };
+  
+  // New JSON handler for saving settings
+  AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    ESP_LOGI("SAVE_SETTINGS", "Received save request. Free heap: %u", ESP.getFreeHeap());
+    JsonObject obj = json.as<JsonObject>();
 
     std::string oldMqttBroker = currentSettings.mqttBroker;
     int oldMqttPort = currentSettings.mqttPort;
 
-    currentSettings.destinationYear = getParamInt("destinationYear", currentSettings.destinationYear);
-    currentSettings.destinationTimezoneIndex = getParamInt("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex);
+    // Time Circuits & Temporal
+    ESP_LOGI("SAVE_SETTINGS", "Parsing temporal settings...");
+    currentSettings.destinationYear = obj["destinationYear"] | currentSettings.destinationYear;
+    currentSettings.destinationTimezoneIndex = obj["destinationTimezoneIndex"] | currentSettings.destinationTimezoneIndex;
+    currentSettings.lastTimeDepartedYear = obj["lastTimeDepartedYear"] | currentSettings.lastTimeDepartedYear;
+    currentSettings.lastTimeDepartedMonth = obj["lastTimeDepartedMonth"] | currentSettings.lastTimeDepartedMonth;
+    currentSettings.lastTimeDepartedDay = obj["lastTimeDepartedDay"] | currentSettings.lastTimeDepartedDay;
+    currentSettings.lastTimeDepartedHour = obj["lastTimeDepartedHour"] | currentSettings.lastTimeDepartedHour;
+    currentSettings.lastTimeDepartedMinute = obj["lastTimeDepartedMinute"] | currentSettings.lastTimeDepartedMinute;
+    currentSettings.presetCycleInterval = obj["presetCycleInterval"] | currentSettings.presetCycleInterval;
+    currentSettings.departureHour = obj["departureHour"] | currentSettings.departureHour;
+    currentSettings.departureMinute = obj["departureMinute"] | currentSettings.departureMinute;
+    currentSettings.arrivalHour = obj["arrivalHour"] | currentSettings.arrivalHour;
+    currentSettings.arrivalMinute = obj["arrivalMinute"] | currentSettings.arrivalMinute;
+    currentSettings.brightness = obj["brightness"] | currentSettings.brightness;
+    currentSettings.timeTravelAnimationDuration = obj["timeTravelAnimationDuration"] | currentSettings.timeTravelAnimationDuration;
+    currentSettings.timeTravelAnimationInterval = obj["timeTravelAnimationInterval"] | currentSettings.timeTravelAnimationInterval;
+    currentSettings.animationStyle = obj["animationStyle"] | currentSettings.animationStyle;
+    currentSettings.glitchEffectFrequency = obj["glitchEffectFrequency"] | currentSettings.glitchEffectFrequency;
+    currentSettings.malfunctionFrequency = obj["malfunctionFrequency"] | currentSettings.malfunctionFrequency;
+    currentSettings.notificationVolume = obj["notificationVolume"] | currentSettings.notificationVolume;
+    currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"] | currentSettings.timeTravelSoundToggle;
+    currentSettings.timeTravelVolumeFade = obj["timeTravelVolumeFade"] | currentSettings.timeTravelVolumeFade;
+    currentSettings.presentTimezoneIndex = obj["presentTimezoneIndex"] | currentSettings.presentTimezoneIndex;
+    currentSettings.displayFormat24h = obj["displayFormat24h"] | currentSettings.displayFormat24h;
 
-    if (request->hasParam("lastTimeDepartedYear", true)) {
-        currentSettings.lastTimeDepartedYear = getParamInt("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear);
-        currentSettings.lastTimeDepartedMonth = getParamInt("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth);
-        currentSettings.lastTimeDepartedDay = getParamInt("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay);
-        currentSettings.lastTimeDepartedHour = getParamInt("lastTimeDepartedHour", currentSettings.lastTimeDepartedHour);
-        currentSettings.lastTimeDepartedMinute = getParamInt("lastTimeDepartedMinute", currentSettings.lastTimeDepartedMinute);
-    }
-    currentSettings.presetCycleInterval = getParamInt("presetCycleInterval", currentSettings.presetCycleInterval);
-    currentSettings.departureHour = getParamInt("departureHour", currentSettings.departureHour);
-    currentSettings.departureMinute = getParamInt("departureMinute", currentSettings.departureMinute);
-    currentSettings.arrivalHour = getParamInt("arrivalHour", currentSettings.arrivalHour);
-    currentSettings.arrivalMinute = getParamInt("arrivalMinute", currentSettings.arrivalMinute);
-    currentSettings.brightness = getParamInt("brightness", currentSettings.brightness);
-    currentSettings.timeTravelAnimationDuration = getParamInt("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration);
-    currentSettings.timeTravelAnimationInterval = getParamInt("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval);
-    currentSettings.animationStyle = getParamInt("animationStyle", currentSettings.animationStyle);
-    currentSettings.glitchEffectFrequency = getParamInt("glitchEffectFrequency", currentSettings.glitchEffectFrequency);
-    currentSettings.malfunctionFrequency = getParamInt("malfunctionFrequency", currentSettings.malfunctionFrequency);
-    currentSettings.notificationVolume = getParamInt("notificationVolume", currentSettings.notificationVolume);
-    currentSettings.timeTravelSoundToggle = (getParamValue("timeTravelSoundToggle") == "true");
-    currentSettings.timeTravelVolumeFade = (getParamValue("timeTravelVolumeFade") == "true");
-    currentSettings.presentTimezoneIndex = getParamInt("presentTimezoneIndex", currentSettings.presentTimezoneIndex);
-    currentSettings.displayFormat24h = (getParamValue("displayFormat24h") == "true");
+    // Data Link & Weather
+    ESP_LOGI("SAVE_SETTINGS", "Parsing Data Link settings...");
+    currentSettings.dataLinkEnabled = obj["dataLinkEnabled"] | currentSettings.dataLinkEnabled;
+    currentSettings.dataLinkRefreshInterval = obj["dataLinkRefreshInterval"] | currentSettings.dataLinkRefreshInterval;
+    if (obj.containsKey("mqttBroker")) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
+    currentSettings.mqttPort = obj["mqttPort"] | 1883;
+    if (obj.containsKey("mqttUser")) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
+    if (obj.containsKey("mqttPassword")) currentSettings.mqttPassword = obj["mqttPassword"].as<std::string>();
+    currentSettings.weatherModeEnabled = obj["weatherModeEnabled"] | currentSettings.weatherModeEnabled;
+    if (obj.containsKey("cityName")) currentSettings.cityName = obj["cityName"].as<std::string>();
+    currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
 
-    currentSettings.dataLinkEnabled = (getParamValue("dataLinkEnabled") == "true");
-    currentSettings.dataLinkTargetRow = 2; // Hardcoded to bottom row
-    currentSettings.dataLinkRefreshInterval = getParamInt("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
-    
-    currentSettings.mqttBroker = getParamValue("mqttBroker").c_str();
-    currentSettings.mqttPort = getParamInt("mqttPort", 1883);
-    currentSettings.mqttUser = getParamValue("mqttUser").c_str();
-    currentSettings.mqttPassword = getParamValue("mqttPassword").c_str();
-
-    currentSettings.weatherModeEnabled = (getParamValue("weatherModeEnabled") == "true");
-    currentSettings.cityName = getParamValue("cityName").c_str();
-    currentSettings.useMetricUnits = (getParamValue("useMetricUnits") == "true");
-
-    if (request->hasParam("numDataPoints", true)) {
-        int numDataPoints = getParamInt("numDataPoints", 0);
-        if (numDataPoints > 5) numDataPoints = 5;
-        currentSettings.numDataPoints = numDataPoints;
+    // Data Points
+    ESP_LOGI("SAVE_SETTINGS", "Parsing Data Points...");
+    currentSettings.numDataPoints = obj["numDataPoints"] | 0;
+    if (obj.containsKey("dataPoints")) {
+        JsonArray dataPoints = obj["dataPoints"];
         for (int i = 0; i < 5; i++) {
-            if (i < numDataPoints) {
-                currentSettings.dataPoints[i].dataSourceType = (DataSourceType)getParamInt("dp_dataSourceType_" + String(i), 0);
-                currentSettings.dataPoints[i].url = getParamValue("dp_url_" + String(i)).c_str();
-                currentSettings.dataPoints[i].monthPath = getParamValue("dp_monthPath_" + String(i)).c_str();
-                currentSettings.dataPoints[i].dayPath = getParamValue("dp_dayPath_" + String(i)).c_str();
-                currentSettings.dataPoints[i].yearPath = getParamValue("dp_yearPath_" + String(i)).c_str();
-                currentSettings.dataPoints[i].timePath = getParamValue("dp_timePath_" + String(i)).c_str();
-                currentSettings.dataPoints[i].prefix = getParamValue("dp_prefix_" + String(i)).c_str();
-                currentSettings.dataPoints[i].suffix = getParamValue("dp_suffix_" + String(i)).c_str();
-                currentSettings.dataPoints[i].icon = getParamValue("dp_icon_" + String(i)).c_str();
-                currentSettings.dataPoints[i].scrollSpeed = getParamInt("dp_scrollSpeed_" + String(i), 150);
-                currentSettings.dataPoints[i].mqttTopic = getParamValue("dp_mqttTopic_" + String(i)).c_str();
-                currentSettings.dataPoints[i].yearPrefix = getParamValue("dp_yearPrefix_" + String(i)).c_str();
-                currentSettings.dataPoints[i].yearSuffix = getParamValue("dp_yearSuffix_" + String(i)).c_str();
-                currentSettings.dataPoints[i].displayMode = (DisplayMode)getParamInt("dp_displayMode_" + String(i), 0);
-                currentSettings.dataPoints[i].scrollingText = getParamValue("dp_scrollingText_" + String(i)).c_str();
-                currentSettings.dataPoints[i].authHeaderKey = getParamValue("dp_authHeaderKey_" + String(i)).c_str();
-                currentSettings.dataPoints[i].authHeaderValue = getParamValue("dp_authHeaderValue_" + String(i)).c_str();
-                currentSettings.dataPoints[i].apiExampleKey = getParamValue("dp_apiExampleKey_" + String(i)).c_str();
+            if (i < currentSettings.numDataPoints && i < dataPoints.size()) {
+                JsonObject dp = dataPoints[i];
+                if (dp.containsKey("dataSourceType")) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
+                if (dp.containsKey("url")) currentSettings.dataPoints[i].url = dp["url"].as<std::string>();
+                if (dp.containsKey("monthPath")) currentSettings.dataPoints[i].monthPath = dp["monthPath"].as<std::string>();
+                if (dp.containsKey("dayPath")) currentSettings.dataPoints[i].dayPath = dp["dayPath"].as<std::string>();
+                if (dp.containsKey("yearPath")) currentSettings.dataPoints[i].yearPath = dp["yearPath"].as<std::string>();
+                if (dp.containsKey("timePath")) currentSettings.dataPoints[i].timePath = dp["timePath"].as<std::string>();
+                if (dp.containsKey("prefix")) currentSettings.dataPoints[i].prefix = dp["prefix"].as<std::string>();
+                if (dp.containsKey("suffix")) currentSettings.dataPoints[i].suffix = dp["suffix"].as<std::string>();
+                if (dp.containsKey("icon")) currentSettings.dataPoints[i].icon = dp["icon"].as<std::string>();
+                currentSettings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
+                if (dp.containsKey("mqttTopic")) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
+                if (dp.containsKey("yearPrefix")) currentSettings.dataPoints[i].yearPrefix = dp["yearPrefix"].as<std::string>();
+                if (dp.containsKey("yearSuffix")) currentSettings.dataPoints[i].yearSuffix = dp["yearSuffix"].as<std::string>();
+                if (dp.containsKey("displayMode")) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
+                if (dp.containsKey("scrollingText")) currentSettings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
+                if (dp.containsKey("authHeaderKey")) currentSettings.dataPoints[i].authHeaderKey = dp["authHeaderKey"].as<std::string>();
+                if (dp.containsKey("authHeaderValue")) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
+                if (dp.containsKey("apiExampleKey")) currentSettings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
             } else {
-                currentSettings.dataPoints[i] = {};
-                preferences.begin(PREFERENCES_NAMESPACE, false);
-                String prefix = "dp" + String(i) + "_";
-                preferences.remove((prefix + "url").c_str());
-                preferences.remove((prefix + "monthPath").c_str());
-                preferences.remove((prefix + "dayPath").c_str());
-                preferences.remove((prefix + "yearPath").c_str());
-                preferences.remove((prefix + "timePath").c_str());
-                preferences.remove((prefix + "prefix").c_str());
-                preferences.remove((prefix + "suffix").c_str());
-                preferences.remove((prefix + "icon").c_str());
-                preferences.remove((prefix + "scroll").c_str());
-                preferences.remove((prefix + "srcType").c_str());
-                preferences.remove((prefix + "topic").c_str());
-                preferences.remove((prefix + "yearPrefix").c_str());
-                preferences.remove((prefix + "yearSuffix").c_str());
-                preferences.remove((prefix + "dispMode").c_str());
-                preferences.remove((prefix + "scrollTxt").c_str());
-                preferences.remove((prefix + "authKey").c_str());
-                preferences.remove((prefix + "authVal").c_str());
-                preferences.remove((prefix + "httpMethod").c_str());
-                preferences.remove((prefix + "reqBody").c_str());
-                preferences.remove((prefix + "apiKey").c_str());
-                preferences.end();
+                currentSettings.dataPoints[i] = {}; // Clear unused data points
             }
         }
     }
-
+    ESP_LOGI("SAVE_SETTINGS", "Parsing complete. Calling saveSettings()...");
     saveSettings();
+    ESP_LOGI("SAVE_SETTINGS", "saveSettings() returned. Free heap: %u", ESP.getFreeHeap());
+
     if (oldMqttBroker != currentSettings.mqttBroker || oldMqttPort != currentSettings.mqttPort) {
         if (mqttClient.connected()) {
             mqttClient.disconnect();
@@ -358,9 +329,17 @@ void setupWebRoutes() {
     myDFPlayer.volume(currentSettings.notificationVolume);
     #endif
 
-    request->send(200, "text/plain", "Settings Saved! Engaging Time Circuits...");
-    startTimeTravelAnimation();
+    request->send(200, "text/plain", "Settings Saved!");
+    ESP_LOGI("SAVE_SETTINGS", "Save request handler finished.");
   });
+  server.addHandler(saveSettingsHandler);
+
+  server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){
+    ESP_LOGI("ANIMATION", "Animation triggered via API.");
+    startTimeTravelAnimation();
+    request->send(200, "text/plain", "Animation triggered!");
+  });
+
   server.on("/api/addPreset", HTTP_POST, [](AsyncWebServerRequest *request){
     preferences.begin(PREFERENCES_NAMESPACE, false);
     String presetsJson = preferences.getString("customPresets", "[]");

@@ -63,7 +63,6 @@ const TimeZoneEntry TZ_DATA[] = {
   { "HST10", "Hawaii (Honolulu, No DST)", "Pacific/Honolulu", "Americas" },
 
   // Europe
- 
   { "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe" },
   { "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
   { "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
@@ -91,8 +90,7 @@ const TimeZoneEntry TZ_DATA[] = {
   { "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
 
   // South America
-  
-{ "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
+  { "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
   { "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
@@ -168,7 +166,6 @@ struct FetchDataParams {
     int pointIndex;
     int totalRequests;
 };
-
 void fetchDataTask(void* p);
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
@@ -186,6 +183,25 @@ void listAllFiles();
 void runBootSequence();
 void setupMqtt();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
+
+// NEW FUNCTION to encode URL parameters
+String urlEncode(const char* msg) {
+    const char *hex = "0123456789abcdef";
+    String encodedMsg = "";
+    while (*msg!='\0'){
+        if( ('a' <= *msg && *msg <= 'z')
+                || ('A' <= *msg && *msg <= 'Z')
+                || ('0' <= *msg && *msg <= '9') || *msg == '-' || *msg == '_' || *msg == '.') {
+            encodedMsg += *msg;
+        } else {
+            encodedMsg += '%';
+            encodedMsg += hex[*msg >> 4];
+            encodedMsg += hex[*msg & 15];
+        }
+        msg++;
+    }
+    return encodedMsg;
+}
 
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
@@ -411,30 +427,18 @@ void loadSettings() {
 }
 const char* getIconForWeatherCode(int code) {
     switch (code) {
-        case 0: case 1: return "SU";
-        // Clear, Mainly clear
-        case 2: return "CL";
-        // Partly cloudy
-        case 3: return "CL";
-        // Overcast
-        case 45: case 48: return "CL";
-        // Fog
-        case 51: case 53: case 55: return "RN";
-        // Drizzle
-        case 61: case 63: case 65: return "RN";
-        // Rain
-        case 66: case 67: return "RN";
-        // Freezing Rain
-        case 71: case 73: case 75: return "SN";
-        // Snow
-        case 77: return "SN";
-        // Snow grains
-        case 80: case 81: case 82: return "RN";
-        // Rain showers
-        case 85: case 86: return "SN";
-        // Snow showers
-        case 95: case 96: case 99: return "ST";
-        // Thunderstorm
+        case 0: case 1: return "SU"; // Clear, Mainly clear
+        case 2: return "CL"; // Partly cloudy
+        case 3: return "CL"; // Overcast
+        case 45: case 48: return "CL"; // Fog
+        case 51: case 53: case 55: return "RN"; // Drizzle
+        case 61: case 63: case 65: return "RN"; // Rain
+        case 66: case 67: return "RN"; // Freezing Rain
+        case 71: case 73: case 75: return "SN"; // Snow
+        case 77: return "SN"; // Snow grains
+        case 80: case 81: case 82: return "RN"; // Rain showers
+        case 85: case 86: return "SN"; // Snow showers
+        case 95: case 96: case 99: return "ST"; // Thunderstorm
         default: return "--";
     }
 }
@@ -459,105 +463,117 @@ void fetchWeatherDataTask(void* p) {
     }
     
     if (needsGeocoding) {
-        showTemporaryMessage("LOCA", "TI", "NG C", "ITY", 1000); 
-        HTTPClient http;
-        WiFiClientSecure client;
-        client.setInsecure();
-        String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + String(currentSettings.cityName.c_str());
-        
-        if (http.begin(client, geocodeUrl)) {
-            int httpCode = http.GET();
-            if (httpCode == HTTP_CODE_OK) {
-                DynamicJsonDocument doc(1024);
-                deserializeJson(doc, http.getStream());
-                JsonArray results = doc["results"];
-                if (!results.isNull() && results.size() > 0) {
-                    showTemporaryMessage("CITY", "", "FOUN", "D", 1000);
-                    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                        currentSettings.latitude = doc["results"][0]["latitude"];
-                        currentSettings.longitude = doc["results"][0]["longitude"];
-                        lastCityName = currentSettings.cityName;
-                        xSemaphoreGive(xDisplayDataMutex);
+        bool geocodeSuccess = false;
+        for (int i = 0; i < 3; i++) { // Retry up to 3 times
+            ESP_LOGI("Weather", "Geocoding attempt %d for %s", i + 1, currentSettings.cityName.c_str());
+            showTemporaryMessage("GEO", "", "SRCH", "", 1000);
+            HTTPClient http;
+            WiFiClientSecure client;
+            client.setInsecure();
+            String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(currentSettings.cityName.c_str());
+            if (http.begin(client, geocodeUrl)) {
+                int httpCode = http.GET();
+                if (httpCode == HTTP_CODE_OK) {
+                    DynamicJsonDocument doc(1024);
+                    deserializeJson(doc, http.getStream());
+                    JsonArray results = doc["results"];
+                    if (!results.isNull() && results.size() > 0) {
+                        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                            currentSettings.latitude = doc["results"][0]["latitude"];
+                            currentSettings.longitude = doc["results"][0]["longitude"];
+                            lastCityName = currentSettings.cityName;
+                            xSemaphoreGive(xDisplayDataMutex);
+                        }
+                        ESP_LOGI("Weather", "Geocoded %s to Lat: %f, Lon: %f", currentSettings.cityName.c_str(), currentSettings.latitude, currentSettings.longitude);
+                        geocodeSuccess = true;
+                        http.end();
+                        break; 
                     }
-                    ESP_LOGI("Weather", "Geocoded %s to Lat: %f, Lon: %f", currentSettings.cityName.c_str(), currentSettings.latitude, currentSettings.longitude);
-                } else {
-                     showTemporaryMessage("CITY", "", "NOT", "FND", 2000);
-                     ESP_LOGE("Weather", "Geocoding failed for city: %s", currentSettings.cityName.c_str());
-                     http.end();
-                     vTaskDelete(NULL);
-                     return;
                 }
+                http.end();
             }
-            http.end();
+            delay(1000); // Wait 1 second before retrying
+        }
+
+        if (!geocodeSuccess) {
+            ESP_LOGE("Weather", "Geocoding failed for city: %s after all retries.", currentSettings.cityName.c_str());
+            showTemporaryMessage("GEO", "", "FAIL", "", 2000);
+            vTaskDelete(NULL);
+            return;
         }
     }
 
-    HTTPClient http;
-    WiFiClientSecure client;
-    client.setInsecure();
-    String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
-    String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
-    String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 4) + 
-                 "&longitude=" + String(currentSettings.longitude, 4) + 
-                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
-                 "&daily=temperature_2m_max,temperature_2m_min" + 
-                 "&hourly=temperature_2m,weather_code" +
-                 "&forecast_days=1" +
-                 "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
+    bool weatherSuccess = false;
+    for (int i = 0; i < 3; i++) { // Retry up to 3 times
+        ESP_LOGI("Weather", "Weather fetch attempt %d", i + 1);
+        HTTPClient http;
+        WiFiClientSecure client;
+        client.setInsecure();
+        String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
+        String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
+        String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 4) + 
+                     "&longitude=" + String(currentSettings.longitude, 4) + 
+                     "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
+                     "&daily=temperature_2m_max,temperature_2m_min" + 
+                     "&hourly=temperature_2m,weather_code" +
+                     "&forecast_days=1" +
+                     "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
+        if (http.begin(client, weatherUrl)) {
+            int httpCode = http.GET();
+            if (httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+                DynamicJsonDocument doc(2048);
+                DeserializationError error = deserializeJson(doc, payload);
 
-    if (http.begin(client, weatherUrl)) {
-        int httpCode = http.GET();
-        if (httpCode == HTTP_CODE_OK) {
-            String payload = http.getString();
-            DynamicJsonDocument doc(2048);
-            DeserializationError error = deserializeJson(doc, payload);
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    if (error == DeserializationError::Ok && !doc.containsKey("error")) {
+                        currentWeatherData.temperature = doc["current"]["temperature_2m"];
+                        currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
+                        currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
+                        currentWeatherData.humidity = doc["current"]["relative_humidity_2m"];
+                        currentWeatherData.weatherCode = doc["current"]["weather_code"];
+                        currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
+                        currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
 
-            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                if (error == DeserializationError::Ok && !doc.containsKey("error")) {
-                    currentWeatherData.temperature = doc["current"]["temperature_2m"];
-                    currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
-                    currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
-                    currentWeatherData.humidity = doc["current"]["relative_humidity_2m"];
-                    currentWeatherData.weatherCode = doc["current"]["weather_code"];
-                    currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
-                    currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
-
-                    time_t now;
-                    time(&now);
-                    struct tm timeinfo;
-                    localtime_r(&now, &timeinfo);
-                    int currentHour = timeinfo.tm_hour;
-
-                    for (int i = 0; i < 3; i++) {
-                        int forecastHour = currentHour + i + 1;
-                        if (forecastHour < 24) {
-                            currentWeatherData.hourlyTemp[i] = doc["hourly"]["temperature_2m"][forecastHour];
-                            currentWeatherData.hourlyCode[i] = doc["hourly"]["weather_code"][forecastHour];
+                        time_t now;
+                        time(&now);
+                        struct tm timeinfo;
+                        localtime_r(&now, &timeinfo);
+                        int currentHour = timeinfo.tm_hour;
+                        for (int j = 0; j < 3; j++) {
+                            int forecastHour = currentHour + j + 1;
+                            if (forecastHour < 24) {
+                                currentWeatherData.hourlyTemp[j] = doc["hourly"]["temperature_2m"][forecastHour];
+                                currentWeatherData.hourlyCode[j] = doc["hourly"]["weather_code"][forecastHour];
+                            }
                         }
+                        currentWeatherData.dataValid = true;
+                        weatherSuccess = true;
+                        ESP_LOGI("Weather", "Successfully fetched weather data.");
+                    } else {
+                        currentWeatherData.dataValid = false;
+                        ESP_LOGE("Weather", "Weather JSON parsing failed: %s", error.c_str());
                     }
-
-                    currentWeatherData.dataValid = true;
-                    ESP_LOGI("Weather", "Successfully fetched weather data.");
-                } else {
-                    currentWeatherData.dataValid = false;
-                    ESP_LOGE("Weather", "Weather JSON parsing failed: %s", error.c_str());
+                    xSemaphoreGive(xDisplayDataMutex);
                 }
-                xSemaphoreGive(xDisplayDataMutex);
+                http.end();
+                if (weatherSuccess) break;
+            } else {
+                ESP_LOGE("Weather", "Weather HTTP request failed on attempt %d, error: %s", i + 1, http.errorToString(httpCode).c_str());
             }
+            http.end();
         } else {
-            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                currentWeatherData.dataValid = false;
-                xSemaphoreGive(xDisplayDataMutex);
-            }
-            ESP_LOGE("Weather", "Weather HTTP request failed, error: %s", http.errorToString(httpCode).c_str());
+            ESP_LOGE("Weather", "Unable to connect to weather API on attempt %d.", i + 1);
         }
-        http.end();
-    } else {
-        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            currentWeatherData.dataValid = false;
-            xSemaphoreGive(xDisplayDataMutex);
-        }
-        ESP_LOGE("Weather", "Unable to connect to weather API.");
+        delay(1000);
+    }
+    
+    if (!weatherSuccess) {
+      if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        currentWeatherData.dataValid = false;
+        xSemaphoreGive(xDisplayDataMutex);
+      }
+      showTemporaryMessage("API", "", "FAIL", "", 2000);
     }
 
     vTaskDelete(NULL);
@@ -622,7 +638,6 @@ void reconnectMqtt() {
 void handleWeatherDisplay() {
     #if ENABLE_HARDWARE
     if (!currentSettings.weatherModeEnabled) return;
-
     if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
         if (!currentWeatherData.dataValid) {
             printToDisplay(lastRow.month, "WEA", 1);
@@ -785,7 +800,7 @@ void fetchDataTask(void* p) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     auto fetch = [&](const char* path) {
                    
-                         return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
+                        return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
                     };
                     if(!point.monthPath.empty()) displayPages[pointIndex].month = fetch(point.monthPath.c_str()).c_str();
                     if(!point.dayPath.empty()) displayPages[pointIndex].day = fetch(point.dayPath.c_str()).c_str();
@@ -933,7 +948,7 @@ void loop() {
         static unsigned long lastWeatherFetch = 0;
         if (millis() - lastWeatherFetch > 300000) { // Fetch every 5 minutes
           lastWeatherFetch = millis();
-          xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 4096, NULL, 1, NULL);
+          xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, NULL, 1, NULL);
         }
       }
 
