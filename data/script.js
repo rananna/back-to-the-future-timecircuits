@@ -291,7 +291,6 @@ async function applyDataLinkSettings(datalink) {
     }
 }
 
-
 function attachEventListeners() {
     const container = document.body;
 
@@ -308,79 +307,77 @@ function attachEventListeners() {
     };
     container.addEventListener('change', delegatedChangeHandler);
     container.addEventListener('input', delegatedChangeHandler);
-    
-    document.getElementById('header-dest').onclick = () => scrollToSettings('TimeCircuits', 'destinationTimeSettings');
-    document.getElementById('header-pres').onclick = () => scrollToSettings('System', 'presentTimeSettings');
-    document.getElementById('header-last').onclick = () => scrollToSettings('TimeCircuits', 'lastDepartedSettings');
-    document.getElementById('greatScottBtn').onclick = () => fetch('/api/greatScott', { method: 'POST' });
-    document.getElementById('saveSettingsBtn').onclick = saveSettings;
-    document.querySelectorAll('.tab-link').forEach(btn => btn.onclick = (e) => {
-        const tabName = e.target.getAttribute('data-tab');
-        openTab(e, tabName);
-        if (tabName === 'DataLink' && !isDataLinkLoaded) loadDataLinkSettings();
+
+    document.body.addEventListener('click', function(e) {
+        // Save button
+        if (e.target.id === 'saveSettingsBtn') {
+            saveSettings();
+        }
+        // Great Scott button
+        if (e.target.id === 'greatScottBtn') {
+            fetch('/api/greatScott', { method: 'POST' });
+        }
+        // Header navigation
+        if (e.target.closest('#header-dest')) {
+             scrollToSettings('TimeCircuits', 'destinationTimeSettings');
+        }
+        if (e.target.closest('#header-pres')) {
+            scrollToSettings('System', 'presentTimeSettings');
+        }
+        if (e.target.closest('#header-last')) {
+            scrollToSettings('TimeCircuits', 'lastDepartedSettings');
+        }
+        // Tabs
+        if (e.target.classList.contains('tab-link')) {
+            const tabName = e.target.getAttribute('data-tab');
+            openTab(e, tabName);
+            if (tabName === 'DataLink' && !isDataLinkLoaded) {
+                loadDataLinkSettings();
+            }
+        }
+        // Preset buttons
+        if(e.target.id === 'savePresetBtn') {
+            handleSavePreset();
+        }
+        if(e.target.id === 'deletePresetBtn') {
+            deletePreset();
+        }
+        if(e.target.id === 'newPresetBtn') {
+            resetPresetForm();
+        }
+        // Weather refresh
+        if (e.target.id === 'refreshWeatherBtn') {
+            refreshWeatherData();
+        }
+        // Reset and Sync
+        if (e.target.id === 'resetDefaultsBtn') {
+            if (confirm("Are you sure? This will reset all settings to their defaults.")) {
+                fetch('/api/resetSettings', { method: 'POST' })
+                    .then(res => res.text()).then(text => {
+                        showMessage(text, 'success');
+                        setTimeout(() => window.location.reload(), 1500);
+                    });
+            }
+        }
+        if (e.target.id === 'syncNtpBtn' || e.target.id === 'timeSyncStatus') {
+            showMessage('Requesting time sync...', 'info');
+            fetch('/api/syncTime', { method: 'POST' }).then(res => res.text()).then(text => showMessage(text, 'info'));
+        }
+        // Themes
+        const themeOption = e.target.closest('.theme-option');
+        if (themeOption) {
+            const theme = themeOption.getAttribute('data-theme');
+            document.body.className = theme;
+            fetch('/api/setTheme', { method: 'POST', body: new URLSearchParams({ theme }) });
+        }
     });
-    
+
     document.getElementById('destinationYear').addEventListener('input', () => {
         updateHeaderClocks(new Date());
         validateYearInput();
     });
 
     document.getElementById('presetDateSelect').onchange = handlePresetSelectionChange;
-    document.getElementById('savePresetBtn').onclick = handleSavePreset;
-    document.getElementById('deletePresetBtn').onclick = deletePreset;
-    document.getElementById('newPresetBtn').onclick = resetPresetForm;
-    document.getElementById('refreshWeatherBtn').onclick = refreshWeatherData;
-
-    document.getElementById('weatherModeEnabled').addEventListener('change', (e) => {
-        const isChecked = e.target.checked;
-        document.getElementById('weatherSettingsContainer').style.display = isChecked ? 'block' : 'none';
-        document.getElementById('dataLinkGroup').classList.toggle('disabled', isChecked);
-        if (isChecked) {
-            document.getElementById('dataLinkEnabled').checked = false;
-            document.getElementById('dataLinkSettingsContainer').style.display = 'none';
-            fetchWeatherData();
-        }
-    });
-
-    document.getElementById('dataLinkEnabled').addEventListener('change', (e) => {
-        const isChecked = e.target.checked;
-        document.getElementById('dataLinkSettingsContainer').style.display = isChecked ? 'block' : 'none';
-        document.getElementById('weatherModeGroup').classList.toggle('disabled', isChecked);
-        if (isChecked) {
-            document.getElementById('weatherModeEnabled').checked = false;
-            document.getElementById('weatherSettingsContainer').style.display = 'none';
-        }
-    });
-
-    // CRITICAL FIX: Add the oninput listener for the data points slider
-    document.getElementById('numDataPoints').addEventListener('input', (e) => {
-        document.getElementById('numDataPointsValue').textContent = e.target.value;
-        updateDataPointsUI(parseInt(e.target.value, 10));
-    });
-    
-    document.getElementById('resetDefaultsBtn').onclick = () => {
-        if (confirm("Are you sure? This will reset all settings to their defaults.")) {
-            fetch('/api/resetSettings', { method: 'POST' })
-                .then(res => res.text()).then(text => {
-                    showMessage(text, 'success');
-                    setTimeout(() => window.location.reload(), 1500);
-                });
-        }
-    };
-    document.getElementById('syncNtpBtn').onclick = () => {
-        fetch('/api/syncTime', { method: 'POST' }).then(res => res.text()).then(text => showMessage(text, 'info'));
-    };
-    document.getElementById('timeSyncStatus').onclick = () => {
-        showMessage('Requesting time sync...', 'info');
-        fetch('/api/syncTime', { method: 'POST' }).then(res => res.text()).then(text => showMessage(text, 'info'));
-    };
-    document.querySelectorAll('.theme-option').forEach(el => {
-        el.onclick = () => {
-            const theme = el.getAttribute('data-theme');
-            document.body.className = theme;
-            fetch('/api/setTheme', { method: 'POST', body: new URLSearchParams({ theme }) });
-        };
-    });
     document.getElementById('departureTime').onchange = updateSleepVisual;
     document.getElementById('arrivalTime').onchange = updateSleepVisual;
 
@@ -565,10 +562,13 @@ function openTab(evt, tabName) {
 function setSettingsChanged(isChanged) {
     settingsChanged = isChanged;
     const saveButtonContainer = document.querySelector('.save-button-container');
+    const saveButton = document.getElementById('saveSettingsBtn');
     if (isChanged) {
         saveButtonContainer.classList.add('visible');
+        saveButton.disabled = false;
     } else {
         saveButtonContainer.classList.remove('visible');
+        saveButton.disabled = true;
     }
 }
 
@@ -765,7 +765,6 @@ function updateDataPointsUI(numPoints) {
                 container.appendChild(block);
             }
             populateApiExampleDropdowns();
-            attachDataPointEventListeners();
             for (let i = 0; i < numPoints; i++) {
                 updateMarqueePreview(i);
             }
@@ -879,59 +878,6 @@ function populateApiExampleDropdowns() {
         }
     });
 }
-
-
-function attachDataPointEventListeners() {
-    const container = document.getElementById('dataPointsConfigContainer');
-
-    container.addEventListener('click', (e) => {
-        if (e.target.classList.contains('analyze-api-btn')) {
-            startApiWizard(e);
-        } else if (e.target.classList.contains('dp-clear-btn')) {
-            clearDataPointFields(e);
-        } else if (e.target.classList.contains('dp-dup-btn')) {
-            duplicateDataPoint(e);
-        } else if (e.target.classList.contains('dp-test-btn')) {
-            testDataPoint(e);
-        } else if (e.target.classList.contains('wizard-target-input')) {
-            const clickedTarget = e.target;
-            document.querySelectorAll('.wizard-target-input').forEach(el => el.classList.remove('is-wizard-target'));
-            if (activeWizardTarget !== clickedTarget) {
-                activeWizardTarget = clickedTarget;
-                activeWizardTarget.classList.add('is-wizard-target');
-            } else {
-                activeWizardTarget = null;
-            }
-        }
-    });
-
-    container.addEventListener('change', (e) => {
-        const index = e.target.dataset.index;
-        if (e.target.classList.contains('data-source-select') || e.target.classList.contains('display-mode-select')) {
-            const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
-            const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
-
-            document.getElementById(`dp_api_container_${index}`).style.display = dataSource === 'api' ? 'block' : 'none';
-            document.getElementById(`dp_mqtt_container_${index}`).style.display = dataSource === 'mqtt' ? 'block' : 'none';
-            document.getElementById(`four_column_container_${index}`).style.display = displayMode === '0' ? 'block' : 'none';
-            document.getElementById(`scrolling_text_container_${index}`).style.display = displayMode === '1' ? 'block' : 'none';
-            updateMarqueePreview(index);
-        } else if (e.target.classList.contains('icon-select')) {
-            const dayInput = document.getElementById(`dp_dayPath_${index}`);
-            dayInput.disabled = !!e.target.value;
-            if (e.target.value) {
-                dayInput.value = '';
-            }
-        }
-    });
-
-    container.addEventListener('input', (e) => {
-        if (e.target.dataset.index) {
-            updateMarqueePreview(e.target.dataset.index);
-        }
-    });
-}
-
 
 function startApiWizard(event) {
     console.log("CLIENT_DEBUG: 'Analyze API' button clicked.");
