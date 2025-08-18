@@ -22,7 +22,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0// Set to 1 to enable hardware, 0 to disable
+#define ENABLE_HARDWARE 1// Set to 1 to enable hardware, 0 to disable
 
 // --- ENUMS & DATA STRUCTURES ---
 enum Theme {
@@ -105,7 +105,9 @@ struct TimeZoneEntry {
 
 enum AnimationStyle {
   ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
-  ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER
+  ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
+  ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
+  ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM
 };
 
 #if ENABLE_HARDWARE
@@ -118,6 +120,11 @@ extern DFRobotDFPlayerMini myDFPlayer;
 void setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year);
 void animateDisplayRowRandomly(DisplayRow& row);
+void animateTornadoFlicker();
+void animateCapacitorChargeUp(unsigned long elapsed, int duration);
+void animateDigitalRain(unsigned long elapsed, int duration);
+void animateWaveformCollapse(unsigned long elapsed, int duration);
+void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
 void blankAllDisplays();
 void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
 void playSound(const char* soundName);

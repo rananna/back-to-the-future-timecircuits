@@ -117,6 +117,136 @@ void animateDisplayRowRandomly(DisplayRow& row) {
   #endif
 }
 
+void animateTornadoFlicker() {
+    #if ENABLE_HARDWARE
+    // A simple, chaotic animation: flicker all displays randomly.
+    animateDisplayRowRandomly(destRow);
+    animateDisplayRowRandomly(presRow);
+    animateDisplayRowRandomly(lastRow);
+    #endif
+}
+
+void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    int phase = elapsed / (duration / 3);
+    float progress = (float)(elapsed % (duration / 3)) / (duration / 3);
+    int charsToShow = progress * 16;
+
+    auto fillRow = [&](DisplayRow& row, int numChars) {
+        char buffer[17] = "################";
+        if (numChars < 16) buffer[numChars] = '\0';
+        printToDisplay(row.month, String(buffer).substring(0, 4).c_str());
+        printToDisplay(row.day, String(buffer).substring(4, 8).c_str());
+        printToDisplay(row.year, String(buffer).substring(8, 12).c_str());
+        printToDisplay(row.time, String(buffer).substring(12, 16).c_str());
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    if (phase == 0) {
+        fillRow(lastRow, charsToShow);
+    } else if (phase == 1) {
+        fillRow(lastRow, 16); // Keep previous row full
+        fillRow(presRow, charsToShow);
+    } else {
+        fillRow(lastRow, 16);
+        fillRow(presRow, 16);
+        fillRow(destRow, charsToShow);
+    }
+    #endif
+}
+
+void animateDigitalRain(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    auto rainColumn = [&](Adafruit_AlphaNum4& d, Adafruit_AlphaNum4& p, Adafruit_AlphaNum4& l) {
+        char d_c[5], p_c[5], l_c[5];
+        for(int i=0; i<4; ++i) {
+            d_c[i] = chars[random(strlen(chars))];
+            p_c[i] = chars[random(strlen(chars))];
+            l_c[i] = chars[random(strlen(chars))];
+        }
+        d_c[4] = p_c[4] = l_c[4] = '\0';
+        printToDisplay(d, d_c); d.writeDisplay();
+        printToDisplay(p, p_c); p.writeDisplay();
+        printToDisplay(l, l_c); l.writeDisplay();
+    };
+    rainColumn(destRow.month, presRow.month, lastRow.month);
+    rainColumn(destRow.day, presRow.day, lastRow.day);
+    rainColumn(destRow.year, presRow.year, lastRow.year);
+    rainColumn(destRow.time, presRow.time, lastRow.time);
+    #endif
+}
+
+void animateWaveformCollapse(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    const char* wave[] = {"-___-", "_--_-", "__-__"};
+    int waveIndex = (elapsed / 200) % 3; // Cycle through patterns
+    int scrollOffset = (elapsed / 100) % 5; // Scroll the pattern
+
+    auto drawWave = [&](DisplayRow& row, bool inverse) {
+        char pattern[6];
+        const char* basePattern = wave[waveIndex];
+        
+        // Create the scrolled pattern
+        char scrolledPattern[6];
+        for(int i=0; i<5; ++i) {
+            scrolledPattern[i] = basePattern[(i + scrollOffset) % 5];
+        }
+        scrolledPattern[5] = '\0';
+        
+        if(inverse) {
+            for(int i=0; i<5; ++i) pattern[i] = (scrolledPattern[i] == '-') ? '_' : '-';
+            pattern[5] = '\0';
+        } else {
+            strcpy(pattern, scrolledPattern);
+        }
+
+        printToDisplay(row.month, String(pattern).substring(0, 4).c_str());
+        printToDisplay(row.day, String(pattern).substring(1, 3).c_str(), 2);
+        printToDisplay(row.year, String(pattern).substring(0, 4).c_str());
+        printToDisplay(row.time, String(pattern).substring(1, 5).c_str());
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    drawWave(destRow, false);
+    drawWave(presRow, true);
+    drawWave(lastRow, false);
+    #endif
+}
+
+void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
+    #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    // Use an ease-out cubic function for a nice slow-down effect
+    progress = 1 - pow(1 - progress, 3);
+    
+    // Pick a random start year for visual variety
+    static int startYear = 0;
+    if(elapsed < 100) startYear = random(1, 2100);
+
+    int currentYear = startYear + (destinationYear - startYear) * progress;
+
+    char yearStr[5];
+    sprintf(yearStr, "%04d", currentYear);
+
+    // Update only the year displays for the "skimming" effect
+    printToDisplay(destRow.year, yearStr); destRow.year.writeDisplay();
+    printToDisplay(presRow.year, yearStr); presRow.year.writeDisplay();
+    printToDisplay(lastRow.year, yearStr); lastRow.year.writeDisplay();
+
+    // Flicker the other displays randomly
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+    printToDisplay(destRow.month, months[random(0,12)], 1); destRow.month.writeDisplay();
+    
+    char buffer[5];
+    sprintf(buffer, "%02d", random(1, 32));
+    printToDisplay(presRow.day, buffer, 2); presRow.day.writeDisplay();
+    
+    sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
+    printToDisplay(lastRow.time, buffer); lastRow.time.writeDisplay();
+    #endif
+}
+
 void blankAllDisplays() {
   #if ENABLE_HARDWARE
   destRow.month.clear(); destRow.day.clear(); destRow.year.clear(); destRow.time.clear();
