@@ -470,7 +470,8 @@ void fetchWeatherDataTask(void* p) {
             if (httpCode == HTTP_CODE_OK) {
                 DynamicJsonDocument doc(1024);
                 deserializeJson(doc, http.getStream());
-                if (doc.containsKey("results")) {
+                JsonArray results = doc["results"];
+                if (!results.isNull() && results.size() > 0) {
                     showTemporaryMessage("CITY", "", "FOUN", "D", 1000);
                     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                         currentSettings.latitude = doc["results"][0]["latitude"];
@@ -512,7 +513,7 @@ void fetchWeatherDataTask(void* p) {
             DeserializationError error = deserializeJson(doc, payload);
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                if (error == DeserializationError::Ok) {
+                if (error == DeserializationError::Ok && !doc.containsKey("error")) {
                     currentWeatherData.temperature = doc["current"]["temperature_2m"];
                     currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
                     currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
