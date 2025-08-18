@@ -235,11 +235,24 @@ void setupWebRoutes() {
         request->send(503, "application/json", "{\"error\":\"Weather data not available\"}");
     }
   });
-  server.on("/api/weather/refresh", HTTP_POST, [](AsyncWebServerRequest *request){
-    xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, NULL, 1, NULL);
-    request->send(202, "text/plain", "Weather refresh triggered");
-  });
   
+  AsyncCallbackJsonWebHandler* refreshWeatherHandler = new AsyncCallbackJsonWebHandler("/api/weather/refresh", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    JsonObject obj = json.as<JsonObject>();
+    if (obj.containsKey("cityName")) {
+        std::string city = obj["cityName"].as<std::string>();
+        WeatherTaskParams* params = new WeatherTaskParams{city, true};
+        if (xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL) == pdPASS) {
+            request->send(202, "text/plain", "Weather refresh triggered for new city.");
+        } else {
+            delete params;
+            request->send(500, "text/plain", "Failed to create weather task.");
+        }
+    } else {
+        request->send(400, "text/plain", "Bad Request: Missing cityName");
+    }
+  });
+  server.addHandler(refreshWeatherHandler);
+
   // New JSON handler for saving settings
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
     ESP_LOGI("SAVE_SETTINGS", "Received save request. Free heap: %u", ESP.getFreeHeap());
@@ -247,6 +260,7 @@ void setupWebRoutes() {
 
     std::string oldMqttBroker = currentSettings.mqttBroker;
     int oldMqttPort = currentSettings.mqttPort;
+    std::string oldCityName = currentSettings.cityName;
 
     // Time Circuits & Temporal
     ESP_LOGI("SAVE_SETTINGS", "Parsing temporal settings...");
@@ -283,7 +297,18 @@ void setupWebRoutes() {
     if (obj.containsKey("mqttUser")) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
     if (obj.containsKey("mqttPassword")) currentSettings.mqttPassword = obj["mqttPassword"].as<std::string>();
     currentSettings.weatherModeEnabled = obj["weatherModeEnabled"] | currentSettings.weatherModeEnabled;
-    if (obj.containsKey("cityName")) currentSettings.cityName = obj["cityName"].as<std::string>();
+    if (obj.containsKey("cityName")) {
+        std::string newCityName = obj["cityName"].as<std::string>();
+        if (newCityName != oldCityName) {
+            ESP_LOGI("SAVE_SETTINGS", "City name changed. Clearing lastCityName to force geocoding.");
+            lastCityName = "";
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                currentWeatherData.dataValid = false;
+                xSemaphoreGive(xDisplayDataMutex);
+            }
+        }
+        currentSettings.cityName = newCityName;
+    }
     currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
 
     // Data Points

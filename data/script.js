@@ -571,6 +571,7 @@ function setSettingsChanged(isChanged) {
 function updateHeaderClocks(presentTimeRaw) {
     const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
     const is24h = document.getElementById('displayFormat24h').checked;
+    
     const populateHeaderRow = (prefix, unixTimestamp, yearOverride = null) => {
         const timezoneSelectId = (prefix === 'dest') ? 'destinationTimezoneSelect' : 'presentTimezoneSelect';
         const timezoneSelect = document.getElementById(timezoneSelectId);
@@ -589,27 +590,49 @@ function updateHeaderClocks(presentTimeRaw) {
         setContent(`header-${prefix}-minute`, minute || '00');
         setContent(`header-${prefix}-ampm`, is24h ? '' : ampm);
     };
+    
     const presentUnixTimestamp = presentTimeRaw.getTime() / 1000;
     populateHeaderRow('pres', presentUnixTimestamp);
+    
     const destYearInput = document.getElementById('destinationYear');
     if (destYearInput && destYearInput.value) {
         const destinationTime = new Date(presentTimeRaw.getTime());
         destinationTime.setFullYear(parseInt(destYearInput.value, 10));
         populateHeaderRow('dest', destinationTime.getTime() / 1000, destYearInput.value);
     }
-    const year = document.getElementById('lastTimeDepartedYear').textContent;
-    const month = parseInt(document.getElementById('lastTimeDepartedMonth').textContent, 10) - 1;
-    const day = document.getElementById('lastTimeDepartedDay').textContent;
-    const hour = document.getElementById('lastTimeDepartedHour').textContent;
-    const minute = document.getElementById('lastTimeDepartedMinute').textContent;
-    if(year && !isNaN(month) && day && hour && minute) {
-        const lastDepartedTime = new Date(year, month, day, hour, minute);
-        populateHeaderRow('last', lastDepartedTime.getTime() / 1000, year);
+    
+    // Correctly and directly update the "Last Time Departed" header clock
+    const lastYear = document.getElementById('lastTimeDepartedYear').textContent;
+    const lastMonth = parseInt(document.getElementById('lastTimeDepartedMonth').textContent, 10);
+    const lastDay = document.getElementById('lastTimeDepartedDay').textContent;
+    const lastHour = parseInt(document.getElementById('lastTimeDepartedHour').textContent, 10);
+    const lastMinute = document.getElementById('lastTimeDepartedMinute').textContent;
+
+    if (lastYear && !isNaN(lastMonth) && lastDay && !isNaN(lastHour) && lastMinute) {
+        let displayHour = lastHour;
+        let ampm = '';
+
+        if (!is24h) {
+            ampm = displayHour >= 12 ? 'PM' : 'AM';
+            if (displayHour > 12) displayHour -= 12;
+            if (displayHour === 0) displayHour = 12;
+        }
+
+        const setContent = (id, text) => { document.getElementById(id).textContent = text; };
+
+        setContent('header-last-month', months[lastMonth - 1] || '---');
+        setContent('header-last-day', String(lastDay).padStart(2, '0'));
+        setContent('header-last-year', lastYear);
+        setContent('header-last-hour', String(displayHour).padStart(2, '0'));
+        setContent('header-last-minute', String(lastMinute).padStart(2, '0'));
+        setContent('header-last-ampm', is24h ? '' : ampm);
     }
+
     const now = new Date();
     const totalMinutes = now.getHours() * 60 + now.getMinutes();
     document.getElementById('currentTimeMarker').style.left = `${(totalMinutes / 1440) * 100}%`;
 }
+
 
 function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) {
     if (!timezoneOptions || timezoneIndex < 0 || !timezoneOptions[timezoneIndex]) return null;
@@ -1298,7 +1321,10 @@ function fetchWeatherData() {
         })
         .catch(err => {
             console.warn("CLIENT_DEBUG: Could not fetch weather data:", err);
-            weatherDisplay.style.display = 'none';
+            weatherDisplay.style.display = 'grid';
+            ['weatherTemp', 'weatherFeelsLike', 'weatherHumidity', 'weatherWind', 'weatherHighLow'].forEach(id => {
+                document.getElementById(id).textContent = '--';
+            });
             preview.textContent = 'Data not available. Check city name.';
         })
         .finally(() => {

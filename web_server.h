@@ -8,6 +8,7 @@
 #include <LittleFS.h>
 #include <WiFiClientSecure.h>
 #include "HardwareControl.h"
+#include <string> // Required for std::string
 
 #define THEME_PREF_KEY "ui_theme"
 #define PREFERENCES_NAMESPACE "bttf-clock"
@@ -23,6 +24,10 @@ extern PubSubClient mqttClient;
 extern bool mqttReconnectRequired;
 extern const char TZ_JSON[] PROGMEM;
 
+// EXTERN DECLARATIONS TO FIX COMPILER ERROR
+extern std::string lastCityName;
+extern SemaphoreHandle_t xDisplayDataMutex;
+
 // Struct to pass parameters to the API request task
 struct ApiTestParams {
     String url;
@@ -30,10 +35,13 @@ struct ApiTestParams {
     String authValue;
     uint32_t clientId;
 };
+
+// Struct to pass parameters for weather fetching tasks
 struct WeatherTaskParams {
     std::string cityName;
     bool forceGeocode;
 };
+
 
 // Forward declarations
 extern JsonVariant getJsonVariant(JsonVariant root, const char* path);
