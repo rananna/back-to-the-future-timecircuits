@@ -14,6 +14,7 @@
 
 extern AsyncWebServer server;
 extern ClockSettings currentSettings;
+extern WeatherData currentWeatherData;
 extern String apiTemplatesJson;
 extern Preferences preferences;
 extern bool timeSynchronized;

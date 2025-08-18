@@ -12,6 +12,7 @@ let activeWizardTarget = null;
 let dataPointStatus = {};
 
 let ws;
+let weatherInterval;
 
 let isLoading = true;
 
@@ -120,6 +121,8 @@ async function initializeUI() {
 
         fetchTime();
         setInterval(fetchTime, 1000);
+        fetchWeatherData();
+        weatherInterval = setInterval(fetchWeatherData, 30000);
         attachEventListeners();
         showMessage('System Online', 'success');
 
@@ -327,6 +330,7 @@ function attachEventListeners() {
     document.getElementById('weatherModeEnabled').onchange = (e) => {
         document.getElementById('weatherSettingsContainer').style.display = e.target.checked ? 'block' : 'none';
         if (!isLoading) setSettingsChanged(true);
+        fetchWeatherData();
     };
 
     document.getElementById('dataLinkEnabled').onchange = (e) => {
@@ -1155,6 +1159,37 @@ function fetchTime() {
         document.getElementById('timeSyncStatus').textContent = data.timeSynchronized ? 'Yes' : 'No';
         if (data.unixTime) updateHeaderClocks(new Date(data.unixTime * 1000));
     });
+}
+
+function fetchWeatherData() {
+    if (!document.getElementById('weatherModeEnabled').checked) {
+        document.getElementById('weatherDisplay').style.display = 'none';
+        return;
+    }
+
+    fetch('/api/weather')
+        .then(res => {
+            if (res.ok) {
+                return res.json();
+            }
+            return Promise.reject('Weather data not ready');
+        })
+        .then(data => {
+            const isMetric = document.getElementById('useMetricUnits').checked;
+            const tempUnit = isMetric ? '°C' : '°F';
+            const speedUnit = isMetric ? ' km/h' : ' mph';
+
+            document.getElementById('weatherDisplay').style.display = 'grid';
+            document.getElementById('weatherTemp').textContent = `${data.temperature.toFixed(1)}${tempUnit}`;
+            document.getElementById('weatherFeelsLike').textContent = `${data.apparentTemperature.toFixed(1)}${tempUnit}`;
+            document.getElementById('weatherHumidity').textContent = `${data.humidity}%`;
+            document.getElementById('weatherWind').textContent = `${data.windSpeed.toFixed(1)}${speedUnit}`;
+            document.getElementById('weatherHighLow').textContent = `${data.dailyHigh.toFixed(0)}° / ${data.dailyLow.toFixed(0)}°`;
+        })
+        .catch(err => {
+            console.warn("CLIENT_DEBUG: Could not fetch weather data:", err);
+            document.getElementById('weatherDisplay').style.display = 'none';
+        });
 }
 
 function updateSleepVisual() {

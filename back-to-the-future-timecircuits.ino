@@ -167,21 +167,8 @@ struct FetchDataParams {
     int totalRequests;
 };
 
-// --- FIX START: Add WeatherData struct and currentWeatherData variable ---
-struct WeatherData {
-  float temperature;
-  float apparentTemperature;
-  float windSpeed;
-  int humidity;
-  int weatherCode;
-  float dailyHigh;
-  float dailyLow;
-  bool dataValid = false;
-};
-
 WeatherData currentWeatherData;
 std::string lastCityName = "";
-// --- FIX END ---
 
 void fetchDataTask(void* p);
 void startTimeTravelAnimation();
@@ -222,8 +209,6 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     return current;
 }
 
-
-
 void saveSettings() {
   preferences.begin(PREFERENCES_NAMESPACE, false);
   preferences.putInt("destYear", currentSettings.destinationYear);
@@ -263,7 +248,6 @@ void saveSettings() {
   preferences.putBool("useMetric", currentSettings.useMetricUnits);
   preferences.putFloat("latitude", currentSettings.latitude);
   preferences.putFloat("longitude", currentSettings.longitude);
-
   for (int i = 0; i < 5; i++) {
     String prefix = "dp" + String(i) + "_";
     preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url.c_str());
@@ -295,7 +279,6 @@ void saveSettings() {
 void loadSettings() {
   preferences.begin(PREFERENCES_NAMESPACE, true);
   bool needsInit = !preferences.isKey("destYear");
-  
   if (needsInit) {
     ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
     currentSettings.destinationYear = 1955;
@@ -335,7 +318,6 @@ void loadSettings() {
     currentSettings.useMetricUnits = false;
     currentSettings.latitude = 40.7128;
     currentSettings.longitude = -74.0060;
-
     for (int i = 0; i < 5; i++) {
         currentSettings.dataPoints[i] = {};
     }
@@ -405,7 +387,6 @@ void loadSettings() {
     }
   }
   preferences.end();
-
   if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
     currentSettings.presentTimezoneIndex = 0;
   }
@@ -417,18 +398,30 @@ void loadSettings() {
 }
 const char* getIconForWeatherCode(int code) {
     switch (code) {
-        case 0: case 1: return "SU"; // Clear, Mainly clear
-        case 2: return "CL";         // Partly cloudy
-        case 3: return "CL";         // Overcast
-        case 45: case 48: return "CL"; // Fog
-        case 51: case 53: case 55: return "RN"; // Drizzle
-        case 61: case 63: case 65: return "RN"; // Rain
-        case 66: case 67: return "RN"; // Freezing Rain
-        case 71: case 73: case 75: return "SN"; // Snow
-        case 77: return "SN";         // Snow grains
-        case 80: case 81: case 82: return "RN"; // Rain showers
-        case 85: case 86: return "SN"; // Snow showers
-        case 95: case 96: case 99: return "ST"; // Thunderstorm
+        case 0: case 1: return "SU";
+        // Clear, Mainly clear
+        case 2: return "CL";
+        // Partly cloudy
+        case 3: return "CL";
+        // Overcast
+        case 45: case 48: return "CL";
+        // Fog
+        case 51: case 53: case 55: return "RN";
+        // Drizzle
+        case 61: case 63: case 65: return "RN";
+        // Rain
+        case 66: case 67: return "RN";
+        // Freezing Rain
+        case 71: case 73: case 75: return "SN";
+        // Snow
+        case 77: return "SN";
+        // Snow grains
+        case 80: case 81: case 82: return "RN";
+        // Rain showers
+        case 85: case 86: return "SN";
+        // Snow showers
+        case 95: case 96: case 99: return "ST";
+        // Thunderstorm
         default: return "--";
     }
 }
@@ -479,7 +472,6 @@ void fetchWeatherDataTask(void* p) {
                  "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
                  "&daily=temperature_2m_max,temperature_2m_min" + 
                  "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
-
     if (http.begin(client, weatherUrl)) {
         int httpCode = http.GET();
         if (httpCode == HTTP_CODE_OK) {
@@ -586,14 +578,13 @@ void handleWeatherDisplay() {
     static int weatherPage = 0;
     static unsigned long lastPageChange = 0;
     char buffer[6];
-
     if (millis() - lastPageChange > 4000) {
-        weatherPage = (weatherPage + 1) % 5; // Now 5 pages
+        weatherPage = (weatherPage + 1) % 5;
+        // Now 5 pages
         lastPageChange = millis();
     }
     
     const char* icon = getIconForWeatherCode(currentWeatherData.weatherCode);
-
     switch(weatherPage) {
         case 0: // Temperature
             printToDisplay(lastRow.month, "TEM", 1);
@@ -714,7 +705,8 @@ void fetchDataTask(void* p) {
                 // Lock mutex before writing to shared data
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     auto fetch = [&](const char* path) {
-                        return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
+                   
+                         return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
                     };
                     if(!point.monthPath.empty()) displayPages[pointIndex].month = fetch(point.monthPath.c_str()).c_str();
                     if(!point.dayPath.empty()) displayPages[pointIndex].day = fetch(point.dayPath.c_str()).c_str();
@@ -858,6 +850,15 @@ void loop() {
     handleTemporalEcho();
     if (!isFlickeringNow) {
       handleGlitchEffect();
+      
+      if (currentSettings.weatherModeEnabled) {
+        static unsigned long lastWeatherFetch = 0;
+        if (millis() - lastWeatherFetch > 300000) { // Fetch every 5 minutes
+          lastWeatherFetch = millis();
+          xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 4096, NULL, 1, NULL);
+        }
+      }
+
       handlePresetCycling();
       handleSleepSchedule();
       if (currentSettings.dataLinkEnabled) {
@@ -865,6 +866,9 @@ void loop() {
         updateMarqueeDisplay();
       } else {
         updateNormalClockDisplay();
+        if (currentSettings.weatherModeEnabled) {
+            handleWeatherDisplay();
+        }
       }
     }
   }
@@ -914,13 +918,14 @@ void handleDisplayAnimation() {
                 case ANIMATION_RANDOM_FLICKER:
                 case ANIMATION_ALL_DISPLAYS_RANDOM:
                 case ANIMATION_COUNTING_UP:
+           
                     animateDisplayRowRandomly(destRow);
                     animateDisplayRowRandomly(presRow);
                     animateDisplayRowRandomly(lastRow);
                     break;
                 case ANIMATION_WAVE_FLICKER:
                      animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
-                    break;
+                     break;
                 case ANIMATION_TORNADO_FLICKER:
                     animateTornadoFlicker();
                     break;

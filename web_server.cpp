@@ -7,6 +7,7 @@
 #include <string>
 
 AsyncWebSocket ws("/ws");
+WeatherData currentWeatherData; // <-- ADD THIS LINE
 
 // This function runs in a separate task to prevent blocking
 void makeApiRequestTask(void* p) {
@@ -215,6 +216,23 @@ void setupWebRoutes() {
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
+  });
+  server.on("/api/weather", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (currentWeatherData.dataValid) {
+        StaticJsonDocument<256> doc;
+        doc["temperature"] = currentWeatherData.temperature;
+        doc["apparentTemperature"] = currentWeatherData.apparentTemperature;
+        doc["windSpeed"] = currentWeatherData.windSpeed;
+        doc["humidity"] = currentWeatherData.humidity;
+        doc["weatherCode"] = currentWeatherData.weatherCode;
+        doc["dailyHigh"] = currentWeatherData.dailyHigh;
+        doc["dailyLow"] = currentWeatherData.dailyLow;
+        String jsonString;
+        serializeJson(doc, jsonString);
+        request->send(200, "application/json", jsonString);
+    } else {
+        request->send(503, "application/json", "{\"error\":\"Weather data not available\"}");
+    }
   });
   server.on("/api/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request){
     auto getParamInt = [&](const String& name, int defaultValue) -> int {

@@ -95,6 +95,19 @@ struct ClockSettings {
   // --- FIX END ---
 };
 
+// --- FIX START: Add WeatherData struct ---
+struct WeatherData {
+  float temperature;
+  float apparentTemperature;
+  float windSpeed;
+  int humidity;
+  int weatherCode;
+  float dailyHigh;
+  float dailyLow;
+  bool dataValid = false;
+};
+// --- FIX END ---
+
 struct DisplayRow {
     Adafruit_AlphaNum4 month; Adafruit_AlphaNum4 day;
     Adafruit_AlphaNum4 year; Adafruit_AlphaNum4 time;

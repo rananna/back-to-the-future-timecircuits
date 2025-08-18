@@ -1243,3 +1243,36 @@ body.time-travel-active {
     height: 24px;
     fill: currentColor;
 }
+
+.weather-display-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+    margin-top: 25px;
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+}
+
+.weather-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.weather-label {
+    font-size: 0.85em;
+    color: var(--text-color);
+    opacity: 0.8;
+    margin-bottom: 5px;
+}
+
+.weather-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--highlight-text-color);
+    text-shadow: 0 0 5px var(--shadow-color);
+}
