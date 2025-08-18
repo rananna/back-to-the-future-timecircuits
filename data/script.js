@@ -41,8 +41,9 @@ function initWebSocket() {
                     analyzedDataCache[index] = msg.payload;
                     if (button.classList.contains('analyze-api-btn')) {
                         console.log(`CLIENT_DEBUG: API analysis for index ${index} successful. Payload:`, msg.payload);
-                        const resultsContainer = document.getElementById(`wizard_results_${index}`);
                         displayApiWizardResults(index, msg.payload);
+                        document.getElementById(`dp_display_mode_container_${index}`).style.display = 'block';
+                        document.getElementById(`dp_formatting_container_${index}`).style.display = 'block';
                     } else {
                         showMessage(`Data Point ${parseInt(index) + 1} test successful.`, 'success');
                     }
@@ -133,7 +134,7 @@ async function initializeUI() {
         showMessage(`Critical error loading settings: ${error.message}. Please refresh.`, 'error');
     } finally {
         isLoading = false;
-        setSettingsChanged(false); // Ensure button is disabled on initial load
+        setSettingsChanged(false);
     }
 }
 
@@ -351,6 +352,7 @@ function attachEventListeners() {
         }
     });
 
+    // CRITICAL FIX: Add the oninput listener for the data points slider
     document.getElementById('numDataPoints').addEventListener('input', (e) => {
         document.getElementById('numDataPointsValue').textContent = e.target.value;
         updateDataPointsUI(parseInt(e.target.value, 10));
@@ -932,6 +934,7 @@ function attachDataPointEventListeners() {
 
 
 function startApiWizard(event) {
+    console.log("CLIENT_DEBUG: 'Analyze API' button clicked.");
     const index = event.target.dataset.index;
     const apiUrl = getProcessedUrl(index);
     const authKey = document.getElementById(`dp_authHeaderKey_${index}`).value;
@@ -959,6 +962,7 @@ function startApiWizard(event) {
         action: "testApi",
         data: { url: apiUrl, authKey, authValue }
     };
+    console.log("CLIENT_DEBUG: Sending 'testApi' message to WebSocket:", message);
     ws.send(JSON.stringify(message));
 }
 
@@ -1020,6 +1024,7 @@ function displayApiWizardResults(index, jsonData) {
 
 
 function saveSettings() {
+    console.log("CLIENT_DEBUG: 'Engage Time Circuits' button clicked. Initiating save process.");
     if (!validateYearInput()) {
         showMessage('Please correct the invalid fields before saving.', 'error');
         scrollToSettings('TimeCircuits', 'destinationTimeSettings');
@@ -1085,6 +1090,7 @@ function saveSettings() {
             apiExampleKey: document.getElementById(`api_example_${i}`).value
         });
     }
+    console.log("CLIENT_DEBUG: Sending settings object to /api/saveSettings:", settings);
 
     fetch('/api/saveSettings', {
         method: 'POST',
@@ -1095,10 +1101,12 @@ function saveSettings() {
     .then(text => {
         showMessage(text, 'success');
         setSettingsChanged(false);
+        console.log("CLIENT_DEBUG: Settings saved successfully. Now triggering animation.");
         return fetch('/api/triggerAnimation', { method: 'POST' });
     })
     .then(res => {
         if (!res.ok) throw new Error('Failed to trigger animation');
+        console.log("CLIENT_DEBUG: Animation trigger successful.");
         document.body.classList.add('time-travel-active');
         setTimeout(() => document.body.classList.remove('time-travel-active'), settings.timeTravelAnimationDuration);
     })
