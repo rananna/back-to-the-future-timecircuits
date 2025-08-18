@@ -89,6 +89,7 @@ const TimeZoneEntry TZ_DATA[] = {
   { "EET-2", "EET (Cairo)", "Africa/Cairo", "Africa" },
   { "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
 
+  
   // South America
   { "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
   { "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
@@ -166,7 +167,6 @@ struct FetchDataParams {
     int pointIndex;
     int totalRequests;
 };
-
 void fetchDataTask(void* p);
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
@@ -185,7 +185,6 @@ void runBootSequence();
 void setupMqtt();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 void fetchWeatherData(WeatherTaskParams* params);
-
 // NEW FUNCTION to encode URL parameters
 String urlEncode(const char* msg) {
     const char *hex = "0123456789abcdef";
@@ -241,6 +240,7 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
 }
 
 void saveSettings() {
+  ESP_LOGI("SETTINGS", "saveSettings() function called. Writing current settings to NVS.");
   preferences.begin(PREFERENCES_NAMESPACE, false);
   preferences.putInt("destYear", currentSettings.destinationYear);
   preferences.putInt("destTzIndex", currentSettings.destinationTimezoneIndex);
@@ -303,6 +303,7 @@ void saveSettings() {
     preferences.putString((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey.c_str());
   }
   preferences.end();
+  ESP_LOGI("SETTINGS", "NVS write complete. Applying timezone.");
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
 }
@@ -429,18 +430,30 @@ void loadSettings() {
 }
 const char* getIconForWeatherCode(int code) {
     switch (code) {
-        case 0: case 1: return "SU"; // Clear, Mainly clear
-        case 2: return "CL"; // Partly cloudy
-        case 3: return "CL"; // Overcast
-        case 45: case 48: return "CL"; // Fog
-        case 51: case 53: case 55: return "RN"; // Drizzle
-        case 61: case 63: case 65: return "RN"; // Rain
-        case 66: case 67: return "RN"; // Freezing Rain
-        case 71: case 73: case 75: return "SN"; // Snow
-        case 77: return "SN"; // Snow grains
-        case 80: case 81: case 82: return "RN"; // Rain showers
-        case 85: case 86: return "SN"; // Snow showers
-        case 95: case 96: case 99: return "ST"; // Thunderstorm
+        case 0: case 1: return "SU";
+        // Clear, Mainly clear
+        case 2: return "CL";
+        // Partly cloudy
+        case 3: return "CL";
+        // Overcast
+        case 45: case 48: return "CL";
+        // Fog
+        case 51: case 53: case 55: return "RN";
+        // Drizzle
+        case 61: case 63: case 65: return "RN";
+        // Rain
+        case 66: case 67: return "RN";
+        // Freezing Rain
+        case 71: case 73: case 75: return "SN";
+        // Snow
+        case 77: return "SN";
+        // Snow grains
+        case 80: case 81: case 82: return "RN";
+        // Rain showers
+        case 85: case 86: return "SN";
+        // Snow showers
+        case 95: case 96: case 99: return "ST";
+        // Thunderstorm
         default: return "--";
     }
 }
@@ -448,7 +461,8 @@ const char* getIconForWeatherCode(int code) {
 void fetchWeatherData(WeatherTaskParams* params) {
     std::string taskCityName = params->cityName;
     bool forceGeocode = params->forceGeocode;
-    delete params; // Clean up memory
+    delete params;
+    // Clean up memory
 
     if (taskCityName.empty()) {
         ESP_LOGE("Weather", "City name is empty, cannot fetch weather.");
@@ -499,7 +513,8 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 }
                 http.end();
             }
-            delay(1000); // Wait 1 second before retrying
+            delay(1000);
+            // Wait 1 second before retrying
         }
 
         if (!geocodeSuccess) {
@@ -520,11 +535,13 @@ void fetchWeatherData(WeatherTaskParams* params) {
         WiFiClientSecure client;
         client.setInsecure();
         String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
-        String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
+        String speedUnit = currentSettings.useMetricUnits ?
+        "kmh" : "mph";
         String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 4) + 
                      "&longitude=" + String(currentSettings.longitude, 4) + 
                      "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
                      "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max" + 
+                  
                      "&hourly=temperature_2m,weather_code" +
                      "&forecast_days=2" +
                      "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
@@ -543,7 +560,6 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
                         currentWeatherData.humidity = doc["current"]["relative_humidity_2m"];
                         currentWeatherData.weatherCode = doc["current"]["weather_code"];
-                        
                         // Today's daily forecast
                         currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
                         currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
@@ -551,7 +567,6 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         currentWeatherData.sunset = doc["daily"]["sunset"][0];
                         currentWeatherData.precipitationProbability = doc["daily"]["precipitation_probability_max"][0];
                         currentWeatherData.maxWindSpeed = doc["daily"]["wind_speed_10m_max"][0];
-
                         // Tomorrow's forecast
                         currentWeatherData.tomorrowHigh = doc["daily"]["temperature_2m_max"][1];
                         currentWeatherData.tomorrowLow = doc["daily"]["temperature_2m_min"][1];
@@ -684,7 +699,8 @@ void handleWeatherDisplay() {
             static unsigned long lastPageChange = 0;
             char buffer[6];
             if (millis() - lastPageChange > 4000) {
-                weatherPage = (weatherPage + 1) % 4; // Cycle through 4 pages now
+                weatherPage = (weatherPage + 1) % 4;
+                // Cycle through 4 pages now
                 lastPageChange = millis();
             }
             
@@ -737,7 +753,6 @@ void handleWeatherDisplay() {
             }
         }
         xSemaphoreGive(xDisplayDataMutex);
-        
         lastRow.month.writeDisplay();
         lastRow.day.writeDisplay();
         lastRow.year.writeDisplay();
@@ -822,6 +837,7 @@ void fetchDataTask(void* p) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     auto fetch = [&](const char* path) {
                    
+                        
                         return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
                     };
                     if(!point.monthPath.empty()) displayPages[pointIndex].month = fetch(point.monthPath.c_str()).c_str();
@@ -1008,7 +1024,11 @@ void loop() {
 }
 
 void startTimeTravelAnimation() {
-    if (isAnimating) { return; }
+    ESP_LOGI("ANIMATION", "startTimeTravelAnimation() function called.");
+    if (isAnimating) { 
+        ESP_LOGW("ANIMATION", "Animation already in progress. Aborting new request.");
+        return; 
+    }
     isAnimating = true;
     animationStartTime = millis();
     currentPhase = ANIM_FLICKER;
@@ -1035,13 +1055,14 @@ void handleDisplayAnimation() {
                 case ANIMATION_ALL_DISPLAYS_RANDOM:
                 case ANIMATION_COUNTING_UP:
            
+                    
                     animateDisplayRowRandomly(destRow);
                     animateDisplayRowRandomly(presRow);
                     animateDisplayRowRandomly(lastRow);
                     break;
                 case ANIMATION_WAVE_FLICKER:
                      animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
-                     break;
+                    break;
                 case ANIMATION_TORNADO_FLICKER:
                     animateTornadoFlicker();
                     break;

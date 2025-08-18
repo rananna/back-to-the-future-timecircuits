@@ -40,17 +40,16 @@ function initWebSocket() {
                  if (msg.status === 'success') {
                     analyzedDataCache[index] = msg.payload;
                     if (button.classList.contains('analyze-api-btn')) {
-                        document.getElementById(`wizard_results_${index}`).innerHTML = ''; // Clear previous results
+                        console.log(`CLIENT_DEBUG: API analysis for index ${index} successful. Payload:`, msg.payload);
+                        const resultsContainer = document.getElementById(`wizard_results_${index}`);
                         displayApiWizardResults(index, msg.payload);
-                        // Progressive disclosure
-                        document.getElementById(`dp_display_mode_container_${index}`).style.display = 'block';
-                        document.getElementById(`dp_formatting_container_${index}`).style.display = 'block';
                     } else {
                         showMessage(`Data Point ${parseInt(index) + 1} test successful.`, 'success');
                     }
                     updateMarqueePreview(index);
                  } else {
                     const errorMsg = `API Error: ${msg.payload}`;
+                    console.error(`CLIENT_DEBUG: API analysis for index ${index} failed. Error:`, msg.payload);
                     showMessage(errorMsg, 'error');
                     if (button.classList.contains('analyze-api-btn')) {
                         document.getElementById(`wizard_results_${index}`).innerHTML = `<span class="error-text">${errorMsg}</span>`;
@@ -352,7 +351,6 @@ function attachEventListeners() {
         }
     });
 
-    // CRITICAL FIX: Add the oninput listener for the data points slider
     document.getElementById('numDataPoints').addEventListener('input', (e) => {
         document.getElementById('numDataPointsValue').textContent = e.target.value;
         updateDataPointsUI(parseInt(e.target.value, 10));
@@ -765,7 +763,7 @@ function updateDataPointsUI(numPoints) {
                 container.appendChild(block);
             }
             populateApiExampleDropdowns();
-            attachDataPointEventListeners(); // Attach delegated listeners
+            attachDataPointEventListeners();
             for (let i = 0; i < numPoints; i++) {
                 updateMarqueePreview(i);
             }

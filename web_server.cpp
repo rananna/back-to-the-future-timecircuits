@@ -20,6 +20,8 @@ void makeApiRequestTask(void* p) {
     uint32_t clientId = params->clientId;
     delete params; // Clean up the params object immediately
 
+    ESP_LOGI("API_TASK", "Starting API request task for URL: %s", urlStr.c_str());
+
     HTTPClient http;
     WiFiClientSecure client;
     
@@ -36,6 +38,7 @@ void makeApiRequestTask(void* p) {
         responseJson["action"] = "apiResult";
 
         if (httpCode > 0) {
+            ESP_LOGI("API_TASK", "HTTP GET successful, code: %d", httpCode);
             if (httpCode == HTTP_CODE_OK) {
                 String payload = http.getString();
                 DynamicJsonDocument payloadDoc(4096);
@@ -44,6 +47,7 @@ void makeApiRequestTask(void* p) {
                     responseJson["status"] = "success";
                     responseJson["payload"] = payloadDoc.as<JsonVariant>();
                 } else {
+                    ESP_LOGE("API_TASK", "JSON Parsing Failed: %s", error.c_str());
                     responseJson["status"] = "error";
                     responseJson["payload"] = "JSON Parsing Failed: " + String(error.c_str());
                 }
@@ -52,6 +56,7 @@ void makeApiRequestTask(void* p) {
                 responseJson["payload"] = "HTTP Error: " + String(httpCode);
             }
         } else {
+            ESP_LOGE("API_TASK", "Request Failed: %s", http.errorToString(httpCode).c_str());
             responseJson["status"] = "error";
             responseJson["payload"] = "Request Failed: " + http.errorToString(httpCode);
         }
@@ -63,6 +68,7 @@ void makeApiRequestTask(void* p) {
         ESP_LOGE("API_TASK", "Unable to connect to %s", urlStr.c_str());
     }
 
+    ESP_LOGI("API_TASK", "API request task finished.");
     vTaskDelete(NULL); // End the task
 }
 
@@ -81,6 +87,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 
             String action = doc["action"];
             if (action == "testApi") {
+                ESP_LOGI("WebSocket", "Received 'testApi' action from client #%u.", client->id());
                 if (!timeSynchronized) {
                     ESP_LOGE("WebSocket", "Time not sync'd, API call aborted.");
                     String responseString;
@@ -96,6 +103,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String url = doc["data"]["url"];
                 String authKey = doc["data"]["authKey"];
                 String authValue = doc["data"]["authValue"];
+                ESP_LOGI("WebSocket", "URL for test: %s", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id()};
 
@@ -263,7 +271,7 @@ void setupWebRoutes() {
 
   // New JSON handler for saving settings
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    ESP_LOGI("SAVE_SETTINGS", "Received save request. Free heap: %u", ESP.getFreeHeap());
+    ESP_LOGI("SAVE_SETTINGS", "Received /api/saveSettings request. Free heap: %u", ESP.getFreeHeap());
     JsonObject obj = json.as<JsonObject>();
 
     std::string oldMqttBroker = currentSettings.mqttBroker;
@@ -371,7 +379,7 @@ void setupWebRoutes() {
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){
-    ESP_LOGI("ANIMATION", "Animation triggered via API.");
+    ESP_LOGI("ANIMATION", "Animation triggered via API call to /api/triggerAnimation.");
     startTimeTravelAnimation();
     request->send(200, "text/plain", "Animation triggered!");
   });
