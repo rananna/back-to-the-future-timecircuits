@@ -115,7 +115,8 @@ void setupWebRoutes() {
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/index.html", "text/html"); });
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/style.css", "text/css"); });
-  server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/script.js", "application/javascript"); });
+  server.on("/data_handling.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/data_handling.js", "application/javascript"); });
+  server.on("/main_ui.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/main_ui.js", "application/javascript"); });
   server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(200, "text/plain", "READY"); });
   
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
