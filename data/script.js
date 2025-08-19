@@ -47,7 +47,7 @@ function initWebSocket() {
                     } else {
                         showMessage(`Data Point ${parseInt(index) + 1} test successful.`, 'success');
                     }
-                    updateMarqueePreview(index); // This line was missing!
+                    updateMarqueePreview(index);
                  } else {
                     const errorMsg = `API Error: ${msg.payload}`;
                     console.error(`CLIENT_DEBUG: API analysis for index ${index} failed. Error:`, msg.payload);
@@ -878,6 +878,8 @@ function getDisplayValue(path, placeholder, index) {
 
 function updateMarqueePreview(index) {
     const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
+    const prefix = document.getElementById(`dp_prefix_${index}`).value;
+    const suffix = document.getElementById(`dp_suffix_${index}`).value;
 
     document.getElementById(`marquee_preview_${index}`).style.display = (displayMode === '0') ? 'flex' : 'none';
     document.getElementById(`marquee_preview_13_${index}`).style.display = (displayMode === '1') ? 'block' : 'none';
@@ -889,20 +891,11 @@ function updateMarqueePreview(index) {
         const timePath = document.getElementById(`dp_timePath_${index}`).value;
         const icon = document.getElementById(`dp_icon_${index}`).value;
 
-        let monthValue = getDisplayValue(monthPath, 'MON', index);
-        let dayValue = getDisplayValue(dayPath, 'DAY', index);
-        let yearValue = getDisplayValue(yearPath, 'YEAR', index);
-        let timeValue = getDisplayValue(timePath, 'TIME', index);
+        const monthValue = getDisplayValue(monthPath, 'MON', index);
+        const dayValue = getDisplayValue(dayPath, 'DAY', index);
+        const yearValue = getDisplayValue(yearPath, 'YEAR', index);
+        const timeValue = getDisplayValue(timePath, 'TIME', index);
 
-        const prefix = document.getElementById(`dp_prefix_${index}`).value;
-        const suffix = document.getElementById(`dp_suffix_${index}`).value;
-
-        const yearFinalValue = `${prefix}${yearValue}${suffix}`;
-
-        document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = String(monthValue).substring(0, 3).toUpperCase();
-        const dayPreview = document.querySelector(`#marquee_preview_${index} .preview-day`);
-        dayPreview.textContent = icon ? icon : String(dayValue).substring(0, 2).toUpperCase();
-        
         const setupScrolling = (text, valueSpan) => {
             valueSpan.textContent = text;
             valueSpan.style.animation = 'none';
@@ -915,15 +908,16 @@ function updateMarqueePreview(index) {
             }, 50);
         };
         
-        setupScrolling(yearFinalValue, document.querySelector(`#marquee_preview_${index} .preview-year`));
-        setupScrolling(String(timeValue), document.querySelector(`#marquee_preview_${index} .preview-time`));
+        document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = String(monthValue).substring(0, 3).toUpperCase();
+        const dayPreview = document.querySelector(`#marquee_preview_${index} .preview-day`);
+        dayPreview.textContent = icon ? icon : String(dayValue).substring(0, 2).toUpperCase();
+        
+        setupScrolling(`${prefix}${yearValue}${suffix}`, document.querySelector(`#marquee_preview_${index} .preview-year`));
+        setupScrolling(`${prefix}${timeValue}${suffix}`, document.querySelector(`#marquee_preview_${index} .preview-time`));
 
     } else { // Scrolling Text
         const scrollingPath = document.getElementById(`dp_scrollingText_${index}`).value;
         let text = getDisplayValue(scrollingPath, 'PREVIEW', index);
-
-        const prefix = document.getElementById(`dp_prefix_${index}`).value;
-        const suffix = document.getElementById(`dp_suffix_${index}`).value;
         text = `${prefix}${text}${suffix}`;
 
         const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
