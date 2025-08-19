@@ -7,7 +7,7 @@ let analyzedDataCache = {};
 let apiExamples = {}; // This will be populated on load
 
 let dataPointStateCache = {};
-let lastFocusedApiExample = {};
+let lastFocusedApiExample = null;
 let activeWizardTarget = null;
 let dataPointStatus = {};
 
@@ -439,36 +439,32 @@ function attachEventListeners() {
 
     dataPointsContainer.addEventListener('change', (e) => {
         const target = e.target;
+        const index = target.dataset.index;
+        
         if (target.classList.contains('api-example-select')) {
-            const index = target.dataset.index;
             const exampleKey = target.value;
             if (exampleKey && window.apiExamples[exampleKey]) {
                 document.getElementById(`dp_url_${index}`).value = window.apiExamples[exampleKey].url;
-                // Trigger input event for live preview update
                 document.getElementById(`dp_url_${index}`).dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        } else if (target.classList.contains('icon-select')) {
+            const dayInput = document.getElementById(`dp_dayPath_${index}`);
+            dayInput.disabled = !!target.value;
+            if (target.value) {
+                dayInput.value = '';
+                dayInput.dispatchEvent(new Event('input', { bubbles: true })); // Trigger update
             }
         }
     });
 
     dataPointsContainer.addEventListener('input', (e) => {
         const target = e.target;
-        if (target.classList.contains('dp-dayPath-input')) {
+        if (target.matches('input[id^="dp_dayPath_"]')) {
             const index = target.dataset.index;
             document.getElementById(`dp_icon_${index}`).value = ''; // Reset icon when day is typed
         }
     });
 
-    dataPointsContainer.addEventListener('change', (e) => {
-        const target = e.target;
-        if (target.classList.contains('icon-select')) {
-            const index = target.dataset.index;
-            const dayInput = document.getElementById(`dp_dayPath_${index}`);
-            dayInput.disabled = !!target.value;
-            if (target.value) {
-                dayInput.value = '';
-            }
-        }
-    });
 
     // Specific listeners that need more complex logic
     document.getElementById('weatherModeEnabled').addEventListener('change', (e) => handleDataLinkToggle(e.target.id));
