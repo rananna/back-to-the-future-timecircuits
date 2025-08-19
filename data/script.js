@@ -450,6 +450,25 @@ function attachEventListeners() {
         }
     });
 
+    dataPointsContainer.addEventListener('input', (e) => {
+        const target = e.target;
+        if (target.classList.contains('dp-dayPath-input')) {
+            const index = target.dataset.index;
+            document.getElementById(`dp_icon_${index}`).value = ''; // Reset icon when day is typed
+        }
+    });
+
+    dataPointsContainer.addEventListener('change', (e) => {
+        const target = e.target;
+        if (target.classList.contains('icon-select')) {
+            const index = target.dataset.index;
+            const dayInput = document.getElementById(`dp_dayPath_${index}`);
+            dayInput.disabled = !!target.value;
+            if (target.value) {
+                dayInput.value = '';
+            }
+        }
+    });
 
     // Specific listeners that need more complex logic
     document.getElementById('weatherModeEnabled').addEventListener('change', (e) => handleDataLinkToggle(e.target.id));
@@ -884,6 +903,18 @@ function updateMarqueePreview(index) {
     document.getElementById(`marquee_preview_${index}`).style.display = (displayMode === '0') ? 'flex' : 'none';
     document.getElementById(`marquee_preview_13_${index}`).style.display = (displayMode === '1') ? 'block' : 'none';
 
+    const setupScrolling = (text, valueSpan) => {
+        valueSpan.textContent = text;
+        valueSpan.style.animation = 'none';
+        setTimeout(() => {
+            if (valueSpan.offsetWidth > valueSpan.parentElement.offsetWidth) {
+                const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
+                const duration = (text.length + 4) * (scrollSpeed / 1000);
+                valueSpan.style.animation = `scroll-left ${duration}s linear infinite`;
+            }
+        }, 50);
+    };
+
     if (displayMode === '0') {
         const monthPath = document.getElementById(`dp_monthPath_${index}`).value;
         const dayPath = document.getElementById(`dp_dayPath_${index}`).value;
@@ -895,25 +926,17 @@ function updateMarqueePreview(index) {
         const dayValue = getDisplayValue(dayPath, 'DAY', index);
         const yearValue = getDisplayValue(yearPath, 'YEAR', index);
         const timeValue = getDisplayValue(timePath, 'TIME', index);
-
-        const setupScrolling = (text, valueSpan) => {
-            valueSpan.textContent = text;
-            valueSpan.style.animation = 'none';
-            setTimeout(() => {
-                if (valueSpan.offsetWidth > valueSpan.parentElement.offsetWidth) {
-                    const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
-                    const duration = (text.length + 4) * (scrollSpeed / 1000);
-                    valueSpan.style.animation = `scroll-left ${duration}s linear infinite`;
-                }
-            }, 50);
-        };
         
-        document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = String(monthValue).substring(0, 3).toUpperCase();
-        const dayPreview = document.querySelector(`#marquee_preview_${index} .preview-day`);
-        dayPreview.textContent = icon ? icon : String(dayValue).substring(0, 2).toUpperCase();
-        
+        setupScrolling(`${prefix}${monthValue}${suffix}`, document.querySelector(`#marquee_preview_${index} .preview-month`));
         setupScrolling(`${prefix}${yearValue}${suffix}`, document.querySelector(`#marquee_preview_${index} .preview-year`));
         setupScrolling(`${prefix}${timeValue}${suffix}`, document.querySelector(`#marquee_preview_${index} .preview-time`));
+
+        const dayPreview = document.querySelector(`#marquee_preview_${index} .preview-day`);
+        if(icon) {
+            dayPreview.textContent = icon;
+        } else {
+             dayPreview.textContent = String(dayValue).substring(0, 2).toUpperCase();
+        }
 
     } else { // Scrolling Text
         const scrollingPath = document.getElementById(`dp_scrollingText_${index}`).value;
