@@ -1,6 +1,8 @@
 // Forcing a recompile to resolve build cache issues.
 // NOTE: Global state variables are declared in data_handling.js
 
+let animationPreviewInterval = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
     const isReady = await checkServerReady();
     if (isReady) {
@@ -304,6 +306,8 @@ function attachEventListeners() {
             showMessage('Wizard target deselected.', 'info', 2000);
         }
     });
+
+    document.getElementById('previewAnimationBtn').onclick = previewAnimationStyle;
 }
 
 function handlePresetSelectionChange(event) {
@@ -1039,4 +1043,111 @@ function duplicateDataPoint(event) {
         showMessage(`Data Point ${sourceIndex + 1} duplicated to Data Point ${targetIndex + 1}.`, 'success');
         if (!isLoading) setSettingsChanged(true);
     });
+}
+
+function previewAnimationStyle() {
+    const style = document.getElementById('animationStyleSelect').value;
+    const headerRows = [
+        document.querySelectorAll('#header-dest .circuit-content span'),
+        document.querySelectorAll('#header-pres .circuit-content span'),
+        document.querySelectorAll('#header-last .circuit-content span')
+    ];
+    const allElements = document.querySelectorAll('.header-circuits .circuit-content span');
+
+    if (animationPreviewInterval) {
+        clearInterval(animationPreviewInterval);
+        animationPreviewInterval = null;
+    }
+    allElements.forEach(el => {
+        el.className = el.className.split(' ')[0];
+        el.style.opacity = 1;
+        el.style.transform = 'none';
+    });
+    
+    let startTime = Date.now();
+    const duration = 3000;
+    const randomChar = (chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") => chars[Math.floor(Math.random() * chars.length)];
+    const randomString = (length, chars) => Array.from({ length }, () => randomChar(chars)).join('');
+
+    const runPreview = () => {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > duration) {
+            clearInterval(animationPreviewInterval);
+            animationPreviewInterval = null;
+            allElements.forEach(el => {
+                el.className = el.className.split(' ')[0];
+                el.style.opacity = 1;
+                el.style.transform = 'none';
+            });
+            updateHeaderClocks(new Date());
+            return;
+        }
+
+        const progress = elapsed / duration;
+
+        switch (style) {
+            case '0': 
+            case '1': 
+            case '2':
+            case '3': 
+            case '5': // Tornado Flicker is also random
+                 allElements.forEach(el => {
+                    if (Math.random() > 0.1) {
+                        el.textContent = randomString(el.textContent.length);
+                    }
+                });
+                break;
+            case '4': // Wave Flicker is the same as Waveform Collapse in the C++
+            case '8': // Waveform Collapse
+                const wavePatterns = ["-___-", "_--_-", "__-__"];
+                const waveIndex = Math.floor((elapsed / 200) % 3);
+                const scrollOffset = Math.floor((elapsed / 100) % 5);
+                
+                headerRows.forEach((row, rowIndex) => {
+                    let basePattern = wavePatterns[waveIndex];
+                    if (rowIndex === 1) { 
+                        basePattern = basePattern.split('').map(c => (c === '-') ? '_' : '-').join('');
+                    }
+                    let scrolledPattern = basePattern.slice(scrollOffset) + basePattern.slice(0, scrollOffset);
+                    
+                    row.forEach(el => {
+                        el.textContent = scrolledPattern.repeat(Math.ceil(el.textContent.length / 5)).substring(0, el.textContent.length);
+                    });
+                });
+                break;
+            case '6': // Capacitor Charge-Up
+                headerRows.forEach((row, rowIndex) => {
+                    const phaseProgress = progress * 3 - rowIndex;
+                    if (phaseProgress >= 0) {
+                        row.forEach(el => {
+                            const charsToShow = Math.ceil(el.textContent.length * Math.min(phaseProgress, 1));
+                            el.textContent = '#'.repeat(charsToShow).padEnd(el.textContent.length, ' ');
+                        });
+                    } else {
+                        row.forEach(el => el.textContent = ' '.repeat(el.textContent.length));
+                    }
+                });
+                break;
+            case '7': // Digital Rain
+                 allElements.forEach(el => el.textContent = randomString(el.textContent.length));
+                 break;
+            case '9': // Timeline Skim
+                const startYear = 1885;
+                const endYear = parseInt(document.getElementById('destinationYear').value, 10) || 2015;
+                const currentYear = Math.floor(startYear + (endYear - startYear) * (1 - Math.pow(1 - progress, 3))); // Ease-out
+                
+                ['header-dest-year', 'header-pres-year', 'header-last-year'].forEach(id => {
+                    document.getElementById(id).textContent = String(currentYear).padStart(4, '0');
+                });
+                ['header-dest-month', 'header-pres-day', 'header-last-hour', 'header-last-minute'].forEach(id => {
+                     const el = document.getElementById(id);
+                     if (Math.random() > 0.5) {
+                        el.textContent = randomString(el.textContent.length);
+                     }
+                });
+                break;
+        }
+    };
+
+    animationPreviewInterval = setInterval(runPreview, 50);
 }

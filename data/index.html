@@ -164,18 +164,21 @@
                     <input type="range" id="timeTravelAnimationInterval" min="0" max="120">
                 </div>
                 <label for="animationStyleSelect">Animation Style:</label>
-                <select id="animationStyleSelect">
-                    <option value="0">Sequential Flicker</option>
-                    <option value="1">Random Flicker</option>
-                    <option value="2">All Displays Random</option>
-                    <option value="3">Counting Up</option>
-                    <option value="4">Wave Flicker</option>
-                    <option value="5">Tornado Flicker</option>
-                    <option value="6">Capacitor Charge-Up</option>
-                    <option value="7">Digital Rain</option>
-                    <option value="8">Waveform Collapse</option>
-                    <option value="9">Timeline Skim</option>
-                </select>
+                <div class="animation-style-container">
+                    <select id="animationStyleSelect">
+                        <option value="0">Sequential Flicker</option>
+                        <option value="1">Random Flicker</option>
+                        <option value="2">All Displays Random</option>
+                        <option value="3">Counting Up</option>
+                        <option value="4">Wave Flicker</option>
+                        <option value="5">Tornado Flicker</option>
+                        <option value="6">Capacitor Charge-Up</option>
+                        <option value="7">Digital Rain</option>
+                        <option value="8">Waveform Collapse</option>
+                        <option value="9">Timeline Skim</option>
+                    </select>
+                    <button id="previewAnimationBtn" class="action-button">Preview</button>
+                </div>
                 <label for="glitchEffectFrequency">Glitch Instability (%): <span id="glitchEffectFrequencyValue">0</span></label>
                 <div class="slider-container">
                     <input type="range" id="glitchEffectFrequency" min="0" max="100">

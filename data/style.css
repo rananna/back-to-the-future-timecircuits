@@ -1382,3 +1382,53 @@ body.time-travel-active {
     margin-top: 0;
     display: inline-block;
 }
+/* ... (all existing CSS rules) ... */
+
+.hourly-temp {
+    font-size: 1em;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.contextual-save-wrapper {
+    text-align: right;
+    margin-top: 20px;
+}
+
+.contextual-save {
+    width: auto;
+    padding: 8px 15px;
+    font-size: 0.9em;
+    margin-top: 0;
+    display: inline-block;
+}
+
+.animation-style-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.animation-style-container select {
+    flex-grow: 1;
+    margin-bottom: 0;
+}
+
+.animation-style-container .action-button {
+    margin-top: 0;
+    flex-shrink: 0;
+}
+
+/* --- Animation Preview Keyframes --- */
+@keyframes preview-flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+.anim-preview-flicker {
+    animation: preview-flicker 0.2s infinite;
+}
+
+.anim-preview-sequential-flicker {
+    animation: preview-flicker 0.2s infinite;
+}
