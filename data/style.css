@@ -892,6 +892,14 @@ body.time-travel-active {
     border-width: 2px;
     margin-top: 25px;
     padding-top: 15px;
+    transition: max-height 0.5s ease-in-out;
+    overflow: hidden;
+}
+.data-point-block.collapsed > *:not(.dp-header) {
+    display: none;
+}
+.dp-header {
+    cursor: pointer;
 }
 .data-point-block h4 {
     margin-top: 0;
@@ -1325,7 +1333,6 @@ body.time-travel-active {
     margin-bottom: 20px;
     font-size: 0.9em;
 }
-/* ... (all existing CSS rules) ... */
 
 .hourly-forecast-container {
     display: flex;
@@ -1362,10 +1369,16 @@ body.time-travel-active {
     font-weight: bold;
     color: var(--text-color);
 }
-.contextual-save {
+
+.contextual-save-wrapper {
+    text-align: right;
     margin-top: 20px;
-    width: auto; /* Allow it to not be full-width */
+}
+
+.contextual-save {
+    width: auto;
     padding: 8px 15px;
     font-size: 0.9em;
-    float: right; /* Position it nicely */
+    margin-top: 0;
+    display: inline-block;
 }

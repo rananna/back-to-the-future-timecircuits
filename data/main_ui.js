@@ -481,7 +481,7 @@ function updateDataPointsUI(numPoints) {
                     dataPointStateCache[i] = { modifiedUrls: {} };
                 }
                 const block = document.createElement('div');
-                block.className = 'setting-group data-point-block';
+                block.className = 'setting-group data-point-block collapsed'; // Start collapsed
                 block.innerHTML = `
                     <div class="dp-header">
                         <div class="dp-title-group">
@@ -823,6 +823,16 @@ function attachDataPointEventListeners() {
                 activeWizardTarget.classList.add('is-wizard-target');
             }
         });
+    });
+
+    // Accordion Logic
+    document.querySelectorAll('.dp-header').forEach(header => {
+        header.onclick = (e) => {
+            // Don't collapse if a button inside the header was clicked
+            if (e.target.tagName === 'BUTTON') return;
+            const block = header.closest('.data-point-block');
+            block.classList.toggle('collapsed');
+        };
     });
 }
 
