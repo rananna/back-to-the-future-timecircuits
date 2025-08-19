@@ -1,4 +1,3 @@
-// Forcing a recompile to resolve build cache issues.
 #include "esp_log.h"
 #include <WiFi.h>
 #include <WiFiManager.h>
@@ -240,7 +239,6 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
 }
 
 void saveSettings() {
-  ESP_LOGI("SETTINGS", "saveSettings() function called. Writing current settings to NVS.");
   preferences.begin(PREFERENCES_NAMESPACE, false);
   preferences.putInt("destYear", currentSettings.destinationYear);
   preferences.putInt("destTzIndex", currentSettings.destinationTimezoneIndex);
@@ -303,7 +301,6 @@ void saveSettings() {
     preferences.putString((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey.c_str());
   }
   preferences.end();
-  ESP_LOGI("SETTINGS", "NVS write complete. Applying timezone.");
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
 }
@@ -430,30 +427,18 @@ void loadSettings() {
 }
 const char* getIconForWeatherCode(int code) {
     switch (code) {
-        case 0: case 1: return "SU";
-        // Clear, Mainly clear
-        case 2: return "CL";
-        // Partly cloudy
-        case 3: return "CL";
-        // Overcast
-        case 45: case 48: return "CL";
-        // Fog
-        case 51: case 53: case 55: return "RN";
-        // Drizzle
-        case 61: case 63: case 65: return "RN";
-        // Rain
-        case 66: case 67: return "RN";
-        // Freezing Rain
-        case 71: case 73: case 75: return "SN";
-        // Snow
-        case 77: return "SN";
-        // Snow grains
-        case 80: case 81: case 82: return "RN";
-        // Rain showers
-        case 85: case 86: return "SN";
-        // Snow showers
-        case 95: case 96: case 99: return "ST";
-        // Thunderstorm
+        case 0: case 1: return "SU"; // Clear, Mainly clear
+        case 2: return "CL"; // Partly cloudy
+        case 3: return "CL"; // Overcast
+        case 45: case 48: return "CL"; // Fog
+        case 51: case 53: case 55: return "RN"; // Drizzle
+        case 61: case 63: case 65: return "RN"; // Rain
+        case 66: case 67: return "RN"; // Freezing Rain
+        case 71: case 73: case 75: return "SN"; // Snow
+        case 77: return "SN"; // Snow grains
+        case 80: case 81: case 82: return "RN"; // Rain showers
+        case 85: case 86: return "SN"; // Snow showers
+        case 95: case 96: case 99: return "ST"; // Thunderstorm
         default: return "--";
     }
 }
@@ -461,8 +446,7 @@ const char* getIconForWeatherCode(int code) {
 void fetchWeatherData(WeatherTaskParams* params) {
     std::string taskCityName = params->cityName;
     bool forceGeocode = params->forceGeocode;
-    delete params;
-    // Clean up memory
+    delete params; // Clean up memory
 
     if (taskCityName.empty()) {
         ESP_LOGE("Weather", "City name is empty, cannot fetch weather.");
@@ -513,8 +497,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 }
                 http.end();
             }
-            delay(1000);
-            // Wait 1 second before retrying
+            delay(1000); // Wait 1 second before retrying
         }
 
         if (!geocodeSuccess) {
@@ -535,13 +518,11 @@ void fetchWeatherData(WeatherTaskParams* params) {
         WiFiClientSecure client;
         client.setInsecure();
         String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
-        String speedUnit = currentSettings.useMetricUnits ?
-        "kmh" : "mph";
+        String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
         String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 4) + 
                      "&longitude=" + String(currentSettings.longitude, 4) + 
                      "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
                      "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max" + 
-                  
                      "&hourly=temperature_2m,weather_code" +
                      "&forecast_days=2" +
                      "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
@@ -699,8 +680,7 @@ void handleWeatherDisplay() {
             static unsigned long lastPageChange = 0;
             char buffer[6];
             if (millis() - lastPageChange > 4000) {
-                weatherPage = (weatherPage + 1) % 4;
-                // Cycle through 4 pages now
+                weatherPage = (weatherPage + 1) % 4; // Cycle through 4 pages now
                 lastPageChange = millis();
             }
             
@@ -819,8 +799,7 @@ void fetchDataTask(void* p) {
     DataPoint point = currentSettings.dataPoints[pointIndex];
     HTTPClient http;
     WiFiClientSecure client;
-    client.setInsecure();
-    // Bypassing certificate validation
+    client.setInsecure(); // Bypassing certificate validation
 
     if (http.begin(client, point.url.c_str())) {
         if (!point.authHeaderKey.empty() && !point.authHeaderValue.empty()) {
@@ -837,7 +816,6 @@ void fetchDataTask(void* p) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     auto fetch = [&](const char* path) {
                    
-                        
                         return getJsonVariant(doc.as<JsonVariant>(), path).as<String>();
                     };
                     if(!point.monthPath.empty()) displayPages[pointIndex].month = fetch(point.monthPath.c_str()).c_str();
@@ -1024,17 +1002,19 @@ void loop() {
 }
 
 void startTimeTravelAnimation() {
-    ESP_LOGI("ANIMATION", "startTimeTravelAnimation() function called.");
-    if (isAnimating) { 
-        ESP_LOGW("ANIMATION", "Animation already in progress. Aborting new request.");
-        return; 
+    ESP_LOGI("ANIMATION", "startTimeTravelAnimation function called."); // DEBUG
+    if (isAnimating) {
+        ESP_LOGW("ANIMATION", "Animation already in progress. Ignoring request."); // DEBUG
+        return;
     }
     isAnimating = true;
     animationStartTime = millis();
+    ESP_LOGI("ANIMATION", "Animation state set to 'true'. Start time: %lu", animationStartTime); // DEBUG
     currentPhase = ANIM_FLICKER;
     #if ENABLE_HARDWARE
     if (currentSettings.timeTravelSoundToggle) {
         playSound("ACCELERATION");
+        ESP_LOGI("ANIMATION", "ACCELERATION sound played."); // DEBUG
     }
     #endif
 }
@@ -1055,7 +1035,6 @@ void handleDisplayAnimation() {
                 case ANIMATION_ALL_DISPLAYS_RANDOM:
                 case ANIMATION_COUNTING_UP:
            
-                    
                     animateDisplayRowRandomly(destRow);
                     animateDisplayRowRandomly(presRow);
                     animateDisplayRowRandomly(lastRow);
@@ -1130,8 +1109,7 @@ void handleTemporalEcho() {
       flickerDisplayIndex = -1;
       updateNormalClockDisplay(); // Restore the correct time immediately
     }
-    return;
-    // Do nothing else while a flicker is happening
+    return; // Do nothing else while a flicker is happening
   }
 
   // --- State 2: Check if it's time to *maybe* start a new flicker ---
@@ -1176,8 +1154,7 @@ void handleTemporalEcho() {
           sprintf(timeBuffer, "%02d%02d", lastTimeDepartedInfo.tm_hour, lastTimeDepartedInfo.tm_min);
           presRow.time.clear();
           presRow.time.writeDigitAscii(0, timeBuffer[0]);
-          presRow.time.writeDigitAscii(1, timeBuffer[1] | 0x80);
-          // Add decimal point
+          presRow.time.writeDigitAscii(1, timeBuffer[1] | 0x80); // Add decimal point
           presRow.time.writeDigitAscii(2, timeBuffer[2]);
           presRow.time.writeDigitAscii(3, timeBuffer[3]);
           presRow.time.writeDisplay();
