@@ -456,12 +456,18 @@ function attachEventListeners() {
             }
         }
     });
-
+    
+    // This is the new event listener that fixes the bug.
     dataPointsContainer.addEventListener('input', (e) => {
         const target = e.target;
+        const index = target.dataset.index;
+
         if (target.matches('input[id^="dp_dayPath_"]')) {
-            const index = target.dataset.index;
             document.getElementById(`dp_icon_${index}`).value = ''; // Reset icon when day is typed
+        }
+
+        if (index !== undefined) {
+            updateMarqueePreview(index);
         }
     });
 
