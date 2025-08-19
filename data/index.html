@@ -71,6 +71,9 @@
                         <input type="number" id="destinationYear" class="time-circuit-input" min="1000" max="9999" value="1955">
                     </div>
                 </div>
+                <div class="contextual-save-wrapper">
+                    <button class="action-button contextual-save" onclick="saveSettings()">Save Destination</button>
+                </div>
             </div>
             <div class="setting-group" id="lastDepartedSettings">
                 <h3>Last Time Departed & Presets</h3>
@@ -114,6 +117,9 @@
                 <label for="presetCycleInterval">Cycle Presets Every (min, 0=Off): <span id="presetCycleIntervalValue">10</span></label>
                 <div class="slider-container">
                     <input type="range" id="presetCycleInterval" min="0" max="60">
+                </div>
+                <div class="contextual-save-wrapper">
+                    <button class="action-button contextual-save" onclick="saveSettings()">Save Presets & Cycle</button>
                 </div>
             </div>
         </div>
@@ -196,6 +202,9 @@
                     <input type="checkbox" id="timeTravelVolumeFade">
                     <span class="slider round"></span>
                 </label>
+            </div>
+            <div class="contextual-save-wrapper">
+                <button class="action-button contextual-save" onclick="saveSettings()">Save Temporal Settings</button>
             </div>
         </div>
         <div id="DataLink" class="tab-content">
@@ -283,6 +292,9 @@
                     </div>
                 </div>
             </div>
+            <div class="contextual-save-wrapper">
+                <button class="action-button contextual-save" onclick="saveSettings()">Save Data Link Settings</button>
+            </div>
         </div>
         <div id="System" class="tab-content">
             <div class="setting-group" id="presentTimeSettings">
@@ -291,6 +303,9 @@
                 <label for="presentTimezoneSelect">Time Zone:</label>
                 <select id="presentTimezoneSelect"></select>
                 <button id="syncNtpBtn">Calibrate Present Time</button>
+                <div class="contextual-save-wrapper">
+                    <button class="action-button contextual-save" onclick="saveSettings()">Save Time Settings</button>
+                </div>
             </div>
             <div class="setting-group">
                 <h3>UI Theme</h3>

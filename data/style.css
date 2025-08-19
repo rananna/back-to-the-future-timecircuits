@@ -1362,3 +1362,10 @@ body.time-travel-active {
     font-weight: bold;
     color: var(--text-color);
 }
+.contextual-save {
+    margin-top: 20px;
+    width: auto; /* Allow it to not be full-width */
+    padding: 8px 15px;
+    font-size: 0.9em;
+    float: right; /* Position it nicely */
+}
