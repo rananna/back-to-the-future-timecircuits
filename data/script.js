@@ -815,7 +815,7 @@ function updateDataPointsUI(numPoints) {
                             </div>
                             <div class="time-circuit-row">
                                 <label for="dp_dayPath_${i}" class="time-circuit-label">DAY</label>
-                                <input type="text" id="dp_dayPath_${i}" class="time-circuit-input wizard-target-input" maxlength="2" data-index="${i}">
+                                <input type="text" id="dp_dayPath_${i}" class="time-circuit-input wizard-target-input dp-dayPath-input" maxlength="2" data-index="${i}">
                                 <select id="dp_icon_${i}" class="icon-select" data-index="${i}" style="width: 100px; margin-left: 10px;">
                                     <option value="">No Icon</option>
                                     <option value="SU">Sun</option> <option value="CL">Cloud</option> <option value="RN">Rain</option>
