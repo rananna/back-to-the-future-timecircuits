@@ -21,15 +21,16 @@
 3.  [📸 Gallery](#-gallery)
 4.  [🛠️ Bill of Materials (BOM)](#️-bill-of-materials-bom)
 5.  [🔌 Wiring & Schematics](#-wiring--schematics)
-6.  [🚀 Installation & Setup](#-installation--setup)
-7.  [💡 Configuration & Usage](#-configuration--usage)
+6.  [🔩 3D Printed Case & Assembly](#-3d-printed-case--assembly)
+7.  [🚀 Installation & Setup](#-installation--setup)
+8.  [💡 Configuration & Usage](#-configuration--usage)
     * [Adding Real-Time Data with the API Wizard (Example)](#-adding-real-time-data-with-the-api-wizard-example)
     * [Using the MQTT Data Link](#-using-the-mqtt-data-link)
     * [20 API Ideas for the Time Circuits Display](#-20-api-ideas-for-the-time-circuits-display)
-8.  [🔬 Technical Deep Dive](#-technical-deep-dive)
-9.  [❓ Troubleshooting](#-troubleshooting)
-10. [🤝 Contributing](#-contributing)
-11. [📜 License](#-license)
+9.  [🔬 Technical Deep Dive](#-technical-deep-dive)
+10. [❓ Troubleshooting](#-troubleshooting)
+11. [🤝 Contributing](#-contributing)
+12. [📜 License](#-license)
 
 ---
 
@@ -108,7 +109,7 @@ Here are a few shots of the completed Time Circuits display.
 
 | Category          | Component                                                                  | Qty | Notes                                                                   |
 | :---------------- | :------------------------------------------------------------------------- | :-: | :---------------------------------------------------------------------- |
-| **Microcontroller** | [ESP32 Dev Module](https://www.aliexpress.com/item/1005006212080137.html)     |  1  | A standard 30-pin or 38-pin module will work.                           |
+| **Microcontroller** | [ESP32 Dev Module](https://www.aliexpress.com/item/1005006212080137.html)     |  1  | A **38-pin** module is required for this project.                           |
 | **Audio** | [DFPlayer Mini MP3 Module](https://www.aliexpress.com/item/1005008228039985.html) |  1  | For playing sound effects.                                              |
 |                   | [MicroSD Card (≤32GB)](https://www.aliexpress.com/item/1005008978876553.html)  |  1  | Must be formatted as FAT32.                                             |
 |                   | [Small 8 Ohm Speaker](https://www.aliexpress.com/item/1005006682079525.html)      |  1  | A 0.5W or 1W speaker is sufficient.                                     |
@@ -125,11 +126,19 @@ Here are a few shots of the completed Time Circuits display.
 ![schematic diagram](images/bttf_bb.png)
 This project uses two separate I2C buses to manage all 12 displays without address conflicts. Follow the steps and tables below carefully.
 
-#### Wiring Best Practices
-* **Use a Breadboard**: For initial setup, a breadboard is highly recommended to easily connect and test components.
-* **Color-Coded Wires**: Using standard wire colors (e.g., **Red** for 5V, **Black** for GND, **Yellow** for SDA, **Green** for SCL) will make wiring and troubleshooting much easier.
-* **Common Ground Rail**: It is crucial that all components share a common ground. Connect all GND pins to the same ground rail on your breadboard or a common wire.
-* **Power Note**: A stable 5V power supply rated for **at least 2A** is highly recommended. Underpowering the device, especially from a standard computer USB port, is a common cause of instability, such as flickering displays or random resets, particularly when all 12 displays are at full brightness.
+#### Soldering Instructions
+For a permanent and reliable build, soldering is recommended over using a breadboard. Follow this general order of operations:
+
+1.  **Prepare the LEDs**:
+    * Solder a **220Ω resistor** to the **anode** (the longer leg) of each of the 6 LEDs (red, green, and yellow).
+    * Solder a wire to the other end of the resistor and another wire to the **cathode** (the shorter leg) of the LED.
+    * Use **heat-shrink tubing** to insulate all exposed connections to prevent shorts.
+    * It's best to install these prepared LEDs into the 3D printed case first, as they can be difficult to access later.
+
+2.  **Prepare the Displays & I2C Buses**:
+    * Solder header pins to all 12 alphanumeric display modules.
+    * **I2C Bus 1 (Parallel Bus):** This bus is shared by the **Destination** and **Present** time rows (8 displays total). Create a parallel wiring harness by making common lines for 5V, GND, SDA (GPIO 21), and SCL (GPIO 22) that connect to all 8 of these displays.
+    * **I2C Bus 2 (Standalone Bus):** This bus is dedicated to the **Last Time Departed** row (4 displays). Wire 5V, GND, SDA (GPIO 25), and SCL (GPIO 26) to these 4 displays.
 
 #### Component Wiring Table
 
@@ -157,6 +166,20 @@ This project uses two separate I2C buses to manage all 12 displays without addre
     * **Present Row**: `0x74` (Month), `0x75` (Day), `0x76` (Year), `0x77` (Time)
 * **I2C Bus 2** (`SDA: 25`, `SCL: 26`):
     * **Last Time Departed Row**: `0x70` (Month), `0x71` (Day), `0x72` (Year), `0x73` (Time)
+
+---
+## 🔩 3D Printed Case & Assembly
+
+To give your project a professional and screen-accurate finish, a 3D printed enclosure is highly recommended. The case not only protects the electronics but also correctly positions the displays and LEDs for the authentic Time Circuits look.
+
+You can download the STL files required for printing the case from the link below. The model is well-designed and has been used successfully by many builders in the community.
+
+**➡️ [Download 3D Print Files from Printables.com](https://www.printables.com/model/207536-back-to-the-future-time-circuits-display)**
+
+**Printing & Assembly Tips:**
+* **Filament**: PLA or PETG are suitable for all parts.
+* **Resolution**: A layer height of 0.2mm provides a good balance between speed and quality.
+* **Assembly Order**: It is highly recommended to install the LEDs into the case *first*, as they are difficult to access once the display modules are in place.
 
 ---
 ## 🚀 Installation & Setup
