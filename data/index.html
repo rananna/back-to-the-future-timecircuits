@@ -59,7 +59,6 @@
             <button class="tab-link" onclick="openTab(event, 'DisplaySound')" data-tab="DisplaySound">Temporal Controls</button>
             <button class="tab-link" onclick="openTab(event, 'DataLink')" data-tab="DataLink">Data Link</button>
             <button class="tab-link" onclick="openTab(event, 'System')" data-tab="System">Network & System</button>
-            <!-- NEW: Help Tab Button -->
             <button class="tab-link" onclick="openTab(event, 'Help')" data-tab="Help">Help</button>
         </div>
         <div id="TimeCircuits" class="tab-content" style="display: block;">
@@ -296,6 +295,7 @@
                     </div>
                     <div class="setting-group">
                         <h3>Data Points</h3>
+                         <button id="testAllDataPointsBtn" class="action-button" style="margin-bottom: 20px;">Test All Data Points</button>
                          <label for="numDataPoints">Number of Data Points: <span id="numDataPointsValue">1</span></label>
                          <div class="slider-container">
                              <input type="range" id="numDataPoints" min="0" max="5" value="1">
@@ -317,6 +317,23 @@
                 <button id="syncNtpBtn">Calibrate Present Time</button>
                 <div class="contextual-save-wrapper">
                     <button class="action-button contextual-save" onclick="saveSettings()">Save Time Settings</button>
+                </div>
+            </div>
+            <div class="setting-group">
+                <h3>System Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Free Memory</span>
+                        <span id="freeMemory" class="status-value">--</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Wi-Fi Signal</span>
+                        <span id="wifiSignal" class="status-value">--</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Device Uptime</span>
+                        <span id="deviceUptime" class="status-value">--</span>
+                    </div>
                 </div>
             </div>
             <div class="setting-group">
@@ -354,7 +371,6 @@
                 <button id="resetDefaultsBtn" class="reset-button">Reset All Settings to Default</button>
             </div>
         </div>
-        <!-- NEW: Help Tab Content -->
         <div id="Help" class="tab-content">
             <div class="setting-group">
                 <h3>Project Documentation</h3>

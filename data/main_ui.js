@@ -41,6 +41,8 @@ async function initializeUI() {
         setInterval(fetchTime, 1000);
         fetchWeatherData();
         weatherInterval = setInterval(fetchWeatherData, 300000);
+        fetchSystemStatus();
+        setInterval(fetchSystemStatus, 5000);
         attachEventListeners();
         showMessage('System Online', 'success');
 
@@ -218,6 +220,7 @@ function attachEventListeners() {
     document.getElementById('deletePresetBtn').onclick = deletePreset;
     document.getElementById('newPresetBtn').onclick = resetPresetForm;
     document.getElementById('refreshWeatherBtn').onclick = refreshWeatherData;
+    document.getElementById('testAllDataPointsBtn').onclick = testAllDataPoints;
 
     document.getElementById('displayFormat24h').addEventListener('change', () => {
         const year = document.getElementById('lastTimeDepartedYear').textContent;
@@ -1149,4 +1152,51 @@ function previewAnimationStyle() {
     };
 
     animationPreviewInterval = setInterval(runPreview, 250);
+}
+
+function testAllDataPoints() {
+    const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
+    if (numDataPoints === 0) {
+        showMessage('No data points to test.', 'info');
+        return;
+    }
+
+    showMessage(`Starting test for ${numDataPoints} data point(s)...`, 'info');
+
+    for (let i = 0; i < numDataPoints; i++) {
+        const testButton = document.querySelector(`.dp-test-btn[data-index="${i}"]`);
+        if (testButton) {
+            // Create a synthetic event object to pass to the testDataPoint function
+            const syntheticEvent = {
+                target: testButton
+            };
+            testDataPoint(syntheticEvent);
+        }
+    }
+}
+
+function fetchSystemStatus() {
+    fetch('/api/system/status')
+        .then(res => {
+            if (res.ok) {
+                return res.json();
+            }
+            return Promise.reject('Failed to fetch system status');
+        })
+        .then(data => {
+            document.getElementById('freeMemory').textContent = `${(data.freeHeap / 1024).toFixed(1)} KB`;
+            document.getElementById('wifiSignal').textContent = `${data.rssi} dBm`;
+            
+            const uptime = data.uptime;
+            const days = Math.floor(uptime / 86400);
+            const hours = Math.floor((uptime % 86400) / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            document.getElementById('deviceUptime').textContent = `${days}d ${hours}h ${minutes}m`;
+        })
+        .catch(err => {
+            console.warn("CLIENT_DEBUG: Could not fetch system status:", err);
+            document.getElementById('freeMemory').textContent = 'Error';
+            document.getElementById('wifiSignal').textContent = 'Error';
+            document.getElementById('deviceUptime').textContent = 'Error';
+        });
 }

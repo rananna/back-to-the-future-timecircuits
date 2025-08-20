@@ -5,6 +5,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <string>
+#include <WiFi.h> // <--- FIX: Added this line to include the WiFi library
 
 AsyncWebSocket ws("/ws");
 
@@ -480,6 +481,16 @@ void setupWebRoutes() {
     currentSettings.theme = themeEnum;
 
     request->send(200, "text/plain", "Theme saved.");
+  });
+  
+  server.on("/api/system/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+    StaticJsonDocument<256> doc;
+    doc["freeHeap"] = ESP.getFreeHeap();
+    doc["rssi"] = WiFi.RSSI();
+    doc["uptime"] = millis() / 1000;
+    String jsonString;
+    serializeJson(doc, jsonString);
+    request->send(200, "application/json", jsonString);
   });
   
   server.onNotFound([](AsyncWebServerRequest *request){
