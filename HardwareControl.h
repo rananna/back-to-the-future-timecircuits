@@ -26,6 +26,27 @@
 #define ENABLE_HARDWARE 0 // Set to 1 to enable hardware, 0 to disable
 
 // --- ENUMS & DATA STRUCTURES ---
+
+// Moved from .ino file
+struct MarqueeData {
+  std::string month;
+  std::string day;
+  std::string year;
+  std::string time;
+};
+
+// Moved from .ino file
+enum AnimationPhase { ANIM_INACTIVE, ANIM_FLICKER, ANIM_COMPLETE };
+enum BootSequenceState { BOOT_INACTIVE, BOOT_START, BOOT_88MPH, BOOT_RECALIBRATING, BOOT_CAPACITOR, BOOT_COMPLETE };
+enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
+enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
+
+// Moved from web_server.h to be globally accessible
+struct FetchDataParams {
+    int pointIndex;
+    int totalRequests;
+};
+
 enum Theme {
   THEME_TIME_CIRCUITS, THEME_OUTATIME, THEME_88MPH,
   THEME_PLUTONIUM_GLOW, THEME_MR_FUSION, THEME_CLOCK_TOWER
