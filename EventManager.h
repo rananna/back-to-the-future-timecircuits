@@ -3,7 +3,7 @@
 
 #include <ArduinoJson.h>
 #include <string>
-#include <PubSubClient.h> // <-- FIX IS HERE
+#include <PubSubClient.h>
 #include "HardwareControl.h"
 
 // --- EXTERN DECLARATIONS for global variables in the main .ino file ---
@@ -41,6 +41,9 @@ extern MalfunctionPhase currentMalfunctionPhase;
 extern volatile int requestsCompleted;
 extern PubSubClient mqttClient;
 extern bool timeSynchronized;
+
+// ADDED: Extern declaration for the Time Zone data array to make it visible to this file.
+extern const TimeZoneEntry TZ_DATA[];
 
 // --- FUNCTION DECLARATIONS ---
 

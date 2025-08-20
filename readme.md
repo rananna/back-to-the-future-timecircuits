@@ -25,9 +25,8 @@
 7.  [💡 Configuration & Usage](#-configuration--usage)
     * [Adding Real-Time Data with the API Wizard (Example)](#-adding-real-time-data-with-the-api-wizard-example)
     * [Using the MQTT Data Link](#-using-the-mqtt-data-link)
-    * [New! Scrolling Text Display Mode](#-new-scrolling-text-display-mode)
     * [20 API Ideas for the Time Circuits Display](#-20-api-ideas-for-the-time-circuits-display)
-8.  [🔬 Theory of Operation](#-theory-of-operation)
+8.  [🔬 Technical Deep Dive](#-technical-deep-dive)
 9.  [❓ Troubleshooting](#-troubleshooting)
 10. [🤝 Contributing](#-contributing)
 11. [📜 License](#-license)
@@ -42,8 +41,8 @@ A picture is worth a thousand words, but a video is worth a million! Check out t
 
 *This demonstration showcases:*
 * The cinematic boot-up sequence with authentic sound effects.
-* The full time travel animation, complete with flickering displays.
-* A walkthrough of the mobile-friendly web interface, showing how to change the destination year, select themes, and trigger a time jump.
+* The full, multi-phase time travel animation, complete with an 88 MPH acceleration sequence and temporal displacement effects.
+* A walkthrough of the mobile-friendly web interface, showing how to change settings, select themes, and trigger a time jump.
 
 ---
 
@@ -59,29 +58,39 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 #### **Core Functionality**
 * **Three-Row BTTF Display**: Three full rows of displays for Destination Time, Present Time, and Last Time Departed.
 * **Accurate & Automatic Time**:
-    * **NTP Synchronization**: Automatically fetches the current time from a pool of NTP servers (`pool.ntp.org`, `time.google.com`, `time.nist.gov`) to ensure the "Present Time" is always perfectly accurate.
+    * **NTP Synchronization**: Automatically fetches the current time from a pool of NTP servers to ensure the "Present Time" is always perfectly accurate.
     * **Full Time Zone Support**: Includes a comprehensive list of world time zones with automatic Daylight Saving Time adjustments. Both "Present Time" and "Destination Time" can be set to different time zones.
-* **Audio-Visual Experience**:
-    * **Dynamic Sound Effects**: An integrated DFPlayer Mini MP3 module plays iconic movie sounds for events like time travel, button confirmations, and power-ups. The system dynamically scans the SD card for sound files, which must be named correctly (e.g., `TIME_TRAVEL.mp3`, `ACCELERATION.mp3`).
-    * **Physical Time Travel Animations**: Trigger a physical animation on the hardware where all displays flicker with random dates and times before settling on the new present time.
-    * **Multiple Animation Styles**: Choose from several animation styles via the web UI, including "Sequential Flicker," "Random Flicker," "All Displays Random," "Counting Up," and "Wave Flicker".
-    * **Random Glitch & Malfunction Effects**: A configurable "instability" setting allows for random, intermittent display glitches for an authentic feel. There's also a separately configurable chance for a more dramatic **"malfunction" sequence**, where displays go haywire, show an error message like "TIME CIRCUIT OVERLOAD," and simulate a full reboot.
-    * **Cinematic Boot Sequence**: A non-blocking startup sequence plays on the displays, showing messages like "88 MPH," "RECALIBRATING," and "CAPACITOR FULL".
 
-#### **Advanced Web Interface & Data Link**
-* **Live, Interactive Header**: The UI header is a screen-accurate, real-time replica of the physical display that doubles as the primary control surface. Clicking on the **Destination, Present, or Last Time Departed** rows will instantly and smoothly navigate you to the corresponding settings section, creating an immersive and intuitive "what you see is what you edit" experience.
-* **Robust Non-Blocking Data Link**: The most advanced feature is a fully configurable "Data Link" marquee that uses the standard ESP32 libraries to make **non-blocking HTTPS requests**. Each request runs in its own dedicated task, ensuring that slow API servers will never freeze or stutter the clock's animations.
-* **MQTT Integration**: In addition to polling web APIs, data points can be configured to subscribe to an **MQTT broker**. This allows for efficient, real-time data pushes from smart home devices, sensors, or other services on your local network.
-* **Custom Icons**: The marquee can display custom icons (e.g., SUN, CLOUD, WIFI, BTC) on the 14-segment displays alongside the data.
-* **Customizable Display**: For each data point, you can customize the API URL, JSON path, display label, format, icon, and scroll speed. You can also switch between the standard "Four Column" data display and a new "Scrolling Text" mode for longer messages.
+#### **Authentic Audio-Visual Experience**
+* **Dynamic Sound Effects**: An integrated DFPlayer Mini MP3 module plays iconic movie sounds for events like time travel, button confirmations, and power-ups.
+* **Multi-Phase Time Travel Animation**: A screen-accurate, multi-stage animation sequence brings time travel to life:
+    1.  **Acceleration to 88 MPH**: The bottom display transforms into a speedometer, showing the speed climbing from 0 to 88 MPH while the other displays flicker as they attempt to lock on.
+    2.  **White Flash Climax**: At the moment 88 MPH is reached, all displays flash brilliantly white.
+    3.  **Temporal Displacement**: The displays flicker with chaotic, random values.
+    4.  **Time Blur**: All three rows rapidly cycle through years, months, and days, creating the illusion of time blurring past.
+    5.  **Arrival Echo**: A final jolt and flicker where the "Present Time" briefly shows the "Destination Time" before settling.
+* **Iconic Date Override**: For maximum authenticity, the entire animation sequence temporarily uses the iconic dates from Marty's first time jump (departing Oct 26, 1985, arriving Nov 05, 1955). The clock's real time is restored upon completion.
+* **Random Glitch & Malfunction Effects**: A configurable "instability" setting allows for random, intermittent display glitches. There's also a separately configurable chance for a more dramatic **"malfunction" sequence**, where displays go haywire, show an error message like "TIME CIRCUIT OVERLOAD," and simulate a full reboot.
+* **Cinematic Boot Sequence**: A non-blocking startup sequence plays on the displays, showing messages like "88 MPH," "RECALIBRATING," and "CAPACITOR FULL".
+
+#### **Advanced Web Interface & Connectivity**
+* **Live, Interactive Header**: The UI header is a screen-accurate, real-time replica of the physical display. Clicking on any row instantly navigates you to the corresponding settings section.
 * **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal named **BTTF-Clock-Setup** for easy initial network setup.
-* **Customizable UI Themes**: Change the color scheme of the web interface to one of several included themes, such as "OUTATIME," "Plutonium Glow," "88 MPH," "Mr. Fusion," or "Clock Tower".
+
+#### **Dynamic Bottom Display Modes**
+The bottom "Last Time Departed" row can be reconfigured to display live, real-time data from the internet. Choose from one of three modes:
+* **1. Last Time Departed (Classic Mode)**: The default screen-accurate display showing the time of the last "time jump".
+* **2. Live Weather Display**: Transforms the bottom row into a multi-page weather station. It automatically fetches data for a configured city and cycles through pages showing current conditions, temperature, wind speed, and more.
+* **3. Data Link Marquee**: A fully configurable marquee for displaying data from any JSON-based web API or MQTT topic.
+    * **Non-Blocking Requests**: Each API request runs in its own dedicated task, ensuring that slow servers will never freeze or stutter the clock's animations.
+    * **MQTT Integration**: Subscribe to an MQTT broker for efficient, real-time data pushes from smart home devices or sensors.
+    * **API Wizard**: An easy-to-use tool in the web UI that fetches data from a URL and lets you visually map JSON values to the displays without writing any code.
+    * **Scrolling Text Mode**: Configure any data point to scroll long text strings across the entire 13-character width of the display row.
 
 #### **Customization & Convenience**
-* **Live Wind Speedometer Mode**: Switch the "Last Time Departed" row into a real-time speedometer that shows the current wind speed for your geographic location, fetched from the Open-Meteo API.
-* **Preset Time Jumps**: The web UI comes pre-loaded with famous dates from the movies. You can also **add, update, and delete** your own custom date presets, which are saved on the device's flash memory.
+* **Preset Time Jumps**: The web UI comes pre-loaded with famous dates from the movies. You can also **add, update, and delete** your own custom date presets, which are saved to the device's flash memory.
+* **UI Themes**: Change the color scheme of the web interface to one of several included themes, such as "OUTATIME," "Plutonium Glow," "88 MPH," "Mr. Fusion," or "Clock Tower".
 * **Power Saving "Sleep" Mode**: Displays can be configured to automatically turn off and on at user-defined "departure" and "arrival" times to save energy.
-* **Over-the-Air (OTA) Updates**: Update the firmware wirelessly over your WiFi network using the Arduino IDE, no physical connection required after the initial flash.
 
 ---
 ## 📸 Gallery
@@ -178,14 +187,6 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 4.  **Configure I2C Display Addresses**:
     * **This is a critical step!** Each of the 12 display modules must have a unique address on its I2C bus. You must solder the address selection jumpers on the back of each board. Refer to the [Adafruit tutorial](https://learn.adafruit.com/adafruit-led-backpack/changing-i2c-address) for instructions on how to do this.
 
-    You can change the address of a backpack very easily. Look on the back to find the two or three `A0`, `A1` or `A2` solder jumpers. Each one of these is used to hardcode in the address. If a jumper is shorted with solder, that sets the address. `A0` sets the lowest bit with a value of `1`, `A1` sets the middle bit with a value of `2` and `A2` sets the high bit with a value of `4`. The final address is `0x70 + A2 + A1 + A0`. So for example if `A2` is shorted and `A0` is shorted, the address is `0x70 + 4 + 1 = 0x75`. If only A1 is shorted, the address is `0x70 + 2 = 0x72`.
-
-    #### **Soldering Instructions**
-
-    Use the table below to configure the addresses for your displays. You will need to set addresses for two separate groups: one for I2C Bus 1 and one for I2C Bus 2.
-
-    * **To bridge a jumper**: Use a soldering iron to apply a small amount of solder to connect the two pads. The connection should be a clean, solid bridge.
-
     #### **Project-Specific Jumper Connections**
     This table outlines the exact solder jumper settings you'll need for each of the 12 display modules on both I2C buses to ensure they all have the correct, unique addresses required by the project code.
 
@@ -208,7 +209,7 @@ This project uses two separate I2C buses to manage all 12 displays without addre
     * To get the web interface onto the ESP32, you need to upload the contents of the `data` folder to its flash memory. The easiest way to do this is with the **Arduino ESP32 filesystem uploader** tool.
     * **Installation**: Follow the installation instructions at the official repository: [ESP32 FS Plugin](https://github.com/earlephilhower/arduino-littlefs-upload).
     * **Usage**:
-        1.  Ensure your `index.html`, `style.css`, and `script.js` files are inside a `data` folder in your main sketch directory.
+        1.  Ensure your `index.html`, `style.css`, and script files are inside a `data` folder in your main sketch directory.
         2.  In the Arduino IDE, select `Tools` -> `ESP32 Sketch Data Upload`.
         3.  This will flash the web files to the ESP32's LittleFS filesystem.
 
@@ -220,7 +221,7 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 | :--- | :--- |
 | `TIME_TRAVEL.mp3` | The main time travel animation. |
 | `ACCELERATION.mp3`| The "speeding up to 88mph" part of the animation. |
-| `WARP_WHOOSH.mp3` | The moment the time jump occurs. |
+| `FLUX_CAPACITOR_CHARGE.mp3` | The initial "power up" phase of the animation. |
 | `ARRIVAL_THUD.mp3`| Sound played upon completion of the time travel sequence. |
 | `CONFIRM_ON.mp3` | Saving settings, waking from sleep, other confirmations. |
 | `SLEEP_ON.mp3` | Entering sleep mode. |
@@ -242,13 +243,13 @@ This project uses two separate I2C buses to manage all 12 displays without addre
     * Select your home WiFi network, enter the password, and save. The device will then connect to your network and restart.
 
 2.  **Accessing the Web Interface**:
-    * Once connected, the device will be accessible at `http://timecircuits.local/` from any device on the same network.
-    * Use the tabs—**Time Circuits**, **Temporal Controls**, **Data Link**, and **Network & System**—to configure all aspects of the clock.
+    * Once connected, find the device's IP address by checking your router's client list or by monitoring the Serial Monitor output in the Arduino IDE when the device boots.
+    * You can then access the web UI by entering that IP address directly into your browser.
 
 3.  **Key Settings to Configure**:
     * **Time Circuits Tab**: Set your destination year, select a "Famous Time Jump," and add, update, or delete your own custom presets.
     * **Temporal Controls Tab**: Adjust display brightness, sound volume, animation styles, and the frequency of the random glitch and malfunction effects.
-    * **Data Link Tab**: Enable and configure the marquee feature. Select a target display row, refresh interval, and set up individual API data points.
+    * **Data Link Tab**: Enable and configure the Live Weather Display or the Data Link Marquee. Set up your city for weather or configure individual API/MQTT data points.
     * **Network & System Tab**: Set your present time zone, sync with NTP servers, change the UI theme, and reset all settings to default.
 
 4.  **Engage Time Circuits!**:
@@ -256,119 +257,36 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 
 ### 💡 Adding Real-Time Data with the API Wizard (Example)
 
-The "Data Link" feature is one of the most powerful aspects of this project, allowing you to display real-time data from almost any online API directly on your time circuits. The **API Wizard** makes this process incredibly simple, even if you have no technical knowledge of APIs or JSON. The live preview will update instantaneously as you type, showing you exactly how the final output will look.
+The "Data Link" feature is one of the most powerful aspects of this project, allowing you to display real-time data from almost any online API directly on your time circuits. The **API Wizard** makes this process incredibly simple.
 
 ---
 
-#### **Example: Displaying the Current Temperature with a Custom Prefix and Suffix**
+#### **Example: Displaying a Stock Price**
 
-Let's walk through setting up a data point to show the current temperature for New York City, formatted as "**TEMP | : 18.3°C**".
+Let's set up a data point to show the current price for Apple (AAPL), formatted as "**APL | $ 175.43**".
 
-#### **Step 1: Navigate to the "Data Link" Tab**
-
-* In the web interface, click on the **Data Link** tab.
-* Make sure the **"Enable Data Link Marquee"** toggle switch is turned on.
-
-#### **Step 2: Choose an Example or Enter a URL**
-
-* In the "API Data Points" section, find an available data point (e.g., "Data Point 1").
-* You can use a pre-filled example. From the **"API Examples"** dropdown, select **"Weather: Temperature"**. The URL for the Open-Meteo API will be filled in for you.
-    * *Note: You can easily change the `latitude` and `longitude` values in the URL to get the weather for your own location!*
-
-#### **Step 3: Analyze the API Data**
-
-* Click the **"Analyze API"** button next to the URL field.
-* The clock will connect to the URL and fetch the data. A new section will appear below the button, showing you the structure of the data it found. For the weather example, it will look something like this:
-
-    ```
-    Click the data point you want to display:
-    • current_weather:
-        • temperature: "18.3"
-        • windspeed: "10.2"
-        • weathercode: "3"
-    ```
-
-#### **Step 4: Select Your Value and Reveal Final Details**
-
-* You don't need to understand what a "JSON Path" is. Simply **click on the `temperature: "18.3"` item** in the list.
-* Once you click it, two things happen:
-    1.  The wizard confirms your selection: **`Selected: current_weather.temperature`**.
-    2.  A new form section with the final details appears, which was previously hidden. This is where you can set the prefix and suffix.
-
-#### **Step 5: Set the Prefix, Suffix, and Format**
-
-Now you can customize how the data is displayed. As you type in the prefix and suffix fields, the **live preview** will update in real-time.
-
-* **Label (3 chars)**: The wizard will suggest a label like `TEMP`. This is the short, static text that appears first on the display row.
-* **Prefix**: This is text that comes *before* the value. Since we want a space after the colon, enter a **Prefix** of **`: `** (a colon followed by a space).
-* **Suffix**: This is text that comes *after* the value. For our example, enter a **Suffix** of **`°C`**.
-* **Format**: This string controls the final output. The default is `%L | %P%V%S`, which means:
-    * `%L` = Label
-    * `|` = Separator for scrolling text
-    * `%P` = Prefix
-    * `%V` = Value (the data you selected)
-    * `%S` = Suffix
-
-    For our example, the default format is perfect. The live preview will now show "**TEMP**" in the static part and "**: 18.3°C**" in the scrolling part.
-
-#### **Step 6: Engage Time Circuits!**
-
-* Click the main **"Engage Time Circuits (Save All Settings)"** button at the bottom of the page.
-* A time travel animation will play on your physical display, and your settings will be saved.
-
-Your clock's Data Link marquee will now periodically fetch the live temperature and display it with your custom formatting!
+1.  **Navigate to the "Data Link" Tab** and enable the **"Data Link Marquee"**.
+2.  **Choose an Example**: In "Data Point 1", select **"Stock: Apple Price"** from the "API Examples" dropdown. The URL will be filled in for you. *Note: This API requires a free key from alphavantage.co, which you can add to the URL.*
+3.  **Analyze the API**: Click **"Analyze API"**. The wizard will fetch the data and show you its structure.
+4.  **Map the Value**: In the results, find the line for the price (e.g., `05. price: "175.43"`) and click on it.
+5.  **Set Prefix/Suffix**:
+    * **Label**: The wizard will suggest `APL`.
+    * **Prefix**: Enter `$ ` (a dollar sign followed by a space).
+    * **Suffix**: Leave this blank.
+    * The live preview will now show "**APL**" in the static part and "**$ 175.43**" in the scrolling part.
+6.  **Engage Time Circuits!**: Click the main save button. Your clock will now display the live stock price.
 
 ---
 ### 💡 Using the MQTT Data Link
 
-For more advanced or real-time applications, the Data Link feature can connect to an **MQTT broker**. This is ideal for integrating with smart home platforms (like Home Assistant) or custom sensor projects, as it relies on data being pushed to the clock instead of the clock polling a web server.
+For real-time applications, the Data Link can connect to an **MQTT broker**. This is ideal for integrating with smart home platforms like Home Assistant, as it relies on data being pushed to the clock instead of the clock polling a web server.
 
-#### How It Works
-
-The MQTT functionality is designed to be flexible, allowing you to configure both a central MQTT broker and specific topics for individual data points.
-
-**1. Global Broker Configuration**
-First, you set up the connection to your MQTT broker once, and all MQTT-based data points will use this same connection.
-
-* **UI Location:** In the "Data Link" tab, you'll find a "Global MQTT Broker Settings" section.
-* **Fields:**
-    * **MQTT Broker Address:** The IP address or hostname of your MQTT broker (e.g., `192.168.1.100` or `broker.emqx.io`).
-    * **MQTT Port:** The port for the broker, which is typically `1883` for unencrypted connections.
-    * **MQTT Username (optional):** If your broker requires authentication.
-    * **MQTT Password (optional):** The password for the specified username.
-
-When you save your settings, the ESP32 will use these credentials to establish a persistent connection to your broker.
-
-**2. Configuring a Data Point for MQTT**
-Once the global broker is set up, you can configure any of the five available data points to listen for messages on a specific MQTT topic.
-
-* **Data Source Selection:** For each data point, there is a "Data Source" dropdown menu. Select **"MQTT Broker"**.
-* **MQTT Topic:** When you select "MQTT Broker", the UI will reveal a new field labeled **"MQTT Topic"**. Here, you enter the exact MQTT topic you want the clock to subscribe to (e.g., `/home/livingroom/temperature`).
-
-**3. How the Data Is Handled**
-The system can handle two types of MQTT payloads automatically:
-
-1.  **JSON Payload (Structured Data):** If the message received on the topic is a JSON object, you can use the familiar `MONTH`, `DAY`, `YEAR`, and `TIME` path fields to extract specific values, just like with a Web API.
-    * **Example:** If your MQTT topic `home/weather` publishes the payload `{"temp": 72, "humidity": 45}`, you could set the `TIME` path to `temp` to display "72".
-
-2.  **Plain Text Payload (Simple Data):** If the payload is **not** a valid JSON object, the system automatically treats the entire message as the value for the `TIME` display field. The `MONTH`, `DAY`, and `YEAR` fields will be left blank.
-    * **Example:** If your MQTT topic `home/status` simply publishes the text `ONLINE`, the `TIME` display will show "ONLINE".
-
-This dual-handling makes the feature very versatile, as it can work with complex data from sensors or simple status updates from other smart home devices without requiring any changes to the clock's code.
-
----
-
-### 💡 New! Scrolling Text Display Mode
-
-In addition to the standard "Four Column" data display, each Data Link point can be configured to use a **Scrolling Text** mode. This is perfect for displaying longer pieces of information like news headlines, song titles, or custom messages that wouldn't fit in the normal layout.
-
-#### How to Configure It
-
-1.  **Navigate to the "Data Link" Tab**: Find the Data Point you want to configure.
-2.  **Select Display Mode**: You will see a new **"Display Mode"** dropdown menu. Change this from "Four Column Data" to "**Scrolling Text**".
-3.  **Enter Your Text**: A new "Scrolling Text" input field will appear. You can enter your text directly here, or use the **API Wizard** to map a JSON path to this field to fetch dynamic text from a URL.
-4.  **Preview**: A new **13-character preview** will show you how your text will look on the display.
-5.  **Engage Time Circuits**: Save your settings, and the text will begin scrolling across the entire 16-character width of the selected display row.
+1.  **Global Broker Configuration**: In the "Data Link" tab, enter your MQTT broker's address, port, and credentials.
+2.  **Configure a Data Point**: For any data point, change the "Data Source" dropdown to **"MQTT Broker"**.
+3.  **Set the Topic**: Enter the MQTT topic you want to subscribe to (e.g., `/home/livingroom/temperature`).
+4.  **Data Handling**:
+    * If the message is **JSON** (e.g., `{"temp": 72}`), you can map the values using the path fields (e.g., `temp`).
+    * If the message is **plain text** (e.g., `72`), it will automatically be displayed in the `TIME` field.
 
 ---
 
@@ -400,34 +318,35 @@ Here are 20 diverse API data examples, categorized for finance, weather, space, 
 | 20 | **Game Server Users**| `CS2` | ` ` | `750K` | ` ` | `CS2      750K` |
 
 ---
-## 🔬 Theory of Operation
+## 🔬 Technical Deep Dive
 
-This section provides a deeper look into the project's architecture, particularly how it handles secure networking in the ESP32 environment.
+This section provides a deeper look into the project's architecture, particularly how it handles the complex requirements of a real-time, network-connected prop.
 
-### Asynchronous, Non-Blocking Architecture
+### System Architecture Overview
+The project is built on a modular, event-driven architecture that is well-suited for a real-time embedded system. It effectively separates concerns into three primary layers:
+1.  **Hardware Abstraction Layer (`HardwareControl`)**: This layer is responsible for all direct interaction with the physical components, such as the 12-segment displays, LEDs, and the MP3 player module. It provides a clean API for the rest of the application to control the hardware without needing to know the low-level details of I2C addresses or GPIO pins.
+2.  **Application Logic/Event Management (`EventManager`)**: This is the core of the system. It contains the state machines that manage the clock's behavior, including animations, sleep schedules, data fetching, and visual effects like glitches and malfunctions. It acts as the orchestrator, responding to events and calling the appropriate functions in the other layers.
+3.  **Web Interface Layer (`web_server` and `data/` directory)**: This layer provides the user interface. It consists of a backend running on the ESP32 that serves web pages and provides a RESTful API, and a frontend (HTML, CSS, JavaScript) that runs in the user's browser.
 
+### Asynchronous, Non-Blocking by Design
 The core of this project is a fully asynchronous, event-driven architecture. This is crucial for a device with complex visual elements like animations and real-time display updates.
-
-* **The Problem with "Blocking" Code:** A simple approach to fetching web data is to make a request and wait for the response. This is called a "blocking" operation. On a microcontroller like the ESP32, this can be disastrous. If the remote server is slow to respond, the entire device will freeze—animations will stutter, sounds will be delayed, and the device will feel unresponsive.
-
+* **The Problem with "Blocking" Code:** A simple approach to fetching web data is to make a request and wait for the response. On a microcontroller like the ESP32, this can be disastrous. If the remote server is slow to respond, the entire device will freeze—animations will stutter, sounds will be delayed, and the device will feel unresponsive.
 * **The Event-Driven Solution:** This project uses an asynchronous model built on the foundational **`AsyncTCP`** and **`ESPAsyncWebServer`** libraries.
     * **Web Server:** The web server never blocks. It handles multiple connected clients simultaneously and uses callback functions to respond to requests.
     * **WebSocket Communication:** Real-time communication with the web UI is handled via WebSockets, which allows for a persistent, two-way channel without the overhead of repeated HTTP requests.
-    * **API Data Fetching:** Outbound requests to external APIs are also handled in a non-blocking way. Each request is spawned in its own dedicated FreeRTOS task, which is like a lightweight background thread. This isolates the slow network operation from the main application loop, ensuring that even a 10-second API timeout will have **zero impact** on the smoothness of the display animations.
+    * **API Data Fetching:** Outbound requests to external APIs are also handled in a non-blocking way. Each request is spawned in its own dedicated FreeRTOS task. This isolates the slow network operation from the main application loop, ensuring that even a 10-second API timeout will have **zero impact** on the smoothness of the display animations.
+
+### Hardware & Display Management
+* **Dual I2C Bus:** The HT16K33 display driver chip only allows for 8 unique addresses on a single bus (0x70 to 0x77). To control all 12 displays, the project cleverly splits them: 8 displays (Destination and Present rows) are on one I2C bus, and the remaining 4 (Last Time Departed row) are on a second I2C bus. This is an elegant solution that avoids the need for a more complex I2C multiplexer.
+* **State Machines:** The application's state is managed through several `enum` types and handler functions (`handleDisplayAnimation`, `handleMalfunction`, etc.). This allows for complex, multi-stage sequences to be executed in a clean, non-blocking way, ensuring the main loop is always free to handle other tasks.
 
 ### Handling SSL/TLS on the ESP32
-
-Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory-intensive operations a microcontroller can perform. The debugging process for this project revealed several key challenges and led to the current robust implementation.
-
-* **The Memory Corruption Challenge:** The initial approach was to use the standard `HTTPClient` library with a root certificate compiled into the firmware via a `certs.h` file. This repeatedly failed with `PEM / BASE64 - Invalid character in input` errors. The root cause was not a bug in the code, but a subtle memory corruption issue. The ESP32's limited RAM, combined with a potentially outdated version of the ESP32 Arduino Core, caused the large certificate string to become garbled when copied from flash memory to RAM for the SSL handshake.
-
-* **The Definitive Solution: `setInsecure()`:** While counterintuitive, the final and most reliable solution was to bypass the problematic certificate validation step.
-    * **`client.setInsecure()`**: This function is called on the `WiFiClientSecure` object before making a connection.
-    * **What It Does**: It instructs the SSL/TLS engine to **skip the certificate validation step**. It does *not* disable encryption. The connection to the server is still fully encrypted with TLS.
-    * **Why It Works**: By skipping the validation, the client never needs to load the large, 2KB+ root certificate into its limited RAM. This completely eliminates the source of the memory corruption and the `PEM / BASE64` errors.
-    * **Is It Safe?** For this project's purpose—fetching non-sensitive public data like weather or stock prices—this is a very common and acceptable practice in the embedded world. It prioritizes reliability and performance on a memory-constrained device. The data is still encrypted in transit, protecting it from casual eavesdropping.
-
-This self-contained approach, using the standard ESP32 libraries in a non-blocking task and bypassing the fragile certificate validation, provides the most stable and reliable networking performance for the Time Circuits clock.
+Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory-intensive operations a microcontroller can perform.
+* **The Memory Challenge:** The ESP32 has limited RAM. Loading and validating a server's full SSL certificate chain can consume a significant amount of this memory, leading to instability or crashes.
+* **The Solution: `setInsecure()`:** This project uses `client.setInsecure()` before making an HTTPS connection.
+    * **What It Does**: It instructs the SSL/TLS engine to **skip the certificate validation step**. It does **not** disable encryption. The connection to the server is still fully encrypted with TLS.
+    * **Why It Works**: By skipping validation, the client avoids loading the large root certificate into its limited RAM. This eliminates a common source of memory-related errors and greatly improves reliability.
+    * **Is It Safe?** For this project's purpose—fetching non-sensitive public data like weather or stock prices—this is a very common and acceptable practice in the embedded world. It prioritizes reliability and performance on a memory-constrained device.
 
 ---
 
@@ -439,11 +358,8 @@ This self-contained approach, using the standard ESP32 libraries in a non-blocki
     2.  Check that there is a folder named `mp3` in the root of the SD card.
     3.  Verify that your audio files are named *exactly* as specified in the "Prepare the SD Card" section (e.g., `TIME_TRAVEL.mp3`).
     4.  Check the RX/TX wiring between the ESP32 and the DFPlayer Mini. They should be crossed (`ESP32 TX -> DFPlayer RX`, `ESP32 RX -> DFPlayer TX`).
-* **Cannot Connect to `timecircuits.local`**:
-    * Some network routers do not support mDNS, which is what makes `.local` addresses work.
-    * Find the device's IP address by checking your router's client list or by monitoring the Serial Monitor output in the Arduino IDE when the device boots. You can then access the web UI by entering that IP address directly into your browser.
-* **API Data Fails to Load**:
-    * In the web UI, go to the "Network & System" tab and click the **"Sync Time with NTP Server"** button. The ESP32's internal clock must be accurate for HTTPS/SSL connections to work.
+* **API or Weather Data Fails to Load**:
+    * In the web UI, go to the "Network & System" tab and click the **"Calibrate Present Time"** button. The ESP32's internal clock must be accurate for HTTPS/SSL connections to work.
     * Double-check the API URL and any required authentication headers in the "Data Link" tab.
 
 ---

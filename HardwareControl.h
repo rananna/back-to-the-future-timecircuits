@@ -23,7 +23,8 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0 // Set to 1 to enable hardware, 0 to disable
+// UPDATED: Set to 0 by default for easier initial setup without hardware.
+#define ENABLE_HARDWARE 0 
 
 // --- ENUMS & DATA STRUCTURES ---
 
@@ -35,8 +36,16 @@ struct MarqueeData {
   std::string time;
 };
 
-// Moved from .ino file
-enum AnimationPhase { ANIM_INACTIVE, ANIM_FLICKER, ANIM_COMPLETE };
+// UPDATED: Expanded AnimationPhase enum for a more detailed sequence
+enum AnimationPhase {
+  ANIM_INACTIVE,
+  ANIM_POWER_UP,
+  ANIM_FLICKER,
+  ANIM_TIME_ACCELERATION,
+  ANIM_ARRIVAL,
+  ANIM_LANDING
+};
+
 enum BootSequenceState { BOOT_INACTIVE, BOOT_START, BOOT_88MPH, BOOT_RECALIBRATING, BOOT_CAPACITOR, BOOT_COMPLETE };
 enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
 enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
@@ -161,6 +170,7 @@ extern DFRobotDFPlayerMini myDFPlayer;
 void setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year);
 void animateDisplayRowRandomly(DisplayRow& row);
+void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
 void animateTornadoFlicker();
 void animateCapacitorChargeUp(unsigned long elapsed, int duration);
 void animateDigitalRain(unsigned long elapsed, int duration);
@@ -171,5 +181,11 @@ void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
 void playSound(const char* soundName);
 void setupSoundFiles();
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
+void displaySpeed(int speed);
+
+// NEW: Function prototypes for the advanced animation effects
+void flashAllDisplays();
+void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year);
+
 
 #endif // HARDWARE_CONTROL_H

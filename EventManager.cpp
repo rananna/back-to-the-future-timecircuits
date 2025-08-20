@@ -5,7 +5,6 @@
 #include <WiFiClientSecure.h>
 
 // --- EXTERN DECLARATIONS ---
-// These allow this file to use global variables defined in the main .ino file
 extern ClockSettings currentSettings;
 extern MarqueeData displayPages[5];
 extern MarqueeData lastGoodDisplayPages[5];
@@ -42,6 +41,13 @@ extern volatile int requestsCompleted;
 extern SemaphoreHandle_t xDisplayDataMutex;
 extern PubSubClient mqttClient;
 extern bool timeSynchronized;
+
+// NEW: Structs to hold time info for the animation
+struct tm realDepartureTimeInfo; // The actual time the animation starts
+struct tm animDestTimeInfo;      // Hardcoded movie destination time
+struct tm animPresTimeInfo;      // Hardcoded movie present time
+struct tm animLastTimeInfo;      // Hardcoded movie last departed time
+
 
 // --- FUNCTION IMPLEMENTATIONS ---
 
@@ -475,6 +481,7 @@ void fetchDataLink() {
     }
 }
 
+// UPDATED: startTimeTravelAnimation now sets up the iconic movie dates for the animation.
 void startTimeTravelAnimation() {
     ESP_LOGI("ANIMATION", "startTimeTravelAnimation function called.");
     if (isAnimating) {
@@ -483,74 +490,133 @@ void startTimeTravelAnimation() {
     }
     isAnimating = true;
     animationStartTime = millis();
+    
+    // Capture the REAL current time as the departure time for saving later
+    time_t now;
+    time(&now);
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
+    localtime_r(&now, &realDepartureTimeInfo);
+
+    // Set up the hardcoded iconic movie dates for the animation visuals
+    animDestTimeInfo = {0};
+    animDestTimeInfo.tm_year = 1955 - 1900; animDestTimeInfo.tm_mon = 10; animDestTimeInfo.tm_mday = 5;
+    animDestTimeInfo.tm_hour = 6; animDestTimeInfo.tm_min = 0;
+
+    animPresTimeInfo = {0};
+    animPresTimeInfo.tm_year = 1985 - 1900; animPresTimeInfo.tm_mon = 9; animPresTimeInfo.tm_mday = 26;
+    animPresTimeInfo.tm_hour = 1; animPresTimeInfo.tm_min = 21;
+
+    animLastTimeInfo = {0};
+    animLastTimeInfo.tm_year = 1985 - 1900; animLastTimeInfo.tm_mon = 9; animLastTimeInfo.tm_mday = 26;
+    animLastTimeInfo.tm_hour = 1; animLastTimeInfo.tm_min = 20;
+
     ESP_LOGI("ANIMATION", "Animation state set to 'true'. Start time: %lu", animationStartTime);
-    currentPhase = ANIM_FLICKER;
+    currentPhase = ANIM_POWER_UP;
     #if ENABLE_HARDWARE
     if (currentSettings.timeTravelSoundToggle) {
-        playSound("ACCELERATION");
-        ESP_LOGI("ANIMATION", "ACCELERATION sound played.");
+        playSound("FLUX_CAPACITOR_CHARGE");
+        ESP_LOGI("ANIMATION", "FLUX_CAPACITOR_CHARGE sound played.");
     }
     #endif
 }
 
+// REWRITTEN: The animation handler is now a highly detailed, multi-stage state machine.
 void handleDisplayAnimation() {
   #if ENABLE_HARDWARE
   if (!isAnimating) return;
   unsigned long currentTime = millis();
   unsigned long elapsed = currentTime - animationStartTime;
+
+  // Define durations for each phase for a more dramatic sequence
+  const int ACCELERATION_DURATION = 4000;
+  const int WHITE_FLASH_DURATION = 150;
+  const int FLICKER_DURATION = 1000;
+  const int TIME_BLUR_DURATION = 2000;
+  const int ARRIVAL_ECHO_DURATION = 300;
+  const int TOTAL_DURATION = ACCELERATION_DURATION + WHITE_FLASH_DURATION + FLICKER_DURATION + TIME_BLUR_DURATION + ARRIVAL_ECHO_DURATION;
+
   switch (currentPhase) {
-    case ANIM_FLICKER:
-        if (elapsed >= currentSettings.timeTravelAnimationDuration) {
-            currentPhase = ANIM_COMPLETE;
-        } else if (currentTime - lastAnimationFrameTime > 50) {
-            switch(currentSettings.animationStyle) {
-                case ANIMATION_SEQUENTIAL_FLICKER:
-                case ANIMATION_RANDOM_FLICKER:
-                case ANIMATION_ALL_DISPLAYS_RANDOM:
-                case ANIMATION_COUNTING_UP:
-                    animateDisplayRowRandomly(destRow);
-                    animateDisplayRowRandomly(presRow);
-                    animateDisplayRowRandomly(lastRow);
-                    break;
-                case ANIMATION_WAVE_FLICKER:
-                     animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
-                     break;
-                case ANIMATION_TORNADO_FLICKER:
-                    animateTornadoFlicker();
-                    break;
-                case ANIMATION_CAPACITOR_CHARGE_UP:
-                    animateCapacitorChargeUp(elapsed, currentSettings.timeTravelAnimationDuration);
-                    break;
-                case ANIMATION_DIGITAL_RAIN:
-                    animateDigitalRain(elapsed, currentSettings.timeTravelAnimationDuration);
-                    break;
-                case ANIMATION_WAVEFORM_COLLAPSE:
-                    animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
-                    break;
-                case ANIMATION_TIMELINE_SKIM:
-                    animateTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
-                    break;
-            }
-            lastAnimationFrameTime = currentTime;
-        }
-        break;
-    case ANIM_COMPLETE:
-      isAnimating = false;
-      updateNormalClockDisplay();
-      if(currentSettings.timeTravelSoundToggle){
-        playSound("ARRIVAL_THUD");
+    case ANIM_POWER_UP:
+      if (currentTime - lastAnimationFrameTime > 50) {
+          float progress = (float)elapsed / ACCELERATION_DURATION;
+          int speed = 88 * pow(progress, 2.5); // Use a power of 2.5 for a more aggressive ease-in
+          if (speed > 88) speed = 88;
+          
+          displaySpeed(speed);
+          
+          // Use the "Temporal Lock-On" effect with the iconic movie dates
+          animateTemporalLockOn(destRow, animDestTimeInfo, 1955);
+          animateTemporalLockOn(presRow, animPresTimeInfo, 1985);
+          
+          lastAnimationFrameTime = currentTime;
       }
-      isEchoEffectActive = true;
-      echoEffectStartTime = millis();
-      lastEchoCheckTime = millis();
-      ESP_LOGI("FX", "Temporal Echo effect activated.");
+      if (elapsed >= ACCELERATION_DURATION) {
+          flashAllDisplays(); // White Flash Climax
+          delay(WHITE_FLASH_DURATION);
+          currentPhase = ANIM_FLICKER;
+          if(currentSettings.timeTravelSoundToggle) playSound("ACCELERATION");
+      }
       break;
+
+    case ANIM_FLICKER:
+      if (currentTime - lastAnimationFrameTime > 50) {
+          animateDisplayRowRandomly(destRow);
+          animateDisplayRowRandomly(presRow);
+          animateDisplayRowRandomly(lastRow);
+          lastAnimationFrameTime = currentTime;
+      }
+      if (elapsed >= (ACCELERATION_DURATION + WHITE_FLASH_DURATION + FLICKER_DURATION)) {
+          currentPhase = ANIM_TIME_ACCELERATION;
+      }
+      break;
+
+    case ANIM_TIME_ACCELERATION:
+      if (currentTime - lastAnimationFrameTime > 50) {
+          unsigned long time_blur_elapsed = elapsed - (ACCELERATION_DURATION + WHITE_FLASH_DURATION + FLICKER_DURATION);
+          // Use the new coordinated time blur
+          animateAllRowsTimelineSkim(time_blur_elapsed, TIME_BLUR_DURATION, 1955);
+          lastAnimationFrameTime = currentTime;
+      }
+      if (elapsed >= (ACCELERATION_DURATION + WHITE_FLASH_DURATION + FLICKER_DURATION + TIME_BLUR_DURATION)) {
+          currentPhase = ANIM_ARRIVAL;
+      }
+      break;
+
+    case ANIM_ARRIVAL:
+      // Display the "Arrival Echo" using the iconic destination time
+      updateDisplayRow(presRow, animDestTimeInfo, 1955);
+      if(currentSettings.timeTravelSoundToggle) playSound("ARRIVAL_THUD");
+      currentPhase = ANIM_LANDING; // Immediately move to landing to wait out the delay
+      break;
+
+    case ANIM_LANDING:
+      if (elapsed >= TOTAL_DURATION) {
+          // Update the Last Time Departed with the REAL captured time
+          currentSettings.lastTimeDepartedYear = realDepartureTimeInfo.tm_year + 1900;
+          currentSettings.lastTimeDepartedMonth = realDepartureTimeInfo.tm_mon + 1;
+          currentSettings.lastTimeDepartedDay = realDepartureTimeInfo.tm_mday;
+          currentSettings.lastTimeDepartedHour = realDepartureTimeInfo.tm_hour;
+          currentSettings.lastTimeDepartedMinute = realDepartureTimeInfo.tm_min;
+          
+          // Finalize animation and restore correct times
+          isAnimating = false;
+          currentPhase = ANIM_INACTIVE;
+          updateNormalClockDisplay();
+          
+          isEchoEffectActive = true;
+          echoEffectStartTime = millis();
+          lastEchoCheckTime = millis();
+          ESP_LOGI("FX", "Temporal Echo effect activated.");
+      }
+      break;
+      
     case ANIM_INACTIVE:
-        // This case should not be reached while isAnimating is true.
-        break;
+      break;
     }
   #endif
 }
+
 
 void handleTemporalEcho() {
   #if ENABLE_HARDWARE

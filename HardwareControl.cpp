@@ -117,9 +117,98 @@ void animateDisplayRowRandomly(DisplayRow& row) {
   #endif
 }
 
+void displaySpeed(int speed) {
+  #if ENABLE_HARDWARE
+  char speedBuffer[5];
+  sprintf(speedBuffer, "%02d", speed);
+
+  // Clear the first two displays
+  printToDisplay(lastRow.month, "");
+  printToDisplay(lastRow.day, "");
+  
+  // Display speed on the "year" slot and "MPH" on the "time" slot
+  printToDisplay(lastRow.year, speedBuffer, 1); // Right-justify speed
+  printToDisplay(lastRow.time, "MPH");
+
+  lastRow.month.writeDisplay();
+  lastRow.day.writeDisplay();
+  lastRow.year.writeDisplay();
+  lastRow.time.writeDisplay();
+  #endif
+}
+
+// MODIFIED: animateAllRowsTimelineSkim now blurs the entire date, not just the year.
+void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
+    #if ENABLE_HARDWARE
+    // Year blur (same as before)
+    float progress = (float)elapsed / duration;
+    progress = 1 - pow(1 - progress, 3);
+    static int startYear = 0;
+    if(elapsed < 100) startYear = random(1, 2100);
+    int currentYear = startYear + (destinationYear - startYear) * progress;
+    char yearStr[5];
+    sprintf(yearStr, "%04d", currentYear);
+
+    // Coordinated blur for other fields
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+    int monthIndex = (elapsed / 50) % 12;
+    int day = (elapsed / 30) % 31 + 1;
+    int hour = (elapsed / 20) % 24;
+    int minute = (elapsed / 10) % 60;
+    
+    char buffer[5];
+
+    // Update all three rows
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    for (int i=0; i<3; ++i) {
+        printToDisplay(rows[i]->year, yearStr);
+        printToDisplay(rows[i]->month, months[monthIndex], 1);
+        sprintf(buffer, "%02d", day);
+        printToDisplay(rows[i]->day, buffer, 2);
+        sprintf(buffer, "%02d%02d", hour, minute);
+        printToDisplay(rows[i]->time, buffer);
+
+        rows[i]->year.writeDisplay();
+        rows[i]->month.writeDisplay();
+        rows[i]->day.writeDisplay();
+        rows[i]->time.writeDisplay();
+    }
+    #endif
+}
+
+// NEW: Implements the "Temporal Lock-On" effect.
+void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year) {
+    #if ENABLE_HARDWARE
+    // 50% chance to show the correct time, 50% chance to show random garbage
+    if (random(100) < 50) {
+        updateDisplayRow(row, timeinfo, year);
+    } else {
+        animateDisplayRowRandomly(row);
+    }
+    #endif
+}
+
+// NEW: Implements the "White Flash" climax effect.
+void flashAllDisplays() {
+    #if ENABLE_HARDWARE
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    for (int i=0; i<3; ++i) {
+        for(int j=0; j<16; ++j) {
+            rows[i]->month.displaybuffer[j] = 0xFFFF;
+            rows[i]->day.displaybuffer[j] = 0xFFFF;
+            rows[i]->year.displaybuffer[j] = 0xFFFF;
+            rows[i]->time.displaybuffer[j] = 0xFFFF;
+        }
+        rows[i]->month.writeDisplay();
+        rows[i]->day.writeDisplay();
+        rows[i]->year.writeDisplay();
+        rows[i]->time.writeDisplay();
+    }
+    #endif
+}
+
 void animateTornadoFlicker() {
     #if ENABLE_HARDWARE
-    // A simple, chaotic animation: flicker all displays randomly.
     animateDisplayRowRandomly(destRow);
     animateDisplayRowRandomly(presRow);
     animateDisplayRowRandomly(lastRow);
@@ -145,7 +234,7 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     if (phase == 0) {
         fillRow(lastRow, charsToShow);
     } else if (phase == 1) {
-        fillRow(lastRow, 16); // Keep previous row full
+        fillRow(lastRow, 16);
         fillRow(presRow, charsToShow);
     } else {
         fillRow(lastRow, 16);
@@ -180,14 +269,13 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
 void animateWaveformCollapse(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
     const char* wave[] = {"-___-", "_--_-", "__-__"};
-    int waveIndex = (elapsed / 200) % 3; // Cycle through patterns
-    int scrollOffset = (elapsed / 100) % 5; // Scroll the pattern
+    int waveIndex = (elapsed / 200) % 3;
+    int scrollOffset = (elapsed / 100) % 5;
 
     auto drawWave = [&](DisplayRow& row, bool inverse) {
         char pattern[6];
         const char* basePattern = wave[waveIndex];
         
-        // Create the scrolled pattern
         char scrolledPattern[6];
         for(int i=0; i<5; ++i) {
             scrolledPattern[i] = basePattern[(i + scrollOffset) % 5];
@@ -217,10 +305,8 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
 void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
-    // Use an ease-out cubic function for a nice slow-down effect
     progress = 1 - pow(1 - progress, 3);
     
-    // Pick a random start year for visual variety
     static int startYear = 0;
     if(elapsed < 100) startYear = random(1, 2100);
 
@@ -229,12 +315,10 @@ void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYea
     char yearStr[5];
     sprintf(yearStr, "%04d", currentYear);
 
-    // Update only the year displays for the "skimming" effect
     printToDisplay(destRow.year, yearStr); destRow.year.writeDisplay();
     printToDisplay(presRow.year, yearStr); presRow.year.writeDisplay();
     printToDisplay(lastRow.year, yearStr); lastRow.year.writeDisplay();
 
-    // Flicker the other displays randomly
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
     printToDisplay(destRow.month, months[random(0,12)], 1); destRow.month.writeDisplay();
     
@@ -272,6 +356,7 @@ void playSound(const char* soundName) {
   #if ENABLE_HARDWARE
   if (strcmp(soundName, "TIME_TRAVEL") == 0) myDFPlayer.playMp3Folder(1);
   else if (strcmp(soundName, "ACCELERATION") == 0) myDFPlayer.playMp3Folder(2);
+  else if (strcmp(soundName, "FLUX_CAPACITOR_CHARGE") == 0) myDFPlayer.playMp3Folder(3);
   else if (strcmp(soundName, "ARRIVAL_THUD") == 0) myDFPlayer.playMp3Folder(4);
   else if (strcmp(soundName, "CONFIRM_ON") == 0) myDFPlayer.playMp3Folder(5);
   else if (strcmp(soundName, "SLEEP_ON") == 0) myDFPlayer.playMp3Folder(6);
