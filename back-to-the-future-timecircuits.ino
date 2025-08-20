@@ -1,3 +1,11 @@
+/**
+ * @file back-to-the-future-timecircuits.ino
+ * @brief Main application firmware for the ESP32-based Time Circuits display.
+ * @details This file contains the primary setup() and loop() functions, global variable declarations,
+ * and the core logic for coordinating all subsystems of the clock, including WiFi, web server,
+ * display management, and event handling.
+ */
+
 #include "esp_log.h"
 #include <WiFi.h>
 #include <WiFiManager.h>
@@ -29,8 +37,7 @@ ClockSettings currentSettings;
 MarqueeData displayPages[5];
 MarqueeData lastGoodDisplayPages[5];
 WeatherData currentWeatherData;
-std::string lastCityName = "";
-
+std::string lastCityName = ""; // Cache for the last geocoded city name to reduce API calls
 const TimeZoneEntry TZ_DATA[] = {
   // Global
   { "UTC0", "UTC", "Etc/UTC", "Global" },
@@ -73,13 +80,13 @@ const TimeZoneEntry TZ_DATA[] = {
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
 const char TZ_JSON[] PROGMEM = "{\"Global\":[{\"value\":0,\"text\":\"UTC\",\"ianaTzName\":\"Etc/UTC\"}],\"Americas\":[{\"value\":1,\"text\":\"Newfoundland (St. John's)\",\"ianaTzName\":\"America/St_Johns\"},{\"value\":2,\"text\":\"Atlantic (Halifax)\",\"ianaTzName\":\"America/Halifax\"},{\"value\":3,\"text\":\"Eastern (New York)\",\"ianaTzName\":\"America/New_York\"},{\"value\":4,\"text\":\"Central (Chicago)\",\"ianaTzName\":\"America/Chicago\"},{\"value\":5,\"text\":\"Mountain (Denver)\",\"ianaTzName\":\"America/Denver\"},{\"value\":6,\"text\":\"Pacific (Los Angeles)\",\"ianaTzName\":\"America/Los_Angeles\"},{\"value\":7,\"text\":\"Alaska (Anchorage)\",\"ianaTzName\":\"America/Anchorage\"},{\"value\":8,\"text\":\"Mountain (Phoenix, No DST)\",\"ianaTzName\":\"America/Phoenix\"},{\"value\":9,\"text\":\"Hawaii (Honolulu, No DST)\",\"ianaTzName\":\"Pacific/Honolulu\"}],\"Europe\":[{\"value\":10,\"text\":\"GMT/BST (London)\",\"ianaTzName\":\"Europe/London\"},{\"value\":11,\"text\":\"CET/CEST (Berlin)\",\"ianaTzName\":\"Europe/Berlin\"},{\"value\":12,\"text\":\"EET/EEST (Athens)\",\"ianaTzName\":\"Europe/Athens\"},{\"value\":13,\"text\":\"Moscow Standard Time\",\"ianaTzName\":\"Europe/Moscow\"},{\"value\":14,\"text\":\"Turkey Time (Istanbul)\",\"ianaTzName\":\"Europe/Istanbul\"}],\"Asia\":[{\"value\":15,\"text\":\"Indian Standard Time (Kolkata)\",\"ianaTzName\":\"Asia/Kolkata\"},{\"value\":16,\"text\":\"Singapore Standard Time\",\"ianaTzName\":\"Asia/Singapore\"},{\"value\":17,\"text\":\"China Standard Time (Shanghai)\",\"ianaTzName\":\"Asia/Shanghai\"},{\"value\":18,\"text\":\"Korea Standard Time (Seoul)\",\"ianaTzName\":\"Asia/Seoul\"},{\"value\":19,\"text\":\"Japan Standard Time (Tokyo)\",\"ianaTzName\":\"Asia/Tokyo\"},{\"value\":20,\"text\":\"Gulf Standard Time (Dubai)\",\"ianaTzName\":\"Asia/Dubai\"}],\"Australia & Oceania\":[{\"value\":21,\"text\":\"AWST (Perth)\",\"ianaTzName\":\"Australia/Perth\"},{\"value\":22,\"text\":\"AEST/AEDT (Sydney)\",\"ianaTzName\":\"Australia/Sydney\"},{\"value\":23,\"text\":\"NZST/NZDT (Auckland)\",\"ianaTzName\":\"Pacific/Auckland\"},{\"value\":24,\"text\":\"Chamorro Time (Guam)\",\"ianaTzName\":\"Pacific/Guam\"}],\"Africa\":[{\"value\":25,\"text\":\"West Africa Time (Lagos)\",\"ianaTzName\":\"Africa/Lagos\"},{\"value\":26,\"text\":\"South Africa Standard Time\",\"ianaTzName\":\"Africa/Johannesburg\"},{\"value\":27,\"text\":\"EET (Cairo)\",\"ianaTzName\":\"Africa/Cairo\"},{\"value\":28,\"text\":\"East Africa Time (Nairobi)\",\"ianaTzName\":\"Africa/Nairobi\"}],\"South America\":[{\"value\":29,\"text\":\"Brasilia Time (Sao Paulo)\",\"ianaTzName\":\"America/Sao_Paulo\"},{\"value\":30,\"text\":\"Argentina Time (Buenos Aires)\",\"ianaTzName\":\"America/Argentina/Buenos_Aires\"}]}";
-
 const char *NTP_SERVERS[] = { "pool.ntp.org", "time.google.com", "time.nist.gov" };
 const int NUM_NTP_SERVERS = sizeof(NTP_SERVERS) / sizeof(NTP_SERVERS[0]);
 int currentNtpServerIndex = 0;
 bool timeSynchronized = false;
 bool ntpSyncRequested = false;
 
+// Core objects
 WiFiManager wifiManager;
 AsyncWebServer server(80);
 Preferences preferences;
@@ -88,7 +95,7 @@ PubSubClient mqttClient(espClient);
 unsigned long lastMqttReconnectAttempt = 0;
 bool mqttReconnectRequired = false;
 
-// State Variables
+// State Variables for animations, effects, and data handling
 bool isAnimating = false;
 unsigned long animationStartTime = 0;
 unsigned long lastAnimationFrameTime = 0;
@@ -119,10 +126,14 @@ unsigned long malfunctionStartTime = 0;
 MalfunctionPhase currentMalfunctionPhase = MAL_INACTIVE;
 volatile int requestsCompleted = 0;
 
+// Mutex for protecting shared data between tasks (e.g., API fetch task and main loop)
 SemaphoreHandle_t xDisplayDataMutex;
 
 // --- CORE FUNCTIONS ---
 
+/**
+ * @brief Saves the current settings from the global `currentSettings` struct to non-volatile storage (NVS).
+ */
 void saveSettings() {
   preferences.begin(PREFERENCES_NAMESPACE, false);
   preferences.putInt("destYear", currentSettings.destinationYear);
@@ -186,12 +197,17 @@ void saveSettings() {
     preferences.putString((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey.c_str());
   }
   preferences.end();
+  // Apply the timezone setting immediately after saving.
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
 }
 
+/**
+ * @brief Loads settings from NVS into the global `currentSettings` struct. If no settings are found, initializes with default values.
+ */
 void loadSettings() {
   preferences.begin(PREFERENCES_NAMESPACE, true);
+  // Check if a key exists to determine if this is the first boot.
   bool needsInit = !preferences.isKey("destYear");
   if (needsInit) {
     ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
@@ -233,9 +249,9 @@ void loadSettings() {
     currentSettings.latitude = 40.7128;
     currentSettings.longitude = -74.0060;
     for (int i = 0; i < 5; i++) {
-        currentSettings.dataPoints[i] = {};
+        currentSettings.dataPoints[i] = {}; // Zero out the data points struct
     }
-    saveSettings();
+    saveSettings(); // Save the new default settings
   } else {
     ESP_LOGI("SETTINGS", "Loading settings from NVS.");
     currentSettings.destinationYear = preferences.getInt("destYear");
@@ -301,16 +317,21 @@ void loadSettings() {
     }
   }
   preferences.end();
+  // Sanity check for timezone indices to prevent crashes if data is corrupted.
   if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
     currentSettings.presentTimezoneIndex = 0;
   }
   if (currentSettings.destinationTimezoneIndex < 0 || currentSettings.destinationTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
     currentSettings.destinationTimezoneIndex = 0;
   }
+  // Apply the loaded timezone setting.
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
 }
 
+/**
+ * @brief Lists all files in the LittleFS filesystem to the Serial monitor for debugging.
+ */
 void listAllFiles() {
   Serial.println(F("\n--- Listing all files in LittleFS ---"));
   File root = LittleFS.open("/");
@@ -327,21 +348,28 @@ void listAllFiles() {
   root.close();
 }
 
+/**
+ * @brief The main setup function, run once on boot.
+ */
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
   Serial.println(F("\n\n--- BOOTING ---"));
+  // Initialize LittleFS for web files. Halt on failure as it's critical.
   if (!LittleFS.begin(true)) {
     ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed.");
     while(1);
   }
   
+  // Load all settings from NVS into memory.
   listAllFiles();
   loadSettings();
+  // Create a mutex for safe multi-threaded access to shared display data.
   xDisplayDataMutex = xSemaphoreCreateMutex();
 
 #if ENABLE_HARDWARE
+  // Initialize physical displays, sound module, etc.
   setupPhysicalDisplay();
   dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
   if (myDFPlayer.begin(dfpSerial, true, false)) {
@@ -350,26 +378,43 @@ void setup() {
   }
 #endif
   
+  // Connect to WiFi using WiFiManager, which creates a captive portal for first-time setup.
   wifiManager.autoConnect("BTTF-Clock-Setup");
   ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
+  
+  // Start mDNS service to allow accessing the device at http://timecircuits.local
   if (MDNS.begin("timecircuits")) {
     MDNS.addService("http", "tcp", 80);
   }
+
+  // Set up all web server routes and start the server.
   setupWebRoutes();
   server.begin();
   ESP_LOGI("Web", "HTTP server started.");
+
+  // Initial time configuration. Will be synced properly in the main loop.
   configTime(0, 0, NTP_SERVERS[0]);
   setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
   tzset();
+
+  // Configure MQTT client if a broker address is set.
   setupMqtt();
+
   ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
+
+  // Start the cinematic boot sequence on the displays.
   runBootSequence();
 }
 
+/**
+ * @brief The main application loop. Runs continuously after setup().
+ */
 void loop() {
+  // Handle MQTT connection and message processing.
   if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
     if (mqttReconnectRequired || !mqttClient.connected()) {
       unsigned long now = millis();
+      // Attempt to reconnect every 5 seconds if disconnected.
       if (now - lastMqttReconnectAttempt > 5000) {
         lastMqttReconnectAttempt = now;
         setupMqtt();
@@ -377,53 +422,68 @@ void loop() {
         mqttReconnectRequired = false;
       }
     }
-    mqttClient.loop();
+    mqttClient.loop(); // Process incoming MQTT messages and maintain connection.
   }
 
+  // Run the boot sequence state machine (only does something on startup).
   handleBootSequence();
+
+  // The main display logic is a state machine. Only one of these major states can be active.
   if (isMalfunctioning) {
+    // Highest priority: if a malfunction is active, it takes over the display.
     handleMalfunction();
   } else if (!isAnimating) {
-    restoreDisplayAfterGlitch();
-    handleTemporalEcho();
+    // Normal operation state (not in a time travel animation).
+    restoreDisplayAfterGlitch(); // Reverts display to normal after a brief glitch effect.
+    handleTemporalEcho(); // Handles the random flickering effect for a few minutes after a time jump.
+    
+    // Only update the display if not in the middle of a flicker effect.
     if (!isFlickeringNow) {
-      handleGlitchEffect();
+      handleGlitchEffect(); // Randomly triggers visual glitches or malfunctions.
       
+      // Periodically fetch weather data if the weather mode is enabled.
       if (currentSettings.weatherModeEnabled) {
         static unsigned long lastWeatherFetch = 0;
-        if (millis() - lastWeatherFetch > 300000) { // Fetch every 5 minutes
+        if (millis() - lastWeatherFetch > 300000) { // Fetch every 5 minutes (300,000 ms)
           lastWeatherFetch = millis();
           WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
           xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL);
         }
       }
 
-      handlePresetCycling();
-      handleSleepSchedule();
+      handlePresetCycling(); // Handles cycling through destination time presets.
+      handleSleepSchedule(); // Checks if the display should enter or exit sleep mode.
+
+      // Logic for the bottom display row.
       if (currentSettings.dataLinkEnabled) {
-        fetchDataLink();
-        updateMarqueeDisplay();
+        fetchDataLink(); // Fetches data from APIs for the marquee.
+        updateMarqueeDisplay(); // Updates the marquee display.
       } else {
-        updateNormalClockDisplay();
+        updateNormalClockDisplay(); // Update all three rows with standard clock data.
         if (currentSettings.weatherModeEnabled) {
-            handleWeatherDisplay();
+            handleWeatherDisplay(); // If weather mode is on, it overrides the bottom row.
         }
       }
     }
   }
 
+  // This runs regardless of the normal operation state to handle the time travel animation.
   handleDisplayAnimation();
+
+  // Time synchronization logic.
   static unsigned long lastNtpUpdate = 0;
+  // Sync time if requested via UI, if never synced before, or if it's been an hour since the last sync.
   if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
     configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
     struct tm timeinfo;
-    if(getLocalTime(&timeinfo, 5000)){
+    if(getLocalTime(&timeinfo, 5000)){ // Attempt to get time with a 5-second timeout.
       timeSynchronized = true;
     } else {
       timeSynchronized = false;
     }
+    // Cycle to the next NTP server in the list for robustness.
     currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
     lastNtpUpdate = millis();
     ntpSyncRequested = false;
