@@ -59,6 +59,8 @@
             <button class="tab-link" onclick="openTab(event, 'DisplaySound')" data-tab="DisplaySound">Temporal Controls</button>
             <button class="tab-link" onclick="openTab(event, 'DataLink')" data-tab="DataLink">Data Link</button>
             <button class="tab-link" onclick="openTab(event, 'System')" data-tab="System">Network & System</button>
+            <!-- NEW: Help Tab Button -->
+            <button class="tab-link" onclick="openTab(event, 'Help')" data-tab="Help">Help</button>
         </div>
         <div id="TimeCircuits" class="tab-content" style="display: block;">
             <div class="setting-group" id="destinationTimeSettings">
@@ -350,6 +352,18 @@
                 <h3>Device Actions</h3>
                 <button id="greatScottBtn">Great Scott!</button>
                 <button id="resetDefaultsBtn" class="reset-button">Reset All Settings to Default</button>
+            </div>
+        </div>
+        <!-- NEW: Help Tab Content -->
+        <div id="Help" class="tab-content">
+            <div class="setting-group">
+                <h3>Project Documentation</h3>
+                <p>
+                    For complete details on hardware setup, software installation, features, and troubleshooting, please refer to the official project documentation on GitHub.
+                </p>
+                <p style="text-align: center; margin-top: 20px;">
+                    <a href="https://github.com/rananna/back-to-the-future-timecircuits/blob/main/readme.md" target="_blank" rel="noopener noreferrer" class="action-button" style="display: inline-block; width: auto;">View on GitHub</a>
+                </p>
             </div>
         </div>
         <button id="saveSettingsBtn" disabled>Engage Time Circuits (Save All Settings)</button>
