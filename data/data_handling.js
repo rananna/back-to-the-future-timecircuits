@@ -282,8 +282,6 @@ function saveSettings() {
         point.scrollingText = document.getElementById(`dp_scrollingText_${i}`).value;
         point.authHeaderKey = document.getElementById(`dp_authHeaderKey_${i}`).value;
         point.authHeaderValue = document.getElementById(`dp_authHeaderValue_${i}`).value;
-        point.httpMethod = parseInt(document.getElementById(`dp_httpMethod_${i}`).value, 10);
-        point.requestBody = document.getElementById(`dp_requestBody_${i}`).value;
         point.apiExampleKey = document.getElementById(`api_example_${i}`).value;
         settings.dataPoints.push(point);
     }

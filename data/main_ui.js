@@ -184,13 +184,10 @@ async function applyDataLinkSettings(datalink) {
             document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
             document.getElementById(`dp_authHeaderKey_${i}`).value = point.authHeaderKey || '';
             document.getElementById(`dp_authHeaderValue_${i}`).value = point.authHeaderValue || '';
-            document.getElementById(`dp_httpMethod_${i}`).value = point.httpMethod || 0;
-            document.getElementById(`dp_requestBody_${i}`).value = point.requestBody || '';
             document.getElementById(`api_example_${i}`).value = point.apiExampleKey || '';
 
             document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
             document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
-            document.getElementById(`dp_httpMethod_${i}`).dispatchEvent(new Event('change'));
             updateMarqueePreview(i);
         });
     }
@@ -507,18 +504,8 @@ function updateDataPointsUI(numPoints) {
                     <div id="dp_api_container_${i}">
                         <label for="api_example_${i}">API Examples (optional):</label>
                         <select id="api_example_${i}" class="api-example-select" data-index="${i}"></select>
-                        <label for="dp_httpMethod_${i}">HTTP Method:</label>
-                        <select id="dp_httpMethod_${i}" class="http-method-select" data-index="${i}">
-                            <option value="0">GET</option>
-                            <option value="1">POST</option>
-                        </select>
                         <label for="dp_url_${i}">API URL:</label>
                         <input type="text" id="dp_url_${i}" placeholder="http://api.example.com/data.json">
-                        <div id="dp_post_body_container_${i}" style="display: none;">
-                            <label for="dp_requestBody_${i}">Request Body (JSON):</label>
-                            <textarea id="dp_requestBody_${i}" placeholder='{"key": "value"}' rows="4"></textarea>
-                            <div class="validation-message" id="dp_requestBody_validation_${i}"></div>
-                        </div>
                         <label for="dp_authHeaderKey_${i}">Auth Header Key (optional):</label>
                         <input type="text" id="dp_authHeaderKey_${i}" placeholder="e.g., X-API-Key">
                         <label for="dp_authHeaderValue_${i}">Auth Header Value (optional):</label>
@@ -735,18 +722,16 @@ function populateApiExampleDropdowns() {
 
 
 function attachDataPointEventListeners() {
-    document.querySelectorAll('.data-source-select, .display-mode-select, .http-method-select').forEach(select => {
+    document.querySelectorAll('.data-source-select, .display-mode-select').forEach(select => {
         select.onchange = (e) => {
             const index = e.target.dataset.index;
             const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
             const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
-            const httpMethod = document.getElementById(`dp_httpMethod_${index}`).value;
 
             document.getElementById(`dp_api_container_${index}`).style.display = dataSource === 'api' ? 'block' : 'none';
             document.getElementById(`dp_mqtt_container_${index}`).style.display = dataSource === 'mqtt' ? 'block' : 'none';
             document.getElementById(`four_column_container_${index}`).style.display = displayMode === '0' ? 'block' : 'none';
             document.getElementById(`scrolling_text_container_${index}`).style.display = displayMode === '1' ? 'block' : 'none';
-            document.getElementById(`dp_post_body_container_${index}`).style.display = httpMethod === '1' ? 'block' : 'none';
             
             updateMarqueePreview(index);
         };
@@ -1031,7 +1016,7 @@ function duplicateDataPoint(event) {
     document.getElementById('numDataPoints').value = targetIndex + 1;
     document.getElementById('numDataPointsValue').textContent = targetIndex + 1;
     updateDataPointsUI(targetIndex + 1).then(() => {
-        const fields = ['dataSourceType', 'displayMode', 'url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'httpMethod', 'requestBody', 'api_example'];
+        const fields = ['dataSourceType', 'displayMode', 'url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'api_example'];
         fields.forEach(field => {
             const sourceEl = document.getElementById(`dp_${field}_${sourceIndex}`);
             const targetEl = document.getElementById(`dp_${field}_${targetIndex}`);
