@@ -1,7 +1,7 @@
 #ifndef MQTT_MANAGER_H
 #define MQTT_MANAGER_H
 
-#include <Arduino.h> 
+#include <Arduino.h>
 #include <string>
 
 // Corrected 'byte*' to 'unsigned char*' to match the library's expectation
@@ -12,5 +12,8 @@ void publishHaAutoDiscovery();
 void updateHaStatus(const char* status);
 void publishAllHaStates();
 void clearHaEntity(const char* component, const char* unique_id_suffix);
+void publishDeviceTriggers();
+void publishTimeSensors();
+
 
 #endif // MQTT_MANAGER_H

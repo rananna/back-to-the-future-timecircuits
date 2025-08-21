@@ -494,6 +494,8 @@ void loop() {
 
 	// Time synchronization logic.
 	static unsigned long lastNtpUpdate = 0;
+    static unsigned long lastHaStateUpdate = 0;
+
 	// Sync time if requested via UI, if never synced before, or if it's been an hour since the last sync.
 	if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
 		configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
@@ -511,6 +513,11 @@ void loop() {
 		lastNtpUpdate = millis();
 		ntpSyncRequested = false;
 	}
+
+    if (timeSynchronized && millis() - lastHaStateUpdate > 30000) { // Update HA states every 30 seconds
+        publishAllHaStates();
+        lastHaStateUpdate = millis();
+    }
 }
 
 // --- SYSTEM & STATE HANDLERS ---
@@ -537,11 +544,9 @@ void handleSleepSchedule() {
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
   int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
-
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) : // Same-day sleep window.
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes); // Overnight sleep window.
-
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     #if ENABLE_HARDWARE
