@@ -6,6 +6,11 @@
 #include <PubSubClient.h>
 #include "HardwareControl.h"
 
+// HA-ENHANCEMENT: Moved definitions to the header for global visibility.
+#define MQTT_UNIQUE_ID "bttf_timecircuits_01"
+#define MQTT_DEVICE_TYPE "bttf-clock"
+#define MQTT_BASE_TOPIC "homeassistant"
+
 // --- EXTERN DECLARATIONS for global variables in the main .ino file ---
 extern ClockSettings currentSettings;
 extern MarqueeData displayPages[5];
@@ -41,6 +46,18 @@ extern MalfunctionPhase currentMalfunctionPhase;
 extern volatile int requestsCompleted;
 extern PubSubClient mqttClient;
 extern bool timeSynchronized;
+extern int currentPageIndex;
+
+// HA-ENHANCEMENT: Extern declarations for new override state
+extern bool isMessageOverrideActive;
+extern String overrideMessageLine1;
+extern String overrideMessageLine2;
+extern String overrideMessageLine3;
+
+// HA-MARQUEE: Extern declarations for the dynamic marquee override.
+extern bool isMarqueeOverrideActive;
+extern String marqueeOverrideMessage;
+
 
 // ADDED: Extern declaration for the Time Zone data array to make it visible to this file.
 extern const TimeZoneEntry TZ_DATA[];
@@ -59,6 +76,10 @@ void handleMalfunction();
 void updateNormalClockDisplay();
 void updateMarqueeDisplay();
 void handleWeatherDisplay();
+void displayOverrideMessage();
+// HA-MARQUEE: New function to display the marquee override message.
+void displayMarqueeOverride();
+
 
 // System & State Handlers
 void runBootSequence();
@@ -74,6 +95,14 @@ void forceFetchWeatherDataTask(void* p);
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 void setupMqtt();
 void reconnectMqtt();
+
+// --- Home Assistant Integration Functions ---
+void publishHaAutoDiscovery();
+void updateHaStatus(const char* status);
+void publishAllHaStates();
+// HA-ERROR-CHECK: New function prototype for the HA entity cleanup tool.
+void clearHaEntity(const char* component, const char* unique_id_suffix);
+
 
 // Utility Functions
 String urlEncode(const char* msg);
