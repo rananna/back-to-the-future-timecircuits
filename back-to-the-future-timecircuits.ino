@@ -27,10 +27,18 @@
 #include "web_server.h"
 #include "api_templates.h"
 #include "EventManager.h"
+#include "AnimationManager.h"
+#include "DisplayManager.h"
+#include "DataManager.h"
+#include "MqttManager.h"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2
 #endif
+
+// --- FUNCTION PROTOTYPES ---
+void handlePresetCycling();
+void handleSleepSchedule();
 
 // --- GLOBAL VARIABLES & STATE ---
 ClockSettings currentSettings;
@@ -505,175 +513,48 @@ void loop() {
 	}
 }
 
-// --- FULLY IMPLEMENTED FUNCTIONS FOR HA & DATA LINK ---
+// --- SYSTEM & STATE HANDLERS ---
 
 /**
- * @brief Publishes the current state of all Home Assistant entities to the MQTT broker.
- * This function should be called on startup, on reconnect, and after any state change.
+ * @brief Handles cycling through saved destination time presets.
  */
-void publishAllHaStates() {
-	if (!mqttClient.connected()) return;
-	// Define a shorter, more manageable base topic string.
-	String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-	char payload[20];
-	// Increased buffer size for safety.
-
-	// Destination Year (Number Entity)
-	itoa(currentSettings.destinationYear, payload, 10);
-	mqttClient.publish((base_topic + "/destination_year/state").c_str(), payload, true);
-	// Message Override (Switch Entity)
-	mqttClient.publish((base_topic + "/override/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
-	// Override Message (Text Entity)
-	// Concatenate the lines for a complete state representation.
-	String overrideMessage = overrideMessageLine1;
-	if (overrideMessageLine2.length() > 0) overrideMessage += "\n" + overrideMessageLine2;
-	if (overrideMessageLine3.length() > 0) overrideMessage += "\n" + overrideMessageLine3;
-	mqttClient.publish((base_topic + "/override_text/state").c_str(), overrideMessage.c_str(), true);
-
-	// Marquee Message (Text Entity)
-	mqttClient.publish((base_topic + "/marquee/state").c_str(), marqueeOverrideMessage.c_str(), true);
-	// Power (Switch Entity)
-    mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
-	// Brightness (Number Entity)
-    itoa(currentSettings.brightness, payload, 10);
-    mqttClient.publish((base_topic + "/brightness/state").c_str(), payload, true);
-}
-
-/**
- * @brief Publishes a status message to the Home Assistant status sensor.
- * @param status A C-string describing the current status (e.g., "Idle", "Animating").
- */
-void updateHaStatus(const char* status) {
-	if (!mqttClient.connected()) return;
-	String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-	mqttClient.publish((base_topic + "/status/state").c_str(), status, true);
-}
-
-
-/**
- * @brief Task responsible for fetching and parsing data from a single API endpoint.
- * This runs as a separate, non-blocking FreeRTOS task.
- * @param p A void pointer to a FetchDataParams struct.
- */
-void fetchApiDataTask(void* p) {
-	// Safely cast and immediately delete the parameters struct to prevent memory leaks.
-	FetchDataParams* params = (FetchDataParams*)p;
-	int index = params->pointIndex;
-	delete params;
-
-	if (index < 0 || index >= currentSettings.numDataPoints) {
-		vTaskDelete(NULL);
-		// Invalid index, end the task.
-		return;
-	}
-
-	DataPoint point = currentSettings.dataPoints[index];
-	HTTPClient http;
-	WiFiClientSecure client;
-	client.setInsecure();
-	// Skip certificate validation for memory efficiency.
-
-	if (http.begin(client, point.url.c_str())) {
-		if (!point.authHeaderKey.empty() && !point.authHeaderValue.empty()) {
-			http.addHeader(point.authHeaderKey.c_str(), point.authHeaderValue.c_str());
-		}
-
-		int httpCode = http.GET();
-		if (httpCode == HTTP_CODE_OK) {
-			DynamicJsonDocument doc(4096);
-			DeserializationError error = deserializeJson(doc, http.getStream());
-			if (error == DeserializationError::Ok) {
-				// Use the mutex to safely access the shared display data.
-				if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-					JsonVariant monthVar = getJsonVariant(doc.as<JsonVariant>(), point.monthPath.c_str());
-					JsonVariant dayVar = getJsonVariant(doc.as<JsonVariant>(), point.dayPath.c_str());
-					JsonVariant yearVar = getJsonVariant(doc.as<JsonVariant>(), point.yearPath.c_str());
-					JsonVariant timeVar = getJsonVariant(doc.as<JsonVariant>(), point.timePath.c_str());
-
-					// Update display data only if the JSON path was valid.
-					if (!monthVar.isNull()) displayPages[index].month = monthVar.as<String>().c_str();
-					if (!dayVar.isNull()) displayPages[index].day = dayVar.as<String>().c_str();
-					if (!yearVar.isNull()) displayPages[index].year = yearVar.as<String>().c_str();
-					if (!timeVar.isNull()) displayPages[index].time = timeVar.as<String>().c_str();
-					// On success, cache the good data and reset the failure counter.
-					lastGoodDisplayPages[index] = displayPages[index];
-					dataPointFetchFailures[index] = 0;
-					xSemaphoreGive(xDisplayDataMutex);
-				}
-			} else {
-				 dataPointFetchFailures[index]++;
-			}
-		} else {
-			dataPointFetchFailures[index]++;
-		}
-		http.end();
-	} else {
-		dataPointFetchFailures[index]++;
-	}
-
-	// If fetching fails multiple times, revert to the last known good data.
-	if (dataPointFetchFailures[index] > MAX_FETCH_FAILURES) {
-		 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-			displayPages[index] = lastGoodDisplayPages[index];
-			 xSemaphoreGive(xDisplayDataMutex);
-		}
-	}
-	
-	// Atomically increment the completed requests counter.
-	__atomic_add_fetch(&requestsCompleted, 1, __ATOMIC_SEQ_CST);
-	vTaskDelete(NULL); // End the task.
-}
-
-/**
- * @brief Manages the periodic fetching of data for the Data Link marquee.
- * This function is non-blocking and creates separate tasks for each API call.
- */
-void fetchDataLink() {
-	// Use a mutex to prevent race conditions with the isFetchingData flag.
-	if (xSemaphoreTake(xDisplayDataMutex, 0) != pdTRUE) {
-		return;
-		// Could not get the lock, try again later.
-	}
-
-	// Don't fetch if the feature is disabled or if a fetch is already in progress.
-	if (!currentSettings.dataLinkEnabled || isFetchingData) {
-		xSemaphoreGive(xDisplayDataMutex);
-		return;
-	}
-
-	unsigned long now = millis();
-	// Check if it's time to refresh based on the user-configured interval.
-	if (now - lastDataLinkFetch > (unsigned long)currentSettings.dataLinkRefreshInterval * 60000) {
-		lastDataLinkFetch = now;
-		isFetchingData = true;
-		requestsCompleted = 0;
-		int tasksCreated = 0;
-
-		// Iterate through all configured data points.
-		for (int i = 0; i < currentSettings.numDataPoints; i++) {
-			// Only fetch data for API-based sources with a valid URL.
-			if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_API && !currentSettings.dataPoints[i].url.empty()) {
-				// Dynamically allocate memory for task parameters. This is crucial!
-				FetchDataParams* params = new FetchDataParams{ i, 0 }; // Initialize with index
-				// Create a new task to handle this specific API request.
-				if (xTaskCreate(fetchApiDataTask, "fetchApiDataTask", 8192, params, 1, NULL) == pdPASS) {
-					tasksCreated++;
-				}
-				else {
-					// If task creation fails, delete the params to prevent a memory leak.
-					delete params;
-				}
-			}
-		}
-
-		// If all tasks have completed, reset the fetching flag.
-		if (requestsCompleted >= tasksCreated) {
-			isFetchingData = false;
-		}
-	}
-	xSemaphoreGive(xDisplayDataMutex);
+void handlePresetCycling() {
+    if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
+    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+        lastPresetCycleTime = millis();
+        // (Future implementation: Add logic here to load the next preset from NVS).
+    }
 }
 
 /**
  * @brief Checks the current time against the configured sleep/wake schedule and updates the display state.
  */
+void handleSleepSchedule() {
+  if (!timeSynchronized) return;
+  struct tm timeinfo;
+  getLocalTime(&timeinfo);
+  
+  int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+  int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
+  int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
+
+  bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
+                        (now_minutes >= sleep_minutes && now_minutes < wake_minutes) : // Same-day sleep window.
+                        (now_minutes >= sleep_minutes || now_minutes < wake_minutes); // Overnight sleep window.
+
+  if (shouldBeAsleep && !isDisplayAsleep) {
+    isDisplayAsleep = true;
+    #if ENABLE_HARDWARE
+    blankAllDisplays();
+    playSound("SLEEP_ON");
+    #endif
+    updateHaStatus("Asleep");
+  } else if (!shouldBeAsleep && isDisplayAsleep) {
+    isDisplayAsleep = false;
+    #if ENABLE_HARDWARE
+    updateNormalClockDisplay();
+    playSound("CONFIRM_ON");
+    #endif
+    updateHaStatus("Idle");
+  }
+}

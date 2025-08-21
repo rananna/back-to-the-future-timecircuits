@@ -1,6 +1,7 @@
 // Forcing a recompile to resolve build cache issues.
 #include "web_server.h"
 #include "api_templates.h" // Includes the declaration
+#include "DataManager.h"   // Added to include WeatherTaskParams definition
 #include <AsyncJson.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -93,8 +94,6 @@ const char apiTemplates[] PROGMEM = "{\n"
 
 AsyncWebSocket ws("/ws");
 
-// ... (the rest of the web_server.cpp file remains unchanged) ...
-
 // Declare the new function that will be defined in the .ino file
 void forceFetchWeatherDataTask(void* p);
 
@@ -146,8 +145,6 @@ void makeApiRequestTask(void* p) {
         http.end();
         serializeJson(responseJson, responseString);
         ws.text(clientId, responseString);
-    } else {
-        ESP_LOGE("API_TASK", "Unable to connect to %s", urlStr.c_str());
     }
 
     vTaskDelete(NULL); // End the task
@@ -155,9 +152,9 @@ void makeApiRequestTask(void* p) {
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-        ESP_LOGI("WebSocket", "Client #%u connected from %s", client->id(), client->remoteIP().toString().c_str());
+        // Client connected
     } else if (type == WS_EVT_DISCONNECT) {
-        ESP_LOGI("WebSocket", "Client #%u disconnected", client->id());
+        // Client disconnected
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
@@ -169,7 +166,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
             String action = doc["action"];
             if (action == "testApi") {
                 if (!timeSynchronized) {
-                    ESP_LOGE("WebSocket", "Time not sync'd, API call aborted.");
                     String responseString;
                     DynamicJsonDocument responseJson(256);
                     responseJson["action"] = "apiResult";
@@ -188,7 +184,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
-                    ESP_LOGE("WebSocket", "Failed to create API test task. Deleting params to prevent leak.");
                     delete params;
                 }
             }
@@ -212,6 +207,7 @@ void setupWebRoutes() {
     #endif
     request->send(200, "text/plain", "Great Scott!");
   });
+
   server.on("/api/settings/timecircuits", HTTP_GET, [](AsyncWebServerRequest *request) {
     StaticJsonDocument<256> doc;
     doc["destinationYear"] = currentSettings.destinationYear;
@@ -226,6 +222,7 @@ void setupWebRoutes() {
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
+
   server.on("/api/settings/temporal", HTTP_GET, [](AsyncWebServerRequest *request) {
     StaticJsonDocument<384> doc;
     doc["departureHour"] = currentSettings.departureHour;
@@ -247,6 +244,7 @@ void setupWebRoutes() {
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
+
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
     DynamicJsonDocument doc(2048);
     doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
@@ -287,15 +285,18 @@ void setupWebRoutes() {
     serializeJson(doc, response);
     request->send(200, "application/json", response);
   });
+
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send_P(200, "application/json", TZ_JSON);
   });
+
   server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
     preferences.begin(PREFERENCES_NAMESPACE, true);
     String presets = preferences.getString("customPresets", "[]");
     preferences.end();
     request->send(200, "application/json", presets);
   });
+
   server.on("/api/time", HTTP_GET, [](AsyncWebServerRequest *request) {
     time_t now;
     time(&now);
@@ -306,6 +307,7 @@ void setupWebRoutes() {
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
+
   server.on("/api/weather", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (currentWeatherData.dataValid) {
         StaticJsonDocument<512> doc;
@@ -349,17 +351,13 @@ void setupWebRoutes() {
   });
   server.addHandler(refreshWeatherHandler);
 
-  // New JSON handler for saving settings
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    ESP_LOGI("SAVE_SETTINGS", "Received save request. Free heap: %u", ESP.getFreeHeap());
     JsonObject obj = json.as<JsonObject>();
 
     std::string oldMqttBroker = currentSettings.mqttBroker;
     int oldMqttPort = currentSettings.mqttPort;
     std::string oldCityName = currentSettings.cityName;
 
-    // Time Circuits & Temporal
-    ESP_LOGI("SAVE_SETTINGS", "Parsing temporal settings...");
     currentSettings.destinationYear = obj["destinationYear"] | currentSettings.destinationYear;
     currentSettings.destinationTimezoneIndex = obj["destinationTimezoneIndex"] | currentSettings.destinationTimezoneIndex;
     currentSettings.lastTimeDepartedYear = obj["lastTimeDepartedYear"] | currentSettings.lastTimeDepartedYear;
@@ -384,8 +382,6 @@ void setupWebRoutes() {
     currentSettings.presentTimezoneIndex = obj["presentTimezoneIndex"] | currentSettings.presentTimezoneIndex;
     currentSettings.displayFormat24h = obj["displayFormat24h"] | currentSettings.displayFormat24h;
 
-    // Data Link & Weather
-    ESP_LOGI("SAVE_SETTINGS", "Parsing Data Link settings...");
     currentSettings.dataLinkEnabled = obj["dataLinkEnabled"] | currentSettings.dataLinkEnabled;
     currentSettings.dataLinkRefreshInterval = obj["dataLinkRefreshInterval"] | currentSettings.dataLinkRefreshInterval;
     if (obj.containsKey("mqttBroker")) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
@@ -396,7 +392,6 @@ void setupWebRoutes() {
     if (obj.containsKey("cityName")) {
         std::string newCityName = obj["cityName"].as<std::string>();
         if (newCityName != oldCityName) {
-            ESP_LOGI("SAVE_SETTINGS", "City name changed. Clearing lastCityName to force geocoding.");
             lastCityName = "";
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 currentWeatherData.dataValid = false;
@@ -407,8 +402,6 @@ void setupWebRoutes() {
     }
     currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
 
-    // Data Points
-    ESP_LOGI("SAVE_SETTINGS", "Parsing Data Points...");
     currentSettings.numDataPoints = obj["numDataPoints"] | 0;
     if (obj.containsKey("dataPoints")) {
         JsonArray dataPoints = obj["dataPoints"];
@@ -438,9 +431,7 @@ void setupWebRoutes() {
             }
         }
     }
-    ESP_LOGI("SAVE_SETTINGS", "Parsing complete. Calling saveSettings()...");
     saveSettings();
-    ESP_LOGI("SAVE_SETTINGS", "saveSettings() returned. Free heap: %u", ESP.getFreeHeap());
 
     if (oldMqttBroker != currentSettings.mqttBroker || oldMqttPort != currentSettings.mqttPort) {
         if (mqttClient.connected()) {
@@ -454,12 +445,10 @@ void setupWebRoutes() {
     #endif
 
     request->send(200, "text/plain", "Settings Saved!");
-    ESP_LOGI("SAVE_SETTINGS", "Save request handler finished.");
   });
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){
-    ESP_LOGI("ANIMATION", "Animation triggered via API.");
     startTimeTravelAnimation();
     request->send(200, "text/plain", "Animation triggered!");
   });

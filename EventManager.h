@@ -40,6 +40,7 @@ extern int marqueeScrollPosition;
 extern int marqueeScrollPositionYear;
 extern volatile bool isFetchingData;
 extern int dataPointFetchFailures[5];
+extern const int MAX_FETCH_FAILURES;
 extern bool isMalfunctioning;
 extern unsigned long malfunctionStartTime;
 extern MalfunctionPhase currentMalfunctionPhase;
@@ -58,56 +59,9 @@ extern String overrideMessageLine3;
 extern bool isMarqueeOverrideActive;
 extern String marqueeOverrideMessage;
 
-
 // ADDED: Extern declaration for the Time Zone data array to make it visible to this file.
 extern const TimeZoneEntry TZ_DATA[];
-
-// --- FUNCTION DECLARATIONS ---
-
-// Animation & Effects
-void startTimeTravelAnimation();
-void handleDisplayAnimation();
-void handleTemporalEcho();
-void handleGlitchEffect();
-void restoreDisplayAfterGlitch();
-void handleMalfunction();
-
-// Display Updates
-void updateNormalClockDisplay();
-void updateMarqueeDisplay();
-void handleWeatherDisplay();
-void displayOverrideMessage();
-// HA-MARQUEE: New function to display the marquee override message.
-void displayMarqueeOverride();
-
-
-// System & State Handlers
-void runBootSequence();
-void handleBootSequence();
-void handlePresetCycling();
-void handleSleepSchedule();
-
-// Data & Networking
-void fetchDataLink();
-void fetchWeatherData(struct WeatherTaskParams* params);
-void fetchWeatherDataTask(void* p);
-void forceFetchWeatherDataTask(void* p);
-void mqttCallback(char* topic, byte* payload, unsigned int length);
-void setupMqtt();
-void reconnectMqtt();
-
-// --- Home Assistant Integration Functions ---
-void publishHaAutoDiscovery();
-void updateHaStatus(const char* status);
-void publishAllHaStates();
-// HA-ERROR-CHECK: New function prototype for the HA entity cleanup tool.
-void clearHaEntity(const char* component, const char* unique_id_suffix);
-
-
-// Utility Functions
-String urlEncode(const char* msg);
-JsonVariant getJsonVariant(JsonVariant root, const char* path);
-void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration);
-const char* getIconForWeatherCode(int code);
+extern SemaphoreHandle_t xDisplayDataMutex;
+extern std::string lastCityName;
 
 #endif // EVENT_MANAGER_H

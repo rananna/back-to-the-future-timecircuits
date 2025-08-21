@@ -36,13 +36,6 @@ struct ApiTestParams {
     uint32_t clientId;
 };
 
-// Struct to pass parameters for weather fetching tasks
-struct WeatherTaskParams {
-    std::string cityName;
-    bool forceGeocode;
-};
-
-
 // Forward declarations
 extern JsonVariant getJsonVariant(JsonVariant root, const char* path);
 extern void saveSettings();
