@@ -109,6 +109,25 @@ void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
     }
 }
 
+// --- Start of Added Code ---
+/**
+ * @brief Overloaded function to broadcast an integer state update via WebSocket.
+ */
+void broadcastWsStateUpdate(const char* key, int value) {
+    StaticJsonDocument<32> doc;
+    doc.set(value);
+    broadcastWsStateUpdate(key, doc.as<JsonVariant>());
+}
+
+/**
+ * @brief Overloaded function to broadcast a boolean state update via WebSocket.
+ */
+void broadcastWsStateUpdate(const char* key, bool value) {
+    StaticJsonDocument<32> doc;
+    doc.set(value);
+    broadcastWsStateUpdate(key, doc.as<JsonVariant>());
+}
+// --- End of Added Code ---
 
 // This function runs in a separate task to prevent blocking
 void makeApiRequestTask(void* p) {

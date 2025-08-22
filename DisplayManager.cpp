@@ -1,5 +1,6 @@
 #include "DisplayManager.h"
 #include "EventManager.h"
+#include "HardwareControl.h"
 
 std::string manualDisplayText[3][4];
 bool isRowInManualMode[3] = {false, false, false};
