@@ -39,6 +39,7 @@
 // --- FUNCTION PROTOTYPES ---
 void handlePresetCycling();
 void handleSleepSchedule();
+void handleSequencer();
 
 // --- GLOBAL VARIABLES & STATE ---
 ClockSettings currentSettings;
@@ -46,7 +47,6 @@ MarqueeData displayPages[5];
 MarqueeData lastGoodDisplayPages[5];
 WeatherData currentWeatherData;
 std::string lastCityName = "";
-// Cache for the last geocoded city name to reduce API calls
 const TimeZoneEntry TZ_DATA[] = {
 	// Global
 	{ "UTC0", "UTC", "Etc/UTC", "Global" },
@@ -144,8 +144,17 @@ String overrideMessageLine3 = "";
 // HA-MARQUEE: Global state for marquee override
 bool isMarqueeOverrideActive = false;
 String marqueeOverrideMessage = "";
-// Mutex for protecting shared data between tasks (e.g., API fetch task and main loop)
+unsigned long marqueeOverrideEndTime = 0;
+
+// Mutex for protecting shared data between tasks
 SemaphoreHandle_t xDisplayDataMutex;
+
+// Sequencer state
+SequenceStep sequence[20];
+int currentSequenceStep = 0;
+unsigned long sequenceStepStartTime = 0;
+bool isSequenceActive = false;
+
 /**
  * @brief Saves the current settings from the global `currentSettings` struct to non-volatile storage (NVS).
  */
@@ -212,18 +221,15 @@ void saveSettings() {
 		preferences.putString((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey.c_str());
 	}
 	preferences.end();
-	// Apply the timezone setting immediately after saving.
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
 }
 
 /**
  * @brief Loads settings from NVS into the global `currentSettings` struct.
- * If no settings are found, initializes with default values.
  */
 void loadSettings() {
 	preferences.begin(PREFERENCES_NAMESPACE, true);
-	// Check if a key exists to determine if this is the first boot.
 	bool needsInit = !preferences.isKey("destYear");
 	if (needsInit) {
 		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
@@ -265,10 +271,9 @@ void loadSettings() {
 		currentSettings.latitude = 40.7128;
 		currentSettings.longitude = -74.0060;
 		for (int i = 0; i < 5; i++) {
-			currentSettings.dataPoints[i] = {}; // Zero out the data points struct
+			currentSettings.dataPoints[i] = {};
 		}
 		saveSettings();
-		// Save the new default settings
 	} else {
 		ESP_LOGI("SETTINGS", "Loading settings from NVS.");
 		currentSettings.destinationYear = preferences.getInt("destYear");
@@ -373,7 +378,6 @@ void setup() {
 
 	Serial.println(F("\n\n--- BOOTING ---"));
 	// Initialize LittleFS for web files.
-	// Halt on failure as it's critical.
 	if (!LittleFS.begin(true)) {
 		ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
 		delay(10000);
@@ -385,7 +389,7 @@ void setup() {
 	loadSettings();
 	// Create a mutex for safe multi-threaded access to shared display data.
 	xDisplayDataMutex = xSemaphoreCreateMutex();
-	#if ENABLE_HARDWARE
+#if ENABLE_HARDWARE
 	// Initialize physical displays, sound module, etc.
 	setupPhysicalDisplay();
 	dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
@@ -407,13 +411,11 @@ void setup() {
 	// Set up all web server routes and start the server.
 	setupWebRoutes();
 	server.begin();
-	// HA-ERROR-CHECK: Increase the MQTT buffer size to handle large JSON discovery payloads.
-	// This is critical for preventing silent failures when publishing configurations.
+	// Increase the MQTT buffer size to handle large JSON discovery payloads.
 	mqttClient.setBufferSize(2048);
 
 	ESP_LOGI("Web", "HTTP server started.");
 	// Initial time configuration.
-	// Will be synced properly in the main loop.
 	configTime(0, 0, NTP_SERVERS[0]);
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
@@ -427,7 +429,6 @@ void setup() {
 
 /**
  * @brief The main application loop.
- * Runs continuously after setup().
  */
 void loop() {
 	// Handle MQTT connection and message processing.
@@ -445,6 +446,15 @@ void loop() {
 		mqttClient.loop(); // Process incoming MQTT messages and maintain connection.
 	}
 
+    // Handle temporary marquee override timeout
+    if (isMarqueeOverrideActive && marqueeOverrideEndTime > 0 && millis() > marqueeOverrideEndTime) {
+        isMarqueeOverrideActive = false;
+        marqueeOverrideEndTime = 0;
+        publishAllHaStates(); // Update HA to reflect the change
+    }
+
+	handleFlashEffect();
+    handleSequencer();
 	// Run the boot sequence state machine (only does something on startup).
 	handleBootSequence();
 	// The main display logic is a state machine. Only one of these major states can be active.
@@ -475,7 +485,11 @@ void loop() {
 			// Handles cycling through destination time presets.
 			handleSleepSchedule(); // Checks if the display should enter or exit sleep mode.
 			// Logic for the bottom display row.
-			if (currentSettings.dataLinkEnabled) {
+            if (isMessageOverrideActive) {
+                displayOverrideMessage();
+            } else if (isMarqueeOverrideActive) {
+                displayMarqueeOverride();
+            } else if (currentSettings.dataLinkEnabled) {
 				fetchDataLink(); // Fetches data from APIs for the marquee.
 				updateMarqueeDisplay();
 				// Updates the marquee display.
@@ -491,12 +505,13 @@ void loop() {
 
 	// This runs regardless of the normal operation state to handle the time travel animation.
 	handleDisplayAnimation();
-    handleTemporalGlitch(); // Handle the NTP sync glitch effect
+    handleTemporalGlitch();
+	// Handle the NTP sync glitch effect
 
 
 	// Time synchronization logic.
 	static unsigned long lastNtpUpdate = 0;
-    static unsigned long lastHaStateUpdate = 0;
+	static unsigned long lastHaStateUpdate = 0;
 
 	// Sync time if requested via UI, if never synced before, or if it's been an hour since the last sync.
 	if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
@@ -505,9 +520,9 @@ void loop() {
 		tzset();
 		struct tm timeinfo;
 		if (getLocalTime(&timeinfo, 5000)) { // Attempt to get time with a 5-second timeout.
-            if (!timeSynchronized) { // Only trigger glitch on the FIRST successful sync
+			if (!timeSynchronized) { // Only trigger glitch on the FIRST successful sync
                 triggerTemporalGlitch();
-            }
+			}
 			timeSynchronized = true;
 		}
 		else {
@@ -519,23 +534,58 @@ void loop() {
 		ntpSyncRequested = false;
 	}
 
-    if (timeSynchronized && millis() - lastHaStateUpdate > 30000) { // Update HA states every 30 seconds
+    if (timeSynchronized && millis() - lastHaStateUpdate > 5000) { // Update HA states every 5 seconds
         publishAllHaStates();
-        lastHaStateUpdate = millis();
+		lastHaStateUpdate = millis();
     }
 }
 
 // --- SYSTEM & STATE HANDLERS ---
+
+void handleSequencer() {
+    if (!isSequenceActive) return;
+
+    SequenceStep step = sequence[currentSequenceStep];
+    unsigned long elapsed = millis() - sequenceStepStartTime;
+
+    switch (step.command) {
+        case SEQ_CMD_TEXT:
+            updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+            currentSequenceStep++;
+            sequenceStepStartTime = millis();
+            break;
+        case SEQ_CMD_FLASH:
+            triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
+            currentSequenceStep++;
+            sequenceStepStartTime = millis();
+            break;
+        case SEQ_CMD_SOUND:
+            playSound(step.stringParam.c_str());
+            currentSequenceStep++;
+            sequenceStepStartTime = millis();
+            break;
+        case SEQ_CMD_WAIT:
+            if (elapsed >= (unsigned long)step.intParam) {
+                sequenceStepStartTime = millis();
+                currentSequenceStep++;
+            }
+            break;
+        case SEQ_CMD_END:
+            isSequenceActive = false;
+            currentSequenceStep = 0;
+            break;
+    }
+}
 
 /**
  * @brief Handles cycling through saved destination time presets.
  */
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+	if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
-        // (Future implementation: Add logic here to load the next preset from NVS).
-    }
+		// (Future implementation: Add logic here to load the next preset from NVS).
+	}
 }
 
 /**
@@ -551,7 +601,7 @@ void handleSleepSchedule() {
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) : // Same-day sleep window.
-                        (now_minutes >= sleep_minutes || now_minutes < wake_minutes); // Overnight sleep window.
+						(now_minutes >= sleep_minutes || now_minutes < wake_minutes); // Overnight sleep window.
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     #if ENABLE_HARDWARE

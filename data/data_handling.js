@@ -72,6 +72,18 @@ function initWebSocket() {
                     }
                  }
             }
+        } else if (msg.action === 'stateUpdate') {
+            const el = document.getElementById(msg.key);
+            if (el) {
+                if (el.type === 'checkbox') {
+                    el.checked = msg.value;
+                } else {
+                    el.value = msg.value;
+                }
+                // Trigger an event to update any associated UI elements (like value spans)
+                el.dispatchEvent(new Event('input'));
+                el.dispatchEvent(new Event('change'));
+            }
         }
     };
 
@@ -345,7 +357,14 @@ function saveSettings() {
     settings.dataPoints = [];
     for (let i = 0; i < numDataPoints; i++) {
         const point = {};
-        point.dataSourceType = document.getElementById(`dp_dataSourceType_${i}`).value === 'mqtt' ? 1 : 0;
+        const sourceValue = document.getElementById(`dp_dataSourceType_${i}`).value;
+        if (sourceValue === 'mqtt') {
+            point.dataSourceType = 1;
+        } else if (sourceValue === 'ha') {
+            point.dataSourceType = 2;
+        } else {
+            point.dataSourceType = 0; // api
+        }
         point.displayMode = parseInt(document.getElementById(`dp_displayMode_${i}`).value, 10);
         point.url = document.getElementById(`dp_url_${i}`).value;
         point.monthPath = document.getElementById(`dp_monthPath_${i}`).value;

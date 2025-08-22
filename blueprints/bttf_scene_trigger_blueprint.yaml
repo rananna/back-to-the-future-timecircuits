@@ -1,0 +1,44 @@
+blueprint:
+  name: BTTF Time Circuits - Cinematic Scene Trigger
+  description: >-
+    Set a destination year and trigger the full, cinematic time travel animation.
+    Ideal for starting scenes or reacting to events.
+  domain: automation
+  input:
+    target_device:
+      name: Time Circuits Device
+      description: Select the BTTF Time Circuits clock device to control.
+      selector:
+        device:
+          manufacturer: "Doc Brown Industries"
+          model: "BTTF Clock v1"
+
+    destination_year:
+      name: Destination Year
+      description: The four-digit year to travel to.
+      default: 2015
+      selector:
+        number:
+          min: 1000
+          max: 9999
+
+trigger: []
+
+variables:
+  target_device_id: !input target_device
+  dest_year_entity: >
+    {{ device_entities(target_device_id) | select('search', 'destination_year') | first }}
+  trigger_anim_entity: >
+    {{ device_entities(target_device_id) | select('search', 'trigger_animation') | first }}
+
+action:
+  - service: number.set_value
+    target:
+      entity_id: "{{ dest_year_entity }}"
+    data:
+      value: !input destination_year
+  - delay:
+      milliseconds: 250
+  - service: button.press
+    target:
+      entity_id: "{{ trigger_anim_entity }}"

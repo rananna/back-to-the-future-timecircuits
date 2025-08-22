@@ -97,6 +97,19 @@ AsyncWebSocket ws("/ws");
 // Declare the new function that will be defined in the .ino file
 void forceFetchWeatherDataTask(void* p);
 
+void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
+    if (ws.count() > 0) {
+        DynamicJsonDocument doc(256);
+        doc["action"] = "stateUpdate";
+        doc["key"] = key;
+        doc["value"] = value;
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
+    }
+}
+
+
 // This function runs in a separate task to prevent blocking
 void makeApiRequestTask(void* p) {
     ApiTestParams* params = (ApiTestParams*)p;

@@ -6,12 +6,10 @@
 #include <PubSubClient.h>
 #include "HardwareControl.h"
 
-// HA-ENHANCEMENT: Moved definitions to the header for global visibility.
 #define MQTT_UNIQUE_ID "bttf_timecircuits_01"
 #define MQTT_DEVICE_TYPE "bttf-clock"
 #define MQTT_BASE_TOPIC "homeassistant"
 
-// --- EXTERN DECLARATIONS for global variables in the main .ino file ---
 extern ClockSettings currentSettings;
 extern MarqueeData displayPages[5];
 extern MarqueeData lastGoodDisplayPages[5];
@@ -49,19 +47,23 @@ extern PubSubClient mqttClient;
 extern bool timeSynchronized;
 extern int currentPageIndex;
 
-// HA-ENHANCEMENT: Extern declarations for new override state
 extern bool isMessageOverrideActive;
 extern String overrideMessageLine1;
 extern String overrideMessageLine2;
 extern String overrideMessageLine3;
 
-// HA-MARQUEE: Extern declarations for the dynamic marquee override.
 extern bool isMarqueeOverrideActive;
 extern String marqueeOverrideMessage;
+extern unsigned long marqueeOverrideEndTime;
 
-// ADDED: Extern declaration for the Time Zone data array to make it visible to this file.
 extern const TimeZoneEntry TZ_DATA[];
 extern SemaphoreHandle_t xDisplayDataMutex;
 extern std::string lastCityName;
+
+extern SequenceStep sequence[20];
+extern int currentSequenceStep;
+extern unsigned long sequenceStepStartTime;
+extern bool isSequenceActive;
+
 
 #endif // EVENT_MANAGER_H

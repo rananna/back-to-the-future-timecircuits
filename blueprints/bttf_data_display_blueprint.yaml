@@ -1,0 +1,92 @@
+blueprint:
+  name: BTTF Time Circuits - Dynamic Data Display
+  description: >-
+    Display the state of any Home Assistant entity on one of the clock's marquee display slots.
+    The clock's Data Point Source must be set to "Home Assistant Push" for this to work.
+  domain: automation
+  input:
+    target_device:
+      name: Time Circuits Device
+      description: Select the BTTF Time Circuits clock device.
+      selector:
+        device:
+          manufacturer: "Doc Brown Industries"
+          model: "BTTF Clock v1"
+
+    target_entity:
+      name: Sensor to Display
+      description: The entity whose state you want to show on the clock.
+      selector:
+        entity:
+
+    data_point_slot:
+      name: Data Point Slot
+      description: Which of the five marquee slots to use for this data.
+      default: "0"
+      selector:
+        select:
+          options:
+            - label: "Data Point 1"
+              value: "0"
+            - label: "Data Point 2"
+              value: "1"
+            - label: "Data Point 3"
+              value: "2"
+            - label: "Data Point 4"
+              value: "3"
+            - label: "Data Point 5"
+              value: "4"
+
+    month_text:
+      name: Month Text (3 Chars)
+      description: Static text or a template for the MONTH display.
+      default: "DATA"
+      selector:
+        text:
+    
+    day_text:
+      name: Day Text (2 Chars)
+      description: Static text or a template for the DAY display.
+      default: ""
+      selector:
+        text:
+
+    year_text:
+      name: Year Text (4 Chars)
+      description: Static text or a template for the YEAR display.
+      default: ""
+      selector:
+        text:
+
+    time_text:
+      name: Time Text (4 Chars)
+      description: Static text or a template for the TIME display.
+      default: "{{ states(target_entity) }}"
+      selector:
+        text:
+
+variables:
+  device_name: "{{ device_attr(!input target_device, 'name') | lower | replace(' ', '_') }}"
+  slot: !input data_point_slot
+
+trigger:
+  - platform: state
+    entity_id: !input target_entity
+
+action:
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/bttf-clock/{{ device_name }}/datapoint/{{ slot }}/month/set"
+      payload: "{{ month_text }}"
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/bttf-clock/{{ device_name }}/datapoint/{{ slot }}/day/set"
+      payload: "{{ day_text }}"
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/bttf-clock/{{ device_name }}/datapoint/{{ slot }}/year/set"
+      payload: "{{ year_text }}"
+  - service: mqtt.publish
+    data:
+      topic: "homeassistant/bttf-clock/{{ device_name }}/datapoint/{{ slot }}/time/set"
+      payload: "{{ time_text }}"

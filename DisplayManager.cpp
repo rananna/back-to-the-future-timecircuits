@@ -1,14 +1,9 @@
 #include "DisplayManager.h"
 #include "EventManager.h"
 
-/**
- * @brief Displays a temporary message on the bottom display row.
- * @param month Text for the MONTH display (3 chars).
- * @param day Text for the DAY display (2 chars).
- * @param year Text for the YEAR display (4 chars).
- * @param time Text for the TIME display (4 chars).
- * @param duration The duration in milliseconds to show the message.
- */
+std::string manualDisplayText[3][4];
+bool isRowInManualMode[3] = {false, false, false};
+
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration) {
     #if ENABLE_HARDWARE
     printToDisplay(lastRow.month, month, 1);
@@ -19,36 +14,28 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
     lastRow.day.writeDisplay();
     lastRow.year.writeDisplay();
     lastRow.time.writeDisplay();
-    delay(duration); // Note: This is a blocking delay. Use sparingly.
+    delay(duration);
     #endif
 }
 
-/**
- * @brief Maps a WMO weather code to a 2-character display icon.
- * @param code The integer weather code from the Open-Meteo API.
- * @return A 2-character string representing the weather icon.
- */
 const char* getIconForWeatherCode(int code) {
     switch (code) {
-        case 0: case 1: return "SU"; // Clear, Mainly clear
-        case 2: return "CL"; // Partly cloudy
-        case 3: return "CL"; // Overcast
-        case 45: case 48: return "CL"; // Fog
-        case 51: case 53: case 55: return "RN"; // Drizzle
-        case 61: case 63: case 65: return "RN"; // Rain
-        case 66: case 67: return "RN"; // Freezing Rain
-        case 71: case 73: case 75: return "SN"; // Snow
-        case 77: return "SN"; // Snow grains
-        case 80: case 81: case 82: return "RN"; // Rain showers
-        case 85: case 86: return "SN"; // Snow showers
-        case 95: case 96: case 99: return "ST"; // Thunderstorm
+        case 0: case 1: return "SU";
+        case 2: return "CL";
+        case 3: return "CL";
+        case 45: case 48: return "CL";
+        case 51: case 53: case 55: return "RN";
+        case 61: case 63: case 65: return "RN";
+        case 66: case 67: return "RN";
+        case 71: case 73: case 75: return "SN";
+        case 77: return "SN";
+        case 80: case 81: case 82: return "RN";
+        case 85: case 86: return "SN";
+        case 95: case 96: case 99: return "ST";
         default: return "--";
     }
 }
 
-/**
- * @brief HA-MARQUEE: New display function for the marquee override mode.
- */
 void displayMarqueeOverride() {
     #if ENABLE_HARDWARE
     String textToDisplay = marqueeOverrideMessage;
@@ -60,7 +47,7 @@ void displayMarqueeOverride() {
     static unsigned long lastScrollTime = 0;
     static int scrollPosition = 0;
 
-    if (millis() - lastScrollTime > currentSettings.dataPoints[currentPageIndex].scrollSpeed) { // Scroll Speed
+    if (millis() - lastScrollTime > currentSettings.dataPoints[currentPageIndex].scrollSpeed) {
         lastScrollTime = millis();
         
         String viewport = textToDisplay.substring(scrollPosition, scrollPosition + 13);
@@ -87,27 +74,20 @@ void displayMarqueeOverride() {
     #endif
 }
 
-/**
- * @brief HA-ENHANCEMENT: New display function for message override mode.
- */
 void displayOverrideMessage() {
     #if ENABLE_HARDWARE
-    // Display the override message, splitting it across the three rows.
-    // Line 1 on Destination Row (top)
     printToDisplay(destRow.month, overrideMessageLine1.substring(0, 3).c_str(), 1);
     printToDisplay(destRow.day, overrideMessageLine1.substring(3, 5).c_str(), 2);
     printToDisplay(destRow.year, overrideMessageLine1.substring(5, 9).c_str());
     printToDisplay(destRow.time, overrideMessageLine1.substring(9, 13).c_str());
     destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
 
-    // Line 2 on Present Row (middle)
     printToDisplay(presRow.month, overrideMessageLine2.substring(0, 3).c_str(), 1);
     printToDisplay(presRow.day, overrideMessageLine2.substring(3, 5).c_str(), 2);
     printToDisplay(presRow.year, overrideMessageLine2.substring(5, 9).c_str());
     printToDisplay(presRow.time, overrideMessageLine2.substring(9, 13).c_str());
     presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
 
-    // Line 3 on Last Departed Row (bottom)
     printToDisplay(lastRow.month, overrideMessageLine3.substring(0, 3).c_str(), 1);
     printToDisplay(lastRow.day, overrideMessageLine3.substring(3, 5).c_str(), 2);
     printToDisplay(lastRow.year, overrideMessageLine3.substring(5, 9).c_str());
@@ -116,9 +96,23 @@ void displayOverrideMessage() {
     #endif
 }
 
-/**
- * @brief Updates all three display rows with their normal time data.
- */
+void updateDisplaySegment(int row, int segment, const std::string& text) {
+    if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
+    
+    manualDisplayText[row][segment] = text;
+
+    bool manualActive = false;
+    for(int i=0; i<4; ++i) {
+        if(!manualDisplayText[row][i].empty()) {
+            manualActive = true;
+            break;
+        }
+    }
+    isRowInManualMode[row] = manualActive;
+
+    updateNormalClockDisplay();
+}
+
 void updateNormalClockDisplay() {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return;
   #if ENABLE_HARDWARE
@@ -127,30 +121,55 @@ void updateNormalClockDisplay() {
     time(&now);
     struct tm timeinfo;
     
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
-    localtime_r(&now, &timeinfo);
-    updateDisplayRow(presRow, timeinfo, timeinfo.tm_year + 1900);
-    
     setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
     tzset();
     localtime_r(&now, &timeinfo);
-    updateDisplayRow(destRow, timeinfo, currentSettings.destinationYear);
     
+    if (!manualDisplayText[0][0].empty()) { printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1); } 
+    else { updateDisplaySegment(destRow.month, timeinfo, currentSettings.destinationYear, 0); }
+    if (!manualDisplayText[0][1].empty()) { printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2); }
+    else { updateDisplaySegment(destRow.day, timeinfo, currentSettings.destinationYear, 1); }
+    if (!manualDisplayText[0][2].empty()) { printToDisplay(destRow.year, manualDisplayText[0][2].c_str()); }
+    else { updateDisplaySegment(destRow.year, timeinfo, currentSettings.destinationYear, 2); }
+    if (!manualDisplayText[0][3].empty()) { printToDisplay(destRow.time, manualDisplayText[0][3].c_str()); }
+    else { updateDisplaySegment(destRow.time, timeinfo, currentSettings.destinationYear, 3); }
+    destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+    
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
+    localtime_r(&now, &timeinfo);
+    int presentYear = timeinfo.tm_year + 1900;
+    
+    if (!manualDisplayText[1][0].empty()) { printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1); } 
+    else { updateDisplaySegment(presRow.month, timeinfo, presentYear, 0); }
+    if (!manualDisplayText[1][1].empty()) { printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2); }
+    else { updateDisplaySegment(presRow.day, timeinfo, presentYear, 1); }
+    if (!manualDisplayText[1][2].empty()) { printToDisplay(presRow.year, manualDisplayText[1][2].c_str()); }
+    else { updateDisplaySegment(presRow.year, timeinfo, presentYear, 2); }
+    if (!manualDisplayText[1][3].empty()) { printToDisplay(presRow.time, manualDisplayText[1][3].c_str()); }
+    else { updateDisplaySegment(presRow.time, timeinfo, presentYear, 3); }
+    presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+
     struct tm lastTimeDepartedInfo = {0};
     lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
     lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
     lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
     lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
     lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
-    updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
+    
+    if (!manualDisplayText[2][0].empty()) { printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1); } 
+    else { updateDisplaySegment(lastRow.month, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 0); }
+    if (!manualDisplayText[2][1].empty()) { printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2); }
+    else { updateDisplaySegment(lastRow.day, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 1); }
+    if (!manualDisplayText[2][2].empty()) { printToDisplay(lastRow.year, manualDisplayText[2][2].c_str()); }
+    else { updateDisplaySegment(lastRow.year, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 2); }
+    if (!manualDisplayText[2][3].empty()) { printToDisplay(lastRow.time, manualDisplayText[2][3].c_str()); }
+    else { updateDisplaySegment(lastRow.time, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 3); }
+    lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
   }
   #endif
 }
 
-/**
- * @brief Handles the multi-page display logic for the live weather mode.
- */
 void handleWeatherDisplay() {
     #if ENABLE_HARDWARE
     if (!currentSettings.weatherModeEnabled) return;
@@ -171,7 +190,7 @@ void handleWeatherDisplay() {
             
             const char* icon = getIconForWeatherCode(currentWeatherData.weatherCode);
             switch(weatherPage) {
-                case 0: // Current Conditions
+                case 0:
                     printToDisplay(lastRow.month, "NOW", 1);
                     printToDisplay(lastRow.day, icon, 2);
                     dtostrf(currentWeatherData.temperature, 4, 1, buffer);
@@ -180,7 +199,7 @@ void handleWeatherDisplay() {
                     digitalWrite(LAST_AM_PIN, LOW);
                     digitalWrite(LAST_PM_PIN, LOW);
                     break;
-                case 1: // Tomorrow's Forecast
+                case 1:
                     printToDisplay(lastRow.month, "TMRW", 1);
                     printToDisplay(lastRow.day, getIconForWeatherCode(currentWeatherData.tomorrowWeatherCode), 2);
                     dtostrf(currentWeatherData.tomorrowHigh, 4, 0, buffer);
@@ -190,7 +209,7 @@ void handleWeatherDisplay() {
                     digitalWrite(LAST_AM_PIN, HIGH);
                     digitalWrite(LAST_PM_PIN, LOW);
                     break;
-                case 2: // Wind and Rain
+                case 2:
                     printToDisplay(lastRow.month, "WIND", 1);
                     dtostrf(currentWeatherData.maxWindSpeed, 2, 0, buffer);
                     strcat(buffer, "M");
@@ -201,7 +220,7 @@ void handleWeatherDisplay() {
                     digitalWrite(LAST_AM_PIN, LOW);
                     digitalWrite(LAST_PM_PIN, HIGH);
                     break;
-                case 3: // Sunrise / Sunset
+                case 3:
                     struct tm timeinfo;
                     char timeStr[5];
                     printToDisplay(lastRow.month, "SUN", 1);
@@ -226,9 +245,6 @@ void handleWeatherDisplay() {
     #endif
 }
 
-/**
- * @brief Handles the state machine for the Data Link marquee display.
- */
 void updateMarqueeDisplay() {
     #if ENABLE_HARDWARE
     if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0) return;

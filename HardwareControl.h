@@ -23,12 +23,10 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-// UPDATED: Set to 0 by default for easier initial setup without hardware.
 #define ENABLE_HARDWARE 0 
 
 // --- ENUMS & DATA STRUCTURES ---
 
-// Moved from .ino file
 struct MarqueeData {
   std::string month;
   std::string day;
@@ -36,7 +34,6 @@ struct MarqueeData {
   std::string time;
 };
 
-// UPDATED: Expanded AnimationPhase enum for a more detailed sequence
 enum AnimationPhase {
   ANIM_INACTIVE,
   ANIM_POWER_UP,
@@ -46,12 +43,10 @@ enum AnimationPhase {
   ANIM_LANDING
 };
 
-// CORRECTED: Updated for the new visual boot sequence
 enum BootSequenceState { BOOT_INACTIVE, BOOT_START, BOOT_CHARGE_UP, BOOT_COMPLETE };
 enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
 enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
 
-// Moved from web_server.h to be globally accessible
 struct FetchDataParams {
     int pointIndex;
     int totalRequests;
@@ -62,7 +57,7 @@ enum Theme {
   THEME_PLUTONIUM_GLOW, THEME_MR_FUSION, THEME_CLOCK_TOWER
 };
 
-enum DataSourceType { DATA_SOURCE_API, DATA_SOURCE_MQTT };
+enum DataSourceType { DATA_SOURCE_API, DATA_SOURCE_MQTT, DATA_SOURCE_HA };
 enum DisplayMode { FOUR_COLUMN, SCROLLING_TEXT };
 enum HttpMethod { METHOD_GET, METHOD_POST };
 
@@ -161,6 +156,23 @@ enum AnimationStyle {
   ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM
 };
 
+enum SequenceCommandType {
+    SEQ_CMD_TEXT,
+    SEQ_CMD_FLASH,
+    SEQ_CMD_WAIT,
+    SEQ_CMD_SOUND,
+    SEQ_CMD_END
+};
+
+struct SequenceStep {
+    SequenceCommandType command;
+    int targetRow;
+    int targetSegment;
+    int intParam;
+    std::string stringParam;
+};
+
+
 #if ENABLE_HARDWARE
 extern TwoWire I2C_1; extern TwoWire I2C_2;
 extern DisplayRow destRow, presRow, lastRow;
@@ -170,6 +182,7 @@ extern DFRobotDFPlayerMini myDFPlayer;
 
 void setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year);
+void updateDisplaySegment(Adafruit_AlphaNum4& display, const struct tm& timeinfo, int year, int segment);
 void animateDisplayRowRandomly(DisplayRow& row);
 void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
 void animateTornadoFlicker();
@@ -183,8 +196,6 @@ void playSound(const char* soundName);
 void setupSoundFiles();
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
 void displaySpeed(int speed);
-
-// NEW: Function prototypes for the advanced animation effects
 void flashAllDisplays();
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year);
 

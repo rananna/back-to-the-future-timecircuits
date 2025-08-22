@@ -227,7 +227,13 @@ async function applyDataLinkSettings(datalink) {
     await updateDataPointsUI(datalink.numDataPoints);
     if (datalink.dataPoints) {
         datalink.dataPoints.forEach((point, i) => {
-            document.getElementById(`dp_dataSourceType_${i}`).value = point.dataSourceType === 1 ? 'mqtt' : 'api';
+            if (point.dataSourceType === 1) {
+                document.getElementById(`dp_dataSourceType_${i}`).value = 'mqtt';
+            } else if (point.dataSourceType === 2) {
+                document.getElementById(`dp_dataSourceType_${i}`).value = 'ha';
+            } else {
+                document.getElementById(`dp_dataSourceType_${i}`).value = 'api';
+            }
             document.getElementById(`dp_displayMode_${i}`).value = point.displayMode || 0;
             document.getElementById(`dp_url_${i}`).value = point.url || '';
             document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
@@ -632,6 +638,7 @@ function updateDataPointsUI(numPoints) {
                     <select id="dp_dataSourceType_${i}" class="data-source-select" data-index="${i}">
                         <option value="api">Web API (HTTP)</option>
                         <option value="mqtt">MQTT Broker</option>
+                        <option value="ha">Home Assistant Push</option>
                     </select>
 
                     <div id="dp_api_container_${i}">
@@ -884,6 +891,11 @@ function attachDataPointEventListeners() {
 
             document.getElementById(`dp_api_container_${index}`).style.display = dataSource === 'api' ? 'block' : 'none';
             document.getElementById(`dp_mqtt_container_${index}`).style.display = dataSource === 'mqtt' ? 'block' : 'none';
+            if (dataSource === 'ha') {
+                document.getElementById(`dp_api_container_${index}`).style.display = 'none';
+                document.getElementById(`dp_mqtt_container_${index}`).style.display = 'none';
+            }
+
             document.getElementById(`four_column_container_${index}`).style.display = displayMode === '0' ? 'block' : 'none';
             document.getElementById(`scrolling_text_container_${index}`).style.display = displayMode === '1' ? 'block' : 'none';
             

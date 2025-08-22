@@ -11,7 +11,7 @@
   <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
 </p>
 
-> **Great Scott!** You've found the schematics for a fully-functional, WiFi-enabled Time Circuits display. While it can't *actually* travel through time (the flux capacitor technology is still a bit tricky), it brings the iconic look, feel, and sounds of the DeLorean's dashboard right to your desk. Using an ESP32, 12 alphanumeric displays, and a little bit of 1.21-gigawatt... I mean, 5-volt... ingenuity, this display connects to your network to show the Destination Time, Present Time, and Last Time Departed, all fully configurable from a slick, mobile-friendly web interface.
+> **Great Scott!** You've found the schematics for a fully-functional, WiFi-enabled Time Circuits display. While it can't *actually* travel through time (the flux capacitor technology is still a bit tricky), it brings the iconic look, feel, and sounds of the DeLorean's dashboard right to your desk. Using an ESP32, 12 alphanumeric displays, and a little bit of 1.21-gigawatt... I mean, 5-volt... ingenuity, this display connects to your network to show the Destination Time, Present Time, and Last Time Departed, all fully configurable from a slick, mobile-friendly web interface and deeply integrated with Home Assistant.
 
 ---
 ## 🚀 Quick Start Guide
@@ -36,6 +36,7 @@ For experienced makers familiar with the ESP32, here's the fast track to getting
 7.  [🚀 Installation & Setup](#-installation--setup)
 8.  [💡 Configuration & Usage](#-configuration--usage)
     * [Home Assistant Integration](#-home-assistant-integration)
+    * [Home Assistant Blueprints](#-home-assistant-blueprints)
     * [Example Home Assistant Automations](#-example-home-assistant-automations)
     * [Adding Real-Time Data with the API Wizard (Example)](#-adding-real-time-data-with-the-api-wizard-example)
     * [Using the MQTT Data Link](#-using-the-mqtt-data-link)
@@ -84,17 +85,7 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
     3.  **Temporal Displacement**: The displays flicker with chaotic, random values.
     4.  **Time Blur**: All three rows rapidly cycle through years, months, and days, creating the illusion of time blurring past.
     5.  **Arrival Echo**: A final jolt and flicker where the "Present Time" briefly shows the "Destination Time" before settling.
-* **Customizable Animation Styles**: Choose from 10 different visual styles for the time travel sequence to customize your experience:
-    * Sequential Flicker
-    * Random Flicker
-    * All Displays Random
-    * Counting Up
-    * Wave Flicker
-    * Tornado Flicker
-    * Capacitor Charge-Up
-    * Digital Rain
-    * Waveform Collapse
-    * Timeline Skim
+* **Customizable Animation Styles**: Choose from 10 different visual styles for the time travel sequence to customize your experience.
 * **"Temporal Glitch" on Time Sync**: After the first successful time synchronization with an NTP server, the "Present Time" display will flicker with random characters before locking onto the correct time, simulating a temporal calibration.
 * **Iconic Date Override**: For maximum authenticity, the entire animation sequence temporarily uses the iconic dates from Marty's first time jump (departing Oct 26, 1985, arriving Nov 05, 1955). The clock's real time is restored upon completion.
 * **Random Glitch & Malfunction Effects**: A configurable "instability" setting allows for random, intermittent display glitches. There's also a separately configurable chance for a more dramatic **"malfunction" sequence**, where displays go haywire, show an error message like "TIME CIRCUIT OVERLOAD," and simulate a full reboot.
@@ -102,6 +93,7 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 
 #### **Advanced Web Interface & Connectivity**
 * **Live, Interactive Header**: The UI header is a screen-accurate, real-time replica of the physical display. Clicking on any row instantly navigates you to the corresponding settings section.
+* **Two-Way UI Synchronization**: The web UI is kept perfectly in sync with the device. If a setting is changed from Home Assistant, you will see the change reflected on the web page in real-time without needing a refresh.
 * **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal named **BTTF-Clock-Setup** for easy initial network setup.
 * **Home Assistant Integration**: Full MQTT auto-discovery support for seamless integration with Home Assistant, providing extensive control and automation capabilities.
 
@@ -111,7 +103,7 @@ The bottom "Last Time Departed" row can be reconfigured to display live, real-ti
 * **2. Live Weather Display**: Transforms the bottom row into a multi-page weather station. It automatically fetches data for a configured city and cycles through pages showing current conditions, temperature, wind speed, and more.
 * **3. Data Link Marquee**: A fully configurable marquee for displaying data from any JSON-based web API or MQTT topic.
     * **Non-Blocking Requests**: Each API request runs in its own dedicated task, ensuring that slow servers will never freeze or stutter the clock's animations.
-    * **MQTT Integration**: Subscribe to an MQTT broker for efficient, real-time data pushes from smart home devices or sensors.
+    * **Multiple Data Sources**: Configure each of the 5 marquee data points to get its information from a Web API, an MQTT topic, or have its content **pushed directly from Home Assistant**.
     * **API Wizard**: An easy-to-use tool in the web UI that fetches data from a URL and lets you visually map JSON values to the displays without writing any code.
     * **Scrolling Text Mode**: Configure any data point to scroll long text strings across the entire 13-character width of the display row.
 
@@ -308,9 +300,9 @@ You can download the STL files required for printing the case from the link belo
 
 ### 🏠 Home Assistant Integration
 
-This project includes deep integration with Home Assistant using the MQTT protocol. When you configure the MQTT broker settings in the "Data Link" tab, the clock will automatically announce itself to your Home Assistant instance via the auto-discovery protocol.
+This project includes deep, "headless" integration with Home Assistant using the MQTT protocol. When you configure the MQTT broker settings, the clock will automatically announce itself to your Home Assistant instance via the auto-discovery protocol.
 
-A new device will appear in Home Assistant, giving you access to a rich set of controls and sensors for creating powerful automations and a unique smart home dashboard.
+This creates a rich set of controls and sensors, allowing you to manage the clock and use it as a dynamic notification display without ever needing to open the web UI.
 
 <p align="center">
   <img src="images/ha_screenshot.png" alt="Home Assistant Screenshot" width="800">
@@ -320,30 +312,37 @@ A new device will appear in Home Assistant, giving you access to a rich set of c
 
 #### **Available Entities:**
 
-* **Controls (`button`, `number`, `select`, `switch`, `text`):**
-    * **Trigger Animation**: A button to start the full time travel sequence.
-    * **Destination Year**: A number input to set the destination year.
-    * **Brightness**: A slider to control the display brightness.
-    * **Volume**: A slider for the sound effect volume.
-    * **Animation Style**: A dropdown to select the visual style for the time travel animation.
-    * **Glitch Instability**: A slider to control the frequency of random visual glitches.
-    * **Malfunction Chance**: A slider to adjust the probability of a major malfunction sequence.
-    * **Power**: A switch to turn the displays on or off (engaging sleep mode).
-    * **Message Override**: A switch to enable a custom message across all three displays.
-    * **Override Message**: A text box to define the custom message (use newlines for each row).
-    * **Marquee Message**: A text box to send a custom, scrolling message to the bottom display.
+* **Complete "Headless" Configuration**:
+    * **Profile Selector**: A dropdown to select an on-device profile (`Standard`, `Cinematic`, `Silent Night`, `Unstable`) that instantly applies a bundle of pre-configured settings.
+    * **Full Settings Control**: All major settings from the web UI are exposed as entities, including `Destination Year`, `Brightness`, `Volume`, `Animation Style`, `Glitch Frequency`, `Sound Toggle`, `24-Hour Format`, `Sleep/Wake Times`, and more.
 
-* **Sensors (`sensor`):**
-    * **Status**: The main status of the clock (e.g., "Idle," "Animating," "Asleep").
-    * **Timestamp Sensors**: "Destination Time," "Present Time," and "Last Time Departed" are exposed as proper timestamp sensors, making them easy to use in automations.
-    * **Diagnostic Sensors**: WiFi Signal (RSSI), Uptime, and Free Memory are available for monitoring the device's health.
+* **Advanced Display & Animation Control**:
+    * **Granular Text Entities**: Control the text of all **12 individual display segments** (`dest_month`, `pres_year`, etc.) directly from Home Assistant.
+    * **On-Device Sequencer**: A special text entity (`run_sequence`) that accepts a simple script to run perfectly timed, non-blocking audio-visual sequences directly on the device.
+    * **Effect Triggers**: A dropdown to trigger cinematic effects like `Glitch`, `Malfunction`, or the `Boot Sequence` on demand.
+    * **Flash Command**: A text input to make any display segment flash for a few seconds to draw attention.
 
-* **Automation Triggers:**
-    * The device provides several triggers for creating automations, including `animation_started`, `animation_completed`, `malfunction_triggered`, `sleep_mode_entered`, and `sleep_mode_exited`.
+* **Dynamic Data & Marquee Control**:
+    * **Temporary Marquee Override**: Send a temporary, scrolling message with a duration. After the time expires, the clock automatically reverts to its previous state.
+    * **Data Source Switching**: Dynamically change the source for any of the 5 marquee data points between `API`, `MQTT`, and `Home Assistant Push`.
+    * **Direct Data Push**: In "Home Assistant Push" mode, you can send the state of any HA entity directly to a marquee display slot via MQTT.
+
+* **System & Diagnostic Entities**:
+    * **System Actions**: Buttons to `Reboot`, `Factory Reset`, or `Force NTP Sync` the device from your HA dashboard.
+    * **Consolidated Status Sensor**: A primary sensor reports the main status (`Idle`, `Animating`, `Asleep`) and exposes a rich set of diagnostic data as attributes, including `WiFi Strength`, `Uptime`, `Free Memory`, and more.
+    * **Binary Sensors**: Dedicated binary sensors for `is_animating`, `is_malfunctioning`, etc., make it easy to trigger automations.
+
+### 🏠 Home Assistant Blueprints
+
+To make the most powerful features easy to use, this project includes several Home Assistant Blueprints. Simply import them into your instance to create complex automations from a simple UI.
+
+* **Advanced Notifier**: A user-friendly way to use the on-device sequencer. Fill in fields for a message, sound, and flash effect, and the blueprint generates the script to run a perfectly timed audio-visual alert.
+* **Dynamic Data Display**: Easily display the state of any Home Assistant sensor on one of the marquee slots. The blueprint automatically triggers updates whenever the sensor's value changes.
+* **Cinematic Scene Trigger**: A simple blueprint to set a destination year and trigger the full time travel animation, perfect for adding cinematic flair to your existing scenes and automations.
 
 ### Example Home Assistant Automations
 
-For a full list of 10 useful and well-thought-out automations, please see the dedicated examples file:
+For a full list of useful and well-thought-out automations, please see the dedicated examples file:
 
 **➡️ [View Home Assistant Automation Examples](HOME_ASSISTANT_EXAMPLES.md)**
 
