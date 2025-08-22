@@ -1,29 +1,39 @@
 /**
  * @file HardwareControl.cpp
- * @brief Implements low-level control functions for displays and sound.
+ * @brief Implements low-level control functions for displays, LEDs, and sound.
+ * @details This file contains the concrete implementations for initializing and controlling
+ * the hardware components. It directly interfaces with the Adafruit GFX and LED Backpack
+ * libraries, as well as the DFPlayer Mini library. The ENABLE_HARDWARE macro allows
+ * for compiling the code without the hardware for testing purposes.
  */
 
 #include "HardwareControl.h"
 
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
-// Define the two I2C bus instances.
+/** @brief The I2C bus instance for the Destination and Present time rows. */
 TwoWire I2C_1 = TwoWire(0);
+/** @brief The I2C bus instance for the Last Time Departed row. */
 TwoWire I2C_2 = TwoWire(1);
 
-// Define the display row structs.
-DisplayRow destRow, presRow, lastRow;
+/** @brief Struct containing the 4 display segments for the Destination row. */
+DisplayRow destRow;
+/** @brief Struct containing the 4 display segments for the Present row. */
+DisplayRow presRow;
+/** @brief Struct containing the 4 display segments for the Last Time Departed row. */
+DisplayRow lastRow;
 
-// Define the hardware serial for the DFPlayer Mini MP3 module.
+/** @brief HardwareSerial instance for communication with the DFPlayer Mini MP3 module. */
 HardwareSerial dfpSerial(2);
+/** @brief The DFPlayer Mini MP3 module object. */
 DFRobotDFPlayerMini myDFPlayer;
 #endif
 
 // --- HELPER FUNCTION ---
 /**
- * @brief Correctly writes a string to a 4-character alphanumeric display with justification.
+ * @brief Writes a string to a 4-character alphanumeric display with justification.
  * @param display The Adafruit_AlphaNum4 object to write to.
- * @param text The text string to display.
+ * @param text The C-string to display.
  * @param justification 0 for left, 1 for right, 2 for center.
  */
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification) {
@@ -52,6 +62,10 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
 
 /**
  * @brief Initializes all physical display hardware.
+ * @details This function sets up the two I2C buses with their designated GPIO pins.
+ * It then initializes all 12 Adafruit_AlphaNum4 display objects, associating each
+ * with its correct I2C address and bus. Finally, it configures the AM/PM indicator
+ * LED pins as outputs.
  */
 void setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
@@ -79,7 +93,10 @@ void setupPhysicalDisplay() {
 }
 
 /**
- * @brief Updates a single row of displays with a specific time.
+ * @brief Updates a full row of 4 displays with a specific time.
+ * @param row A reference to the DisplayRow struct to be updated.
+ * @param timeinfo A `tm` struct containing the time to display.
+ * @param year The four-digit year to display.
  */
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year) {
   #if ENABLE_HARDWARE
@@ -119,6 +136,7 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year) {
 
 /**
  * @brief Fills a display row with random characters for a flicker effect.
+ * @param row A reference to the DisplayRow struct to be animated.
  */
 void animateDisplayRowRandomly(DisplayRow& row) {
   #if ENABLE_HARDWARE
@@ -146,7 +164,8 @@ void animateDisplayRowRandomly(DisplayRow& row) {
 }
 
 /**
- * @brief Displays the current speed on the bottom row during the acceleration phase of the time travel animation.
+ * @brief Displays the current speed on the bottom row during the 88 MPH acceleration animation.
+ * @param speed The speed to display (0-88).
  */
 void displaySpeed(int speed) {
   #if ENABLE_HARDWARE
@@ -170,6 +189,9 @@ void displaySpeed(int speed) {
 
 /**
  * @brief Animates a coordinated "time blur" effect across all three display rows.
+ * @param elapsed The time in milliseconds since the animation phase started.
+ * @param duration The total duration of the animation phase in milliseconds.
+ * @param destinationYear The target year for the animation.
  */
 void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
@@ -214,6 +236,9 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
 
 /**
  * @brief Implements the "Temporal Lock-On" effect where a display flickers between random data and the correct time.
+ * @param row A reference to the DisplayRow struct to animate.
+ * @param timeinfo A `tm` struct containing the correct time to lock on to.
+ * @param year The correct four-digit year.
  */
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year) {
     #if ENABLE_HARDWARE
@@ -227,7 +252,10 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year)
 }
 
 /**
- * @brief Implements the "White Flash" climax effect by turning on all display segments.
+ * @brief Turns on all segments of all 12 displays to create a bright white flash effect.
+ * @details This is achieved by directly manipulating the display buffer of each segment,
+ * setting all 16 bits of each character position to 1 (0xFFFF), and then writing
+ * the buffer to the hardware.
  */
 void flashAllDisplays() {
     #if ENABLE_HARDWARE
@@ -263,6 +291,8 @@ void animateTornadoFlicker() {
 
 /**
  * @brief Animation style: fills the displays from bottom to top like a charging capacitor.
+ * @param elapsed The time in milliseconds since the animation phase started.
+ * @param duration The total duration of the animation phase in milliseconds.
  */
 void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
@@ -297,6 +327,8 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
 
 /**
  * @brief Animation style: fills displays with random falling characters like a digital rain effect.
+ * @param elapsed The time in milliseconds since the animation phase started.
+ * @param duration The total duration of the animation phase in milliseconds.
  */
 void animateDigitalRain(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
@@ -323,6 +355,8 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
 
 /**
  * @brief Animation style: shows a scrolling sine-wave pattern on the displays.
+ * @param elapsed The time in milliseconds since the animation phase started.
+ * @param duration The total duration of the animation phase in milliseconds.
  */
 void animateWaveformCollapse(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
@@ -363,6 +397,9 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
 
 /**
  * @brief Animation style: rapidly cycles the year while other fields flicker randomly.
+ * @param elapsed The time in milliseconds since the animation phase started.
+ * @param duration The total duration of the animation phase in milliseconds.
+ * @param destinationYear The target year for the animation.
  */
 void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
@@ -411,7 +448,8 @@ void blankAllDisplays() {
 }
 
 /**
- * @brief Special display function for the boot sequence.
+ * @brief Special display function for the boot sequence to show "88 MPH".
+ * @param speed Not currently used, but could be used for animation.
  */
 void display88MphSpeed(float speed) {
   #if ENABLE_HARDWARE
@@ -424,7 +462,9 @@ void display88MphSpeed(float speed) {
 
 /**
  * @brief Plays a sound file from the SD card via the DFPlayer Mini.
- * @param soundName The name of the sound to play (e.g., "TIME_TRAVEL").
+ * @param soundName A friendly name for the sound to play (e.g., "TIME_TRAVEL").
+ * @details This function maps the friendly name to the corresponding file index in the
+ * 'mp3' folder on the SD card required by the DFPlayer library.
  */
 void playSound(const char* soundName) {
   #if ENABLE_HARDWARE
@@ -441,7 +481,7 @@ void playSound(const char* soundName) {
 }
 
 /**
- * @brief Placeholder function for any future sound file validation logic.
+ * @brief Placeholder function for any future sound file validation or setup logic.
  */
 void setupSoundFiles() {
   // This function is currently empty but can be used for SD card checks.

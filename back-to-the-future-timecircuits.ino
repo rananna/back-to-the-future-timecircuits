@@ -3,7 +3,8 @@
  * @brief Main application firmware for the ESP32-based Time Circuits display.
  * @details This file contains the primary setup() and loop() functions, global variable declarations,
  * and the core logic for coordinating all subsystems of the clock, including WiFi, web server,
- * display management, and event handling.
+ * display management, and event handling. The main loop is designed as a non-blocking state machine
+ * to ensure smooth animations and responsive network handling.
  */
 
 #include "esp_log.h"
@@ -42,11 +43,17 @@ void handleSleepSchedule();
 void handleSequencer();
 
 // --- GLOBAL VARIABLES & STATE ---
+/** @brief Holds all user-configurable settings for the device. */
 ClockSettings currentSettings;
+/** @brief An array of structs holding the parsed data for each of the 5 Data Link marquee pages. */
 MarqueeData displayPages[5];
+/** @brief A cache to store the last successfully fetched data for the marquee, used for fallback on API failure. */
 MarqueeData lastGoodDisplayPages[5];
+/** @brief Struct holding the latest fetched weather data. */
 WeatherData currentWeatherData;
+/** @brief The last city name used for a successful geocoding lookup, to avoid redundant API calls. */
 std::string lastCityName = "";
+/** @brief A constant array of TimeZoneEntry structs, providing POSIX strings and display names for time zones. */
 const TimeZoneEntry TZ_DATA[] = {
 	// Global
 	{ "UTC0", "UTC", "Etc/UTC", "Global" },
@@ -89,9 +96,11 @@ const TimeZoneEntry TZ_DATA[] = {
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
 const char TZ_JSON[] PROGMEM = "{\"Global\":[{\"value\":0,\"text\":\"UTC\",\"ianaTzName\":\"Etc/UTC\"}],\"Americas\":[{\"value\":1,\"text\":\"Newfoundland (St. John's)\",\"ianaTzName\":\"America/St_Johns\"},{\"value\":2,\"text\":\"Atlantic (Halifax)\",\"ianaTzName\":\"America/Halifax\"},{\"value\":3,\"text\":\"Eastern (New York)\",\"ianaTzName\":\"America/New_York\"},{\"value\":4,\"text\":\"Central (Chicago)\",\"ianaTzName\":\"America/Chicago\"},{\"value\":5,\"text\":\"Mountain (Denver)\",\"ianaTzName\":\"America/Denver\"},{\"value\":6,\"text\":\"Pacific (Los Angeles)\",\"ianaTzName\":\"America/Los_Angeles\"},{\"value\":7,\"text\":\"Alaska (Anchorage)\",\"ianaTzName\":\"America/Anchorage\"},{\"value\":8,\"text\":\"Mountain (Phoenix, No DST)\",\"ianaTzName\":\"America/Phoenix\"},{\"value\":9,\"text\":\"Hawaii (Honolulu, No DST)\",\"ianaTzName\":\"Pacific/Honolulu\"}],\"Europe\":[{\"value\":10,\"text\":\"GMT/BST (London)\",\"ianaTzName\":\"Europe/London\"},{\"value\":11,\"text\":\"CET/CEST (Berlin)\",\"ianaTzName\":\"Europe/Berlin\"},{\"value\":12,\"text\":\"EET/EEST (Athens)\",\"ianaTzName\":\"Europe/Athens\"},{\"value\":13,\"text\":\"Moscow Standard Time\",\"ianaTzName\":\"Europe/Moscow\"},{\"value\":14,\"text\":\"Turkey Time (Istanbul)\",\"ianaTzName\":\"Europe/Istanbul\"}],\"Asia\":[{\"value\":15,\"text\":\"Indian Standard Time (Kolkata)\",\"ianaTzName\":\"Asia/Kolkata\"},{\"value\":16,\"text\":\"Singapore Standard Time\",\"ianaTzName\":\"Asia/Singapore\"},{\"value\":17,\"text\":\"China Standard Time (Shanghai)\",\"ianaTzName\":\"Asia/Shanghai\"},{\"value\":18,\"text\":\"Korea Standard Time (Seoul)\",\"ianaTzName\":\"Asia/Seoul\"},{\"value\":19,\"text\":\"Japan Standard Time (Tokyo)\",\"ianaTzName\":\"Asia/Tokyo\"},{\"value\":20,\"text\":\"Gulf Standard Time (Dubai)\",\"ianaTzName\":\"Asia/Dubai\"}],\"Australia & Oceania\":[{\"value\":21,\"text\":\"AWST (Perth)\",\"ianaTzName\":\"Australia/Perth\"},{\"value\":22,\"text\":\"AEST/AEDT (Sydney)\",\"ianaTzName\":\"Australia/Sydney\"},{\"value\":23,\"text\":\"NZST/NZDT (Auckland)\",\"ianaTzName\":\"Pacific/Auckland\"},{\"value\":24,\"text\":\"Chamorro Time (Guam)\",\"ianaTzName\":\"Pacific/Guam\"}],\"Africa\":[{\"value\":25,\"text\":\"West Africa Time (Lagos)\",\"ianaTzName\":\"Africa/Lagos\"},{\"value\":26,\"text\":\"South Africa Standard Time\",\"ianaTzName\":\"Africa/Johannesburg\"},{\"value\":27,\"text\":\"EET (Cairo)\",\"ianaTzName\":\"Africa/Cairo\"},{\"value\":28,\"text\":\"East Africa Time (Nairobi)\",\"ianaTzName\":\"Africa/Nairobi\"}],\"South America\":[{\"value\":29,\"text\":\"Brasilia Time (Sao Paulo)\",\"ianaTzName\":\"America/Sao_Paulo\"},{\"value\":30,\"text\":\"Argentina Time (Buenos Aires)\",\"ianaTzName\":\"America/Argentina/Buenos_Aires\"}]}";
+/** @brief A constant array of NTP server hostnames for time synchronization. */
 const char *NTP_SERVERS[] = { "pool.ntp.org", "time.google.com", "time.nist.gov" };
 const int NUM_NTP_SERVERS = sizeof(NTP_SERVERS) / sizeof(NTP_SERVERS[0]);
 int currentNtpServerIndex = 0;
+/** @brief Flag indicating if the device time has been successfully synchronized with an NTP server. */
 bool timeSynchronized = false;
 bool ntpSyncRequested = false;
 
@@ -145,7 +154,6 @@ String overrideMessageLine3 = "";
 bool isMarqueeOverrideActive = false;
 String marqueeOverrideMessage = "";
 unsigned long marqueeOverrideEndTime = 0;
-
 // Mutex for protecting shared data between tasks
 SemaphoreHandle_t xDisplayDataMutex;
 
@@ -371,6 +379,17 @@ void listAllFiles() {
 
 /**
  * @brief The main setup function, run once on boot.
+ * @details Initializes all hardware and software subsystems in the correct order:
+ * 1. Serial communication for debugging.
+ * 2. LittleFS filesystem for web assets.
+ * 3. Loads settings from non-volatile storage.
+ * 4. Initializes hardware (displays, sound).
+ * 5. Connects to WiFi using WiFiManager (captive portal on first boot).
+ * 6. Starts the mDNS service (timecircuits.local).
+ * 7. Sets up all web server routes and starts the server.
+ * 8. Configures the NTP client for time synchronization.
+ * 9. Configures the MQTT client for Home Assistant integration.
+ * 10. Starts the initial boot-up animation sequence.
  */
 void setup() {
 	Serial.begin(115200);
@@ -389,7 +408,7 @@ void setup() {
 	loadSettings();
 	// Create a mutex for safe multi-threaded access to shared display data.
 	xDisplayDataMutex = xSemaphoreCreateMutex();
-#if ENABLE_HARDWARE
+	#if ENABLE_HARDWARE
 	// Initialize physical displays, sound module, etc.
 	setupPhysicalDisplay();
 	dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
@@ -428,7 +447,19 @@ void setup() {
 }
 
 /**
- * @brief The main application loop.
+ * @brief The main application loop. This function is the heart of the firmware's state machine.
+ * @details This function is executed repeatedly and is designed to be completely non-blocking.
+ * It handles the following responsibilities on each iteration:
+ * 1.  Manages the MQTT connection, reconnecting if necessary.
+ * 2.  Processes incoming MQTT messages via `mqttClient.loop()`.
+ * 3.  Checks for timeouts on temporary marquee messages.
+ * 4.  Executes the active step of a command sequence, if any.
+ * 5.  Manages the primary display state machine:
+ * - If malfunctioning, it handles the malfunction animation.
+ * - If not animating, it handles normal operations: glitches, echos, sleep schedule, and updates the display content (clock, weather, or data link).
+ * 6.  Manages the main time travel animation state machine.
+ * 7.  Handles periodic NTP time synchronization.
+ * 8.  Handles periodic state publishing to Home Assistant.
  */
 void loop() {
 	// Handle MQTT connection and message processing.
@@ -536,18 +567,21 @@ void loop() {
 
     if (timeSynchronized && millis() - lastHaStateUpdate > 5000) { // Update HA states every 5 seconds
         publishAllHaStates();
-		lastHaStateUpdate = millis();
+        lastHaStateUpdate = millis();
     }
 }
 
 // --- SYSTEM & STATE HANDLERS ---
 
+/**
+ * @brief Handles the execution of a command sequence received via MQTT.
+ * @details This function is a state machine that steps through an array of `SequenceStep` commands.
+ * It supports commands for displaying text, waiting, playing sounds, and flashing segments.
+ */
 void handleSequencer() {
     if (!isSequenceActive) return;
-
     SequenceStep step = sequence[currentSequenceStep];
     unsigned long elapsed = millis() - sequenceStepStartTime;
-
     switch (step.command) {
         case SEQ_CMD_TEXT:
             updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
@@ -578,18 +612,22 @@ void handleSequencer() {
 }
 
 /**
- * @brief Handles cycling through saved destination time presets.
+ * @brief Handles the automatic cycling of destination time presets.
+ * @details If enabled, this function will eventually load the next saved preset from NVS
+ * after the configured interval has passed.
  */
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-	if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
-		// (Future implementation: Add logic here to load the next preset from NVS).
-	}
+        // (Future implementation: Add logic here to load the next preset from NVS).
+    }
 }
 
 /**
- * @brief Checks the current time against the configured sleep/wake schedule and updates the display state.
+ * @brief Checks the current time against the user-configured sleep/wake schedule.
+ * @details Puts the display to sleep or wakes it up by setting the `isDisplayAsleep` flag
+ * and playing the appropriate sound effect.
  */
 void handleSleepSchedule() {
   if (!timeSynchronized) return;
@@ -601,7 +639,7 @@ void handleSleepSchedule() {
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) : // Same-day sleep window.
-						(now_minutes >= sleep_minutes || now_minutes < wake_minutes); // Overnight sleep window.
+                        (now_minutes >= sleep_minutes || now_minutes < wake_minutes); // Overnight sleep window.
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     #if ENABLE_HARDWARE
