@@ -20,7 +20,7 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 
 ## 🔌 Wiring & Schematics
 
-![schematic diagram](images/bttf_bb.png)
+![schematic diagram](../images/bttf_bb.png)
 
 This project uses two separate I2C buses to manage all 12 displays without address conflicts.
 
