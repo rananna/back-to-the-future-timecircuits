@@ -5,7 +5,7 @@ This guide covers the day-to-day use and configuration of your Time Circuits dis
 ## First-Time WiFi Setup
 
 1.  **Connect to the Hotspot**: On the first boot, the ESP32 will create a WiFi network named **BTTF-Clock-Setup**. Connect to this network with your phone or computer.
-2.  **Captive Portal**: A captive portal should automatically open in your browser. If it doesn't, navigate to `192.168.4.1`.
+2.  **Captive Portal**: A captive portal should automatically open in your browser. If it doesn't, navigate to `192.18.4.1`.
 3.  **Configure WiFi**: Select your home WiFi network (SSID), enter the password, and click "Save". The device will restart and connect to your network.
 
 ## Accessing the Web Interface

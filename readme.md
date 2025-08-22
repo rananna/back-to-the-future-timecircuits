@@ -41,9 +41,35 @@ This project's documentation is split into several sections to make it easy to f
 
 ---
 
+## 🚀 Getting Started
+
+### Prerequisites
+
+* Basic knowledge of soldering and electronics.
+* Arduino IDE installed and configured for the ESP32.
+* All components listed in the [Bill of Materials](docs/INSTALLATION.md#️-bill-of-materials-bom).
+
+### Installation
+
+1.  **Hardware Assembly**: Follow the [Wiring & Schematics](docs/INSTALLATION.md#-wiring--schematics) to connect all the components.
+2.  **Software Setup**: Flash the ESP32 with the firmware and upload the web interface files by following the [Software Installation](docs/INSTALLATION.md#-software-installation) guide.
+3.  **Configuration**: Access the web interface to connect the device to your WiFi and start customizing!
+
+---
+
 ## 🤝 Contributing
 
 Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/your-username/your-repo/issues).
+
+### How to Contribute
+
+1.  Fork the repository.
+2.  Create a new branch (`git checkout -b feature/your-feature`).
+3.  Commit your changes (`git commit -am 'Add some feature'`).
+4.  Push to the branch (`git push origin feature/your-feature`).
+5.  Open a new Pull Request.
+
+---
 
 ## 📜 License
 
