@@ -12,5 +12,8 @@ void restoreDisplayAfterGlitch();
 void handleMalfunction();
 void runBootSequence();
 void handleBootSequence();
+void triggerTemporalGlitch();
+void handleTemporalGlitch();
+
 
 #endif // ANIMATION_MANAGER_H

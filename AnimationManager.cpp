@@ -8,6 +8,10 @@ struct tm animDestTimeInfo;      // Hardcoded movie destination time (Nov 05, 19
 struct tm animPresTimeInfo;      // Hardcoded movie present time (Oct 26, 1985)
 struct tm animLastTimeInfo;      // Hardcoded movie last departed time (Oct 26, 1985)
 
+bool isNtpGlitching = false;
+unsigned long ntpGlitchStartTime = 0;
+
+
 /**
  * @brief Kicks off the main time travel visual and audio sequence.
  */
@@ -269,32 +273,23 @@ void runBootSequence() {
  */
 void handleBootSequence() {
   if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
+
   unsigned long elapsed = millis() - bootStateStartTime;
-  if (elapsed > 2000) {
-    bootState = static_cast<BootSequenceState>(bootState + 1);
-    bootStateStartTime = millis();
-    if (bootState >= BOOT_COMPLETE) {
-      bootState = BOOT_COMPLETE;
-      updateNormalClockDisplay();
-      return;
-    }
-  }
+  const int BOOT_DURATION = 4000; // 4-second boot sequence
+
   #if ENABLE_HARDWARE
-  switch (bootState) {
-    case BOOT_88MPH:
-      // (Handled by default display state on boot)
-      break;
-    case BOOT_RECALIBRATING:
-      printToDisplay(destRow.month, "REC", 1); printToDisplay(destRow.day, "AL", 2); printToDisplay(destRow.year, "IBRA"); printToDisplay(destRow.time, "TING");
-      destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-      break;
-    case BOOT_CAPACITOR:
-      printToDisplay(presRow.month, "CAP", 1); printToDisplay(presRow.day, "AC", 2); printToDisplay(presRow.year, "ITOR"); printToDisplay(presRow.time, "FULL");
-      presRow.month.writeDisplay();
-      presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-      break;
-    default:
-      break;
+  if (bootState == BOOT_START) {
+    playSound("FLUX_CAPACITOR_CHARGE");
+    bootState = BOOT_CHARGE_UP;
+  }
+  
+  if (bootState == BOOT_CHARGE_UP) {
+    if (elapsed < BOOT_DURATION) {
+        animateCapacitorChargeUp(elapsed, BOOT_DURATION);
+    } else {
+        bootState = BOOT_COMPLETE;
+        updateNormalClockDisplay();
+    }
   }
   #endif
 }
@@ -333,4 +328,29 @@ void handleGlitchEffect() {
       }
     }
   }
+}
+
+void triggerTemporalGlitch() {
+    if (isNtpGlitching) return;
+    isNtpGlitching = true;
+    ntpGlitchStartTime = millis();
+}
+
+void handleTemporalGlitch() {
+    if (!isNtpGlitching) return;
+
+    unsigned long elapsed = millis() - ntpGlitchStartTime;
+    const int GLITCH_DURATION = 1000; // 1 second glitch
+
+    if (elapsed < GLITCH_DURATION) {
+        if (millis() - lastAnimationFrameTime > 50) { // Update every 50ms
+            #if ENABLE_HARDWARE
+            animateDisplayRowRandomly(presRow);
+            #endif
+            lastAnimationFrameTime = millis();
+        }
+    } else {
+        isNtpGlitching = false;
+        updateNormalClockDisplay(); // Restore the correct time
+    }
 }

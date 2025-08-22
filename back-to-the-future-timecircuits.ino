@@ -491,6 +491,8 @@ void loop() {
 
 	// This runs regardless of the normal operation state to handle the time travel animation.
 	handleDisplayAnimation();
+    handleTemporalGlitch(); // Handle the NTP sync glitch effect
+
 
 	// Time synchronization logic.
 	static unsigned long lastNtpUpdate = 0;
@@ -503,6 +505,9 @@ void loop() {
 		tzset();
 		struct tm timeinfo;
 		if (getLocalTime(&timeinfo, 5000)) { // Attempt to get time with a 5-second timeout.
+            if (!timeSynchronized) { // Only trigger glitch on the FIRST successful sync
+                triggerTemporalGlitch();
+            }
 			timeSynchronized = true;
 		}
 		else {

@@ -46,7 +46,8 @@ enum AnimationPhase {
   ANIM_LANDING
 };
 
-enum BootSequenceState { BOOT_INACTIVE, BOOT_START, BOOT_88MPH, BOOT_RECALIBRATING, BOOT_CAPACITOR, BOOT_COMPLETE };
+// CORRECTED: Updated for the new visual boot sequence
+enum BootSequenceState { BOOT_INACTIVE, BOOT_START, BOOT_CHARGE_UP, BOOT_COMPLETE };
 enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
 enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
 
