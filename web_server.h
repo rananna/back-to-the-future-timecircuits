@@ -43,6 +43,8 @@ void fetchWeatherDataTask(void* p);
 
 void setupWebRoutes();
 void broadcastWsStateUpdate(const char* key, const JsonVariant& value);
+void broadcastWsStateUpdate(const char* key, int value);
+void broadcastWsStateUpdate(const char* key, bool value);
 
 
 #endif // WEB_SERVER_H

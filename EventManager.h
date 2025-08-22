@@ -10,6 +10,7 @@
 #define MQTT_DEVICE_TYPE "bttf-clock"
 #define MQTT_BASE_TOPIC "homeassistant"
 
+// --- EXTERN DECLARATIONS for global variables in the main .ino file ---
 extern ClockSettings currentSettings;
 extern MarqueeData displayPages[5];
 extern MarqueeData lastGoodDisplayPages[5];
