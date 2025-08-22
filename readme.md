@@ -14,6 +14,17 @@
 > **Great Scott!** You've found the schematics for a fully-functional, WiFi-enabled Time Circuits display. While it can't *actually* travel through time (the flux capacitor technology is still a bit tricky), it brings the iconic look, feel, and sounds of the DeLorean's dashboard right to your desk. Using an ESP32, 12 alphanumeric displays, and a little bit of 1.21-gigawatt... I mean, 5-volt... ingenuity, this display connects to your network to show the Destination Time, Present Time, and Last Time Departed, all fully configurable from a slick, mobile-friendly web interface.
 
 ---
+## 🚀 Quick Start Guide
+For experienced makers familiar with the ESP32, here's the fast track to getting your Time Circuits running:
+
+1.  **Clone the Repository:** Download the project files to your computer.
+2.  **Install Libraries:** Use the Arduino IDE's Library Manager to install all the libraries listed in the **[Installation & Setup](#-installation--setup)** section.
+3.  **Set Partition Scheme:** In the Arduino IDE, go to `Tools` -> `Partition Scheme` and select **"Huge APP (3MB No OTA/1MB SPIFFS)"**.
+4.  **Upload Filesystem:** Go to `Tools` -> `ESP32 Sketch Data Upload` to flash the web interface files.
+5.  **Upload Firmware:** Upload the main `.ino` file to your ESP32.
+6.  **Connect & Configure:** Connect to the `BTTF-Clock-Setup` WiFi network to configure your home WiFi credentials.
+
+---
 
 ## Table of Contents
 1.  [🌟 Demonstration](#-demonstration)
@@ -24,13 +35,16 @@
 6.  [🔩 3D Printed Case & Assembly](#-3d-printed-case--assembly)
 7.  [🚀 Installation & Setup](#-installation--setup)
 8.  [💡 Configuration & Usage](#-configuration--usage)
+    * [Home Assistant Integration](#-home-assistant-integration)
+    * [Example Home Assistant Automations](#-example-home-assistant-automations)
     * [Adding Real-Time Data with the API Wizard (Example)](#-adding-real-time-data-with-the-api-wizard-example)
     * [Using the MQTT Data Link](#-using-the-mqtt-data-link)
     * [20 API Ideas for the Time Circuits Display](#-20-api-ideas-for-the-time-circuits-display)
-9.  [🔬 Technical Deep Dive](#-technical-deep-dive)
-10. [❓ Troubleshooting](#-troubleshooting)
-11. [🤝 Contributing](#-contributing)
-12. [📜 License](#-license)
+9.  [🏗️ Project Structure](#️-project-structure)
+10. [🔬 Technical Deep Dive](#-technical-deep-dive)
+11. [❓ Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
+12. [🤝 Contributing](#-contributing)
+13. [📜 License](#-license)
 
 ---
 
@@ -70,13 +84,26 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
     3.  **Temporal Displacement**: The displays flicker with chaotic, random values.
     4.  **Time Blur**: All three rows rapidly cycle through years, months, and days, creating the illusion of time blurring past.
     5.  **Arrival Echo**: A final jolt and flicker where the "Present Time" briefly shows the "Destination Time" before settling.
+* **Customizable Animation Styles**: Choose from 10 different visual styles for the time travel sequence to customize your experience:
+    * Sequential Flicker
+    * Random Flicker
+    * All Displays Random
+    * Counting Up
+    * Wave Flicker
+    * Tornado Flicker
+    * Capacitor Charge-Up
+    * Digital Rain
+    * Waveform Collapse
+    * Timeline Skim
+* **"Temporal Glitch" on Time Sync**: After the first successful time synchronization with an NTP server, the "Present Time" display will flicker with random characters before locking onto the correct time, simulating a temporal calibration.
 * **Iconic Date Override**: For maximum authenticity, the entire animation sequence temporarily uses the iconic dates from Marty's first time jump (departing Oct 26, 1985, arriving Nov 05, 1955). The clock's real time is restored upon completion.
 * **Random Glitch & Malfunction Effects**: A configurable "instability" setting allows for random, intermittent display glitches. There's also a separately configurable chance for a more dramatic **"malfunction" sequence**, where displays go haywire, show an error message like "TIME CIRCUIT OVERLOAD," and simulate a full reboot.
-* **Cinematic Boot Sequence**: A non-blocking startup sequence plays on the displays, showing messages like "88 MPH," "RECALIBRATING," and "CAPACITOR FULL".
+* **Cinematic Boot Sequence**: On startup, the displays perform a "Capacitor Charge-Up" animation, filling the segments from bottom to top, accompanied by a rising sound effect, simulating the device powering on.
 
 #### **Advanced Web Interface & Connectivity**
 * **Live, Interactive Header**: The UI header is a screen-accurate, real-time replica of the physical display. Clicking on any row instantly navigates you to the corresponding settings section.
 * **WiFi Manager**: On first boot, the ESP32 creates a WiFi hotspot and captive portal named **BTTF-Clock-Setup** for easy initial network setup.
+* **Home Assistant Integration**: Full MQTT auto-discovery support for seamless integration with Home Assistant, providing extensive control and automation capabilities.
 
 #### **Dynamic Bottom Display Modes**
 The bottom "Last Time Departed" row can be reconfigured to display live, real-time data from the internet. Choose from one of three modes:
@@ -100,9 +127,9 @@ Here are a few shots of the completed Time Circuits display.
 
 | Front View | Wiring Close-up | Enclosure Internals |
 | :---: | :---: | :---: |
-| **[High-quality photo of the finished clock]** | **[Detailed shot of the wiring on the breadboard or perfboard]** | **[Photo showing how components are organized inside the case]** |
-| **Web UI - Time Circuits Theme** | **Web UI - OUTATIME Theme** | **Web UI - Mr. Fusion Theme** |
-| **[Screenshot of the web UI with the default green theme]** | **[Screenshot of the web UI with the red 'OUTATIME' theme]** | **[Screenshot of the web UI with the orange 'Mr. Fusion' theme]** |
+| **** | **** | **[Image showing components organized inside the case]** |
+| **Web UI - API Wizard** | **Home Assistant Device View** | **Web UI - Mr. Fusion Theme** |
+| **** | **** | **** |
 
 ---
 ## 🛠️ Bill of Materials (BOM)
@@ -190,25 +217,26 @@ You can download the STL files required for printing the case from the link belo
     * **Update to the latest version of the ESP32 Core** via the Boards Manager. This is crucial as it contains important bug fixes for the SSL libraries.
 
 2.  **Configure the Partition Scheme**:
-    * **This is a critical step!** This project's code and the web interface files in the `data` folder require more space than the default Arduino partition scheme provides. You must change this setting to avoid upload errors.
+    > ⚠️ **Critical Step:** You **must** change the Partition Scheme to accommodate the large application size. Failure to do so will result in upload errors.
+
     * In the Arduino IDE, navigate to `Tools` -> `Partition Scheme`.
-    * Select **"Minimal SPIFFS (1.9MB APP with OTA/1.5MB SPIFFS)"** from the dropdown menu. This allocates enough space for both the main program and the web data.
+    * Select **"Huge APP (3MB No OTA/1MB SPIFFS)"** from the dropdown menu. This allocates the maximum space to the main program.
 
 3.  **Install Required Libraries**:
     * This project relies on several key libraries. All of them can be installed using the Arduino IDE's built-in Library Manager.
     * Open the Library Manager by navigating to **`Sketch` -> `Include Library` -> `Manage Libraries...`**.
     * Search for and install the latest version of each of the following libraries:
-        * `Adafruit GFX Library`
-        * `Adafruit LED Backpack`
-        * `DFRobotDFPlayerMini` by DFRobot
-        * `WiFiManager` by tzapu
-        * `ArduinoJson` by Benoit Blanchon (v6.x or v7.x is recommended)
-        * `ESPAsyncWebServer` by ESP32-Community
-        * `AsyncTCP` by ESP32-Community
-        * `PubSubClient` by Nick O'Leary
+        * [`Adafruit GFX Library`](https://github.com/adafruit/Adafruit-GFX-Library)
+        * [`Adafruit LED Backpack`](https://github.com/adafruit/Adafruit_LED_Backpack)
+        * [`DFRobotDFPlayerMini`](https://github.com/DFRobot/DFRobotDFPlayerMini) by DFRobot
+        * [`WiFiManager`](https://github.com/tzapu/WiFiManager) by tzapu
+        * [`ArduinoJson`](https://github.com/bblanchon/ArduinoJson) by Benoit Blanchon (v6.x or v7.x is recommended)
+        * [`ESPAsyncWebServer`](https://github.com/me-no-dev/ESPAsyncWebServer) by ESP32-Community
+        * [`AsyncTCP`](https://github.com/me-no-dev/AsyncTCP) by ESP32-Community
+        * [`PubSubClient`](https://github.com/knolleary/pubsubclient) by Nick O'Leary
 
 4.  **Configure I2C Display Addresses**:
-    * **This is a critical step!** Each of the 12 display modules must have a unique address on its I2C bus. You must solder the address selection jumpers on the back of each board. Refer to the [Adafruit tutorial](https://learn.adafruit.com/adafruit-led-backpack/changing-i2c-address) for instructions on how to do this.
+    > ⚠️ **Critical Step:** Each of the 12 display modules must have a unique address on its I2C bus. You must solder the address selection jumpers on the back of each board. Refer to the [Adafruit tutorial](https://learn.adafruit.com/adafruit-led-backpack/changing-i2c-address) for instructions on how to do this.
 
     #### **Project-Specific Jumper Connections**
     This table outlines the exact solder jumper settings you'll need for each of the 12 display modules on both I2C buses to ensure they all have the correct, unique addresses required by the project code.
@@ -278,9 +306,56 @@ You can download the STL files required for printing the case from the link belo
 4.  **Engage Time Circuits!**:
     * After making changes, the **"Engage Time Circuits (Save All Settings)"** button will become enabled. Click it to save your configuration to the device's permanent memory. A time travel animation will play on the physical display to confirm the save.
 
+### 🏠 Home Assistant Integration
+
+This project includes deep integration with Home Assistant using the MQTT protocol. When you configure the MQTT broker settings in the "Data Link" tab, the clock will automatically announce itself to your Home Assistant instance via the auto-discovery protocol.
+
+A new device will appear in Home Assistant, giving you access to a rich set of controls and sensors for creating powerful automations and a unique smart home dashboard.
+
+<p align="center">
+  <img src="images/ha_screenshot.png" alt="Home Assistant Screenshot" width="800">
+</p>
+*[Image: A screenshot of the Home Assistant device page showing the various controls and sensors for the Time Circuits.]*
+
+
+#### **Available Entities:**
+
+* **Controls (`button`, `number`, `select`, `switch`, `text`):**
+    * **Trigger Animation**: A button to start the full time travel sequence.
+    * **Destination Year**: A number input to set the destination year.
+    * **Brightness**: A slider to control the display brightness.
+    * **Volume**: A slider for the sound effect volume.
+    * **Animation Style**: A dropdown to select the visual style for the time travel animation.
+    * **Glitch Instability**: A slider to control the frequency of random visual glitches.
+    * **Malfunction Chance**: A slider to adjust the probability of a major malfunction sequence.
+    * **Power**: A switch to turn the displays on or off (engaging sleep mode).
+    * **Message Override**: A switch to enable a custom message across all three displays.
+    * **Override Message**: A text box to define the custom message (use newlines for each row).
+    * **Marquee Message**: A text box to send a custom, scrolling message to the bottom display.
+
+* **Sensors (`sensor`):**
+    * **Status**: The main status of the clock (e.g., "Idle," "Animating," "Asleep").
+    * **Timestamp Sensors**: "Destination Time," "Present Time," and "Last Time Departed" are exposed as proper timestamp sensors, making them easy to use in automations.
+    * **Diagnostic Sensors**: WiFi Signal (RSSI), Uptime, and Free Memory are available for monitoring the device's health.
+
+* **Automation Triggers:**
+    * The device provides several triggers for creating automations, including `animation_started`, `animation_completed`, `malfunction_triggered`, `sleep_mode_entered`, and `sleep_mode_exited`.
+
+### Example Home Assistant Automations
+
+For a full list of 10 useful and well-thought-out automations, please see the dedicated examples file:
+
+**➡️ [View Home Assistant Automation Examples](HOME_ASSISTANT_EXAMPLES.md)**
+
 ### 💡 Adding Real-Time Data with the API Wizard (Example)
 
 The "Data Link" feature is one of the most powerful aspects of this project, allowing you to display real-time data from almost any online API directly on your time circuits. The **API Wizard** makes this process incredibly simple.
+
+<p align="center">
+  <img src="images/api_wizard.png" alt="API Wizard Screenshot" width="600">
+</p>
+*[Image: A screenshot of the API Wizard in the web UI, showing the results of an API call and how to map a value to a display field.]*
+
 
 ---
 
@@ -341,6 +416,19 @@ Here are 20 diverse API data examples, categorized for finance, weather, space, 
 | 20 | **Game Server Users**| `CS2` | ` ` | `750K` | ` ` | `CS2      750K` |
 
 ---
+## 🏗️ Project Structure
+For those looking to understand or modify the code, here is a brief overview of the main firmware modules:
+
+* **`back-to-the-future-timecircuits.ino`**: The main entry point of the application. It contains the `setup()` and `loop()` functions and coordinates all other modules.
+* **`HardwareControl.cpp / .h`**: The hardware abstraction layer. All code for direct interaction with the displays, LEDs, and the MP3 player lives here.
+* **`AnimationManager.cpp / .h`**: Contains all the logic for the complex, multi-stage animations like the time travel sequence, boot-up, and glitch effects.
+* **`DisplayManager.cpp / .h`**: Responsible for what is shown on the displays during normal operation, including the standard clock, weather, and Data Link marquee.
+* **`DataManager.cpp / .h`**: Handles all networking tasks for fetching and parsing data from external web APIs for the weather and Data Link modes.
+* **`MqttManager.cpp / .h`**: Manages the connection to the MQTT broker and handles all communication for the Home Assistant integration.
+* **`web_server.cpp / .h`**: Sets up all the API endpoints and serves the web interface files to the user's browser.
+* **`EventManager.h`**: A central header that defines global state variables and data structures used across the entire project.
+
+---
 ## 🔬 Technical Deep Dive
 
 This section provides a deeper look into the project's architecture, particularly how it handles the complex requirements of a real-time, network-connected prop.
@@ -361,7 +449,8 @@ The core of this project is a fully asynchronous, event-driven architecture. Thi
 
 ### Hardware & Display Management
 * **Dual I2C Bus:** The HT16K33 display driver chip only allows for 8 unique addresses on a single bus (0x70 to 0x77). To control all 12 displays, the project cleverly splits them: 8 displays (Destination and Present rows) are on one I2C bus, and the remaining 4 (Last Time Departed row) are on a second I2C bus. This is an elegant solution that avoids the need for a more complex I2C multiplexer.
-* **State Machines:** The application's state is managed through several `enum` types and handler functions (`handleDisplayAnimation`, `handleMalfunction`, etc.). This allows for complex, multi-stage sequences to be executed in a clean, non-blocking way, ensuring the main loop is always free to handle other tasks.
+* **State Machine Logic:** The application's state is managed through several `enum` types (e.g., `AnimationPhase`, `MalfunctionPhase`, `BootSequenceState`) and handler functions in the main loop (`handleDisplayAnimation`, `handleMalfunction`, etc.). This creates a robust state machine where only one major display mode can be active at a time, preventing conflicting animations and ensuring smooth transitions between states like "animating," "malfunctioning," and "normal operation."
+* **LittleFS Filesystem**: The web interface is not stored directly in the program's memory. Instead, all the HTML, CSS, and JavaScript files from the `data` directory are uploaded to the ESP32's onboard flash memory using the LittleFS filesystem. The asynchronous web server then reads these files from the flash and serves them to the user's browser on demand.
 
 ### Handling SSL/TLS on the ESP32
 Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory-intensive operations a microcontroller can perform.
@@ -373,17 +462,19 @@ Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory
 
 ---
 
-## ❓ Troubleshooting
+## ❓ Frequently Asked Questions (FAQ)
 
-* **Garbled or Flickering Displays**: This is almost always a power issue. Ensure you are using a 5V power supply that can provide at least 2A. A standard computer USB port is often insufficient. Also, double-check that all components share a common ground.
-* **No Sound**:
-    1.  Ensure your SD card is formatted as **FAT32**.
-    2.  Check that there is a folder named `mp3` in the root of the SD card.
-    3.  Verify that your audio files are named *exactly* as specified in the "Prepare the SD Card" section (e.g., `TIME_TRAVEL.mp3`).
-    4.  Check the RX/TX wiring between the ESP32 and the DFPlayer Mini. They should be crossed (`ESP32 TX -> DFPlayer RX`, `ESP32 RX -> DFPlayer TX`).
-* **API or Weather Data Fails to Load**:
-    * In the web UI, go to the "Network & System" tab and click the **"Calibrate Present Time"** button. The ESP32's internal clock must be accurate for HTTPS/SSL connections to work.
-    * Double-check the API URL and any required authentication headers in the "Data Link" tab.
+* **Can I use a different type of ESP32 board?**
+  * Yes, but this project was designed for a **38-pin** development board. If you use a different board (like a 30-pin version), you will need to carefully re-map the GPIO pins in `HardwareControl.h` to match your board's layout.
+
+* **How much power does the project consume?**
+  * At full brightness, the 12 displays and the ESP32 can draw a significant amount of current, potentially over 1.5A. It is highly recommended to use a **5V power supply rated for at least 2A**. A standard computer USB port is often insufficient and can lead to display flickering or instability.
+
+* **Can I add more than 5 data points to the marquee?**
+  * The firmware is currently hardcoded for a maximum of 5 data points. Increasing this would require modifying the `DataPoint` array size in the `ClockSettings` struct in `HardwareControl.h` and adjusting the loops in `DataManager.cpp` and the web interface files.
+
+* **Why is my API key not working?**
+  * Many free APIs require you to enable them in your account's cloud console before they can be used. Also, some APIs have usage limits. Double-check your API key and ensure it's correctly placed in the URL or authentication headers. Use the "Test" button in the web UI to see the raw error message from the API.
 
 ---
 ## 🤝 Contributing
