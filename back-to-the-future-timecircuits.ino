@@ -28,10 +28,13 @@
 #define LED_BUILTIN 2
 #endif
 
+// --- FUNCTION PROTOTYPES ---
 void handlePresetCycling();
 void handleSleepSchedule();
 void handleSequencer();
+bool isMarketOpen();
 
+// --- GLOBAL VARIABLES & CONSTANTS ---
 ClockSettings currentSettings;
 MarqueeData displayPages[5];
 MarqueeData lastGoodDisplayPages[5];
@@ -133,6 +136,7 @@ SequenceStep sequence[20];
 int currentSequenceStep = 0;
 unsigned long sequenceStepStartTime = 0;
 bool isSequenceActive = false;
+
 void saveSettings() {
     Serial.println("--- Saving Settings ---");
 	preferences.begin(PREFERENCES_NAMESPACE, false);
@@ -178,10 +182,8 @@ void saveSettings() {
 	preferences.putString("stRow1Sym", currentSettings.stockRow1_symbol.c_str());
 	preferences.putString("stRow2Sym", currentSettings.stockRow2_symbol.c_str());
 	preferences.putString("stRow3Sym", currentSettings.stockRow3_symbol.c_str());
-    // *** Start of Fix ***
     Serial.printf("Saving avApiKey: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
 	preferences.putString("avApiKey", currentSettings.alphaVantageApiKey.c_str());
-    // *** End of Fix ***
 
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
@@ -294,7 +296,6 @@ void loadSettings() {
 		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
 		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
 		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
-		// *** Start of Fix with Debug Logging ***
 		String tempString;
 
 		tempString = preferences.getString("mqttBroker", "");
@@ -322,12 +323,10 @@ void loadSettings() {
 		tempString = preferences.getString("stRow3Sym", "^IXIC");
 		currentSettings.stockRow3_symbol = tempString.c_str();
 
-        // *** Start of Fix ***
 		tempString = preferences.getString("avApiKey", "");
         Serial.printf("Loading avApiKey from Preferences: [%s]\n", tempString.c_str());
 		currentSettings.alphaVantageApiKey = tempString.c_str();
         Serial.printf("Loaded avApiKey into currentSettings: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
-        // *** End of Fix ***
 
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
@@ -377,7 +376,6 @@ void loadSettings() {
 			tempString = preferences.getString((prefix + "apiKey").c_str(), "");
 			currentSettings.dataPoints[i].apiExampleKey = tempString.c_str();
 		}
-        // *** End of Fix with Debug Logging ***
 	}
 	preferences.end();
 	Serial.println("--- Settings Loaded ---");
@@ -451,6 +449,29 @@ void setup() {
 	runBootSequence();
 }
 
+bool isMarketOpen() {
+    if (!timeSynchronized) return false;
+
+    setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
+    tzset();
+
+    struct tm timeinfo;
+    getLocalTime(&timeinfo);
+
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
+
+    if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
+        return false;
+    }
+
+    int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+    int market_open_minutes = 9 * 60 + 30;
+    int market_close_minutes = 16 * 60;
+
+    return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
+}
+
 void loop() {
 	if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
 		if (mqttReconnectRequired || !mqttClient.connected()) {
@@ -493,11 +514,13 @@ void loop() {
 			handlePresetCycling();
 			handleSleepSchedule();
 			if (currentSettings.stockTickerModeEnabled) {
-                if (millis() - lastStockDataFetch > 300000) {
-                    lastStockDataFetch = millis();
-                    for (int i=0; i<3; ++i) {
-                        FetchDataParams* params = new FetchDataParams{ i, 0 };
-                        xTaskCreate(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL);
+                if (isMarketOpen()) {
+                    if (millis() - lastStockDataFetch > 300000) { 
+                        lastStockDataFetch = millis();
+                        for (int i=0; i<3; ++i) {
+                            FetchDataParams* params = new FetchDataParams{ i, 0 };
+                            xTaskCreate(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL);
+                        }
                     }
                 }
                 updateStockTickerDisplay();
@@ -505,7 +528,7 @@ void loop() {
                 displayOverrideMessage();
             } else if (isMarqueeOverrideActive) {
                 displayMarqueeOverride();
-            } else if (currentSettings.dataLinkEnabled) {
+			} else if (currentSettings.dataLinkEnabled) {
 				fetchDataLink();
 				updateMarqueeDisplay();
 			} else {

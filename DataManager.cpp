@@ -62,7 +62,7 @@ void fetchStockDataTask(void* p) {
     }
 
     String apiKey = currentSettings.alphaVantageApiKey.c_str();
-    String url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" + String(symbol.c_str()) + "&apikey=" + apiKey;
+    String url = "https://financialmodelingprep.com/api/v3/quote/" + String(symbol.c_str()) + "?apikey=" + apiKey;
 
     HTTPClient http;
     WiFiClientSecure client;
@@ -73,27 +73,14 @@ void fetchStockDataTask(void* p) {
         if (httpCode == HTTP_CODE_OK) {
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, http.getStream());
-            JsonObject quote = doc["Global Quote"];
+            
+            if (!doc.isNull() && doc.is<JsonArray>() && doc.size() > 0) {
+                JsonObject quote = doc[0];
 
-            if (doc.containsKey("Error Message")) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    stockData[rowIndex].dataValid = false;
-                    stockData[rowIndex].price = "ERR";
-                    stockData[rowIndex].change_percent = "API";
-                }
-                xSemaphoreGive(xDisplayDataMutex);
-            } else if (doc.containsKey("Note") && doc["Note"].as<String>().indexOf("API call frequency") != -1) {
-                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    stockData[rowIndex].dataValid = false;
-                    stockData[rowIndex].price = "RATE";
-                    stockData[rowIndex].change_percent = "LIMIT";
-                }
-                xSemaphoreGive(xDisplayDataMutex);
-            } else if (!quote.isNull() && quote.size() > 0) {
-                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    stockData[rowIndex].symbol = quote["01. symbol"].as<String>().c_str();
+                    stockData[rowIndex].symbol = quote["symbol"].as<String>().c_str();
                     
-                    float price = quote["05. price"].as<float>();
+                    float price = quote["price"].as<float>();
                     char priceBuffer[6];
                     if (price >= 1000) {
                       dtostrf(price, 4, 0, priceBuffer);
@@ -104,9 +91,13 @@ void fetchStockDataTask(void* p) {
                     }
                     stockData[rowIndex].price = priceBuffer;
 
-                    String changeStr = quote["10. change percent"].as<String>();
-                    changeStr.replace("%", "");
-                    stockData[rowIndex].change_percent = changeStr.c_str();
+                    float changeFloat = quote["changesPercentage"].as<float>();
+                    // --- START: FIX ---
+                    // Increased buffer size from 6 to 10 to prevent overflow
+                    char changeBuffer[10];
+                    // --- END: FIX ---
+                    dtostrf(changeFloat, 1, 2, changeBuffer);
+                    stockData[rowIndex].change_percent = changeBuffer;
 
                     stockData[rowIndex].dataValid = true;
                     xSemaphoreGive(xDisplayDataMutex);
