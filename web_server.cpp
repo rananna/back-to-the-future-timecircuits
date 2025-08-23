@@ -514,21 +514,27 @@ void setupWebRoutes() {
             }
         }
     }
-    saveSettings();
+// --- START: CRITICAL WRITE ISOLATION PATCH ---
+if (mqttClient.connected()) {
+    mqttClient.disconnect(); // Temporarily disconnect to halt network tasks
+}
 
-    if (oldMqttBroker != currentSettings.mqttBroker || oldMqttPort != currentSettings.mqttPort) {
-        if (mqttClient.connected()) {
-            mqttClient.disconnect();
-        }
-        mqttReconnectRequired = true;
-    }
+saveSettings(); // Execute the save
+delay(100);     // Wait 100ms to ensure flash write completes
 
-    #if ENABLE_HARDWARE
-    myDFPlayer.volume(currentSettings.notificationVolume);
-    #endif
+mqttReconnectRequired = true; // Flag the client to reconnect on the next loop
+// --- END: CRITICAL WRITE ISOLATION PATCH ---
 
-    request->send(200, "text/plain", "Settings Saved!");
-  });
+
+// The original MQTT broker check is no longer needed here,
+// as we now force a reconnect after every save.
+
+#if ENABLE_HARDWARE
+myDFPlayer.volume(currentSettings.notificationVolume);
+#endif
+
+request->send(200, "text/plain", "Settings Saved!");
+});
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){

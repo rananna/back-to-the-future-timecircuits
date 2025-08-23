@@ -268,7 +268,8 @@ void publishHaAutoDiscovery() {
     const char* button_configs[][3] = {
         {"reboot_device", "Reboot Device", "mdi:restart"},
         {"force_ntp_sync", "Force NTP Sync", "mdi:timer-sync-outline"},
-        {"factory_reset", "Factory Reset", "mdi:delete-restore"}
+        {"factory_reset", "Factory Reset", "mdi:delete-restore"},
+        {"save_all_settings", "Save All Settings", "mdi:content-save-all-outline"}
     };
     for (auto const& cfg : button_configs) {
         doc.clear();
@@ -494,17 +495,20 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             if (year >= 1000 && year <= 9999) {
                 currentSettings.destinationYear = year;
                 settingsChanged = true;
+                broadcastWsStateUpdate("destinationYear", year);
             }
         }
         else if (component == "animation_style") {
             currentSettings.animationStyle = message.toInt();
             settingsChanged = true;
+            broadcastWsStateUpdate("animationStyleSelect", currentSettings.animationStyle);
         }
         else if (component == "glitch_freq") {
             int freq = message.toInt();
             if (freq >= 0 && freq <= 100) {
                 currentSettings.glitchEffectFrequency = freq;
                 settingsChanged = true;
+                broadcastWsStateUpdate("glitchEffectFrequency", freq);
             }
         }
         else if (component == "malfunction_chance") {
@@ -512,6 +516,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             if (chance >= 1 && chance <= 200) {
                 currentSettings.malfunctionFrequency = chance;
                 settingsChanged = true;
+                broadcastWsStateUpdate("malfunctionFrequency", chance);
             }
         }
         else if (component == "volume") {
@@ -522,6 +527,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 myDFPlayer.volume(vol);
                 #endif
                 settingsChanged = true;
+                broadcastWsStateUpdate("notificationVolume", vol);
             }
         }
         else if (component == "override") {
@@ -628,6 +634,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 currentSettings.dataLinkEnabled = false;
             }
             settingsChanged = true;
+            broadcastWsStateUpdate("weatherModeEnabled", enabled);
+            if(enabled) broadcastWsStateUpdate("dataLinkEnabled", false);
         }
         else if (topicStr == base_topic + "weather_city/command") {
             if (currentSettings.cityName != message.c_str()) {
@@ -646,18 +654,23 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (topicStr == base_topic + "24h_format/command") {
             currentSettings.displayFormat24h = (message == "ON");
             settingsChanged = true;
+            broadcastWsStateUpdate("displayFormat24h", currentSettings.displayFormat24h);
         } else if (topicStr == base_topic + "volume_fade/command") {
             currentSettings.timeTravelVolumeFade = (message == "ON");
             settingsChanged = true;
+            broadcastWsStateUpdate("timeTravelVolumeFade", currentSettings.timeTravelVolumeFade);
         } else if (topicStr == base_topic + "animation_interval/command") {
             currentSettings.timeTravelAnimationInterval = message.toInt();
             settingsChanged = true;
+            broadcastWsStateUpdate("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval);
         } else if (topicStr == base_topic + "animation_duration/command") {
             currentSettings.timeTravelAnimationDuration = message.toInt();
             settingsChanged = true;
+            broadcastWsStateUpdate("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration);
         } else if (topicStr == base_topic + "datalink_refresh/command") {
             currentSettings.dataLinkRefreshInterval = message.toInt();
             settingsChanged = true;
+            broadcastWsStateUpdate("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
         }
         else if (topicStr == base_topic + "marquee_temp_override/command") {
             DynamicJsonDocument doc(256);
@@ -682,6 +695,9 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             preferences.clear();
             preferences.end();
             ESP.restart();
+        }
+        else if (topicStr == base_topic + "save_all_settings/command" && message == "PRESS") {
+            saveSettings();
         }
         else if (topicStr == base_topic + "temporal_echo/command") {
             isEchoEffectActive = (message == "ON");
@@ -791,6 +807,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (component == "stock_ticker_mode") {
             currentSettings.stockTickerModeEnabled = (message == "ON");
             settingsChanged = true;
+            broadcastWsStateUpdate("stockTickerModeEnabled", currentSettings.stockTickerModeEnabled);
         }
         else if (component == "stock_row_1") {
             currentSettings.stockRow1_symbol = message.c_str();

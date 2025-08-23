@@ -133,8 +133,8 @@ SequenceStep sequence[20];
 int currentSequenceStep = 0;
 unsigned long sequenceStepStartTime = 0;
 bool isSequenceActive = false;
-
 void saveSettings() {
+    Serial.println("--- Saving Settings ---");
 	preferences.begin(PREFERENCES_NAMESPACE, false);
 	preferences.putInt("destYear", currentSettings.destinationYear);
 	preferences.putInt("destTzIndex", currentSettings.destinationTimezoneIndex);
@@ -178,7 +178,10 @@ void saveSettings() {
 	preferences.putString("stRow1Sym", currentSettings.stockRow1_symbol.c_str());
 	preferences.putString("stRow2Sym", currentSettings.stockRow2_symbol.c_str());
 	preferences.putString("stRow3Sym", currentSettings.stockRow3_symbol.c_str());
-	preferences.putString("alphaVantageApiKey", currentSettings.alphaVantageApiKey.c_str());
+    // *** Start of Fix ***
+    Serial.printf("Saving avApiKey: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
+	preferences.putString("avApiKey", currentSettings.alphaVantageApiKey.c_str());
+    // *** End of Fix ***
 
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
@@ -204,11 +207,13 @@ void saveSettings() {
 		preferences.putString((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey.c_str());
 	}
 	preferences.end();
+    Serial.println("--- Settings Saved ---");
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
 }
 
 void loadSettings() {
+    Serial.println("--- Loading Settings ---");
 	preferences.begin(PREFERENCES_NAMESPACE, true);
 	bool needsInit = !preferences.isKey("destYear");
 	if (needsInit) {
@@ -289,45 +294,93 @@ void loadSettings() {
 		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
 		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
 		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
-		currentSettings.mqttBroker = preferences.getString("mqttBroker", "").c_str();
-		currentSettings.mqttPort = preferences.getInt("mqttPort");
-		currentSettings.mqttUser = preferences.getString("mqttUser", "").c_str();
-		currentSettings.mqttPassword = preferences.getString("mqttPass", "").c_str();
+		// *** Start of Fix with Debug Logging ***
+		String tempString;
+
+		tempString = preferences.getString("mqttBroker", "");
+		currentSettings.mqttBroker = tempString.c_str();
+		tempString = preferences.getString("mqttUser", "");
+		currentSettings.mqttUser = tempString.c_str();
+
+		tempString = preferences.getString("mqttPass", "");
+		currentSettings.mqttPassword = tempString.c_str();
+
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
-		currentSettings.cityName = preferences.getString("cityName", "New York").c_str();
+		tempString = preferences.getString("cityName", "New York");
+		currentSettings.cityName = tempString.c_str();
+
 		currentSettings.useMetricUnits = preferences.getBool("useMetric", false);
 		currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
 		currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
 		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
-		currentSettings.stockRow1_symbol = preferences.getString("stRow1Sym", "^GSPC").c_str();
-		currentSettings.stockRow2_symbol = preferences.getString("stRow2Sym", "^GSPTSE").c_str();
-		currentSettings.stockRow3_symbol = preferences.getString("stRow3Sym", "^IXIC").c_str();
-		currentSettings.alphaVantageApiKey = preferences.getString("alphaVantageApiKey", "").c_str();
+
+		tempString = preferences.getString("stRow1Sym", "^GSPC");
+		currentSettings.stockRow1_symbol = tempString.c_str();
+
+		tempString = preferences.getString("stRow2Sym", "^GSPTSE");
+		currentSettings.stockRow2_symbol = tempString.c_str();
+		tempString = preferences.getString("stRow3Sym", "^IXIC");
+		currentSettings.stockRow3_symbol = tempString.c_str();
+
+        // *** Start of Fix ***
+		tempString = preferences.getString("avApiKey", "");
+        Serial.printf("Loading avApiKey from Preferences: [%s]\n", tempString.c_str());
+		currentSettings.alphaVantageApiKey = tempString.c_str();
+        Serial.printf("Loaded avApiKey into currentSettings: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
+        // *** End of Fix ***
+
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
-			currentSettings.dataPoints[i].url = preferences.getString((prefix + "url").c_str(), "").c_str();
-			currentSettings.dataPoints[i].monthPath = preferences.getString((prefix + "monthPath").c_str(), "").c_str();
-			currentSettings.dataPoints[i].dayPath = preferences.getString((prefix + "dayPath").c_str(), "").c_str();
-			currentSettings.dataPoints[i].yearPath = preferences.getString((prefix + "yearPath").c_str(), "").c_str();
-			currentSettings.dataPoints[i].timePath = preferences.getString((prefix + "timePath").c_str(), "").c_str();
-			currentSettings.dataPoints[i].prefix = preferences.getString((prefix + "prefix").c_str(), "").c_str();
-			currentSettings.dataPoints[i].suffix = preferences.getString((prefix + "suffix").c_str(), "").c_str();
-			currentSettings.dataPoints[i].icon = preferences.getString((prefix + "icon").c_str(), "").c_str();
+			tempString = preferences.getString((prefix + "url").c_str(), "");
+			currentSettings.dataPoints[i].url = tempString.c_str();
+
+			tempString = preferences.getString((prefix + "monthPath").c_str(), "");
+			currentSettings.dataPoints[i].monthPath = tempString.c_str();
+			tempString = preferences.getString((prefix + "dayPath").c_str(), "");
+			currentSettings.dataPoints[i].dayPath = tempString.c_str();
+
+			tempString = preferences.getString((prefix + "yearPath").c_str(), "");
+			currentSettings.dataPoints[i].yearPath = tempString.c_str();
+			tempString = preferences.getString((prefix + "timePath").c_str(), "");
+			currentSettings.dataPoints[i].timePath = tempString.c_str();
+
+			tempString = preferences.getString((prefix + "prefix").c_str(), "");
+			currentSettings.dataPoints[i].prefix = tempString.c_str();
+			tempString = preferences.getString((prefix + "suffix").c_str(), "");
+			currentSettings.dataPoints[i].suffix = tempString.c_str();
+
+			tempString = preferences.getString((prefix + "icon").c_str(), "");
+			currentSettings.dataPoints[i].icon = tempString.c_str();
 			currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
 			currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
-			currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
-			currentSettings.dataPoints[i].yearPrefix = preferences.getString((prefix + "yearPrefix").c_str(), "").c_str();
-			currentSettings.dataPoints[i].yearSuffix = preferences.getString((prefix + "yearSuffix").c_str(), "").c_str();
+
+			tempString = preferences.getString((prefix + "topic").c_str(), "");
+			currentSettings.dataPoints[i].mqttTopic = tempString.c_str();
+			tempString = preferences.getString((prefix + "yearPrefix").c_str(), "");
+			currentSettings.dataPoints[i].yearPrefix = tempString.c_str();
+
+			tempString = preferences.getString((prefix + "yearSuffix").c_str(), "");
+			currentSettings.dataPoints[i].yearSuffix = tempString.c_str();
 			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
-			currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
-			currentSettings.dataPoints[i].authHeaderKey = preferences.getString((prefix + "authKey").c_str(), "").c_str();
-			currentSettings.dataPoints[i].authHeaderValue = preferences.getString((prefix + "authVal").c_str(), "").c_str();
+
+			tempString = preferences.getString((prefix + "scrollTxt").c_str(), "");
+			currentSettings.dataPoints[i].scrollingText = tempString.c_str();
+			tempString = preferences.getString((prefix + "authKey").c_str(), "");
+			currentSettings.dataPoints[i].authHeaderKey = tempString.c_str();
+
+			tempString = preferences.getString((prefix + "authVal").c_str(), "");
+			currentSettings.dataPoints[i].authHeaderValue = tempString.c_str();
 			currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
-			currentSettings.dataPoints[i].requestBody = preferences.getString((prefix + "reqBody").c_str(), "").c_str();
-			currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
+			
+			tempString = preferences.getString((prefix + "reqBody").c_str(), "");
+			currentSettings.dataPoints[i].requestBody = tempString.c_str();
+			tempString = preferences.getString((prefix + "apiKey").c_str(), "");
+			currentSettings.dataPoints[i].apiExampleKey = tempString.c_str();
 		}
+        // *** End of Fix with Debug Logging ***
 	}
 	preferences.end();
+	Serial.println("--- Settings Loaded ---");
 	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.presentTimezoneIndex = 0;
 	}
@@ -439,7 +492,7 @@ void loop() {
 
 			handlePresetCycling();
 			handleSleepSchedule();
-            if (currentSettings.stockTickerModeEnabled) {
+			if (currentSettings.stockTickerModeEnabled) {
                 if (millis() - lastStockDataFetch > 300000) {
                     lastStockDataFetch = millis();
                     for (int i=0; i<3; ++i) {
@@ -478,7 +531,7 @@ void loop() {
 		if (getLocalTime(&timeinfo, 5000)) {
 			if (!timeSynchronized) {
                 triggerTemporalGlitch();
-			}
+            }
 			timeSynchronized = true;
 		}
 		else {
