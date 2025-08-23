@@ -723,15 +723,16 @@ function updateStockPreview(status, payload, rowIndex) {
     const priceEl = previewContainer.querySelector('.stock-price');
     const changeEl = previewContainer.querySelector('.stock-change');
 
-    // --- START: MODIFIED CODE ---
-    // Updated to handle FMP's array-based response and different key names.
-    if (status === 'success' && Array.isArray(payload) && payload.length > 0) {
-        const quote = payload[0]; // FMP returns an array
+    // --- START: MODIFICATION ---
+    // Handle both single object and array responses from the API.
+    const quote = Array.isArray(payload) ? payload[0] : payload;
+
+    if (status === 'success' && quote && typeof quote === 'object' && !quote["Error Message"]) {
+    // --- END: MODIFICATION ---
         const price = parseFloat(quote.price).toFixed(2);
         
         priceEl.textContent = `$${price}`;
         
-        // FMP's index endpoint doesn't include change percentage
         if (quote.changesPercentage !== undefined) {
             const change = parseFloat(quote.changesPercentage).toFixed(2);
             changeEl.textContent = `${change}%`;
@@ -746,7 +747,6 @@ function updateStockPreview(status, payload, rowIndex) {
             changeEl.classList.remove('positive', 'negative');
         }
         console.log(`CLIENT_DEBUG: Stock UI updated for row ${rowIndex} - Price: ${price}`);
-    // --- END: MODIFIED CODE ---
     } else {
         priceEl.textContent = 'Error';
         changeEl.textContent = '--';
@@ -754,9 +754,9 @@ function updateStockPreview(status, payload, rowIndex) {
         let errorMsg = 'Failed to fetch stock data.';
         if (typeof payload === 'string') {
             errorMsg = payload;
-        } else if (payload['Error Message']) {
+        } else if (payload && payload['Error Message']) { // Check for payload existence
             errorMsg = payload['Error Message'];
-        } else if (payload['Note']) {
+        } else if (payload && payload['Note']) { // Check for payload existence
             errorMsg = payload['Note'];
         }
         showMessage(errorMsg, 'error');

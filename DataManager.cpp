@@ -26,23 +26,36 @@ String urlEncode(const char* msg) {
 }
 
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
-    char path_copy[128];
-    strncpy(path_copy, path, sizeof(path_copy) - 1);
-    path_copy[sizeof(path_copy) - 1] = '\0';
+    // --- START: MODIFICATION ---
+    // Use dynamic allocation to prevent a stack buffer overflow from long JSON paths.
+    size_t path_len = strlen(path) + 1;
+    char* path_copy = new char[path_len];
+    if (!path_copy) {
+        return JsonVariant(); // Allocation failed
+    }
+    strncpy(path_copy, path, path_len);
+    // --- END: MODIFICATION ---
+
     JsonVariant current = root;
     char* context = NULL;
     char* token = strtok_r(path_copy, ".[]", &context);
     while (token != NULL) {
-        if (current.isNull()) return JsonVariant();
+        if (current.isNull()) {
+            delete[] path_copy; // Clean up memory
+            return JsonVariant();
+        }
         if (current.is<JsonObject>()) {
             current = current[token];
         } else if (current.is<JsonArray>()) {
             current = current[atoi(token)];
         } else {
+            delete[] path_copy; // Clean up memory
             return JsonVariant();
         }
         token = strtok_r(NULL, ".[]", &context);
     }
+
+    delete[] path_copy; // Clean up memory before returning
     return current;
 }
 
@@ -65,7 +78,6 @@ void fetchStockDataTask(void* p) {
     String apiKey = currentSettings.alphaVantageApiKey.c_str();
     String url;
 
-    // Check if the symbol is an index (starts with '^') and use the correct FMP endpoint.
     if (symbol.startsWith("^")) {
         url = "https://financialmodelingprep.com/api/v3/quote-short/" + symbol + "?apikey=" + apiKey;
     } else {
@@ -82,9 +94,14 @@ void fetchStockDataTask(void* p) {
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, http.getStream());
             
+            JsonObject quote;
             if (!doc.isNull() && doc.is<JsonArray>() && doc.size() > 0) {
-                JsonObject quote = doc[0];
+                quote = doc[0];
+            } else if (!doc.isNull() && doc.is<JsonObject>()) {
+                quote = doc.as<JsonObject>();
+            }
 
+            if (quote) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     stockData[rowIndex].symbol = quote["symbol"].as<String>().c_str();
                     
@@ -99,7 +116,6 @@ void fetchStockDataTask(void* p) {
                     }
                     stockData[rowIndex].price = priceBuffer;
 
-                    // The quote-short endpoint for indices does not provide percentage change.
                     if (quote.containsKey("changesPercentage")) {
                         float changeFloat = quote["changesPercentage"].as<float>();
                         char changeBuffer[10];
@@ -117,8 +133,8 @@ void fetchStockDataTask(void* p) {
                     stockData[rowIndex].dataValid = false;
                     stockData[rowIndex].price = "NO";
                     stockData[rowIndex].change_percent = "DATA";
+                    xSemaphoreGive(xDisplayDataMutex);
                 }
-                xSemaphoreGive(xDisplayDataMutex);
             }
         }
         http.end();
