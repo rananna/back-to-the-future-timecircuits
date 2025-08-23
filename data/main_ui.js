@@ -205,15 +205,23 @@ async function applyDataLinkSettings(datalink) {
     // Apply the main Data Link and weather settings
     document.getElementById('weatherModeEnabled').checked = datalink.weatherModeEnabled;
     document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
+    document.getElementById('stockTickerModeEnabled').checked = datalink.stockTickerModeEnabled;
     
     document.getElementById('weatherSettingsContainer').style.display = datalink.weatherModeEnabled ? 'block' : 'none';
     document.getElementById('dataLinkSettingsContainer').style.display = datalink.dataLinkEnabled ? 'block' : 'none';
+    document.getElementById('stockTickerSettingsContainer').style.display = datalink.stockTickerModeEnabled ? 'block' : 'none';
 
-    document.getElementById('weatherModeGroup').classList.toggle('disabled', datalink.dataLinkEnabled);
-    document.getElementById('dataLinkGroup').classList.toggle('disabled', datalink.weatherModeEnabled);
+    document.getElementById('weatherModeGroup').classList.toggle('disabled', datalink.dataLinkEnabled || datalink.stockTickerModeEnabled);
+    document.getElementById('dataLinkGroup').classList.toggle('disabled', datalink.weatherModeEnabled || datalink.stockTickerModeEnabled);
+    document.getElementById('stockTickerGroup').classList.toggle('disabled', datalink.weatherModeEnabled || datalink.dataLinkEnabled);
 
     document.getElementById('cityName').value = datalink.cityName || '';
     document.getElementById('useMetricUnits').checked = datalink.useMetricUnits;
+
+    document.getElementById('alphaVantageApiKey').value = datalink.alphaVantageApiKey || '';
+    document.getElementById('stockRow1_symbol').value = datalink.stockRow1_symbol || '';
+    document.getElementById('stockRow2_symbol').value = datalink.stockRow2_symbol || '';
+    document.getElementById('stockRow3_symbol').value = datalink.stockRow3_symbol || '';
     
     document.getElementById('dataLinkRefreshInterval').value = datalink.dataLinkRefreshInterval;
     document.getElementById('dataLinkRefreshIntervalValue').textContent = datalink.dataLinkRefreshInterval;
@@ -312,14 +320,17 @@ function attachEventListeners() {
         fetchTime();
     });
 
-    // Weather and Data Link mode toggles
+   // Weather, Data Link, and Stock Ticker mode toggles
     document.getElementById('weatherModeEnabled').onchange = (e) => {
         const isChecked = e.target.checked;
         document.getElementById('weatherSettingsContainer').style.display = isChecked ? 'block' : 'none';
         document.getElementById('dataLinkGroup').classList.toggle('disabled', isChecked);
+        document.getElementById('stockTickerGroup').classList.toggle('disabled', isChecked);
         if (isChecked) {
             document.getElementById('dataLinkEnabled').checked = false;
             document.getElementById('dataLinkSettingsContainer').style.display = 'none';
+            document.getElementById('stockTickerModeEnabled').checked = false;
+            document.getElementById('stockTickerSettingsContainer').style.display = 'none';
             document.getElementById('weatherModeGroup').classList.remove('disabled');
             fetchWeatherData();
         }
@@ -330,13 +341,40 @@ function attachEventListeners() {
         const isChecked = e.target.checked;
         document.getElementById('dataLinkSettingsContainer').style.display = isChecked ? 'block' : 'none';
         document.getElementById('weatherModeGroup').classList.toggle('disabled', isChecked);
+        document.getElementById('stockTickerGroup').classList.toggle('disabled', isChecked);
         if (isChecked) {
             document.getElementById('weatherModeEnabled').checked = false;
             document.getElementById('weatherSettingsContainer').style.display = 'none';
+            document.getElementById('stockTickerModeEnabled').checked = false;
+            document.getElementById('stockTickerSettingsContainer').style.display = 'none';
             document.getElementById('dataLinkGroup').classList.remove('disabled');
         }
         if (!isLoading) setSettingsChanged(true);
     };
+
+    document.getElementById('stockTickerModeEnabled').onchange = (e) => {
+        const isChecked = e.target.checked;
+        document.getElementById('stockTickerSettingsContainer').style.display = isChecked ? 'block' : 'none';
+        document.getElementById('dataLinkGroup').classList.toggle('disabled', isChecked);
+        document.getElementById('weatherModeGroup').classList.toggle('disabled', isChecked);
+        if (isChecked) {
+            document.getElementById('dataLinkEnabled').checked = false;
+            document.getElementById('dataLinkSettingsContainer').style.display = 'none';
+            document.getElementById('weatherModeEnabled').checked = false;
+            document.getElementById('weatherSettingsContainer').style.display = 'none';
+            document.getElementById('stockTickerGroup').classList.remove('disabled');
+        }
+        if (!isLoading) setSettingsChanged(true);
+    };
+
+    // Use event delegation for the stock fetch buttons. This ensures the click event
+    // is handled even if the buttons are added to the DOM after the initial page load.
+    document.getElementById('stockTickerSettingsContainer').addEventListener('click', function(event) {
+        if (event.target && event.target.classList.contains('fetch-stock-btn')) {
+            fetchStockQuote(event);
+        }
+    });
+
     // Number of data points slider
     document.getElementById('numDataPoints').oninput = (e) => {
         document.getElementById('numDataPointsValue').textContent = e.target.value;

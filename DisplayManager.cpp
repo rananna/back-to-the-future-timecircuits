@@ -2,6 +2,8 @@
 #include "EventManager.h"
 #include "HardwareControl.h"
 
+extern StockData stockData[3];
+
 std::string manualDisplayText[3][4];
 bool isRowInManualMode[3] = {false, false, false};
 
@@ -71,6 +73,55 @@ void displayMarqueeOverride() {
         } else {
             scrollPosition = 0;
         }
+    }
+    #endif
+}
+
+void updateStockTickerDisplay() {
+    if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return;
+    #if ENABLE_HARDWARE
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    for (int i = 0; i < 3; ++i) {
+        if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+            if (stockData[i].dataValid) {
+                String symbol = String(stockData[i].symbol.c_str());
+                if(symbol.startsWith("^")) symbol.remove(0,1);
+                printToDisplay(rows[i]->month, symbol.substring(0, 3).c_str());
+                printToDisplay(rows[i]->day, symbol.substring(3, 5).c_str(), 2);
+
+                printToDisplay(rows[i]->year, stockData[i].price.c_str());
+
+                printToDisplay(rows[i]->time, stockData[i].change_percent.c_str());
+
+            } else {
+                std::string symbol;
+                if (i == 0) symbol = currentSettings.stockRow1_symbol;
+                else if (i == 1) symbol = currentSettings.stockRow2_symbol;
+                else symbol = currentSettings.stockRow3_symbol;
+
+                if (symbol.empty()) {
+                    printToDisplay(rows[i]->month, "---");
+                    printToDisplay(rows[i]->day, "--", 2);
+                    printToDisplay(rows[i]->year, "EMPTY");
+                    printToDisplay(rows[i]->time, "----");
+                } else if (currentSettings.alphaVantageApiKey.empty()) {
+                    printToDisplay(rows[i]->month, "NO");
+                    printToDisplay(rows[i]->day, "API", 2);
+                    printToDisplay(rows[i]->year, "KEY");
+                    printToDisplay(rows[i]->time, "----");
+                } else {
+                    printToDisplay(rows[i]->month, "---");
+                    printToDisplay(rows[i]->day, "--", 2);
+                    printToDisplay(rows[i]->year, "LOAD");
+                    printToDisplay(rows[i]->time, "ING");
+                }
+            }
+             xSemaphoreGive(xDisplayDataMutex);
+        }
+        rows[i]->month.writeDisplay();
+        rows[i]->day.writeDisplay();
+        rows[i]->year.writeDisplay();
+        rows[i]->time.writeDisplay();
     }
     #endif
 }

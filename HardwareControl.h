@@ -23,7 +23,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0 
+#define ENABLE_HARDWARE 0
 
 // --- ENUMS & DATA STRUCTURES ---
 
@@ -117,6 +117,18 @@ struct ClockSettings {
   float longitude;
   std::string cityName;
   bool useMetricUnits;
+  bool stockTickerModeEnabled;
+  std::string stockRow1_symbol;
+  std::string stockRow2_symbol;
+  std::string stockRow3_symbol;
+  std::string alphaVantageApiKey;
+};
+
+struct StockData {
+  std::string symbol;
+  std::string price;
+  std::string change_percent;
+  bool dataValid = false;
 };
 
 struct WeatherData {
@@ -134,7 +146,7 @@ struct WeatherData {
   int tomorrowWeatherCode;
   int precipitationProbability;
   float maxWindSpeed;
-  time_t sunrise; 
+  time_t sunrise;
   time_t sunset;
   bool dataValid = false;
 };

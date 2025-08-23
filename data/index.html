@@ -219,7 +219,52 @@
             </div>
         </div>
         <div id="DataLink" class="tab-content">
-            <p class="info-text">You can use either the Live Weather Display or the Data Link Marquee to control the bottom display row. Enabling one will disable the other.</p>
+            <p class="info-text">You can use either the Live Weather, Data Link Marquee, or Stock Ticker to control the display rows.</p>
+            
+            <div class="setting-group" id="stockTickerGroup">
+                <h3>Stock Market Ticker Mode</h3>
+                <label for="stockTickerModeEnabled" class="toggle-label">Enable Stock Ticker Mode</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="stockTickerModeEnabled">
+                    <span class="slider round"></span>
+                </label>
+                <div id="stockTickerSettingsContainer" style="display:none; margin-top: 20px;">
+                    <label for="alphaVantageApiKey">Alpha Vantage API Key:</label>
+                    <input type="password" id="alphaVantageApiKey" placeholder="Enter your free API key">
+
+                    <label for="stockRow1_symbol">Destination Row Symbol:</label>
+                    <div class="stock-row-input">
+                        <input type="text" id="stockRow1_symbol" placeholder="e.g., ^GSPC, AAPL">
+                        <button class="action-button fetch-stock-btn" data-index="0">Fetch</button>
+                    </div>
+                     <div class="stock-preview-container" id="stock_preview_0">
+                        <span class="stock-price">--</span>
+                        <span class="stock-change">--</span>
+                    </div>
+
+                    <label for="stockRow2_symbol">Present Row Symbol:</label>
+                    <div class="stock-row-input">
+                        <input type="text" id="stockRow2_symbol" placeholder="e.g., ^GSPTSE, GOOGL">
+                        <button class="action-button fetch-stock-btn" data-index="1">Fetch</button>
+                    </div>
+                     <div class="stock-preview-container" id="stock_preview_1">
+                        <span class="stock-price">--</span>
+                        <span class="stock-change">--</span>
+                    </div>
+
+                    <label for="stockRow3_symbol">Last Departed Row Symbol:</label>
+                     <div class="stock-row-input">
+                        <input type="text" id="stockRow3_symbol" placeholder="e.g., ^IXIC, MSFT">
+                        <button class="action-button fetch-stock-btn" data-index="2">Fetch</button>
+                    </div>
+                     <div class="stock-preview-container" id="stock_preview_2">
+                        <span class="stock-price">--</span>
+                        <span class="stock-change">--</span>
+                    </div>
+                     <p style="font-size: 0.8em; opacity: 0.7;">Note: Use Yahoo Finance ticker symbols. Indices often start with '^'.</p>
+                </div>
+            </div>
+
             <div class="setting-group" id="weatherModeGroup">
                 <h3>Live Weather Display</h3>
                 <label for="weatherModeEnabled" class="toggle-label">Enable Live Weather</label>

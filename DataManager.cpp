@@ -1,15 +1,12 @@
 #include "DataManager.h"
 #include "EventManager.h"
-#include "DisplayManager.h" // For showTemporaryMessage
+#include "DisplayManager.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
-/**
- * @brief URL-encodes a string.
- * @param msg The string to encode.
- * @return The URL-encoded string.
- */
+extern StockData stockData[3];
+
 String urlEncode(const char* msg) {
     const char *hex = "0123456789abcdef";
     String encodedMsg = "";
@@ -19,7 +16,6 @@ String urlEncode(const char* msg) {
                 || ('0' <= *msg && *msg <= '9') || *msg == '-' || *msg == '_' || *msg == '.') {
             encodedMsg += *msg;
         } else {
-            // Encode non-alphanumeric characters as %XX
             encodedMsg += '%';
             encodedMsg += hex[*msg >> 4];
             encodedMsg += hex[*msg & 15];
@@ -29,43 +25,110 @@ String urlEncode(const char* msg) {
     return encodedMsg;
 }
 
-/**
- * @brief Safely retrieves a nested value from a JSON object using a dot-and-bracket path.
- * @param root The root JsonVariant to search within.
- * @param path A string representing the path (e.g., "results[0].name").
- * @return The found JsonVariant, or a null JsonVariant if not found.
- */
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char path_copy[128];
-    // Make a mutable copy of the path because strtok_r modifies the string.
     strncpy(path_copy, path, sizeof(path_copy) - 1);
     path_copy[sizeof(path_copy) - 1] = '\0';
     JsonVariant current = root;
     char* context = NULL;
-    // Tokenize the path by dots and brackets.
     char* token = strtok_r(path_copy, ".[]", &context);
     while (token != NULL) {
-        if (current.isNull()) return JsonVariant(); // Path is invalid
+        if (current.isNull()) return JsonVariant();
         if (current.is<JsonObject>()) {
             current = current[token];
         } else if (current.is<JsonArray>()) {
             current = current[atoi(token)];
         } else {
-            return JsonVariant(); // Cannot traverse further
+            return JsonVariant();
         }
         token = strtok_r(NULL, ".[]", &context);
     }
     return current;
 }
 
-/**
- * @brief Fetches weather data. This function handles geocoding and the actual weather API call. Runs in a dedicated FreeRTOS task.
- * @param params A pointer to a WeatherTaskParams struct containing the city name and whether to force geocoding.
- */
+void fetchStockDataTask(void* p) {
+    FetchDataParams* params = (FetchDataParams*)p;
+    int rowIndex = params->pointIndex;
+    delete params;
+
+    std::string symbol;
+    if (rowIndex == 0) symbol = currentSettings.stockRow1_symbol;
+    else if (rowIndex == 1) symbol = currentSettings.stockRow2_symbol;
+    else symbol = currentSettings.stockRow3_symbol;
+
+    if (symbol.empty() || currentSettings.alphaVantageApiKey.empty()) {
+        vTaskDelete(NULL);
+        return;
+    }
+
+    String apiKey = currentSettings.alphaVantageApiKey.c_str();
+    String url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" + String(symbol.c_str()) + "&apikey=" + apiKey;
+
+    HTTPClient http;
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    if (http.begin(client, url)) {
+        int httpCode = http.GET();
+        if (httpCode == HTTP_CODE_OK) {
+            DynamicJsonDocument doc(1024);
+            deserializeJson(doc, http.getStream());
+            JsonObject quote = doc["Global Quote"];
+
+            if (doc.containsKey("Error Message")) {
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    stockData[rowIndex].dataValid = false;
+                    stockData[rowIndex].price = "ERR";
+                    stockData[rowIndex].change_percent = "API";
+                }
+                xSemaphoreGive(xDisplayDataMutex);
+            } else if (doc.containsKey("Note") && doc["Note"].as<String>().indexOf("API call frequency") != -1) {
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    stockData[rowIndex].dataValid = false;
+                    stockData[rowIndex].price = "RATE";
+                    stockData[rowIndex].change_percent = "LIMIT";
+                }
+                xSemaphoreGive(xDisplayDataMutex);
+            } else if (!quote.isNull() && quote.size() > 0) {
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    stockData[rowIndex].symbol = quote["01. symbol"].as<String>().c_str();
+                    
+                    float price = quote["05. price"].as<float>();
+                    char priceBuffer[6];
+                    if (price >= 1000) {
+                      dtostrf(price, 4, 0, priceBuffer);
+                    } else if (price >= 100) {
+                      dtostrf(price, 4, 1, priceBuffer);
+                    } else {
+                      dtostrf(price, 4, 2, priceBuffer);
+                    }
+                    stockData[rowIndex].price = priceBuffer;
+
+                    String changeStr = quote["10. change percent"].as<String>();
+                    changeStr.replace("%", "");
+                    stockData[rowIndex].change_percent = changeStr.c_str();
+
+                    stockData[rowIndex].dataValid = true;
+                    xSemaphoreGive(xDisplayDataMutex);
+                }
+            } else {
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    stockData[rowIndex].dataValid = false;
+                    stockData[rowIndex].price = "NO";
+                    stockData[rowIndex].change_percent = "DATA";
+                }
+                xSemaphoreGive(xDisplayDataMutex);
+            }
+        }
+        http.end();
+    }
+    vTaskDelete(NULL);
+}
+
 void fetchWeatherData(WeatherTaskParams* params) {
     std::string taskCityName = params->cityName;
     bool forceGeocode = params->forceGeocode;
-    delete params; // Clean up the dynamically allocated memory for the parameters.
+    delete params;
 
     if (taskCityName.empty()) {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
@@ -76,7 +139,6 @@ void fetchWeatherData(WeatherTaskParams* params) {
     }
 
     bool needsGeocoding = forceGeocode;
-    // Check if we need to geocode: either forced or the city name has changed.
     if (!forceGeocode) {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             if (taskCityName != lastCityName) {
@@ -86,14 +148,13 @@ void fetchWeatherData(WeatherTaskParams* params) {
         }
     }
     
-    // --- Geocoding Step ---
     if (needsGeocoding) {
         bool geocodeSuccess = false;
-        for (int i = 0; i < 3; i++) { // Retry up to 3 times for network reliability.
+        for (int i = 0; i < 3; i++) {
             showTemporaryMessage("GEO", "", "SRCH", "", 1000);
             HTTPClient http;
             WiFiClientSecure client;
-            client.setInsecure(); // Skip certificate validation to save memory.
+            client.setInsecure();
             String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(taskCityName.c_str());
             if (http.begin(client, geocodeUrl)) {
                 int httpCode = http.GET();
@@ -102,21 +163,20 @@ void fetchWeatherData(WeatherTaskParams* params) {
                     deserializeJson(doc, http.getStream());
                     JsonArray results = doc["results"];
                     if (!results.isNull() && results.size() > 0) {
-                        // Safely update the shared settings structure.
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                             currentSettings.latitude = doc["results"][0]["latitude"];
                             currentSettings.longitude = doc["results"][0]["longitude"];
-                            lastCityName = taskCityName; // Update the cache
+                            lastCityName = taskCityName;
                             xSemaphoreGive(xDisplayDataMutex);
                         }
                         geocodeSuccess = true;
                         http.end();
-                        break; // Exit retry loop on success.
+                        break;
                     }
                 }
                 http.end();
             }
-            delay(1000); // Wait 1 second before retrying.
+            delay(1000);
         }
 
         if (!geocodeSuccess) {
@@ -125,19 +185,17 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 currentWeatherData.dataValid = false;
                 xSemaphoreGive(xDisplayDataMutex);
             }
-            return; // Stop if geocoding fails.
+            return;
         }
     }
 
-    // --- Weather Fetch Step ---
     bool weatherSuccess = false;
-    for (int i = 0; i < 3; i++) { // Retry up to 3 times.
+    for (int i = 0; i < 3; i++) {
         HTTPClient http;
         WiFiClientSecure client;
         client.setInsecure();
         String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
         String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
-        // Construct the long API URL for Open-Meteo.
         String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 4) + 
                      "&longitude=" + String(currentSettings.longitude, 4) + 
                      "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
@@ -152,10 +210,8 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 DynamicJsonDocument doc(4096);
                 DeserializationError error = deserializeJson(doc, payload);
 
-                // Use mutex to safely write to the shared currentWeatherData struct.
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (error == DeserializationError::Ok && !doc.containsKey("error")) {
-                        // Parse all the required data points from the JSON response.
                         currentWeatherData.temperature = doc["current"]["temperature_2m"];
                         currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
                         currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
@@ -171,7 +227,6 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         currentWeatherData.tomorrowLow = doc["daily"]["temperature_2m_min"][1];
                         currentWeatherData.tomorrowWeatherCode = doc["daily"]["weather_code"][1];
 
-                        // Parse the hourly forecast for the next 3 hours.
                         time_t now;
                         time(&now);
                         struct tm timeinfo;
@@ -192,10 +247,10 @@ void fetchWeatherData(WeatherTaskParams* params) {
                     } else {
                         currentWeatherData.dataValid = false;
                     }
-                    xSemaphoreGive(xDisplayDataMutex); // Release the mutex.
+                    xSemaphoreGive(xDisplayDataMutex);
                 }
                 http.end();
-                if (weatherSuccess) break; // Exit retry loop on success.
+                if (weatherSuccess) break;
             }
             http.end();
         }
@@ -211,38 +266,25 @@ void fetchWeatherData(WeatherTaskParams* params) {
     }
 }
 
-/**
- * @brief Task wrapper to fetch weather data.
- */
 void fetchWeatherDataTask(void* p) {
     WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
     fetchWeatherData(params);
-    vTaskDelete(NULL); // End the task.
+    vTaskDelete(NULL);
 }
 
-/**
- * @brief Task wrapper to force a weather data fetch and geocoding.
- */
 void forceFetchWeatherDataTask(void* p) {
     WeatherTaskParams* params = (WeatherTaskParams*)p;
     fetchWeatherData(params);
-    vTaskDelete(NULL); // End the task.
+    vTaskDelete(NULL);
 }
 
-/**
- * @brief Task responsible for fetching and parsing data from a single API endpoint.
- * This runs as a separate, non-blocking FreeRTOS task.
- * @param p A void pointer to a FetchDataParams struct.
- */
 void fetchApiDataTask(void* p) {
-	// Safely cast and immediately delete the parameters struct to prevent memory leaks.
 	FetchDataParams* params = (FetchDataParams*)p;
 	int index = params->pointIndex;
 	delete params;
 
 	if (index < 0 || index >= currentSettings.numDataPoints) {
 		vTaskDelete(NULL);
-		// Invalid index, end the task.
 		return;
 	}
 
@@ -250,7 +292,6 @@ void fetchApiDataTask(void* p) {
 	HTTPClient http;
 	WiFiClientSecure client;
 	client.setInsecure();
-	// Skip certificate validation for memory efficiency.
 
 	if (http.begin(client, point.url.c_str())) {
 		if (!point.authHeaderKey.empty() && !point.authHeaderValue.empty()) {
@@ -262,19 +303,16 @@ void fetchApiDataTask(void* p) {
 			DynamicJsonDocument doc(4096);
 			DeserializationError error = deserializeJson(doc, http.getStream());
 			if (error == DeserializationError::Ok) {
-				// Use the mutex to safely access the shared display data.
 				if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
 					JsonVariant monthVar = getJsonVariant(doc.as<JsonVariant>(), point.monthPath.c_str());
 					JsonVariant dayVar = getJsonVariant(doc.as<JsonVariant>(), point.dayPath.c_str());
 					JsonVariant yearVar = getJsonVariant(doc.as<JsonVariant>(), point.yearPath.c_str());
 					JsonVariant timeVar = getJsonVariant(doc.as<JsonVariant>(), point.timePath.c_str());
 
-					// Update display data only if the JSON path was valid.
 					if (!monthVar.isNull()) displayPages[index].month = monthVar.as<String>().c_str();
 					if (!dayVar.isNull()) displayPages[index].day = dayVar.as<String>().c_str();
 					if (!yearVar.isNull()) displayPages[index].year = yearVar.as<String>().c_str();
 					if (!timeVar.isNull()) displayPages[index].time = timeVar.as<String>().c_str();
-					// On success, cache the good data and reset the failure counter.
 					lastGoodDisplayPages[index] = displayPages[index];
 					dataPointFetchFailures[index] = 0;
 					xSemaphoreGive(xDisplayDataMutex);
@@ -290,7 +328,6 @@ void fetchApiDataTask(void* p) {
 		dataPointFetchFailures[index]++;
 	}
 
-	// If fetching fails multiple times, revert to the last known good data.
 	if (dataPointFetchFailures[index] > MAX_FETCH_FAILURES) {
 		 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
 			displayPages[index] = lastGoodDisplayPages[index];
@@ -298,54 +335,39 @@ void fetchApiDataTask(void* p) {
 		}
 	}
 	
-	// Atomically increment the completed requests counter.
 	__atomic_add_fetch(&requestsCompleted, 1, __ATOMIC_SEQ_CST);
-	vTaskDelete(NULL); // End the task.
+	vTaskDelete(NULL);
 }
 
-/**
- * @brief Manages the periodic fetching of data for the Data Link marquee.
- * This function is non-blocking and creates separate tasks for each API call.
- */
 void fetchDataLink() {
-	// Use a mutex to prevent race conditions with the isFetchingData flag.
 	if (xSemaphoreTake(xDisplayDataMutex, 0) != pdTRUE) {
 		return;
-		// Could not get the lock, try again later.
 	}
 
-	// Don't fetch if the feature is disabled or if a fetch is already in progress.
 	if (!currentSettings.dataLinkEnabled || isFetchingData) {
 		xSemaphoreGive(xDisplayDataMutex);
 		return;
 	}
 
 	unsigned long now = millis();
-	// Check if it's time to refresh based on the user-configured interval.
 	if (now - lastDataLinkFetch > (unsigned long)currentSettings.dataLinkRefreshInterval * 60000) {
 		lastDataLinkFetch = now;
 		isFetchingData = true;
 		requestsCompleted = 0;
 		int tasksCreated = 0;
 
-		// Iterate through all configured data points.
 		for (int i = 0; i < currentSettings.numDataPoints; i++) {
-			// Only fetch data for API-based sources with a valid URL.
 			if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_API && !currentSettings.dataPoints[i].url.empty()) {
-				// Dynamically allocate memory for task parameters. This is crucial!
-				FetchDataParams* params = new FetchDataParams{ i, 0 }; // Initialize with index
-				// Create a new task to handle this specific API request.
+				FetchDataParams* params = new FetchDataParams{ i, 0 };
 				if (xTaskCreate(fetchApiDataTask, "fetchApiDataTask", 8192, params, 1, NULL) == pdPASS) {
 					tasksCreated++;
 				}
 				else {
-					// If task creation fails, delete the params to prevent a memory leak.
 					delete params;
 				}
 			}
 		}
 
-		// If all tasks have completed, reset the fetching flag.
 		if (requestsCompleted >= tasksCreated) {
 			isFetchingData = false;
 		}

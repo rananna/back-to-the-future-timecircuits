@@ -1432,3 +1432,45 @@ body.time-travel-active {
 .anim-preview-sequential-flicker {
     animation: preview-flicker 0.2s infinite;
 }
+
+.stock-row-input {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.stock-row-input input {
+    flex-grow: 1;
+    margin-bottom: 0;
+}
+
+.fetch-stock-btn {
+    flex-shrink: 0;
+    width: auto;
+    padding: 10px 15px;
+}
+
+.stock-preview-container {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    background-color: rgba(0,0,0,0.2);
+    border: 1px dashed var(--input-border);
+    border-radius: 5px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.stock-price, .stock-change {
+    font-size: 1.1em;
+    color: var(--highlight-text-color);
+}
+
+.stock-change.positive {
+    color: #00ff00;
+}
+
+.stock-change.negative {
+    color: #ff0000;
+}

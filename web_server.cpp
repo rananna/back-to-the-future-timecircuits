@@ -136,6 +136,8 @@ void makeApiRequestTask(void* p) {
     String authKey = params->authKey;
     String authValue = params->authValue;
     uint32_t clientId = params->clientId;
+    String action = params->action;
+    int rowIndex = params->rowIndex;
     delete params; // Clean up the params object immediately
 
     HTTPClient http;
@@ -151,7 +153,8 @@ void makeApiRequestTask(void* p) {
         int httpCode = http.GET();
         String responseString;
         DynamicJsonDocument responseJson(4096);
-        responseJson["action"] = "apiResult";
+        responseJson["action"] = action;
+        responseJson["rowIndex"] = rowIndex;
 
         if (httpCode > 0) {
             if (httpCode == HTTP_CODE_OK) {
@@ -184,19 +187,47 @@ void makeApiRequestTask(void* p) {
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-        // Client connected
+        Serial.println("SERVER_DEBUG: WebSocket client connected");
     } else if (type == WS_EVT_DISCONNECT) {
-        // Client disconnected
+        Serial.println("SERVER_DEBUG: WebSocket client disconnected");
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
             data[len] = 0;
+            Serial.printf("SERVER_DEBUG: WebSocket data received: %s\n", (char*)data);
             
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, (char*)data);
 
             String action = doc["action"];
-            if (action == "testApi") {
+             if (action == "testStock") {
+                Serial.println("SERVER_DEBUG: 'testStock' action received.");
+                 if (!timeSynchronized) {
+                    String responseString;
+                    DynamicJsonDocument responseJson(256);
+                    responseJson["action"] = "stockTestResult";
+                    responseJson["status"] = "error";
+                    responseJson["payload"] = "Time not sync'd. Go to System->Sync Time.";
+                    serializeJson(responseJson, responseString);
+                    ws.text(client->id(), responseString);
+                    return;
+                }
+                String symbol = doc["data"]["symbol"];
+                String apiKey = doc["data"]["apiKey"];
+                int rowIndex = doc["data"]["rowIndex"];
+                String url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" + symbol + "&apikey=" + apiKey;
+                Serial.printf("SERVER_DEBUG: Stock URL created: %s\n", url.c_str());
+
+                ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex};
+                BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
+                if (taskCreated != pdPASS) {
+                    delete params;
+                    Serial.println("SERVER_DEBUG: ERROR - Failed to create stock test task!");
+                } else {
+                    Serial.println("SERVER_DEBUG: Stock test task created successfully.");
+                }
+            } else if (action == "testApi") {
+                Serial.println("SERVER_DEBUG: 'testApi' action received.");
                 if (!timeSynchronized) {
                     String responseString;
                     DynamicJsonDocument responseJson(256);
@@ -211,12 +242,14 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String url = doc["data"]["url"];
                 String authKey = doc["data"]["authKey"];
                 String authValue = doc["data"]["authValue"];
+                 Serial.printf("SERVER_DEBUG: API Test URL: %s\n", url.c_str());
 
-                ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id()};
+                ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id(), "apiResult", 0};
 
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
                     delete params;
+                     Serial.println("SERVER_DEBUG: ERROR - Failed to create API test task!");
                 }
             }
         }
@@ -289,6 +322,11 @@ void setupWebRoutes() {
     doc["weatherModeEnabled"] = currentSettings.weatherModeEnabled;
     doc["cityName"] = currentSettings.cityName.c_str();
     doc["useMetricUnits"] = currentSettings.useMetricUnits;
+    doc["stockTickerModeEnabled"] = currentSettings.stockTickerModeEnabled;
+    doc["alphaVantageApiKey"] = currentSettings.alphaVantageApiKey.c_str();
+    doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
+    doc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
+    doc["stockRow3_symbol"] = currentSettings.stockRow3_symbol.c_str();
 
     JsonArray dataPoints = doc.createNestedArray("dataPoints");
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
@@ -385,6 +423,11 @@ void setupWebRoutes() {
 
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
+    
+    Serial.println("SERVER_DEBUG: Received request to /api/saveSettings");
+    String receivedJson;
+    serializeJson(obj, receivedJson);
+    Serial.println(receivedJson);
 
     std::string oldMqttBroker = currentSettings.mqttBroker;
     int oldMqttPort = currentSettings.mqttPort;
@@ -433,6 +476,14 @@ void setupWebRoutes() {
         currentSettings.cityName = newCityName;
     }
     currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
+    currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
+    if (obj.containsKey("alphaVantageApiKey")) {
+        currentSettings.alphaVantageApiKey = obj["alphaVantageApiKey"].as<std::string>();
+        Serial.printf("SERVER_DEBUG: Saving Alpha Vantage Key: %s\n", currentSettings.alphaVantageApiKey.c_str());
+    }
+    if (obj.containsKey("stockRow1_symbol")) currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
+    if (obj.containsKey("stockRow2_symbol")) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
+    if (obj.containsKey("stockRow3_symbol")) currentSettings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
 
     currentSettings.numDataPoints = obj["numDataPoints"] | 0;
     if (obj.containsKey("dataPoints")) {

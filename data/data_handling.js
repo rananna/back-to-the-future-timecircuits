@@ -84,6 +84,15 @@ function initWebSocket() {
                 el.dispatchEvent(new Event('input'));
                 el.dispatchEvent(new Event('change'));
             }
+        } else if (msg.action === 'stockTestResult') {
+            console.log("CLIENT_DEBUG: Received stockTestResult:", msg);
+            const button = document.querySelector(`.fetch-stock-btn[data-index="${msg.rowIndex}"].analyzing`);
+             if (button) {
+                 button.disabled = false;
+                 button.classList.remove('analyzing');
+                 button.textContent = 'Fetch';
+             }
+            updateStockPreview(msg.status, msg.payload, msg.rowIndex);
         }
     };
 
@@ -340,7 +349,7 @@ function saveSettings() {
     settings.timeTravelVolumeFade = document.getElementById('timeTravelVolumeFade').checked;
     settings.displayFormat24h = document.getElementById('displayFormat24h').checked;
 
-    // Data Link & Weather Settings
+    // Data Link, Weather & Stock Ticker Settings
     settings.dataLinkEnabled = document.getElementById('dataLinkEnabled').checked;
     settings.dataLinkRefreshInterval = parseInt(document.getElementById('dataLinkRefreshInterval').value, 10);
     settings.mqttBroker = document.getElementById('mqttBroker').value;
@@ -351,6 +360,19 @@ function saveSettings() {
     settings.weatherModeEnabled = document.getElementById('weatherModeEnabled').checked;
     settings.cityName = document.getElementById('cityName').value;
     settings.useMetricUnits = document.getElementById('useMetricUnits').checked;
+    
+    settings.stockTickerModeEnabled = document.getElementById('stockTickerModeEnabled').checked;
+    settings.alphaVantageApiKey = document.getElementById('alphaVantageApiKey').value;
+
+    if (settings.stockTickerModeEnabled && !settings.alphaVantageApiKey) {
+        showMessage('Alpha Vantage API Key is required for Stock Ticker Mode.', 'error');
+        showLoading('saveSettingsBtn', false);
+        return;
+    }
+
+    settings.stockRow1_symbol = document.getElementById('stockRow1_symbol').value;
+    settings.stockRow2_symbol = document.getElementById('stockRow2_symbol').value;
+    settings.stockRow3_symbol = document.getElementById('stockRow3_symbol').value;
 
     const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
     settings.numDataPoints = numDataPoints;
@@ -654,4 +676,81 @@ function testDataPoint(event) {
     };
     // Send the message via WebSocket
     ws.send(JSON.stringify(message));
+}
+
+function fetchStockQuote(event) {
+    console.log("CLIENT_DEBUG: fetchStockQuote called.");
+    const index = event.target.dataset.index;
+    const symbol = document.getElementById(`stockRow${parseInt(index) + 1}_symbol`).value;
+    const apiKey = document.getElementById('alphaVantageApiKey').value;
+    const button = event.target;
+
+    console.log(`CLIENT_DEBUG: Stock Fetch Request - Index: ${index}, Symbol: ${symbol}, API Key Present: ${!!apiKey}`);
+
+    if (!symbol) {
+        showMessage('Please enter a stock symbol.', 'error');
+        return;
+    }
+    if (!apiKey) {
+        showMessage('Please enter your Alpha Vantage API key.', 'error');
+        return;
+    }
+     if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showMessage('Data Link channel is not open. Please wait.', 'error');
+        console.error("CLIENT_DEBUG: WebSocket is not open. State: " + (ws ? ws.readyState : "undefined"));
+        return;
+    }
+
+    button.disabled = true;
+    button.classList.add('analyzing');
+    button.innerHTML = '<span class="loading-spinner"></span>';
+
+    const message = {
+        action: "testStock",
+        data: {
+            symbol: symbol,
+            apiKey: apiKey,
+            rowIndex: index
+        }
+    };
+    console.log("CLIENT_DEBUG: Sending testStock message:", message);
+    ws.send(JSON.stringify(message));
+}
+
+function updateStockPreview(status, payload, rowIndex) {
+    console.log(`CLIENT_DEBUG: updateStockPreview - Status: ${status}, RowIndex: ${rowIndex}`, payload);
+    const previewContainer = document.getElementById(`stock_preview_${rowIndex}`);
+    const priceEl = previewContainer.querySelector('.stock-price');
+    const changeEl = previewContainer.querySelector('.stock-change');
+
+    if (status === 'success' && payload['Global Quote'] && Object.keys(payload['Global Quote']).length > 0) {
+        const quote = payload['Global Quote'];
+        const price = parseFloat(quote['05. price']).toFixed(2);
+        const change = parseFloat(quote['10. change percent'].replace('%', '')).toFixed(2);
+        
+        priceEl.textContent = `$${price}`;
+        changeEl.textContent = `${change}%`;
+        
+        changeEl.classList.remove('positive', 'negative');
+        if (change > 0) {
+            changeEl.classList.add('positive');
+        } else if (change < 0) {
+            changeEl.classList.add('negative');
+        }
+        console.log(`CLIENT_DEBUG: Stock UI updated for row ${rowIndex} - Price: ${price}, Change: ${change}`);
+    } else {
+        priceEl.textContent = 'Error';
+        changeEl.textContent = '--';
+        changeEl.classList.remove('positive', 'negative');
+        let errorMsg = 'Failed to fetch stock data.';
+        if (typeof payload === 'string') {
+            errorMsg = payload;
+        } else if (payload['Error Message']) {
+            errorMsg = payload['Error Message'];
+        } else if (payload['Note']) {
+            errorMsg = payload['Note'];
+        }
+        showMessage(errorMsg, 'error');
+        console.error(`CLIENT_DEBUG: Stock fetch error for row ${rowIndex}:`, errorMsg);
+    }
 }

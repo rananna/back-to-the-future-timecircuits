@@ -354,6 +354,57 @@ void publishHaAutoDiscovery() {
     serializeJson(doc, payload);
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
+    doc.clear();
+    doc["name"] = "Stock Ticker Mode";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_stock_ticker_mode";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_stock_ticker_mode";
+    doc["command_topic"] = device_base_topic + "/stock_ticker_mode/command";
+    doc["state_topic"] = device_base_topic + "/stock_ticker_mode/state";
+    doc["icon"] = "mdi:chart-line";
+    doc["entity_category"] = "config";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+
+    const char* stock_rows[][2] = {
+        {"stock_row_1", "Stock Ticker Row 1 (Dest)"},
+        {"stock_row_2", "Stock Ticker Row 2 (Pres)"},
+        {"stock_row_3", "Stock Ticker Row 3 (Last)"}
+    };
+    for (auto const& cfg : stock_rows) {
+        doc.clear();
+        doc["name"] = cfg[1];
+        String id_suffix = cfg[0];
+        doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = "mdi:format-font";
+        doc["entity_category"] = "config";
+        doc["device"] = device;
+        doc["availability"] = availability;
+        topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
+        serializeJson(doc, payload);
+        mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    }
+
+    doc.clear();
+    doc["name"] = "Alpha Vantage API Key";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_alpha_vantage_api_key";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_alpha_vantage_api_key";
+    doc["command_topic"] = device_base_topic + "/alpha_vantage_api_key/command";
+    doc["state_topic"] = device_base_topic + "/alpha_vantage_api_key/state";
+    doc["icon"] = "mdi:key-variant";
+    doc["entity_category"] = "config";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+
+
     haDiscoveryPublished = true;
 }
 
@@ -737,6 +788,26 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             }
             sequence[stepIndex].command = SEQ_CMD_END;
         }
+        else if (component == "stock_ticker_mode") {
+            currentSettings.stockTickerModeEnabled = (message == "ON");
+            settingsChanged = true;
+        }
+        else if (component == "stock_row_1") {
+            currentSettings.stockRow1_symbol = message.c_str();
+            settingsChanged = true;
+        }
+        else if (component == "stock_row_2") {
+            currentSettings.stockRow2_symbol = message.c_str();
+            settingsChanged = true;
+        }
+        else if (component == "stock_row_3") {
+            currentSettings.stockRow3_symbol = message.c_str();
+            settingsChanged = true;
+        }
+        else if (component == "alpha_vantage_api_key") {
+            currentSettings.alphaVantageApiKey = message.c_str();
+            settingsChanged = true;
+        }
     }
     else {
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
@@ -864,6 +935,12 @@ void publishAllHaStates() {
             mqttClient.publish(topic.c_str(), sources[source_index], true);
         }
     }
+
+    mqttClient.publish((base_topic + "/stock_ticker_mode/state").c_str(), currentSettings.stockTickerModeEnabled ? "ON" : "OFF", true);
+    mqttClient.publish((base_topic + "/stock_row_1/state").c_str(), currentSettings.stockRow1_symbol.c_str(), true);
+    mqttClient.publish((base_topic + "/stock_row_2/state").c_str(), currentSettings.stockRow2_symbol.c_str(), true);
+    mqttClient.publish((base_topic + "/stock_row_3/state").c_str(), currentSettings.stockRow3_symbol.c_str(), true);
+    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), currentSettings.alphaVantageApiKey.c_str(), true);
 
     publishTimeSensors();
 }
