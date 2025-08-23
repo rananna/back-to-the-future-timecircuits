@@ -51,18 +51,26 @@ void fetchStockDataTask(void* p) {
     int rowIndex = params->pointIndex;
     delete params;
 
-    std::string symbol;
-    if (rowIndex == 0) symbol = currentSettings.stockRow1_symbol;
-    else if (rowIndex == 1) symbol = currentSettings.stockRow2_symbol;
-    else symbol = currentSettings.stockRow3_symbol;
+    std::string symbol_str;
+    if (rowIndex == 0) symbol_str = currentSettings.stockRow1_symbol;
+    else if (rowIndex == 1) symbol_str = currentSettings.stockRow2_symbol;
+    else symbol_str = currentSettings.stockRow3_symbol;
 
-    if (symbol.empty() || currentSettings.alphaVantageApiKey.empty()) {
+    if (symbol_str.empty() || currentSettings.alphaVantageApiKey.empty()) {
         vTaskDelete(NULL);
         return;
     }
 
+    String symbol = String(symbol_str.c_str());
     String apiKey = currentSettings.alphaVantageApiKey.c_str();
-    String url = "https://financialmodelingprep.com/api/v3/quote/" + String(symbol.c_str()) + "?apikey=" + apiKey;
+    String url;
+
+    // Check if the symbol is an index (starts with '^') and use the correct FMP endpoint.
+    if (symbol.startsWith("^")) {
+        url = "https://financialmodelingprep.com/api/v3/quote-short/" + symbol + "?apikey=" + apiKey;
+    } else {
+        url = "https://financialmodelingprep.com/api/v3/quote/" + symbol + "?apikey=" + apiKey;
+    }
 
     HTTPClient http;
     WiFiClientSecure client;
@@ -91,13 +99,15 @@ void fetchStockDataTask(void* p) {
                     }
                     stockData[rowIndex].price = priceBuffer;
 
-                    float changeFloat = quote["changesPercentage"].as<float>();
-                    // --- START: FIX ---
-                    // Increased buffer size from 6 to 10 to prevent overflow
-                    char changeBuffer[10];
-                    // --- END: FIX ---
-                    dtostrf(changeFloat, 1, 2, changeBuffer);
-                    stockData[rowIndex].change_percent = changeBuffer;
+                    // The quote-short endpoint for indices does not provide percentage change.
+                    if (quote.containsKey("changesPercentage")) {
+                        float changeFloat = quote["changesPercentage"].as<float>();
+                        char changeBuffer[10];
+                        dtostrf(changeFloat, 1, 2, changeBuffer);
+                        stockData[rowIndex].change_percent = changeBuffer;
+                    } else {
+                        stockData[rowIndex].change_percent = "----";
+                    }
 
                     stockData[rowIndex].dataValid = true;
                     xSemaphoreGive(xDisplayDataMutex);
@@ -115,6 +125,7 @@ void fetchStockDataTask(void* p) {
     }
     vTaskDelete(NULL);
 }
+
 
 void fetchWeatherData(WeatherTaskParams* params) {
     std::string taskCityName = params->cityName;
