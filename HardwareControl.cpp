@@ -135,6 +135,44 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year) {
 }
 
 /**
+ * @brief Updates a single segment of a display row.
+ * @param display The Adafruit_AlphaNum4 object to write to.
+ * @param timeinfo A `tm` struct containing the time to display.
+ * @param year The four-digit year to display.
+ * @param segment The segment to update (0:Month, 1:Day, 2:Year, 3:Time).
+ */
+void updateDisplaySegment(Adafruit_AlphaNum4& display, const struct tm& timeinfo, int year, int segment) {
+  #if ENABLE_HARDWARE
+  char buffer[5];
+  const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+  switch(segment) {
+    case 0: // Month
+      printToDisplay(display, months[timeinfo.tm_mon], 1);
+      break;
+    case 1: // Day
+      sprintf(buffer, "%02d", timeinfo.tm_mday);
+      printToDisplay(display, buffer, 2);
+      break;
+    case 2: // Year
+      sprintf(buffer, "%04d", year);
+      printToDisplay(display, buffer);
+      break;
+    case 3: // Time
+      char timeBuffer[5];
+      sprintf(timeBuffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
+      display.clear();
+      display.writeDigitAscii(0, timeBuffer[0]);
+      display.writeDigitAscii(1, timeBuffer[1] | 0x80); // Add decimal point
+      display.writeDigitAscii(2, timeBuffer[2]);
+      display.writeDigitAscii(3, timeBuffer[3]);
+      break;
+  }
+  #endif
+}
+
+
+/**
  * @brief Fills a display row with random characters for a flicker effect.
  * @param row A reference to the DisplayRow struct to be animated.
  */

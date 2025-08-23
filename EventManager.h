@@ -61,10 +61,12 @@ extern const TimeZoneEntry TZ_DATA[];
 extern SemaphoreHandle_t xDisplayDataMutex;
 extern std::string lastCityName;
 
+// --- START: SEQUENCER GLOBALS ---
 extern SequenceStep sequence[20];
 extern int currentSequenceStep;
 extern unsigned long sequenceStepStartTime;
 extern bool isSequenceActive;
+// --- END: SEQUENCER GLOBALS ---
 
 
 #endif // EVENT_MANAGER_H

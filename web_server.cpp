@@ -109,7 +109,6 @@ void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
     }
 }
 
-// --- Start of Added Code ---
 /**
  * @brief Overloaded function to broadcast an integer state update via WebSocket.
  */
@@ -127,7 +126,6 @@ void broadcastWsStateUpdate(const char* key, bool value) {
     doc.set(value);
     broadcastWsStateUpdate(key, doc.as<JsonVariant>());
 }
-// --- End of Added Code ---
 
 // This function runs in a separate task to prevent blocking
 void makeApiRequestTask(void* p) {
@@ -158,9 +156,13 @@ void makeApiRequestTask(void* p) {
 
         if (httpCode > 0) {
             if (httpCode == HTTP_CODE_OK) {
-                String payload = http.getString();
+                // --- START: MODIFICATION ---
+                // Switched from http.getString() to parsing the stream directly.
+                // This avoids allocating a large string in memory and is much more efficient.
                 DynamicJsonDocument payloadDoc(4096);
-                DeserializationError error = deserializeJson(payloadDoc, payload);
+                DeserializationError error = deserializeJson(payloadDoc, http.getStream());
+                // --- END: MODIFICATION ---
+
                 if (error == DeserializationError::Ok) {
                     responseJson["status"] = "success";
                     responseJson["payload"] = payloadDoc.as<JsonVariant>();
@@ -187,25 +189,21 @@ void makeApiRequestTask(void* p) {
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-        Serial.println("SERVER_DEBUG: WebSocket client connected");
+        Serial.printf("WEB_LOG: WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
     } else if (type == WS_EVT_DISCONNECT) {
-        Serial.println("SERVER_DEBUG: WebSocket client disconnected");
+        Serial.printf("WEB_LOG: WebSocket client #%u disconnected\n", client->id());
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
             
-            // --- START: FIX ---
-            // Safely handle the incoming data without causing a buffer overflow.
-            // We pass the data buffer and its length directly to the JSON parser.
             DynamicJsonDocument doc(1024);
             DeserializationError error = deserializeJson(doc, data, len);
 
             if (error) {
-                Serial.print(F("SERVER_DEBUG: deserializeJson() failed: "));
+                Serial.print(F("WEB_LOG: deserializeJson() failed: "));
                 Serial.println(error.c_str());
                 return;
             }
-            // --- END: FIX ---
 
             String action = doc["action"];
              if (action == "testStock") {
@@ -272,14 +270,30 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 
 
 void setupWebRoutes() {
+  Serial.println(F("WEB_LOG: Inside setupWebRoutes(). Attaching handlers..."));
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/index.html", "text/html"); });
-  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/style.css", "text/css"); });
-  server.on("/data_handling.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/data_handling.js", "application/javascript"); });
-  server.on("/main_ui.js", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(LittleFS, "/main_ui.js", "application/javascript"); });
-  server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ request->send(200, "text/plain", "READY"); });
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ 
+    Serial.println(F("WEB_LOG: Client requested /index.html"));
+    request->send(LittleFS, "/index.html", "text/html"); 
+  });
+  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ 
+    Serial.println(F("WEB_LOG: Client requested /style.css"));
+    request->send(LittleFS, "/style.css", "text/css"); 
+  });
+  server.on("/data_handling.js", HTTP_GET, [](AsyncWebServerRequest *request){ 
+    Serial.println(F("WEB_LOG: Client requested /data_handling.js"));
+    request->send(LittleFS, "/data_handling.js", "application/javascript"); 
+  });
+  server.on("/main_ui.js", HTTP_GET, [](AsyncWebServerRequest *request){ 
+    Serial.println(F("WEB_LOG: Client requested /main_ui.js"));
+    request->send(LittleFS, "/main_ui.js", "application/javascript"); 
+  });
+  server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ 
+    Serial.println(F("WEB_LOG: Client requested /api/isReady"));
+    request->send(200, "text/plain", "READY"); 
+  });
   
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
     #if ENABLE_HARDWARE
@@ -673,6 +687,7 @@ request->send(200, "text/plain", "Settings Saved!");
   });
   
   server.onNotFound([](AsyncWebServerRequest *request){
+    Serial.printf("WEB_LOG: 404 Not Found: %s\n", request->url().c_str());
     request->send(404, "text/plain", "Not found");
   });
 }

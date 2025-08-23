@@ -1,111 +1,52 @@
+# home-assistant/bttf_advanced_notifier.yaml
 blueprint:
-  name: BTTF Time Circuits - Advanced Notifier
-  description: >-
-    Send a cinematic notification to the ESP32 Time Circuits display. 
-    This blueprint uses the on-device sequencer for perfectly timed audio-visual alerts.
+  name: BTTF - Advanced Notifier
+  description: Displays a temporary message on the Time Circuits with an optional sound.
   domain: automation
   input:
-    target_device:
-      name: Time Circuits Device
-      description: Select the BTTF Time Circuits clock device to control.
+    time_circuits_device:
+      name: Time Circuits Display
       selector:
         device:
+          integration: mqtt
           manufacturer: "Doc Brown Industries"
-          model: "BTTF Clock v1"
-    
     message:
       name: Message
-      description: The text to display. It will be shown on the 'Message Target' display.
-      default: ""
+      description: "The text to display. Use '\\n' for new lines (e.g., LINE 1\\nLINE 2\\nLINE 3)."
       selector:
         text:
-
-    message_target:
-      name: Message Target
-      description: The display segment where the message will appear.
-      default: "pres_year"
+          multiline: true
+    duration:
+      name: Display Duration (seconds)
+      description: How long the message should be displayed before the clock returns to normal.
+      default: 30
       selector:
-        select:
-          options:
-            - label: "Destination Month"
-              value: "dest_month"
-            - label: "Destination Day"
-              value: "dest_day"
-            - label: "Destination Year"
-              value: "dest_year"
-            - label: "Destination Time"
-              value: "dest_time"
-            - label: "Present Month"
-              value: "pres_month"
-            - label: "Present Day"
-              value: "pres_day"
-            - label: "Present Year"
-              value: "pres_year"
-            - label: "Present Time"
-              value: "pres_time"
-            - label: "Last Departed Month"
-              value: "last_month"
-            - label: "Last Departed Day"
-              value: "last_day"
-            - label: "Last Departed Year"
-              value: "last_year"
-            - label: "Last Departed Time"
-              value: "last_time"
-
+        number:
+          min: 1
+          max: 3600
+          unit_of_measurement: seconds
     sound_effect:
       name: Sound Effect
-      description: Play a sound effect along with the notification.
       default: "None"
       selector:
         select:
-          options:
-            - "None"
-            - "CONFIRM_ON"
-            - "ARRIVAL_THUD"
-            - "EASTER_EGG"
-
-    flash_effect:
-      name: Flash Effect
-      description: Flash the message's display segment to draw attention.
-      default: false
-      selector:
-        boolean: {}
-
-    duration:
-      name: Display Duration
-      description: How long the message is shown before being automatically cleared. Set to 0 to make it permanent.
-      default: 10
-      selector:
-        number:
-          min: 0
-          max: 600
-          unit_of_measurement: seconds
+          options: ["None", "CONFIRM_ON", "ARRIVAL_THUD", "EASTER_EGG"]
 
 mode: single
-
-variables:
-  target_device_id: !input target_device
-  run_sequence_entity: >
-    {{ device_entities(target_device_id) | select('search', 'run_sequence') | first }}
-
+trigger: []
 action:
-  - service: text.set_value
-    target:
-      entity_id: "{{ run_sequence_entity }}"
+  - service: mqtt.publish
     data:
-      value: >-
-        {%- set sequence = namespace(commands=[]) -%}
-        {%- if flash_effect -%}
-          {%- set sequence.commands = sequence.commands + ['flash(' ~ message_target ~ ',1000)'] -%}
-        {%- endif -%}
-        {%- if sound_effect != 'None' -%}
-          {%- set sequence.commands = sequence.commands + ['sound(' ~ sound_effect ~ ')'] -%}
-        {%- endif -%}
-        {%- if message | length > 0 -%}
-          {%- set sequence.commands = sequence.commands + ["text(" ~ message_target ~ "," ~ message ~ ")"] -%}
-          {%- if duration | int(0) > 0 -%}
-            {%- set sequence.commands = sequence.commands + ['wait(' ~ (duration * 1000) ~ ')'] -%}
-            {%- set sequence.commands = sequence.commands + ["text(" ~ message_target ~ ", )"] -%}
-          {%- endif -%}
-        {%- endif -%}
-        {{- sequence.commands | join(';') -}}
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/run_sequence/command"
+      payload_template: >-
+        {% set lines = message.split('\n') %}
+        text(dest,,{{ lines[0] | default('') }});
+        text(pres,,{{ lines[1] | default('') }});
+        text(last,,{{ lines[2] | default('') }});
+        sound({{ sound_effect if sound_effect != 'None' else '' }});
+  - delay:
+      seconds: "{{ duration }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
+      payload: "OFF"

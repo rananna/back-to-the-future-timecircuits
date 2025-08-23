@@ -26,6 +26,9 @@ String urlEncode(const char* msg) {
 }
 
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
+    if (!path) {
+        return JsonVariant();
+    }
     // --- START: MODIFICATION ---
     // Use dynamic allocation to prevent a stack buffer overflow from long JSON paths.
     size_t path_len = strlen(path) + 1;

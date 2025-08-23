@@ -1,0 +1,114 @@
+# home-assistant/bttf_system_status_dashboard.yaml
+blueprint:
+  name: BTTF - System Status Dashboard
+  description: Uses all 12 display segments to show real-time sensor data.
+  domain: automation
+  input:
+    time_circuits_device:
+      name: Time Circuits Display
+      selector:
+        device:
+          integration: mqtt
+          manufacturer: "Doc Brown Industries"
+    dest_month:
+      name: "Dest - Month (3 Chars)"
+      selector: { entity: {} }
+    dest_day:
+      name: "Dest - Day (2 Chars)"
+      selector: { entity: {} }
+    dest_year:
+      name: "Dest - Year (4 Chars)"
+      selector: { entity: {} }
+    dest_time:
+      name: "Dest - Time (4 Chars)"
+      selector: { entity: {} }
+    pres_month:
+      name: "Present - Month (3 Chars)"
+      selector: { entity: {} }
+    pres_day:
+      name: "Present - Day (2 Chars)"
+      selector: { entity: {} }
+    pres_year:
+      name: "Present - Year (4 Chars)"
+      selector: { entity: {} }
+    pres_time:
+      name: "Present - Time (4 Chars)"
+      selector: { entity: {} }
+    last_month:
+      name: "Last - Month (3 Chars)"
+      selector: { entity: {} }
+    last_day:
+      name: "Last - Day (2 Chars)"
+      selector: { entity: {} }
+    last_year:
+      name: "Last - Year (4 Chars)"
+      selector: { entity: {} }
+    last_time:
+      name: "Last - Time (4 Chars)"
+      selector: { entity: {} }
+
+mode: single
+trigger:
+  - platform: state
+    entity_id:
+      - !input dest_month
+      - !input dest_day
+      - !input dest_year
+      - !input dest_time
+      - !input pres_month
+      - !input pres_day
+      - !input pres_year
+      - !input pres_time
+      - !input last_month
+      - !input last_day
+      - !input last_year
+      - !input last_time
+action:
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/dest_month/command"
+      payload: "{{ states(dest_month) | string | slice(0, 3) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/dest_day/command"
+      payload: "{{ states(dest_day) | string | slice(0, 2) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/dest_year/command"
+      payload: "{{ states(dest_year) | string | slice(0, 4) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/dest_time/command"
+      payload: "{{ states(dest_time) | string | slice(0, 4) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/pres_month/command"
+      payload: "{{ states(pres_month) | string | slice(0, 3) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/pres_day/command"
+      payload: "{{ states(pres_day) | string | slice(0, 2) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/pres_year/command"
+      payload: "{{ states(pres_year) | string | slice(0, 4) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/pres_time/command"
+      payload: "{{ states(pres_time) | string | slice(0, 4) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/last_month/command"
+      payload: "{{ states(last_month) | string | slice(0, 3) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/last_day/command"
+      payload: "{{ states(last_day) | string | slice(0, 2) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/last_year/command"
+      payload: "{{ states(last_year) | string | slice(0, 4) }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/last_time/command"
+      payload: "{{ states(last_time) | string | slice(0, 4) }}"

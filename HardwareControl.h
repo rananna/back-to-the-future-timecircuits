@@ -23,7 +23,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0
+#define ENABLE_HARDWARE 1
 
 // --- ENUMS & DATA STRUCTURES ---
 
@@ -168,6 +168,7 @@ enum AnimationStyle {
   ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM
 };
 
+// --- START: SEQUENCER DEFINITIONS ---
 enum SequenceCommandType {
     SEQ_CMD_TEXT,
     SEQ_CMD_FLASH,
@@ -183,6 +184,7 @@ struct SequenceStep {
     int intParam;
     std::string stringParam;
 };
+// --- END: SEQUENCER DEFINITIONS ---
 
 
 #if ENABLE_HARDWARE

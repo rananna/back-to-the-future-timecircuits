@@ -11,7 +11,7 @@ Here are 30 useful and well-thought-out automations to demonstrate how you can i
 
 *Triggers the iconic lightning strike scene every night at 10:04 PM.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Lightning Strike"
 trigger:
   - platform: time
@@ -26,7 +26,7 @@ action:
   - service: button.press
     target:
       entity_id: button.bttf_timecircuits_01_trigger_animation
-</code></pre>
+```
 </details>
 
 <details>
@@ -34,7 +34,7 @@ action:
 
 *Sets the destination to the future and plays the animation when you start your vacuum cleaner.*
 
-<pre><code>
+```yaml
 alias: "BTTF - We Don't Need Roads"
 trigger:
   - platform: state
@@ -49,7 +49,7 @@ action:
   - service: button.press
     target:
       entity_id: button.bttf_timecircuits_01_trigger_animation
-</code></pre>
+```
 </details>
 
 <details>
@@ -57,7 +57,7 @@ action:
 
 *When a time travel animation starts, flash your smart lights to match the effect.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Sync the Clocks"
 trigger:
   - platform: device
@@ -70,7 +70,7 @@ action:
       entity_id: light.living_room_lights
     data:
       effect: "flash"
-</code></pre>
+```
 </details>
 
 <details>
@@ -78,7 +78,7 @@ action:
 
 *If the clock malfunctions, make your smart lights flicker randomly.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Paradox Glitch"
 trigger:
   - platform: device
@@ -91,7 +91,7 @@ action:
       entity_id: light.office_lights
     data:
       effect: "strobe"
-</code></pre>
+```
 </details>
 
 <details>
@@ -99,7 +99,7 @@ action:
 
 *On your birthday, automatically set the destination year to the year you were born and play the animation.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Birthday Time Jump"
 trigger:
   - platform: template
@@ -113,7 +113,7 @@ action:
   - service: button.press
     target:
       entity_id: button.bttf_timecircuits_01_trigger_animation
-</code></pre>
+```
 </details>
 
 ---
@@ -125,7 +125,7 @@ action:
 
 *When you dismiss your morning alarm, the clock wakes from sleep mode and displays the current weather.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Good Morning"
 trigger:
   - platform: state
@@ -135,7 +135,7 @@ action:
   - service: switch.turn_on
     target:
       entity_id: switch.bttf_timecircuits_01_power
-</code></pre>
+```
 </details>
 
 <details>
@@ -143,7 +143,7 @@ action:
 
 *When the last person leaves the house, put the clock into sleep mode to save power.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Everyone Left"
 trigger:
   - platform: state
@@ -153,7 +153,7 @@ action:
   - service: switch.turn_off
     target:
       entity_id: switch.bttf_timecircuits_01_power
-</code></pre>
+```
 </details>
 
 <details>
@@ -161,7 +161,7 @@ action:
 
 *When the first person arrives home, wake the clock up and set the destination to the current year.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Welcome Home"
 trigger:
   - platform: state
@@ -176,7 +176,7 @@ action:
       entity_id: number.bttf_timecircuits_01_dest_year
     data:
       value: "{{ now().year }}"
-</code></pre>
+```
 </details>
 
 <details>
@@ -184,7 +184,7 @@ action:
 
 *When you start a movie, dim the clock's brightness and turn off any distracting marquee messages.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Movie Night"
 trigger:
   - platform: state
@@ -199,7 +199,7 @@ action:
   - service: switch.turn_off
     target:
       entity_id: switch.bttf_timecircuits_01_datapoint_0_enabled
-</code></pre>
+```
 </details>
 
 <details>
@@ -207,7 +207,7 @@ action:
 
 *When you activate your "Goodnight" scene, the clock enters sleep mode.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Bedtime"
 trigger:
   - platform: state
@@ -217,7 +217,7 @@ action:
   - service: switch.turn_off
     target:
       entity_id: switch.bttf_timecircuits_01_power
-</code></pre>
+```
 </details>
 
 ---
@@ -229,7 +229,7 @@ action:
 
 *If a door or window is opened while the security system is armed, flash a warning message on the display.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Security Alert"
 trigger:
   - platform: state
@@ -248,7 +248,7 @@ action:
       entity_id: text.bttf_timecircuits_01_override_message
     data:
       value: "SECURITY\nALERT\nFRONT DOOR"
-</code></pre>
+```
 </details>
 
 <details>
@@ -256,7 +256,7 @@ action:
 
 *If a severe weather alert is active, override the display to show the warning.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Weather Alert"
 trigger:
   - platform: state
@@ -271,7 +271,7 @@ action:
       entity_id: text.bttf_timecircuits_01_override_message
     data:
       value: "SEVERE\nWEATHER\n{{ states('sensor.weather_alert_type') }}"
-</code></pre>
+```
 </details>
 
 <details>
@@ -279,7 +279,7 @@ action:
 
 *The night before garbage day, display a persistent reminder on the marquee.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Garbage Day Reminder"
 trigger:
   - platform: time
@@ -294,7 +294,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_2_marquee
     data:
       value: "TRASH NIGHT"
-</code></pre>
+```
 </details>
 
 <details>
@@ -302,7 +302,7 @@ action:
 
 *If your phone's battery is low, display a reminder to charge it.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Low Battery"
 trigger:
   - platform: numeric_state
@@ -314,7 +314,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_3_marquee
     data:
       value: "CHARGE PHONE"
-</code></pre>
+```
 </details>
 
 <details>
@@ -322,7 +322,7 @@ action:
 
 *When a new device joins your guest WiFi network, display a welcome message.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Guest Welcome"
 trigger:
   - platform: event
@@ -336,7 +336,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_0_marquee
     data:
       value: "WELCOME {{ trigger.event.data.host_name }}"
-</code></pre>
+```
 </details>
 
 ---
@@ -348,7 +348,7 @@ action:
 
 *Display the current price of a stock on the marquee.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Stock Ticker"
 trigger:
   - platform: time_pattern
@@ -359,7 +359,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_0_marquee
     data:
       value: "AAPL ${{ states('sensor.aapl_stock_price') }}"
-</code></pre>
+```
 </details>
 
 <details>
@@ -367,7 +367,7 @@ action:
 
 *Show the score of your favorite team's game while it's being played.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Game Score"
 trigger:
   - platform: state
@@ -378,7 +378,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_1_marquee
     data:
       value: "SCORE {{ states('sensor.favorite_team_score') }}"
-</code></pre>
+```
 </details>
 
 <details>
@@ -386,7 +386,7 @@ action:
 
 *Display your YouTube subscriber count and update it periodically.*
 
-<pre><code>
+```yaml
 alias: "BTTF - YouTube Subscribers"
 trigger:
   - platform: time_pattern
@@ -397,7 +397,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_2_marquee
     data:
       value: "SUBS {{ states('sensor.youtube_subscriber_count') }}"
-</code></pre>
+```
 </details>
 
 <details>
@@ -405,7 +405,7 @@ action:
 
 *Display the current number of astronauts in space.*
 
-<pre><code>
+```yaml
 alias: "BTTF - People in Space"
 trigger:
   - platform: time_pattern
@@ -416,7 +416,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_3_marquee
     data:
       value: "SPACE {{ states('sensor.people_in_space') }}"
-</code></pre>
+```
 </details>
 
 <details>
@@ -424,7 +424,7 @@ action:
 
 *Show your internet download speed on the marquee.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Network Speed"
 trigger:
   - platform: time_pattern
@@ -435,7 +435,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_4_marquee
     data:
       value: "NET {{ states('sensor.speedtest_download') }} Mbps"
-</code></pre>
+```
 </details>
 
 ---
@@ -447,7 +447,7 @@ action:
 
 *A script to create a 10-second countdown on the display, ending with a time travel animation.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Countdown Script"
 sequence:
   - service: switch.turn_on
@@ -472,7 +472,7 @@ sequence:
   - service: button.press
     target:
       entity_id: button.bttf_timecircuits_01_trigger_animation
-</code></pre>
+```
 </details>
 
 <details>
@@ -480,7 +480,7 @@ sequence:
 
 *Tap an NFC tag with your phone to send a pre-set message to the display.*
 
-<pre><code>
+```yaml
 alias: "BTTF - NFC Message"
 trigger:
   - platform: tag
@@ -491,7 +491,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_0_marquee
     data:
       value: "HELP ME DOC"
-</code></pre>
+```
 </details>
 
 <details>
@@ -499,7 +499,7 @@ action:
 
 *Use a more subtle animation in the evening and a more energetic one during the day.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Dynamic Animation Style"
 trigger:
   - platform: sun
@@ -517,7 +517,7 @@ action:
         {% else %}
           Tornado Flicker
         {% endif %}
-</code></pre>
+```
 </details>
 
 <details>
@@ -525,7 +525,7 @@ action:
 
 *When your car enters the garage, trigger a welcome animation.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Car Arrival"
 trigger:
   - platform: state
@@ -535,7 +535,7 @@ action:
   - service: button.press
     target:
       entity_id: button.bttf_timecircuits_01_trigger_animation
-</code></pre>
+```
 </details>
 
 <details>
@@ -543,7 +543,7 @@ action:
 
 *If your connected car is going over 85 mph, display a warning on the clock.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Speeding Alert"
 trigger:
   - platform: numeric_state
@@ -555,7 +555,7 @@ action:
       entity_id: text.bttf_timecircuits_01_datapoint_0_marquee
     data:
       value: "SLOW DOWN!"
-</code></pre>
+```
 </details>
 
 <details>
@@ -563,7 +563,7 @@ action:
 
 *Monitors the clock's free memory and reboots it if it drops to a critical level.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Low Memory Reboot"
 trigger:
   - platform: numeric_state
@@ -582,7 +582,7 @@ action:
   - service: homeassistant.restart
     target:
       device_id: YOUR_DEVICE_ID_HERE
-</code></pre>
+```
 </details>
 
 <details>
@@ -590,7 +590,7 @@ action:
 
 *A script to make the display chaotic for a short period, perfect for showing off the effects.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Temporal Instability Mode"
 sequence:
   - service: number.set_value
@@ -614,7 +614,7 @@ sequence:
       entity_id: number.bttf_timecircuits_01_malfunction_chance
     data:
       value: 25
-</code></pre>
+```
 </details>
 
 <details>
@@ -622,7 +622,7 @@ sequence:
 
 *Automatically sets the "Destination Time" to the date of your next calendar event.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Next Calendar Event"
 trigger:
   - platform: state
@@ -633,7 +633,7 @@ action:
       entity_id: number.bttf_timecircuits_01_dest_year
     data:
       value: "{{ state_attr('calendar.your_calendar', 'start_time').split(' ')[0].split('-')[0] }}"
-</code></pre>
+```
 </details>
 
 <details>
@@ -641,7 +641,7 @@ action:
 
 *Display the progress of a fundraising or savings goal on the marquee.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Savings Goal Tracker"
 trigger:
   - platform: state
@@ -653,7 +653,7 @@ action:
     data:
       value: >
         GOAL ${{ states('input_number.savings_goal_current') }} / ${{ states('input_number.savings_goal_target') }}
-</code></pre>
+```
 </details>
 
 <details>
@@ -661,7 +661,7 @@ action:
 
 *A script to cycle through a list of reminders or quotes on the marquee.*
 
-<pre><code>
+```yaml
 alias: "BTTF - Rotating Reminders Script"
 sequence:
   - service: text.set_value
@@ -682,5 +682,5 @@ sequence:
     data:
       value: "TASK: TAKE OUT THE RECYCLING"
 mode: restart
-</code></pre>
+```
 </details>
