@@ -42,7 +42,7 @@ WeatherData currentWeatherData;
 StockData stockData[3];
 unsigned long lastStockDataFetch = 0;
 std::string lastCityName = "";
-
+unsigned long bootTimestamp = 0; // To track when the boot process finishes
 const TimeZoneEntry TZ_DATA[] = {
 	{ "UTC0", "UTC", "Etc/UTC", "Global" },
 	{ "NST3:30NDT,M3.2.0,M11.1.0", "Newfoundland (St. John's)", "America/St_Johns", "Americas" },
@@ -262,6 +262,7 @@ void loadSettings() {
 		currentSettings.stockRow2_symbol = "^GSPTSE";
 		currentSettings.stockRow3_symbol = "^IXIC";
 		currentSettings.alphaVantageApiKey = "";
+
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
 		}
@@ -379,6 +380,7 @@ void loadSettings() {
 	}
 	preferences.end();
 	Serial.println("--- Settings Loaded ---");
+
 	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.presentTimezoneIndex = 0;
 	}
@@ -410,43 +412,80 @@ void setup() {
 	delay(1000);
 
 	Serial.println(F("\n\n--- BOOTING ---"));
+    Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
+    delay(10); 
+
 	if (!LittleFS.begin(true)) {
 		ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
+        Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
 		delay(10000);
 		ESP.restart();
 	}
+    Serial.println(F("BOOT_LOG: LittleFS mount... OK"));
+    delay(10); 
 
 	listAllFiles();
+    Serial.println(F("BOOT_LOG: Loading settings..."));
 	loadSettings();
+    Serial.println(F("BOOT_LOG: Settings loaded... OK"));
+    delay(10); 
+
 	xDisplayDataMutex = xSemaphoreCreateMutex();
+    Serial.println(F("BOOT_LOG: Mutex created... OK"));
+
 	#if ENABLE_HARDWARE
+    Serial.println(F("BOOT_LOG: Initializing hardware..."));
 	setupPhysicalDisplay();
+    Serial.println(F("BOOT_LOG: Physical display setup... OK"));
+    delay(10); 
 	dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
 	if (myDFPlayer.begin(dfpSerial, true, false)) {
 		myDFPlayer.volume(currentSettings.notificationVolume);
 		setupSoundFiles();
-	}
-#endif
+        Serial.println(F("BOOT_LOG: DFPlayer Mini... OK"));
+	} else {
+        Serial.println(F("BOOT_LOG: DFPlayer Mini... FAILED!"));
+    }
+    #else
+    Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
+    #endif
+    delay(10); 
 
 	wifiManager.autoConnect("BTTF-Clock-Setup");
 	ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
+    Serial.printf("BOOT_LOG: WiFi connected. IP: %s\n", WiFi.localIP().toString().c_str());
 
 	if (MDNS.begin("timecircuits")) {
 		MDNS.addService("http", "tcp", 80);
-	}
+        Serial.println(F("BOOT_LOG: mDNS responder... OK"));
+	} else {
+        Serial.println(F("BOOT_LOG: mDNS responder... FAILED!"));
+    }
 
+    Serial.println(F("WEB_LOG: Setting up web routes..."));
 	setupWebRoutes();
+    Serial.println(F("WEB_LOG: Web routes configured. Starting server..."));
 	server.begin();
 	mqttClient.setBufferSize(2048);
 
 	ESP_LOGI("Web", "HTTP server started.");
+    Serial.println(F("WEB_LOG: Web server started... OK"));
+
 	configTime(0, 0, NTP_SERVERS[0]);
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
+    Serial.println(F("BOOT_LOG: Timezone configured."));
+
 	setupMqtt();
+    Serial.println(F("BOOT_LOG: MQTT setup initiated."));
 
 	ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
+    Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
+
+    Serial.println(F("BOOT_LOG: Calling runBootSequence()..."));
 	runBootSequence();
+    Serial.println(F("--- BOOT COMPLETE ---"));
+    bootTimestamp = millis();
 }
 
 bool isMarketOpen() {
@@ -458,7 +497,7 @@ bool isMarketOpen() {
     struct tm timeinfo;
     getLocalTime(&timeinfo);
 
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
 
     if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
@@ -467,24 +506,26 @@ bool isMarketOpen() {
 
     int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
     int market_open_minutes = 9 * 60 + 30;
-    int market_close_minutes = 16 * 60;
+	int market_close_minutes = 16 * 60;
 
     return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
 }
 
 void loop() {
-	if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
-		if (mqttReconnectRequired || !mqttClient.connected()) {
-			unsigned long now = millis();
-			if (now - lastMqttReconnectAttempt > 5000) {
-				lastMqttReconnectAttempt = now;
-				setupMqtt();
-				reconnectMqtt();
-				mqttReconnectRequired = false;
-			}
-		}
-		mqttClient.loop();
-	}
+	if (millis() - bootTimestamp > 15000) { 
+        if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
+            if (mqttReconnectRequired || !mqttClient.connected()) {
+                unsigned long now = millis();
+                if (now - lastMqttReconnectAttempt > 5000) {
+                    lastMqttReconnectAttempt = now;
+                    setupMqtt();
+                    reconnectMqtt();
+                    mqttReconnectRequired = false;
+                }
+            }
+            mqttClient.loop();
+        }
+    }
 
     if (isMarqueeOverrideActive && marqueeOverrideEndTime > 0 && millis() > marqueeOverrideEndTime) {
         isMarqueeOverrideActive = false;
@@ -502,6 +543,7 @@ void loop() {
 		handleTemporalEcho();
 		if (!isFlickeringNow) {
 			handleGlitchEffect();
+
 			if (currentSettings.weatherModeEnabled) {
 				static unsigned long lastWeatherFetch = 0;
 				if (millis() - lastWeatherFetch > 300000) {
@@ -513,13 +555,14 @@ void loop() {
 
 			handlePresetCycling();
 			handleSleepSchedule();
+
 			if (currentSettings.stockTickerModeEnabled) {
                 if (isMarketOpen()) {
                     if (millis() - lastStockDataFetch > 300000) { 
                         lastStockDataFetch = millis();
-                        for (int i=0; i<3; ++i) {
+						for (int i=0; i<3; ++i) {
                             FetchDataParams* params = new FetchDataParams{ i, 0 };
-                            xTaskCreate(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL);
+							xTaskCreate(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL);
                         }
                     }
                 }
@@ -528,7 +571,7 @@ void loop() {
                 displayOverrideMessage();
             } else if (isMarqueeOverrideActive) {
                 displayMarqueeOverride();
-			} else if (currentSettings.dataLinkEnabled) {
+            } else if (currentSettings.dataLinkEnabled) {
 				fetchDataLink();
 				updateMarqueeDisplay();
 			} else {
@@ -554,7 +597,7 @@ void loop() {
 		if (getLocalTime(&timeinfo, 5000)) {
 			if (!timeSynchronized) {
                 triggerTemporalGlitch();
-            }
+			}
 			timeSynchronized = true;
 		}
 		else {
@@ -567,48 +610,48 @@ void loop() {
 
     if (timeSynchronized && millis() - lastHaStateUpdate > 5000) {
         publishAllHaStates();
-        lastHaStateUpdate = millis();
+		lastHaStateUpdate = millis();
     }
 }
 
 void handleSequencer() {
     if (!isSequenceActive) return;
     SequenceStep step = sequence[currentSequenceStep];
-    unsigned long elapsed = millis() - sequenceStepStartTime;
+	unsigned long elapsed = millis() - sequenceStepStartTime;
     switch (step.command) {
         case SEQ_CMD_TEXT:
             updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
-            currentSequenceStep++;
+			currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_FLASH:
             triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
-            currentSequenceStep++;
+			currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_SOUND:
             playSound(step.stringParam.c_str());
             currentSequenceStep++;
-            sequenceStepStartTime = millis();
+			sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_WAIT:
             if (elapsed >= (unsigned long)step.intParam) {
                 sequenceStepStartTime = millis();
-                currentSequenceStep++;
+				currentSequenceStep++;
             }
             break;
-        case SEQ_CMD_END:
+		case SEQ_CMD_END:
             isSequenceActive = false;
             currentSequenceStep = 0;
             break;
-    }
+	}
 }
 
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+	if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
-    }
+	}
 }
 
 void handleSleepSchedule() {
@@ -617,12 +660,14 @@ void handleSleepSchedule() {
   getLocalTime(&timeinfo);
   
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-  int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
+	int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
-  bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
+
+	bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-  if (shouldBeAsleep && !isDisplayAsleep) {
+
+	if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     #if ENABLE_HARDWARE
     blankAllDisplays();
