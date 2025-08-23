@@ -723,21 +723,30 @@ function updateStockPreview(status, payload, rowIndex) {
     const priceEl = previewContainer.querySelector('.stock-price');
     const changeEl = previewContainer.querySelector('.stock-change');
 
-    if (status === 'success' && payload['Global Quote'] && Object.keys(payload['Global Quote']).length > 0) {
-        const quote = payload['Global Quote'];
-        const price = parseFloat(quote['05. price']).toFixed(2);
-        const change = parseFloat(quote['10. change percent'].replace('%', '')).toFixed(2);
+    // --- START: MODIFIED CODE ---
+    // Updated to handle FMP's array-based response and different key names.
+    if (status === 'success' && Array.isArray(payload) && payload.length > 0) {
+        const quote = payload[0]; // FMP returns an array
+        const price = parseFloat(quote.price).toFixed(2);
         
         priceEl.textContent = `$${price}`;
-        changeEl.textContent = `${change}%`;
         
-        changeEl.classList.remove('positive', 'negative');
-        if (change > 0) {
-            changeEl.classList.add('positive');
-        } else if (change < 0) {
-            changeEl.classList.add('negative');
+        // FMP's index endpoint doesn't include change percentage
+        if (quote.changesPercentage !== undefined) {
+            const change = parseFloat(quote.changesPercentage).toFixed(2);
+            changeEl.textContent = `${change}%`;
+            changeEl.classList.remove('positive', 'negative');
+            if (change > 0) {
+                changeEl.classList.add('positive');
+            } else if (change < 0) {
+                changeEl.classList.add('negative');
+            }
+        } else {
+            changeEl.textContent = '--';
+            changeEl.classList.remove('positive', 'negative');
         }
-        console.log(`CLIENT_DEBUG: Stock UI updated for row ${rowIndex} - Price: ${price}, Change: ${change}`);
+        console.log(`CLIENT_DEBUG: Stock UI updated for row ${rowIndex} - Price: ${price}`);
+    // --- END: MODIFIED CODE ---
     } else {
         priceEl.textContent = 'Error';
         changeEl.textContent = '--';

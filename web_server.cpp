@@ -193,11 +193,19 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-            data[len] = 0;
-            Serial.printf("SERVER_DEBUG: WebSocket data received: %s\n", (char*)data);
             
+            // --- START: FIX ---
+            // Safely handle the incoming data without causing a buffer overflow.
+            // We pass the data buffer and its length directly to the JSON parser.
             DynamicJsonDocument doc(1024);
-            deserializeJson(doc, (char*)data);
+            DeserializationError error = deserializeJson(doc, data, len);
+
+            if (error) {
+                Serial.print(F("SERVER_DEBUG: deserializeJson() failed: "));
+                Serial.println(error.c_str());
+                return;
+            }
+            // --- END: FIX ---
 
             String action = doc["action"];
              if (action == "testStock") {
@@ -215,7 +223,13 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String symbol = doc["data"]["symbol"];
                 String apiKey = doc["data"]["apiKey"];
                 int rowIndex = doc["data"]["rowIndex"];
-                String url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" + symbol + "&apikey=" + apiKey;
+                
+                String url;
+                if (symbol.startsWith("^")) {
+                    url = "https://financialmodelingprep.com/api/v3/quote-short/" + symbol + "?apikey=" + apiKey;
+                } else {
+                    url = "https://financialmodelingprep.com/api/v3/quote/" + symbol + "?apikey=" + apiKey;
+                }
                 Serial.printf("SERVER_DEBUG: Stock URL created: %s\n", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex};
@@ -255,6 +269,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
         }
     }
 }
+
 
 void setupWebRoutes() {
   ws.onEvent(onWsEvent);
