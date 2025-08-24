@@ -23,7 +23,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 1
+#define ENABLE_HARDWARE 0
 
 // --- ENUMS & DATA STRUCTURES ---
 

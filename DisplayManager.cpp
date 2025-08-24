@@ -8,7 +8,8 @@ std::string manualDisplayText[3][4];
 bool isRowInManualMode[3] = {false, false, false};
 
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration) {
-    #if ENABLE_HARDWARE
+    if (!hardwareInitialized) return;
+#if ENABLE_HARDWARE
     printToDisplay(lastRow.month, month, 1);
     printToDisplay(lastRow.day, day, 2);
     printToDisplay(lastRow.year, year);
@@ -18,7 +19,7 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
     lastRow.year.writeDisplay();
     lastRow.time.writeDisplay();
     delay(duration);
-    #endif
+#endif
 }
 
 const char* getIconForWeatherCode(int code) {
@@ -40,7 +41,8 @@ const char* getIconForWeatherCode(int code) {
 }
 
 void displayMarqueeOverride() {
-    #if ENABLE_HARDWARE
+    if (!hardwareInitialized) return;
+#if ENABLE_HARDWARE
     String textToDisplay = marqueeOverrideMessage;
     
     if (textToDisplay.length() > 13) {
@@ -74,12 +76,12 @@ void displayMarqueeOverride() {
             scrollPosition = 0;
         }
     }
-    #endif
+#endif
 }
 
 void updateStockTickerDisplay() {
-    if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return;
-    #if ENABLE_HARDWARE
+    if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
+#if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i = 0; i < 3; ++i) {
         if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
@@ -123,11 +125,12 @@ void updateStockTickerDisplay() {
         rows[i]->year.writeDisplay();
         rows[i]->time.writeDisplay();
     }
-    #endif
+#endif
 }
 
 void displayOverrideMessage() {
-    #if ENABLE_HARDWARE
+    if (!hardwareInitialized) return;
+#if ENABLE_HARDWARE
     printToDisplay(destRow.month, overrideMessageLine1.substring(0, 3).c_str(), 1);
     printToDisplay(destRow.day, overrideMessageLine1.substring(3, 5).c_str(), 2);
     printToDisplay(destRow.year, overrideMessageLine1.substring(5, 9).c_str());
@@ -145,7 +148,7 @@ void displayOverrideMessage() {
     printToDisplay(lastRow.year, overrideMessageLine3.substring(5, 9).c_str());
     printToDisplay(lastRow.time, overrideMessageLine3.substring(9, 13).c_str());
     lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-    #endif
+#endif
 }
 
 void updateDisplaySegment(int row, int segment, const std::string& text) {
@@ -166,8 +169,8 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
 }
 
 void updateNormalClockDisplay() {
-  if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning) return;
-  #if ENABLE_HARDWARE
+  if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
+#if ENABLE_HARDWARE
   if (timeSynchronized) {
     time_t now;
     time(&now);
@@ -219,12 +222,12 @@ void updateNormalClockDisplay() {
     else { updateDisplaySegment(lastRow.time, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 3); }
     lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
   }
-  #endif
+#endif
 }
 
 void handleWeatherDisplay() {
-    #if ENABLE_HARDWARE
-    if (!currentSettings.weatherModeEnabled) return;
+    if (!currentSettings.weatherModeEnabled || !hardwareInitialized) return;
+#if ENABLE_HARDWARE
     if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
         if (!currentWeatherData.dataValid) {
             printToDisplay(lastRow.month, "WEA", 1);
@@ -294,12 +297,12 @@ void handleWeatherDisplay() {
         lastRow.year.writeDisplay();
         lastRow.time.writeDisplay();
     }
-    #endif
+#endif
 }
 
 void updateMarqueeDisplay() {
-    #if ENABLE_HARDWARE
-    if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0) return;
+    if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0 || !hardwareInitialized) return;
+#if ENABLE_HARDWARE
     DisplayRow* targetRow = &lastRow;
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (marqueeState == M_IDLE) {
@@ -377,5 +380,5 @@ void updateMarqueeDisplay() {
         targetRow->year.writeDisplay();
         targetRow->time.writeDisplay();
     }
-    #endif
+#endif
 }

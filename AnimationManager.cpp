@@ -62,9 +62,9 @@ void startTimeTravelAnimation() {
     currentSettings.lastTimeDepartedMinute = timeinfo.tm_min;
 
     if (currentSettings.timeTravelSoundToggle) {
-        #if ENABLE_HARDWARE
-        playSound("FLUX_CAPACITOR_CHARGE");
-        #endif
+        if (hardwareInitialized) {
+            playSound("FLUX_CAPACITOR_CHARGE");
+        }
     }
 }
 
@@ -72,10 +72,10 @@ void startTimeTravelAnimation() {
  * @brief The main state machine for the time travel animation. Called in the main loop.
  */
 void handleDisplayAnimation() {
-    if (!isAnimating) return;
+    if (!isAnimating || !hardwareInitialized) return;
+#if ENABLE_HARDWARE
     unsigned long elapsed = millis() - animationStartTime;
 
-    #if ENABLE_HARDWARE
     switch (currentPhase) {
         case ANIM_POWER_UP:
             if (elapsed < 2000) {
@@ -137,7 +137,7 @@ void handleDisplayAnimation() {
         default:
             break;
     }
-    #endif
+#endif
 }
 
 // --- OTHER EFFECTS ---
@@ -146,19 +146,19 @@ void handleDisplayAnimation() {
  * @brief Handles the "temporal echo" effect after a time jump.
  */
 void handleTemporalEcho() {
-    if (!isEchoEffectActive) return;
+    if (!isEchoEffectActive || !hardwareInitialized) return;
 
+#if ENABLE_HARDWARE
     if (millis() - echoEffectStartTime > 60000) { // Effect lasts for 1 minute
         isEchoEffectActive = false;
         return;
     }
 
-    #if ENABLE_HARDWARE
     // Randomly flicker the "Present Time" display
     if (random(100) < 10) {
         animateDisplayRowRandomly(presRow);
     }
-    #endif
+#endif
 }
 
 /**
@@ -187,12 +187,14 @@ void handleGlitchEffect() {
 }
 
 /**
- * @brief Restores the display to its normal state after a glitch.
+ * @brief Restores the display to its normal state after a brief glitch effect has completed.
  */
 void restoreDisplayAfterGlitch() {
     if (isGlitching && (millis() - glitchStartTime > 200)) { // Glitch duration
         isGlitching = false;
-        updateNormalClockDisplay();
+        if (hardwareInitialized) {
+            updateNormalClockDisplay();
+        }
     }
 }
 
@@ -200,10 +202,10 @@ void restoreDisplayAfterGlitch() {
  * @brief State machine for the system malfunction effect.
  */
 void handleMalfunction() {
-    if (!isMalfunctioning) return;
+    if (!isMalfunctioning || !hardwareInitialized) return;
+#if ENABLE_HARDWARE
     unsigned long elapsed = millis() - malfunctionStartTime;
 
-    #if ENABLE_HARDWARE
     switch (currentMalfunctionPhase) {
         case MAL_HAYWIRE:
             if (elapsed < 3000) {
@@ -241,7 +243,7 @@ void handleMalfunction() {
         default:
             break;
     }
-    #endif
+#endif
 }
 
 // --- BOOT SEQUENCE ---
@@ -258,10 +260,10 @@ void runBootSequence() {
  * @brief State machine for the boot sequence.
  */
 void handleBootSequence() {
-    if (bootState == BOOT_INACTIVE) return;
+    if (bootState == BOOT_INACTIVE || !hardwareInitialized) return;
+#if ENABLE_HARDWARE
     unsigned long elapsed = millis() - bootStateStartTime;
 
-    #if ENABLE_HARDWARE
     switch (bootState) {
         case BOOT_START:
             blankAllDisplays();
@@ -282,7 +284,7 @@ void handleBootSequence() {
             updateNormalClockDisplay();
             break;
     }
-    #endif
+#endif
 }
 
 
@@ -295,11 +297,11 @@ void triggerTemporalGlitch() {
 }
 
 /**
- * @brief Handles the visual part of the temporal glitch effect.
+ * @brief Handles the visual part of the temporal glitch effect after it has been triggered.
  */
 void handleTemporalGlitch() {
-    if (isGlitching) {
-        #if ENABLE_HARDWARE
+    if (isGlitching && hardwareInitialized) {
+#if ENABLE_HARDWARE
         if (millis() - glitchStartTime < 1500) {
             // Flicker the present time display
             animateDisplayRowRandomly(presRow);
@@ -307,6 +309,6 @@ void handleTemporalGlitch() {
             isGlitching = false;
             // The display will be restored in the main loop
         }
-        #endif
+#endif
     }
 }

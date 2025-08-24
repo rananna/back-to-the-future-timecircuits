@@ -523,9 +523,11 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             int vol = message.toInt();
             if (vol >= 0 && vol <= 30) {
                 currentSettings.notificationVolume = vol;
-                #if ENABLE_HARDWARE
-                myDFPlayer.volume(vol);
-                #endif
+                if (hardwareInitialized) {
+#if ENABLE_HARDWARE
+                    myDFPlayer.volume(vol);
+#endif
+                }
                 settingsChanged = true;
                 broadcastWsStateUpdate("notificationVolume", vol);
             }
@@ -618,7 +620,9 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         }
         else if (topicStr == base_topic + "play_sound/command") {
             if (message != "None") {
-                playSound(message.c_str());
+                if (hardwareInitialized) {
+                    playSound(message.c_str());
+                }
             }
             mqttClient.publish((base_topic + "play_sound/state").c_str(), "None", true);
         }

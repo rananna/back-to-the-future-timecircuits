@@ -2,6 +2,7 @@
 #include "web_server.h"
 #include "api_templates.h" // Includes the declaration
 #include "DataManager.h"   // Added to include WeatherTaskParams definition
+#include "EventManager.h"  // CRITICAL FIX: Include for global variables
 #include <AsyncJson.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -296,9 +297,9 @@ void setupWebRoutes() {
   });
   
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
-    #if ENABLE_HARDWARE
-    playSound("EASTER_EGG");
-    #endif
+    if (hardwareInitialized) {
+        playSound("EASTER_EGG");
+    }
     request->send(200, "text/plain", "Great Scott!");
   });
 
@@ -558,9 +559,11 @@ mqttReconnectRequired = true; // Flag the client to reconnect on the next loop
 // The original MQTT broker check is no longer needed here,
 // as we now force a reconnect after every save.
 
+if (hardwareInitialized) {
 #if ENABLE_HARDWARE
-myDFPlayer.volume(currentSettings.notificationVolume);
+    myDFPlayer.volume(currentSettings.notificationVolume);
 #endif
+}
 
 request->send(200, "text/plain", "Settings Saved!");
 });

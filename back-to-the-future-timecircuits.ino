@@ -33,6 +33,7 @@ void handlePresetCycling();
 void handleSleepSchedule();
 void handleSequencer();
 bool isMarketOpen();
+bool attemptHardwareInit(); // New function for safe hardware init
 
 // --- GLOBAL VARIABLES & CONSTANTS ---
 ClockSettings currentSettings;
@@ -42,7 +43,9 @@ WeatherData currentWeatherData;
 StockData stockData[3];
 unsigned long lastStockDataFetch = 0;
 std::string lastCityName = "";
-unsigned long bootTimestamp = 0; // To track when the boot process finishes
+unsigned long bootTimestamp = 0;
+bool hardwareInitialized = false; // New global flag for hardware status
+// To track when the boot process finishes
 const TimeZoneEntry TZ_DATA[] = {
 	{ "UTC0", "UTC", "Etc/UTC", "Global" },
 	{ "NST3:30NDT,M3.2.0,M11.1.0", "Newfoundland (St. John's)", "America/St_Johns", "Americas" },
@@ -184,7 +187,6 @@ void saveSettings() {
 	preferences.putString("stRow3Sym", currentSettings.stockRow3_symbol.c_str());
     Serial.printf("Saving avApiKey: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
 	preferences.putString("avApiKey", currentSettings.alphaVantageApiKey.c_str());
-
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
 		preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url.c_str());
@@ -262,7 +264,6 @@ void loadSettings() {
 		currentSettings.stockRow2_symbol = "^GSPTSE";
 		currentSettings.stockRow3_symbol = "^IXIC";
 		currentSettings.alphaVantageApiKey = "";
-
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
 		}
@@ -306,7 +307,6 @@ void loadSettings() {
 
 		tempString = preferences.getString("mqttPass", "");
 		currentSettings.mqttPassword = tempString.c_str();
-
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
 		tempString = preferences.getString("cityName", "New York");
 		currentSettings.cityName = tempString.c_str();
@@ -380,7 +380,6 @@ void loadSettings() {
 	}
 	preferences.end();
 	Serial.println("--- Settings Loaded ---");
-
 	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.presentTimezoneIndex = 0;
 	}
@@ -407,14 +406,35 @@ void listAllFiles() {
 	root.close();
 }
 
+bool attemptHardwareInit() {
+    #if ENABLE_HARDWARE
+    Serial.println(F("BOOT_LOG: Attempting to initialize hardware..."));
+    setupPhysicalDisplay();
+    Serial.println(F("BOOT_LOG: Physical display setup... OK"));
+
+    dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
+    if (myDFPlayer.begin(dfpSerial, true, false)) { // This has a built-in timeout
+        myDFPlayer.volume(currentSettings.notificationVolume);
+        setupSoundFiles();
+        Serial.println(F("BOOT_LOG: DFPlayer Mini... OK"));
+        return true; // Success
+    } else {
+        Serial.println(F("BOOT_LOG: DFPlayer Mini... FAILED!"));
+        return false; // Failure
+    }
+    #else
+    Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
+    return false; // Hardware is disabled, so it's not "initialized"
+    #endif
+}
+
 void setup() {
 	Serial.begin(115200);
 	delay(1000);
 
 	Serial.println(F("\n\n--- BOOTING ---"));
     Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
-    delay(10); 
-
+    delay(10);
 	if (!LittleFS.begin(true)) {
 		ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
         Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
@@ -428,48 +448,32 @@ void setup() {
     Serial.println(F("BOOT_LOG: Loading settings..."));
 	loadSettings();
     Serial.println(F("BOOT_LOG: Settings loaded... OK"));
-    delay(10); 
-
+    delay(10);
 	xDisplayDataMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
 
-	#if ENABLE_HARDWARE
-    Serial.println(F("BOOT_LOG: Initializing hardware..."));
-	setupPhysicalDisplay();
-    Serial.println(F("BOOT_LOG: Physical display setup... OK"));
-    delay(10); 
-	dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
-	if (myDFPlayer.begin(dfpSerial, true, false)) {
-		myDFPlayer.volume(currentSettings.notificationVolume);
-		setupSoundFiles();
-        Serial.println(F("BOOT_LOG: DFPlayer Mini... OK"));
-	} else {
-        Serial.println(F("BOOT_LOG: DFPlayer Mini... FAILED!"));
-    }
-    #else
-    Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
-    #endif
-    delay(10); 
-
+    // --- KEY CHANGE: START NETWORKING AND WEB SERVER FIRST ---
 	wifiManager.autoConnect("BTTF-Clock-Setup");
 	ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
     Serial.printf("BOOT_LOG: WiFi connected. IP: %s\n", WiFi.localIP().toString().c_str());
 
 	if (MDNS.begin("timecircuits")) {
 		MDNS.addService("http", "tcp", 80);
-        Serial.println(F("BOOT_LOG: mDNS responder... OK"));
+		Serial.println(F("BOOT_LOG: mDNS responder... OK"));
 	} else {
         Serial.println(F("BOOT_LOG: mDNS responder... FAILED!"));
-    }
+	}
 
     Serial.println(F("WEB_LOG: Setting up web routes..."));
 	setupWebRoutes();
     Serial.println(F("WEB_LOG: Web routes configured. Starting server..."));
 	server.begin();
 	mqttClient.setBufferSize(2048);
-
 	ESP_LOGI("Web", "HTTP server started.");
     Serial.println(F("WEB_LOG: Web server started... OK"));
+
+    // --- KEY CHANGE: NOW, SAFELY ATTEMPT TO INITIALIZE HARDWARE ---
+    hardwareInitialized = attemptHardwareInit();
 
 	configTime(0, 0, NTP_SERVERS[0]);
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -477,12 +481,11 @@ void setup() {
     Serial.println(F("BOOT_LOG: Timezone configured."));
 
 	setupMqtt();
-    Serial.println(F("BOOT_LOG: MQTT setup initiated."));
+	Serial.println(F("BOOT_LOG: MQTT setup initiated."));
 
 	ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
     Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
-
-    Serial.println(F("BOOT_LOG: Calling runBootSequence()..."));
+	Serial.println(F("BOOT_LOG: Calling runBootSequence()..."));
 	runBootSequence();
     Serial.println(F("--- BOOT COMPLETE ---"));
     bootTimestamp = millis();
@@ -496,13 +499,12 @@ bool isMarketOpen() {
 
     struct tm timeinfo;
     getLocalTime(&timeinfo);
-
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
 
     if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
         return false;
-    }
+	}
 
     int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
     int market_open_minutes = 9 * 60 + 30;
@@ -516,34 +518,41 @@ void loop() {
         if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
             if (mqttReconnectRequired || !mqttClient.connected()) {
                 unsigned long now = millis();
-                if (now - lastMqttReconnectAttempt > 5000) {
+				if (now - lastMqttReconnectAttempt > 5000) {
                     lastMqttReconnectAttempt = now;
-                    setupMqtt();
+					setupMqtt();
                     reconnectMqtt();
                     mqttReconnectRequired = false;
                 }
             }
             mqttClient.loop();
-        }
+		}
     }
 
     if (isMarqueeOverrideActive && marqueeOverrideEndTime > 0 && millis() > marqueeOverrideEndTime) {
         isMarqueeOverrideActive = false;
-        marqueeOverrideEndTime = 0;
+		marqueeOverrideEndTime = 0;
         publishAllHaStates();
     }
 
-	handleFlashEffect();
-    handleSequencer();
-	handleBootSequence();
-	if (isMalfunctioning) {
-		handleMalfunction();
-	} else if (!isAnimating) {
-		restoreDisplayAfterGlitch();
-		handleTemporalEcho();
+    // --- KEY CHANGE: GUARD ALL HARDWARE-DEPENDENT LOGIC ---
+    if (hardwareInitialized) {
+        handleFlashEffect();
+        handleBootSequence();
+        if (isMalfunctioning) {
+            handleMalfunction();
+        }
+    }
+    
+    handleSequencer(); // Sequencer can still run logic, but hardware-specific parts will be guarded
+
+	if (!isMalfunctioning && !isAnimating) {
+        if (hardwareInitialized) {
+		    restoreDisplayAfterGlitch();
+		    handleTemporalEcho();
+        }
 		if (!isFlickeringNow) {
 			handleGlitchEffect();
-
 			if (currentSettings.weatherModeEnabled) {
 				static unsigned long lastWeatherFetch = 0;
 				if (millis() - lastWeatherFetch > 300000) {
@@ -555,7 +564,6 @@ void loop() {
 
 			handlePresetCycling();
 			handleSleepSchedule();
-
 			if (currentSettings.stockTickerModeEnabled) {
                 if (isMarketOpen()) {
                     if (millis() - lastStockDataFetch > 300000) { 
@@ -566,25 +574,27 @@ void loop() {
                         }
                     }
                 }
-                updateStockTickerDisplay();
-            } else if (isMessageOverrideActive) {
-                displayOverrideMessage();
-            } else if (isMarqueeOverrideActive) {
-                displayMarqueeOverride();
-            } else if (currentSettings.dataLinkEnabled) {
+                if (hardwareInitialized) updateStockTickerDisplay();
+			} else if (isMessageOverrideActive) {
+                if (hardwareInitialized) displayOverrideMessage();
+			} else if (isMarqueeOverrideActive) {
+                if (hardwareInitialized) displayMarqueeOverride();
+			} else if (currentSettings.dataLinkEnabled) {
 				fetchDataLink();
-				updateMarqueeDisplay();
+				if (hardwareInitialized) updateMarqueeDisplay();
 			} else {
-				updateNormalClockDisplay();
+				if (hardwareInitialized) updateNormalClockDisplay();
 				if (currentSettings.weatherModeEnabled) {
-					handleWeatherDisplay();
+					if (hardwareInitialized) handleWeatherDisplay();
 				}
 			}
 		}
 	}
-
-	handleDisplayAnimation();
-    handleTemporalGlitch();
+    
+    if (hardwareInitialized) {
+	    handleDisplayAnimation();
+        handleTemporalGlitch();
+    }
 
 	static unsigned long lastNtpUpdate = 0;
 	static unsigned long lastHaStateUpdate = 0;
@@ -596,7 +606,7 @@ void loop() {
 		struct tm timeinfo;
 		if (getLocalTime(&timeinfo, 5000)) {
 			if (!timeSynchronized) {
-                triggerTemporalGlitch();
+                if (hardwareInitialized) triggerTemporalGlitch();
 			}
 			timeSynchronized = true;
 		}
@@ -620,17 +630,17 @@ void handleSequencer() {
 	unsigned long elapsed = millis() - sequenceStepStartTime;
     switch (step.command) {
         case SEQ_CMD_TEXT:
-            updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+            if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
 			currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_FLASH:
-            triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
+            if (hardwareInitialized) triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
 			currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_SOUND:
-            playSound(step.stringParam.c_str());
+            if (hardwareInitialized) playSound(step.stringParam.c_str());
             currentSequenceStep++;
 			sequenceStepStartTime = millis();
             break;
@@ -660,26 +670,24 @@ void handleSleepSchedule() {
   getLocalTime(&timeinfo);
   
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-	int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
+  int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
-
-	bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
+  bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-
-	if (shouldBeAsleep && !isDisplayAsleep) {
+  if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
-    #if ENABLE_HARDWARE
-    blankAllDisplays();
-    playSound("SLEEP_ON");
-    #endif
+    if (hardwareInitialized) {
+        blankAllDisplays();
+        playSound("SLEEP_ON");
+    }
     updateHaStatus("Asleep");
   } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
-    #if ENABLE_HARDWARE
-    updateNormalClockDisplay();
-    playSound("CONFIRM_ON");
-    #endif
+    if (hardwareInitialized) {
+        updateNormalClockDisplay();
+        playSound("CONFIRM_ON");
+    }
     updateHaStatus("Idle");
   }
 }

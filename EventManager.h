@@ -4,7 +4,7 @@
 #include <ArduinoJson.h>
 #include <string>
 #include <PubSubClient.h>
-#include "HardwareControl.h"
+#include "HardwareControl.h" // CRITICAL FIX: Include hardware definitions
 
 #define MQTT_UNIQUE_ID "bttf_timecircuits_01"
 #define MQTT_DEVICE_TYPE "bttf-clock"
@@ -67,6 +67,9 @@ extern int currentSequenceStep;
 extern unsigned long sequenceStepStartTime;
 extern bool isSequenceActive;
 // --- END: SEQUENCER GLOBALS ---
+
+// --- NEW GLOBAL FLAG ---
+extern bool hardwareInitialized;
 
 
 #endif // EVENT_MANAGER_H
