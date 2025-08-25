@@ -25,6 +25,8 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 * **Advanced Web Interface**: A mobile-friendly UI for full configuration and control.
 * **Deep Home Assistant Integration**: "Headless" control of all features, from display text to animations, plus powerful blueprints to get you started.
 * **Dynamic Data Link**: Display real-time data from any web API or your smart home on the bottom marquee display.
+* **Stock Ticker Mode**: A dedicated mode for displaying real-time stock information.
+* **Weather Display Mode**: A separate mode to show live weather conditions on the marquee display.
 
 ---
 
@@ -32,12 +34,12 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 
 This project's documentation is split into several sections to make it easy to find what you need.
 
-| Document                                    | Description                                                                                             |
-| :------------------------------------------ | :------------------------------------------------------------------------------------------------------ |
+| Document | Description |
+| :--- | :--- |
 | **[🚀 Installation Guide](docs/INSTALLATION.md)** | **Start here!** A complete guide for building the clock, including the bill of materials, wiring, and setup. |
-| **[💡 Usage Guide](docs/USAGE.md)** | Learn how to configure and use all the features of the clock via its web interface.                     |
-| **[🏠 Home Assistant Guide](docs/HOME_ASSISTANT.md)** | Unleash the full power of your clock with deep smart home integration, examples, and blueprints.      |
-| **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep dive into the project's architecture, code structure, and development details.         |
+| **[💡 Usage Guide](docs/USAGE.md)** | Learn how to configure and use all the features of the clock via its web interface. |
+| **[🏠 Home Assistant Guide](docs/HOME_ASSISTANT.md)** | Unleash the full power of your clock with deep smart home integration, examples, and blueprints. |
+| **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep dive into the project's architecture, code structure, and development details. |
 
 ---
 
@@ -47,7 +49,7 @@ This project's documentation is split into several sections to make it easy to f
 
 * Basic knowledge of soldering and electronics.
 * Arduino IDE installed and configured for the ESP32.
-* All components listed in the [Bill of Materials](docs/INSTALLATION.md#️-bill-of-materials-bom).
+* All components listed in the [Bill of Materials](docs/INSTALLATION.md#-️-bill-of-materials-bom).
 
 ### Installation
 

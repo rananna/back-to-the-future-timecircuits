@@ -2,11 +2,15 @@
 
 This guide covers the day-to-day use and configuration of your Time Circuits display via its built-in web interface.
 
+***
+
 ## First-Time WiFi Setup
 
 1.  **Connect to the Hotspot**: On the first boot, the ESP32 will create a WiFi network named **BTTF-Clock-Setup**. Connect to this network with your phone or computer.
 2.  **Captive Portal**: A captive portal should automatically open in your browser. If it doesn't, navigate to `192.18.4.1`.
 3.  **Configure WiFi**: Select your home WiFi network (SSID), enter the password, and click "Save". The device will restart and connect to your network.
+
+***
 
 ## Accessing the Web Interface
 
@@ -15,6 +19,8 @@ Once connected, you can access the web UI by navigating to the device's IP addre
 <p align="center">
   <img src="../images/webui.png" alt="Web UI Screenshot" width="800">
 </p>
+
+***
 
 ## Web Interface Tabs
 
@@ -31,7 +37,7 @@ The web interface is organized into several tabs for easy configuration.
 * **Sound**: Adjust the volume of the sound effects and toggle them on or off.
 
 ### Data Link Tab
-This is where you configure the bottom display row to show live, real-time data. You can enable either the Live Weather Display or the Data Link Marquee.
+This is where you configure the bottom display row to show live, real-time data. You can enable either the Live Weather Display, the Data Link Marquee, or the Stock Ticker Mode.
 
 #### Live Weather Display
 * Transforms the bottom row into a multi-page weather station.
@@ -44,6 +50,29 @@ This is a fully configurable marquee for displaying data from the internet.
     2.  **MQTT Broker**: Subscribe to an MQTT topic for real-time data from smart home devices.
     3.  **Home Assistant Push**: Allow Home Assistant to push data directly to the display slot.
 * **API Wizard**: An easy-to-use tool that fetches data from a URL and lets you visually map JSON values to the displays without writing any code.
+
+#### Stock Ticker Mode
+This mode transforms the last three displays of the bottom marquee into a real-time stock ticker.
+* **Configuration**: You must enter a valid **AlphaVantage API Key** in the `Network & System` tab for this to function.
+* **Symbols**: Enter up to three stock or index symbols (e.g., `^GSPC` for the S&P 500) to display.
+* **Data**: The clock will automatically fetch the latest prices and display them when the market is open.
+
+### Usage Examples
+
+#### Displaying a Weather Forecast
+1.  Go to the `Data Link` tab.
+2.  Enable the `Weather Mode`.
+3.  In the `City Name` field, enter `London`.
+4.  The bottom display will now cycle through weather data for London.
+
+#### Displaying a Website's API Data
+1.  Go to the `Data Link` tab and ensure `Data Link Marquee` is enabled.
+2.  Select a Data Point slot (e.g., `Data Point 1`).
+3.  Set `Source Type` to `Web API`.
+4.  In the `API URL` field, enter a URL like `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd`.
+5.  In the JSON Path for the Year, enter `bitcoin.usd`.
+6.  Add a Prefix: `BTC $`.
+7.  The display will now show the current price of Bitcoin.
 
 ### Network & System Tab
 * **Present Time**: Set your current time zone. The clock will automatically handle Daylight Saving Time. You can also manually trigger a sync with NTP time servers.

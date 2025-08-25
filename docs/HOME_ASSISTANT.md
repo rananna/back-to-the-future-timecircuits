@@ -5,25 +5,27 @@ This project includes deep, "headless" integration with Home Assistant using the
 This guide will walk you through setup, features, troubleshooting, and advanced usage.
 
 > ### ⚡ Quick Start
->
+
 > Already familiar with MQTT and Home Assistant? Here's the fast track:
-> 1.  **Configure:** Add your MQTT Broker details in the clock's **Data Link** web UI and save.
+> 1.  **Configure:** Add your MQTT Broker details in the clock's **Data Link** web UI and save the settings.
 > 2.  **Discover:** The clock will auto-discover in Home Assistant under the MQTT integration.
-> 3.  **Control:** Use the `button.time_circuits_display_trigger_animation` entity to test an animation and `number.time_circuits_display_destination_year` to set the year.
-> 4.  **Automate:** Check out the **[Guide to Blueprints](#guide-to-blueprints-)** for the easiest way to create automations.
+> 3.  **Control:** Use the `button.time_circuits_display_trigger_animation` entity to test an animation and the `number.time_circuits_display_destination_year` to set the year.
+> 4.  **Automate:** Check out the **[Guide to Blueprints](#guide-to-blueprints)** for the easiest way to create automations.
+
+***
 
 ### **Table of Contents**
-1. [Prerequisites](#-prerequisites)
-2. [Setup and Auto-Discovery](#setup-and-auto-discovery-️)
-3. [Available Entities & Features](#available-entities--features-)
-4. [Blueprint Installation & Usage](#blueprint-installation--usage-guide-)
-5. [Guide to Blueprints](#guide-to-blueprints-)
-6. [Advanced Usage & Guides](#advanced-usage--guides-)
-7. [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq-)
-8. [Troubleshooting](#troubleshooting-️)
-9. [Next Steps](#next-steps-️)
+1. [Prerequisites](#prerequisites)
+2. [Setup and Auto-Discovery](#setup-and-auto-discovery)
+3. [Available Entities & Features](#available-entities-and-features)
+4. [Blueprint Installation & Usage](#blueprint-installation-and-usage-guide)
+5. [Guide to Blueprints](#guide-to-blueprints)
+6. [Advanced Usage & Guides](#advanced-usage-and-guides)
+7. [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
+8. [Troubleshooting](#troubleshooting)
+9. [Next Steps](#next-steps)
 
----
+***
 
 ## **✅ Prerequisites**
 
@@ -31,11 +33,11 @@ This guide will walk you through setup, features, troubleshooting, and advanced 
 > * A running Home Assistant instance.
 > * A configured and running MQTT broker that is connected to Home Assistant.
 > * The Time Circuits Clock is powered on and connected to your Wi-Fi network.
-> * Basic understanding of how MQTT works in Home Assistant.
+> * A basic understanding of how MQTT works in Home Assistant.
 
----
+***
 
-## **Setup and Auto-Discovery** ⚙️
+## **Setup and Auto-Discovery**
 
 Setting up the connection is straightforward. Once you enter your MQTT broker's details (IP address, port, and credentials) in the clock's web interface under the **Data Link** tab, the device handles the rest.
 
@@ -48,6 +50,7 @@ It uses **MQTT auto-discovery** to announce itself to your Home Assistant instan
 
 <details>
 <summary><strong>How it Works: The MQTT Flow</strong></summary>
+This Mermaid diagram visualizes how the clock, the MQTT broker, and Home Assistant communicate.
 <pre><code lang="mermaid">
 graph TD
     A[Time Circuits Clock] -- Publishes States --> B(MQTT Broker);
@@ -57,9 +60,9 @@ graph TD
 </code></pre>
 </details>
 
----
+***
 
-## **Available Entities & Features** ✨
+## **Available Entities & Features**
 
 Entities are grouped by function to make them easy to find.
 
@@ -96,7 +99,7 @@ Entities are grouped by function to make them easy to find.
 * **`button.time_circuits_display_force_ntp_sync`**: Manually syncs the clock with time servers.
 * **`text.time_circuits_display_run_sequence`**: The advanced script runner for custom alerts. See the deep dive below.
 
----
+***
 
 ## **Blueprint Installation & Usage Guide**
 
@@ -107,7 +110,7 @@ To make the most powerful features easy to use, this project includes several Ho
 3.  **Reload Automations:** In Home Assistant, navigate to **Developer Tools > YAML Configuration** and click the "Automations" button under the "YAML configuration reloading" section to load the new blueprints.
 4.  **Create an Automation:** Go to **Settings > Automations & Scenes**, click "Create Automation," and you will see the new Time Circuits blueprints listed as options.
 
----
+***
 
 ## **Guide to Blueprints**
 
@@ -159,11 +162,11 @@ To make the most powerful features easy to use, this project includes several Ho
     * **Destination Year:** `1955`
     * **Result:** Every night at 10:04 PM, the clock will automatically set its destination to 1955 and play the full, cinematic time travel animation, complete with sound effects.
 
----
+***
 
 ## **Advanced Usage & Guides**
 
-### **Example Dashboard Configuration** 🖼️
+### **Example Dashboard Configuration**
 You can create a beautiful and functional control panel for your clock on a Home Assistant dashboard. Go to a dashboard, click the three dots > "Edit Dashboard" > "+" > "Manual" and paste the following YAML:
 
 <details>
@@ -208,7 +211,7 @@ cards:
 </code></pre>
 </details>
 
-### **Voice Assistant Integration** 🗣️
+### **Voice Assistant Integration**
 Trigger the time travel sequence with a voice command to Google Assistant or Alexa.
 
 1.  **Create a Script:** Go to **Settings > Automations & Scenes > Scripts**. Create a new script named "Activate Time Circuits" and set its action to call the `button.press` service on the `button.time_circuits_display_trigger_animation` entity.
@@ -217,7 +220,7 @@ Trigger the time travel sequence with a voice command to Google Assistant or Ale
     * **In the Google Home App:** Create a new routine. For the starter, use a voice command like "Activate the time circuits." For the action, choose "Try adding your own" and enter "Activate Time Circuits."
     * **In the Alexa App:** Create a new routine. For "When this happens," choose "Voice" and enter a phrase like "Great Scott." For the action, choose "Smart Home" and select the "Activate Time Circuits" script.
 
-### **Advanced Templating Examples** 🧠
+### **Advanced Templating Examples**
 The "Dynamic Data Display" blueprint can be made even more powerful with templates. Here are some examples for the `Display Text` field:
 
 > **Combining Multiple Sensors:**
@@ -235,7 +238,7 @@ The "Dynamic Data Display" blueprint can be made even more powerful with templat
 > BUS IN {{ (as_timestamp(states.sensor.next_bus.state) - as_timestamp(now())) | timestamp_custom('%M') }} MIN
 > ```
 
-### **Deep Dive: The "Run Sequence" Command** 🔬
+### **Deep Dive: The "Run Sequence" Command**
 The `run_sequence` entity is the most powerful feature in the integration, allowing you to create custom, perfectly timed audio-visual alerts. You send it a single string containing a script of commands separated by semicolons.
 
 <details>
@@ -261,9 +264,9 @@ Here is an example of a full security alert sequence. The script performs the fo
 4.  Waits for 2 seconds.
 5.  Clears the text from both rows.
 
-<pre><code>text(dest_year, ALRT); sound(ARRIVAL_THUD);
+<pre><code>text(dest_year, "ALRT"); sound("ARRIVAL_THUD");
 wait(500);
-text(pres_year, GRGE); flash(pres_year, 1500);
+text(pres_year, "GRGE"); flash(pres_year, 1500);
 wait(2000);
 text(dest_year, " "); text(pres_year, " ");
 </code></pre>
@@ -285,9 +288,9 @@ text(dest_year, " "); text(pres_year, " ");
 
 </details>
 
----
+***
 
-## **Frequently Asked Questions (FAQ)** 🤔
+## **Frequently Asked Questions (FAQ)**
 
 > **Q: Why don't my custom presets appear in the Home Assistant preset selector?**
 > **A:** After adding a new preset in the web UI, you must restart Home Assistant for it to be re-discovered and added to the entity's options list. The clock sends its configuration only on connection.
@@ -298,9 +301,9 @@ text(dest_year, " "); text(pres_year, " ");
 > **Q: How much traffic does this add to my MQTT broker?**
 > **A:** Very little. The device only publishes state changes when they occur (e.g., an animation starts) and a summary of all states every 5 seconds. The traffic is minimal and should not impact your network.
 
----
+***
 
-## **Troubleshooting** 🛠️
+## **Troubleshooting**
 
 If you encounter issues, here are some common solutions:
 
@@ -317,9 +320,9 @@ If you encounter issues, here are some common solutions:
 > * Ensure the clock is `online` and the entities are available in Home Assistant.
 > * Use MQTT Explorer to listen for commands being sent from Home Assistant. When you toggle a switch, you should see a message published to the corresponding `/command` topic.
 
----
+***
 
-## **Next Steps** ➡️
+## **Next Steps**
 
 Now that you've mastered the Home Assistant integration, why not explore more?
 * **Get Inspired:** Check out our list of **[30+ Automation Examples](../HOME_ASSISTANT_EXAMPLES.md)** for creative ideas.
