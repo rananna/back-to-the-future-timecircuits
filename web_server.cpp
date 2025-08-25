@@ -8,6 +8,10 @@
 #include <HTTPClient.h>
 #include <string>
 #include <WiFi.h>
+#include <AudioOutputI2S.h> // Add this include for the 'out' object
+
+// Make the global 'out' object from the main .ino file available here
+extern AudioOutputI2S *out;
 
 // This is the one and only DEFINITION of the variable in the whole project.
 const char apiTemplates[] PROGMEM = "{\n"
@@ -157,12 +161,8 @@ void makeApiRequestTask(void* p) {
 
         if (httpCode > 0) {
             if (httpCode == HTTP_CODE_OK) {
-                // --- START: MODIFICATION ---
-                // Switched from http.getString() to parsing the stream directly.
-                // This avoids allocating a large string in memory and is much more efficient.
                 DynamicJsonDocument payloadDoc(4096);
                 DeserializationError error = deserializeJson(payloadDoc, http.getStream());
-                // --- END: MODIFICATION ---
 
                 if (error == DeserializationError::Ok) {
                     responseJson["status"] = "success";
@@ -298,7 +298,7 @@ void setupWebRoutes() {
   
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
     if (hardwareInitialized) {
-        playSound("EASTER_EGG");
+        playSound("/EASTER_EGG.mp3");
     }
     request->send(200, "text/plain", "Great Scott!");
   });
@@ -544,29 +544,20 @@ void setupWebRoutes() {
             }
         }
     }
-// --- START: CRITICAL WRITE ISOLATION PATCH ---
-if (mqttClient.connected()) {
-    mqttClient.disconnect(); // Temporarily disconnect to halt network tasks
-}
 
-saveSettings(); // Execute the save
-delay(100);     // Wait 100ms to ensure flash write completes
+    if (mqttClient.connected()) {
+        mqttClient.disconnect();
+    }
+    saveSettings();
+    delay(100);
+    mqttReconnectRequired = true;
 
-mqttReconnectRequired = true; // Flag the client to reconnect on the next loop
-// --- END: CRITICAL WRITE ISOLATION PATCH ---
+    if (hardwareInitialized && out) {
+        out->SetGain((float)currentSettings.notificationVolume / 30.0f);
+    }
 
-
-// The original MQTT broker check is no longer needed here,
-// as we now force a reconnect after every save.
-
-if (hardwareInitialized) {
-#if ENABLE_HARDWARE
-    myDFPlayer.volume(currentSettings.notificationVolume);
-#endif
-}
-
-request->send(200, "text/plain", "Settings Saved!");
-});
+    request->send(200, "text/plain", "Settings Saved!");
+  });
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){

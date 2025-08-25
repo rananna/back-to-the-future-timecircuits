@@ -8,8 +8,10 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <Preferences.h>
+#include <AudioOutputI2S.h> // Add this include for the 'out' object
 
-
+// Make the global 'out' object from the main .ino file available here
+extern AudioOutputI2S *out;
 bool haDiscoveryPublished = false;
 
 void setupMqtt() {
@@ -523,10 +525,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             int vol = message.toInt();
             if (vol >= 0 && vol <= 30) {
                 currentSettings.notificationVolume = vol;
-                if (hardwareInitialized) {
-#if ENABLE_HARDWARE
-                    myDFPlayer.volume(vol);
-#endif
+                if (hardwareInitialized && out) {
+                    out->SetGain((float)vol / 30.0f);
                 }
                 settingsChanged = true;
                 broadcastWsStateUpdate("notificationVolume", vol);
@@ -621,7 +621,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (topicStr == base_topic + "play_sound/command") {
             if (message != "None") {
                 if (hardwareInitialized) {
-                    playSound(message.c_str());
+                    String filepath = "/" + message + ".mp3";
+                    playSound(filepath.c_str());
                 }
             }
             mqttClient.publish((base_topic + "play_sound/state").c_str(), "None", true);
