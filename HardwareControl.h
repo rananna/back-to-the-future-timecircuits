@@ -5,7 +5,6 @@
 #include <string>
 #include "Adafruit_LEDBackpack.h"
 #include "Adafruit_GFX.h"
-#include "DFRobotDFPlayerMini.h"
 #include <time.h>
 
 // --- PIN DEFINITIONS ---
@@ -13,8 +12,10 @@
 #define I2C_SCL_1 22
 #define I2C_SDA_2 25
 #define I2C_SCL_2 26
-#define DFP_RX_PIN 16
-#define DFP_TX_PIN 17
+#define I2S_LRC_PIN 16
+#define I2S_BCLK_PIN 17
+#define I2S_DIN_PIN 5
+#define I2S_SD_PIN 18
 #define DEST_AM_PIN 13
 #define DEST_PM_PIN 14
 #define PRES_AM_PIN 32
@@ -23,7 +24,7 @@
 #define LAST_PM_PIN 4
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0
+#define ENABLE_HARDWARE 1
 
 // --- ENUMS & DATA STRUCTURES ---
 
@@ -190,8 +191,6 @@ struct SequenceStep {
 #if ENABLE_HARDWARE
 extern TwoWire I2C_1; extern TwoWire I2C_2;
 extern DisplayRow destRow, presRow, lastRow;
-extern HardwareSerial dfpSerial;
-extern DFRobotDFPlayerMini myDFPlayer;
 #endif
 
 void setupPhysicalDisplay();
@@ -206,8 +205,7 @@ void animateWaveformCollapse(unsigned long elapsed, int duration);
 void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
 void blankAllDisplays();
 void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
-void playSound(const char* soundName);
-void setupSoundFiles();
+void playSound(const char* filepath);
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
 void displaySpeed(int speed);
 void flashAllDisplays();

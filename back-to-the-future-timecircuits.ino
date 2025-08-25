@@ -24,6 +24,11 @@
 #include "DataManager.h"
 #include "MqttManager.h"
 
+// Audio Library Includes
+#include "AudioFileSourceLittleFS.h"
+#include "AudioOutputI2S.h"
+#include "AudioGeneratorMP3.h"
+
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2
 #endif
@@ -34,6 +39,14 @@ void handleSleepSchedule();
 void handleSequencer();
 bool isMarketOpen();
 bool attemptHardwareInit(); // New function for safe hardware init
+void handleAudio();
+
+// --- AUDIO LIBRARY GLOBALS ---
+AudioFileSourceLittleFS *file;
+AudioOutputI2S *out;
+AudioGeneratorMP3 *mp3;
+bool isPlayingSound = false;
+
 
 // --- GLOBAL VARIABLES & CONSTANTS ---
 ClockSettings currentSettings;
@@ -187,6 +200,7 @@ void saveSettings() {
 	preferences.putString("stRow3Sym", currentSettings.stockRow3_symbol.c_str());
     Serial.printf("Saving avApiKey: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
 	preferences.putString("avApiKey", currentSettings.alphaVantageApiKey.c_str());
+
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
 		preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url.c_str());
@@ -307,6 +321,7 @@ void loadSettings() {
 
 		tempString = preferences.getString("mqttPass", "");
 		currentSettings.mqttPassword = tempString.c_str();
+
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
 		tempString = preferences.getString("cityName", "New York");
 		currentSettings.cityName = tempString.c_str();
@@ -321,6 +336,7 @@ void loadSettings() {
 
 		tempString = preferences.getString("stRow2Sym", "^GSPTSE");
 		currentSettings.stockRow2_symbol = tempString.c_str();
+		
 		tempString = preferences.getString("stRow3Sym", "^IXIC");
 		currentSettings.stockRow3_symbol = tempString.c_str();
 
@@ -336,44 +352,53 @@ void loadSettings() {
 
 			tempString = preferences.getString((prefix + "monthPath").c_str(), "");
 			currentSettings.dataPoints[i].monthPath = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "dayPath").c_str(), "");
 			currentSettings.dataPoints[i].dayPath = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "yearPath").c_str(), "");
 			currentSettings.dataPoints[i].yearPath = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "timePath").c_str(), "");
 			currentSettings.dataPoints[i].timePath = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "prefix").c_str(), "");
 			currentSettings.dataPoints[i].prefix = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "suffix").c_str(), "");
 			currentSettings.dataPoints[i].suffix = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "icon").c_str(), "");
 			currentSettings.dataPoints[i].icon = tempString.c_str();
+
 			currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
 			currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
 
 			tempString = preferences.getString((prefix + "topic").c_str(), "");
 			currentSettings.dataPoints[i].mqttTopic = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "yearPrefix").c_str(), "");
 			currentSettings.dataPoints[i].yearPrefix = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "yearSuffix").c_str(), "");
 			currentSettings.dataPoints[i].yearSuffix = tempString.c_str();
+
 			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
 
 			tempString = preferences.getString((prefix + "scrollTxt").c_str(), "");
 			currentSettings.dataPoints[i].scrollingText = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "authKey").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderKey = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "authVal").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderValue = tempString.c_str();
+
 			currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
 			
 			tempString = preferences.getString((prefix + "reqBody").c_str(), "");
 			currentSettings.dataPoints[i].requestBody = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "apiKey").c_str(), "");
 			currentSettings.dataPoints[i].apiExampleKey = tempString.c_str();
 		}
@@ -411,17 +436,7 @@ bool attemptHardwareInit() {
     Serial.println(F("BOOT_LOG: Attempting to initialize hardware..."));
     setupPhysicalDisplay();
     Serial.println(F("BOOT_LOG: Physical display setup... OK"));
-
-    dfpSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
-    if (myDFPlayer.begin(dfpSerial, true, false)) { // This has a built-in timeout
-        myDFPlayer.volume(currentSettings.notificationVolume);
-        setupSoundFiles();
-        Serial.println(F("BOOT_LOG: DFPlayer Mini... OK"));
-        return true; // Success
-    } else {
-        Serial.println(F("BOOT_LOG: DFPlayer Mini... FAILED!"));
-        return false; // Failure
-    }
+    return true; // Success
     #else
     Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
     return false; // Hardware is disabled, so it's not "initialized"
@@ -433,11 +448,11 @@ void setup() {
 	delay(1000);
 
 	Serial.println(F("\n\n--- BOOTING ---"));
-    Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
+	Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
     delay(10);
 	if (!LittleFS.begin(true)) {
 		ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
-        Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
+		Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
 		delay(10000);
 		ESP.restart();
 	}
@@ -447,22 +462,22 @@ void setup() {
 	listAllFiles();
     Serial.println(F("BOOT_LOG: Loading settings..."));
 	loadSettings();
-    Serial.println(F("BOOT_LOG: Settings loaded... OK"));
+	Serial.println(F("BOOT_LOG: Settings loaded... OK"));
     delay(10);
 	xDisplayDataMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
 
-    // --- KEY CHANGE: START NETWORKING AND WEB SERVER FIRST ---
+    // --- START NETWORKING AND WEB SERVER FIRST ---
 	wifiManager.autoConnect("BTTF-Clock-Setup");
 	ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
-    Serial.printf("BOOT_LOG: WiFi connected. IP: %s\n", WiFi.localIP().toString().c_str());
+	Serial.printf("BOOT_LOG: WiFi connected. IP: %s\n", WiFi.localIP().toString().c_str());
 
 	if (MDNS.begin("timecircuits")) {
 		MDNS.addService("http", "tcp", 80);
 		Serial.println(F("BOOT_LOG: mDNS responder... OK"));
 	} else {
         Serial.println(F("BOOT_LOG: mDNS responder... FAILED!"));
-	}
+    }
 
     Serial.println(F("WEB_LOG: Setting up web routes..."));
 	setupWebRoutes();
@@ -472,8 +487,17 @@ void setup() {
 	ESP_LOGI("Web", "HTTP server started.");
     Serial.println(F("WEB_LOG: Web server started... OK"));
 
-    // --- KEY CHANGE: NOW, SAFELY ATTEMPT TO INITIALIZE HARDWARE ---
+    // --- SAFELY ATTEMPT TO INITIALIZE HARDWARE ---
     hardwareInitialized = attemptHardwareInit();
+
+    // --- INITIALIZE I2S AUDIO ---
+    if(hardwareInitialized) {
+        out = new AudioOutputI2S();
+        out->SetPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
+        out->SetGain((float)currentSettings.notificationVolume / 30.0f);
+        mp3 = new AudioGeneratorMP3();
+        Serial.println(F("BOOT_LOG: I2S Audio... OK"));
+    }
 
 	configTime(0, 0, NTP_SERVERS[0]);
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -482,12 +506,11 @@ void setup() {
 
 	setupMqtt();
 	Serial.println(F("BOOT_LOG: MQTT setup initiated."));
-
 	ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
     Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
 	Serial.println(F("BOOT_LOG: Calling runBootSequence()..."));
 	runBootSequence();
-    Serial.println(F("--- BOOT COMPLETE ---"));
+	Serial.println(F("--- BOOT COMPLETE ---"));
     bootTimestamp = millis();
 }
 
@@ -495,7 +518,7 @@ bool isMarketOpen() {
     if (!timeSynchronized) return false;
 
     setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
-    tzset();
+	tzset();
 
     struct tm timeinfo;
     getLocalTime(&timeinfo);
@@ -504,38 +527,42 @@ bool isMarketOpen() {
 
     if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
         return false;
-	}
+    }
 
     int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
     int market_open_minutes = 9 * 60 + 30;
-	int market_close_minutes = 16 * 60;
+    int market_close_minutes = 16 * 60;
 
     return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
 }
 
 void loop() {
+    if (hardwareInitialized) {
+        handleAudio();
+    }
+
 	if (millis() - bootTimestamp > 15000) { 
         if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
             if (mqttReconnectRequired || !mqttClient.connected()) {
                 unsigned long now = millis();
-				if (now - lastMqttReconnectAttempt > 5000) {
+                if (now - lastMqttReconnectAttempt > 5000) {
                     lastMqttReconnectAttempt = now;
-					setupMqtt();
+                    setupMqtt();
                     reconnectMqtt();
                     mqttReconnectRequired = false;
                 }
             }
             mqttClient.loop();
-		}
+        }
     }
 
     if (isMarqueeOverrideActive && marqueeOverrideEndTime > 0 && millis() > marqueeOverrideEndTime) {
         isMarqueeOverrideActive = false;
-		marqueeOverrideEndTime = 0;
+        marqueeOverrideEndTime = 0;
         publishAllHaStates();
     }
 
-    // --- KEY CHANGE: GUARD ALL HARDWARE-DEPENDENT LOGIC ---
+    // --- GUARD ALL HARDWARE-DEPENDENT LOGIC ---
     if (hardwareInitialized) {
         handleFlashEffect();
         handleBootSequence();
@@ -544,21 +571,21 @@ void loop() {
         }
     }
     
-    handleSequencer(); // Sequencer can still run logic, but hardware-specific parts will be guarded
-
+    handleSequencer();
+    
 	if (!isMalfunctioning && !isAnimating) {
         if (hardwareInitialized) {
 		    restoreDisplayAfterGlitch();
-		    handleTemporalEcho();
+            handleTemporalEcho();
         }
 		if (!isFlickeringNow) {
 			handleGlitchEffect();
 			if (currentSettings.weatherModeEnabled) {
 				static unsigned long lastWeatherFetch = 0;
-				if (millis() - lastWeatherFetch > 300000) {
+                if (millis() - lastWeatherFetch > 300000) {
 					lastWeatherFetch = millis();
 					WeatherTaskParams* params = new WeatherTaskParams{ currentSettings.cityName, false };
-					xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL);
+                    xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL);
 				}
 			}
 
@@ -568,9 +595,9 @@ void loop() {
                 if (isMarketOpen()) {
                     if (millis() - lastStockDataFetch > 300000) { 
                         lastStockDataFetch = millis();
-						for (int i=0; i<3; ++i) {
+                        for (int i=0; i<3; ++i) {
                             FetchDataParams* params = new FetchDataParams{ i, 0 };
-							xTaskCreate(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL);
+                            xTaskCreate(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL);
                         }
                     }
                 }
@@ -598,7 +625,6 @@ void loop() {
 
 	static unsigned long lastNtpUpdate = 0;
 	static unsigned long lastHaStateUpdate = 0;
-
 	if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
 		configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
 		setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -607,7 +633,7 @@ void loop() {
 		if (getLocalTime(&timeinfo, 5000)) {
 			if (!timeSynchronized) {
                 if (hardwareInitialized) triggerTemporalGlitch();
-			}
+            }
 			timeSynchronized = true;
 		}
 		else {
@@ -620,23 +646,35 @@ void loop() {
 
     if (timeSynchronized && millis() - lastHaStateUpdate > 5000) {
         publishAllHaStates();
-		lastHaStateUpdate = millis();
+        lastHaStateUpdate = millis();
+    }
+}
+
+void handleAudio() {
+    if (isPlayingSound && mp3->isRunning()) {
+        if (!mp3->loop()) {
+            mp3->stop();
+            isPlayingSound = false;
+            digitalWrite(I2S_SD_PIN, LOW); // Disable amplifier
+            delete file;
+            file = nullptr;
+        }
     }
 }
 
 void handleSequencer() {
     if (!isSequenceActive) return;
     SequenceStep step = sequence[currentSequenceStep];
-	unsigned long elapsed = millis() - sequenceStepStartTime;
+    unsigned long elapsed = millis() - sequenceStepStartTime;
     switch (step.command) {
         case SEQ_CMD_TEXT:
             if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
-			currentSequenceStep++;
+            currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_FLASH:
             if (hardwareInitialized) triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
-			currentSequenceStep++;
+            currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_SOUND:
@@ -647,21 +685,21 @@ void handleSequencer() {
         case SEQ_CMD_WAIT:
             if (elapsed >= (unsigned long)step.intParam) {
                 sequenceStepStartTime = millis();
-				currentSequenceStep++;
+                currentSequenceStep++;
             }
             break;
-		case SEQ_CMD_END:
+        case SEQ_CMD_END:
             isSequenceActive = false;
             currentSequenceStep = 0;
             break;
-	}
+    }
 }
 
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-	if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
-	}
+    }
 }
 
 void handleSleepSchedule() {
@@ -672,21 +710,23 @@ void handleSleepSchedule() {
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
   int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
+  
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
+
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     if (hardwareInitialized) {
         blankAllDisplays();
-        playSound("SLEEP_ON");
+        playSound("/SLEEP_ON.mp3");
     }
     updateHaStatus("Asleep");
   } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
     if (hardwareInitialized) {
         updateNormalClockDisplay();
-        playSound("CONFIRM_ON");
+        playSound("/CONFIRM_ON.mp3");
     }
     updateHaStatus("Idle");
   }

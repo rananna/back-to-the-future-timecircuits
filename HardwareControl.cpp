@@ -3,11 +3,14 @@
  * @brief Implements low-level control functions for displays, LEDs, and sound.
  * @details This file contains the concrete implementations for initializing and controlling
  * the hardware components. It directly interfaces with the Adafruit GFX and LED Backpack
- * libraries, as well as the DFPlayer Mini library. The ENABLE_HARDWARE macro allows
- * for compiling the code without the hardware for testing purposes.
+ * libraries, as well as the ESP8266Audio library for I2S sound.
  */
 
 #include "HardwareControl.h"
+#include "EventManager.h" // Needed for audio library objects
+#include <AudioFileSourceLittleFS.h>
+#include <AudioOutputI2S.h>
+#include <AudioGeneratorMP3.h>
 
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
@@ -23,10 +26,11 @@ DisplayRow presRow;
 /** @brief Struct containing the 4 display segments for the Last Time Departed row. */
 DisplayRow lastRow;
 
-/** @brief HardwareSerial instance for communication with the DFPlayer Mini MP3 module. */
-HardwareSerial dfpSerial(2);
-/** @brief The DFPlayer Mini MP3 module object. */
-DFRobotDFPlayerMini myDFPlayer;
+// --- Audio library objects (defined in the main .ino file) ---
+extern AudioFileSourceLittleFS *file;
+extern AudioOutputI2S *out;
+extern AudioGeneratorMP3 *mp3;
+extern bool isPlayingSound;
 #endif
 
 // --- HELPER FUNCTION ---
@@ -65,7 +69,7 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  * @details This function sets up the two I2C buses with their designated GPIO pins.
  * It then initializes all 12 Adafruit_AlphaNum4 display objects, associating each
  * with its correct I2C address and bus. Finally, it configures the AM/PM indicator
- * LED pins as outputs.
+ * LED pins and the I2S amplifier shutdown pin as outputs.
  */
 void setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
@@ -89,6 +93,10 @@ void setupPhysicalDisplay() {
   pinMode(DEST_AM_PIN, OUTPUT); pinMode(DEST_PM_PIN, OUTPUT);
   pinMode(PRES_AM_PIN, OUTPUT); pinMode(PRES_PM_PIN, OUTPUT);
   pinMode(LAST_AM_PIN, OUTPUT); pinMode(LAST_PM_PIN, OUTPUT);
+  
+  // Set I2S Amplifier Shutdown pin to output mode and enable the amplifier.
+  pinMode(I2S_SD_PIN, OUTPUT);
+  digitalWrite(I2S_SD_PIN, HIGH);
   #endif
 }
 
@@ -499,28 +507,27 @@ void display88MphSpeed(float speed) {
 }
 
 /**
- * @brief Plays a sound file from the SD card via the DFPlayer Mini.
- * @param soundName A friendly name for the sound to play (e.g., "TIME_TRAVEL").
- * @details This function maps the friendly name to the corresponding file index in the
- * 'mp3' folder on the SD card required by the DFPlayer library.
+ * @brief Plays a sound file from the LittleFS filesystem via the I2S DAC.
+ * @param filepath The full path to the sound file to play (e.g., "/TIME_TRAVEL.mp3").
  */
-void playSound(const char* soundName) {
+void playSound(const char* filepath) {
   #if ENABLE_HARDWARE
-  // The DFPlayer library can play files by their index in a specific folder.
-  // We map friendly names to these indices.
-  if (strcmp(soundName, "TIME_TRAVEL") == 0) myDFPlayer.playMp3Folder(1);
-  else if (strcmp(soundName, "ACCELERATION") == 0) myDFPlayer.playMp3Folder(2);
-  else if (strcmp(soundName, "FLUX_CAPACITOR_CHARGE") == 0) myDFPlayer.playMp3Folder(3);
-  else if (strcmp(soundName, "ARRIVAL_THUD") == 0) myDFPlayer.playMp3Folder(4);
-  else if (strcmp(soundName, "CONFIRM_ON") == 0) myDFPlayer.playMp3Folder(5);
-  else if (strcmp(soundName, "SLEEP_ON") == 0) myDFPlayer.playMp3Folder(6);
-  else if (strcmp(soundName, "EASTER_EGG") == 0) myDFPlayer.playMp3Folder(7);
-  #endif
-}
+  if (isPlayingSound) {
+    return; // Don't interrupt a sound that is already playing
+  }
 
-/**
- * @brief Placeholder function for any future sound file validation or setup logic.
- */
-void setupSoundFiles() {
-  // This function is currently empty but can be used for SD card checks.
+  file = new AudioFileSourceLittleFS(filepath);
+  if (!file->isOpen()) {
+    Serial.printf("AUDIO_LOG: Failed to open audio file: %s\n", filepath);
+    delete file;
+    file = nullptr;
+    return;
+  }
+  
+  digitalWrite(I2S_SD_PIN, HIGH); // Enable the amplifier
+  delay(10); // Small delay to allow amp to stabilize
+  
+  isPlayingSound = true;
+  mp3->begin(file, out);
+  #endif
 }
