@@ -10,8 +10,6 @@
 // --- PIN DEFINITIONS ---
 #define I2C_SDA_1 21
 #define I2C_SCL_1 22
-#define I2C_SDA_2 25
-#define I2C_SCL_2 26
 #define I2S_LRC_PIN 16
 #define I2S_BCLK_PIN 17
 #define I2S_DIN_PIN 5
@@ -22,9 +20,11 @@
 #define PRES_PM_PIN 27
 #define LAST_AM_PIN 2
 #define LAST_PM_PIN 4
+#define I2C_SDA_2 25
+#define I2C_SCL_2 26
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0
+#define ENABLE_HARDWARE 1
 
 // --- ENUMS & DATA STRUCTURES ---
 

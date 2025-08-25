@@ -339,29 +339,52 @@ void fetchApiDataTask(void* p) {
 					xSemaphoreGive(xDisplayDataMutex);
 				}
 			} else {
-				 dataPointFetchFailures[index]++;
+				if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    dataPointFetchFailures[index]++;
+                    xSemaphoreGive(xDisplayDataMutex);
+                }
 			}
 		} else {
-			dataPointFetchFailures[index]++;
+			if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                dataPointFetchFailures[index]++;
+                xSemaphoreGive(xDisplayDataMutex);
+            }
 		}
 		http.end();
 	} else {
-		dataPointFetchFailures[index]++;
+		if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+            dataPointFetchFailures[index]++;
+            xSemaphoreGive(xDisplayDataMutex);
+        }
 	}
 
-	if (dataPointFetchFailures[index] > MAX_FETCH_FAILURES) {
-		 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-			displayPages[index] = lastGoodDisplayPages[index];
-			 xSemaphoreGive(xDisplayDataMutex);
-		}
-	}
+	if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        if (dataPointFetchFailures[index] > MAX_FETCH_FAILURES) {
+            displayPages[index] = lastGoodDisplayPages[index];
+        }
+        xSemaphoreGive(xDisplayDataMutex);
+    }
 	
 	__atomic_add_fetch(&requestsCompleted, 1, __ATOMIC_SEQ_CST);
 	vTaskDelete(NULL);
 }
 
+void checkDataFetchStatusTask(void* p) {
+    int tasksCreated = (int)p;
+    while(true) {
+        if (__atomic_load_n(&requestsCompleted, __ATOMIC_SEQ_CST) >= tasksCreated) {
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                isFetchingData = false;
+                xSemaphoreGive(xDisplayDataMutex);
+            }
+            vTaskDelete(NULL);
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
 void fetchDataLink() {
-	if (xSemaphoreTake(xDisplayDataMutex, 0) != pdTRUE) {
+	if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) != pdTRUE) {
 		return;
 	}
 
@@ -374,8 +397,10 @@ void fetchDataLink() {
 	if (now - lastDataLinkFetch > (unsigned long)currentSettings.dataLinkRefreshInterval * 60000) {
 		lastDataLinkFetch = now;
 		isFetchingData = true;
+		xSemaphoreGive(xDisplayDataMutex);
+        
 		requestsCompleted = 0;
-		int tasksCreated = 0;
+        int tasksCreated = 0;
 
 		for (int i = 0; i < currentSettings.numDataPoints; i++) {
 			if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_API && !currentSettings.dataPoints[i].url.empty()) {
@@ -388,10 +413,15 @@ void fetchDataLink() {
 				}
 			}
 		}
-
-		if (requestsCompleted >= tasksCreated) {
-			isFetchingData = false;
-		}
+        if (tasksCreated > 0) {
+            xTaskCreatePinnedToCore(checkDataFetchStatusTask, "checkDataFetchStatusTask", 2048, (void*)tasksCreated, 1, NULL, 0);
+        } else {
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                isFetchingData = false;
+                xSemaphoreGive(xDisplayDataMutex);
+            }
+        }
+	} else {
+		xSemaphoreGive(xDisplayDataMutex);
 	}
-	xSemaphoreGive(xDisplayDataMutex);
 }

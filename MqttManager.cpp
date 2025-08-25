@@ -384,7 +384,7 @@ void publishHaAutoDiscovery() {
         doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = "mdi:format-font";
+        doc["icon"] = cfg[2];
         doc["entity_category"] = "config";
         doc["device"] = device;
         doc["availability"] = availability;
@@ -834,7 +834,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     else {
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
             if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
-                if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     displayPages[i].time = message.c_str();
                     xSemaphoreGive(xDisplayDataMutex);
                 }
@@ -844,7 +844,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         if (topicStr.startsWith(base_topic + "datapoint/")) {
             int dp_index = topicStr.substring(base_topic.length() + 10, topicStr.indexOf('/', base_topic.length() + 10)).toInt();
             if (dp_index >= 0 && dp_index < 5) {
-                if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (topicStr.endsWith("/month/set")) displayPages[dp_index].month = message.c_str();
                     else if (topicStr.endsWith("/day/set")) displayPages[dp_index].day = message.c_str();
                     else if (topicStr.endsWith("/year/set")) displayPages[dp_index].year = message.c_str();

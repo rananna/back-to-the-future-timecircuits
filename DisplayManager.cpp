@@ -84,7 +84,7 @@ void updateStockTickerDisplay() {
 #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i = 0; i < 3; ++i) {
-        if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             if (stockData[i].dataValid) {
                 String symbol = String(stockData[i].symbol.c_str());
                 if(symbol.startsWith("^")) symbol.remove(0,1);
@@ -228,7 +228,7 @@ void updateNormalClockDisplay() {
 void handleWeatherDisplay() {
     if (!currentSettings.weatherModeEnabled || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
-    if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (!currentWeatherData.dataValid) {
             printToDisplay(lastRow.month, "WEA", 1);
             printToDisplay(lastRow.day, "TH", 2);
