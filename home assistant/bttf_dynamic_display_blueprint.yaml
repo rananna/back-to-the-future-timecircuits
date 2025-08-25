@@ -1,0 +1,244 @@
+blueprint:
+  name: BTTF Time Circuits - Dynamic Display
+  description: >-
+    Display the state of one or more Home Assistant entities on the clock's time
+    circuits. This blueprint can update all three main rows or a single marquee
+    data slot. The clock's Data Point Source must be set to "Home Assistant Push"
+    for the marquee slots.
+  domain: automation
+  input:
+    target_device:
+      name: Time Circuits Device
+      description: Select the BTTF Time Circuits clock device.
+      selector:
+        device:
+          manufacturer: "Doc Brown Industries"
+          model: "BTTF Clock v1"
+    display_mode:
+      name: Display Mode
+      description: Choose whether to update all three time circuits or a specific data slot.
+      default: "marquee_slot"
+      selector:
+        select:
+          options:
+            - label: "Full Time Circuits (Destination, Present, Last)"
+              value: "full"
+            - label: "Marquee Data Slot"
+              value: "marquee_slot"
+    data_point_slot:
+      name: Data Point Slot (if using Marquee Mode)
+      description: Which of the five marquee slots to use for this data.
+      default: "0"
+      selector:
+        select:
+          options:
+            - label: "Data Point 1"
+              value: "0"
+            - label: "Data Point 2"
+              value: "1"
+            - label: "Data Point 3"
+              value: "2"
+            - label: "Data Point 4"
+              value: "3"
+            - label: "Data Point 5"
+              value: "4"
+    dest_month_entity:
+      name: Destination Month Entity
+      description: The entity for the Destination Month (3 Chars).
+      default: ""
+      selector:
+        entity: {}
+    dest_day_entity:
+      name: Destination Day Entity
+      description: The entity for the Destination Day (2 Chars).
+      default: ""
+      selector:
+        entity: {}
+    dest_year_entity:
+      name: Destination Year Entity
+      description: The entity for the Destination Year (4 Chars).
+      default: ""
+      selector:
+        entity: {}
+    dest_time_entity:
+      name: Destination Time Entity
+      description: The entity for the Destination Time (4 Chars).
+      default: ""
+      selector:
+        entity: {}
+    pres_month_entity:
+      name: Present Month Entity
+      description: The entity for the Present Month (3 Chars).
+      default: ""
+      selector:
+        entity: {}
+    pres_day_entity:
+      name: Present Day Entity
+      description: The entity for the Present Day (2 Chars).
+      default: ""
+      selector:
+        entity: {}
+    pres_year_entity:
+      name: Present Year Entity
+      description: The entity for the Present Year (4 Chars).
+      default: ""
+      selector:
+        entity: {}
+    pres_time_entity:
+      name: Present Time Entity
+      description: The entity for the Present Time (4 Chars).
+      default: ""
+      selector:
+        entity: {}
+    last_month_entity:
+      name: Last Departed Month Entity
+      description: The entity for the Last Departed Month (3 Chars).
+      default: ""
+      selector:
+        entity: {}
+    last_day_entity:
+      name: Last Departed Day Entity
+      description: The entity for the Last Departed Day (2 Chars).
+      default: ""
+      selector:
+        entity: {}
+    last_year_entity:
+      name: Last Departed Year Entity
+      description: The entity for the Last Departed Year (4 Chars).
+      default: ""
+      selector:
+        entity: {}
+    last_time_entity:
+      name: Last Departed Time Entity
+      description: The entity for the Last Departed Time (4 Chars).
+      default: ""
+      selector:
+        entity: {}
+    marquee_month:
+      name: Marquee Month Text (3 Chars)
+      description: Static text or a template for the MONTH display in marquee mode.
+      default: "DATA"
+      selector:
+        text:
+    marquee_day:
+      name: Marquee Day Text (2 Chars)
+      description: Static text or a template for the DAY display in marquee mode.
+      default: ""
+      selector:
+        text:
+    marquee_year:
+      name: Marquee Year Text (4 Chars)
+      description: Static text or a template for the YEAR display in marquee mode.
+      default: ""
+      selector:
+        text:
+    marquee_time:
+      name: Marquee Time Text (4 Chars)
+      description: Static text or a template for the TIME display in marquee mode.
+      default: "{{ states(marquee_target_entity) }}"
+      selector:
+        text:
+    marquee_target_entity:
+      name: Marquee Target Entity
+      description: The entity whose state you want to show in marquee mode.
+      default: ""
+      selector:
+        entity: {}
+
+variables:
+  device_id: !input target_device
+  device_name: "{{ device_attr(device_id, 'name') | lower | replace(' ', '_') }}"
+  clock_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
+  mode: !input display_mode
+  slot: !input data_point_slot
+
+trigger:
+  - platform: state
+    entity_id: >
+      {% if mode == "full" %}
+        - !input dest_month_entity
+        - !input dest_day_entity
+        - !input dest_year_entity
+        - !input dest_time_entity
+        - !input pres_month_entity
+        - !input pres_day_entity
+        - !input pres_year_entity
+        - !input pres_time_entity
+        - !input last_month_entity
+        - !input last_day_entity
+        - !input last_year_entity
+        - !input last_time_entity
+      {% else %}
+        - !input marquee_target_entity
+      {% endif %}
+
+action:
+  - choose:
+      - conditions: "{{ mode == 'full' }}"
+        sequence:
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/dest_month/command"
+              payload: "{{ states(dest_month_entity) | string | slice(0, 3) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/dest_day/command"
+              payload: "{{ states(dest_day_entity) | string | slice(0, 2) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/dest_year/command"
+              payload: "{{ states(dest_year_entity) | string | slice(0, 4) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/dest_time/command"
+              payload: "{{ states(dest_time_entity) | string | slice(0, 4) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/pres_month/command"
+              payload: "{{ states(pres_month_entity) | string | slice(0, 3) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/pres_day/command"
+              payload: "{{ states(pres_day_entity) | string | slice(0, 2) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/pres_year/command"
+              payload: "{{ states(pres_year_entity) | string | slice(0, 4) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/pres_time/command"
+              payload: "{{ states(pres_time_entity) | string | slice(0, 4) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/last_month/command"
+              payload: "{{ states(last_month_entity) | string | slice(0, 3) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/last_day/command"
+              payload: "{{ states(last_day_entity) | string | slice(0, 2) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/last_year/command"
+              payload: "{{ states(last_year_entity) | string | slice(0, 4) }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/last_time/command"
+              payload: "{{ states(last_time_entity) | string | slice(0, 4) }}"
+      - conditions: "{{ mode == 'marquee_slot' }}"
+        sequence:
+          - service: mqtt.publish
+            data:
+              topic: "homeassistant/bttf-clock/{{ device_name }}/datapoint/{{ slot }}/month/set"
+              payload: "{{ marquee_month }}"
+          - service: mqtt.publish
+            data:
+              topic: "homeassistant/bttf-clock/{{ device_name }}/datapoint/{{ slot }}/day/set"
+              payload: "{{ marquee_day }}"
+          - service: mqtt.publish
+            data:
+              topic: "homeassistant/bttf-clock/{{ device_name }}/datapoint/{{ slot }}/year/set"
+              payload: "{{ marquee_year }}"
+          - service: mqtt.publish
+            data:
+              topic: "homeassistant/bttf-clock/{{ device_name }}/datapoint/{{ slot }}/time/set"
+              payload: "{{ marquee_time }}"

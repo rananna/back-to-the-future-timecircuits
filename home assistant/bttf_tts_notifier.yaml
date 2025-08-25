@@ -1,0 +1,91 @@
+blueprint:
+  name: BTTF Time Circuits - TTS Notifier
+  description: >-
+    Converts a text message into speech using Home Assistant's TTS engine and plays
+    it on the Time Circuits clock.
+  domain: automation
+  input:
+    time_circuits_device:
+      name: Time Circuits Display
+      selector:
+        device:
+          integration: mqtt
+          manufacturer: "Doc Brown Industries"
+    tts_entity:
+      name: TTS Media Player
+      description: The TTS media player entity to use (e.g., tts.google_say).
+      selector:
+        entity:
+          domain: media_player
+    message_text:
+      name: Message Text
+      description: The text you want the clock to say.
+      selector:
+        text:
+          multiline: true
+    volume:
+      name: Playback Volume
+      description: The volume for the TTS message (1-100).
+      default: 50
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+    display_message:
+      name: Display Text (Optional)
+      description: A message to show on the clock's display while the TTS is playing. Use '||' to separate lines.
+      selector:
+        text:
+
+variables:
+  device_id: !input time_circuits_device
+  clock_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
+  tts_volume: "{{ (volume / 100) | round(2) }}"
+  display_text: !input display_message
+  tts_entity_id: !input tts_entity
+
+action:
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ clock_id }}/override/command"
+      payload: "ON"
+  - choose:
+      - conditions: "{{ display_text != '' }}"
+        sequence:
+          - variables:
+              lines: "{{ display_text.split('||') }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/dest_month/command"
+              payload: "{{ lines[0] | default('') }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/pres_month/command"
+              payload: "{{ lines[1] | default('') }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf-clock/{{ clock_id }}/last_month/command"
+              payload: "{{ lines[2] | default('') }}"
+
+  - service: "{{ tts_entity_id | replace('media_player', 'tts') }}_say"
+    data:
+      entity_id: "{{ tts_entity_id }}"
+      message: !input message_text
+    response_variable: tts_response
+
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ clock_id }}/tts/play"
+      payload: "{{ tts_response.url }}"
+
+  - wait_for_trigger:
+      - platform: mqtt
+        topic: "bttf-clock/{{ clock_id }}/audio/state"
+        payload: "IDLE"
+    timeout: "00:01:00"
+
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ clock_id }}/override/command"
+      payload: "OFF"

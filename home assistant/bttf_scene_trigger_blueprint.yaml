@@ -21,8 +21,24 @@ blueprint:
         number:
           min: 1000
           max: 9999
+          
+    destination_date_time:
+      name: Destination Date and Time
+      description: The exact date and time to trigger the animation. Leave blank to trigger immediately.
+      default: ""
+      selector:
+        datetime:
 
-trigger: []
+trigger:
+  - platform: template
+    value_template: >-
+      {% if not destination_date_time %}
+        true
+      {% else %}
+        false
+      {% endif %}
+  - platform: time
+    at: !input destination_date_time
 
 variables:
   target_device_id: !input target_device
@@ -30,6 +46,8 @@ variables:
     {{ device_entities(target_device_id) | select('search', 'destination_year') | first }}
   trigger_anim_entity: >
     {{ device_entities(target_device_id) | select('search', 'trigger_animation') | first }}
+  ack_topic: >
+    "bttf-clock/{{ device_attr(target_device_id, 'identifiers')[0][1] }}/destination_year/state"
 
 action:
   - service: number.set_value
@@ -37,8 +55,11 @@ action:
       entity_id: "{{ dest_year_entity }}"
     data:
       value: !input destination_year
-  - delay:
-      milliseconds: 250
+  - wait_for_trigger:
+      - platform: mqtt
+        topic: "{{ ack_topic }}"
+        payload: "{{ destination_year }}"
+    timeout: "00:00:10"
   - service: button.press
     target:
       entity_id: "{{ trigger_anim_entity }}"

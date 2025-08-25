@@ -9,10 +9,20 @@
 #include <WiFi.h>
 #include <Preferences.h>
 #include <AudioOutputI2S.h> // Add this include for the 'out' object
+#include <AudioFileSourceHTTPStream.h>
+#include <AudioFileSourceICYStream.h>
+#include <AudioGeneratorMP3.h>
+#include  <LCBUrl.h> // Include for URL parsing
 
 // Make the global 'out' object from the main .ino file available here
 extern AudioOutputI2S *out;
 bool haDiscoveryPublished = false;
+
+// Audio Streaming Globals
+AudioGeneratorMP3 *audioGenerator = NULL;
+AudioFileSourceHTTPStream *fileSourceHttp = NULL;
+AudioFileSourceICYStream *fileSourceIcy = NULL;
+
 
 void setupMqtt() {
   if (currentSettings.mqttBroker.empty()) {
@@ -407,7 +417,19 @@ void publishHaAutoDiscovery() {
     serializeJson(doc, payload);
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
-
+    // New Audio sensor for stream state
+    doc.clear();
+    doc["name"] = "Audio Stream Status";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_audio_status";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_audio_status";
+    doc["state_topic"] = device_base_topic + "/audio/state";
+    doc["icon"] = "mdi:waveform";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/sensor/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    
     haDiscoveryPublished = true;
 }
 
@@ -433,6 +455,13 @@ void reconnectMqtt() {
         String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
         mqttClient.subscribe(command_topic.c_str());
 
+        // New subscriptions for TTS and radio streaming
+        String audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/tts/play";
+        mqttClient.subscribe(audio_topic.c_str());
+        audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/radio/command";
+        mqttClient.subscribe(audio_topic.c_str());
+
+
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
           if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !currentSettings.dataPoints[i].mqttTopic.empty()) {
             mqttClient.subscribe(currentSettings.dataPoints[i].mqttTopic.c_str());
@@ -448,6 +477,57 @@ void reconnectMqtt() {
     }
   }
 }
+
+void stopAudioStream() {
+    if (audioGenerator) {
+        audioGenerator->stop();
+        delete audioGenerator;
+        audioGenerator = NULL;
+    }
+    if (fileSourceHttp) {
+        fileSourceHttp->close();
+        delete fileSourceHttp;
+        fileSourceHttp = NULL;
+    }
+    if (fileSourceIcy) {
+        fileSourceIcy->close();
+        delete fileSourceIcy;
+        fileSourceIcy = NULL;
+    }
+    mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
+}
+
+void startAudioStream(const char* url, bool is_tts) {
+    stopAudioStream(); // Stop any currently playing audio
+
+    if (!hardwareInitialized || !out) {
+      Serial.println("Hardware not initialized, cannot play audio.");
+      return;
+    }
+
+    if (is_tts) {
+        fileSourceHttp = new AudioFileSourceHTTPStream(url);
+        audioGenerator = new AudioGeneratorMP3();
+        if (audioGenerator->begin(fileSourceHttp, out)) {
+            Serial.printf("Started playing TTS: %s\n", url);
+            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
+        } else {
+            Serial.println("Failed to start TTS playback.");
+            stopAudioStream();
+        }
+    } else { // Radio streamer
+        fileSourceIcy = new AudioFileSourceICYStream(url);
+        audioGenerator = new AudioGeneratorMP3();
+        if (audioGenerator->begin(fileSourceIcy, out)) {
+            Serial.printf("Started playing radio stream: %s\n", url);
+            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
+        } else {
+            Serial.println("Failed to start radio playback.");
+            stopAudioStream();
+        }
+    }
+}
+
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     String message = "";
@@ -830,6 +910,18 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             currentSettings.alphaVantageApiKey = message.c_str();
             settingsChanged = true;
         }
+        // NEW: TTS Notifier handler
+        else if (topicStr == base_topic + "tts/play") {
+            startAudioStream(message.c_str(), true);
+        }
+        // NEW: Radio Streamer handler
+        else if (topicStr == base_topic + "radio/command") {
+            if (message == "stop") {
+                stopAudioStream();
+            } else {
+                startAudioStream(message.c_str(), false);
+            }
+        }
     }
     else {
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
@@ -962,7 +1054,8 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/stock_row_1/state").c_str(), currentSettings.stockRow1_symbol.c_str(), true);
     mqttClient.publish((base_topic + "/stock_row_2/state").c_str(), currentSettings.stockRow2_symbol.c_str(), true);
     mqttClient.publish((base_topic + "/stock_row_3/state").c_str(), currentSettings.stockRow3_symbol.c_str(), true);
-    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), currentSettings.alphaVantageApiKey.c_str(), true);
+    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c-str(), currentSettings.alphaVantageApiKey.c_str(), true);
+    mqttClient.publish((base_topic + "/audio/state").c_str(), (audioGenerator && audioGenerator->isRunning()) ? "PLAYING" : "IDLE", true);
 
     publishTimeSensors();
 }
@@ -999,4 +1092,4 @@ void publishTimeSensors() {
     time_t ltd_time = mktime(&ltd_tm);
     strftime(iso_time, sizeof(iso_time), "%Y-%m-%dT%H:%M:%SZ", gmtime(&ltd_time));
     mqttClient.publish((base_topic + "/last_time_departed/state").c_str(), iso_time, true);
-}
+}   

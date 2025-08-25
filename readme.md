@@ -15,6 +15,24 @@
 
 ---
 
+### 📚 Overview
+
+This project is built around the **`back-to-the-future-timecircuits.ino`** file, which is the core firmware for the ESP32 microcontroller. It handles all the logic for the Time Circuits display, from managing network connections to controlling the animations and display content.
+
+#### Key Functions and Structure
+* **Setup (`setup()`):** This function runs once at boot to perform all initializations. It mounts the LittleFS file system, loads settings from non-volatile storage, connects to Wi-Fi, and initializes the physical display and audio components.
+* **Main Loop (`loop()`):** This is the main control center of the firmware, running continuously to manage the clock's dynamic features. It handles audio playback, manages MQTT connections, triggers display animations, and fetches real-time data for features like the weather and stock ticker.
+
+---
+
+#### Features and Their Implementation
+* **Time and Timezones:** A comprehensive list of timezones is defined in a static array, `TZ_DATA`, which allows the device to automatically synchronize its time with NTP servers and display it accurately for a wide range of global locations.
+* **Stock Ticker Mode:** The `isMarketOpen()` function checks if the US stock market is open, and if so, it triggers periodic data fetches from a specified API.
+* **Persistent Settings:** The `Preferences` library is used to save and load all user-configured settings, including destination times, display brightness, and API keys, ensuring they are retained even after the device loses power.
+* **Sequencer:** The `handleSequencer()` function allows for scripted, cinematic sequences by processing a series of commands, such as updating text, flashing lights, or playing sounds, in a specific order. This enables the famous time travel sequence seen in the movie.
+
+---
+
 ## 🌟 Features
 
 This project is more than just a clock; it's a feature-packed, interactive prop designed for fans and makers alike.

@@ -3,8 +3,15 @@
 
 #include <Arduino.h>
 #include <string>
+#include <AudioFileSourceHTTPStream.h>
+#include <AudioFileSourceICYStream.h>
+#include <AudioGeneratorMP3.h>
 
-// Corrected 'byte*' to 'unsigned char*' to match the library's expectation
+extern AudioOutputI2S *out;
+extern AudioGeneratorMP3 *audioGenerator;
+extern AudioFileSourceHTTPStream *fileSourceHttp;
+extern AudioFileSourceICYStream *fileSourceIcy;
+
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length);
 void setupMqtt();
 void reconnectMqtt();
@@ -14,6 +21,8 @@ void publishAllHaStates();
 void clearHaEntity(const char* component, const char* unique_id_suffix);
 void publishDeviceTriggers();
 void publishTimeSensors();
+void startAudioStream(const char* url, bool is_tts);
+void stopAudioStream();
 
 
 #endif // MQTT_MANAGER_H
