@@ -382,6 +382,14 @@
                 </div>
             </div>
             <div class="setting-group">
+                <h3>Firmware Update (OTA)</h3>
+                <p>Upload a new firmware (.bin) file to update the device over the air.</p>
+                <form method="POST" action="/update" enctype="multipart/form-data">
+                    <input type="file" name="update" accept=".bin">
+                    <button type="submit">Upload and Update Firmware</button>
+                </form>
+            </div>
+            <div class="setting-group">
                 <h3>UI Theme</h3>
                 <div id="themeSelector" class="theme-selector">
                     <div class="theme-option" data-theme="theme-time-circuits">

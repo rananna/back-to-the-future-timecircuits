@@ -380,7 +380,7 @@ void fetchDataLink() {
 		for (int i = 0; i < currentSettings.numDataPoints; i++) {
 			if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_API && !currentSettings.dataPoints[i].url.empty()) {
 				FetchDataParams* params = new FetchDataParams{ i, 0 };
-				if (xTaskCreate(fetchApiDataTask, "fetchApiDataTask", 8192, params, 1, NULL) == pdPASS) {
+				if (xTaskCreatePinnedToCore(fetchApiDataTask, "fetchApiDataTask", 8192, params, 1, NULL, 0) == pdPASS) {
 					tasksCreated++;
 				}
 				else {

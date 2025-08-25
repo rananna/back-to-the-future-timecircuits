@@ -9,6 +9,7 @@
 #include <string>
 #include <WiFi.h>
 #include <AudioOutputI2S.h> // Add this include for the 'out' object
+#include <Update.h>
 
 // Make the global 'out' object from the main .ino file available here
 extern AudioOutputI2S *out;
@@ -683,5 +684,32 @@ void setupWebRoutes() {
   server.onNotFound([](AsyncWebServerRequest *request){
     Serial.printf("WEB_LOG: 404 Not Found: %s\n", request->url().c_str());
     request->send(404, "text/plain", "Not found");
+  });
+
+  server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Update successful! Rebooting...");
+    response->addHeader("Connection", "close");
+    request->send(response);
+    
+    ESP.restart();
+  }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+    if(!index){
+      Serial.printf("Update Start: %s\n", filename.c_str());
+      if(!Update.begin(UPDATE_SIZE_UNKNOWN)){
+        Update.printError(Serial);
+      }
+    }
+    if(len){
+      if(Update.write(data, len) != len){
+        Update.printError(Serial);
+      }
+    }
+    if(final){
+      if(!Update.end(true)){
+        Update.printError(Serial);
+      } else {
+        Serial.println("Update complete!");
+      }
+    }
   });
 }

@@ -40,14 +40,11 @@ void handleSequencer();
 bool isMarketOpen();
 bool attemptHardwareInit(); // New function for safe hardware init
 void handleAudio();
-
 // --- AUDIO LIBRARY GLOBALS ---
 AudioFileSourceLittleFS *file;
 AudioOutputI2S *out;
 AudioGeneratorMP3 *mp3;
 bool isPlayingSound = false;
-
-
 // --- GLOBAL VARIABLES & CONSTANTS ---
 ClockSettings currentSettings;
 MarqueeData displayPages[5];
@@ -57,7 +54,8 @@ StockData stockData[3];
 unsigned long lastStockDataFetch = 0;
 std::string lastCityName = "";
 unsigned long bootTimestamp = 0;
-bool hardwareInitialized = false; // New global flag for hardware status
+bool hardwareInitialized = false;
+// New global flag for hardware status
 // To track when the boot process finishes
 const TimeZoneEntry TZ_DATA[] = {
 	{ "UTC0", "UTC", "Etc/UTC", "Global" },
@@ -152,7 +150,6 @@ SequenceStep sequence[20];
 int currentSequenceStep = 0;
 unsigned long sequenceStepStartTime = 0;
 bool isSequenceActive = false;
-
 void saveSettings() {
     Serial.println("--- Saving Settings ---");
 	preferences.begin(PREFERENCES_NAMESPACE, false);
@@ -200,7 +197,6 @@ void saveSettings() {
 	preferences.putString("stRow3Sym", currentSettings.stockRow3_symbol.c_str());
     Serial.printf("Saving avApiKey: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
 	preferences.putString("avApiKey", currentSettings.alphaVantageApiKey.c_str());
-
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
 		preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url.c_str());
@@ -321,7 +317,6 @@ void loadSettings() {
 
 		tempString = preferences.getString("mqttPass", "");
 		currentSettings.mqttPassword = tempString.c_str();
-
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
 		tempString = preferences.getString("cityName", "New York");
 		currentSettings.cityName = tempString.c_str();
@@ -352,53 +347,44 @@ void loadSettings() {
 
 			tempString = preferences.getString((prefix + "monthPath").c_str(), "");
 			currentSettings.dataPoints[i].monthPath = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "dayPath").c_str(), "");
 			currentSettings.dataPoints[i].dayPath = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "yearPath").c_str(), "");
 			currentSettings.dataPoints[i].yearPath = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "timePath").c_str(), "");
 			currentSettings.dataPoints[i].timePath = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "prefix").c_str(), "");
 			currentSettings.dataPoints[i].prefix = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "suffix").c_str(), "");
 			currentSettings.dataPoints[i].suffix = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "icon").c_str(), "");
 			currentSettings.dataPoints[i].icon = tempString.c_str();
-
 			currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
 			currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
 
 			tempString = preferences.getString((prefix + "topic").c_str(), "");
 			currentSettings.dataPoints[i].mqttTopic = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "yearPrefix").c_str(), "");
 			currentSettings.dataPoints[i].yearPrefix = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "yearSuffix").c_str(), "");
 			currentSettings.dataPoints[i].yearSuffix = tempString.c_str();
-
 			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
 
 			tempString = preferences.getString((prefix + "scrollTxt").c_str(), "");
 			currentSettings.dataPoints[i].scrollingText = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "authKey").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderKey = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "authVal").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderValue = tempString.c_str();
-
 			currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
 			
 			tempString = preferences.getString((prefix + "reqBody").c_str(), "");
 			currentSettings.dataPoints[i].requestBody = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "apiKey").c_str(), "");
 			currentSettings.dataPoints[i].apiExampleKey = tempString.c_str();
 		}
@@ -444,7 +430,7 @@ bool attemptHardwareInit() {
 }
 
 void setup() {
-	Serial.begin(115200);
+	Serial.begin(921600);
 	delay(1000);
 
 	Serial.println(F("\n\n--- BOOTING ---"));
@@ -466,8 +452,7 @@ void setup() {
     delay(10);
 	xDisplayDataMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
-
-    // --- START NETWORKING AND WEB SERVER FIRST ---
+	// --- START NETWORKING AND WEB SERVER FIRST ---
 	wifiManager.autoConnect("BTTF-Clock-Setup");
 	ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
 	Serial.printf("BOOT_LOG: WiFi connected. IP: %s\n", WiFi.localIP().toString().c_str());
@@ -483,13 +468,11 @@ void setup() {
 	setupWebRoutes();
     Serial.println(F("WEB_LOG: Web routes configured. Starting server..."));
 	server.begin();
-	mqttClient.setBufferSize(2048);
 	ESP_LOGI("Web", "HTTP server started.");
     Serial.println(F("WEB_LOG: Web server started... OK"));
 
     // --- SAFELY ATTEMPT TO INITIALIZE HARDWARE ---
     hardwareInitialized = attemptHardwareInit();
-
     // --- INITIALIZE I2S AUDIO ---
     if(hardwareInitialized) {
         out = new AudioOutputI2S();
@@ -507,7 +490,7 @@ void setup() {
 	setupMqtt();
 	Serial.println(F("BOOT_LOG: MQTT setup initiated."));
 	ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
-    Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
+	Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
 	Serial.println(F("BOOT_LOG: Calling runBootSequence()..."));
 	runBootSequence();
 	Serial.println(F("--- BOOT COMPLETE ---"));
@@ -522,7 +505,7 @@ bool isMarketOpen() {
 
     struct tm timeinfo;
     getLocalTime(&timeinfo);
-	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
 
     if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
@@ -572,8 +555,7 @@ void loop() {
     }
     
     handleSequencer();
-    
-	if (!isMalfunctioning && !isAnimating) {
+    if (!isMalfunctioning && !isAnimating) {
         if (hardwareInitialized) {
 		    restoreDisplayAfterGlitch();
             handleTemporalEcho();
@@ -584,8 +566,8 @@ void loop() {
 				static unsigned long lastWeatherFetch = 0;
                 if (millis() - lastWeatherFetch > 300000) {
 					lastWeatherFetch = millis();
-					WeatherTaskParams* params = new WeatherTaskParams{ currentSettings.cityName, false };
-                    xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL);
+                    WeatherTaskParams* params = new WeatherTaskParams{ currentSettings.cityName, false };
+                    xTaskCreatePinnedToCore(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL, 0);
 				}
 			}
 
@@ -597,7 +579,7 @@ void loop() {
                         lastStockDataFetch = millis();
                         for (int i=0; i<3; ++i) {
                             FetchDataParams* params = new FetchDataParams{ i, 0 };
-                            xTaskCreate(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL);
+                            xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
                         }
                     }
                 }
@@ -710,11 +692,9 @@ void handleSleepSchedule() {
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
   int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
-  
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     if (hardwareInitialized) {

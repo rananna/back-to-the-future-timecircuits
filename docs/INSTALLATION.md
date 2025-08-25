@@ -4,19 +4,18 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 
 ## 🛠️ Bill of Materials (BOM)
 
-| Category          | Component                                                                  | Qty | Notes                                                                   |
-| :---------------- | :------------------------------------------------------------------------- | :-: | :---------------------------------------------------------------------- |
-| **Microcontroller** | [ESP32 Dev Module](https://www.aliexpress.com/item/1005006212080137.html)     |  1  | A **38-pin** module is required for this project.                           |
-| **Audio** | [MAX98357A I2S DAC Amplifier](https://www.aliexpress.com/item/1005005929311653.html) |  1  | For playing sound effects directly from the ESP32. |
-|                   | [Small 8 Ohm Speaker](https://www.aliexpress.com/item/1005006682079525.html)      |  1  | A 0.5W or 1W speaker is sufficient.                                     |
-| **Displays** | **Adafruit HT16K33 14-Segment Alphanumeric Displays** | 12  | The core of the display. Ensure they are the **14-segment "Alphanumeric"** type. |
-| **Indicators** | [5mm LEDs (Any Color)](https://www.aliexpress.com/item/1005003912454852.html)         |  6  | For the AM/PM indicators on each row.                                   |
-| **Passive Comp.** | [220-330Ω Resistors](https://www.aliexpress.com/item/1005002091320103.html)   |  6  | Current-limiting resistors for the LEDs.                                |
-| **Prototyping** | [Dupont Jumper Wires](https://www.aliexpress.com/item/1005003641187997.html)      | 1 set| For connecting all components.                                          |
-| **Power** | 5V Power Supply                                                          |  1  | A supply rated for at least **2A** is recommended to power the ESP32 and all 12 displays. |
+| Category | Component | Qty | Notes |
+| :--- | :--- | :-: | :--- |
+| **Microcontroller** | [ESP32 Dev Module](https://www.aliexpress.com/item/1005006212080137.html) | 1 | A **38-pin** module is required for this project. |
+| **Audio** | [MAX98357A I2S DAC Amplifier](https://www.aliexpress.com/item/1005005929311653.html) | 1 | For playing sound effects directly from the ESP32. |
+| | [Small 8 Ohm Speaker](https://www.aliexpress.com/item/1005006682079525.html) | 1 | A 0.5W or 1W speaker is sufficient. |
+| **Displays** | **Adafruit HT16K33 14-Segment Alphanumeric Displays** | 12 | The core of the display. Ensure they are the **14-segment "Alphanumeric"** type. |
+| **Indicators** | [5mm LEDs (Any Color)](https://www.aliexpress.com/item/1005003912454852.html) | 6 | For the AM/PM indicators on each row. |
+| **Passive Comp.** | [220-330Ω Resistors](https://www.aliexpress.com/item/1005002091320103.html) | 6 | Current-limiting resistors for the LEDs. |
+| **Prototyping** | [Dupont Jumper Wires](https://www.aliexpress.com/item/1005003641187997.html) | 1 set| For connecting all components. |
+| **Power** | 5V Power Supply | 1 | A supply rated for at least **2A** is recommended to power the ESP32 and all 12 displays. |
 
 ---
-
 ## 🔌 Wiring & Schematics
 
 ![schematic diagram](../images/bttf_bb.png)
@@ -32,11 +31,11 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 | **I2C Bus 2 (SDA)** | `GPIO 25` | Blue | Connects to the SDA pin of the 4 "Last Time Departed" row displays. |
 | **I2C Bus 2 (SCL)** | `GPIO 26` | White | Connects to the SCL pin of the 4 "Last Time Departed" row displays. |
 | **I2S DIN (Data)** | `GPIO 5` | Gray | Connects to the **DIN** pin of the MAX98357A. |
-| **I2S BCLK (Bit Clock)** | `GPIO 17` | Orange | Connects to the **BCLK** pin of the MAX98357A. |
-| **I2S LRC (Word Select)** | `GPIO 16` | Purple | Connects to the **LRC** pin of the MAX98357A. |
+| **I2S BCLK (Bit Clock)**| `GPIO 17` | Orange | Connects to the **BCLK** pin of the MAX98357A. |
+| **I2S LRC (Word Select)**|`GPIO 16` | Purple | Connects to the **LRC** pin of the MAX98357A. |
 | **I2S SD (Shutdown)** | `GPIO 18` | Brown | Connects to the **SD** pin of the MAX98357A. |
-| **Destination AM LED** | `GPIO 13` | | Connects to the anode (+) of the AM LED for the Destination row. |
-| **Destination PM LED** | `GPIO 14` | | Connects to the anode (+) of the PM LED for the Destination row. |
+| **Destination AM LED**| `GPIO 13` | | Connects to the anode (+) of the AM LED for the Destination row. |
+| **Destination PM LED**| `GPIO 14` | | Connects to the anode (+) of the PM LED for the Destination row. |
 | **Present AM LED** | `GPIO 32` | | Connects to the anode (+) of the AM LED for the Present row. |
 | **Present PM LED** | `GPIO 27` | | Connects to the anode (+) of the PM LED for the Present row. |
 | **Last Dept. AM LED** | `GPIO 2` | | Connects to the anode (+) of the Last Departed row LED. |
@@ -45,7 +44,6 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 | **Ground (GND)** | `GND` | Black | Connects all GND pins to a common ground rail. |
 
 ---
-
 ## 🔩 3D Printed Case & Assembly
 
 A 3D printed enclosure is highly recommended for a professional finish.
@@ -58,17 +56,21 @@ A 3D printed enclosure is highly recommended for a professional finish.
 * **Assembly Order**: It is highly recommended to install the LEDs into the case *first*, as they are difficult to access once the display modules are in place.
 
 ---
-
 ## 💾 Software Installation
 
 1.  **Install Arduino IDE and ESP32 Core**:
     * Download and install the [Arduino IDE](https://www.arduino.cc/en/software).
     * Follow [these instructions](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html) to add the ESP32 board manager.
 
-2.  **Configure the Partition Scheme**:
-    > ⚠️ **Critical Step:** You **must** change the Partition Scheme to accommodate the large application size.
-    * In the Arduino IDE, navigate to `Tools` -> `Partition Scheme`.
-    * Select **"Huge APP (3MB No OTA/1MB SPIFFS)"**.
+2.  **Understanding the Custom Partition Scheme**:
+    > ⚠️ **Critical Step:** This project uses a custom partition scheme to allocate the necessary space for the application and the filesystem on a 16MB ESP32. By selecting "Custom" in the IDE, you are telling it to use the `partitions_custom.csv` file located in the sketch folder.
+
+    This partition scheme is structured as follows:
+    * **`nvs` (20KB):** Non-Volatile Storage for system settings like Wi-Fi credentials.
+    * **`otadata` (8KB):** Stores data to manage Over-The-Air (OTA) updates.
+    * **`app0` (3MB):** The primary partition where the main firmware runs.
+    * **`app1` (3MB):** A secondary partition used to store new firmware during an OTA update.
+    * **`ffat` (~9.9MB):** A large FAT filesystem partition. This is where all your sound files (MP3s) and web interface files (`index.html`, etc.) will be stored.
 
 3.  **Install Required Libraries**:
     * Open the Library Manager (`Sketch` -> `Include Library` -> `Manage Libraries...`).
@@ -100,9 +102,9 @@ A 3D printed enclosure is highly recommended for a professional finish.
 | **Last Departed** | Year | **0x72** | Leave Open | **Solder Bridge** | Leave Open |
 | **Last Departed** | Time | **0x73** | Leave Open | **Solder Bridge** | **Solder Bridge** |
 
-5.  **Upload Web Interface & Sound Files to LittleFS**:
-    * Install the **Arduino ESP32 filesystem uploader** tool from [here](https://github.com/earlephilhower/arduino-littlefs-upload).
-    * Copy your sound files (e.g., `TIME_TRAVEL.mp3`) into the `data` folder alongside `index.html`.
+5.  **Upload Web Interface & Sound Files to Filesystem**:
+    * Install the **Arduino ESP32 filesystem uploader** tool. For FATFS, use the tool from [here](https://github.com/earlephilhower/arduino-esp32fs-plugin).
+    * Copy your sound files (e.g., `TIME_TRAVEL.mp3`) and web files (`index.html`, etc.) into the `data` folder within your sketch directory.
     * In the Arduino IDE, select `Tools` -> `ESP32 Sketch Data Upload`.
 
 6.  **Upload the Main Code**:
