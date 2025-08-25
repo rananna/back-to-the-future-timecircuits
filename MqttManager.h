@@ -6,6 +6,7 @@
 #include <AudioFileSourceHTTPStream.h>
 #include <AudioFileSourceICYStream.h>
 #include <AudioGeneratorMP3.h>
+#include <AudioOutputI2S.h>
 
 extern AudioOutputI2S *out;
 extern AudioGeneratorMP3 *audioGenerator;

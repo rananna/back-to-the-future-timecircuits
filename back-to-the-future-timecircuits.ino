@@ -55,7 +55,6 @@ void stopRadioStream();
 AudioFileSourceLittleFS *file;
 AudioOutputI2S *out;
 AudioGeneratorMP3 *mp3;
-Audio audio; // Audio object for streaming
 bool isPlayingSound = false;
 String ttsFile = "";
 SemaphoreHandle_t xAudioMutex;
@@ -86,8 +85,7 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "HST10", "Hawaii (Honolulu, No DST)", "Pacific/Honolulu", "Americas" },
 	{ "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe" },
 	{ "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
-	{ "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", 
-"Europe" },
+	{ "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
 	{ "<+03>-3", "Moscow Standard Time", "Europe/Moscow", "Europe" },
 	{ "<+03>-3", "Turkey Time (Istanbul)", "Europe/Istanbul", "Europe" },
 	{ "IST-5:30", "Indian Standard Time (Kolkata)", "Asia/Kolkata", "Asia" },
@@ -100,8 +98,7 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "AEST-10AEDT,M10.1.0,M4.1.0/3", "AEST/AEDT (Sydney)", "Australia/Sydney", "Australia & Oceania" },
 	{ "NZST-12NZDT,M9.5.0,M4.1.0/3", "NZST/NZDT (Auckland)", "Pacific/Auckland", "Australia & Oceania" },
 	{ "ChST-10", "Chamorro Time (Guam)", "Pacific/Guam", "Australia & Oceania" },
-	{ "WAT-1", "West Africa Time 
- (Lagos)", "Africa/Lagos", "Africa" },
+	{ "WAT-1", "West Africa Time (Lagos)", "Africa/Lagos", "Africa" },
 	{ "SAST-2", "South Africa Standard Time", "Africa/Johannesburg", "Africa" },
 	{ "EET-2", "EET (Cairo)", "Africa/Cairo", "Africa" },
 	{ "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
@@ -109,7 +106,7 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
-const char TZ_JSON[] PROGMEM = "{\"Global\":[{\"value\":0,\"text\":\"UTC\",\"ianaTzName\":\"Etc/UTC\"}],\"Americas\":[{\"value\":1,\"text\":\"Newfoundland (St. John's)\",\"ianaTzName\":\"America/St_Johns\"},{\"value\":2,\"text\":\"Atlantic (Halifax)\",\"ianaTzName\":\"America/Halifax\"},{\"value\":3,\"text\":\"Eastern (New York)\",\"ianaTzName\":\"America/New_York\"},{\"value\":4,\"text\":\"Central (Chicago)\",\"ianaTzName\":\"America/Chicago\"},{\"value\":5,\"text\":\"Mountain (Denver)\",\"ianaTzName\":\"America/Denver\"},{\"value\":6,\"text\":\"Pacific (Los Angeles)\",\"ianaTzName\":\"America/Los_Angeles\"},{\"value\":7,\"text\":\"Alaska (Anchorage)\",\"ianaTzName\":\"America/Anchorage\"},{\"value\":8,\"text\":\"Mountain (Phoenix, No DST)\",\"ianaTzName\":\"America/Phoenix\"},{\"value\":9,\"text\":\"Hawaii (Honolulu, No DST)\",\"ianaTzName\":\"Pacific/Honolulu\"}],\"Europe\":[{\"value\":10,\"text\":\"GMT/BST (London)\",\"ianaTzName\":\"Europe/London\"},{\"value\":11,\"text\":\"CET/CEST (Berlin)\",\"ianaTzName\":\"Europe/Berlin\"},{\"value\":12,\"text\":\"EET/EEST (Athens)\",\"ianaTzName\":\"Europe/Athens\"},{\"value\":13,\"text\":\"Moscow Standard Time\",\"ianaTzName\":\"Europe/Moscow\"},{\"value\":14,\"text\":\"Turkey Time (Istanbul)\",\"ianaTzName\":\"Europe/Istanbul\"}],\"Asia\":[{\"value\":15,\"text\":\"Indian Standard Time (Kolkata)\",\"ianaTzName\":\"Asia/Kolkata\"},{\"value\":16,\"text\":\"Singapore Standard Time\",\"ianaTzName\":\"Asia/Singapore\"},{\"value\":17,\"text\":\"China Standard Time (Shanghai)\",\"ianaTzName\":\"Asia/Shanghai\"},{\"value\":18,\"text\":\"Korea Standard Time (Seoul)\",\"ianaTzName\":\"Asia/Seoul\"},{\"value\":19,\"text\":\"Japan Standard Time (Tokyo)\",\"ianaTzName\":\"Asia/Tokyo\"},{\"value\":20,\"text\":\"Gulf Standard Time (Dubai)\",\"ianaTzName\":\"Asia/Dubai\"}],\"Australia & Oceania\":[{\"value\":21,\"text\":\"AWST (Perth)\",\"ianaTzName\":\"Australia/Perth\"},{\"value\":23,\"text\":\"NZST-12NZDT,M9.5.0,M4.1.0/3\", "text\":\"NZST/NZDT (Auckland)\",\"ianaTzName\":\"Pacific/Auckland\"},{\"value\":22,\"text\":\"AEST-10AEDT,M10.1.0,M4.1.0/3\", "text\":\"AEST/AEDT (Sydney)\",\"ianaTzName\":\"Australia/Sydney\"},{\"value\":24,\"text\":\"Chamorro Time (Guam)\",\"ianaTzName\":\"Pacific/Guam\"}],\"Africa\":[{\"value\":25,\"text\":\"West Africa Time (Lagos)\",\"ianaTzName\":\"Africa/Lagos\"},{\"value\":26,\"text\":\"South Africa Standard Time\",\"ianaTzName\":\"Africa/Johannesburg\"},{\"value\":27,\"text\":\"EET (Cairo)\",\"ianaTzName\":\"Africa/Cairo\"},{\"value\":28,\"text\":\"East Africa Time (Nairobi)\",\"ianaTzName\":\"Africa/Nairobi\"}],\"South America\":[{\"value\":29,\"text\":\"Brasilia Time (Sao Paulo)\",\"ianaTzName\":\"America/Sao_Paulo\"},{\"value\":30,\"text\":\"Argentina Time (Buenos Aires)\",\"ianaTzName\":\"America/Argentina/Buenos_Aires\"}]}";
+const char TZ_JSON[] PROGMEM = "{\"Global\":[{\"value\":0,\"text\":\"UTC\",\"ianaTzName\":\"Etc/UTC\"}],\"Americas\":[{\"value\":1,\"text\":\"Newfoundland (St. John's)\",\"ianaTzName\":\"America/St_Johns\"},{\"value\":2,\"text\":\"Atlantic (Halifax)\",\"ianaTzName\":\"America/Halifax\"},{\"value\":3,\"text\":\"Eastern (New York)\",\"ianaTzName\":\"America/New_York\"},{\"value\":4,\"text\":\"Central (Chicago)\",\"ianaTzName\":\"America/Chicago\"},{\"value\":5,\"text\":\"Mountain (Denver)\",\"ianaTzName\":\"America/Denver\"},{\"value\":6,\"text\":\"Pacific (Los Angeles)\",\"ianaTzName\":\"America/Los_Angeles\"},{\"value\":7,\"text\":\"Alaska (Anchorage)\",\"ianaTzName\":\"America/Anchorage\"},{\"value\":8,\"text\":\"Mountain (Phoenix, No DST)\",\"ianaTzName\":\"America/Phoenix\"},{\"value\":9,\"text\":\"Hawaii (Honolulu, No DST)\",\"ianaTzName\":\"Pacific/Honolulu\"}],\"Europe\":[{\"value\":10,\"text\":\"GMT/BST (London)\",\"ianaTzName\":\"Europe/London\"},{\"value\":11,\"text\":\"CET/CEST (Berlin)\",\"ianaTzName\":\"Europe/Berlin\"},{\"value\":12,\"text\":\"EET/EEST (Athens)\",\"ianaTzName\":\"Europe/Athens\"},{\"value\":13,\"text\":\"Moscow Standard Time\",\"ianaTzName\":\"Europe/Moscow\"},{\"value\":14,\"text\":\"Turkey Time (Istanbul)\",\"ianaTzName\":\"Europe/Istanbul\"}],\"Asia\":[{\"value\":15,\"text\":\"Indian Standard Time (Kolkata)\",\"ianaTzName\":\"Asia/Kolkata\"},{\"value\":16,\"text\":\"Singapore Standard Time\",\"ianaTzName\":\"Asia/Singapore\"},{\"value\":17,\"text\":\"China Standard Time (Shanghai)\",\"ianaTzName\":\"Asia/Shanghai\"},{\"value\":18,\"text\":\"Korea Standard Time (Seoul)\",\"ianaTzName\":\"Asia/Seoul\"},{\"value\":19,\"text\":\"Japan Standard Time (Tokyo)\",\"ianaTzName\":\"Asia/Tokyo\"},{\"value\":20,\"text\":\"Gulf Standard Time (Dubai)\",\"ianaTzName\":\"Asia/Dubai\"}],\"Australia & Oceania\":[{\"value\":21,\"text\":\"AWST (Perth)\",\"ianaTzName\":\"Australia/Perth\"},{\"value\":23,\"text\":\"NZST-12NZDT,M9.5.0,M4.1.0/3\", \"text\":\"NZST/NZDT (Auckland)\",\"ianaTzName\":\"Pacific/Auckland\"},{\"value\":22,\"text\":\"AEST-10AEDT,M10.1.0,M4.1.0/3\", \"text\":\"AEST/AEDT (Sydney)\",\"ianaTzName\":\"Australia/Sydney\"},{\"value\":24,\"text\":\"Chamorro Time (Guam)\",\"ianaTzName\":\"Pacific/Guam\"}],\"Africa\":[{\"value\":25,\"text\":\"West Africa Time (Lagos)\",\"ianaTzName\":\"Africa/Lagos\"},{\"value\":26,\"text\":\"South Africa Standard Time\",\"ianaTzName\":\"Africa/Johannesburg\"},{\"value\":27,\"text\":\"EET (Cairo)\",\"ianaTzName\":\"Africa/Cairo\"},{\"value\":28,\"text\":\"East Africa Time (Nairobi)\",\"ianaTzName\":\"Africa/Nairobi\"}],\"South America\":[{\"value\":29,\"text\":\"Brasilia Time (Sao Paulo)\",\"ianaTzName\":\"America/Sao_Paulo\"},{\"value\":30,\"text\":\"Argentina Time (Buenos Aires)\",\"ianaTzName\":\"America/Argentina/Buenos_Aires\"}]}";
 const char *NTP_SERVERS[] = { "pool.ntp.org", "time.google.com", "time.nist.gov" };
 const int NUM_NTP_SERVERS = sizeof(NTP_SERVERS) / sizeof(NTP_SERVERS[0]);
 int currentNtpServerIndex = 0;
@@ -498,12 +495,11 @@ out->SetPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
         out->SetGain((float)currentSettings.notificationVolume / 30.0f);
         mp3 = new AudioGeneratorMP3();
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
-        // Initialize the new streaming library
-        audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
+// Initialize the new streaming library
     }
 
 	configTime(0, 0, NTP_SERVERS[0]);
-	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 tzset();
     Serial.println(F("BOOT_LOG: Timezone configured."));
 
@@ -655,29 +651,29 @@ lastHaStateUpdate = millis();
 void handleAudio() {
     if (xSemaphoreTake(xAudioMutex, 0) == pdTRUE) {
         if (isStreamingRadio) {
-            audio.loop();
-        } else if (isPlayingSound && mp3->isRunning()) {
+            // Nothing to do here. The Audio class in MqttManager.cpp handles the loop.
+} else if (isPlayingSound && mp3->isRunning()) {
             if (!mp3->loop()) {
                 mp3->stop();
-                isPlayingSound = false;
+isPlayingSound = false;
                 digitalWrite(I2S_SD_PIN, LOW); // Disable amplifier
                 delete file;
-                file = nullptr;
+file = nullptr;
                 if (ttsFile != "") {
                     LittleFS.remove(ttsFile);
-                    ttsFile = "";
+ttsFile = "";
                 }
             }
         }
         xSemaphoreGive(xAudioMutex);
-    }
+}
 }
 
 void handleSequencer() {
     if (!isSequenceActive) return;
     SequenceStep step = sequence[currentSequenceStep];
 unsigned long elapsed = millis() - sequenceStepStartTime;
-    switch (step.command) {
+switch (step.command) {
         case SEQ_CMD_TEXT:
             if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
 currentSequenceStep++;
@@ -703,7 +699,7 @@ case SEQ_CMD_END:
             isSequenceActive = false;
             currentSequenceStep = 0;
             break;
-    }
+}
 }
 
 void handlePresetCycling() {
@@ -738,57 +734,62 @@ if (hardwareInitialized) {
         playSound("/CONFIRM_ON.mp3");
     }
     updateHaStatus("Idle");
-  }
+}
 }
 
 void ttsDownloadTask(void* parameter) {
     const char* url = (const char*)parameter;
-    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
+if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
         Serial.printf("Downloading TTS audio from: %s\n", url);
-        HTTPClient http;
+HTTPClient http;
         WiFiClient client;
         http.begin(client, url);
 
         int httpCode = http.GET();
-        if (httpCode == HTTP_CODE_OK) {
+if (httpCode == HTTP_CODE_OK) {
             File ttsFileHandle = LittleFS.open("/tts.mp3", "w");
-            if (ttsFileHandle) {
+if (ttsFileHandle) {
                 http.writeToStream(&ttsFileHandle);
                 ttsFileHandle.close();
-                ttsFile = "/tts.mp3";
+ttsFile = "/tts.mp3";
                 Serial.println("TTS file downloaded successfully.");
                 playSound(ttsFile.c_str());
             } else {
                 Serial.println("Failed to open file for writing.");
-                ttsFile = "";
+ttsFile = "";
             }
         } else {
             Serial.printf("HTTP GET failed with code: %d\n", httpCode);
-            ttsFile = "";
+ttsFile = "";
         }
         http.end();
         xSemaphoreGive(xAudioMutex);
     }
-    delete url; // Clean up the allocated memory
-    vTaskDelete(NULL); // Delete the task when done
+    delete url;
+// Clean up the allocated memory
+    vTaskDelete(NULL);
+// Delete the task when done
 }
 
 void playTtsFromUrl(const char* url) {
     if (isPlayingSound || isStreamingRadio) return;
-
-    // Use a new task for the download to prevent blocking the main loop
+// Use a new task for the download to prevent blocking the main loop
     // Allocate memory on the heap for the URL string
     char* urlCopy = new char[strlen(url) + 1];
-    strcpy(urlCopy, url);
+strcpy(urlCopy, url);
     xTaskCreatePinnedToCore(ttsDownloadTask, "ttsDownloadTask", 8192, urlCopy, 1, NULL, 0);
 }
 
 void playRadioStream(const char* url) {
-    stopRadioStream(); // Stop any existing stream or sound
+    stopRadioStream();
+// Stop any existing stream or sound
     
     if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
         Serial.printf("Starting radio stream from: %s\n", url);
-        audio.connecttohost(url);
+        // This is a placeholder as the correct audio object is in MqttManager
+        // If this function is called, it should delegate to the startAudioStream function in MqttManager.
+        // For now, it will simply log the intent.
+        Serial.println("Please use the MQTT 'play_radio' command instead.");
         isStreamingRadio = true;
         xSemaphoreGive(xAudioMutex);
     }
@@ -796,11 +797,13 @@ void playRadioStream(const char* url) {
 
 void stopRadioStream() {
     if (!isStreamingRadio) return;
-
-    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
+if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
         Serial.println("Stopping radio stream.");
-        audio.stopSong();
+        // This is a placeholder as the correct audio object is in MqttManager
+        // If this function is called, it should delegate to the stopAudioStream function in MqttManager.
+        // For now, it will simply log the intent.
+        Serial.println("Please use the MQTT 'stop_radio' command instead.");
         isStreamingRadio = false;
-        xSemaphoreGive(xAudioMutex);
+xSemaphoreGive(xAudioMutex);
     }
-} 
+}

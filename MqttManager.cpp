@@ -1054,7 +1054,7 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/stock_row_1/state").c_str(), currentSettings.stockRow1_symbol.c_str(), true);
     mqttClient.publish((base_topic + "/stock_row_2/state").c_str(), currentSettings.stockRow2_symbol.c_str(), true);
     mqttClient.publish((base_topic + "/stock_row_3/state").c_str(), currentSettings.stockRow3_symbol.c_str(), true);
-    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c-str(), currentSettings.alphaVantageApiKey.c_str(), true);
+   mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), currentSettings.alphaVantageApiKey.c_str(), true);
     mqttClient.publish((base_topic + "/audio/state").c_str(), (audioGenerator && audioGenerator->isRunning()) ? "PLAYING" : "IDLE", true);
 
     publishTimeSensors();
