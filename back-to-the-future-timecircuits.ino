@@ -430,7 +430,7 @@ bool attemptHardwareInit() {
 }
 
 void setup() {
-	Serial.begin(115200);
+	Serial.begin(921600);
 	delay(1000);
 
 	Serial.println(F("\n\n--- BOOTING ---"));
