@@ -1,20 +1,16 @@
 #ifndef DATA_MANAGER_H
 #define DATA_MANAGER_H
 
-#include <ArduinoJson.h>
-#include <string>
+#include "types.h"
+#include <Preferences.h>
 
-struct WeatherTaskParams {
-    std::string cityName;
-    bool forceGeocode;
-};
+// Function declarations
+void saveSettings();
+void loadSettings();
+void resetToDefaults();
+void applyJsonToSettings(const String& jsonString);
 
-void fetchDataLink();
-void fetchWeatherData(struct WeatherTaskParams* params);
-void fetchWeatherDataTask(void* p);
-void forceFetchWeatherDataTask(void* p);
-void fetchStockDataTask(void* p);
-String urlEncode(const char* msg);
-JsonVariant getJsonVariant(JsonVariant root, const char* path);
+extern ClockSettings currentSettings;
+extern Preferences preferences;
 
-#endif // DATA_MANAGER_H
+#endif // DATAMANAGER_H

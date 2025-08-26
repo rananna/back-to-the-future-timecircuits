@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Temporal Diagnostics Interface</title>
+    <style>
+        /* Base Theming: inspired by the BTTF Time Circuits */
+        body {
+            background-color: #000;
+            font-family: 'BTTF-Display', 'Consolas', 'Courier New', monospace;
+            color: #ff9900;
+            text-align: center;
+            padding-top: 20px;
+            text-shadow: 0 0 5px #ff9900;
+            animation: flicker 0.1s infinite alternate; /* Subtle screen flicker effect */
+        }
+        @font-face {
+            font-family: 'BTTF-Display';
+            src: url('BTTF-display.woff2') format('woff2'),
+                 url('BTTF-display.woff') format('woff');
+            /* Placeholder for a segmented display font */
+        }
+        .container {
+            max-width: 450px;
+            margin: auto;
+            background-color: #1a1a1a;
+            border: 2px solid #ff9900;
+            box-shadow: 0 0 15px #ff9900;
+            border-radius: 8px;
+            padding: 25px;
+            animation: glow 1.5s infinite alternate;
+        }
+        @keyframes glow {
+            from { box-shadow: 0 0 10px #ff9900; }
+            to { box-shadow: 0 0 20px #ff9900; }
+        }
+        @keyframes flicker {
+            0% { opacity: 1; }
+            5% { opacity: 0.95; }
+            10% { opacity: 1; }
+            15% { opacity: 0.97; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            85% { opacity: 0.9; }
+            90% { opacity: 1; }
+            95% { opacity: 0.98; }
+            100% { opacity: 1; }
+        }
+        h1, h2 {
+            font-weight: normal;
+        }
+        h1 {
+            font-size: 2em;
+            letter-spacing: 3px;
+            margin-bottom: 5px;
+        }
+        h2 {
+            font-size: 1.2em;
+            letter-spacing: 2px;
+            margin-top: 0;
+            color: #d17a00;
+        }
+        .status-message {
+            margin: 15px 0;
+            font-size: 1.1em;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+        label {
+            display: block;
+            text-align: left;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #fff;
+        }
+        /* Style for the segmented display effect */
+        .segmented-display-input {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            background-color: #2a2a2a;
+            border: 1px solid #ff9900;
+            color: #00ff00;
+            font-family: 'BTTF-Display', monospace;
+            font-size: 1.1em;
+            text-shadow: 0 0 2px #00ff00;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            /* Grid background to mimic segments */
+            background-image: linear-gradient(to right, #004d00 1px, transparent 1px),
+                              linear-gradient(to right, #004d00 1px, transparent 1px);
+            background-size: 12% 100%, 12% 100%;
+        }
+        .segmented-display-input::placeholder {
+            color: #00ff00;
+            opacity: 0.5;
+        }
+        button {
+            background-color: #ff9900;
+            color: #1a1a1a;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-top: 25px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #e68a00;
+        }
+        #reboot-link {
+            display: block;
+            margin-top: 20px;
+            color: #fff;
+            font-size: 0.8em;
+        }
+        #loading-indicator {
+            display: none;
+            height: 15px;
+            background-color: #333;
+            border: 1px solid #ff9900;
+            margin-top: 25px;
+            position: relative;
+        }
+        #loading-bar {
+            position: absolute;
+            height: 100%;
+            width: 0%;
+            background-color: #00ff00;
+            box-shadow: 0 0 5px #00ff00;
+            animation: loading-pulse 1.5s infinite;
+        }
+        @keyframes loading-pulse {
+            0% { transform: scaleX(0); }
+            50% { transform: scaleX(1); }
+            100% { transform: scaleX(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TEMPORAL DIAGNOSTICS</h1>
+        <h2>CONFIGURATION INTERFACE</h2>
+        <p class="status-message" id="status-message">AP Mode Active. Connect and Configure.</p>
+        <form id="wifi-form" action="/save_credentials" method="post">
+            <label for="ssid-select">SELECT TEMPORAL DESTINATION:</label>
+            <select id="ssid-select" name="ssid" class="segmented-display-input">
+                <option value="" disabled selected>Scanning...</option>
+            </select>
+            <label for="manual-ssid">OR ENTER MANUALLY:</label>
+            <input type="text" id="manual-ssid" name="manual_ssid" placeholder="Network SSID" class="segmented-display-input">
+            <label for="pass">ENTER ACCESS CODE:</label>
+            <input type="password" id="pass" name="pass" placeholder="Network Password" class="segmented-display-input">
+            <button type="submit">ENGAGE</button>
+        </form>
+        <div id="loading-indicator">
+            <div id="loading-bar"></div>
+        </div>
+        <a id="reboot-link" href="#" onclick="forgetAndReboot(); return false;">Forget Network and Reboot</a>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusMessage = document.getElementById('status-message');
+            const ssidSelect = document.getElementById('ssid-select');
+            const manualSsid = document.getElementById('manual-ssid');
+            const form = document.getElementById('wifi-form');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const engageButton = form.querySelector('button[type="submit"]');
+
+            async function scanNetworks() {
+                try {
+                    const response = await fetch('/scan_networks');
+                    const data = await response.json();
+                    
+                    ssidSelect.innerHTML = '';
+                    if (data.networks && data.networks.length > 0) {
+                        data.networks.sort((a, b) => b.rssi - a.rssi);
+                        data.networks.forEach(network => {
+                            const option = document.createElement('option');
+                            option.value = network.ssid;
+                            option.textContent = `${network.ssid} (${network.rssi} dBm)`;
+                            ssidSelect.appendChild(option);
+                        });
+                        ssidSelect.disabled = false;
+                        statusMessage.textContent = 'Select a network or enter below.';
+                    } else {
+                        const option = document.createElement('option');
+                        option.textContent = 'No networks found.';
+                        option.disabled = true;
+                        option.selected = true;
+                        ssidSelect.appendChild(option);
+                        statusMessage.textContent = 'No networks found. Enter manually below.';
+                    }
+                } catch (error) {
+                    console.error('Error fetching networks:', error);
+                    statusMessage.textContent = 'Error scanning networks. Enter manually.';
+                }
+            }
+            scanNetworks();
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                statusMessage.textContent = 'Engaging Time Circuits...';
+                statusMessage.style.color = '#00ffff';
+                statusMessage.style.textShadow = '0 0 5px #00ffff';
+                engageButton.disabled = true;
+                loadingIndicator.style.display = 'block';
+
+                const formData = new FormData(form);
+                const selectedSsid = ssidSelect.value;
+                const manualSsidValue = manualSsid.value;
+                const password = formData.get('pass');
+
+                const ssid = manualSsidValue || selectedSsid;
+                if (!ssid) {
+                    statusMessage.textContent = 'Input an SSID to continue.';
+                    statusMessage.style.color = '#ff0000';
+                    statusMessage.style.textShadow = '0 0 5px #ff0000';
+                    engageButton.disabled = false;
+                    loadingIndicator.style.display = 'none';
+                    return;
+                }
+
+                // Test credentials first
+                const testResponse = await fetch('/test_credentials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `ssid=${encodeURIComponent(ssid)}&pass=${encodeURIComponent(password)}`
+                });
+
+                if (testResponse.ok) {
+                    statusMessage.textContent = 'Temporal destination locked. Saving and rebooting...';
+                    statusMessage.style.color = '#00ff00';
+                    statusMessage.style.textShadow = '0 0 5px #00ff00';
+                    // If test is successful, save credentials and reboot
+                    await fetch('/save_credentials', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `ssid=${encodeURIComponent(ssid)}&pass=${encodeURIComponent(password)}`
+                    });
+                    setTimeout(() => window.location.reload(), 2000); // Wait for a moment before rebooting
+                } else {
+                    statusMessage.textContent = 'Temporal field destabilized. Please try again.';
+                    statusMessage.style.color = '#ff0000';
+                    statusMessage.style.textShadow = '0 0 5px #ff0000';
+                    engageButton.disabled = false;
+                    loadingIndicator.style.display = 'none';
+                }
+            });
+        });
+        
+        async function forgetAndReboot() {
+            const response = await fetch('/forget_network', { method: 'POST' });
+            if (response.ok) {
+                alert('Wi-Fi credentials cleared. Rebooting now.');
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                alert('Failed to clear credentials.');
+            }
+        }
+    </script>
+</body>
+</html>

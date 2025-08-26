@@ -4,6 +4,9 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <ArduinoJson.h>
+#include "globals.h"
+#include "types.h"
 
 extern StockData stockData[3];
 
@@ -29,15 +32,12 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     if (!path) {
         return JsonVariant();
     }
-    // --- START: MODIFICATION ---
-    // Use dynamic allocation to prevent a stack buffer overflow from long JSON paths.
     size_t path_len = strlen(path) + 1;
     char* path_copy = new char[path_len];
     if (!path_copy) {
         return JsonVariant(); // Allocation failed
     }
     strncpy(path_copy, path, path_len);
-    // --- END: MODIFICATION ---
 
     JsonVariant current = root;
     char* context = NULL;
@@ -68,11 +68,11 @@ void fetchStockDataTask(void* p) {
     delete params;
 
     std::string symbol_str;
-    if (rowIndex == 0) symbol_str = currentSettings.stockRow1_symbol;
-    else if (rowIndex == 1) symbol_str = currentSettings.stockRow2_symbol;
-    else symbol_str = currentSettings.stockRow3_symbol;
+    if (rowIndex == 0) symbol_str = currentSettings.stockRow1_symbol.c_str();
+    else if (rowIndex == 1) symbol_str = currentSettings.stockRow2_symbol.c_str();
+    else symbol_str = currentSettings.stockRow3_symbol.c_str();
 
-    if (symbol_str.empty() || currentSettings.alphaVantageApiKey.empty()) {
+    if (symbol_str.empty() || String(currentSettings.alphaVantageApiKey.c_str()).isEmpty()) {
         vTaskDelete(NULL);
         return;
     }
@@ -146,7 +146,8 @@ void fetchStockDataTask(void* p) {
 }
 
 
-void fetchWeatherData(WeatherTaskParams* params) {
+void fetchWeatherData(void* p) {
+    WeatherTaskParams* params = (WeatherTaskParams*)p;
     std::string taskCityName = params->cityName;
     bool forceGeocode = params->forceGeocode;
     delete params;
@@ -156,6 +157,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
             currentWeatherData.dataValid = false;
             xSemaphoreGive(xDisplayDataMutex);
         }
+        vTaskDelete(NULL);
         return;
     }
 
@@ -206,6 +208,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 currentWeatherData.dataValid = false;
                 xSemaphoreGive(xDisplayDataMutex);
             }
+             vTaskDelete(NULL);
             return;
         }
     }
@@ -233,20 +236,20 @@ void fetchWeatherData(WeatherTaskParams* params) {
 
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (error == DeserializationError::Ok && !doc.containsKey("error")) {
-                        currentWeatherData.temperature = doc["current"]["temperature_2m"];
-                        currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
-                        currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
+                        currentWeatherData.temp = doc["current"]["temperature_2m"];
+                        currentWeatherData.feels_like = doc["current"]["apparent_temperature"];
+                        currentWeatherData.wind_speed = doc["current"]["wind_speed_10m"];
                         currentWeatherData.humidity = doc["current"]["relative_humidity_2m"];
-                        currentWeatherData.weatherCode = doc["current"]["weather_code"];
-                        currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
-                        currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
-                        currentWeatherData.sunrise = doc["daily"]["sunrise"][0];
-                        currentWeatherData.sunset = doc["daily"]["sunset"][0];
-                        currentWeatherData.precipitationProbability = doc["daily"]["precipitation_probability_max"][0];
-                        currentWeatherData.maxWindSpeed = doc["daily"]["wind_speed_10m_max"][0];
-                        currentWeatherData.tomorrowHigh = doc["daily"]["temperature_2m_max"][1];
-                        currentWeatherData.tomorrowLow = doc["daily"]["temperature_2m_min"][1];
-                        currentWeatherData.tomorrowWeatherCode = doc["daily"]["weather_code"][1];
+                        currentWeatherData.icon = doc["current"]["weather_code"];
+                        currentWeatherData.temp_max = doc["daily"]["temperature_2m_max"][0];
+                        currentWeatherData.temp_min = doc["daily"]["temperature_2m_min"][0];
+                        currentWeatherData.sunrise = atol(doc["daily"]["sunrise"][0].as<String>().c_str());
+                        currentWeatherData.sunset = atol(doc["daily"]["sunset"][0].as<String>().c_str());
+                        currentWeatherData.precip_chance = doc["daily"]["precipitation_probability_max"][0];
+                        currentWeatherData.wind_gust = doc["daily"]["wind_speed_10m_max"][0];
+                        currentWeatherData.tomorrow_temp_max = doc["daily"]["temperature_2m_max"][1];
+                        currentWeatherData.tomorrow_temp_min = doc["daily"]["temperature_2m_min"][1];
+                        currentWeatherData.tomorrow_icon = doc["daily"]["weather_code"][1];
 
                         time_t now;
                         time(&now);
@@ -257,9 +260,9 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         JsonArray hourly_code = doc["hourly"]["weather_code"];
                         for (int j = 0; j < 3; j++) {
                             int forecastHour = currentHour + j + 1;
-                            if (forecastHour < 24) {
-                                currentWeatherData.hourlyTemp[j] = hourly_temp[forecastHour];
-                                currentWeatherData.hourlyCode[j] = hourly_code[forecastHour];
+                            if (forecastHour < 48) {
+                                currentWeatherData.hourly_temp[j] = hourly_temp[forecastHour];
+                                currentWeatherData.hourly_icon[j] = hourly_code[forecastHour];
                             }
                         }
                         
@@ -285,18 +288,17 @@ void fetchWeatherData(WeatherTaskParams* params) {
       }
       showTemporaryMessage("API", "", "FAIL", "", 2000);
     }
+     vTaskDelete(NULL);
 }
 
 void fetchWeatherDataTask(void* p) {
-    WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
+    WeatherTaskParams* params = (WeatherTaskParams*)p;
     fetchWeatherData(params);
-    vTaskDelete(NULL);
 }
 
 void forceFetchWeatherDataTask(void* p) {
     WeatherTaskParams* params = (WeatherTaskParams*)p;
     fetchWeatherData(params);
-    vTaskDelete(NULL);
 }
 
 void fetchApiDataTask(void* p) {
@@ -305,6 +307,7 @@ void fetchApiDataTask(void* p) {
 	delete params;
 
 	if (index < 0 || index >= currentSettings.numDataPoints) {
+		__atomic_add_fetch(&requestsCompleted, 1, __ATOMIC_SEQ_CST);
 		vTaskDelete(NULL);
 		return;
 	}
@@ -315,7 +318,7 @@ void fetchApiDataTask(void* p) {
 	client.setInsecure();
 
 	if (http.begin(client, point.url.c_str())) {
-		if (!point.authHeaderKey.empty() && !point.authHeaderValue.empty()) {
+		if (!String(point.authHeaderKey.c_str()).isEmpty() && !String(point.authHeaderValue.c_str()).isEmpty()) {
 			http.addHeader(point.authHeaderKey.c_str(), point.authHeaderValue.c_str());
 		}
 
@@ -370,7 +373,7 @@ void fetchApiDataTask(void* p) {
 }
 
 void checkDataFetchStatusTask(void* p) {
-    int tasksCreated = (int)p;
+    int tasksCreated = (intptr_t)p;
     while(true) {
         if (__atomic_load_n(&requestsCompleted, __ATOMIC_SEQ_CST) >= tasksCreated) {
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
@@ -403,7 +406,7 @@ void fetchDataLink() {
         int tasksCreated = 0;
 
 		for (int i = 0; i < currentSettings.numDataPoints; i++) {
-			if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_API && !currentSettings.dataPoints[i].url.empty()) {
+			if (currentSettings.dataPoints[i].dataSourceType == DST_API && !String(currentSettings.dataPoints[i].url.c_str()).isEmpty()) {
 				FetchDataParams* params = new FetchDataParams{ i, 0 };
 				if (xTaskCreatePinnedToCore(fetchApiDataTask, "fetchApiDataTask", 8192, params, 1, NULL, 0) == pdPASS) {
 					tasksCreated++;

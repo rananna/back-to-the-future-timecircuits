@@ -7,10 +7,13 @@
  */
 
 #include "HardwareControl.h"
-#include "EventManager.h" // Needed for audio library objects
+#include "EventManager.h"
 #include <AudioFileSourceLittleFS.h>
 #include <AudioOutputI2S.h>
 #include <AudioGeneratorMP3.h>
+#include "globals.h"
+#include "config.h"
+#include <Wire.h>
 
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
@@ -31,6 +34,7 @@ extern AudioFileSourceLittleFS *file;
 extern AudioOutputI2S *out;
 extern AudioGeneratorMP3 *mp3;
 extern bool isPlayingSound;
+extern const int I2S_SD_PIN;
 #endif
 
 // --- HELPER FUNCTION ---
@@ -429,7 +433,7 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
         }
 
         printToDisplay(row.month, String(pattern).substring(0, 4).c_str());
-        printToDisplay(row.day, String(pattern).substring(1, 3).c_str(), 2);
+        printToDisplay(row.day, String(pattern).substring(1, 3).c-str(), 2);
         printToDisplay(row.year, String(pattern).substring(0, 4).c_str());
         printToDisplay(row.time, String(pattern).substring(1, 5).c_str());
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();

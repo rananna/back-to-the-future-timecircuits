@@ -1,29 +1,18 @@
 #ifndef MQTT_MANAGER_H
 #define MQTT_MANAGER_H
 
-#include <Arduino.h>
-#include <string>
-#include <AudioFileSourceHTTPStream.h>
-#include <AudioFileSourceICYStream.h>
-#include <AudioGeneratorMP3.h>
-#include <AudioOutputI2S.h>
+#include <PubSubClient.h>
 
-extern AudioOutputI2S *out;
-extern AudioGeneratorMP3 *audioGenerator;
-extern AudioFileSourceHTTPStream *fileSourceHttp;
-extern AudioFileSourceICYStream *fileSourceIcy;
-
-void mqttCallback(char* topic, unsigned char* payload, unsigned int length);
+// Function prototypes
 void setupMqtt();
+void handleMqtt();
 void reconnectMqtt();
-void publishHaAutoDiscovery();
-void updateHaStatus(const char* status);
+void mqttCallback(char* topic, byte* payload, unsigned int length);
 void publishAllHaStates();
-void clearHaEntity(const char* component, const char* unique_id_suffix);
-void publishDeviceTriggers();
+void updateHaStatus(const char* status);
 void publishTimeSensors();
-void startAudioStream(const char* url, bool is_tts);
-void stopAudioStream();
-
+void playTtsFromUrl(const char* url);
+void playRadioStream(const char* url);
+void stopRadioStream();
 
 #endif // MQTT_MANAGER_H

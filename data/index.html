@@ -382,12 +382,30 @@
                 </div>
             </div>
             <div class="setting-group">
+                <h3>System Log</h3>
+                <label for="loggingEnabled" class="toggle-label">Enable System Log Stream:</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="loggingEnabled" checked>
+                    <span class="slider round"></span>
+                </label>
+                <div id="logContainer" class="log-container"></div>
+            </div>
+            <div class="setting-group">
                 <h3>Firmware Update (OTA)</h3>
                 <p>Upload a new firmware (.bin) file to update the device over the air.</p>
                 <form method="POST" action="/update" enctype="multipart/form-data">
                     <input type="file" name="update" accept=".bin">
                     <button type="submit">Upload and Update Firmware</button>
                 </form>
+            </div>
+            <div class="setting-group">
+                <h3>File Management</h3>
+                <p>Upload UI or sound files (.html, .css, .js, .mp3) to the device's filesystem.</p>
+                <form id="upload-form" method="POST" action="/upload-data" enctype="multipart/form-data">
+                    <input type="file" name="data">
+                    <button type="submit">Upload File</button>
+                </form>
+                <div id="file-upload-status" style="margin-top: 10px;"></div>
             </div>
             <div class="setting-group">
                 <h3>UI Theme</h3>
@@ -446,5 +464,37 @@
     </div>
     <script src="/data_handling.js"></script>
     <script src="/main_ui.js"></script>
+    <script>
+        const uploadForm = document.getElementById('upload-form');
+        const fileUploadStatus = document.getElementById('file-upload-status');
+
+        uploadForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(uploadForm);
+            const fileInput = uploadForm.querySelector('input[type="file"]');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                fileUploadStatus.textContent = 'Please select a file to upload.';
+                return;
+            }
+
+            fileUploadStatus.textContent = `Uploading ${file.name}...`;
+
+            fetch('/upload-data', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.text())
+            .then(data => {
+                fileUploadStatus.textContent = data;
+                fileInput.value = ''; // Clear the file input
+            })
+            .catch(error => {
+                fileUploadStatus.textContent = 'Error uploading file.';
+                console.error('Error:', error);
+            });
+        });
+    </script>
 </body>
 </html>

@@ -8,6 +8,9 @@
 #include "HardwareControl.h"
 #include "DisplayManager.h"
 #include "MqttManager.h"
+#include "config.h"
+#include "globals.h"
+#include <Arduino.h>
 
 // --- FLASH EFFECT ---
 bool isFlashing[3][4] = {{false}};
@@ -63,7 +66,7 @@ void startTimeTravelAnimation() {
 
     if (currentSettings.timeTravelSoundToggle) {
         if (hardwareInitialized) {
-            playSound("FLUX_CAPACITOR_CHARGE");
+            playSound("/FLUX_CAPACITOR_CHARGE.mp3");
         }
     }
 }
@@ -85,7 +88,7 @@ void handleDisplayAnimation() {
                 currentPhase = ANIM_TIME_ACCELERATION;
                 animationStartTime = millis(); // Reset timer for next phase
                 if (currentSettings.timeTravelSoundToggle) {
-                    playSound("ACCELERATION");
+                    playSound("/ttaccel.mp3");
                 }
             }
             break;
@@ -103,7 +106,7 @@ void handleDisplayAnimation() {
                 currentPhase = ANIM_ARRIVAL;
                 animationStartTime = millis();
                  if (currentSettings.timeTravelSoundToggle) {
-                    playSound("TIME_TRAVEL");
+                    playSound("/TIME_TRAVEL.mp3");
                 }
             }
             break;
@@ -116,7 +119,7 @@ void handleDisplayAnimation() {
                 currentPhase = ANIM_LANDING;
                 animationStartTime = millis();
                  if (currentSettings.timeTravelSoundToggle) {
-                    playSound("ARRIVAL_THUD");
+                    playSound("/ARRIVAL_THUD.mp3");
                 }
             }
             break;
@@ -269,7 +272,7 @@ void handleBootSequence() {
             blankAllDisplays();
             bootState = BOOT_CHARGE_UP;
             bootStateStartTime = millis();
-            playSound("FLUX_CAPACITOR_CHARGE");
+            playSound("/FLUX_CAPACITOR_CHARGE.mp3");
             break;
         case BOOT_CHARGE_UP:
             if (elapsed < 2000) {

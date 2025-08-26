@@ -1474,3 +1474,21 @@ body.time-travel-active {
 .stock-change.negative {
     color: #ff0000;
 }
+/* Add these new rules anywhere in your style.css file */
+
+.log-container {
+    background-color: #000;
+    border: 1px solid var(--display-glow-color);
+    color: var(--display-color);
+    font-family: 'Share Tech Mono', monospace;
+    height: 200px;
+    overflow-y: scroll;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 0.8em;
+}
+
+.log-container div {
+    margin-bottom: 5px;
+    white-space: pre-wrap; /* Allows text to wrap */
+}

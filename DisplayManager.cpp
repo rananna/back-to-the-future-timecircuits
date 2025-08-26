@@ -1,11 +1,12 @@
 #include "DisplayManager.h"
 #include "EventManager.h"
 #include "HardwareControl.h"
+#include <time.h>
+#include "globals.h"
 
 extern StockData stockData[3];
-
-std::string manualDisplayText[3][4];
-bool isRowInManualMode[3] = {false, false, false};
+extern std::string manualDisplayText[3][4];
+extern bool isRowInManualMode[3];
 
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration) {
     if (!hardwareInitialized) return;
@@ -44,7 +45,7 @@ void displayMarqueeOverride() {
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
     String textToDisplay = marqueeOverrideMessage;
-    
+
     if (textToDisplay.length() > 13) {
         textToDisplay = "  " + textToDisplay + "  ";
     }
@@ -52,11 +53,11 @@ void displayMarqueeOverride() {
     static unsigned long lastScrollTime = 0;
     static int scrollPosition = 0;
 
-    if (millis() - lastScrollTime > currentSettings.dataPoints[currentPageIndex].scrollSpeed) {
+    if (millis() - lastScrollTime > 50) {
         lastScrollTime = millis();
-        
+
         String viewport = textToDisplay.substring(scrollPosition, scrollPosition + 13);
-        
+
         printToDisplay(lastRow.month, viewport.substring(0, 3).c_str(), 0);
         printToDisplay(lastRow.day, viewport.substring(3, 5).c_str(), 0);
         printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
@@ -151,9 +152,10 @@ void displayOverrideMessage() {
 #endif
 }
 
-void updateDisplaySegment(int row, int segment, const std::string& text) {
+// Function signature corrected to match the prototype in config.h
+void updateDisplaySegment(int row, int segment, const char* text) {
     if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
-    
+
     manualDisplayText[row][segment] = text;
 
     bool manualActive = false;
@@ -168,6 +170,54 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
     updateNormalClockDisplay();
 }
 
+
+void updateDisplayRow(DisplayRow& row, struct tm& timeinfo, int year, int rowIndex) {
+    char buffer[10];
+
+    // Month
+    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][0].empty()) {
+        printToDisplay(row.month, manualDisplayText[rowIndex][0].c_str(), 1);
+    } else {
+        strftime(buffer, sizeof(buffer), "%b", &timeinfo);
+        for (char *p = buffer; *p; ++p) *p = toupper((unsigned char)*p);
+        printToDisplay(row.month, buffer, 1);
+    }
+
+    // Day
+    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][1].empty()) {
+        printToDisplay(row.day, manualDisplayText[rowIndex][1].c_str(), 2);
+    } else {
+        strftime(buffer, sizeof(buffer), "%d", &timeinfo);
+        printToDisplay(row.day, buffer, 2);
+    }
+
+    // Year
+    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][2].empty()) {
+        printToDisplay(row.year, manualDisplayText[rowIndex][2].c_str());
+    } else {
+        sprintf(buffer, "%d", year);
+        printToDisplay(row.year, buffer);
+    }
+
+    // Time
+    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][3].empty()) {
+        printToDisplay(row.time, manualDisplayText[rowIndex][3].c_str());
+    } else {
+        if (currentSettings.displayFormat24h) {
+            strftime(buffer, sizeof(buffer), "%H%M", &timeinfo);
+        } else {
+            strftime(buffer, sizeof(buffer), "%I%M", &timeinfo);
+        }
+        printToDisplay(row.time, buffer);
+    }
+
+    row.month.writeDisplay();
+    row.day.writeDisplay();
+    row.year.writeDisplay();
+    row.time.writeDisplay();
+}
+
+
 void updateNormalClockDisplay() {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
@@ -175,52 +225,28 @@ void updateNormalClockDisplay() {
     time_t now;
     time(&now);
     struct tm timeinfo;
-    
+
+    // Destination Time
     setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
     tzset();
     localtime_r(&now, &timeinfo);
-    
-    if (!manualDisplayText[0][0].empty()) { printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1); } 
-    else { updateDisplaySegment(destRow.month, timeinfo, currentSettings.destinationYear, 0); }
-    if (!manualDisplayText[0][1].empty()) { printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2); }
-    else { updateDisplaySegment(destRow.day, timeinfo, currentSettings.destinationYear, 1); }
-    if (!manualDisplayText[0][2].empty()) { printToDisplay(destRow.year, manualDisplayText[0][2].c_str()); }
-    else { updateDisplaySegment(destRow.year, timeinfo, currentSettings.destinationYear, 2); }
-    if (!manualDisplayText[0][3].empty()) { printToDisplay(destRow.time, manualDisplayText[0][3].c_str()); }
-    else { updateDisplaySegment(destRow.time, timeinfo, currentSettings.destinationYear, 3); }
-    destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-    
+    updateDisplayRow(destRow, timeinfo, currentSettings.destinationYear, 0);
+
+    // Present Time
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
     localtime_r(&now, &timeinfo);
     int presentYear = timeinfo.tm_year + 1900;
-    
-    if (!manualDisplayText[1][0].empty()) { printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1); } 
-    else { updateDisplaySegment(presRow.month, timeinfo, presentYear, 0); }
-    if (!manualDisplayText[1][1].empty()) { printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2); }
-    else { updateDisplaySegment(presRow.day, timeinfo, presentYear, 1); }
-    if (!manualDisplayText[1][2].empty()) { printToDisplay(presRow.year, manualDisplayText[1][2].c_str()); }
-    else { updateDisplaySegment(presRow.year, timeinfo, presentYear, 2); }
-    if (!manualDisplayText[1][3].empty()) { printToDisplay(presRow.time, manualDisplayText[1][3].c_str()); }
-    else { updateDisplaySegment(presRow.time, timeinfo, presentYear, 3); }
-    presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+    updateDisplayRow(presRow, timeinfo, presentYear, 1);
 
+    // Last Time Departed
     struct tm lastTimeDepartedInfo = {0};
     lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
     lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
     lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
     lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
     lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
-    
-    if (!manualDisplayText[2][0].empty()) { printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1); } 
-    else { updateDisplaySegment(lastRow.month, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 0); }
-    if (!manualDisplayText[2][1].empty()) { printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2); }
-    else { updateDisplaySegment(lastRow.day, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 1); }
-    if (!manualDisplayText[2][2].empty()) { printToDisplay(lastRow.year, manualDisplayText[2][2].c_str()); }
-    else { updateDisplaySegment(lastRow.year, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 2); }
-    if (!manualDisplayText[2][3].empty()) { printToDisplay(lastRow.time, manualDisplayText[2][3].c_str()); }
-    else { updateDisplaySegment(lastRow.time, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 3); }
-    lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+    updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, 2);
   }
 #endif
 }
@@ -242,13 +268,13 @@ void handleWeatherDisplay() {
                 weatherPage = (weatherPage + 1) % 4;
                 lastPageChange = millis();
             }
-            
-            const char* icon = getIconForWeatherCode(currentWeatherData.weatherCode);
+
+            const char* icon = getIconForWeatherCode(currentWeatherData.icon);
             switch(weatherPage) {
                 case 0:
                     printToDisplay(lastRow.month, "NOW", 1);
                     printToDisplay(lastRow.day, icon, 2);
-                    dtostrf(currentWeatherData.temperature, 4, 1, buffer);
+                    dtostrf(currentWeatherData.temp, 4, 1, buffer);
                     printToDisplay(lastRow.year, buffer);
                     printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
                     digitalWrite(LAST_AM_PIN, LOW);
@@ -256,21 +282,21 @@ void handleWeatherDisplay() {
                     break;
                 case 1:
                     printToDisplay(lastRow.month, "TMRW", 1);
-                    printToDisplay(lastRow.day, getIconForWeatherCode(currentWeatherData.tomorrowWeatherCode), 2);
-                    dtostrf(currentWeatherData.tomorrowHigh, 4, 0, buffer);
+                    printToDisplay(lastRow.day, getIconForWeatherCode(currentWeatherData.tomorrow_icon), 2);
+                    dtostrf(currentWeatherData.tomorrow_temp_max, 4, 0, buffer);
                     printToDisplay(lastRow.year, buffer);
-                    dtostrf(currentWeatherData.tomorrowLow, 4, 0, buffer);
+                    dtostrf(currentWeatherData.tomorrow_temp_min, 4, 0, buffer);
                     printToDisplay(lastRow.time, buffer);
                     digitalWrite(LAST_AM_PIN, HIGH);
                     digitalWrite(LAST_PM_PIN, LOW);
                     break;
                 case 2:
                     printToDisplay(lastRow.month, "WIND", 1);
-                    dtostrf(currentWeatherData.maxWindSpeed, 2, 0, buffer);
+                    dtostrf(currentWeatherData.wind_gust, 2, 0, buffer);
                     strcat(buffer, "M");
                     printToDisplay(lastRow.day, buffer, 2);
                     printToDisplay(lastRow.year, "RAIN");
-                    sprintf(buffer, "%d%%", currentWeatherData.precipitationProbability);
+                    sprintf(buffer, "%d%%", currentWeatherData.precip_chance);
                     printToDisplay(lastRow.time, buffer);
                     digitalWrite(LAST_AM_PIN, LOW);
                     digitalWrite(LAST_PM_PIN, HIGH);
@@ -323,7 +349,7 @@ void updateMarqueeDisplay() {
 
         std::string yearContent = point.yearPrefix + displayPages[currentPageIndex].year + point.yearSuffix;
         std::string timeContent = point.prefix + displayPages[currentPageIndex].time + point.suffix;
-        
+
         xSemaphoreGive(xDisplayDataMutex);
 
         String yearCanvas = "   " + String(yearContent.c_str()) + "   ";
