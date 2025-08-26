@@ -2,6 +2,8 @@
 #include "globals.h"
 #include "logger.h"
 #include <WiFi.h>
+#include "types.h"
+
 
 bool testWifiAndConnect(const char* ssid, const char* password, unsigned long timeout) {
     logger.push(LOG_INFO, "WIFI", "Testing credentials for %s", ssid);

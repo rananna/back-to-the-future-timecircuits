@@ -589,24 +589,58 @@ void loop() {
     }
 }
 
+// ... other functions
+
 void handleAudio() {
     if (xSemaphoreTake(xAudioMutex, 0) == pdTRUE) {
         if (isStreamingRadio) {
         } else if (isPlayingSound && mp3->isRunning()) {
             if (!mp3->loop()) {
                 mp3->stop();
-				isPlayingSound = false;
+                isPlayingSound = false;
                 digitalWrite(I2S_SD_PIN, LOW); // Disable amplifier
                 delete file;
-				file = nullptr;
-                if (ttsFile != "") {
+                file = nullptr;
+                if (!ttsFile.isEmpty()) {
                     LittleFS.remove(ttsFile);
-					ttsFile = "";
+                    ttsFile = "";
                 }
             }
         }
         xSemaphoreGive(xAudioMutex);
     }
+}
+
+void ttsDownloadTask(void* parameter) {
+    const char* url = (const char*)parameter;
+    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
+        logMessage(LOG_INFO, "AUDIO", "Downloading TTS audio from: %s", url);
+        HTTPClient http;
+        WiFiClient client;
+        http.begin(client, url);
+
+        int httpCode = http.GET();
+        if (httpCode == HTTP_CODE_OK) {
+            File ttsFileHandle = LittleFS.open("/tts.mp3", "w");
+            if (ttsFileHandle) {
+                http.writeToStream(&ttsFileHandle);
+                ttsFileHandle.close();
+                ttsFile = "/tts.mp3";
+                logMessage(LOG_INFO, "AUDIO", "TTS file downloaded successfully.");
+                playSound(ttsFile.c_str());
+            } else {
+                logMessage(LOG_ERROR, "AUDIO", "Failed to open file for writing.");
+                ttsFile = "";
+            }
+        } else {
+            logMessage(LOG_ERROR, "AUDIO", "HTTP GET failed with code: %d", httpCode);
+            ttsFile = "";
+        }
+        http.end();
+        xSemaphoreGive(xAudioMutex);
+    }
+    delete[] (char*)url;
+    vTaskDelete(NULL);
 }
 
 void handleSequencer() {
@@ -677,44 +711,6 @@ void handleSleepSchedule() {
 	}
 }
 
-void ttsDownloadTask(void* parameter) {
-    const char* url = (const char*)parameter;
-	if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
-        logMessage(LOG_INFO, "AUDIO", "Downloading TTS audio from: %s", url);
-		HTTPClient http;
-        WiFiClient client;
-        http.begin(client, url);
-
-        int httpCode = http.GET();
-		if (httpCode == HTTP_CODE_OK) {
-            File ttsFileHandle = LittleFS.open("/tts.mp3", "w");
-			if (ttsFileHandle) {
-                http.writeToStream(&ttsFileHandle);
-                ttsFileHandle.close();
-				ttsFile = "/tts.mp3";
-                logMessage(LOG_INFO, "AUDIO", "TTS file downloaded successfully.");
-                playSound(ttsFile.c_str());
-			} else {
-                logMessage(LOG_ERROR, "AUDIO", "Failed to open file for writing.");
-				ttsFile = "";
-            }
-        } else {
-            logMessage(LOG_ERROR, "AUDIO", "HTTP GET failed with code: %d", httpCode);
-			ttsFile = "";
-        }
-        http.end();
-        xSemaphoreGive(xAudioMutex);
-    }
-    delete[] (char*)url;
-	vTaskDelete(NULL);
-}
-
-void playTtsFromUrl(const char* url) {
-    if (isPlayingSound || isStreamingRadio) return;
-    char* urlCopy = new char[strlen(url) + 1];
-	strcpy(urlCopy, url);
-    xTaskCreatePinnedToCore(ttsDownloadTask, "ttsDownloadTask", 8192, urlCopy, 1, NULL, 0);
-}
 
 void playRadioStream(const char* url) {
     stopRadioStream();

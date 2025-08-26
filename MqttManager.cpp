@@ -14,8 +14,9 @@
 #include <AudioGeneratorMP3.h>
 #include <LCBUrl.h>
 #include "config.h"
-#include "globals.h"
 #include "HardwareControl.h"
+#include "types.h"
+#include "globals.h"
 
 extern PubSubClient mqttClient;
 extern Preferences preferences;

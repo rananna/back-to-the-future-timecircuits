@@ -3,11 +3,16 @@
 
 #include <time.h>
 #include "types.h"
-#include <Adafruit_LEDBackpack.h> // Added for Adafruit_AlphaNum4
-#include <Wire.h> // Added for TwoWire
+#include <Adafruit_LEDBackpack.h>
+#include <Wire.h>
 
-// Forward declaration
+// Forward declarations
 struct tm;
+
+// Added missing extern declarations for display rows
+extern DisplayRow destRow;
+extern DisplayRow presRow;
+extern DisplayRow lastRow;
 
 void setupPhysicalDisplay();
 void animateDisplayRowRandomly(DisplayRow& row);

@@ -2,14 +2,14 @@
  * @file AnimationManager.cpp
  * @brief Manages all visual animations and special effects for the display.
  */
-
+#include "types.h"
+#include "globals.h"
 #include "AnimationManager.h"
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DisplayManager.h"
 #include "MqttManager.h"
 #include "config.h"
-#include "globals.h"
 #include <Arduino.h>
 
 // --- FLASH EFFECT ---

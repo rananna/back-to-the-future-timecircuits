@@ -3,10 +3,15 @@
 #include "HardwareControl.h"
 #include <time.h>
 #include "globals.h"
+#include "types.h"
+#include <string>
+
 
 extern StockData stockData[3];
-extern std::string manualDisplayText[3][4];
+extern String manualDisplayText[3][4]; // Corrected type
 extern bool isRowInManualMode[3];
+extern DisplayPage displayPages[NUM_PAGES]; // Added this
+extern int currentPageIndex; // Added this
 
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration) {
     if (!hardwareInitialized) return;
@@ -107,7 +112,7 @@ void updateStockTickerDisplay() {
                     printToDisplay(rows[i]->day, "--", 2);
                     printToDisplay(rows[i]->year, "EMPTY");
                     printToDisplay(rows[i]->time, "----");
-                } else if (currentSettings.alphaVantageApiKey.empty()) {
+                } else if (currentSettings.alphaVantageApiKey.isEmpty()) {
                     printToDisplay(rows[i]->month, "NO");
                     printToDisplay(rows[i]->day, "API", 2);
                     printToDisplay(rows[i]->year, "KEY");
@@ -160,7 +165,7 @@ void updateDisplaySegment(int row, int segment, const char* text) {
 
     bool manualActive = false;
     for(int i=0; i<4; ++i) {
-        if(!manualDisplayText[row][i].empty()) {
+        if(!manualDisplayText[row][i].isEmpty()) {
             manualActive = true;
             break;
         }
@@ -175,7 +180,7 @@ void updateDisplayRow(DisplayRow& row, struct tm& timeinfo, int year, int rowInd
     char buffer[10];
 
     // Month
-    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][0].empty()) {
+    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][0].isEmpty()) {
         printToDisplay(row.month, manualDisplayText[rowIndex][0].c_str(), 1);
     } else {
         strftime(buffer, sizeof(buffer), "%b", &timeinfo);
@@ -184,7 +189,7 @@ void updateDisplayRow(DisplayRow& row, struct tm& timeinfo, int year, int rowInd
     }
 
     // Day
-    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][1].empty()) {
+    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][1].isEmpty()) {
         printToDisplay(row.day, manualDisplayText[rowIndex][1].c_str(), 2);
     } else {
         strftime(buffer, sizeof(buffer), "%d", &timeinfo);
@@ -192,7 +197,7 @@ void updateDisplayRow(DisplayRow& row, struct tm& timeinfo, int year, int rowInd
     }
 
     // Year
-    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][2].empty()) {
+    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][2].isEmpty()) {
         printToDisplay(row.year, manualDisplayText[rowIndex][2].c_str());
     } else {
         sprintf(buffer, "%d", year);
@@ -200,7 +205,7 @@ void updateDisplayRow(DisplayRow& row, struct tm& timeinfo, int year, int rowInd
     }
 
     // Time
-    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][3].empty()) {
+    if (isRowInManualMode[rowIndex] && !manualDisplayText[rowIndex][3].isEmpty()) {
         printToDisplay(row.time, manualDisplayText[rowIndex][3].c_str());
     } else {
         if (currentSettings.displayFormat24h) {
@@ -341,14 +346,14 @@ void updateMarqueeDisplay() {
 
         DataPoint point = currentSettings.dataPoints[currentPageIndex];
         printToDisplay(targetRow->month, displayPages[currentPageIndex].month.c_str());
-        if (!point.icon.empty()) {
+        if (!point.icon.isEmpty()) {
             printToDisplay(targetRow->day, point.icon.c_str(), 2);
         } else {
             printToDisplay(targetRow->day, displayPages[currentPageIndex].day.c_str(), 2);
         }
 
-        std::string yearContent = point.yearPrefix + displayPages[currentPageIndex].year + point.yearSuffix;
-        std::string timeContent = point.prefix + displayPages[currentPageIndex].time + point.suffix;
+        std::string yearContent = point.yearPrefix + displayPages[currentPageIndex].year.c_str() + point.yearSuffix;
+        std::string timeContent = point.prefix + displayPages[currentPageIndex].time.c_str() + point.suffix;
 
         xSemaphoreGive(xDisplayDataMutex);
 
