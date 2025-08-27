@@ -1,6 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
-
+#define NUM_PAGES 5
 // Hardware Configuration
 #define ENABLE_HARDWARE 1
 

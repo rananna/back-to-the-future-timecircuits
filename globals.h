@@ -13,6 +13,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
+#include "config.h" // ADD THIS
 #include "types.h" // Ensure this is at the top
 #include "logger.h"
 #include <vector>
@@ -26,7 +27,7 @@ class AsyncMqttClient;
 // --- AUDIO ---
 extern SemaphoreHandle_t xAudioMutex;
 extern bool isStreamingRadio;
-extern String ttsFile;
+extern String ttsFile; // Corrected type to String
 extern AudioOutputI2S* out;
 extern AudioGeneratorMP3* mp3;
 extern bool isPlayingSound;

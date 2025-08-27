@@ -8,10 +8,10 @@
 
 
 extern StockData stockData[3];
-extern String manualDisplayText[3][4]; // Corrected type
+extern String manualDisplayText[3][4];
 extern bool isRowInManualMode[3];
-extern DisplayPage displayPages[NUM_PAGES]; // Added this
-extern int currentPageIndex; // Added this
+extern DisplayPage displayPages[NUM_PAGES];
+extern int currentPageIndex;
 
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration) {
     if (!hardwareInitialized) return;
