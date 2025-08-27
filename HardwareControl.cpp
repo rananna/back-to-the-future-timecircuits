@@ -7,14 +7,10 @@
  */
 
 #include "HardwareControl.h"
-#include "EventManager.h"
+#include "EventManager.h" // Needed for audio library objects
 #include <AudioFileSourceLittleFS.h>
 #include <AudioOutputI2S.h>
 #include <AudioGeneratorMP3.h>
-#include "globals.h"
-#include "config.h"
-#include "types.h"
-#include <Wire.h>
 
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
@@ -433,7 +429,6 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
         }
 
         printToDisplay(row.month, String(pattern).substring(0, 4).c_str());
-        // Corrected typo from c-str() to c_str()
         printToDisplay(row.day, String(pattern).substring(1, 3).c_str(), 2);
         printToDisplay(row.year, String(pattern).substring(0, 4).c_str());
         printToDisplay(row.time, String(pattern).substring(1, 5).c_str());

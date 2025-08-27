@@ -1,22 +1,16 @@
-// main_ui.js
-
-// Global state variables for UI management
+// Global state for the animation preview interval
 let animationPreviewInterval = null;
-let isLoading = true;
-let isDataLinkLoaded = false;
-let settingsChanged = false;
-let weatherInterval;
-let activeWizardTarget = null;
-let anyInputInvalid = false; // Flag to track if there are any invalid inputs in the forms
 
 /**
  * Initializes the UI when the DOM is fully loaded.
  */
 document.addEventListener('DOMContentLoaded', async () => {
+    // Check if the server is ready before initializing the UI
     const isReady = await checkServerReady();
     if (isReady) {
         initializeUI();
     } else {
+        // If the server is not ready, display an error message
         document.body.innerHTML = '<div class="container"><h1>Connection Failed</h1><p>Could not connect to the Time Circuits device. Please check the connection and refresh the page.</p></div>';
         showMessage('Could not connect to device.', 'error', 10000);
     }
@@ -27,33 +21,45 @@ document.addEventListener('DOMContentLoaded', async () => {
  */
 async function initializeUI() {
     try {
+        // Define the API endpoints to fetch initial data from
         const initialEndpoints = [
             '/api/settings/timecircuits', '/api/settings/temporal',
             '/api/settings/datalink', '/api/timezones',
             '/api/getPresets', '/api/getTheme', '/api/api_examples'
         ];
+        // Fetch all the initial data in parallel
         const promises = initialEndpoints.map(url => fetch(url).then(res => {
             if (!res.ok) return Promise.reject(new Error(`Request to ${url} failed`));
             return url.endsWith('Theme') ? res.text() : res.json();
         }));
 
+        // Wait for all promises to resolve
         const [timecircuits, temporal, datalink, timezones, presets, theme, examples] = await Promise.all(promises);
 
+        // Store the API examples globally
         window.apiExamples = examples;
+
+        // Apply the fetched theme to the UI
         document.body.className = theme.trim();
+        // Populate the timezone and preset dropdowns
         populateTimezoneSelects(timezones);
         populatePresetsSelect(presets);
+        // Apply the fetched settings to the UI
         await applySettings(timecircuits, temporal, datalink);
+        // Make the header clocks visible
         document.querySelector('.header-circuits').classList.add('visible');
 
+        // Initialize the WebSocket connection
         initWebSocket();
 
+        // Start fetching real-time data
         fetchTime();
-        setInterval(fetchTime, 1000);
+        setInterval(fetchTime, 1000); // Fetch time every second
         fetchWeatherData();
-        weatherInterval = setInterval(fetchWeatherData, 300000);
+        weatherInterval = setInterval(fetchWeatherData, 300000); // Fetch weather every 5 minutes
         fetchSystemStatus();
-        setInterval(fetchSystemStatus, 5000);
+        setInterval(fetchSystemStatus, 5000); // Fetch system status every 5 seconds
+        // Attach all the event listeners to the UI elements
         attachEventListeners();
         showMessage('System Online', 'success');
 
@@ -61,17 +67,20 @@ async function initializeUI() {
         console.error("CLIENT_DEBUG: Failed during essential initialization:", error);
         showMessage(`Critical error loading settings: ${error.message}. Please refresh.`, 'error');
     } finally {
+        // Set the loading flag to false
         isLoading = false;
     }
 }
 
 /**
- * Populates the timezone select dropdowns.
+ * Populates the timezone select dropdowns with data from the server.
+ * @param {object} data The timezone data from the server.
  */
 function populateTimezoneSelects(data) {
     timezoneOptions = [];
     const selects = [document.getElementById('presentTimezoneSelect'), document.getElementById('destinationTimezoneSelect')];
     selects.forEach(s => s.innerHTML = '');
+    // Group the timezones by region
     for (const country in data) {
         const optgroup = document.createElement('optgroup');
         optgroup.label = country;
@@ -87,12 +96,15 @@ function populateTimezoneSelects(data) {
 }
 
 /**
- * Populates the preset select dropdown.
+ * Populates the preset select dropdown with custom presets from the server.
+ * @param {Array} data The array of custom presets.
  */
 function populatePresetsSelect(data) {
     const select = document.getElementById('presetDateSelect');
+    // Remove any existing custom presets
     let customGroup = select.querySelector('optgroup[label="Custom Time Jumps"]');
     if (customGroup) customGroup.remove();
+    // If there are custom presets, add them to the dropdown
     if (data && data.length > 0) {
         customGroup = document.createElement('optgroup');
         customGroup.label = 'Custom Time Jumps';
@@ -108,21 +120,31 @@ function populatePresetsSelect(data) {
 
 /**
  * Updates the "Last Time Departed" display.
+ * @param {number} year The year.
+ * @param {number} month The month.
+ * @param {number} day The day.
+ * @param {number} hour The hour.
+ * @param {number} minute The minute.
  */
 function updateLastDepartedDisplay(year, month, day, hour, minute) {
+    // Check if 24-hour format is enabled
     const is24h = document.getElementById('displayFormat24h').checked;
     let displayHour = parseInt(hour, 10);
     let ampm = '';
+    // Convert to 12-hour format if necessary
     if (!is24h) {
         ampm = displayHour >= 12 ? 'PM' : 'AM';
         if (displayHour > 12) displayHour -= 12;
         if (displayHour === 0) displayHour = 12;
     }
+    // Format the date and time strings
     const monthStr = String(month).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
     const hourStr = String(displayHour).padStart(2, '0');
     const minuteStr = String(minute).padStart(2, '0');
+    // Update the display
     document.getElementById('lastTimeDepartedDisplay').textContent = `${monthStr}/${dayStr}/${year} ${hourStr}:${minuteStr} ${ampm}`.trim();
+    // Store the values in hidden elements for later use
     document.getElementById('lastTimeDepartedYear').textContent = year;
     document.getElementById('lastTimeDepartedMonth').textContent = month;
     document.getElementById('lastTimeDepartedDay').textContent = day;
@@ -132,13 +154,18 @@ function updateLastDepartedDisplay(year, month, day, hour, minute) {
 
 /**
  * Applies the fetched settings to the UI.
+ * @param {object} timecircuits The Time Circuits settings.
+ * @param {object} temporal The temporal settings.
+ * @param {object} datalink The Data Link settings.
  */
 async function applySettings(timecircuits, temporal, datalink) {
+    // Apply Time Circuits settings
     if (timecircuits) {
         document.getElementById('destinationYear').value = timecircuits.destinationYear;
         document.getElementById('destinationTimezoneSelect').value = timecircuits.destinationTimezoneIndex;
         document.getElementById('presentTimezoneSelect').value = timecircuits.presentTimezoneIndex;
     }
+    // Apply temporal settings
     if (temporal) {
         document.getElementById('departureTime').value = `${String(temporal.departureHour).padStart(2, '0')}:${String(temporal.departureMinute).padStart(2, '0')}`;
         document.getElementById('arrivalTime').value = `${String(temporal.arrivalHour).padStart(2, '0')}:${String(temporal.arrivalMinute).padStart(2, '0')}`;
@@ -154,112 +181,90 @@ async function applySettings(timecircuits, temporal, datalink) {
             document.getElementById(id).checked = temporal[id];
         });
         document.getElementById('animationStyleSelect').value = temporal.animationStyle;
-        document.getElementById('loggingEnabled').checked = temporal.loggingEnabled;
     }
+
+    // Update the Last Departed display
     if (timecircuits) {
         updateLastDepartedDisplay(timecircuits.lastTimeDepartedYear, timecircuits.lastTimeDepartedMonth, timecircuits.lastTimeDepartedDay, timecircuits.lastTimeDepartedHour, timecircuits.lastTimeDepartedMinute);
     }
+    
+    // Apply Data Link settings
     if (datalink) {
         await applyDataLinkSettings(datalink);
         isDataLinkLoaded = true;
     }
+    // Update the sleep visualizer
     updateSleepVisual();
 }
 
 /**
  * Applies the fetched Data Link settings to the UI.
+ * @param {object} datalink The Data Link settings.
  */
 async function applyDataLinkSettings(datalink) {
-    if (!datalink) return;
-
-    // Top-level Data Link settings
-    document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
-    document.getElementById('dataLinkRefreshInterval').value = datalink.dataLinkRefreshInterval;
-    document.getElementById('dataLinkSettingsContainer').style.display = datalink.dataLinkEnabled ? 'block' : 'none';
-
-    // MQTT settings
-    document.getElementById('mqttBroker').value = datalink.mqttBroker || '';
-    document.getElementById('mqttPort').value = datalink.mqttPort || 1883;
-    document.getElementById('mqttUser').value = datalink.mqttUser || '';
-    document.getElementById('mqttPassword').value = datalink.mqttPassword || '';
-
-    // Weather settings
+    // Apply the main Data Link and weather settings
     document.getElementById('weatherModeEnabled').checked = datalink.weatherModeEnabled;
+    document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
+    document.getElementById('stockTickerModeEnabled').checked = datalink.stockTickerModeEnabled;
+    
+    document.getElementById('weatherSettingsContainer').style.display = datalink.weatherModeEnabled ? 'block' : 'none';
+    document.getElementById('dataLinkSettingsContainer').style.display = datalink.dataLinkEnabled ? 'block' : 'none';
+    document.getElementById('stockTickerSettingsContainer').style.display = datalink.stockTickerModeEnabled ? 'block' : 'none';
+
+    document.getElementById('weatherModeGroup').classList.toggle('disabled', datalink.dataLinkEnabled || datalink.stockTickerModeEnabled);
+    document.getElementById('dataLinkGroup').classList.toggle('disabled', datalink.weatherModeEnabled || datalink.stockTickerModeEnabled);
+    document.getElementById('stockTickerGroup').classList.toggle('disabled', datalink.weatherModeEnabled || datalink.dataLinkEnabled);
+
     document.getElementById('cityName').value = datalink.cityName || '';
     document.getElementById('useMetricUnits').checked = datalink.useMetricUnits;
-    document.getElementById('weatherSettingsContainer').style.display = datalink.weatherModeEnabled ? 'block' : 'none';
 
-    // Stock Ticker settings
-    document.getElementById('stockTickerModeEnabled').checked = datalink.stockTickerModeEnabled;
     document.getElementById('alphaVantageApiKey').value = datalink.alphaVantageApiKey || '';
     document.getElementById('stockRow1_symbol').value = datalink.stockRow1_symbol || '';
     document.getElementById('stockRow2_symbol').value = datalink.stockRow2_symbol || '';
     document.getElementById('stockRow3_symbol').value = datalink.stockRow3_symbol || '';
-    document.getElementById('stockTickerSettingsContainer').style.display = datalink.stockTickerModeEnabled ? 'block' : 'none';
-
-    // Handle exclusive enabling of modes
-    if (datalink.weatherModeEnabled) {
-        document.getElementById('dataLinkGroup').classList.add('disabled');
-        document.getElementById('stockTickerGroup').classList.add('disabled');
-    } else if (datalink.dataLinkEnabled) {
-        document.getElementById('weatherModeGroup').classList.add('disabled');
-        document.getElementById('stockTickerGroup').classList.add('disabled');
-    } else if (datalink.stockTickerModeEnabled) {
-        document.getElementById('dataLinkGroup').classList.add('disabled');
-        document.getElementById('weatherModeGroup').classList.add('disabled');
-    }
-
-
-    // Data Points settings
-    const numDataPoints = datalink.numDataPoints || 0;
-    document.getElementById('numDataPoints').value = numDataPoints;
-    document.getElementById('numDataPointsValue').textContent = numDataPoints;
-
-    await updateDataPointsUI(numDataPoints); // This is an async function now
-
-    if (datalink.dataPoints && datalink.dataPoints.length > 0) {
-        for (let i = 0; i < numDataPoints; i++) {
-            const point = datalink.dataPoints[i];
-            if (point) {
-                // Set data source type
-                const dataSourceSelect = document.getElementById(`dp_dataSourceType_${i}`);
-                if (point.dataSourceType === 1) {
-                    dataSourceSelect.value = 'mqtt';
-                } else if (point.dataSourceType === 2) {
-                    dataSourceSelect.value = 'ha';
-                } else {
-                    dataSourceSelect.value = 'api';
-                }
-                dataSourceSelect.dispatchEvent(new Event('change')); // Trigger visibility change
-
-                // Set display mode
-                 const displayModeSelect = document.getElementById(`dp_displayMode_${i}`);
-                 displayModeSelect.value = point.displayMode || 0;
-                 displayModeSelect.dispatchEvent(new Event('change'));
-
-
-                // Populate fields
-                document.getElementById(`dp_url_${i}`).value = point.url || '';
-                document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
-                document.getElementById(`dp_dayPath_${i}`).value = point.dayPath || '';
-                document.getElementById(`dp_yearPath_${i}`).value = point.yearPath || '';
-                document.getElementById(`dp_timePath_${i}`).value = point.timePath || '';
-                document.getElementById(`dp_prefix_${i}`).value = point.prefix || '';
-                document.getElementById(`dp_suffix_${i}`).value = point.suffix || '';
-                document.getElementById(`dp_icon_${i}`).value = point.icon || '';
-                document.getElementById(`dp_scrollSpeed_${i}`).value = point.scrollSpeed || 150;
-                document.getElementById(`dp_scrollSpeed_${i}Value`).textContent = point.scrollSpeed || 150;
-                document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
-                document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
-                document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
-                document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
-                document.getElementById(`dp_authHeaderKey_${i}`).value = point.authHeaderKey || '';
-                document.getElementById(`dp_authHeaderValue_${i}`).value = point.authHeaderValue || '';
-                document.getElementById(`api_example_${i}`).value = point.apiExampleKey || '';
-
-                updateMarqueePreview(i);
+    
+    document.getElementById('dataLinkRefreshInterval').value = datalink.dataLinkRefreshInterval;
+    document.getElementById('dataLinkRefreshIntervalValue').textContent = datalink.dataLinkRefreshInterval;
+    document.getElementById('mqttBroker').value = datalink.mqttBroker || '';
+    document.getElementById('mqttPort').value = datalink.mqttPort || 1883;
+    document.getElementById('mqttUser').value = datalink.mqttUser || '';
+    document.getElementById('mqttPassword').value = datalink.mqttPassword || '';
+    document.getElementById('numDataPoints').value = datalink.numDataPoints;
+    document.getElementById('numDataPointsValue').textContent = datalink.numDataPoints;
+    // Update the UI for each data point
+    await updateDataPointsUI(datalink.numDataPoints);
+    if (datalink.dataPoints) {
+        datalink.dataPoints.forEach((point, i) => {
+            if (point.dataSourceType === 1) {
+                document.getElementById(`dp_dataSourceType_${i}`).value = 'mqtt';
+            } else if (point.dataSourceType === 2) {
+                document.getElementById(`dp_dataSourceType_${i}`).value = 'ha';
+            } else {
+                document.getElementById(`dp_dataSourceType_${i}`).value = 'api';
             }
-        }
+            document.getElementById(`dp_displayMode_${i}`).value = point.displayMode || 0;
+            document.getElementById(`dp_url_${i}`).value = point.url || '';
+            document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
+            document.getElementById(`dp_dayPath_${i}`).value = point.dayPath || '';
+            document.getElementById(`dp_yearPath_${i}`).value = point.yearPath || '';
+            document.getElementById(`dp_timePath_${i}`).value = point.timePath || '';
+            document.getElementById(`dp_prefix_${i}`).value = point.prefix || '';
+            document.getElementById(`dp_suffix_${i}`).value = point.suffix || '';
+            document.getElementById(`dp_icon_${i}`).value = point.icon || '';
+            document.getElementById(`dp_scrollSpeed_${i}`).value = point.scrollSpeed || 150;
+            document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
+            document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
+            document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
+            document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
+            document.getElementById(`dp_authHeaderKey_${i}`).value = point.authHeaderKey || '';
+            document.getElementById(`dp_authHeaderValue_${i}`).value = point.authHeaderValue || '';
+            document.getElementById(`api_example_${i}`).value = point.apiExampleKey || '';
+
+            // Trigger change events to update the UI
+            document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
+            document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
+            updateMarqueePreview(i);
+        });
     }
 }
 
@@ -267,29 +272,21 @@ async function applyDataLinkSettings(datalink) {
  * Attaches all the necessary event listeners to the UI elements.
  */
 function attachEventListeners() {
-    document.getElementById('loggingEnabled').onchange = (e) => {
-        const isEnabled = e.target.checked;
-        const logContainer = document.getElementById('logContainer');
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ action: 'setLogging', payload: isEnabled }));
-        }
-        if (!isEnabled) {
-            logContainer.innerHTML = ''; // Clear the log when disabled
-            showMessage('Log stream disabled.', 'info');
-        } else {
-            showMessage('Log stream enabled.', 'info');
-        }
-    };
+    // Header clocks click to scroll to settings
     document.getElementById('header-dest').onclick = () => scrollToSettings('TimeCircuits', 'destinationTimeSettings');
     document.getElementById('header-pres').onclick = () => scrollToSettings('System', 'presentTimeSettings');
     document.getElementById('header-last').onclick = () => scrollToSettings('TimeCircuits', 'lastDepartedSettings');
+    // "Great Scott!" button
     document.getElementById('greatScottBtn').onclick = () => fetch('/api/greatScott', { method: 'POST' });
+    // "Engage Time Circuits" button
     document.getElementById('saveSettingsBtn').onclick = saveSettings;
+    // Tab navigation
     document.querySelectorAll('.tab-link').forEach(btn => btn.onclick = (e) => {
         const tabName = e.target.getAttribute('data-tab');
         openTab(e, tabName);
         if (tabName === 'DataLink' && !isDataLinkLoaded) loadDataLinkSettings();
     });
+    // Timezone and destination year inputs
     ['destinationTimezoneSelect', 'presentTimezoneSelect'].forEach(id => {
         document.getElementById(id).onchange = () => {
             if (!isLoading) setSettingsChanged(true);
@@ -297,23 +294,33 @@ function attachEventListeners() {
         };
     });
     document.getElementById('destinationYear').oninput = () => updateHeaderClocks(new Date());
+
+    // Preset selection and management
     document.getElementById('presetDateSelect').onchange = handlePresetSelectionChange;
     document.getElementById('savePresetBtn').onclick = handleSavePreset;
     document.getElementById('deletePresetBtn').onclick = deletePreset;
     document.getElementById('newPresetBtn').onclick = resetPresetForm;
+    // Weather refresh button
     document.getElementById('refreshWeatherBtn').onclick = refreshWeatherData;
+    // Test all data points button
     document.getElementById('testAllDataPointsBtn').onclick = testAllDataPoints;
+
+    // 24-hour format toggle
     document.getElementById('displayFormat24h').addEventListener('change', () => {
         const year = document.getElementById('lastTimeDepartedYear').textContent;
         const month = document.getElementById('lastTimeDepartedMonth').textContent;
         const day = document.getElementById('lastTimeDepartedDay').textContent;
         const hour = document.getElementById('lastTimeDepartedHour').textContent;
         const minute = document.getElementById('lastTimeDepartedMinute').textContent;
+
         if (year && month && day && hour && minute) {
             updateLastDepartedDisplay(year, month, day, hour, minute);
         }
+
         fetchTime();
     });
+
+   // Weather, Data Link, and Stock Ticker mode toggles
     document.getElementById('weatherModeEnabled').onchange = (e) => {
         const isChecked = e.target.checked;
         document.getElementById('weatherSettingsContainer').style.display = isChecked ? 'block' : 'none';
@@ -329,6 +336,7 @@ function attachEventListeners() {
         }
         if (!isLoading) setSettingsChanged(true);
     };
+
     document.getElementById('dataLinkEnabled').onchange = (e) => {
         const isChecked = e.target.checked;
         document.getElementById('dataLinkSettingsContainer').style.display = isChecked ? 'block' : 'none';
@@ -343,6 +351,7 @@ function attachEventListeners() {
         }
         if (!isLoading) setSettingsChanged(true);
     };
+
     document.getElementById('stockTickerModeEnabled').onchange = (e) => {
         const isChecked = e.target.checked;
         document.getElementById('stockTickerSettingsContainer').style.display = isChecked ? 'block' : 'none';
@@ -357,16 +366,22 @@ function attachEventListeners() {
         }
         if (!isLoading) setSettingsChanged(true);
     };
+
+    // Use event delegation for the stock fetch buttons. This ensures the click event
+    // is handled even if the buttons are added to the DOM after the initial page load.
     document.getElementById('stockTickerSettingsContainer').addEventListener('click', function(event) {
         if (event.target && event.target.classList.contains('fetch-stock-btn')) {
             fetchStockQuote(event);
         }
     });
+
+    // Number of data points slider
     document.getElementById('numDataPoints').oninput = (e) => {
         document.getElementById('numDataPointsValue').textContent = e.target.value;
         updateDataPointsUI(parseInt(e.target.value, 10));
         if (!isLoading) setSettingsChanged(true);
     };
+    // General input change listeners to track settings changes
     document.querySelectorAll('input, select').forEach(el => {
         el.addEventListener('change', () => {
             if (!isLoading) setSettingsChanged(true);
@@ -379,6 +394,7 @@ function attachEventListeners() {
             }
         });
     });
+    // Reset to defaults button
     document.getElementById('resetDefaultsBtn').onclick = () => {
         if (confirm("Are you sure? This will reset all settings to their defaults.")) {
             fetch('/api/resetSettings', { method: 'POST' })
@@ -388,9 +404,11 @@ function attachEventListeners() {
                 });
         }
     };
+    // Sync time button
     document.getElementById('syncNtpBtn').onclick = () => {
         fetch('/api/syncTime', { method: 'POST' }).then(res => res.text()).then(text => showMessage(text, 'info'));
     };
+    // Theme selector
     document.querySelectorAll('.theme-option').forEach(el => {
         el.onclick = () => {
             const theme = el.getAttribute('data-theme');
@@ -398,8 +416,11 @@ function attachEventListeners() {
             fetch('/api/setTheme', { method: 'POST', body: new URLSearchParams({ theme }) });
         };
     });
+    // Sleep schedule inputs
     document.getElementById('departureTime').onchange = updateSleepVisual;
     document.getElementById('arrivalTime').onchange = updateSleepVisual;
+
+    // Keyboard listener to deselect the wizard target
     document.addEventListener('keydown', (e) => {
         if (e.key === "Escape" && activeWizardTarget) {
             activeWizardTarget.classList.remove('is-wizard-target');
@@ -407,39 +428,53 @@ function attachEventListeners() {
             showMessage('Wizard target deselected.', 'info', 2000);
         }
     });
+
+    // Animation preview button
     document.getElementById('previewAnimationBtn').onclick = previewAnimationStyle;
+
+    // Firmware, UI, and Data zip upload forms
+    document.getElementById('firmware-upload-form').onsubmit = handleFirmwareUpload;
+    document.getElementById('ui-upload-form').onsubmit = handleUiUpload;
+    document.getElementById('data-zip-upload-form').onsubmit = handleDataZipUpload;
 }
 
 /**
- * Handles preset selection change.
+ * Handles the change event of the preset select dropdown.
+ * @param {Event} event The change event.
  */
 function handlePresetSelectionChange(event) {
     applySelectedPreset(event);
+
     const select = event.target;
     const selectedOption = select.options[select.selectedIndex];
     const isCustomPreset = selectedOption.parentElement.label === 'Custom Time Jumps';
 
+    // If a custom preset is selected, show the edit form
     if (isCustomPreset) {
         document.getElementById('presetFormTitle').textContent = 'Edit Selected Preset';
         document.getElementById('savePresetBtn').textContent = 'Update Preset';
         document.getElementById('deletePresetBtn').classList.remove('hidden');
         document.getElementById('newPresetBtn').classList.remove('hidden');
+
         document.getElementById('presetName').value = selectedOption.textContent;
         const [year, month, day, hour, minute] = selectedOption.value.split('-');
         document.getElementById('presetDate').value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         document.getElementById('presetTime').value = `${String(hour).padStart(2, '0')}-${String(minute).padStart(2, '0')}`;
     } else {
+        // Otherwise, show the "add new" form
         resetPresetForm(false);
     }
 }
 
 /**
- * Handles save preset button click.
+ * Handles the click event of the save/update preset button.
  */
 function handleSavePreset() {
     const select = document.getElementById('presetDateSelect');
     const selectedOption = select.options[select.selectedIndex];
     const isCustomPreset = selectedOption.parentElement.label === 'Custom Time Jumps';
+
+    // If a custom preset is selected, update it, otherwise add a new one
     if (isCustomPreset) {
         updatePreset();
     } else {
@@ -448,13 +483,15 @@ function handleSavePreset() {
 }
 
 /**
- * Resets the preset form.
+ * Resets the preset form to its default state.
+ * @param {boolean} resetDropdown Whether to also reset the dropdown selection.
  */
 function resetPresetForm(resetDropdown = true) {
     document.getElementById('presetFormTitle').textContent = 'Add a New Custom Time Jump';
     document.getElementById('savePresetBtn').textContent = 'Add to Presets';
     document.getElementById('deletePresetBtn').classList.add('hidden');
     document.getElementById('newPresetBtn').classList.add('hidden');
+
     ['presetName', 'presetDate', 'presetTime'].forEach(id => document.getElementById(id).value = '');
     if (resetDropdown) {
         document.getElementById('presetDateSelect').value = '';
@@ -462,7 +499,8 @@ function resetPresetForm(resetDropdown = true) {
 }
 
 /**
- * Applies the selected preset.
+ * Applies the selected preset to the "Last Time Departed" display.
+ * @param {Event} event The change event from the preset select dropdown.
  */
 function applySelectedPreset(event) {
     const select = event.target;
@@ -475,7 +513,9 @@ function applySelectedPreset(event) {
 }
 
 /**
- * Scrolls to a specific setting.
+ * Scrolls to a specific settings group in a tab.
+ * @param {string} tabName The name of the tab to switch to.
+ * @param {string} elementId The ID of the element to scroll to.
  */
 function scrollToSettings(tabName, elementId) {
     const tabButton = document.querySelector(`.tab-link[data-tab='${tabName}']`);
@@ -493,7 +533,9 @@ function scrollToSettings(tabName, elementId) {
 }
 
 /**
- * Opens a tab.
+ * Switches to a specific tab.
+ * @param {Event} evt The click event from the tab button.
+ * @param {string} tabName The name of the tab to open.
  */
 function openTab(evt, tabName) {
     document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = "none");
@@ -503,7 +545,8 @@ function openTab(evt, tabName) {
 }
 
 /**
- * Sets the settings changed flag.
+ * Sets the `settingsChanged` flag and enables/disables the save button.
+ * @param {boolean} isChanged Whether the settings have changed.
  */
 function setSettingsChanged(isChanged) {
     settingsChanged = isChanged;
@@ -516,12 +559,14 @@ function setSettingsChanged(isChanged) {
 }
 
 /**
- * Updates the header clocks.
+ * Updates the header clocks with the current time.
+ * @param {Date} presentTimeRaw The current time.
  */
 function updateHeaderClocks(presentTimeRaw) {
     const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
     const is24h = document.getElementById('displayFormat24h').checked;
 
+    // Helper function to populate a single header row
     const populateHeaderRow = (prefix, unixTimestamp, yearOverride = null) => {
         const timezoneSelectId = (prefix === 'dest') ? 'destinationTimezoneSelect' : 'presentTimezoneSelect';
         const timezoneSelect = document.getElementById(timezoneSelectId);
@@ -541,6 +586,7 @@ function updateHeaderClocks(presentTimeRaw) {
         setContent(`header-${prefix}-ampm`, is24h ? '' : ampm);
     };
 
+    // Populate the "Present Time" and "Destination Time" rows
     const presentUnixTimestamp = presentTimeRaw.getTime() / 1000;
     populateHeaderRow('pres', presentUnixTimestamp);
 
@@ -551,6 +597,7 @@ function updateHeaderClocks(presentTimeRaw) {
         populateHeaderRow('dest', destinationTime.getTime() / 1000, destYearInput.value);
     }
 
+    // Populate the "Last Time Departed" row
     const lastYear = document.getElementById('lastTimeDepartedYear').textContent;
     const lastMonth = parseInt(document.getElementById('lastTimeDepartedMonth').textContent, 10);
     const lastDay = document.getElementById('lastTimeDepartedDay').textContent;
@@ -560,12 +607,15 @@ function updateHeaderClocks(presentTimeRaw) {
     if (lastYear && !isNaN(lastMonth) && lastDay && !isNaN(lastHour) && lastMinute) {
         let displayHour = lastHour;
         let ampm = '';
+
         if (!is24h) {
             ampm = displayHour >= 12 ? 'PM' : 'AM';
             if (displayHour > 12) displayHour -= 12;
             if (displayHour === 0) displayHour = 12;
         }
+
         const setContent = (id, text) => { document.getElementById(id).textContent = text; };
+
         setContent('header-last-month', months[lastMonth - 1] || '---');
         setContent('header-last-day', String(lastDay).padStart(2, '0'));
         setContent('header-last-year', lastYear);
@@ -574,13 +624,18 @@ function updateHeaderClocks(presentTimeRaw) {
         setContent('header-last-ampm', is24h ? '' : ampm);
     }
 
+    // Update the current time marker in the sleep visualizer
     const now = new Date();
     const totalMinutes = now.getHours() * 60 + now.getMinutes();
     document.getElementById('currentTimeMarker').style.left = `${(totalMinutes / 1440) * 100}%`;
 }
 
 /**
- * Formats date and time in a specific timezone.
+ * Formats a Unix timestamp into a date and time string for a specific timezone.
+ * @param {number} unixTimestamp The Unix timestamp.
+ * @param {number} timezoneIndex The index of the timezone in the `timezoneOptions` array.
+ * @param {boolean} is24HourFormat Whether to use 24-hour format.
+ * @returns {object|null} An object with `time` and `date` strings, or null if an error occurs.
  */
 function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) {
     if (!timezoneOptions || timezoneIndex < 0 || !timezoneOptions[timezoneIndex]) return null;
@@ -594,7 +649,9 @@ function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) 
 }
 
 /**
- * Updates the data points UI.
+ * Updates the UI to show the specified number of data points.
+ * @param {number} numPoints The number of data points to show.
+ * @returns {Promise<void>} A promise that resolves when the UI is updated.
  */
 function updateDataPointsUI(numPoints) {
     return new Promise((resolve) => {
@@ -605,8 +662,9 @@ function updateDataPointsUI(numPoints) {
                 if (!dataPointStateCache[i]) {
                     dataPointStateCache[i] = { modifiedUrls: {} };
                 }
+                // Create the HTML for the data point block
                 const block = document.createElement('div');
-                block.className = 'setting-group data-point-block collapsed';
+                block.className = 'setting-group data-point-block collapsed'; // Start collapsed
                 block.innerHTML = `
                     <div class="dp-header">
                         <div class="dp-title-group">
@@ -736,6 +794,7 @@ function updateDataPointsUI(numPoints) {
                 `;
                 container.appendChild(block);
             }
+            // Populate the API example dropdowns and attach event listeners
             populateApiExampleDropdowns();
             attachDataPointEventListeners();
             for (let i = 0; i < numPoints; i++) {
@@ -747,16 +806,24 @@ function updateDataPointsUI(numPoints) {
 }
 
 /**
- * Gets the display value for a path.
+ * Gets the display value for a data point field, resolving paths if possible.
+ * @param {string} path The path or static value.
+ * @param {string} placeholder The placeholder text if the value can't be resolved.
+ * @param {number} index The index of the data point.
+ * @returns {string} The resolved value or placeholder.
  */
 function getDisplayValue(path, placeholder, index) {
     if (!path) return placeholder;
+
+    // If there is cached analyzed data, try to resolve the path
     if (analyzedDataCache[index] !== undefined) {
         const resolvedValue = getValueFromPath(analyzedDataCache[index], path);
         if (resolvedValue !== null && resolvedValue !== undefined) {
             return resolvedValue;
         }
     }
+    
+    // If the path is not a path, return it as a static value
     if (path.includes('.') || path.includes('[')) {
         return placeholder;
     } else {
@@ -765,33 +832,42 @@ function getDisplayValue(path, placeholder, index) {
 }
 
 /**
- * Updates the marquee preview.
+ * Updates the marquee preview for a data point.
+ * @param {number} index The index of the data point.
  */
 function updateMarqueePreview(index) {
     const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
-    if (displayMode === '0') {
+
+    if (displayMode === '0') { // Four Column Data
         const monthPath = document.getElementById(`dp_monthPath_${index}`).value;
         const dayPath = document.getElementById(`dp_dayPath_${index}`).value;
         const yearPath = document.getElementById(`dp_yearPath_${index}`).value;
         const timePath = document.getElementById(`dp_timePath_${index}`).value;
         const icon = document.getElementById(`dp_icon_${index}`).value;
+
         let monthValue = getDisplayValue(monthPath, 'MON', index);
         let dayValue = getDisplayValue(dayPath, 'DAY', index);
         let yearValue = getDisplayValue(yearPath, 'YEAR', index);
         let timeValue = getDisplayValue(timePath, 'TIME', index);
+
         const yearPrefix = document.getElementById(`dp_yearPrefix_${index}`).value;
         const yearSuffix = document.getElementById(`dp_yearSuffix_${index}`).value;
         const yearFinalValue = `${yearPrefix}${yearValue}${yearSuffix}`;
+
         const prefix = document.getElementById(`dp_prefix_${index}`).value;
         const suffix = document.getElementById(`dp_suffix_${index}`).value;
         const timeFinalValue = `${prefix}${timeValue}${suffix}`;
+
         document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = String(monthValue).substring(0, 3).toUpperCase();
+
         const dayPreview = document.querySelector(`#marquee_preview_${index} .preview-day`);
         if (icon) {
             dayPreview.textContent = icon;
         } else {
             dayPreview.textContent = String(dayValue).substring(0, 2).toUpperCase();
         }
+        
+        // Helper function to set up scrolling for long text
         const setupScrolling = (text, valueSpan) => {
             valueSpan.textContent = text;
             valueSpan.classList.remove('scrolling-text');
@@ -802,14 +878,17 @@ function updateMarqueePreview(index) {
                 requestAnimationFrame(() => { valueSpan.classList.add('scrolling-text'); });
             }
         };
+
         setupScrolling(yearFinalValue, document.querySelector(`#marquee_preview_${index} .preview-year`));
         setupScrolling(timeFinalValue, document.querySelector(`#marquee_preview_${index} .preview-time`));
-    } else {
+
+    } else { // Scrolling Text
         const scrollingPath = document.getElementById(`dp_scrollingText_${index}`).value;
         const text = getDisplayValue(scrollingPath, 'PREVIEW', index);
         const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
         previewSpan.textContent = text;
         previewSpan.classList.remove('scrolling-text');
+        
         if (text.length > 13) {
             const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
             const duration = (text.length) * (scrollSpeed / 100);
@@ -822,15 +901,17 @@ function updateMarqueePreview(index) {
 }
 
 /**
- * Populates the API example dropdowns.
+ * Populates the API example dropdowns with data from the server.
  */
 function populateApiExampleDropdowns() {
     document.querySelectorAll('.api-example-select').forEach(select => {
         select.innerHTML = '';
+
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
         defaultOption.textContent = '-- Select an Example --';
         select.appendChild(defaultOption);
+
         for (const key in window.apiExamples) {
             const option = document.createElement('option');
             option.value = key;
@@ -844,22 +925,28 @@ function populateApiExampleDropdowns() {
  * Attaches event listeners to the data point UI elements.
  */
 function attachDataPointEventListeners() {
+    // Data source and display mode selectors
     document.querySelectorAll('.data-source-select, .display-mode-select').forEach(select => {
         select.onchange = (e) => {
             const index = e.target.dataset.index;
             const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
             const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
+
             document.getElementById(`dp_api_container_${index}`).style.display = dataSource === 'api' ? 'block' : 'none';
             document.getElementById(`dp_mqtt_container_${index}`).style.display = dataSource === 'mqtt' ? 'block' : 'none';
             if (dataSource === 'ha') {
                 document.getElementById(`dp_api_container_${index}`).style.display = 'none';
                 document.getElementById(`dp_mqtt_container_${index}`).style.display = 'none';
             }
+
             document.getElementById(`four_column_container_${index}`).style.display = displayMode === '0' ? 'block' : 'none';
             document.getElementById(`scrolling_text_container_${index}`).style.display = displayMode === '1' ? 'block' : 'none';
+            
             updateMarqueePreview(index);
         };
     });
+
+    // Icon selector
     document.querySelectorAll('.icon-select').forEach(select => {
         select.onchange = (e) => {
             const index = e.target.dataset.index;
@@ -872,15 +959,20 @@ function attachDataPointEventListeners() {
             }
         };
     });
+
+    // Data point action buttons
     document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
     document.querySelectorAll('.dp-clear-btn').forEach(btn => btn.onclick = clearDataPointFields);
     document.querySelectorAll('.dp-dup-btn').forEach(btn => btn.onclick = duplicateDataPoint);
     document.querySelectorAll('.dp-test-btn').forEach(btn => btn.onclick = testDataPoint);
+
+    // API example selector
     document.querySelectorAll('.api-example-select').forEach(select => {
         select.addEventListener('focus', (e) => {
             const index = e.target.dataset.index;
             lastFocusedApiExample[index] = e.target.value;
         });
+
         select.addEventListener('change', (e) => {
             const index = e.target.dataset.index;
             const urlInput = document.getElementById(`dp_url_${index}`);
@@ -890,6 +982,7 @@ function attachDataPointEventListeners() {
             }
             const newKey = e.target.value;
             const cachedUrl = dataPointStateCache[index].modifiedUrls[newKey];
+
             if (cachedUrl) {
                 urlInput.value = cachedUrl;
             } else {
@@ -898,23 +991,30 @@ function attachDataPointEventListeners() {
             }
         });
     });
+
+    // General input change listeners for data points
     document.querySelectorAll('.data-point-block input, .data-point-block select, .data-point-block textarea').forEach(input => {
         input.addEventListener('input', (e) => {
             const indexMatch = e.target.id.match(/_(\d+)$/);
             if (!indexMatch) return;
             const index = indexMatch[1];
+            
             if (e.target.id.startsWith('dp_dayPath_')) {
                 document.getElementById(`dp_icon_${index}`).value = '';
             }
+
             if (e.target.id.includes('requestBody')) {
                 validateJson(e.target);
             }
             updateMarqueePreview(index);
         });
     });
+
+    // Wizard target input click listener
     document.querySelectorAll('.wizard-target-input').forEach(input => {
         input.addEventListener('click', (e) => {
             const clickedTarget = e.target;
+
             if (activeWizardTarget === clickedTarget) {
                 activeWizardTarget.classList.remove('is-wizard-target');
                 activeWizardTarget = null;
@@ -927,8 +1027,11 @@ function attachDataPointEventListeners() {
             }
         });
     });
+
+    // Accordion logic for data point blocks
     document.querySelectorAll('.dp-header').forEach(header => {
         header.onclick = (e) => {
+            // Don't collapse if a button inside the header was clicked
             if (e.target.tagName === 'BUTTON') return;
             const block = header.closest('.data-point-block');
             block.classList.toggle('collapsed');
@@ -937,7 +1040,9 @@ function attachDataPointEventListeners() {
 }
 
 /**
- * Validates JSON input.
+ * Validates if the text in a textarea is valid JSON.
+ * @param {HTMLTextAreaElement} textarea The textarea to validate.
+ * @returns {boolean} True if the JSON is valid, false otherwise.
  */
 function validateJson(textarea) {
     const validationMessage = document.getElementById(`${textarea.id}_validation`);
@@ -956,11 +1061,14 @@ function validateJson(textarea) {
 }
 
 /**
- * Displays the API wizard results.
+ * Displays the results of the API wizard.
+ * @param {number} index The index of the data point.
+ * @param {object} jsonData The JSON data from the API.
  */
 function displayApiWizardResults(index, jsonData) {
     const container = document.getElementById(`wizard_results_${index}`);
     const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
+
     let instructions = '';
     if (displayMode === '0') {
         instructions = 'Click a form field (Month, Day, etc.), then click a value below to map it.';
@@ -968,14 +1076,19 @@ function displayApiWizardResults(index, jsonData) {
         instructions = 'Click the "Scrolling Text" field, then click a value below to map it.';
     }
     container.innerHTML = `<strong>${instructions}</strong>`;
+
     const mainList = document.createElement('ul');
     mainList.className = 'wizard-list';
+
+    // Helper function to recursively build the list of JSON keys and values
     const buildListRecursive = (data, parentPath = '') => {
         const elements = [];
+
         if (Array.isArray(data)) {
             data.forEach((item, i) => {
                 const currentPath = `${parentPath}[${i}]`;
                 const li = document.createElement('li');
+                
                 if (typeof item === 'object' && item !== null) {
                     li.innerHTML = `<span class="wizard-key">[${i}]:</span>`;
                     const subList = document.createElement('ul');
@@ -992,6 +1105,7 @@ function displayApiWizardResults(index, jsonData) {
                 const currentPath = parentPath ? `${parentPath}.${key}` : key;
                 const value = data[key];
                 const li = document.createElement('li');
+
                 if (typeof value === 'object' && value !== null) {
                     li.innerHTML = `<span class="wizard-key">${key}:</span>`;
                     const subList = document.createElement('ul');
@@ -1006,16 +1120,20 @@ function displayApiWizardResults(index, jsonData) {
         }
         return elements;
     };
+
     const allElements = buildListRecursive(jsonData);
     allElements.forEach(el => mainList.appendChild(el));
     container.appendChild(mainList);
+
+    // Attach click listeners to the wizard results
     container.querySelectorAll('.wizard-clickable-item').forEach(item => {
         item.onclick = (e) => {
             if (activeWizardTarget) {
                 const path = e.currentTarget.dataset.path;
                 activeWizardTarget.value = path;
-                activeWizardTarget.dispatchEvent(new Event('input'));
+                activeWizardTarget.dispatchEvent(new Event('input')); 
                 showMessage(`Mapped "${path}" to the selected field.`, 'success', 2000);
+
                 activeWizardTarget.classList.remove('is-wizard-target');
                 activeWizardTarget = null;
             } else {
@@ -1026,28 +1144,36 @@ function displayApiWizardResults(index, jsonData) {
 }
 
 /**
- * Updates the sleep visual.
+ * Updates the sleep schedule visualizer.
  */
 function updateSleepVisual() {
-    const depTime = document.getElementById('departureTime').value;
-    const arrTime = document.getElementById('arrivalTime').value;
+    const depTime = document.getElementById('departureTime').value; // This is now "Sleep Time"
+    const arrTime = document.getElementById('arrivalTime').value;   // This is now "Wake Time"
     if (!depTime || !arrTime) return;
+
     const [depH, depM] = depTime.split(':').map(Number);
     const [arrH, arrM] = arrTime.split(':').map(Number);
-    const depTotalMins = depH * 60 + depM;
-    const arrTotalMins = arrH * 60 + arrM;
+    const depTotalMins = depH * 60 + depM; // Time sleep begins
+    const arrTotalMins = arrH * 60 + arrM; // Time wake up happens
+
     const bar1 = document.getElementById('sleepScheduleBar');
     const bar2 = document.getElementById('sleepScheduleBar2');
+
+    // Case 1: Awake time is one continuous block (e.g., wake at 7am, sleep at 10pm)
     if (arrTotalMins < depTotalMins) {
         const awakeDuration = depTotalMins - arrTotalMins;
         bar1.style.left = `${(arrTotalMins / 1440) * 100}%`;
         bar1.style.width = `${(awakeDuration / 1440) * 100}%`;
         bar2.style.display = 'none';
-    } else {
-        const firstAwakeDuration = depTotalMins;
+    } 
+    // Case 2: Awake time is split into two blocks (e.g., sleep at 1am, wake at 9am)
+    // The awake time is from midnight to 1am, and from 9am to midnight.
+    else {
+        const firstAwakeDuration = depTotalMins; // from 00:00 to sleep time
         bar1.style.left = '0%';
         bar1.style.width = `${(firstAwakeDuration / 1440) * 100}%`;
-        const secondAwakeDuration = 1440 - arrTotalMins;
+        
+        const secondAwakeDuration = 1440 - arrTotalMins; // from wake time to 24:00
         bar2.style.left = `${(arrTotalMins / 1440) * 100}%`;
         bar2.style.width = `${(secondAwakeDuration / 1440) * 100}%`;
         bar2.style.display = 'block';
@@ -1055,7 +1181,9 @@ function updateSleepVisual() {
 }
 
 /**
- * Shows a loading indicator.
+ * Shows or hides a loading spinner on a button.
+ * @param {string} buttonId The ID of the button.
+ * @param {boolean} isLoading Whether to show the loading spinner.
  */
 function showLoading(buttonId, isLoading) {
     const button = document.getElementById(buttonId);
@@ -1071,7 +1199,10 @@ function showLoading(buttonId, isLoading) {
 }
 
 /**
- * Shows a message banner.
+ * Shows a message banner at the top of the page.
+ * @param {string} message The message to show.
+ * @param {string} type The type of message (info, success, error).
+ * @param {number} duration The duration to show the message in milliseconds.
  */
 function showMessage(message, type = 'info', duration = 4000) {
     const banner = document.getElementById('messageBanner');
@@ -1088,19 +1219,22 @@ function showMessage(message, type = 'info', duration = 4000) {
 }
 
 /**
- * Updates the data point status indicator.
+ * Updates the status indicator for a data point.
+ * @param {number} index The index of the data point.
+ * @param {boolean} isSuccess Whether the data point is successful.
  */
 function updateDataPointStatus(index, isSuccess) {
     const indicator = document.getElementById(`dp_status_${index}`);
     if (indicator) {
-        indicator.className = 'dp-status-indicator';
+        indicator.className = 'dp-status-indicator'; // Reset
         indicator.classList.add(isSuccess ? 'success' : 'error');
     }
     dataPointStatus[index] = isSuccess;
 }
 
 /**
- * Clears the data point fields.
+ * Clears all the fields for a data point.
+ * @param {Event} event The click event from the "Clear" button.
  */
 function clearDataPointFields(event) {
     const index = event.target.dataset.index;
@@ -1109,6 +1243,7 @@ function clearDataPointFields(event) {
         const el = document.getElementById(`dp_${field}_${index}`);
         if (el) el.value = '';
     });
+    
     document.getElementById(`wizard_results_${index}`).innerHTML = '';
     delete analyzedDataCache[index];
     updateMarqueePreview(index);
@@ -1117,16 +1252,20 @@ function clearDataPointFields(event) {
 }
 
 /**
- * Duplicates a data point.
+ * Duplicates a data point to a new slot.
+ * @param {Event} event The click event from the "Duplicate" button.
  */
 function duplicateDataPoint(event) {
     const sourceIndex = parseInt(event.target.dataset.index, 10);
     const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
+    
     if (numDataPoints >= 5) {
         showMessage('Cannot duplicate, maximum number of data points reached.', 'error');
         return;
     }
+
     const targetIndex = numDataPoints;
+    
     document.getElementById('numDataPoints').value = targetIndex + 1;
     document.getElementById('numDataPointsValue').textContent = targetIndex + 1;
     updateDataPointsUI(targetIndex + 1).then(() => {
@@ -1145,7 +1284,7 @@ function duplicateDataPoint(event) {
 }
 
 /**
- * Previews the animation style.
+ * Previews an animation style in the header clocks.
  */
 function previewAnimationStyle() {
     const style = document.getElementById('animationStyleSelect').value;
@@ -1188,27 +1327,29 @@ function previewAnimationStyle() {
 
         const progress = elapsed / duration;
 
+        // Animate based on the selected style
         switch (style) {
             case '0': 
             case '1': 
             case '2':
-            case '5':
+            case '5': // Tornado Flicker is also random
                  allElements.forEach(el => {
                     if (Math.random() > 0.1) {
                         el.textContent = randomString(el.textContent.length);
                     }
                 });
                 break;
-            case '3':
-            case '9': {
+            case '3': // Counting Up
+            case '9': { // Timeline Skim
                 const startYear = (style === '3') ? new Date().getFullYear() : 1885;
                 const endYear = (style === '3') ? startYear + 100 : (parseInt(document.getElementById('destinationYear').value, 10) || 2015);
                 
                 const totalYears = endYear - startYear;
-                const yearsToAdd = totalYears * (1 - Math.pow(1 - progress, 3));
+                const yearsToAdd = totalYears * (1 - Math.pow(1 - progress, 3)); // Ease-out
                 
+                // Simulate a fast-forward in time by adding a large number of days
                 const startDate = new Date(startYear, 0, 1);
-                const daysToAdd = yearsToAdd * 365.25;
+                const daysToAdd = yearsToAdd * 365.25; // Approximate
                 
                 const currentDate = new Date(startDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000 + elapsed * 10000);
 
@@ -1227,8 +1368,8 @@ function previewAnimationStyle() {
                 });
                 break;
             }
-            case '4':
-            case '8':
+            case '4': // Wave Flicker is the same as Waveform Collapse in the C++
+            case '8': // Waveform Collapse
                 const wavePatterns = ["-___-", "_--_-", "__-__"];
                 const waveIndex = Math.floor((elapsed / 200) % 3);
                 const scrollOffset = Math.floor((elapsed / 100) % 5);
@@ -1245,7 +1386,7 @@ function previewAnimationStyle() {
                     });
                 });
                 break;
-            case '6':
+            case '6': // Capacitor Charge-Up
                 headerRows.forEach((row, rowIndex) => {
                     const phaseProgress = progress * 3 - rowIndex;
                     if (phaseProgress >= 0) {
@@ -1258,7 +1399,7 @@ function previewAnimationStyle() {
                     }
                 });
                 break;
-            case '7':
+            case '7': // Digital Rain
                  allElements.forEach(el => el.textContent = randomString(el.textContent.length));
                  break;
         }
@@ -1268,7 +1409,7 @@ function previewAnimationStyle() {
 }
 
 /**
- * Tests all data points.
+ * Tests all the configured data points.
  */
 function testAllDataPoints() {
     const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
@@ -1276,18 +1417,23 @@ function testAllDataPoints() {
         showMessage('No data points to test.', 'info');
         return;
     }
+
     showMessage(`Starting test for ${numDataPoints} data point(s)...`, 'info');
+
     for (let i = 0; i < numDataPoints; i++) {
         const testButton = document.querySelector(`.dp-test-btn[data-index="${i}"]`);
         if (testButton) {
-            const syntheticEvent = { target: testButton };
+            // Create a synthetic event object to pass to the testDataPoint function
+            const syntheticEvent = {
+                target: testButton
+            };
             testDataPoint(syntheticEvent);
         }
     }
 }
 
 /**
- * Fetches the system status.
+ * Fetches the system status from the server.
  */
 function fetchSystemStatus() {
     fetch('/api/system/status')
@@ -1298,8 +1444,10 @@ function fetchSystemStatus() {
             return Promise.reject('Failed to fetch system status');
         })
         .then(data => {
+            // Update the system status display
             document.getElementById('freeMemory').textContent = `${(data.freeHeap / 1024).toFixed(1)} KB`;
             document.getElementById('wifiSignal').textContent = `${data.rssi} dBm`;
+            
             const uptime = data.uptime;
             const days = Math.floor(uptime / 86400);
             const hours = Math.floor((uptime % 86400) / 3600);
@@ -1308,8 +1456,25 @@ function fetchSystemStatus() {
         })
         .catch(err => {
             console.warn("CLIENT_DEBUG: Could not fetch system status:", err);
+            // If there's an error, show "Error"
             document.getElementById('freeMemory').textContent = 'Error';
             document.getElementById('wifiSignal').textContent = 'Error';
             document.getElementById('deviceUptime').textContent = 'Error';
         });
+}
+
+/**
+ * Sets the loading state of a button.
+ * @param {HTMLButtonElement} button The button to modify.
+ * @param {boolean} isLoading Whether to show the loading spinner.
+ */
+function setButtonLoading(button, isLoading) {
+    if (isLoading) {
+        button.dataset.originalText = button.innerHTML;
+        button.innerHTML = '<span class="loading-spinner"></span>';
+        button.disabled = true;
+    } else {
+        button.innerHTML = button.dataset.originalText || 'Upload';
+        button.disabled = false;
+    }
 }

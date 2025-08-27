@@ -1,24 +1,19 @@
 #ifndef DISPLAY_MANAGER_H
 #define DISPLAY_MANAGER_H
 
-#include <Adafruit_GFX.h>
-#include <Adafruit_LEDBackpack.h>
-#include "types.h"
-#include <time.h>
+#include <string>
 
-// Note: The DisplayManager was a class with no implementations.
-// The functions have been moved to be standalone functions,
-// which is how they are used in the other code files.
+extern std::string manualDisplayText[3][4];
+extern bool isRowInManualMode[3];
 
-void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration);
-void updateStockTickerDisplay();
+void updateNormalClockDisplay();
+void updateMarqueeDisplay();
+void handleWeatherDisplay();
 void displayOverrideMessage();
 void displayMarqueeOverride();
-void updateMarqueeDisplay();
-void updateNormalClockDisplay();
-void handleWeatherDisplay();
-void updateDisplayRow(DisplayRow& row, struct tm& timeinfo, int year, int rowIndex);
-void updateDisplaySegment(int row, int segment, const char* text);
+void updateStockTickerDisplay();
+void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration);
 const char* getIconForWeatherCode(int code);
+void updateDisplaySegment(int row, int segment, const std::string& text);
 
 #endif // DISPLAY_MANAGER_H

@@ -2,19 +2,12 @@
  * @file AnimationManager.cpp
  * @brief Manages all visual animations and special effects for the display.
  */
-#include "AnimationManager.h"
-#include "DisplayManager.h"
-#include "HardwareControl.h"
-#include "globals.h"
-#include "config.h"
-#include "time_manager.h"
-#include "AudioControl.h"
-#include "types.h"
-#include "Logger.h"
-#include "MqttManager.h"
-#include "SettingsManager.h"
 
-// ... rest of the file content
+#include "AnimationManager.h"
+#include "EventManager.h"
+#include "HardwareControl.h"
+#include "DisplayManager.h"
+#include "MqttManager.h"
 
 // --- FLASH EFFECT ---
 bool isFlashing[3][4] = {{false}};
@@ -70,7 +63,7 @@ void startTimeTravelAnimation() {
 
     if (currentSettings.timeTravelSoundToggle) {
         if (hardwareInitialized) {
-            playSound("/FLUX_CAPACITOR_CHARGE.mp3");
+            playSound("FLUX_CAPACITOR_CHARGE");
         }
     }
 }
@@ -92,7 +85,7 @@ void handleDisplayAnimation() {
                 currentPhase = ANIM_TIME_ACCELERATION;
                 animationStartTime = millis(); // Reset timer for next phase
                 if (currentSettings.timeTravelSoundToggle) {
-                    playSound("/ttaccel.mp3");
+                    playSound("ACCELERATION");
                 }
             }
             break;
@@ -110,7 +103,7 @@ void handleDisplayAnimation() {
                 currentPhase = ANIM_ARRIVAL;
                 animationStartTime = millis();
                  if (currentSettings.timeTravelSoundToggle) {
-                    playSound("/TIME_TRAVEL.mp3");
+                    playSound("TIME_TRAVEL");
                 }
             }
             break;
@@ -123,7 +116,7 @@ void handleDisplayAnimation() {
                 currentPhase = ANIM_LANDING;
                 animationStartTime = millis();
                  if (currentSettings.timeTravelSoundToggle) {
-                    playSound("/ARRIVAL_THUD.mp3");
+                    playSound("ARRIVAL_THUD");
                 }
             }
             break;
@@ -276,7 +269,7 @@ void handleBootSequence() {
             blankAllDisplays();
             bootState = BOOT_CHARGE_UP;
             bootStateStartTime = millis();
-            playSound("/FLUX_CAPACITOR_CHARGE.mp3");
+            playSound("FLUX_CAPACITOR_CHARGE");
             break;
         case BOOT_CHARGE_UP:
             if (elapsed < 2000) {

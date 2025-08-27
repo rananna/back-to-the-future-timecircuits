@@ -8,29 +8,24 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <Preferences.h>
-#include <AudioOutputI2S.h>
+#include <AudioOutputI2S.h> // Add this include for the 'out' object
 #include <AudioFileSourceHTTPStream.h>
 #include <AudioFileSourceICYStream.h>
 #include <AudioGeneratorMP3.h>
-#include <LCBUrl.h>
-#include "config.h"
-#include "HardwareControl.h"
-#include "types.h"
-#include "globals.h"
+#include  <LCBUrl.h> // Include for URL parsing
 
-extern PubSubClient mqttClient;
-extern Preferences preferences;
+// Make the global 'out' object from the main .ino file available here
 extern AudioOutputI2S *out;
-extern void forceFetchWeatherDataTask(void* p); // Added missing prototype
-
 bool haDiscoveryPublished = false;
 
+// Audio Streaming Globals
 AudioGeneratorMP3 *audioGenerator = NULL;
 AudioFileSourceHTTPStream *fileSourceHttp = NULL;
 AudioFileSourceICYStream *fileSourceIcy = NULL;
 
+
 void setupMqtt() {
-  if (currentSettings.mqttBroker.isEmpty()) {
+  if (currentSettings.mqttBroker.empty()) {
     return;
   }
   mqttClient.setServer(currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
@@ -227,7 +222,8 @@ void publishHaAutoDiscovery() {
         
         int min_val, max_val, step_val;
         char cfg_copy[20];
-        snprintf(cfg_copy, sizeof(cfg_copy), "%s", cfg[4]);
+        strncpy(cfg_copy, cfg[4], sizeof(cfg_copy) - 1);
+        cfg_copy[sizeof(cfg_copy) - 1] = '\0';
         char* token = strtok(cfg_copy, ",");
         min_val = atoi(token);
         token = strtok(NULL, ",");
@@ -421,6 +417,7 @@ void publishHaAutoDiscovery() {
     serializeJson(doc, payload);
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
+    // New Audio sensor for stream state
     doc.clear();
     doc["name"] = "Audio Stream Status";
     doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_audio_status";
@@ -438,7 +435,7 @@ void publishHaAutoDiscovery() {
 
 
 void reconnectMqtt() {
-  if (currentSettings.mqttBroker.isEmpty()) return;
+  if (currentSettings.mqttBroker.empty()) return;
   if (!mqttClient.connected()) {
     String clientId = "BTTF-Clock-";
     clientId += String(random(0xffff), HEX);
@@ -458,6 +455,7 @@ void reconnectMqtt() {
         String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
         mqttClient.subscribe(command_topic.c_str());
 
+        // New subscriptions for TTS and radio streaming
         String audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/tts/play";
         mqttClient.subscribe(audio_topic.c_str());
         audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/radio/command";
@@ -465,10 +463,10 @@ void reconnectMqtt() {
 
 
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
-          if (currentSettings.dataPoints[i].dataSourceType == DST_MQTT && !currentSettings.dataPoints[i].mqttTopic.isEmpty()) {
+          if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !currentSettings.dataPoints[i].mqttTopic.empty()) {
             mqttClient.subscribe(currentSettings.dataPoints[i].mqttTopic.c_str());
           }
-          if (currentSettings.dataPoints[i].dataSourceType == DST_HOME_ASSISTANT) {
+          if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_HA) {
             String base_dp_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/datapoint/" + String(i);
             mqttClient.subscribe((base_dp_topic + "/month/set").c_str());
             mqttClient.subscribe((base_dp_topic + "/day/set").c_str());
@@ -500,7 +498,7 @@ void stopAudioStream() {
 }
 
 void startAudioStream(const char* url, bool is_tts) {
-    stopAudioStream();
+    stopAudioStream(); // Stop any currently playing audio
 
     if (!hardwareInitialized || !out) {
       Serial.println("Hardware not initialized, cannot play audio.");
@@ -517,7 +515,7 @@ void startAudioStream(const char* url, bool is_tts) {
             Serial.println("Failed to start TTS playback.");
             stopAudioStream();
         }
-    } else {
+    } else { // Radio streamer
         fileSourceIcy = new AudioFileSourceICYStream(url);
         audioGenerator = new AudioGeneratorMP3();
         if (audioGenerator->begin(fileSourceIcy, out)) {
@@ -546,6 +544,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     if (topicStr.endsWith("/command")) {
         String component_topic = topicStr.substring(base_topic.length());
         String component = component_topic.substring(0, component_topic.indexOf('/'));
+
+        char msg_copy[length + 1];
+        strncpy(msg_copy, (char*)payload, length);
+        msg_copy[length] = '\0';
         
         if (component == "power") {
             isDisplayAsleep = (message == "OFF");
@@ -637,16 +639,16 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             startTimeTravelAnimation();
         }
         else if (topicStr.startsWith(base_topic) && topicStr.endsWith("/command") && (topicStr.indexOf("dest_") != -1 || topicStr.indexOf("pres_") != -1 || topicStr.indexOf("last_") != -1)) {
-            String comp = topicStr.substring(base_topic.length());
+            String comp = topicStr.substring(base_topic.length(), topicStr.length() - 8);
             int row = -1, segment = -1;
             if (comp.startsWith("dest_")) row = 0;
             else if (comp.startsWith("pres_")) row = 1;
             else if (comp.startsWith("last_")) row = 2;
 
-            if (comp.endsWith("_month/command")) segment = 0;
-            else if (comp.endsWith("_day/command")) segment = 1;
-            else if (comp.endsWith("_year/command")) segment = 2;
-            else if (comp.endsWith("_time/command")) segment = 3;
+            if (comp.endsWith("_month")) segment = 0;
+            else if (comp.endsWith("_day")) segment = 1;
+            else if (comp.endsWith("_year")) segment = 2;
+            else if (comp.endsWith("_time")) segment = 3;
             
             if (row != -1 && segment != -1) {
                 updateDisplaySegment(row, segment, message.c_str());
@@ -722,16 +724,16 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         }
         else if (topicStr == base_topic + "weather_city/command") {
             if (currentSettings.cityName != message.c_str()) {
-                currentSettings.cityName = message;
-                WeatherTaskParams* params = new WeatherTaskParams{std::string(currentSettings.cityName.c_str()), true};
-                xTaskCreatePinnedToCore(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL, 0);
+                currentSettings.cityName = message.c_str();
+                WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, true};
+                xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
                 settingsChanged = true;
             }
         }
         else if (topicStr == base_topic + "weather_refresh/command") {
             if (message == "PRESS") {
-                WeatherTaskParams* params = new WeatherTaskParams{std::string(currentSettings.cityName.c_str()), true};
-                xTaskCreatePinnedToCore(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL, 0);
+                WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, true};
+                xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
             }
         }
         else if (topicStr == base_topic + "24h_format/command") {
@@ -819,9 +821,9 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             
             if (dp_index >= 0 && dp_index < 5) {
                 DataSourceType newSource;
-                if (message == "MQTT") newSource = DST_MQTT;
-                else if (message == "Home Assistant Push") newSource = DST_HOME_ASSISTANT;
-                else newSource = DST_API;
+                if (message == "MQTT") newSource = DATA_SOURCE_MQTT;
+                else if (message == "Home Assistant Push") newSource = DATA_SOURCE_HA;
+                else newSource = DATA_SOURCE_API;
 
                 if (currentSettings.dataPoints[dp_index].dataSourceType != newSource) {
                     currentSettings.dataPoints[dp_index].dataSourceType = newSource;
@@ -838,8 +840,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             char script[length + 1];
             message.toCharArray(script, length + 1);
 
-            char* saveptr;
-            char* command = strtok_r(script, ";", &saveptr);
+            char* command = strtok(script, ";");
             while (command != NULL && stepIndex < 19) {
                 char* p = strchr(command, '(');
                 if(p) {
@@ -850,8 +851,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
 
                     if (strcmp(command, "text") == 0) {
                         sequence[stepIndex].command = SEQ_CMD_TEXT;
-                        char* target = strtok_r(args, ",", &saveptr);
-                        char* text = strtok_r(NULL, ",", &saveptr);
+                        char* target = strtok(args, ",");
+                        char* text = strtok(NULL, ",");
                         if (strstr(target, "dest")) sequence[stepIndex].targetRow = 0;
                         else if (strstr(target, "pres")) sequence[stepIndex].targetRow = 1;
                         else if (strstr(target, "last")) sequence[stepIndex].targetRow = 2;
@@ -871,8 +872,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                         stepIndex++;
                     } else if (strcmp(command, "flash") == 0) {
                         sequence[stepIndex].command = SEQ_CMD_FLASH;
-                        char* target = strtok_r(args, ",", &saveptr);
-                        char* duration = strtok_r(NULL, ",", &saveptr);
+                        char* target = strtok(args, ",");
+                        char* duration = strtok(NULL, ",");
                         if (strstr(target, "dest")) sequence[stepIndex].targetRow = 0;
                         else if (strstr(target, "pres")) sequence[stepIndex].targetRow = 1;
                         else if (strstr(target, "last")) sequence[stepIndex].targetRow = 2;
@@ -884,7 +885,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                         stepIndex++;
                     }
                 }
-                command = strtok_r(NULL, ";", &saveptr);
+                command = strtok(NULL, ";");
             }
             sequence[stepIndex].command = SEQ_CMD_END;
         }
@@ -894,24 +895,26 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             broadcastWsStateUpdate("stockTickerModeEnabled", currentSettings.stockTickerModeEnabled);
         }
         else if (component == "stock_row_1") {
-            currentSettings.stockRow1_symbol = message;
+            currentSettings.stockRow1_symbol = message.c_str();
             settingsChanged = true;
         }
         else if (component == "stock_row_2") {
-            currentSettings.stockRow2_symbol = message;
+            currentSettings.stockRow2_symbol = message.c_str();
             settingsChanged = true;
         }
         else if (component == "stock_row_3") {
-            currentSettings.stockRow3_symbol = message;
+            currentSettings.stockRow3_symbol = message.c_str();
             settingsChanged = true;
         }
         else if (component == "alpha_vantage_api_key") {
-            currentSettings.alphaVantageApiKey = message;
+            currentSettings.alphaVantageApiKey = message.c_str();
             settingsChanged = true;
         }
+        // NEW: TTS Notifier handler
         else if (topicStr == base_topic + "tts/play") {
             startAudioStream(message.c_str(), true);
         }
+        // NEW: Radio Streamer handler
         else if (topicStr == base_topic + "radio/command") {
             if (message == "stop") {
                 stopAudioStream();
@@ -922,9 +925,9 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     }
     else {
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
-            if (currentSettings.dataPoints[i].dataSourceType == DST_MQTT && topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
+            if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    displayPages[i].time = message;
+                    displayPages[i].time = message.c_str();
                     xSemaphoreGive(xDisplayDataMutex);
                 }
                 break;
@@ -934,10 +937,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             int dp_index = topicStr.substring(base_topic.length() + 10, topicStr.indexOf('/', base_topic.length() + 10)).toInt();
             if (dp_index >= 0 && dp_index < 5) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    if (topicStr.endsWith("/month/set")) displayPages[dp_index].month = message;
-                    else if (topicStr.endsWith("/day/set")) displayPages[dp_index].day = message;
-                    else if (topicStr.endsWith("/year/set")) displayPages[dp_index].year = message;
-                    else if (topicStr.endsWith("/time/set")) displayPages[dp_index].time = message;
+                    if (topicStr.endsWith("/month/set")) displayPages[dp_index].month = message.c_str();
+                    else if (topicStr.endsWith("/day/set")) displayPages[dp_index].day = message.c_str();
+                    else if (topicStr.endsWith("/year/set")) displayPages[dp_index].year = message.c_str();
+                    else if (topicStr.endsWith("/time/set")) displayPages[dp_index].time = message.c_str();
                     xSemaphoreGive(xDisplayDataMutex);
                 }
             }
@@ -961,7 +964,7 @@ void publishAllHaStates() {
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
     char payload[20];
 
-    snprintf(payload, sizeof(payload), "%d", currentSettings.destinationYear);
+    itoa(currentSettings.destinationYear, payload, 10);
     mqttClient.publish((base_topic + "/destination_year/state").c_str(), payload, true);
     
     mqttClient.publish((base_topic + "/override/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
@@ -974,16 +977,16 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/marquee/state").c_str(), marqueeOverrideMessage.c_str(), true);
     mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
     
-    snprintf(payload, sizeof(payload), "%d", currentSettings.brightness);
+    itoa(currentSettings.brightness, payload, 10);
     mqttClient.publish((base_topic + "/brightness/state").c_str(), payload, true);
     
-    snprintf(payload, sizeof(payload), "%d", currentSettings.glitchEffectFrequency);
+    itoa(currentSettings.glitchEffectFrequency, payload, 10);
     mqttClient.publish((base_topic + "/glitch_freq/state").c_str(), payload, true);
 
-    snprintf(payload, sizeof(payload), "%d", currentSettings.malfunctionFrequency);
+    itoa(currentSettings.malfunctionFrequency, payload, 10);
     mqttClient.publish((base_topic + "/malfunction_chance/state").c_str(), payload, true);
 
-    snprintf(payload, sizeof(payload), "%d", currentSettings.notificationVolume);
+    itoa(currentSettings.notificationVolume, payload, 10);
     mqttClient.publish((base_topic + "/volume/state").c_str(), payload, true);
 
     const char* styles[] = {"Sequential Flicker", "Random Flicker", "All Displays Random", "Counting Up", "Wave Flicker", "Tornado Flicker", "Capacitor Charge-Up", "Digital Rain", "Waveform Collapse", "Timeline Skim"};
@@ -991,13 +994,13 @@ void publishAllHaStates() {
         mqttClient.publish((base_topic + "/animation_style/state").c_str(), styles[currentSettings.animationStyle], true);
     }
     
-    snprintf(payload, sizeof(payload), "%d", WiFi.RSSI());
+    itoa(WiFi.RSSI(), payload, 10);
     mqttClient.publish((base_topic + "/wifi_rssi/state").c_str(), payload, true);
 
-    snprintf(payload, sizeof(payload), "%d", esp_get_free_heap_size());
+    itoa(esp_get_free_heap_size(), payload, 10);
     mqttClient.publish((base_topic + "/free_heap/state").c_str(), payload, true);
     
-    snprintf(payload, sizeof(payload), "%lu", millis() / 1000);
+    itoa(millis() / 1000, payload, 10);
     mqttClient.publish((base_topic + "/uptime/state").c_str(), payload, true);
 
     publishHaDiagnosticAttributes();
@@ -1022,20 +1025,18 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/is_glitching/state").c_str(), isGlitching ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_malfunctioning/state").c_str(), isMalfunctioning ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_asleep/state").c_str(), isDisplayAsleep ? "ON" : "OFF", true);
-    
-    snprintf(payload, sizeof(payload), "%d", currentPageIndex + 1);
+    itoa(currentPageIndex + 1, payload, 10);
     mqttClient.publish((base_topic + "/marquee_page/state").c_str(), payload, true);
     mqttClient.publish((base_topic + "/weather_mode/state").c_str(), currentSettings.weatherModeEnabled ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/weather_city/state").c_str(), currentSettings.cityName.c_str(), true);
 
     mqttClient.publish((base_topic + "/24h_format/state").c_str(), currentSettings.displayFormat24h ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/volume_fade/state").c_str(), currentSettings.timeTravelVolumeFade ? "ON" : "OFF", true);
-    
-    snprintf(payload, sizeof(payload), "%d", currentSettings.timeTravelAnimationInterval);
+    itoa(currentSettings.timeTravelAnimationInterval, payload, 10);
     mqttClient.publish((base_topic + "/animation_interval/state").c_str(), payload, true);
-    snprintf(payload, sizeof(payload), "%d", currentSettings.timeTravelAnimationDuration);
+    itoa(currentSettings.timeTravelAnimationDuration, payload, 10);
     mqttClient.publish((base_topic + "/animation_duration/state").c_str(), payload, true);
-    snprintf(payload, sizeof(payload), "%d", currentSettings.dataLinkRefreshInterval);
+    itoa(currentSettings.dataLinkRefreshInterval, payload, 10);
     mqttClient.publish((base_topic + "/datalink_refresh/state").c_str(), payload, true);
     
     mqttClient.publish((base_topic + "/temporal_echo/state").c_str(), isEchoEffectActive ? "ON" : "OFF", true);
@@ -1091,4 +1092,4 @@ void publishTimeSensors() {
     time_t ltd_time = mktime(&ltd_tm);
     strftime(iso_time, sizeof(iso_time), "%Y-%m-%dT%H:%M:%SZ", gmtime(&ltd_time));
     mqttClient.publish((base_topic + "/last_time_departed/state").c_str(), iso_time, true);
-}
+}   
