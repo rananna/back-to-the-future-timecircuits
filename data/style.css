@@ -1474,3 +1474,16 @@ body.time-travel-active {
 .stock-change.negative {
     color: #ff0000;
 }
+.log-window {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 15px;
+    height: 300px;
+    overflow-y: scroll;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.85em;
+    color: var(--text-color);
+}
