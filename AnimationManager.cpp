@@ -2,15 +2,19 @@
  * @file AnimationManager.cpp
  * @brief Manages all visual animations and special effects for the display.
  */
-#include "types.h"
-#include "globals.h"
 #include "AnimationManager.h"
-#include "EventManager.h"
-#include "HardwareControl.h"
 #include "DisplayManager.h"
-#include "MqttManager.h"
+#include "HardwareControl.h"
+#include "globals.h"
 #include "config.h"
-#include <Arduino.h>
+#include "time_manager.h"
+#include "AudioControl.h"
+#include "types.h"
+#include "Logger.h"
+#include "MqttManager.h"
+#include "SettingsManager.h"
+
+// ... rest of the file content
 
 // --- FLASH EFFECT ---
 bool isFlashing[3][4] = {{false}};

@@ -64,7 +64,6 @@ extern bool hardwareInitialized;
 extern String manualDisplayText[3][4];
 extern bool isRowInManualMode[3];
 
-
 // --- DATA ---
 extern volatile int requestsCompleted;
 extern SemaphoreHandle_t xDisplayDataMutex;
@@ -76,6 +75,7 @@ extern std::string lastCityName;
 extern DisplayPage displayPages[NUM_PAGES];
 extern DisplayPage lastGoodDisplayPages[NUM_PAGES];
 extern int dataPointFetchFailures[5];
+extern int currentPageIndex; // Added missing extern declaration
 
 // --- MQTT ---
 extern WiFiClient espClient;
@@ -104,5 +104,10 @@ extern Preferences preferences;
 extern unsigned long lastPresetCycleTime;
 extern Logger logger;
 extern AsyncWebSocket ws;
+
+// Added missing extern declarations for marquee scrolling
+extern int marqueeScrollPosition;
+extern int marqueeScrollPositionYear;
+extern unsigned long lastMarqueeStateChange;
 
 #endif //GLOBALS_H

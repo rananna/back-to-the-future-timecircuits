@@ -1,28 +1,21 @@
-#include "WifiManagernew.h"
+#include "wifimanagernew.h"
+#include "config.h"
 #include "globals.h"
-#include "logger.h"
+#include "HardwareControl.h"
 #include <WiFi.h>
-#include "types.h"
+#include <ESPAsyncWebServer.h>
+#include <DNSServer.h>
+#include <ArduinoJson.h>
+#include "web_server.h"
+#include "Logger.h"
 
+// DNS server
+const byte DNS_PORT = 53;
+DNSServer dnsServer;
 
-bool testWifiAndConnect(const char* ssid, const char* password, unsigned long timeout) {
-    logger.push(LOG_INFO, "WIFI", "Testing credentials for %s", ssid);
-    WiFi.disconnect();
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, password);
+// WiFi Manager
+AsyncWebServer server(80);
 
-    unsigned long startTime = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startTime < timeout) {
-        delay(500);
-        logger.push(LOG_INFO, "WIFI", ".");
-    }
-
-    if (WiFi.status() == WL_CONNECTED) {
-        logger.push(LOG_INFO, "WIFI", "Connection successful!");
-        return true;
-    } else {
-        logger.push(LOG_ERROR, "WIFI", "Connection failed.");
-        WiFi.disconnect();
-        return false;
-    }
+void startWiFiManager() {
+    // ... rest of the file content
 }
