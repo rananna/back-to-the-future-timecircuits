@@ -1,19 +1,17 @@
-// Forcing a recompile to resolve build cache issues.
 #include "web_server.h"
-#include "api_templates.h" // Includes the declaration
-#include "DataManager.h"   // Added to include WeatherTaskParams definition
-#include "EventManager.h"  // CRITICAL FIX: Include for global variables
+#include "api_templates.h"
+#include "DataManager.h"
+#include "EventManager.h"
 #include <AsyncJson.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <string>
 #include <WiFi.h>
-#include <AudioOutputI2S.h> // Add this include for the 'out' object
+#include <AudioOutputI2S.h>
 #include <Update.h>
 #include <ArduinoOTA.h>
 #include "FS.h"
 #include <LITTLEFS.h>
-#include "unzip.h"
 
 // Make the global 'out' object from the main .ino file available here
 extern AudioOutputI2S *out;
@@ -691,16 +689,17 @@ void setupWebRoutes() {
   });
 
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
-        // The request is authenticated, so we can proceed with the update
+        if (!request->hasHeader("X-Auth-Password") || request->header("X-Auth-Password") != "1.21gigawatts") {
+            return request->send(401, "text/plain", "Unauthorized");
+        }
         AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", Update.hasError() ? "FAIL" : "OK");
         response->addHeader("Connection", "close");
         request->send(response);
-        // Restart the ESP
         ESP.restart();
     }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         if (!index) {
             Serial.printf("Update Start: %s\n", filename.c_str());
-            if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // Autodetect size
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
                 Update.printError(Serial);
             }
         }
@@ -710,7 +709,7 @@ void setupWebRoutes() {
             }
         }
         if (final) {
-            if (!Update.end(true)) { //true to set the size to the current progress
+            if (!Update.end(true)) {
                 Update.printError(Serial);
             } else {
                 Serial.println("Update complete");
@@ -731,7 +730,6 @@ void setupWebRoutes() {
         }
 
         if (!isAllowed) {
-            // Send an error message back to the client
             DynamicJsonDocument doc(256);
             doc["action"] = "uploadError";
             doc["type"] = "ui";
@@ -743,6 +741,16 @@ void setupWebRoutes() {
         }
 
         if (!index) {
+            if (LittleFS.totalBytes() - LittleFS.usedBytes() < request->contentLength()) {
+                DynamicJsonDocument doc(256);
+                doc["action"] = "uploadError";
+                doc["type"] = "ui";
+                doc["message"] = "Not enough space on the device.";
+                String jsonString;
+                serializeJson(doc, jsonString);
+                ws.textAll(jsonString);
+                return;
+            }
             request->_tempFile = LittleFS.open("/" + filename, "w");
         }
         if (len) {
@@ -750,7 +758,6 @@ void setupWebRoutes() {
         }
         if (final) {
             request->_tempFile.close();
-            // Send progress update
             DynamicJsonDocument doc(256);
             doc["action"] = "uploadProgress";
             doc["type"] = "ui";
@@ -760,81 +767,10 @@ void setupWebRoutes() {
             serializeJson(doc, jsonString);
             ws.textAll(jsonString);
         } else {
-            // Send progress update
             DynamicJsonDocument doc(256);
             doc["action"] = "uploadProgress";
             doc["type"] = "ui";
             doc["filename"] = filename;
-            doc["progress"] = (index + len) * 100 / request->contentLength();
-            String jsonString;
-            serializeJson(doc, jsonString);
-            ws.textAll(jsonString);
-        }
-    });
-
-    server.on("/upload-data-zip", HTTP_POST, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/plain", "Data zip uploaded, extracting...");
-    }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-        static File zipFile;
-        if (!index) {
-            zipFile = LittleFS.open("/data.zip", "w");
-        }
-        if (len) {
-            zipFile.write(data, len);
-        }
-        if (final) {
-            zipFile.close();
-            
-            // Unzip the file
-            Unzip zip;
-            if (zip.open("/data.zip") == 0) {
-                int fileCount = 0;
-                while(zip.nextFile()) {
-                    String filepath = "/data/" + String(zip.getFilename());
-                    // Create subdirectories if they don't exist
-                    int lastSlash = filepath.lastIndexOf('/');
-                    if (lastSlash > 0) {
-                        LittleFS.mkdir(filepath.substring(0, lastSlash));
-                    }
-                    
-                    File f = LittleFS.open(filepath, "w");
-                    if (f) {
-                        uint8_t buffer[512];
-                        int bytesRead;
-                        while((bytesRead = zip.read(buffer, sizeof(buffer))) > 0) {
-                            f.write(buffer, bytesRead);
-                        }
-                        f.close();
-                        fileCount++;
-                    }
-                    zip.closeEntry();
-                }
-                zip.close();
-                // Send success message
-                DynamicJsonDocument doc(256);
-                doc["action"] = "uploadProgress";
-                doc["type"] = "data";
-                doc["progress"] = 100;
-                doc["message"] = String(fileCount) + " files extracted.";
-                String jsonString;
-                serializeJson(doc, jsonString);
-                ws.textAll(jsonString);
-            } else {
-                // Send error message
-                DynamicJsonDocument doc(256);
-                doc["action"] = "uploadError";
-                doc["type"] = "data";
-                doc["message"] = "Failed to open zip file. It may be corrupted.";
-                String jsonString;
-                serializeJson(doc, jsonString);
-                ws.textAll(jsonString);
-            }
-            LittleFS.remove("/data.zip");
-        } else {
-            // Send progress update
-            DynamicJsonDocument doc(256);
-            doc["action"] = "uploadProgress";
-            doc["type"] = "data";
             doc["progress"] = (index + len) * 100 / request->contentLength();
             String jsonString;
             serializeJson(doc, jsonString);

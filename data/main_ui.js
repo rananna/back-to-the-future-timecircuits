@@ -432,10 +432,9 @@ function attachEventListeners() {
     // Animation preview button
     document.getElementById('previewAnimationBtn').onclick = previewAnimationStyle;
 
-    // Firmware, UI, and Data zip upload forms
+    // Firmware and UI upload forms
     document.getElementById('firmware-upload-form').onsubmit = handleFirmwareUpload;
     document.getElementById('ui-upload-form').onsubmit = handleUiUpload;
-    document.getElementById('data-zip-upload-form').onsubmit = handleDataZipUpload;
 }
 
 /**

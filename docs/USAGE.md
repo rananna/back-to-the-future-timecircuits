@@ -53,28 +53,34 @@ This is a fully configurable marquee for displaying data from the internet.
 
 #### Stock Ticker Mode
 This mode transforms the last three displays of the bottom marquee into a real-time stock ticker.
-* **Configuration**: You must enter a valid **AlphaVantage API Key** in the `Network & System` tab for this to function.
+* **Configuration**: You must enter a valid **AlphaVantage API Key** for this to function.
 * **Symbols**: Enter up to three stock or index symbols (e.g., `^GSPC` for the S&P 500) to display.
 * **Data**: The clock will automatically fetch the latest prices and display them when the market is open.
 
-### Usage Examples
-
-#### Displaying a Weather Forecast
-1.  Go to the `Data Link` tab.
-2.  Enable the `Weather Mode`.
-3.  In the `City Name` field, enter `London`.
-4.  The bottom display will now cycle through weather data for London.
-
-#### Displaying a Website's API Data
-1.  Go to the `Data Link` tab and ensure `Data Link Marquee` is enabled.
-2.  Select a Data Point slot (e.g., `Data Point 1`).
-3.  Set `Source Type` to `Web API`.
-4.  In the `API URL` field, enter a URL like `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd`.
-5.  In the JSON Path for the Year, enter `bitcoin.usd`.
-6.  Add a Prefix: `BTC $`.
-7.  The display will now show the current price of Bitcoin.
-
-### Network & System Tab
-* **Present Time**: Set your current time zone. The clock will automatically handle Daylight Saving Time. You can also manually trigger a sync with NTP time servers.
+### System Tab
+* **Device Status**: This card displays real-time information about the device, including the WiFi Signal Strength, free memory, and uptime since the last reboot.
+* **Time Synchronization**: Shows whether the device's internal clock is synchronized with an NTP server. You can manually trigger a sync by clicking **Sync Time**.
 * **UI Theme**: Change the color scheme of the web interface.
 * **Device Actions**: Trigger a "Great Scott!" easter egg or reset all settings to their factory defaults.
+
+#### Firmware Update (OTA)
+
+The Over-the-Air (OTA) update feature allows you to flash new firmware to the ESP32 wirelessly.
+
+1.  In the Arduino IDE, compile your sketch (`Sketch` > `Verify/Compile`).
+2.  Export the compiled binary (`Sketch` > `Export compiled Binary`). This will create a `.bin` file in your sketch folder.
+3.  In the web UI, navigate to the **System** tab.
+4.  Under the **Firmware Update (OTA)** section, click **Choose File** and select the `.bin` file you just exported.
+5.  Click **Upload Firmware**. The update process will begin, and the device will automatically reboot when it's complete.
+
+> ⚠️ **Password Note**: The OTA update process requires a password for security. The default password is **`1.21gigawatts`**. This is currently hardcoded and can be changed in `web_server.cpp`.
+
+#### Web UI Files Update
+
+This feature allows you to upload new versions of the web interface files (`.html`, `.css`, `.js`) without re-flashing the entire filesystem.
+
+1.  Navigate to the **System** tab.
+2.  Under the **Web UI Files Update** section, click **Choose Files**.
+3.  Select the UI files you want to update. You can select multiple files at once. The system will only accept `index.html`, `style.css`, `main_ui.js`, and `data_handling.js`.
+4.  Click **Upload UI Files**. The files will be uploaded to the device's filesystem.
+5.  Once the upload is complete, you will need to **manually refresh the page** in your browser to see the changes.
