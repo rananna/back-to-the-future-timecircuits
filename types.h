@@ -185,6 +185,14 @@ struct FetchDataParams {
     int unused;
 };
 
+// ADD THIS MISSING STRUCT DEFINITION
+struct DisplayPage {
+  String month;
+  String day;
+  String year;
+  String time;
+};
+
 #define MAX_FETCH_FAILURES 3
 
 #endif  // TYPES_H
