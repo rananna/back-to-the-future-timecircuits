@@ -7,7 +7,6 @@
 #include <AudioFileSourceICYStream.h>
 #include <AudioGeneratorMP3.h>
 #include <AudioOutputI2S.h>
-#include "Logger.h" // Added include for the new logger
 
 extern AudioOutputI2S *out;
 extern AudioGeneratorMP3 *audioGenerator;

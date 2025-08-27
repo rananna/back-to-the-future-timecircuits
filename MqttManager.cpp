@@ -8,12 +8,11 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <Preferences.h>
-#include <AudioOutputI2S.h>
+#include <AudioOutputI2S.h> // Add this include for the 'out' object
 #include <AudioFileSourceHTTPStream.h>
 #include <AudioFileSourceICYStream.h>
 #include <AudioGeneratorMP3.h>
-#include <LCBUrl.h>
-#include "Logger.h" // Included for Log.printf()
+#include  <LCBUrl.h> // Include for URL parsing
 
 // Make the global 'out' object from the main .ino file available here
 extern AudioOutputI2S *out;
@@ -395,7 +394,7 @@ void publishHaAutoDiscovery() {
         doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = "mdi:counter"; // Changed from cfg[2] as it doesn't exist
+        doc["icon"] = cfg[2];
         doc["entity_category"] = "config";
         doc["device"] = device;
         doc["availability"] = availability;
@@ -502,7 +501,7 @@ void startAudioStream(const char* url, bool is_tts) {
     stopAudioStream(); // Stop any currently playing audio
 
     if (!hardwareInitialized || !out) {
-      Log.printf(LOG_LEVEL_ERROR, "Hardware not initialized, cannot play audio.\n");
+      Serial.println("Hardware not initialized, cannot play audio.");
       return;
     }
 
@@ -510,20 +509,20 @@ void startAudioStream(const char* url, bool is_tts) {
         fileSourceHttp = new AudioFileSourceHTTPStream(url);
         audioGenerator = new AudioGeneratorMP3();
         if (audioGenerator->begin(fileSourceHttp, out)) {
-            Log.printf(LOG_LEVEL_INFO, "Started playing TTS: %s\n", url);
+            Serial.printf("Started playing TTS: %s\n", url);
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
         } else {
-            Log.printf(LOG_LEVEL_ERROR, "Failed to start TTS playback.\n");
+            Serial.println("Failed to start TTS playback.");
             stopAudioStream();
         }
     } else { // Radio streamer
         fileSourceIcy = new AudioFileSourceICYStream(url);
         audioGenerator = new AudioGeneratorMP3();
         if (audioGenerator->begin(fileSourceIcy, out)) {
-            Log.printf(LOG_LEVEL_INFO, "Started playing radio stream: %s\n", url);
+            Serial.printf("Started playing radio stream: %s\n", url);
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
         } else {
-            Log.printf(LOG_LEVEL_ERROR, "Failed to start radio playback.\n");
+            Serial.println("Failed to start radio playback.");
             stopAudioStream();
         }
     }
@@ -1093,4 +1092,4 @@ void publishTimeSensors() {
     time_t ltd_time = mktime(&ltd_tm);
     strftime(iso_time, sizeof(iso_time), "%Y-%m-%dT%H:%M:%SZ", gmtime(&ltd_time));
     mqttClient.publish((base_topic + "/last_time_departed/state").c_str(), iso_time, true);
-}
+}   

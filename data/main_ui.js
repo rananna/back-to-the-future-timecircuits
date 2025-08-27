@@ -1,4 +1,5 @@
-let webSerial; // The WebSerial object for logging
+// Global state for the animation preview interval
+let animationPreviewInterval = null;
 
 /**
  * Initializes the UI when the DOM is fully loaded.
@@ -50,9 +51,6 @@ async function initializeUI() {
 
         // Initialize the WebSocket connection
         initWebSocket();
-        
-        // Initialize the WebSerial connection for logging
-        setupWebSerial();
 
         // Start fetching real-time data
         fetchTime();
@@ -1478,85 +1476,4 @@ function setButtonLoading(button, isLoading) {
         button.innerHTML = button.dataset.originalText || 'Upload';
         button.disabled = false;
     }
-}
-
-// --- NEW LOGGING FUNCTIONS ---
-
-/**
- * Initializes the WebSerial connection for logging.
- * It will wait until the WebSerial library is loaded.
- */
-function setupWebSerial() {
-    // Check if the WebSerial library is available
-    if (typeof WebSerial === 'undefined') {
-        // If not, log an error and try again in a moment.
-        console.error("CLIENT_DEBUG: WebSerial library not loaded yet. Retrying...");
-        showMessage('Waiting for Logging Library...', 'info', 2000);
-        setTimeout(setupWebSerial, 500); // Retry after 500ms
-        return;
-    }
-
-    // --- The rest of the function remains the same ---
-    console.log("CLIENT_DEBUG: WebSerial library found. Initializing...");
-    webSerial = new WebSerial();
-
-    webSerial.on('data', (data) => {
-        const logWindow = document.getElementById('log-window');
-        if (!logWindow) return;
-        const autoscroll = document.getElementById('autoscroll-toggle').checked;
-        const textDecoder = new TextDecoder();
-        logWindow.textContent += textDecoder.decode(data);
-        if (autoscroll) {
-            logWindow.scrollTop = logWindow.scrollHeight;
-        }
-    });
-
-    webSerial.on('open', () => {
-        console.log('WebSerial connection opened.');
-        const logWindow = document.getElementById('log-window');
-        if(logWindow) logWindow.textContent += '--- Wireless Log Connection Established ---\n';
-    });
-
-    webSerial.on('close', () => {
-        console.log('WebSerial connection closed.');
-        const logWindow = document.getElementById('log-window');
-        if(logWindow) logWindow.textContent += '--- Wireless Log Connection Closed ---\n';
-    });
-    
-    // Automatically try to connect. The browser will likely ask for permission the first time.
-    webSerial.connect();
-}
-
-/**
- * Toggles the logging on the ESP32 by sending a command.
- */
-function toggleLogging() {
-    if (webSerial && webSerial.send) {
-        webSerial.send('toggle_logging\n');
-    }
-}
-
-/**
- * Clears the content of the log window in the UI.
- */
-function clearLog() {
-    const logWindow = document.getElementById('log-window');
-    if (logWindow) {
-        logWindow.textContent = '';
-    }
-}
-
-/**
- * Allows the user to download the current log content as a text file.
- */
-function downloadLog() {
-    const logContent = document.getElementById('log-window').textContent;
-    const blob = new Blob([logContent], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'bttf_system_log.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
 }

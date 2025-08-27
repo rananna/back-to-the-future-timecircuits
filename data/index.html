@@ -382,22 +382,6 @@
                 </div>
             </div>
             <div class="setting-group">
-                <h3>System Log</h3>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="logging-toggle" onchange="toggleLogging()" checked>
-                    <span class="slider round"></span>
-                </label>
-                <span style="margin-left: 8px;">Enable Wireless Logging</span>
-                <div style="margin-top: 15px;">
-                    <button class="action-button" onclick="clearLog()">Clear</button>
-                    <button class="action-button" onclick="downloadLog()">Download Log</button>
-                    <label style="margin-left: 15px;">
-                        <input type="checkbox" id="autoscroll-toggle" checked> Auto-scroll
-                    </label>
-                </div>
-                <pre id="log-window" class="log-window"></pre>
-            </div>
-            <div class="setting-group">
                 <h3>Firmware Update (OTA)</h3>
                 <p>Upload a new firmware (.bin) file to update the device over the air.</p>
                 <form id="firmware-upload-form">
@@ -468,8 +452,6 @@
             <button id="confirmNo">No</button>
         </div>
     </div>
-    
-    <script src="https://unpkg.com/web-serial-polyfill/dist/web-serial-polyfill.js"></script>
     <script src="/data_handling.js"></script>
     <script src="/main_ui.js"></script>
 </body>

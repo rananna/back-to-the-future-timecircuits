@@ -12,7 +12,6 @@
 #include <ArduinoOTA.h>
 #include "FS.h"
 #include <LITTLEFS.h>
-#include "Logger.h"
 
 // Make the global 'out' object from the main .ino file available here
 extern AudioOutputI2S *out;
@@ -194,9 +193,9 @@ void makeApiRequestTask(void* p) {
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-        Log.printf(LOG_LEVEL_INFO, "WEB_LOG: WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+        Serial.printf("WEB_LOG: WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
     } else if (type == WS_EVT_DISCONNECT) {
-        Log.printf(LOG_LEVEL_INFO, "WEB_LOG: WebSocket client #%u disconnected\n", client->id());
+        Serial.printf("WEB_LOG: WebSocket client #%u disconnected\n", client->id());
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
@@ -205,13 +204,14 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
             DeserializationError error = deserializeJson(doc, data, len);
 
             if (error) {
-                Log.printf(LOG_LEVEL_ERROR, "WEB_LOG: deserializeJson() failed: %s\n", error.c_str());
+                Serial.print(F("WEB_LOG: deserializeJson() failed: "));
+                Serial.println(error.c_str());
                 return;
             }
 
             String action = doc["action"];
              if (action == "testStock") {
-                Log.printf(LOG_LEVEL_DEBUG, "SERVER_DEBUG: 'testStock' action received.\n");
+                Serial.println("SERVER_DEBUG: 'testStock' action received.");
                  if (!timeSynchronized) {
                     String responseString;
                     DynamicJsonDocument responseJson(256);
@@ -232,18 +232,18 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 } else {
                     url = "https://financialmodelingprep.com/api/v3/quote/" + symbol + "?apikey=" + apiKey;
                 }
-                Log.printf(LOG_LEVEL_DEBUG, "SERVER_DEBUG: Stock URL created: %s\n", url.c_str());
+                Serial.printf("SERVER_DEBUG: Stock URL created: %s\n", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex};
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
                     delete params;
-                    Log.printf(LOG_LEVEL_ERROR, "SERVER_DEBUG: ERROR - Failed to create stock test task!\n");
+                    Serial.println("SERVER_DEBUG: ERROR - Failed to create stock test task!");
                 } else {
-                    Log.printf(LOG_LEVEL_DEBUG, "SERVER_DEBUG: Stock test task created successfully.\n");
+                    Serial.println("SERVER_DEBUG: Stock test task created successfully.");
                 }
             } else if (action == "testApi") {
-                Log.printf(LOG_LEVEL_DEBUG, "SERVER_DEBUG: 'testApi' action received.\n");
+                Serial.println("SERVER_DEBUG: 'testApi' action received.");
                 if (!timeSynchronized) {
                     String responseString;
                     DynamicJsonDocument responseJson(256);
@@ -258,14 +258,14 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String url = doc["data"]["url"];
                 String authKey = doc["data"]["authKey"];
                 String authValue = doc["data"]["authValue"];
-                 Log.printf(LOG_LEVEL_DEBUG, "SERVER_DEBUG: API Test URL: %s\n", url.c_str());
+                 Serial.printf("SERVER_DEBUG: API Test URL: %s\n", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id(), "apiResult", 0};
 
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
                     delete params;
-                     Log.printf(LOG_LEVEL_ERROR, "SERVER_DEBUG: ERROR - Failed to create API test task!\n");
+                     Serial.println("SERVER_DEBUG: ERROR - Failed to create API test task!");
                 }
             }
         }
@@ -274,29 +274,28 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 
 
 void setupWebRoutes() {
-  Log.printf(LOG_LEVEL_INFO, "WEB_LOG: Inside setupWebRoutes(). Attaching handlers...\n");
+  Serial.println(F("WEB_LOG: Inside setupWebRoutes(). Attaching handlers..."));
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Log.printf(LOG_LEVEL_INFO, "WEB_LOG: Client requested /index.html\n");
+    Serial.println(F("WEB_LOG: Client requested /index.html"));
     request->send(LittleFS, "/index.html", "text/html"); 
   });
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Log.printf(LOG_LEVEL_INFO, "WEB_LOG: Client requested /style.css\n");
+    Serial.println(F("WEB_LOG: Client requested /style.css"));
     request->send(LittleFS, "/style.css", "text/css"); 
   });
   server.on("/data_handling.js", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Log.printf(LOG_LEVEL_INFO, "WEB_LOG: Client requested /data_handling.js\n");
+    Serial.println(F("WEB_LOG: Client requested /data_handling.js"));
     request->send(LittleFS, "/data_handling.js", "application/javascript"); 
   });
   server.on("/main_ui.js", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Log.printf(LOG_LEVEL_INFO, "WEB_LOG: Client requested /main_ui.js\n");
+    Serial.println(F("WEB_LOG: Client requested /main_ui.js"));
     request->send(LittleFS, "/main_ui.js", "application/javascript"); 
   });
   server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Log.printf(LOG_LEVEL_INFO, "WEB_LOG: Client requested /api/isReady\n");
-    Log.printf(LOG_LEVEL_INFO, "LOG_TEST: UI is connected and refreshed.\n");
+    Serial.println(F("WEB_LOG: Client requested /api/isReady"));
     request->send(200, "text/plain", "READY"); 
   });
   
@@ -458,10 +457,10 @@ void setupWebRoutes() {
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
     
-    Log.printf(LOG_LEVEL_DEBUG, "Received request to /api/saveSettings\n");
+    Serial.println("SERVER_DEBUG: Received request to /api/saveSettings");
     String receivedJson;
     serializeJson(obj, receivedJson);
-    Log.printf(LOG_LEVEL_DEBUG, "%s\n", receivedJson.c_str());
+    Serial.println(receivedJson);
 
     std::string oldMqttBroker = currentSettings.mqttBroker;
     int oldMqttPort = currentSettings.mqttPort;
@@ -513,7 +512,7 @@ void setupWebRoutes() {
     currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
     if (obj.containsKey("alphaVantageApiKey")) {
         currentSettings.alphaVantageApiKey = obj["alphaVantageApiKey"].as<std::string>();
-        Log.printf(LOG_LEVEL_DEBUG, "SERVER_DEBUG: Saving Alpha Vantage Key: %s\n", currentSettings.alphaVantageApiKey.c_str());
+        Serial.printf("SERVER_DEBUG: Saving Alpha Vantage Key: %s\n", currentSettings.alphaVantageApiKey.c_str());
     }
     if (obj.containsKey("stockRow1_symbol")) currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
     if (obj.containsKey("stockRow2_symbol")) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
@@ -685,7 +684,7 @@ void setupWebRoutes() {
   });
 
   server.onNotFound([](AsyncWebServerRequest *request){
-    Log.printf(LOG_LEVEL_WARN, "WEB_LOG: 404 Not Found: %s\n", request->url().c_str());
+    Serial.printf("WEB_LOG: 404 Not Found: %s\n", request->url().c_str());
     request->send(404, "text/plain", "Not found");
   });
 
@@ -699,7 +698,7 @@ void setupWebRoutes() {
         ESP.restart();
     }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         if (!index) {
-            Log.printf(LOG_LEVEL_INFO, "Update Start: %s\n", filename.c_str());
+            Serial.printf("Update Start: %s\n", filename.c_str());
             if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
                 Update.printError(Serial);
             }
@@ -713,7 +712,7 @@ void setupWebRoutes() {
             if (!Update.end(true)) {
                 Update.printError(Serial);
             } else {
-                Log.printf(LOG_LEVEL_INFO, "Update complete\n");
+                Serial.println("Update complete");
             }
         }
     });
