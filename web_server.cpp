@@ -720,15 +720,10 @@ void setupWebRoutes() {
     server.on("/upload-ui", HTTP_POST, [](AsyncWebServerRequest *request) {
         request->send(200, "text/plain", "UI update successful! Please refresh the page.");
     }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-        const char* allowedFiles[] = {"index.html", "style.css", "main_ui.js", "data_handling.js"};
-        bool isAllowed = false;
-        for (const char* file : allowedFiles) {
-            if (filename == file) {
-                isAllowed = true;
-                break;
-            }
-        }
-
+       bool isAllowed = filename.endsWith(".html") ||
+                 filename.endsWith(".css") ||
+                 filename.endsWith(".js") ||
+                 filename.endsWith(".mp3");
         if (!isAllowed) {
             DynamicJsonDocument doc(256);
             doc["action"] = "uploadError";
