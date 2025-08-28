@@ -394,7 +394,7 @@ void publishHaAutoDiscovery() {
         doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = cfg[2];
+        doc["icon"] = "mdi:alpha-t-box-outline";
         doc["entity_category"] = "config";
         doc["device"] = device;
         doc["availability"] = availability;
@@ -1092,4 +1092,4 @@ void publishTimeSensors() {
     time_t ltd_time = mktime(&ltd_tm);
     strftime(iso_time, sizeof(iso_time), "%Y-%m-%dT%H:%M:%SZ", gmtime(&ltd_time));
     mqttClient.publish((base_topic + "/last_time_departed/state").c_str(), iso_time, true);
-}   
+}

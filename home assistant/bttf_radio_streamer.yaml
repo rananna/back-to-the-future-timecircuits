@@ -27,7 +27,7 @@ action:
       payload: "RADIO"
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ device_circuits_device, 'identifiers')[0][1] }}/radio/command"
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/radio/command"
       payload: !input radio_command
   - delay:
       seconds: 5 # Gives the clock time to connect to the stream

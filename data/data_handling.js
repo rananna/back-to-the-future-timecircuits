@@ -812,7 +812,7 @@ function handleFirmwareUpload(event) {
         return;
     }
     const formData = new FormData();
-    formData.append('update', file, file.name);
+    formData.append(file.name, file);
 
     const progressBar = document.getElementById('firmware-progress-bar');
     const statusMessage = document.getElementById('firmware-status-message');
@@ -868,7 +868,7 @@ function handleUiUpload(event) {
 
     const formData = new FormData();
     for (let i = 0; i < files.length; i++) {
-        formData.append('ui-file', files[i], files[i].name);
+        formData.append(files[i].name, files[i]);
     }
     
     const progressBar = document.getElementById('ui-progress-bar');

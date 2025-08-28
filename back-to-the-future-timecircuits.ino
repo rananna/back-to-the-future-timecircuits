@@ -60,6 +60,7 @@ bool isPlayingSound = false;
 String ttsFile = "";
 SemaphoreHandle_t xAudioMutex;
 bool isStreamingRadio = false;
+
 // --- GLOBAL VARIABLES & CONSTANTS ---
 ClockSettings currentSettings;
 MarqueeData displayPages[5];
@@ -165,6 +166,7 @@ SequenceStep sequence[20];
 int currentSequenceStep = 0;
 unsigned long sequenceStepStartTime = 0;
 bool isSequenceActive = false;
+
 void saveSettings() {
     Serial.println("--- Saving Settings ---");
 	preferences.begin(PREFERENCES_NAMESPACE, false);
@@ -212,6 +214,7 @@ void saveSettings() {
 	preferences.putString("stRow3Sym", currentSettings.stockRow3_symbol.c_str());
     Serial.printf("Saving avApiKey: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
 	preferences.putString("avApiKey", currentSettings.alphaVantageApiKey.c_str());
+
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
 		preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url.c_str());
@@ -327,12 +330,14 @@ void loadSettings() {
 
 		tempString = preferences.getString("mqttBroker", "");
 		currentSettings.mqttBroker = tempString.c_str();
+
 		tempString = preferences.getString("mqttUser", "");
 		currentSettings.mqttUser = tempString.c_str();
 
 		tempString = preferences.getString("mqttPass", "");
 		currentSettings.mqttPassword = tempString.c_str();
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
+
 		tempString = preferences.getString("cityName", "New York");
 		currentSettings.cityName = tempString.c_str();
 
@@ -362,49 +367,59 @@ void loadSettings() {
 
 			tempString = preferences.getString((prefix + "monthPath").c_str(), "");
 			currentSettings.dataPoints[i].monthPath = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "dayPath").c_str(), "");
 			currentSettings.dataPoints[i].dayPath = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "yearPath").c_str(), "");
 			currentSettings.dataPoints[i].yearPath = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "timePath").c_str(), "");
 			currentSettings.dataPoints[i].timePath = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "prefix").c_str(), "");
 			currentSettings.dataPoints[i].prefix = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "suffix").c_str(), "");
 			currentSettings.dataPoints[i].suffix = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "icon").c_str(), "");
 			currentSettings.dataPoints[i].icon = tempString.c_str();
+
 			currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
 			currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
 
 			tempString = preferences.getString((prefix + "topic").c_str(), "");
 			currentSettings.dataPoints[i].mqttTopic = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "yearPrefix").c_str(), "");
 			currentSettings.dataPoints[i].yearPrefix = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "yearSuffix").c_str(), "");
 			currentSettings.dataPoints[i].yearSuffix = tempString.c_str();
+
 			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
 
 			tempString = preferences.getString((prefix + "scrollTxt").c_str(), "");
 			currentSettings.dataPoints[i].scrollingText = tempString.c_str();
+
 			tempString = preferences.getString((prefix + "authKey").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderKey = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "authVal").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderValue = tempString.c_str();
+
 			currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
 			
 			tempString = preferences.getString((prefix + "reqBody").c_str(), "");
 			currentSettings.dataPoints[i].requestBody = tempString.c_str();
+
 			currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
 		}
 	}
 	preferences.end();
 	Serial.println("--- Settings Loaded ---");
+
 	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.presentTimezoneIndex = 0;
 	}
@@ -467,6 +482,7 @@ void setup() {
 	xDisplayDataMutex = xSemaphoreCreateMutex();
     xAudioMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
+
 	// --- START NETWORKING AND WEB SERVER FIRST ---
 	wifiManager.autoConnect("BTTF-Clock-Setup");
 	ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
@@ -477,7 +493,7 @@ void setup() {
 		Serial.println(F("BOOT_LOG: mDNS responder... OK"));
 	} else {
         Serial.println(F("BOOT_LOG: mDNS responder... FAILED!"));
-	}
+    }
 
     Serial.println(F("WEB_LOG: Setting up web routes..."));
 	setupWebRoutes();
@@ -488,6 +504,7 @@ void setup() {
 
     // --- SAFELY ATTEMPT TO INITIALIZE HARDWARE ---
     hardwareInitialized = attemptHardwareInit();
+
 	// --- INITIALIZE I2S AUDIO ---
     if(hardwareInitialized) {
         out = new AudioOutputI2S();
@@ -495,20 +512,19 @@ void setup() {
         out->SetGain((float)currentSettings.notificationVolume / 30.0f);
         mp3 = new AudioGeneratorMP3();
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
-	// Initialize the new streaming library
     }
 
 	configTime(0, 0, NTP_SERVERS[0]);
-setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-tzset();
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
     Serial.println(F("BOOT_LOG: Timezone configured."));
 
 	setupMqtt();
 	Serial.println(F("BOOT_LOG: MQTT setup initiated."));
 	ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
-Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
+    Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
 
-    // ArduinoOTA
+	// ArduinoOTA
     ArduinoOTA.setHostname("bttf-time-circuits");
     ArduinoOTA.setPassword("1.21gigawatts");
 
@@ -535,7 +551,6 @@ Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
         else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
         else if (error == OTA_END_ERROR) Serial.println("End Failed");
     });
-
     ArduinoOTA.begin();
 
 	Serial.println(F("BOOT_LOG: Calling runBootSequence()..."));
@@ -552,6 +567,7 @@ bool isMarketOpen() {
 
     struct tm timeinfo;
     getLocalTime(&timeinfo);
+
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
 
@@ -604,6 +620,7 @@ void loop() {
     }
     
     handleSequencer();
+
     if (!isMalfunctioning && !isAnimating) {
         if (hardwareInitialized) {
 		    restoreDisplayAfterGlitch();
@@ -615,13 +632,14 @@ void loop() {
 				static unsigned long lastWeatherFetch = 0;
                 if (millis() - lastWeatherFetch > 300000) {
 					lastWeatherFetch = millis();
-					WeatherTaskParams* params = new WeatherTaskParams{ currentSettings.cityName, false };
+                    WeatherTaskParams* params = new WeatherTaskParams{ currentSettings.cityName, false };
                     xTaskCreatePinnedToCore(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL, 0);
 				}
 			}
 
 			handlePresetCycling();
 			handleSleepSchedule();
+
 			if (currentSettings.stockTickerModeEnabled) {
                 if (isMarketOpen()) {
                     if (millis() - lastStockDataFetch > 300000) { 
@@ -664,6 +682,7 @@ void loop() {
     configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
+
     struct tm timeinfo;
 
     // Increased timeout to 10 seconds (10000ms) for better reliability
@@ -699,7 +718,6 @@ void handleAudio() {
     if (xSemaphoreTake(xAudioMutex, 0) == pdTRUE) {
         if (isStreamingRadio) {
             // Nothing to do here.
-            // The Audio class in MqttManager.cpp handles the loop.
         } else if (isPlayingSound && mp3->isRunning()) {
             if (!mp3->loop()) {
                 mp3->stop();
@@ -720,7 +738,8 @@ void handleAudio() {
 void handleSequencer() {
     if (!isSequenceActive) return;
     SequenceStep step = sequence[currentSequenceStep];
-unsigned long elapsed = millis() - sequenceStepStartTime;
+    unsigned long elapsed = millis() - sequenceStepStartTime;
+
     switch (step.command) {
         case SEQ_CMD_TEXT:
             if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
@@ -765,9 +784,11 @@ void handleSleepSchedule() {
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
   int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
+
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
+
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     if (hardwareInitialized) {
@@ -813,10 +834,8 @@ void ttsDownloadTask(void* parameter) {
         http.end();
         xSemaphoreGive(xAudioMutex);
     }
-    delete url;
-    // Clean up the allocated memory
-    vTaskDelete(NULL);
-    // Delete the task when done
+    delete[] url; // Clean up the allocated memory
+    vTaskDelete(NULL); // Delete the task when done
 }
 
 void playTtsFromUrl(const char* url) {
@@ -829,15 +848,9 @@ void playTtsFromUrl(const char* url) {
 }
 
 void playRadioStream(const char* url) {
-    stopRadioStream();
-    // Stop any existing stream or sound
-    
     if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
         Serial.printf("Starting radio stream from: %s\n", url);
-        // This is a placeholder as the correct audio object is in MqttManager
-        // If this function is called, it should delegate to the startAudioStream function in MqttManager.
-        // For now, it will simply log the intent.
-        Serial.println("Please use the MQTT 'play_radio' command instead.");
+        startAudioStream(url, false);
         isStreamingRadio = true;
         xSemaphoreGive(xAudioMutex);
     }
@@ -845,13 +858,10 @@ void playRadioStream(const char* url) {
 
 void stopRadioStream() {
     if (!isStreamingRadio) return;
-if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
+    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
         Serial.println("Stopping radio stream.");
-        // This is a placeholder as the correct audio object is in MqttManager
-        // If this function is called, it should delegate to the stopAudioStream function in MqttManager.
-        // For now, it will simply log the intent.
-        Serial.println("Please use the MQTT 'stop_radio' command instead.");
+        stopAudioStream();
         isStreamingRadio = false;
-xSemaphoreGive(xAudioMutex);
+        xSemaphoreGive(xAudioMutex);
     }
 }
