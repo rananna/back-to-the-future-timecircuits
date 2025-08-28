@@ -396,7 +396,15 @@
             <div class="setting-group" id="ui-upload-container">
                 <h3>UI File Update</h3>
                 <p>Upload new UI files (index.html, style.css, etc.).</p>
-                </div>
+                <form id="ui-upload-form">
+                    <input type="file" name="ui-files" multiple>
+                    <button type="submit">Upload UI Files</button>
+                    <div class="progress-bar-container">
+                        <div id="ui-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <p id="ui-status-message" class="status-message"></p>
+                </form>
+            </div>
             <div class="setting-group">
                 <h3>UI Theme</h3>
                 <div id="themeSelector" class="theme-selector">

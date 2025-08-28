@@ -689,14 +689,27 @@ void setupWebRoutes() {
   });
 
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
+        // --- START: MODIFICATION - OTA Security ---
+        // Check for the authentication header before proceeding with the update.
         if (!request->hasHeader("X-Auth-Password") || request->header("X-Auth-Password") != "1.21gigawatts") {
             return request->send(401, "text/plain", "Unauthorized");
         }
+        // --- END: MODIFICATION ---
         AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", Update.hasError() ? "FAIL" : "OK");
         response->addHeader("Connection", "close");
         request->send(response);
         ESP.restart();
     }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        // --- START: MODIFICATION - OTA Security Check ---
+        if (index == 0) { // Only check on the first chunk
+             if (!request->hasHeader("X-Auth-Password") || request->header("X-Auth-Password") != "1.21gigawatts") {
+                // If the check fails here, we can't send a 401, but we can abort.
+                request->send(401, "text/plain", "Unauthorized");
+                return; // Abort the upload
+            }
+        }
+        // --- END: MODIFICATION ---
+
         if (!index) {
             Serial.printf("Update Start: %s\n", filename.c_str());
             if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {

@@ -18,7 +18,7 @@ This guide will walk you through setup, features, troubleshooting, and advanced 
 1. [Prerequisites](#prerequisites)
 2. [Setup and Auto-Discovery](#setup-and-auto-discovery)
 3. [Available Entities & Features](#available-entities-and-features)
-4. [Blueprint Installation & Usage](#blueprint-installation-and-usage-guide)
+4. [Blueprint Installation & Usage Guide](#blueprint-installation-and-usage-guide)
 5. [Guide to Blueprints](#guide-to-blueprints)
 6. [Advanced Usage & Guides](#advanced-usage-and-guides)
 7. [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)

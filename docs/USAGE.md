@@ -52,14 +52,14 @@ This is a fully configurable marquee for displaying data from the internet.
 * **API Wizard**: An easy-to-use tool that fetches data from a URL and lets you visually map JSON values to the displays without writing any code.
 
 #### Stock Ticker Mode
-This mode transforms the last three displays of the bottom marquee into a real-time stock ticker.
-* **Configuration**: You must enter a valid **AlphaVantage API Key** for this to function.
-* **Symbols**: Enter up to three stock or index symbols (e.g., `^GSPC` for the S&P 500) to display.
-* **Data**: The clock will automatically fetch the latest prices and display them when the market is open.
+This mode transforms all three display rows into a real-time stock and index ticker.
+* **Configuration**: You must enter a free **Financial Modeling Prep (FMP) API Key** for this to function.
+* **Symbols**: Enter up to three stock or index symbols (e.g., `AAPL`, `GOOGL`, `^GSPC` for the S&P 500) to display.
+* **Data**: The clock will automatically fetch the latest prices and percentage changes.
 
 ### System Tab
 * **Device Status**: This card displays real-time information about the device, including the WiFi Signal Strength, free memory, and uptime since the last reboot.
-* **Time Synchronization**: Shows whether the device's internal clock is synchronized with an NTP server. You can manually trigger a sync by clicking **Sync Time**.
+* **Time Synchronization**: Shows whether the device's internal clock is synchronized with an NTP server. You can manually trigger a sync by clicking **Calibrate Present Time**.
 * **UI Theme**: Change the color scheme of the web interface.
 * **Device Actions**: Trigger a "Great Scott!" easter egg or reset all settings to their factory defaults.
 
@@ -71,16 +71,16 @@ The Over-the-Air (OTA) update feature allows you to flash new firmware to the ES
 2.  Export the compiled binary (`Sketch` > `Export compiled Binary`). This will create a `.bin` file in your sketch folder.
 3.  In the web UI, navigate to the **System** tab.
 4.  Under the **Firmware Update (OTA)** section, click **Choose File** and select the `.bin` file you just exported.
-5.  Click **Upload Firmware**. The update process will begin, and the device will automatically reboot when it's complete.
+5.  Click **Upload and Update Firmware**. The update process will begin, and the device will automatically reboot when it's complete.
 
-> ⚠️ **Password Note**: The OTA update process requires a password for security. The default password is **`1.21gigawatts`**. This is currently hardcoded and can be changed in `web_server.cpp`.
+> ⚠️ **Password Note**: For security, the OTA update process requires a password sent as a special HTTP header. The default password is **`1.21gigawatts`**. This is currently hardcoded and can be changed in `web_server.cpp`.
 
-#### Web UI Files Update
+#### UI File Update
 
-This feature allows you to upload new versions of the web interface files (`.html`, `.css`, `.js`) without re-flashing the entire filesystem.
+This feature allows you to upload new versions of the web interface files (`.html`, `.css`, `.js`, `.mp3`) without re-flashing the entire filesystem.
 
 1.  Navigate to the **System** tab.
-2.  Under the **Web UI Files Update** section, click **Choose Files**.
-3.  Select the UI files you want to update. You can select multiple files at once. The system will only accept `index.html`, `style.css`, `main_ui.js`, and `data_handling.js`.
+2.  Under the **UI File Update** section, click **Choose Files**.
+3.  Select the UI files you want to update. You can select multiple files at once.
 4.  Click **Upload UI Files**. The files will be uploaded to the device's filesystem.
 5.  Once the upload is complete, you will need to **manually refresh the page** in your browser to see the changes.

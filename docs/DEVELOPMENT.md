@@ -36,7 +36,7 @@ To get started with development, you will need the following:
 
 ### Partitioning
 
-The project uses a custom partition scheme to allocate more space for the filesystem (`LittleFS`), which stores web assets, sound files, and configuration data. The partition table is defined in `partitions_custom.csv`.
+The project uses a custom partition scheme to allocate more space for the filesystem (`LittleFS`), which stores web assets, sound files, and configuration data. The partition table is defined in `partitions.csv`.
 
 ### Over-The-Air (OTA) Updates
 

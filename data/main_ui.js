@@ -138,7 +138,7 @@ async function initializeUI() {
         // Attach all the event listeners to the UI elements
         attachEventListeners();
         // Dynamically create the UI uploader
-        createUiUploader();
+        // createUiUploader();
         
         showMessage('System Online', 'success');
 

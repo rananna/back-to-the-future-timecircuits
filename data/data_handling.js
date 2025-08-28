@@ -802,6 +802,9 @@ function handleFirmwareUpload(event) {
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/update', true);
+    
+    // Add the required password header for authentication
+    xhr.setRequestHeader("X-Auth-Password", "1.21gigawatts");
 
     xhr.upload.onprogress = function(event) {
         if (event.lengthComputable) {
@@ -816,7 +819,7 @@ function handleFirmwareUpload(event) {
             statusMessage.textContent = 'Firmware update successful! Device is rebooting.';
             showMessage('Firmware update successful! Device is rebooting.', 'success', 10000);
         } else {
-            statusMessage.textContent = 'Firmware update failed.';
+            statusMessage.textContent = `Firmware update failed. Status: ${xhr.status}`;
             showMessage('Firmware update failed.', 'error');
         }
     };
