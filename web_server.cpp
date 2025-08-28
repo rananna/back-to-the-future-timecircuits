@@ -186,6 +186,17 @@ void makeApiRequestTask(void* p) {
         http.end();
         serializeJson(responseJson, responseString);
         ws.text(clientId, responseString);
+    } else {
+        // --- START: MODIFICATION - Handle http.begin() failure ---
+        String responseString;
+        DynamicJsonDocument responseJson(256);
+        responseJson["action"] = action;
+        responseJson["rowIndex"] = rowIndex;
+        responseJson["status"] = "error";
+        responseJson["payload"] = "Connection Failed. Check URL/DNS.";
+        serializeJson(responseJson, responseString);
+        ws.text(clientId, responseString);
+        // --- END: MODIFICATION ---
     }
 
     vTaskDelete(NULL); // End the task
@@ -689,28 +700,24 @@ void setupWebRoutes() {
   });
 
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
-        // --- START: MODIFICATION - OTA Security ---
-        // Check for the authentication header before proceeding with the update.
-        if (!request->hasHeader("X-Auth-Password") || request->header("X-Auth-Password") != "1.21gigawatts") {
-            return request->send(401, "text/plain", "Unauthorized");
-        }
-        // --- END: MODIFICATION ---
+        // Final response after the upload is complete
         AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", Update.hasError() ? "FAIL" : "OK");
         response->addHeader("Connection", "close");
         request->send(response);
-        ESP.restart();
-    }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-        // --- START: MODIFICATION - OTA Security Check ---
-        if (index == 0) { // Only check on the first chunk
-             if (!request->hasHeader("X-Auth-Password") || request->header("X-Auth-Password") != "1.21gigawatts") {
-                // If the check fails here, we can't send a 401, but we can abort.
-                request->send(401, "text/plain", "Unauthorized");
-                return; // Abort the upload
-            }
+        if (!Update.hasError()) {
+            ESP.restart();
         }
-        // --- END: MODIFICATION ---
-
+    }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        // This is the upload handler, which is called for each chunk of the file
         if (!index) {
+            // --- START: MODIFICATION - OTA Security ---
+            if (!request->hasHeader("X-Auth-Password") || request->header("X-Auth-Password") != "1.21gigawatts") {
+                // Abort the request if the password is wrong
+                request->send(401, "text/plain", "Unauthorized");
+                return;
+            }
+            // --- END: MODIFICATION ---
+            
             Serial.printf("Update Start: %s\n", filename.c_str());
             if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
                 Update.printError(Serial);
@@ -722,10 +729,10 @@ void setupWebRoutes() {
             }
         }
         if (final) {
-            if (!Update.end(true)) {
-                Update.printError(Serial);
-            } else {
+            if (Update.end(true)) {
                 Serial.println("Update complete");
+            } else {
+                Update.printError(Serial);
             }
         }
     });

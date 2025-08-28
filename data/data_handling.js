@@ -324,16 +324,39 @@ function startApiWizard(event) {
  * Saves all the settings to the server.
  */
 function saveSettings() {
-    // Show a loading indicator on the save button
+    // --- START: MODIFICATION - Input Validation ---
+    // Helper function to validate a numeric input
+    const validateNumericInput = (id, label, isInteger = true, min = -Infinity, max = Infinity) => {
+        const input = document.getElementById(id);
+        const value = input.value;
+        const numValue = isInteger ? parseInt(value, 10) : parseFloat(value);
+        
+        if (isNaN(numValue) || value === '' || numValue < min || numValue > max) {
+            showMessage(`${label} must be a valid number between ${min} and ${max}.`, 'error');
+            input.classList.add('invalid-input');
+            input.focus();
+            return null;
+        }
+        input.classList.remove('invalid-input');
+        return numValue;
+    };
+
+    // Validate all required numeric fields before proceeding
+    const settings = {};
+    settings.destinationYear = validateNumericInput('destinationYear', 'Destination Year', true, 1000, 9999);
+    if (settings.destinationYear === null) return;
+    
+    settings.mqttPort = validateNumericInput('mqttPort', 'MQTT Port', true, 1, 65535);
+    if (settings.mqttPort === null) return;
+
+    // Remove any previous invalid highlights
+    document.querySelectorAll('.invalid-input').forEach(el => el.classList.remove('invalid-input'));
+    // --- END: MODIFICATION ---
+
     showLoading('saveSettingsBtn', true);
     console.log("CLIENT_DEBUG: 'Engage Time Circuits' button clicked. Starting save process.");
-
-    // Create a single object to hold all settings
-    const settings = {};
-
-    // Gather all the settings from the UI
+    
     // Time Circuits & Temporal Settings
-    settings.destinationYear = parseInt(document.getElementById('destinationYear').value, 10);
     settings.destinationTimezoneIndex = parseInt(document.getElementById('destinationTimezoneSelect').value, 10);
     settings.presentTimezoneIndex = parseInt(document.getElementById('presentTimezoneSelect').value, 10);
 
@@ -368,7 +391,6 @@ function saveSettings() {
     settings.dataLinkEnabled = document.getElementById('dataLinkEnabled').checked;
     settings.dataLinkRefreshInterval = parseInt(document.getElementById('dataLinkRefreshInterval').value, 10);
     settings.mqttBroker = document.getElementById('mqttBroker').value;
-    settings.mqttPort = parseInt(document.getElementById('mqttPort').value, 10);
     settings.mqttUser = document.getElementById('mqttUser').value;
     settings.mqttPassword = document.getElementById('mqttPassword').value;
 
@@ -380,7 +402,7 @@ function saveSettings() {
     settings.alphaVantageApiKey = document.getElementById('alphaVantageApiKey').value;
 
     if (settings.stockTickerModeEnabled && !settings.alphaVantageApiKey) {
-        showMessage('Alpha Vantage API Key is required for Stock Ticker Mode.', 'error');
+        showMessage('FMP API Key is required for Stock Ticker Mode.', 'error');
         showLoading('saveSettingsBtn', false);
         return;
     }
@@ -707,7 +729,7 @@ function fetchStockQuote(event) {
         return;
     }
     if (!apiKey) {
-        showMessage('Please enter your Alpha Vantage API key.', 'error');
+        showMessage('Please enter your FMP API key.', 'error');
         return;
     }
      if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -738,12 +760,9 @@ function updateStockPreview(status, payload, rowIndex) {
     const priceEl = previewContainer.querySelector('.stock-price');
     const changeEl = previewContainer.querySelector('.stock-change');
 
-    // --- START: MODIFICATION ---
-    // Handle both single object and array responses from the API.
     const quote = Array.isArray(payload) ? payload[0] : payload;
 
     if (status === 'success' && quote && typeof quote === 'object' && !quote["Error Message"]) {
-    // --- END: MODIFICATION ---
         const price = parseFloat(quote.price).toFixed(2);
         
         priceEl.textContent = `$${price}`;
@@ -769,9 +788,9 @@ function updateStockPreview(status, payload, rowIndex) {
         let errorMsg = 'Failed to fetch stock data.';
         if (typeof payload === 'string') {
             errorMsg = payload;
-        } else if (payload && payload['Error Message']) { // Check for payload existence
+        } else if (payload && payload['Error Message']) {
             errorMsg = payload['Error Message'];
-        } else if (payload && payload['Note']) { // Check for payload existence
+        } else if (payload && payload['Note']) {
             errorMsg = payload['Note'];
         }
         showMessage(errorMsg, 'error');
@@ -802,9 +821,10 @@ function handleFirmwareUpload(event) {
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/update', true);
-    
-    // Add the required password header for authentication
+
+    // --- START: MODIFICATION - Add Authentication Header ---
     xhr.setRequestHeader("X-Auth-Password", "1.21gigawatts");
+    // --- END: MODIFICATION ---
 
     xhr.upload.onprogress = function(event) {
         if (event.lengthComputable) {
@@ -820,7 +840,7 @@ function handleFirmwareUpload(event) {
             showMessage('Firmware update successful! Device is rebooting.', 'success', 10000);
         } else {
             statusMessage.textContent = `Firmware update failed. Status: ${xhr.status}`;
-            showMessage('Firmware update failed.', 'error');
+            showMessage(`Firmware update failed. Error: ${xhr.responseText}`, 'error');
         }
     };
 
