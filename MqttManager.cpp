@@ -24,6 +24,7 @@ AudioFileSourceHTTPStream *fileSourceHttp = NULL;
 AudioFileSourceICYStream *fileSourceIcy = NULL;
 
 
+
 void setupMqtt() {
   if (currentSettings.mqttBroker.empty()) {
     return;
@@ -478,55 +479,10 @@ void reconnectMqtt() {
   }
 }
 
-void stopAudioStream() {
-    if (audioGenerator) {
-        audioGenerator->stop();
-        delete audioGenerator;
-        audioGenerator = NULL;
-    }
-    if (fileSourceHttp) {
-        fileSourceHttp->close();
-        delete fileSourceHttp;
-        fileSourceHttp = NULL;
-    }
-    if (fileSourceIcy) {
-        fileSourceIcy->close();
-        delete fileSourceIcy;
-        fileSourceIcy = NULL;
-    }
-    mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
-}
 
-void startAudioStream(const char* url, bool is_tts) {
-    stopAudioStream(); // Stop any currently playing audio
 
-    if (!hardwareInitialized || !out) {
-      Serial.println("Hardware not initialized, cannot play audio.");
-      return;
-    }
 
-    if (is_tts) {
-        fileSourceHttp = new AudioFileSourceHTTPStream(url);
-        audioGenerator = new AudioGeneratorMP3();
-        if (audioGenerator->begin(fileSourceHttp, out)) {
-            Serial.printf("Started playing TTS: %s\n", url);
-            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
-        } else {
-            Serial.println("Failed to start TTS playback.");
-            stopAudioStream();
-        }
-    } else { // Radio streamer
-        fileSourceIcy = new AudioFileSourceICYStream(url);
-        audioGenerator = new AudioGeneratorMP3();
-        if (audioGenerator->begin(fileSourceIcy, out)) {
-            Serial.printf("Started playing radio stream: %s\n", url);
-            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
-        } else {
-            Serial.println("Failed to start radio playback.");
-            stopAudioStream();
-        }
-    }
-}
+
 
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {

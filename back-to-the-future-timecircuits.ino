@@ -51,6 +51,9 @@ void playTtsFromUrl(const char* url);
 void ttsDownloadTask(void* parameter);
 void playRadioStream(const char* url);
 void stopRadioStream();
+void startAudioStream(const char* url, bool is_tts);
+void stopAudioStream();
+
 
 // --- AUDIO LIBRARY GLOBALS ---
 AudioFileSourceLittleFS *file;
@@ -292,6 +295,7 @@ void loadSettings() {
 		currentSettings.stockRow2_symbol = "^GSPTSE";
 		currentSettings.stockRow3_symbol = "^IXIC";
 		currentSettings.alphaVantageApiKey = "";
+
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
 		}
@@ -336,6 +340,7 @@ void loadSettings() {
 
 		tempString = preferences.getString("mqttPass", "");
 		currentSettings.mqttPassword = tempString.c_str();
+
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
 
 		tempString = preferences.getString("cityName", "New York");
@@ -459,8 +464,14 @@ bool attemptHardwareInit() {
 }
 
 void setup() {
-	Serial.begin(921600);
-	delay(1000);
+	Serial.begin(115200);
+	delay(2000);
+	 Serial.end();
+  delay(100);
+  Serial.begin(115200);
+  delay(1000); 
+	Serial.println("Testing serial output...");
+  Serial.flush();
 
 	Serial.println(F("\n\n--- BOOTING ---"));
 	Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
@@ -516,13 +527,13 @@ void setup() {
 
 	configTime(0, 0, NTP_SERVERS[0]);
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
+	tzset();
     Serial.println(F("BOOT_LOG: Timezone configured."));
 
 	setupMqtt();
 	Serial.println(F("BOOT_LOG: MQTT setup initiated."));
 	ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
-    Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
+	Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
 
 	// ArduinoOTA
     ArduinoOTA.setHostname("bttf-time-circuits");
@@ -537,12 +548,15 @@ void setup() {
         }
         Serial.println("Start updating " + type);
     });
+
     ArduinoOTA.onEnd([]() {
         Serial.println("\nEnd");
     });
+
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
         Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     });
+
     ArduinoOTA.onError([](ota_error_t error) {
         Serial.printf("Error[%u]: ", error);
         if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
@@ -551,6 +565,7 @@ void setup() {
         else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
         else if (error == OTA_END_ERROR) Serial.println("End Failed");
     });
+
     ArduinoOTA.begin();
 
 	Serial.println(F("BOOT_LOG: Calling runBootSequence()..."));
@@ -611,14 +626,16 @@ void loop() {
     }
 
     // --- GUARD ALL HARDWARE-DEPENDENT LOGIC ---
-    if (hardwareInitialized) {
-        handleFlashEffect();
-        handleBootSequence();
-        if (isMalfunctioning) {
-            handleMalfunction();
-        }
+// --- GUARD ALL HARDWARE-DEPENDENT LOGIC ---
+if (hardwareInitialized) {
+    #if ENABLE_HARDWARE
+    handleFlashEffect();
+    #endif
+    handleBootSequence();
+    if (isMalfunctioning) {
+        handleMalfunction();
     }
-    
+}
     handleSequencer();
 
     if (!isMalfunctioning && !isAnimating) {
@@ -651,11 +668,11 @@ void loop() {
                     }
                 }
                 if (hardwareInitialized) updateStockTickerDisplay();
-			} else if (isMessageOverrideActive) {
+            } else if (isMessageOverrideActive) {
                 if (hardwareInitialized) displayOverrideMessage();
-			} else if (isMarqueeOverrideActive) {
+            } else if (isMarqueeOverrideActive) {
                 if (hardwareInitialized) displayMarqueeOverride();
-			} else if (currentSettings.dataLinkEnabled) {
+            } else if (currentSettings.dataLinkEnabled) {
 				fetchDataLink();
 				if (hardwareInitialized) updateMarqueeDisplay();
 			} else {
@@ -669,11 +686,11 @@ void loop() {
     
     if (hardwareInitialized) {
 	    handleDisplayAnimation();
-        handleTemporalGlitch();
     }
 
 	static unsigned long lastNtpUpdate = 0;
 	static unsigned long lastHaStateUpdate = 0;
+
 	if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
     Serial.println("--- NTP TIME SYNC START ---");
     Serial.printf("Attempting to sync with NTP server: %s\n", NTP_SERVERS[currentNtpServerIndex]);
@@ -771,6 +788,7 @@ void handleSequencer() {
 
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
+
     if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
     }
@@ -808,8 +826,10 @@ void handleSleepSchedule() {
 
 void ttsDownloadTask(void* parameter) {
     const char* url = (const char*)parameter;
+
     if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
         Serial.printf("Downloading TTS audio from: %s\n", url);
+
         HTTPClient http;
         WiFiClient client;
         http.begin(client, url);
@@ -834,8 +854,10 @@ void ttsDownloadTask(void* parameter) {
         http.end();
         xSemaphoreGive(xAudioMutex);
     }
-    delete[] url; // Clean up the allocated memory
-    vTaskDelete(NULL); // Delete the task when done
+    delete[] url;
+    // Clean up the allocated memory
+    vTaskDelete(NULL);
+    // Delete the task when done
 }
 
 void playTtsFromUrl(const char* url) {
@@ -864,4 +886,54 @@ void stopRadioStream() {
         isStreamingRadio = false;
         xSemaphoreGive(xAudioMutex);
     }
+}
+
+void startAudioStream(const char* url, bool is_tts) {
+    stopAudioStream(); // Stop any currently playing audio
+
+    if (!hardwareInitialized || !out) {
+      Serial.println("Hardware not initialized, cannot play audio.");
+      return;
+    }
+
+    if (is_tts) {
+        fileSourceHttp = new AudioFileSourceHTTPStream(url);
+        audioGenerator = new AudioGeneratorMP3();
+        if (audioGenerator->begin(fileSourceHttp, out)) {
+            Serial.printf("Started playing TTS: %s\n", url);
+            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
+        } else {
+            Serial.println("Failed to start TTS playback.");
+            stopAudioStream();
+        }
+    } else { // Radio streamer
+        fileSourceIcy = new AudioFileSourceICYStream(url);
+        audioGenerator = new AudioGeneratorMP3();
+        if (audioGenerator->begin(fileSourceIcy, out)) {
+            Serial.printf("Started playing radio stream: %s\n", url);
+            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
+        } else {
+            Serial.println("Failed to start radio playback.");
+            stopAudioStream();
+        }
+    }
+}
+
+void stopAudioStream() {
+    if (audioGenerator) {
+        audioGenerator->stop();
+        delete audioGenerator;
+        audioGenerator = NULL;
+    }
+    if (fileSourceHttp) {
+        fileSourceHttp->close();
+        delete fileSourceHttp;
+        fileSourceHttp = NULL;
+    }
+    if (fileSourceIcy) {
+        fileSourceIcy->close();
+        delete fileSourceIcy;
+        fileSourceIcy = NULL;
+    }
+    mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
 }

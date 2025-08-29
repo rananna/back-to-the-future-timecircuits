@@ -5,13 +5,20 @@
 
 #include "AnimationManager.h"
 #include "EventManager.h"
-#include "HardwareControl.h"
+#include "HardwareControl.h" // <-- Added this include
 #include "DisplayManager.h"
 #include "MqttManager.h"
+
+// Extern variables should be within the conditional block
+#if ENABLE_HARDWARE
+extern DisplayRow destRow, presRow, lastRow;
+#endif
 
 // --- FLASH EFFECT ---
 bool isFlashing[3][4] = {{false}};
 unsigned long flashEndTimes[3][4] = {{0}};
+bool flashStates[3][4] = {{false}};
+unsigned long lastFlashToggle[3][4] = {{0}};
 
 /**
  * @brief Triggers a temporary flashing effect on a specific display segment.
@@ -20,23 +27,52 @@ void triggerFlashEffect(int row, int segment, int duration) {
     if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
     isFlashing[row][segment] = true;
     flashEndTimes[row][segment] = millis() + duration;
+    flashStates[row][segment] = true;
+    lastFlashToggle[row][segment] = millis();
 }
 
 /**
  * @brief Handles the state of any active flash effects. Called in the main loop.
  */
+#if ENABLE_HARDWARE // <-- Added this guard
 void handleFlashEffect() {
-    // This function would need to be implemented to control the visual flashing.
-    // For now, it will just manage the state.
     for (int r = 0; r < 3; ++r) {
         for (int s = 0; s < 4; ++s) {
-            if (isFlashing[r][s] && millis() > flashEndTimes[r][s]) {
-                isFlashing[r][s] = false;
+            if (isFlashing[r][s]) {
+                if (millis() > flashEndTimes[r][s]) {
+                    isFlashing[r][s] = false;
+                    // Restore the display by calling the main update function in the next loop
+                } else {
+                    if (millis() - lastFlashToggle[r][s] > 100) { // Toggle every 100ms
+                        flashStates[r][s] = !flashStates[r][s];
+                        lastFlashToggle[r][s] = millis();
+
+                        DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+                        Adafruit_AlphaNum4* displaySegment = nullptr;
+
+                        switch(s) {
+                            case 0: displaySegment = &rows[r]->month; break;
+                            case 1: displaySegment = &rows[r]->day; break;
+                            case 2: displaySegment = &rows[r]->year; break;
+                            case 3: displaySegment = &rows[r]->time; break;
+                        }
+
+                        if (displaySegment) {
+                            if (flashStates[r][s]) {
+                                // Turn off the display segment (blank it)
+                                displaySegment->clear();
+                            } else {
+                                // The main display logic will restore the content on the next loop
+                            }
+                            displaySegment->writeDisplay();
+                        }
+                    }
+                }
             }
         }
     }
 }
-
+#endif // ENABLE_HARDWARE
 
 // --- TIME TRAVEL ANIMATION ---
 
@@ -61,11 +97,13 @@ void startTimeTravelAnimation() {
     currentSettings.lastTimeDepartedHour = timeinfo.tm_hour;
     currentSettings.lastTimeDepartedMinute = timeinfo.tm_min;
 
+#if ENABLE_HARDWARE
     if (currentSettings.timeTravelSoundToggle) {
         if (hardwareInitialized) {
             playSound("FLUX_CAPACITOR_CHARGE");
         }
     }
+#endif
 }
 
 /**
@@ -147,7 +185,6 @@ void handleDisplayAnimation() {
  */
 void handleTemporalEcho() {
     if (!isEchoEffectActive || !hardwareInitialized) return;
-
 #if ENABLE_HARDWARE
     if (millis() - echoEffectStartTime > 60000) { // Effect lasts for 1 minute
         isEchoEffectActive = false;
@@ -192,9 +229,11 @@ void handleGlitchEffect() {
 void restoreDisplayAfterGlitch() {
     if (isGlitching && (millis() - glitchStartTime > 200)) { // Glitch duration
         isGlitching = false;
+#if ENABLE_HARDWARE
         if (hardwareInitialized) {
             updateNormalClockDisplay();
         }
+#endif
     }
 }
 

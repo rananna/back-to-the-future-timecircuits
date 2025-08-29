@@ -24,7 +24,7 @@
 #define I2C_SCL_2 26
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0
+#define ENABLE_HARDWARE 1
 
 // --- ENUMS & DATA STRUCTURES ---
 
