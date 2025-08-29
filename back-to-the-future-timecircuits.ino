@@ -45,6 +45,7 @@ const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
 const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
 const unsigned long BOOT_ANIMATION_FRAME_INTERVAL = 40; // 40ms for 25fps
 const unsigned long BOOT_INFO_DISPLAY_DURATION = 5000; // 5 seconds
+const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
 
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
 enum WifiState {
@@ -603,6 +604,7 @@ bool isMarketOpen() {
 }
 
 void loop() {
+
     switch (wifiState) {
         case WIFI_STATE_CONNECTING:
             if (!logConnectingPrinted) {
@@ -654,11 +656,16 @@ void loop() {
                 if (MDNS.begin("timecircuits")) {
                     MDNS.addService("http", "tcp", 80);
                 }
+
+                // Request an immediate NTP sync
+                ntpSyncRequested = true; 
+                Serial.println("NTP sync requested immediately after Wi-Fi connection.");
                 
                 runBootSequence();
             }
 
-            if (!currentSettings.mqttBroker.empty()) {
+            // Only handle MQTT if Wi-Fi is connected
+            if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
                 if (!mqttClient.connected()) {
                     unsigned long now = millis();
                     if (now > nextMqttReconnectAttempt) {
@@ -680,18 +687,25 @@ void loop() {
             }
 
             static unsigned long lastNtpUpdate = 0;
-            if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
+            if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
                 Serial.println("--- NTP TIME SYNC START ---");
-                configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
-                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                tzset();
-                struct tm timeinfo;
-                if (getLocalTime(&timeinfo, 10000)) {
-                    timeSynchronized = true;
-                    Serial.println("NTP Time sync SUCCESSFUL!");
-                } else {
-                    timeSynchronized = false;
-                    Serial.println("!!! NTP Time sync FAILED !!!");
+                bool syncSuccess = false;
+                int retries = 0;
+                while (!syncSuccess && retries < NUM_NTP_SERVERS) {
+                    Serial.printf("Attempting NTP sync with %s...\n", NTP_SERVERS[currentNtpServerIndex]);
+                    configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
+                    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                    tzset();
+                    struct tm timeinfo;
+                    if (getLocalTime(&timeinfo, 10000)) {
+                        timeSynchronized = true;
+                        syncSuccess = true;
+                        Serial.println("NTP Time sync SUCCESSFUL!");
+                    } else {
+                        Serial.println("!!! NTP Time sync FAILED !!!");
+                        currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
+                        retries++;
+                    }
                 }
                 lastNtpUpdate = millis();
                 ntpSyncRequested = false;
