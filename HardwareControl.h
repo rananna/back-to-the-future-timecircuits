@@ -44,7 +44,24 @@ enum AnimationPhase {
   ANIM_LANDING
 };
 
-enum BootSequenceState { BOOT_INACTIVE, BOOT_START, BOOT_CHARGE_UP, BOOT_COMPLETE };
+// --- GLOBAL ENUMS & STRUCTS ---
+// Defines the possible states of the boot-up animation
+// In HardwareControl.h
+
+// In HardwareControl.h
+
+enum BootSequenceState {
+  BOOT_INACTIVE,
+  BOOT_START,
+  BOOT_CHARGE_UP,
+  BOOT_SPARKLE,
+  BOOT_SCROLL_TEXT,
+  BOOT_SPEEDOMETER,
+  BOOT_FLASH,
+  BOOT_REVEAL_INFO,
+  BOOT_FINISHED,
+  BOOT_COMPLETE
+};
 enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
 enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
 

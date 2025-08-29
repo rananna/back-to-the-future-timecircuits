@@ -8,7 +8,7 @@
 
 #ifndef ANIMATION_MANAGER_H
 #define ANIMATION_MANAGER_H
-
+#include "HardwareControl.h"
 #include "HardwareControl.h"
 
 // --- Function Declarations for animations and effects ---
@@ -88,6 +88,7 @@ void triggerFlashEffect(int row, int segment, int duration = 500);
  * @details This function should be called on every iteration of the main loop.
  */
 void handleFlashEffect();
+
 
 
 #endif // ANIMATION_MANAGER_H

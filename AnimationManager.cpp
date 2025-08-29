@@ -8,6 +8,11 @@
 #include "HardwareControl.h" // <-- Added this include
 #include "DisplayManager.h"
 #include "MqttManager.h"
+// Helper function prototypes
+void playReconfiguringSound();
+void resetDisplayToNormal();
+
+extern int speedometerValue;
 
 // Extern variables should be within the conditional block
 #if ENABLE_HARDWARE
@@ -291,42 +296,89 @@ void handleMalfunction() {
  * @brief Starts the boot-up animation.
  */
 void runBootSequence() {
-    bootState = BOOT_START;
-    bootStateStartTime = millis();
+  if (bootState == BOOT_INACTIVE) {
+    bootState = BOOT_SPEEDOMETER; // Or BOOT_START if you want the original sequence
+  }
 }
-
 /**
  * @brief State machine for the boot sequence.
  */
 void handleBootSequence() {
-    if (bootState == BOOT_INACTIVE || !hardwareInitialized) return;
-#if ENABLE_HARDWARE
-    unsigned long elapsed = millis() - bootStateStartTime;
+    if (bootState == BOOT_INACTIVE) return;
+
+    unsigned long currentMillis = millis();
+    static unsigned long lastBootActionTime = 0;
 
     switch (bootState) {
         case BOOT_START:
-            blankAllDisplays();
+            // Initial state, transition to charging up
             bootState = BOOT_CHARGE_UP;
-            bootStateStartTime = millis();
-            playSound("FLUX_CAPACITOR_CHARGE");
+            lastBootActionTime = currentMillis;
             break;
+
         case BOOT_CHARGE_UP:
-            if (elapsed < 2000) {
-                animateCapacitorChargeUp(elapsed, 2000);
-            } else {
-                bootState = BOOT_COMPLETE;
-                bootStateStartTime = millis();
+            if (currentMillis - lastBootActionTime > 2000) { // 2 second charge up
+                bootState = BOOT_SPARKLE;
+                lastBootActionTime = currentMillis;
             }
             break;
+
+        case BOOT_SPARKLE:
+            if (currentMillis - lastBootActionTime > 1000) { // 1 second sparkle
+                bootState = BOOT_SCROLL_TEXT;
+                lastBootActionTime = currentMillis;
+            }
+            break;
+        case BOOT_SCROLL_TEXT:
+             if (currentMillis - lastBootActionTime > 1000) { 
+                bootState = BOOT_SPEEDOMETER;
+                lastBootActionTime = currentMillis;
+            }
+            break;
+        case BOOT_SPEEDOMETER:
+            if (currentMillis - lastBootActionTime > 10) {
+                lastBootActionTime = currentMillis;
+                speedometerValue++;
+                if (speedometerValue > 88) {
+                    speedometerValue = 88;
+                    bootState = BOOT_FLASH;
+                    lastBootActionTime = currentMillis;
+                }
+                displaySpeed(speedometerValue);
+            }
+            break;
+
+        case BOOT_FLASH:
+            if (currentMillis - lastBootActionTime > 500) { 
+                bootState = BOOT_REVEAL_INFO;
+                lastBootActionTime = currentMillis;
+            }
+            break;
+
+        case BOOT_REVEAL_INFO:
+             if (currentMillis - lastBootActionTime > 5000) {
+                bootState = BOOT_COMPLETE;
+                lastBootActionTime = currentMillis;
+            }
+            break;
+        
         case BOOT_COMPLETE:
+            playReconfiguringSound();
+            resetDisplayToNormal();
             bootState = BOOT_INACTIVE;
-            updateNormalClockDisplay();
             break;
     }
-#endif
 }
 
+ // Placeholder function, replace with your actual implementation
+void playReconfiguringSound() {
+    // TODO: Add sound playback logic
+}
 
+// Placeholder function, replace with your actual implementation
+void resetDisplayToNormal() {
+    // TODO: Add display reset logic
+}   
 /**
  * @brief Triggers the "temporal glitch" effect when time is first synchronized.
  */
@@ -350,4 +402,6 @@ void handleTemporalGlitch() {
         }
 #endif
     }
+
+
 }

@@ -39,12 +39,40 @@
 #define LED_BUILTIN 2
 #endif
 
+// --- CONFIGURABLE CONSTANTS ---
+const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
+const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
+const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
+const unsigned long BOOT_ANIMATION_FRAME_INTERVAL = 40; // 40ms for 25fps
+const unsigned long BOOT_INFO_DISPLAY_DURATION = 5000; // 5 seconds
+
+// --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
+enum WifiState {
+  WIFI_STATE_CONNECTING,
+  WIFI_STATE_START_PORTAL,
+  WIFI_STATE_PORTAL_RUNNING,
+  WIFI_STATE_CONNECTED
+};
+WifiState wifiState = WIFI_STATE_CONNECTING;
+unsigned long wifiConnectStartTime = 0;
+TaskHandle_t wifiManagerTaskHandle = NULL;
+// --- ONE-TIME LOGGING FLAGS ---
+bool logConnectingPrinted = false;
+bool logPortalMsgPrinted = false;
+bool logConnectedPrinted = false;
+// --- MQTT EXPONENTIAL BACKOFF ---
+unsigned long nextMqttReconnectAttempt = 0;
+unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
+// --- THEMED BOOT SEQUENCE ---
+BootSequenceState bootState = BOOT_INACTIVE;
+int speedometerValue = 0;
+
 // --- FUNCTION PROTOTYPES ---
 void handlePresetCycling();
 void handleSleepSchedule();
 void handleSequencer();
 bool isMarketOpen();
-bool attemptHardwareInit(); // New function for safe hardware init
+bool attemptHardwareInit();
 void handleAudio();
 void checkDataFetchStatusTask(void* p);
 void playTtsFromUrl(const char* url);
@@ -53,6 +81,10 @@ void playRadioStream(const char* url);
 void stopRadioStream();
 void startAudioStream(const char* url, bool is_tts);
 void stopAudioStream();
+void wifiManagerTask(void *pvParameters);
+void runBootSequence();
+void handleBootSequence();
+void setOverrideMessage(const char* line1, const char* line2, const char* line3);
 
 
 // --- AUDIO LIBRARY GLOBALS ---
@@ -63,7 +95,6 @@ bool isPlayingSound = false;
 String ttsFile = "";
 SemaphoreHandle_t xAudioMutex;
 bool isStreamingRadio = false;
-
 // --- GLOBAL VARIABLES & CONSTANTS ---
 ClockSettings currentSettings;
 MarqueeData displayPages[5];
@@ -74,8 +105,6 @@ unsigned long lastStockDataFetch = 0;
 std::string lastCityName = "";
 unsigned long bootTimestamp = 0;
 bool hardwareInitialized = false;
-// New global flag for hardware status
-// To track when the boot process finishes
 const TimeZoneEntry TZ_DATA[] = {
 	{ "UTC0", "UTC", "Etc/UTC", "Global" },
 	{ "NST3:30NDT,M3.2.0,M11.1.0", "Newfoundland (St. John's)", "America/St_Johns", "Americas" },
@@ -130,7 +159,6 @@ unsigned long animationStartTime = 0;
 unsigned long lastAnimationFrameTime = 0;
 AnimationPhase currentPhase = ANIM_INACTIVE;
 bool isDisplayAsleep = false;
-BootSequenceState bootState = BOOT_INACTIVE;
 unsigned long bootStateStartTime = 0;
 unsigned long lastGlitchTime = 0;
 bool isGlitching = false;
@@ -155,7 +183,6 @@ unsigned long malfunctionStartTime = 0;
 MalfunctionPhase currentMalfunctionPhase = MAL_INACTIVE;
 volatile int requestsCompleted = 0;
 int currentPageIndex = 0;
-
 bool isMessageOverrideActive = false;
 String overrideMessageLine1 = "";
 String overrideMessageLine2 = "";
@@ -172,7 +199,7 @@ bool isSequenceActive = false;
 
 void saveSettings() {
     Serial.println("--- Saving Settings ---");
-	preferences.begin(PREFERENCES_NAMESPACE, false);
+    preferences.begin(PREFERENCES_NAMESPACE, false);
 	preferences.putInt("destYear", currentSettings.destinationYear);
 	preferences.putInt("destTzIndex", currentSettings.destinationTimezoneIndex);
 	preferences.putInt("depHour", currentSettings.departureHour);
@@ -217,7 +244,6 @@ void saveSettings() {
 	preferences.putString("stRow3Sym", currentSettings.stockRow3_symbol.c_str());
     Serial.printf("Saving avApiKey: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
 	preferences.putString("avApiKey", currentSettings.alphaVantageApiKey.c_str());
-
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
 		preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url.c_str());
@@ -249,7 +275,7 @@ void saveSettings() {
 
 void loadSettings() {
     Serial.println("--- Loading Settings ---");
-	preferences.begin(PREFERENCES_NAMESPACE, true);
+    preferences.begin(PREFERENCES_NAMESPACE, true);
 	bool needsInit = !preferences.isKey("destYear");
 	if (needsInit) {
 		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
@@ -295,7 +321,6 @@ void loadSettings() {
 		currentSettings.stockRow2_symbol = "^GSPTSE";
 		currentSettings.stockRow3_symbol = "^IXIC";
 		currentSettings.alphaVantageApiKey = "";
-
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
 		}
@@ -340,7 +365,6 @@ void loadSettings() {
 
 		tempString = preferences.getString("mqttPass", "");
 		currentSettings.mqttPassword = tempString.c_str();
-
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
 
 		tempString = preferences.getString("cityName", "New York");
@@ -372,59 +396,49 @@ void loadSettings() {
 
 			tempString = preferences.getString((prefix + "monthPath").c_str(), "");
 			currentSettings.dataPoints[i].monthPath = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "dayPath").c_str(), "");
 			currentSettings.dataPoints[i].dayPath = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "yearPath").c_str(), "");
 			currentSettings.dataPoints[i].yearPath = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "timePath").c_str(), "");
 			currentSettings.dataPoints[i].timePath = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "prefix").c_str(), "");
 			currentSettings.dataPoints[i].prefix = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "suffix").c_str(), "");
 			currentSettings.dataPoints[i].suffix = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "icon").c_str(), "");
 			currentSettings.dataPoints[i].icon = tempString.c_str();
-
 			currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
 			currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
 
 			tempString = preferences.getString((prefix + "topic").c_str(), "");
 			currentSettings.dataPoints[i].mqttTopic = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "yearPrefix").c_str(), "");
 			currentSettings.dataPoints[i].yearPrefix = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "yearSuffix").c_str(), "");
 			currentSettings.dataPoints[i].yearSuffix = tempString.c_str();
-
 			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
 
 			tempString = preferences.getString((prefix + "scrollTxt").c_str(), "");
 			currentSettings.dataPoints[i].scrollingText = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "authKey").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderKey = tempString.c_str();
 
 			tempString = preferences.getString((prefix + "authVal").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderValue = tempString.c_str();
-
 			currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
 			
 			tempString = preferences.getString((prefix + "reqBody").c_str(), "");
 			currentSettings.dataPoints[i].requestBody = tempString.c_str();
-
 			currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
 		}
 	}
 	preferences.end();
 	Serial.println("--- Settings Loaded ---");
-
 	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.presentTimezoneIndex = 0;
 	}
@@ -463,19 +477,27 @@ bool attemptHardwareInit() {
     #endif
 }
 
+void wifiManagerTask(void *pvParameters) {
+  WiFiManager* wifiManager = (WiFiManager*)pvParameters;
+  wifiManager->autoConnect("BTTF-Clock-Setup");
+  vTaskDelete(NULL);
+  wifiManagerTaskHandle = NULL;
+}
+
+void setOverrideMessage(const char* line1, const char* line2, const char* line3) {
+    overrideMessageLine1 = line1;
+    overrideMessageLine2 = line2;
+    overrideMessageLine3 = line3;
+    isMessageOverrideActive = true;
+}
+
 void setup() {
-	Serial.begin(115200);
-	delay(2000);
-	 Serial.end();
-  delay(100);
-  Serial.begin(115200);
-  delay(1000); 
-	Serial.println("Testing serial output...");
-  Serial.flush();
+	Serial.begin(921600);
+	delay(1000);
 
 	Serial.println(F("\n\n--- BOOTING ---"));
 	Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
-    delay(10);
+	delay(10);
 	if (!LittleFS.begin(true)) {
 		ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
 		Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
@@ -490,22 +512,16 @@ void setup() {
 	loadSettings();
 	Serial.println(F("BOOT_LOG: Settings loaded... OK"));
     delay(10);
-	xDisplayDataMutex = xSemaphoreCreateMutex();
+    xDisplayDataMutex = xSemaphoreCreateMutex();
     xAudioMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
-
-	// --- START NETWORKING AND WEB SERVER FIRST ---
-	wifiManager.autoConnect("BTTF-Clock-Setup");
-	ESP_LOGI("WiFi", "WiFi connected! IP: %s", WiFi.localIP().toString().c_str());
-	Serial.printf("BOOT_LOG: WiFi connected. IP: %s\n", WiFi.localIP().toString().c_str());
-
-	if (MDNS.begin("timecircuits")) {
-		MDNS.addService("http", "tcp", 80);
-		Serial.println(F("BOOT_LOG: mDNS responder... OK"));
-	} else {
-        Serial.println(F("BOOT_LOG: mDNS responder... FAILED!"));
-    }
-
+    
+    WiFi.mode(WIFI_STA);
+    WiFi.begin();
+    wifiConnectStartTime = millis();
+    wifiState = WIFI_STATE_CONNECTING;
+    Serial.println("BOOT_LOG: Non-blocking WiFi connection initiated...");
+    
     Serial.println(F("WEB_LOG: Setting up web routes..."));
 	setupWebRoutes();
     Serial.println(F("WEB_LOG: Web routes configured. Starting server..."));
@@ -513,10 +529,7 @@ void setup() {
 	ESP_LOGI("Web", "HTTP server started.");
     Serial.println(F("WEB_LOG: Web server started... OK"));
 
-    // --- SAFELY ATTEMPT TO INITIALIZE HARDWARE ---
     hardwareInitialized = attemptHardwareInit();
-
-	// --- INITIALIZE I2S AUDIO ---
     if(hardwareInitialized) {
         out = new AudioOutputI2S();
         out->SetPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
@@ -525,7 +538,6 @@ void setup() {
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
     }
 
-	configTime(0, 0, NTP_SERVERS[0]);
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
     Serial.println(F("BOOT_LOG: Timezone configured."));
@@ -535,28 +547,23 @@ void setup() {
 	ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
 	Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
 
-	// ArduinoOTA
     ArduinoOTA.setHostname("bttf-time-circuits");
     ArduinoOTA.setPassword("1.21gigawatts");
-
     ArduinoOTA.onStart([]() {
         String type;
         if (ArduinoOTA.getCommand() == U_FLASH) {
             type = "sketch";
-        } else { // U_SPIFFS
+        } else {
             type = "filesystem";
         }
         Serial.println("Start updating " + type);
     });
-
     ArduinoOTA.onEnd([]() {
         Serial.println("\nEnd");
     });
-
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
         Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     });
-
     ArduinoOTA.onError([](ota_error_t error) {
         Serial.printf("Error[%u]: ", error);
         if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
@@ -565,27 +572,21 @@ void setup() {
         else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
         else if (error == OTA_END_ERROR) Serial.println("End Failed");
     });
-
     ArduinoOTA.begin();
 
-	Serial.println(F("BOOT_LOG: Calling runBootSequence()..."));
-	runBootSequence();
 	Serial.println(F("--- BOOT COMPLETE ---"));
     bootTimestamp = millis();
 }
 
 bool isMarketOpen() {
     if (!timeSynchronized) return false;
-
     setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
 	tzset();
 
     struct tm timeinfo;
     getLocalTime(&timeinfo);
-
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
-
     if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
         return false;
     }
@@ -598,25 +599,115 @@ bool isMarketOpen() {
 }
 
 void loop() {
+    switch (wifiState) {
+        case WIFI_STATE_CONNECTING:
+            if (!logConnectingPrinted) {
+                Serial.println("STATUS: Connecting to WiFi...");
+                if(hardwareInitialized) setOverrideMessage("CONNECTING...", "", "");
+                logConnectingPrinted = true;
+            }
+            if (WiFi.status() == WL_CONNECTED) {
+                wifiState = WIFI_STATE_CONNECTED;
+            } else if (millis() - wifiConnectStartTime > WIFI_CONNECT_TIMEOUT) {
+                wifiState = WIFI_STATE_START_PORTAL;
+            }
+            break;
+        case WIFI_STATE_START_PORTAL:
+            if (!logPortalMsgPrinted) {
+                Serial.println("STATUS: Fast connection failed. Starting WiFiManager setup portal...");
+                if(hardwareInitialized) setOverrideMessage("SETUP MODE", "CONNECT TO", "BTTF-CLOCK");
+                logPortalMsgPrinted = true;
+            }
+            xTaskCreate(
+                wifiManagerTask, "WiFiManager", 4096, &wifiManager, 1, &wifiManagerTaskHandle
+            );
+            wifiState = WIFI_STATE_PORTAL_RUNNING;
+            break;
+
+case WIFI_STATE_PORTAL_RUNNING:
+    if (WiFi.status() == WL_CONNECTED) {
+        if(hardwareInitialized) setOverrideMessage("REBOOTING", "", "");
+        if(wifiManagerTaskHandle != NULL) {
+            vTaskDelete(wifiManagerTaskHandle);
+            wifiManagerTaskHandle = NULL;
+        }
+
+        // Use a non-blocking timer instead of delay
+        static unsigned long reboot_time = 0;
+        if (reboot_time == 0) {
+            reboot_time = millis();
+        }
+        if (millis() - reboot_time > 2000) {
+            ESP.restart();
+        }
+    }
+    break;
+        case WIFI_STATE_CONNECTED:
+            if (!logConnectedPrinted) {
+                Serial.println("STATUS: WiFi Connected!");
+                ESP_LOGI("WiFi", "IP: %s", WiFi.localIP().toString().c_str());
+                logConnectedPrinted = true;
+                
+                if (MDNS.begin("timecircuits")) {
+                    MDNS.addService("http", "tcp", 80);
+                }
+                
+                runBootSequence();
+            }
+
+            if (!currentSettings.mqttBroker.empty()) {
+                if (!mqttClient.connected()) {
+                    unsigned long now = millis();
+                    if (now > nextMqttReconnectAttempt) {
+                        Serial.println("Attempting MQTT connection...");
+                        reconnectMqtt();
+                        nextMqttReconnectAttempt = now + mqttReconnectInterval;
+                        if (!mqttClient.connected()) {
+                            mqttReconnectInterval *= 2;
+                            if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
+                                mqttReconnectInterval = MQTT_MAX_RETRY_INTERVAL;
+                            }
+                            Serial.printf("MQTT connection failed. Retrying in %d ms\n", mqttReconnectInterval);
+                        }
+                    }
+                } else {
+                    mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
+                    mqttClient.loop();
+                }
+            }
+
+            static unsigned long lastNtpUpdate = 0;
+            if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
+                Serial.println("--- NTP TIME SYNC START ---");
+                configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
+                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                tzset();
+                struct tm timeinfo;
+                if (getLocalTime(&timeinfo, 10000)) {
+                    timeSynchronized = true;
+                    Serial.println("NTP Time sync SUCCESSFUL!");
+                } else {
+                    timeSynchronized = false;
+                    Serial.println("!!! NTP Time sync FAILED !!!");
+                }
+                lastNtpUpdate = millis();
+                ntpSyncRequested = false;
+                Serial.println("--- NTP TIME SYNC END ---");
+            }
+
+            static unsigned long lastHaStateUpdate = 0;
+            if (timeSynchronized && millis() - lastHaStateUpdate > 5000) {
+                publishAllHaStates();
+                lastHaStateUpdate = millis();
+            }
+            break;
+    }
+
     ArduinoOTA.handle();
 
     if (hardwareInitialized) {
         handleAudio();
-    }
-
-	if (millis() - bootTimestamp > 15000) { 
-        if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
-            if (mqttReconnectRequired || !mqttClient.connected()) {
-                unsigned long now = millis();
-                if (now - lastMqttReconnectAttempt > 5000) {
-                    lastMqttReconnectAttempt = now;
-                    setupMqtt();
-                    reconnectMqtt();
-                    mqttReconnectRequired = false;
-                }
-            }
-            mqttClient.loop();
-        }
+        handleBootSequence();
     }
 
     if (isMarqueeOverrideActive && marqueeOverrideEndTime > 0 && millis() > marqueeOverrideEndTime) {
@@ -625,20 +716,20 @@ void loop() {
         publishAllHaStates();
     }
 
-    // --- GUARD ALL HARDWARE-DEPENDENT LOGIC ---
-// --- GUARD ALL HARDWARE-DEPENDENT LOGIC ---
-if (hardwareInitialized) {
-    #if ENABLE_HARDWARE
-    handleFlashEffect();
-    #endif
-    handleBootSequence();
-    if (isMalfunctioning) {
-        handleMalfunction();
+    if (hardwareInitialized && bootState == BOOT_INACTIVE) {
+        #if ENABLE_HARDWARE
+        handleFlashEffect();
+        #endif
+        if (isMalfunctioning) {
+            handleMalfunction();
+        }
     }
-}
-    handleSequencer();
+    
+    if (bootState == BOOT_INACTIVE) {
+        handleSequencer();
+    }
 
-    if (!isMalfunctioning && !isAnimating) {
+    if (!isMalfunctioning && !isAnimating && bootState == BOOT_INACTIVE) {
         if (hardwareInitialized) {
 		    restoreDisplayAfterGlitch();
             handleTemporalEcho();
@@ -647,7 +738,7 @@ if (hardwareInitialized) {
 			handleGlitchEffect();
 			if (currentSettings.weatherModeEnabled) {
 				static unsigned long lastWeatherFetch = 0;
-                if (millis() - lastWeatherFetch > 300000) {
+				if (millis() - lastWeatherFetch > 300000) {
 					lastWeatherFetch = millis();
                     WeatherTaskParams* params = new WeatherTaskParams{ currentSettings.cityName, false };
                     xTaskCreatePinnedToCore(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, params, 1, NULL, 0);
@@ -668,11 +759,11 @@ if (hardwareInitialized) {
                     }
                 }
                 if (hardwareInitialized) updateStockTickerDisplay();
-            } else if (isMessageOverrideActive) {
+			} else if (isMessageOverrideActive) {
                 if (hardwareInitialized) displayOverrideMessage();
-            } else if (isMarqueeOverrideActive) {
+			} else if (isMarqueeOverrideActive) {
                 if (hardwareInitialized) displayMarqueeOverride();
-            } else if (currentSettings.dataLinkEnabled) {
+			} else if (currentSettings.dataLinkEnabled) {
 				fetchDataLink();
 				if (hardwareInitialized) updateMarqueeDisplay();
 			} else {
@@ -684,62 +775,19 @@ if (hardwareInitialized) {
 		}
 	}
     
-    if (hardwareInitialized) {
+    if (hardwareInitialized && bootState == BOOT_INACTIVE) {
 	    handleDisplayAnimation();
-    }
-
-	static unsigned long lastNtpUpdate = 0;
-	static unsigned long lastHaStateUpdate = 0;
-
-	if (ntpSyncRequested || (!timeSynchronized && millis() > 10000) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
-    Serial.println("--- NTP TIME SYNC START ---");
-    Serial.printf("Attempting to sync with NTP server: %s\n", NTP_SERVERS[currentNtpServerIndex]);
-    Serial.printf("Using Timezone: %s\n", TZ_DATA[currentSettings.presentTimezoneIndex].tzString);
-
-    configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
-
-    struct tm timeinfo;
-
-    // Increased timeout to 10 seconds (10000ms) for better reliability
-    if (getLocalTime(&timeinfo, 10000)) {
-        if (!timeSynchronized) {
-            Serial.println("NTP Time sync SUCCESSFUL!");
-            if (hardwareInitialized) triggerTemporalGlitch();
-        } else {
-            Serial.println("NTP Time re-sync SUCCESSFUL!");
-        }
-        timeSynchronized = true;
-        char time_str[64];
-        strftime(time_str, sizeof(time_str), "%A, %B %d %Y %H:%M:%S", &timeinfo);
-        Serial.printf("Current time is: %s\n", time_str);
-    }
-    else {
-        timeSynchronized = false;
-        Serial.println("!!! NTP Time sync FAILED after 10 seconds. !!!");
-        Serial.println("Please check your internet connection and firewall settings (UDP port 123).");
-    }
-    currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
-    lastNtpUpdate = millis();
-    ntpSyncRequested = false;
-    Serial.println("--- NTP TIME SYNC END ---");
-}
-    if (timeSynchronized && millis() - lastHaStateUpdate > 5000) {
-        publishAllHaStates();
-        lastHaStateUpdate = millis();
     }
 }
 
 void handleAudio() {
     if (xSemaphoreTake(xAudioMutex, 0) == pdTRUE) {
         if (isStreamingRadio) {
-            // Nothing to do here.
-        } else if (isPlayingSound && mp3->isRunning()) {
+		} else if (isPlayingSound && mp3->isRunning()) {
             if (!mp3->loop()) {
                 mp3->stop();
                 isPlayingSound = false;
-                digitalWrite(I2S_SD_PIN, LOW); // Disable amplifier
+                digitalWrite(I2S_SD_PIN, LOW);
                 delete file;
                 file = nullptr;
                 if (ttsFile != "") {
@@ -756,7 +804,6 @@ void handleSequencer() {
     if (!isSequenceActive) return;
     SequenceStep step = sequence[currentSequenceStep];
     unsigned long elapsed = millis() - sequenceStepStartTime;
-
     switch (step.command) {
         case SEQ_CMD_TEXT:
             if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
@@ -788,7 +835,6 @@ void handleSequencer() {
 
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-
     if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
     }
@@ -802,11 +848,9 @@ void handleSleepSchedule() {
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
   int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
-
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     if (hardwareInitialized) {
@@ -826,10 +870,8 @@ void handleSleepSchedule() {
 
 void ttsDownloadTask(void* parameter) {
     const char* url = (const char*)parameter;
-
     if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
         Serial.printf("Downloading TTS audio from: %s\n", url);
-
         HTTPClient http;
         WiFiClient client;
         http.begin(client, url);
@@ -855,15 +897,11 @@ void ttsDownloadTask(void* parameter) {
         xSemaphoreGive(xAudioMutex);
     }
     delete[] url;
-    // Clean up the allocated memory
     vTaskDelete(NULL);
-    // Delete the task when done
 }
 
 void playTtsFromUrl(const char* url) {
     if (isPlayingSound || isStreamingRadio) return;
-    // Use a new task for the download to prevent blocking the main loop
-    // Allocate memory on the heap for the URL string
     char* urlCopy = new char[strlen(url) + 1];
     strcpy(urlCopy, url);
     xTaskCreatePinnedToCore(ttsDownloadTask, "ttsDownloadTask", 8192, urlCopy, 1, NULL, 0);
@@ -889,12 +927,11 @@ void stopRadioStream() {
 }
 
 void startAudioStream(const char* url, bool is_tts) {
-    stopAudioStream(); // Stop any currently playing audio
-
+    stopAudioStream();
     if (!hardwareInitialized || !out) {
       Serial.println("Hardware not initialized, cannot play audio.");
-      return;
-    }
+		return;
+	}
 
     if (is_tts) {
         fileSourceHttp = new AudioFileSourceHTTPStream(url);
