@@ -67,6 +67,9 @@ unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
 BootSequenceState bootState = BOOT_INACTIVE;
 int speedometerValue = 0;
 
+// --- DISPLAY MODE STATE MACHINE ---
+DisplayModeState currentDisplayMode = NORMAL_CLOCK;
+
 // --- FUNCTION PROTOTYPES ---
 void handlePresetCycling();
 void handleSleepSchedule();
@@ -484,6 +487,7 @@ void wifiManagerTask(void *pvParameters) {
   wifiManagerTaskHandle = NULL;
 }
 
+
 void setOverrideMessage(const char* line1, const char* line2, const char* line3) {
     overrideMessageLine1 = line1;
     overrideMessageLine2 = line2;
@@ -507,7 +511,7 @@ void setup() {
     Serial.println(F("BOOT_LOG: LittleFS mount... OK"));
     delay(10); 
 
-	listAllFiles();
+	// listAllFiles(); // Disabled for faster boot
     Serial.println(F("BOOT_LOG: Loading settings..."));
 	loadSettings();
 	Serial.println(F("BOOT_LOG: Settings loaded... OK"));
@@ -624,24 +628,23 @@ void loop() {
             wifiState = WIFI_STATE_PORTAL_RUNNING;
             break;
 
-case WIFI_STATE_PORTAL_RUNNING:
-    if (WiFi.status() == WL_CONNECTED) {
-        if(hardwareInitialized) setOverrideMessage("REBOOTING", "", "");
-        if(wifiManagerTaskHandle != NULL) {
-            vTaskDelete(wifiManagerTaskHandle);
-            wifiManagerTaskHandle = NULL;
-        }
-
-        // Use a non-blocking timer instead of delay
-        static unsigned long reboot_time = 0;
-        if (reboot_time == 0) {
-            reboot_time = millis();
-        }
-        if (millis() - reboot_time > 2000) {
-            ESP.restart();
-        }
-    }
-    break;
+        case WIFI_STATE_PORTAL_RUNNING:
+            if (WiFi.status() == WL_CONNECTED) {
+                if(hardwareInitialized) setOverrideMessage("REBOOTING", "", "");
+                if(wifiManagerTaskHandle != NULL) {
+                    vTaskDelete(wifiManagerTaskHandle);
+                    wifiManagerTaskHandle = NULL;
+                }
+                
+                static unsigned long reboot_time = 0;
+                if (reboot_time == 0) {
+                    reboot_time = millis();
+                }
+                if (millis() - reboot_time > 2000) {
+                    ESP.restart();
+                }
+            }
+            break;
         case WIFI_STATE_CONNECTED:
             if (!logConnectedPrinted) {
                 Serial.println("STATUS: WiFi Connected!");
@@ -748,30 +751,50 @@ case WIFI_STATE_PORTAL_RUNNING:
 			handlePresetCycling();
 			handleSleepSchedule();
 
-			if (currentSettings.stockTickerModeEnabled) {
-                if (isMarketOpen()) {
-                    if (millis() - lastStockDataFetch > 300000) { 
-                        lastStockDataFetch = millis();
-                        for (int i=0; i<3; ++i) {
-                            FetchDataParams* params = new FetchDataParams{ i, 0 };
-                            xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
+            if (currentSettings.stockTickerModeEnabled) {
+                currentDisplayMode = STOCK_TICKER;
+            } else if (isMessageOverrideActive) {
+                currentDisplayMode = OVERRIDE_MESSAGE;
+            } else if (isMarqueeOverrideActive) {
+                currentDisplayMode = MARQUEE_OVERRIDE;
+            } else if (currentSettings.dataLinkEnabled) {
+                currentDisplayMode = MARQUEE;
+            } else if (currentSettings.weatherModeEnabled) {
+                currentDisplayMode = WEATHER;
+            } else {
+                currentDisplayMode = NORMAL_CLOCK;
+            }
+
+            switch (currentDisplayMode) {
+                case STOCK_TICKER:
+                    if (isMarketOpen()) {
+                        if (millis() - lastStockDataFetch > 300000) { 
+                            lastStockDataFetch = millis();
+                            for (int i=0; i<3; ++i) {
+                                FetchDataParams* params = new FetchDataParams{ i, 0 };
+                                xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
+                            }
                         }
                     }
-                }
-                if (hardwareInitialized) updateStockTickerDisplay();
-			} else if (isMessageOverrideActive) {
-                if (hardwareInitialized) displayOverrideMessage();
-			} else if (isMarqueeOverrideActive) {
-                if (hardwareInitialized) displayMarqueeOverride();
-			} else if (currentSettings.dataLinkEnabled) {
-				fetchDataLink();
-				if (hardwareInitialized) updateMarqueeDisplay();
-			} else {
-				if (hardwareInitialized) updateNormalClockDisplay();
-				if (currentSettings.weatherModeEnabled) {
-					if (hardwareInitialized) handleWeatherDisplay();
-				}
-			}
+                    if (hardwareInitialized) updateStockTickerDisplay();
+                    break;
+                case OVERRIDE_MESSAGE:
+                    if (hardwareInitialized) displayOverrideMessage();
+                    break;
+                case MARQUEE_OVERRIDE:
+                    if (hardwareInitialized) displayMarqueeOverride();
+                    break;
+                case MARQUEE:
+                    fetchDataLink();
+                    if (hardwareInitialized) updateMarqueeDisplay();
+                    break;
+                case WEATHER:
+                    if (hardwareInitialized) handleWeatherDisplay();
+                    break;
+                case NORMAL_CLOCK:
+                    if (hardwareInitialized) updateNormalClockDisplay();
+                    break;
+            }
 		}
 	}
     
@@ -779,6 +802,7 @@ case WIFI_STATE_PORTAL_RUNNING:
 	    handleDisplayAnimation();
     }
 }
+
 
 void handleAudio() {
     if (xSemaphoreTake(xAudioMutex, 0) == pdTRUE) {

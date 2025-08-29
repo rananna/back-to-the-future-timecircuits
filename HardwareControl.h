@@ -28,6 +28,15 @@
 
 // --- ENUMS & DATA STRUCTURES ---
 
+enum DisplayModeState {
+  NORMAL_CLOCK,
+  STOCK_TICKER,
+  WEATHER,
+  MARQUEE,
+  OVERRIDE_MESSAGE,
+  MARQUEE_OVERRIDE
+};
+
 struct MarqueeData {
   std::string month;
   std::string day;
