@@ -7,24 +7,25 @@
 #include "Adafruit_GFX.h"
 #include <time.h>
 
-// --- PIN DEFINITIONS ---
-#define I2C_SDA_1 21
-#define I2C_SCL_1 22
-#define I2S_LRC_PIN 16
-#define I2S_BCLK_PIN 17
-#define I2S_DIN_PIN 5
-#define I2S_SD_PIN 18
-#define DEST_AM_PIN 13
-#define DEST_PM_PIN 14
-#define PRES_AM_PIN 32
-#define PRES_PM_PIN 27
-#define LAST_AM_PIN 2
-#define LAST_PM_PIN 4
-#define I2C_SDA_2 25
-#define I2C_SCL_2 26
+// --- PIN DEFINITIONS (UPDATED FOR ESP32-S3-DEVKITC-1) ---
+#define I2C_SDA_1 21     // Side 1
+#define I2C_SCL_1 12     // Side 2 (Moved from 22)
+#define I2S_LRC_PIN 16   // Side 2
+#define I2S_BCLK_PIN 17  // Side 2
+#define I2S_DIN_PIN 5    // Side 2
+#define I2S_SD_PIN 18    // Side 2
+#define DEST_AM_PIN 13   // Side 2
+#define DEST_PM_PIN 14   // Side 2
+#define PRES_AM_PIN 11   // Side 2 (Moved from 32)
+#define PRES_PM_PIN 6    // Side 2 (Moved from 27)
+#define LAST_AM_PIN 2    // Side 1
+#define LAST_PM_PIN 4    // Side 2
+#define I2C_SDA_2 9      // Side 2 (Moved from 25)
+#define I2C_SCL_2 10     // Side 2 (Moved from 26)
+
 
 // --- HARDWARE CONFIG ---
-#define ENABLE_HARDWARE 0
+#define ENABLE_HARDWARE 1
 
 // --- ENUMS & DATA STRUCTURES ---
 
