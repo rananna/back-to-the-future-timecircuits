@@ -10,7 +10,7 @@
 #include <AsyncJson.h>
 #include <LittleFS.h>
 #include <PubSubClient.h>
-#include <HTTPClient.h>
+#include <HTTPClient.hh>
 #include <WiFiClientSecure.h>
 #include <freertos/semphr.h>
 #include <string>
@@ -205,33 +205,6 @@ bool isSequenceActive = false;
  * flash the decimal point on the "Present Time" row every second.
 * It also prints its status to the Serial Monitor for confirmation.
 */
-void testDecimalPointFlashing() {
-    #if ENABLE_HARDWARE
-    Serial.println("\n--- STARTING DECIMAL POINT FLASH TEST ---");
-    Serial.println("The device will now only flash the decimal on the Present Time display.");
-    Serial.println("If this works, the issue is in the main application logic.");
-    Serial.println("If this does NOT work, the issue is with the hardware or library.");
-    
-    // Clear all other displays to focus on the test
-    blankAllDisplays();
-
-    while(true) {
-        // This is the same logic we've been trying to use
-        bool showDot = (millis() / 1000) % 2 == 0;
-
-        // Manually write to the display
-        presRow.time.writeDigitAscii(0, '8');
-        presRow.time.writeDigitAscii(1, '8', showDot); // Apply flashing dot here
-        presRow.time.writeDigitAscii(2, '8');
-        presRow.time.writeDigitAscii(3, '8');
-        presRow.time.writeDisplay();
-
-        // Handle essential background tasks and add a small delay
-        ArduinoOTA.handle(); 
-        delay(50); 
-    }
-    #endif
-}
 
 
 void saveSettings() {
@@ -583,6 +556,8 @@ void setup() {
         out->SetGain((float)currentSettings.notificationVolume / 30.0f);
 		mp3 = new AudioGeneratorMP3();
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
+        // Start the persistent flashing effect for the present time colon
+        triggerFlashEffect(1, 3, 0); 
     }
 
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);

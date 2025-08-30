@@ -42,7 +42,8 @@ unsigned long lastFlashToggle[3][4] = {{0}};
 void triggerFlashEffect(int row, int segment, int duration) {
     if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
     isFlashing[row][segment] = true;
-    flashEndTimes[row][segment] = millis() + duration;
+    // A duration of 0 means flash indefinitely
+    flashEndTimes[row][segment] = (duration == 0) ? 0 : millis() + duration;
     flashStates[row][segment] = true;
     lastFlashToggle[row][segment] = millis();
 }
@@ -55,11 +56,11 @@ void handleFlashEffect() {
     for (int r = 0; r < 3; ++r) {
         for (int s = 0; s < 4; ++s) {
             if (isFlashing[r][s]) {
-                if (millis() > flashEndTimes[r][s]) {
+                if (flashEndTimes[r][s] != 0 && millis() > flashEndTimes[r][s]) {
                     isFlashing[r][s] = false;
                     // Restore the display by calling the main update function in the next loop
                 } else {
-                    if (millis() - lastFlashToggle[r][s] > 100) { // Toggle every 100ms
+                    if (millis() - lastFlashToggle[r][s] > 500) { // Toggle every 500ms
                         flashStates[r][s] = !flashStates[r][s];
                         lastFlashToggle[r][s] = millis();
 
@@ -74,13 +75,23 @@ void handleFlashEffect() {
                         }
 
                         if (displaySegment) {
-                            if (flashStates[r][s]) {
-                                // Turn off the display segment (blank it)
-                                displaySegment->clear();
-                            } else {
-                                // The main display logic will restore the content on the next loop
-                            }
-                            displaySegment->writeDisplay();
+                           // Special case for the persistent Present Time dot
+                           if (r == 1 && s == 3) {
+                               if (flashStates[r][s]) {
+                                   // Turn ON the dot on the SECOND character (index 1)
+                                   displaySegment->displaybuffer[1] |= 0x4000;
+                               } else {
+                                   // Turn OFF the dot on the SECOND character (index 1)
+                                   displaySegment->displaybuffer[1] &= ~0x4000;
+                               }
+                           } else { // Generic flash for other segments
+                                if (flashStates[r][s]) {
+                                    displaySegment->clear();
+                                } else {
+                                    // The main display logic will restore the content
+                                }
+                           }
+                           displaySegment->writeDisplay();
                         }
                     }
                 }

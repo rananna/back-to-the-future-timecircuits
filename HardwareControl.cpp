@@ -11,7 +11,7 @@
 #include <AudioFileSourceLittleFS.h>
 #include <AudioOutputI2S.h>
 #include <AudioGeneratorMP3.h>
-#include "DisplayManager.h" // <-- ADD THIS LINE
+#include "DisplayManager.h"
 
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
@@ -163,7 +163,7 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
   sprintf(timeBuffer, "%02d%02d", displayHour, timeinfo.tm_min);
 
   row.time.writeDigitAscii(0, timeBuffer[0]);
-  row.time.writeDigitAscii(1, timeBuffer[1], showDecimal); // This is the key line
+  row.time.writeDigitAscii(1, timeBuffer[1], showDecimal); // Apply dot to the SECOND character
   row.time.writeDigitAscii(2, timeBuffer[2]);
   row.time.writeDigitAscii(3, timeBuffer[3]);
   
