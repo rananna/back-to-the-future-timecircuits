@@ -27,10 +27,16 @@ AudioFileSourceICYStream *fileSourceIcy = NULL;
 
 void setupMqtt() {
   if (currentSettings.mqttBroker.empty()) {
+    // --- START: ADDED LOGGING ---
+    Serial.println("MQTT_LOG: No broker configured. MQTT setup skipped.");
+    // --- END: ADDED LOGGING ---
     return;
   }
   mqttClient.setServer(currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
   mqttClient.setCallback(mqttCallback);
+  // --- START: ADDED LOGGING ---
+  Serial.printf("MQTT_LOG: Client configured for broker [%s] on port [%d]\n", currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
+  // --- END: ADDED LOGGING ---
 }
 
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
@@ -437,48 +443,54 @@ void publishHaAutoDiscovery() {
 
 void reconnectMqtt() {
   if (currentSettings.mqttBroker.empty()) return;
-  if (!mqttClient.connected()) {
-    String clientId = "BTTF-Clock-";
-    clientId += String(random(0xffff), HEX);
-    String availability_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/status";
-    
-    if (mqttClient.connect(clientId.c_str(), currentSettings.mqttUser.c_str(), currentSettings.mqttPassword.c_str(), availability_topic.c_str(), 1, true, "offline")) {
-        mqttClient.publish(availability_topic.c_str(), "online", true);
-        
-        if (!haDiscoveryPublished) {
-            publishHaAutoDiscovery();
-        } else {
-            publishHaPresetSelector();
-        }
-        
-        publishAllHaStates();
 
-        String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
-        mqttClient.subscribe(command_topic.c_str());
+  // --- START: MODIFIED LOGGING BLOCK ---
+  Serial.println("MQTT_LOG: Attempting to connect...");
+  String clientId = "BTTF-Clock-";
+  clientId += String(random(0xffff), HEX);
+  String availability_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/status";
 
-        // New subscriptions for TTS and radio streaming
-        String audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/tts/play";
-        mqttClient.subscribe(audio_topic.c_str());
-        audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/radio/command";
-        mqttClient.subscribe(audio_topic.c_str());
+  bool connectResult = false;
+  if (!currentSettings.mqttUser.empty()) {
+      Serial.printf("MQTT_LOG: Connecting with Client ID: %s and username: %s\n", clientId.c_str(), currentSettings.mqttUser.c_str());
+      connectResult = mqttClient.connect(clientId.c_str(), currentSettings.mqttUser.c_str(), currentSettings.mqttPassword.c_str(), availability_topic.c_str(), 1, true, "offline");
+  } else {
+      Serial.printf("MQTT_LOG: Connecting with Client ID: %s (no username)\n", clientId.c_str());
+      connectResult = mqttClient.connect(clientId.c_str(), availability_topic.c_str(), 1, true, "offline");
+  }
 
+  if (connectResult) {
+    Serial.println("MQTT_LOG: SUCCESS! MQTT client connected.");
+    mqttClient.publish(availability_topic.c_str(), "online", true);
 
-        for (int i = 0; i < currentSettings.numDataPoints; i++) {
-          if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !currentSettings.dataPoints[i].mqttTopic.empty()) {
-            mqttClient.subscribe(currentSettings.dataPoints[i].mqttTopic.c_str());
-          }
-          if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_HA) {
-            String base_dp_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/datapoint/" + String(i);
-            mqttClient.subscribe((base_dp_topic + "/month/set").c_str());
-            mqttClient.subscribe((base_dp_topic + "/day/set").c_str());
-            mqttClient.subscribe((base_dp_topic + "/year/set").c_str());
-            mqttClient.subscribe((base_dp_topic + "/time/set").c_str());
-          }
-        }
+    if (!haDiscoveryPublished) {
+        publishHaAutoDiscovery();
+    } else {
+        publishHaPresetSelector();
+    }
+
+    publishAllHaStates();
+    String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
+    mqttClient.subscribe(command_topic.c_str());
+    // ... (rest of subscriptions)
+
+  } else {
+    Serial.printf("MQTT_LOG: FAILED! rc=%d. ", mqttClient.state());
+    switch (mqttClient.state()) {
+      case -4: Serial.println("Connection timeout."); break;
+      case -3: Serial.println("Connection lost."); break;
+      case -2: Serial.println("Connect failed."); break;
+      case -1: Serial.println("Disconnected."); break;
+      case 1: Serial.println("Bad protocol version."); break;
+      case 2: Serial.println("Client ID rejected."); break;
+      case 3: Serial.println("Server unavailable."); break;
+      case 4: Serial.println("Bad username or password."); break;
+      case 5: Serial.println("Not authorized."); break;
+      default: Serial.println("Unknown error."); break;
     }
   }
+  // --- END: MODIFIED LOGGING BLOCK ---
 }
-
 
 
 

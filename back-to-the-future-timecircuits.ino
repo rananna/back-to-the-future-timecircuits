@@ -282,13 +282,15 @@ void saveSettings() {
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
 }
+// back-to-the-future-timecircuits.ino
 
 void loadSettings() {
     Serial.println("--- Loading Settings ---");
-	preferences.begin(PREFERENCES_NAMESPACE, true);
+    preferences.begin(PREFERENCES_NAMESPACE, true);
 	bool needsInit = !preferences.isKey("destYear");
 	if (needsInit) {
 		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
+		// ... (default settings remain the same)
 		currentSettings.destinationYear = 1955;
 		currentSettings.destinationTimezoneIndex = 4;
 		currentSettings.departureHour = 22;
@@ -365,19 +367,27 @@ void loadSettings() {
 		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
 		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
 		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
-		String tempString;
 
-		tempString = preferences.getString("mqttBroker", "");
-		currentSettings.mqttBroker = tempString.c_str();
+        // --- START: MODIFIED BLOCK WITH LOGGING ---
+        String brokerStr = preferences.getString("mqttBroker", "");
+        currentSettings.mqttBroker = brokerStr.c_str();
+        Serial.printf("SETTINGS_LOG: Loaded MQTT Broker: [%s]\n", currentSettings.mqttBroker.c_str());
 
-		tempString = preferences.getString("mqttUser", "");
-		currentSettings.mqttUser = tempString.c_str();
+		currentSettings.mqttPort = preferences.getInt("mqttPort", 1883); // Make sure port is loaded
+		Serial.printf("SETTINGS_LOG: Loaded MQTT Port: [%d]\n", currentSettings.mqttPort);
 
-		tempString = preferences.getString("mqttPass", "");
-		currentSettings.mqttPassword = tempString.c_str();
+        String userStr = preferences.getString("mqttUser", "");
+        currentSettings.mqttUser = userStr.c_str();
+        Serial.printf("SETTINGS_LOG: Loaded MQTT User: [%s]\n", currentSettings.mqttUser.c_str());
+
+        String passStr = preferences.getString("mqttPass", "");
+        currentSettings.mqttPassword = passStr.c_str();
+        // Password is intentionally not logged for security.
+        // --- END: MODIFIED BLOCK WITH LOGGING ---
+
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
 
-		tempString = preferences.getString("cityName", "New York");
+		String tempString = preferences.getString("cityName", "New York");
 		currentSettings.cityName = tempString.c_str();
 
 		currentSettings.useMetricUnits = preferences.getBool("useMetric", false);
@@ -458,7 +468,6 @@ void loadSettings() {
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
 }
-
 void listAllFiles() {
 	Serial.println(F("\n--- Listing all files in LittleFS ---"));
 	File root = LittleFS.open("/");
@@ -518,19 +527,8 @@ void setup() {
     Serial.println(F("BOOT_LOG: LittleFS mount... OK"));
     delay(10); 
 
-	// listAllFiles();
-	// Disabled for faster boot
     Serial.println(F("BOOT_LOG: Loading settings..."));
 	loadSettings();
-    // --- ADD THIS BLOCK START ---
-    // Clear any persistent manual display overrides from the previous session
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            updateDisplaySegment(i, j, "");
-            // Calling with empty text clears the segment
-        }
-    }
-    // --- ADD THIS BLOCK END ---
 	Serial.println(F("BOOT_LOG: Settings loaded... OK"));
 	delay(10);
     xDisplayDataMutex = xSemaphoreCreateMutex();
@@ -554,11 +552,10 @@ void setup() {
         out = new AudioOutputI2S();
         out->SetPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
         out->SetGain((float)currentSettings.notificationVolume / 30.0f);
-		mp3 = new AudioGeneratorMP3();
+        mp3 = new AudioGeneratorMP3();
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
-        // Start the persistent flashing effect for the present time colon
         triggerFlashEffect(1, 3, 0); 
-    }
+	}
 
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
@@ -594,7 +591,16 @@ void setup() {
         else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
         else if (error == OTA_END_ERROR) Serial.println("End Failed");
     });
-	ArduinoOTA.begin();
+    ArduinoOTA.begin();
+
+    // --- THIS BLOCK IS NOW IN THE CORRECT LOCATION ---
+    // Clear any persistent manual display overrides from the previous session
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            updateDisplaySegment(i, j, "");
+        }
+    }
+    // --- END OF MOVED BLOCK ---
 
 	Serial.println(F("--- BOOT COMPLETE ---"));
     bootTimestamp = millis();
@@ -693,27 +699,30 @@ void loop() {
 				return; // Exit loop to start reconnection process immediately
             }
 
-            // MQTT Handling
+       // MQTT Handling
             if (!currentSettings.mqttBroker.empty()) {
                 if (!mqttClient.connected()) {
                     unsigned long now = millis();
-					if (now > nextMqttReconnectAttempt) {
-                        Serial.println("MQTT_LOG: Attempting MQTT connection...");
-						reconnectMqtt();
+                    if (now > nextMqttReconnectAttempt) {
+                        // --- START: ADDED LOGGING ---
+                        Serial.printf("MQTT_LOG: Reconnect timer triggered. Attempting connection...\n");
+                        // --- END: ADDED LOGGING ---
+                        reconnectMqtt();
                         nextMqttReconnectAttempt = now + mqttReconnectInterval;
                         if (!mqttClient.connected()) {
                             mqttReconnectInterval *= 2;
-							if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
+                            if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
                                 mqttReconnectInterval = MQTT_MAX_RETRY_INTERVAL;
-							}
+                            }
                             Serial.printf("MQTT_LOG: Connection failed. Retrying in %d ms\n", mqttReconnectInterval);
-						} else {
+                        } else {
                              Serial.println("MQTT_LOG: MQTT connected successfully.");
-						}
+                             mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL; // Reset backoff on success
+                        }
                     }
                 } else {
                     mqttClient.loop();
-				}
+                }
             }
 
             // NTP Handling
