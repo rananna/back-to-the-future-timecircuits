@@ -43,9 +43,8 @@
 const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
 const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
-const unsigned long BOOT_ANIMATION_FRAME_INTERVAL = 40; // 40ms for 25fps
-const unsigned long BOOT_INFO_DISPLAY_DURATION = 5000; // 5 seconds
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
+// -- The two lines below have been REMOVED --
 
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
 enum WifiState {
@@ -67,7 +66,6 @@ unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
 // --- THEMED BOOT SEQUENCE ---
 BootSequenceState bootState = BOOT_INACTIVE;
 int speedometerValue = 0;
-
 // --- DISPLAY MODE STATE MACHINE ---
 DisplayModeState currentDisplayMode = NORMAL_CLOCK;
 
@@ -86,9 +84,8 @@ void stopRadioStream();
 void startAudioStream(const char* url, bool is_tts);
 void stopAudioStream();
 void wifiManagerTask(void *pvParameters);
-void runBootSequence();
-void handleBootSequence();
 void setOverrideMessage(const char* line1, const char* line2, const char* line3);
+void updateDisplaySegment(int row, int segment, const std::string& text); // <-- ADD THIS LINE
 
 
 // --- AUDIO LIBRARY GLOBALS ---
@@ -305,7 +302,7 @@ void loadSettings() {
 		currentSettings.timeTravelAnimationDuration = 4000;
 		currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
 		currentSettings.glitchEffectFrequency = 0;
-		currentSettings.malfunctionFrequency = 25;
+		currentSettings.malfunctionFrequency = 0;
 		currentSettings.timeTravelVolumeFade = true;
 		currentSettings.dataLinkEnabled = false;
 		currentSettings.dataLinkTargetRow = 2;
@@ -512,9 +509,18 @@ void setup() {
     Serial.println(F("BOOT_LOG: LittleFS mount... OK"));
     delay(10); 
 
-	// listAllFiles(); // Disabled for faster boot
+	// listAllFiles();
+    // Disabled for faster boot
     Serial.println(F("BOOT_LOG: Loading settings..."));
 	loadSettings();
+     // --- ADD THIS BLOCK START ---
+    // Clear any persistent manual display overrides from the previous session
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            updateDisplaySegment(i, j, ""); // Calling with empty text clears the segment
+        }
+    }
+    // --- ADD THIS BLOCK END ---
 	Serial.println(F("BOOT_LOG: Settings loaded... OK"));
     delay(10);
     xDisplayDataMutex = xSemaphoreCreateMutex();
@@ -526,7 +532,6 @@ void setup() {
     wifiConnectStartTime = millis();
     wifiState = WIFI_STATE_CONNECTING;
     Serial.println("BOOT_LOG: Non-blocking WiFi connection initiated...");
-    
     Serial.println(F("WEB_LOG: Setting up web routes..."));
 	setupWebRoutes();
     Serial.println(F("WEB_LOG: Web routes configured. Starting server..."));
@@ -604,24 +609,27 @@ bool isMarketOpen() {
 }
 
 void loop() {
+    Serial.printf("WiFi Status: %d | Boot State: %d | Override Active: %d | MQTT Connected: %d\n", WiFi.status(), bootState, isMessageOverrideActive, mqttClient.connected());
 
     switch (wifiState) {
         case WIFI_STATE_CONNECTING:
             if (!logConnectingPrinted) {
-                Serial.println("STATUS: Connecting to WiFi...");
-                if(hardwareInitialized) setOverrideMessage("CONNECTING...", "", "");
+                Serial.println("WIFI_LOG: State is WIFI_STATE_CONNECTING.");
+               // if(hardwareInitialized) setOverrideMessage("CONNECTING...", "", "");
                 logConnectingPrinted = true;
             }
             if (WiFi.status() == WL_CONNECTED) {
                 wifiState = WIFI_STATE_CONNECTED;
+                Serial.println("WIFI_LOG: WiFi.status() is WL_CONNECTED. Changing state to WIFI_STATE_CONNECTED.");
             } else if (millis() - wifiConnectStartTime > WIFI_CONNECT_TIMEOUT) {
                 wifiState = WIFI_STATE_START_PORTAL;
+                Serial.println("WIFI_LOG: WiFi connection timed out. Changing state to WIFI_STATE_START_PORTAL.");
             }
             break;
         case WIFI_STATE_START_PORTAL:
             if (!logPortalMsgPrinted) {
-                Serial.println("STATUS: Fast connection failed. Starting WiFiManager setup portal...");
-                if(hardwareInitialized) setOverrideMessage("SETUP MODE", "CONNECT TO", "BTTF-CLOCK");
+                Serial.println("WIFI_LOG: State is WIFI_STATE_START_PORTAL. Starting WiFiManager.");
+              //  if(hardwareInitialized) setOverrideMessage("SETUP MODE", "CONNECT TO", "BTTF-CLOCK");
                 logPortalMsgPrinted = true;
             }
             xTaskCreate(
@@ -631,8 +639,9 @@ void loop() {
             break;
 
         case WIFI_STATE_PORTAL_RUNNING:
-            if (WiFi.status() == WL_CONNECTED) {
-                if(hardwareInitialized) setOverrideMessage("REBOOTING", "", "");
+             if (WiFi.status() == WL_CONNECTED) {
+                Serial.println("WIFI_LOG: WiFi connected via portal. Rebooting...");
+                //if(hardwareInitialized) setOverrideMessage("REBOOTING", "", "");
                 if(wifiManagerTaskHandle != NULL) {
                     vTaskDelete(wifiManagerTaskHandle);
                     wifiManagerTaskHandle = NULL;
@@ -649,7 +658,7 @@ void loop() {
             break;
         case WIFI_STATE_CONNECTED:
             if (!logConnectedPrinted) {
-                Serial.println("STATUS: WiFi Connected!");
+                Serial.println("WIFI_LOG: State is WIFI_STATE_CONNECTED.");
                 ESP_LOGI("WiFi", "IP: %s", WiFi.localIP().toString().c_str());
                 logConnectedPrinted = true;
                 
@@ -657,19 +666,27 @@ void loop() {
                     MDNS.addService("http", "tcp", 80);
                 }
 
-                // Request an immediate NTP sync
-                ntpSyncRequested = true; 
-                Serial.println("NTP sync requested immediately after Wi-Fi connection.");
+                ntpSyncRequested = true;
+                Serial.println("NTP_LOG: NTP sync requested.");
                 
                 runBootSequence();
             }
 
-            // Only handle MQTT if Wi-Fi is connected
-            if (WiFi.status() == WL_CONNECTED && !currentSettings.mqttBroker.empty()) {
+            if (WiFi.status() != WL_CONNECTED) {
+                Serial.println("WIFI_LOG: WiFi disconnected! Re-entering WIFI_STATE_CONNECTING.");
+                wifiState = WIFI_STATE_CONNECTING;
+                logConnectingPrinted = false; // Allow "CONNECTING..." message to show again
+                logConnectedPrinted = false; // Reset connected flag
+                wifiConnectStartTime = millis();
+                return; // Exit loop to start reconnection process immediately
+            }
+
+            // MQTT Handling
+            if (!currentSettings.mqttBroker.empty()) {
                 if (!mqttClient.connected()) {
                     unsigned long now = millis();
                     if (now > nextMqttReconnectAttempt) {
-                        Serial.println("Attempting MQTT connection...");
+                        Serial.println("MQTT_LOG: Attempting MQTT connection...");
                         reconnectMqtt();
                         nextMqttReconnectAttempt = now + mqttReconnectInterval;
                         if (!mqttClient.connected()) {
@@ -677,22 +694,24 @@ void loop() {
                             if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
                                 mqttReconnectInterval = MQTT_MAX_RETRY_INTERVAL;
                             }
-                            Serial.printf("MQTT connection failed. Retrying in %d ms\n", mqttReconnectInterval);
+                            Serial.printf("MQTT_LOG: Connection failed. Retrying in %d ms\n", mqttReconnectInterval);
+                        } else {
+                             Serial.println("MQTT_LOG: MQTT connected successfully.");
                         }
                     }
                 } else {
-                    mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
                     mqttClient.loop();
                 }
             }
 
+            // NTP Handling
             static unsigned long lastNtpUpdate = 0;
             if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
-                Serial.println("--- NTP TIME SYNC START ---");
+                Serial.println("NTP_LOG: Starting NTP sync...");
                 bool syncSuccess = false;
                 int retries = 0;
                 while (!syncSuccess && retries < NUM_NTP_SERVERS) {
-                    Serial.printf("Attempting NTP sync with %s...\n", NTP_SERVERS[currentNtpServerIndex]);
+                    Serial.printf("NTP_LOG: Attempting sync with %s...\n", NTP_SERVERS[currentNtpServerIndex]);
                     configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
                     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
                     tzset();
@@ -700,16 +719,15 @@ void loop() {
                     if (getLocalTime(&timeinfo, 10000)) {
                         timeSynchronized = true;
                         syncSuccess = true;
-                        Serial.println("NTP Time sync SUCCESSFUL!");
+                        Serial.println("NTP_LOG: Sync SUCCESSFUL!");
                     } else {
-                        Serial.println("!!! NTP Time sync FAILED !!!");
+                        Serial.println("NTP_LOG: Sync FAILED!");
                         currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
                         retries++;
                     }
                 }
                 lastNtpUpdate = millis();
                 ntpSyncRequested = false;
-                Serial.println("--- NTP TIME SYNC END ---");
             }
 
             static unsigned long lastHaStateUpdate = 0;
@@ -738,7 +756,7 @@ void loop() {
         handleFlashEffect();
         #endif
         if (isMalfunctioning) {
-            handleMalfunction();
+          handleMalfunction();
         }
     }
     
@@ -752,7 +770,9 @@ void loop() {
             handleTemporalEcho();
         }
 		if (!isFlickeringNow) {
-			handleGlitchEffect();
+			if (bootState == BOOT_INACTIVE) {
+                handleGlitchEffect();
+            }
 			if (currentSettings.weatherModeEnabled) {
 				static unsigned long lastWeatherFetch = 0;
 				if (millis() - lastWeatherFetch > 300000) {
@@ -783,6 +803,7 @@ void loop() {
                 case STOCK_TICKER:
                     if (isMarketOpen()) {
                         if (millis() - lastStockDataFetch > 300000) { 
+                
                             lastStockDataFetch = millis();
                             for (int i=0; i<3; ++i) {
                                 FetchDataParams* params = new FetchDataParams{ i, 0 };
@@ -816,7 +837,6 @@ void loop() {
 	    handleDisplayAnimation();
     }
 }
-
 
 void handleAudio() {
     if (xSemaphoreTake(xAudioMutex, 0) == pdTRUE) {
@@ -969,7 +989,7 @@ void startAudioStream(const char* url, bool is_tts) {
     if (!hardwareInitialized || !out) {
       Serial.println("Hardware not initialized, cannot play audio.");
 		return;
-	}
+    }
 
     if (is_tts) {
         fileSourceHttp = new AudioFileSourceHTTPStream(url);

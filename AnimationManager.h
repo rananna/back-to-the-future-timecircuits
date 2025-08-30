@@ -10,6 +10,8 @@
 #define ANIMATION_MANAGER_H
 #include "HardwareControl.h"
 #include "HardwareControl.h"
+#define BOOT_ANIMATION_FRAME_INTERVAL 50
+#define BOOT_INFO_DISPLAY_DURATION 5000
 
 // --- Function Declarations for animations and effects ---
 

@@ -70,6 +70,24 @@ extern bool isSequenceActive;
 
 // --- NEW GLOBAL FLAG ---
 extern bool hardwareInitialized;
+// Event types for inter-task communication
+enum EventType {
+    EVENT_NONE,
+    EVENT_WIFI_CONNECTED,
+    EVENT_WIFI_DISCONNECTED,
+    EVENT_MQTT_RECEIVED,
+    EVENT_BUTTON_PRESS,
+    EVENT_TIME_SYNC,
+    EVENT_SETTINGS_UPDATED
+};
+
+
+
+// Function Prototypes
+void initializeEventManager();
+void postEvent(EventType type, const JsonDocument& payload);
+void handleEvents();
+void playSound(const char* filename);
 
 
 #endif // EVENT_MANAGER_H

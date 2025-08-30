@@ -11,6 +11,7 @@
 #include <AudioFileSourceLittleFS.h>
 #include <AudioOutputI2S.h>
 #include <AudioGeneratorMP3.h>
+#include "DisplayManager.h" // <-- ADD THIS LINE
 
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
@@ -106,11 +107,26 @@ void setupPhysicalDisplay() {
  * @param timeinfo A `tm` struct containing the time to display.
  * @param year The four-digit year to display.
  */
+// In HardwareControl.cpp - Replace the existing function with this one
+
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year) {
   #if ENABLE_HARDWARE
   char buffer[5];
   const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
+  // --- SAFEGUARD: Identify the row index and clear its manual mode ---
+  int rowIndex = -1;
+  if (&row == &destRow) rowIndex = 0;
+  else if (&row == &presRow) rowIndex = 1;
+  else if (&row == &lastRow) rowIndex = 2;
+  
+  if (rowIndex != -1) {
+    isRowInManualMode[rowIndex] = false;
+    for (int i = 0; i < 4; ++i) {
+        manualDisplayText[rowIndex][i] = "";
+    }
+  }
+  
   // Month (3 chars, right justified)
   printToDisplay(row.month, months[timeinfo.tm_mon], 1);
 
@@ -122,64 +138,51 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year) {
   sprintf(buffer, "%04d", year);
   printToDisplay(row.year, buffer);
 
-  // Time (4 chars with a decimal point, e.g., 01.21)
-  char timeBuffer[5];
-  sprintf(timeBuffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
+  // --- Time Display Logic (Corrected) ---
+  int displayHour = timeinfo.tm_hour;
+
+  // Handle AM/PM and 12/24 hour logic
+  if (!currentSettings.displayFormat24h) {
+    bool is_pm = displayHour >= 12;
+    if (rowIndex == 0) {
+      digitalWrite(DEST_AM_PIN, !is_pm);
+      digitalWrite(DEST_PM_PIN, is_pm);
+    } else if (rowIndex == 1) {
+      digitalWrite(PRES_AM_PIN, !is_pm);
+      digitalWrite(PRES_PM_PIN, is_pm);
+    } else if (rowIndex == 2) {
+      digitalWrite(LAST_AM_PIN, !is_pm);
+      digitalWrite(LAST_PM_PIN, is_pm);
+    }
+    if (displayHour >= 13) {
+      displayHour -= 12;
+    } else if (displayHour == 0) {
+      displayHour = 12;
+    }
+  } else {
+    // Turn off AM/PM lights in 24-hour mode
+    if (rowIndex != -1) {
+      digitalWrite(DEST_AM_PIN + (rowIndex * 2), LOW);
+      digitalWrite(DEST_PM_PIN + (rowIndex * 2), LOW);
+    }
+  }
+
+  // Display the Hour and Minute
   row.time.clear();
+  char timeBuffer[5];
+  sprintf(timeBuffer, "%02d%02d", displayHour, timeinfo.tm_min);
   row.time.writeDigitAscii(0, timeBuffer[0]);
-  // Set the decimal point on the second digit by ORing the ASCII char with 0x80.
-  // This is a feature of the Adafruit LED Backpack library.
-  row.time.writeDigitAscii(1, timeBuffer[1] | 0x80);
+  row.time.writeDigitAscii(1, timeBuffer[1] | 0x80); // Set the colon
   row.time.writeDigitAscii(2, timeBuffer[2]);
   row.time.writeDigitAscii(3, timeBuffer[3]);
 
-
-  // Write the buffer to all displays in the row to make the changes visible.
+  // Write all changes to the hardware
   row.month.writeDisplay();
   row.day.writeDisplay();
   row.year.writeDisplay();
   row.time.writeDisplay();
   #endif
 }
-
-/**
- * @brief Updates a single segment of a display row.
- * @param display The Adafruit_AlphaNum4 object to write to.
- * @param timeinfo A `tm` struct containing the time to display.
- * @param year The four-digit year to display.
- * @param segment The segment to update (0:Month, 1:Day, 2:Year, 3:Time).
- */
-void updateDisplaySegment(Adafruit_AlphaNum4& display, const struct tm& timeinfo, int year, int segment) {
-  #if ENABLE_HARDWARE
-  char buffer[5];
-  const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-
-  switch(segment) {
-    case 0: // Month
-      printToDisplay(display, months[timeinfo.tm_mon], 1);
-      break;
-    case 1: // Day
-      sprintf(buffer, "%02d", timeinfo.tm_mday);
-      printToDisplay(display, buffer, 2);
-      break;
-    case 2: // Year
-      sprintf(buffer, "%04d", year);
-      printToDisplay(display, buffer);
-      break;
-    case 3: // Time
-      char timeBuffer[5];
-      sprintf(timeBuffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
-      display.clear();
-      display.writeDigitAscii(0, timeBuffer[0]);
-      display.writeDigitAscii(1, timeBuffer[1] | 0x80); // Add decimal point
-      display.writeDigitAscii(2, timeBuffer[2]);
-      display.writeDigitAscii(3, timeBuffer[3]);
-      break;
-  }
-  #endif
-}
-
-
 /**
  * @brief Fills a display row with random characters for a flicker effect.
  * @param row A reference to the DisplayRow struct to be animated.

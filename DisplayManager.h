@@ -5,7 +5,10 @@
 
 extern std::string manualDisplayText[3][4];
 extern bool isRowInManualMode[3];
-
+// --- ADD THESE TWO LINES ---
+extern bool isRowInManualMode[3];
+extern std::string manualDisplayText[3][4];
+// --- END OF ADDITION ---
 void updateNormalClockDisplay();
 void updateMarqueeDisplay();
 void handleWeatherDisplay();

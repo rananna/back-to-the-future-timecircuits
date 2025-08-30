@@ -5,9 +5,20 @@
 
 #include "AnimationManager.h"
 #include "EventManager.h"
-#include "HardwareControl.h" // <-- Added this include
+#include "HardwareControl.h"
 #include "DisplayManager.h"
 #include "MqttManager.h"
+#include <WiFi.h>
+
+// --- Static flag to prevent boot loop ---
+static bool infoMessageSet = false;
+
+// --- Extern variable/function declarations ---
+extern void setOverrideMessage(const char* line1, const char* line2, const char* line3);
+extern bool isMessageOverrideActive;
+extern unsigned long bootStateStartTime;
+
+
 // Helper function prototypes
 void playReconfiguringSound();
 void resetDisplayToNormal();
@@ -296,89 +307,102 @@ void handleMalfunction() {
  * @brief Starts the boot-up animation.
  */
 void runBootSequence() {
-  if (bootState == BOOT_INACTIVE) {
-    bootState = BOOT_SPEEDOMETER; // Or BOOT_START if you want the original sequence
-  }
+    Serial.println("BOOT_LOG: runBootSequence() called.");
+    if (bootState == BOOT_INACTIVE) {
+        bootState = BOOT_START;
+        bootStateStartTime = millis();
+        if (hardwareInitialized) {
+            playSound("/BOOT_UP.mp3");
+        }
+        Serial.println("BOOT_LOG: Boot sequence initiated.");
+    } else {
+        Serial.println("BOOT_LOG: Boot sequence already active.");
+    }
 }
+
 /**
  * @brief State machine for the boot sequence.
  */
 void handleBootSequence() {
     if (bootState == BOOT_INACTIVE) return;
 
-    unsigned long currentMillis = millis();
-    static unsigned long lastBootActionTime = 0;
+    unsigned long elapsed = millis() - bootStateStartTime;
 
     switch (bootState) {
         case BOOT_START:
-            // Initial state, transition to charging up
-            bootState = BOOT_CHARGE_UP;
-            lastBootActionTime = currentMillis;
-            break;
-
-        case BOOT_CHARGE_UP:
-            if (currentMillis - lastBootActionTime > 2000) { // 2 second charge up
-                bootState = BOOT_SPARKLE;
-                lastBootActionTime = currentMillis;
-            }
-            break;
-
-        case BOOT_SPARKLE:
-            if (currentMillis - lastBootActionTime > 1000) { // 1 second sparkle
-                bootState = BOOT_SCROLL_TEXT;
-                lastBootActionTime = currentMillis;
-            }
-            break;
-        case BOOT_SCROLL_TEXT:
-             if (currentMillis - lastBootActionTime > 1000) { 
+            if (elapsed > 1000) {
                 bootState = BOOT_SPEEDOMETER;
-                lastBootActionTime = currentMillis;
+                bootStateStartTime = millis();
+                speedometerValue = 0;
+                Serial.println("BOOT_LOG: Transitioning to BOOT_SPEEDOMETER.");
             }
             break;
         case BOOT_SPEEDOMETER:
-            if (currentMillis - lastBootActionTime > 10) {
-                lastBootActionTime = currentMillis;
-                speedometerValue++;
-                if (speedometerValue > 88) {
+            if (elapsed > BOOT_ANIMATION_FRAME_INTERVAL) {
+                speedometerValue += 2; // Increment the speed
+
+                if (speedometerValue >= 88) {
                     speedometerValue = 88;
-                    bootState = BOOT_FLASH;
-                    lastBootActionTime = currentMillis;
+                    if (hardwareInitialized) {
+                        playSound("/TT_REACH88.mp3");
+                    }
+                    bootState = BOOT_REVEAL_INFO;
+                    bootStateStartTime = millis(); // Reset timer for the NEW state
+                    infoMessageSet = false;
+                    Serial.println("BOOT_LOG: Reached 88 MPH. Transitioning to BOOT_REVEAL_INFO.");
+                } else {
+                    // Update display ONLY if we haven't transitioned
+                    if (hardwareInitialized) {
+                        char speedo[20];
+                        sprintf(speedo, "SPEED %02d MPH", speedometerValue);
+                        setOverrideMessage("SYSTEMS READY", speedo, "");
+                    }
                 }
-                displaySpeed(speedometerValue);
             }
             break;
-
-        case BOOT_FLASH:
-            if (currentMillis - lastBootActionTime > 500) { 
-                bootState = BOOT_REVEAL_INFO;
-                lastBootActionTime = currentMillis;
-            }
-            break;
-
         case BOOT_REVEAL_INFO:
-             if (currentMillis - lastBootActionTime > 5000) {
+            // FIX: Only set the message once to prevent crashing
+            if (!infoMessageSet && hardwareInitialized) {
+                setOverrideMessage("IP ADDRESS", WiFi.localIP().toString().c_str(), MQTT_UNIQUE_ID);
+                infoMessageSet = true;
+            }
+
+            if (elapsed > BOOT_INFO_DISPLAY_DURATION) {
                 bootState = BOOT_COMPLETE;
-                lastBootActionTime = currentMillis;
+                bootStateStartTime = millis();
+                Serial.println("BOOT_LOG: Info display complete. Transitioning to BOOT_COMPLETE.");
             }
             break;
-        
         case BOOT_COMPLETE:
-            playReconfiguringSound();
-            resetDisplayToNormal();
+            if (elapsed > 500) {
+                isMessageOverrideActive = false;
+                bootState = BOOT_INACTIVE;
+                if (hardwareInitialized) {
+                    updateNormalClockDisplay();
+                }
+                Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
+            }
+            break;
+        case BOOT_INACTIVE:
+            // do nothing
+            break;
+        default:
+            // handle unknown state
             bootState = BOOT_INACTIVE;
+            Serial.println("BOOT_LOG: Unknown boot state. Resetting to INACTIVE.");
             break;
     }
 }
 
  // Placeholder function, replace with your actual implementation
 void playReconfiguringSound() {
-    // TODO: Add sound playback logic
+    playSound("/ha-alert.mp3");
 }
 
 // Placeholder function, replace with your actual implementation
 void resetDisplayToNormal() {
-    // TODO: Add display reset logic
-}   
+    updateNormalClockDisplay();
+}
 /**
  * @brief Triggers the "temporal glitch" effect when time is first synchronized.
  */
@@ -402,6 +426,4 @@ void handleTemporalGlitch() {
         }
 #endif
     }
-
-
 }
