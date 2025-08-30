@@ -221,7 +221,7 @@ extern DisplayRow destRow, presRow, lastRow;
 #endif
 
 void setupPhysicalDisplay();
-void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year);
+void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal);
 void updateDisplaySegment(Adafruit_AlphaNum4& display, const struct tm& timeinfo, int year, int segment);
 void animateDisplayRowRandomly(DisplayRow& row);
 void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
@@ -236,7 +236,7 @@ void playSound(const char* filepath);
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
 void displaySpeed(int speed);
 void flashAllDisplays();
-void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year);
+void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal = true);
 
 
 #endif // HARDWARE_CONTROL_H

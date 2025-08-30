@@ -100,16 +100,7 @@ void setupPhysicalDisplay() {
   digitalWrite(I2S_SD_PIN, HIGH);
   #endif
 }
-
-/**
- * @brief Updates a full row of 4 displays with a specific time.
- * @param row A reference to the DisplayRow struct to be updated.
- * @param timeinfo A `tm` struct containing the time to display.
- * @param year The four-digit year to display.
- */
-// In HardwareControl.cpp - Replace the existing function with this one
-
-void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year) {
+void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
   #if ENABLE_HARDWARE
   char buffer[5];
   const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
@@ -167,21 +158,34 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year) {
     }
   }
 
-  // Display the Hour and Minute
+  // Display the Hour and Minute using the library's built-in dot parameter
   row.time.clear();
   char timeBuffer[5];
   sprintf(timeBuffer, "%02d%02d", displayHour, timeinfo.tm_min);
+
   row.time.writeDigitAscii(0, timeBuffer[0]);
-  row.time.writeDigitAscii(1, timeBuffer[1] | 0x80); // Set the colon
+  row.time.writeDigitAscii(1, timeBuffer[1], showDecimal); // This is the key line
   row.time.writeDigitAscii(2, timeBuffer[2]);
   row.time.writeDigitAscii(3, timeBuffer[3]);
-
+  
   // Write all changes to the hardware
   row.month.writeDisplay();
   row.day.writeDisplay();
   row.year.writeDisplay();
   row.time.writeDisplay();
   #endif
+}
+
+// Also update the animateTemporalLockOn function to provide the new parameter
+void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
+    #if ENABLE_HARDWARE
+    // 50% chance to show the correct time, 50% chance to show random garbage.
+    if (random(100) < 50) {
+        updateDisplayRow(row, timeinfo, year, showDecimal);
+    } else {
+        animateDisplayRowRandomly(row);
+    }
+    #endif
 }
 /**
  * @brief Fills a display row with random characters for a flicker effect.
@@ -289,16 +293,8 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
  * @param timeinfo A `tm` struct containing the correct time to lock on to.
  * @param year The correct four-digit year.
  */
-void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year) {
-    #if ENABLE_HARDWARE
-    // 50% chance to show the correct time, 50% chance to show random garbage.
-    if (random(100) < 50) {
-        updateDisplayRow(row, timeinfo, year);
-    } else {
-        animateDisplayRowRandomly(row);
-    }
-    #endif
-}
+/**
+
 
 /**
  * @brief Turns on all segments of all 12 displays to create a bright white flash effect.

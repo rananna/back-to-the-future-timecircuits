@@ -172,32 +172,21 @@ void updateNormalClockDisplay() {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
   if (timeSynchronized) {
-    time_t now;
-    time(&now);
-    struct tm timeinfo;
-    
-    // --- DESTINATION TIME ---
-    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-    tzset();
-    localtime_r(&now, &timeinfo);
-    
-    if (!isRowInManualMode[0]) {
-        updateDisplayRow(destRow, timeinfo, currentSettings.destinationYear);
-    } else {
-        if (!manualDisplayText[0][0].empty()) printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
-        if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
-        if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
-        if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
-    }
-    destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-    
-    // --- PRESENT TIME ---
+    time_t now_t;
+    time(&now_t);
+
+    // --- Create the flashing signal for the Present Time row ---
+    bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
+
+    // --- Get Present Time ---
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
-    localtime_r(&now, &timeinfo);
-    
+    struct tm present_timeinfo;
+    localtime_r(&now_t, &present_timeinfo);
+
+    // --- PRESENT TIME (with flashing dot) ---
     if(!isRowInManualMode[1]) {
-        updateDisplayRow(presRow, timeinfo, timeinfo.tm_year + 1900);
+        updateDisplayRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent);
     } else {
         if (!manualDisplayText[1][0].empty()) printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
         if (!manualDisplayText[1][1].empty()) printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
@@ -206,7 +195,24 @@ void updateNormalClockDisplay() {
     }
     presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
 
-    // --- LAST TIME DEPARTED ---
+    // --- DESTINATION TIME (with solid dot) ---
+    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+    tzset();
+    struct tm dest_timeinfo;
+    localtime_r(&now_t, &dest_timeinfo);
+    
+    if (!isRowInManualMode[0]) {
+        // We pass 'true' here for a solid, non-flashing dot
+        updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
+    } else {
+        if (!manualDisplayText[0][0].empty()) printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
+        if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
+        if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
+        if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
+    }
+    destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+    
+    // --- LAST TIME DEPARTED (with solid dot) ---
     struct tm lastTimeDepartedInfo = {0};
     lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
     lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
@@ -215,7 +221,8 @@ void updateNormalClockDisplay() {
     lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
     
     if(!isRowInManualMode[2]) {
-        updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
+        // We also pass 'true' here for a solid dot
+        updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
     } else {
         if (!manualDisplayText[2][0].empty()) printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
         if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
@@ -223,10 +230,13 @@ void updateNormalClockDisplay() {
         if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
     }
     lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+
+    // --- IMPORTANT: Reset Timezone to Present for other functions ---
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+	tzset();
   }
 #endif
 }
-
 
 void handleWeatherDisplay() {
     if (!currentSettings.weatherModeEnabled || !hardwareInitialized) return;

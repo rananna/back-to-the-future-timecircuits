@@ -549,14 +549,14 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 broadcastWsStateUpdate("glitchEffectFrequency", freq);
             }
         }
-        else if (component == "malfunction_chance") {
-            int chance = message.toInt();
-            if (chance >= 1 && chance <= 200) {
-                currentSettings.malfunctionFrequency = chance;
-                settingsChanged = true;
-                broadcastWsStateUpdate("malfunctionFrequency", chance);
-            }
-        }
+else if (component == "malfunction_chance") {
+    int chance = message.toInt();
+    if (chance >= 1 && chance <= 1000) { // <-- The limit is now increased
+        currentSettings.malfunctionFrequency = chance;
+        settingsChanged = true;
+        broadcastWsStateUpdate("malfunctionFrequency", chance);
+    }
+}
         else if (component == "volume") {
             int vol = message.toInt();
             if (vol >= 0 && vol <= 30) {

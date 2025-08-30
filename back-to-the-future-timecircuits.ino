@@ -198,6 +198,14 @@ int currentSequenceStep = 0;
 unsigned long sequenceStepStartTime = 0;
 bool isSequenceActive = false;
 
+/**
+ * @brief A dedicated test function to isolate and verify decimal point control.
+ * @details This function takes over the device after boot and does nothing but
+ * flash the decimal point on the "Present Time" row every second.
+ * It also prints its status to the Serial Monitor for confirmation.
+ */
+
+
 void saveSettings() {
     Serial.println("--- Saving Settings ---");
     preferences.begin(PREFERENCES_NAMESPACE, false);
@@ -540,6 +548,8 @@ void setup() {
     Serial.println(F("WEB_LOG: Web server started... OK"));
 
     hardwareInitialized = attemptHardwareInit();
+      
+
     if(hardwareInitialized) {
         out = new AudioOutputI2S();
         out->SetPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
