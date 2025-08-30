@@ -10,7 +10,7 @@
 #include <AsyncJson.h>
 #include <LittleFS.h>
 #include <PubSubClient.h>
-#include <HTTPClient.hh>
+#include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <freertos/semphr.h>
 #include <string>
