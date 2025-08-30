@@ -104,19 +104,6 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
   #if ENABLE_HARDWARE
   char buffer[5];
   const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-
-  // --- SAFEGUARD: Identify the row index and clear its manual mode ---
-  int rowIndex = -1;
-  if (&row == &destRow) rowIndex = 0;
-  else if (&row == &presRow) rowIndex = 1;
-  else if (&row == &lastRow) rowIndex = 2;
-  
-  if (rowIndex != -1) {
-    isRowInManualMode[rowIndex] = false;
-    for (int i = 0; i < 4; ++i) {
-        manualDisplayText[rowIndex][i] = "";
-    }
-  }
   
   // Month (3 chars, right justified)
   printToDisplay(row.month, months[timeinfo.tm_mon], 1);
@@ -131,6 +118,12 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
 
   // --- Time Display Logic (Corrected) ---
   int displayHour = timeinfo.tm_hour;
+
+  // Identify which row we are updating
+  int rowIndex = -1;
+  if (&row == &destRow) rowIndex = 0;
+  else if (&row == &presRow) rowIndex = 1;
+  else if (&row == &lastRow) rowIndex = 2;
 
   // Handle AM/PM and 12/24 hour logic
   if (!currentSettings.displayFormat24h) {
@@ -152,9 +145,15 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
     }
   } else {
     // Turn off AM/PM lights in 24-hour mode
-    if (rowIndex != -1) {
-      digitalWrite(DEST_AM_PIN + (rowIndex * 2), LOW);
-      digitalWrite(DEST_PM_PIN + (rowIndex * 2), LOW);
+    if (rowIndex == 0) {
+        digitalWrite(DEST_AM_PIN, LOW);
+        digitalWrite(DEST_PM_PIN, LOW);
+    } else if (rowIndex == 1) {
+        digitalWrite(PRES_AM_PIN, LOW);
+        digitalWrite(PRES_PM_PIN, LOW);
+    } else if (rowIndex == 2) {
+        digitalWrite(LAST_AM_PIN, LOW);
+        digitalWrite(LAST_PM_PIN, LOW);
     }
   }
 
