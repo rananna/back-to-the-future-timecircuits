@@ -440,12 +440,14 @@ void publishHaAutoDiscovery() {
     haDiscoveryPublished = true;
 }
 
+// MqttManager.cpp
 
 void reconnectMqtt() {
   if (currentSettings.mqttBroker.empty()) return;
-
-  // --- START: MODIFIED LOGGING BLOCK ---
+  
   Serial.println("MQTT_LOG: Attempting to connect...");
+  delay(100); // Added delay for visibility
+
   String clientId = "BTTF-Clock-";
   clientId += String(random(0xffff), HEX);
   String availability_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/status";
@@ -461,6 +463,8 @@ void reconnectMqtt() {
 
   if (connectResult) {
     Serial.println("MQTT_LOG: SUCCESS! MQTT client connected.");
+    delay(100); // Added delay for visibility
+    
     mqttClient.publish(availability_topic.c_str(), "online", true);
 
     if (!haDiscoveryPublished) {
@@ -472,8 +476,25 @@ void reconnectMqtt() {
     publishAllHaStates();
     String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
     mqttClient.subscribe(command_topic.c_str());
-    // ... (rest of subscriptions)
+    
+    String audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/tts/play";
+    mqttClient.subscribe(audio_topic.c_str());
+    audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/radio/command";
+    mqttClient.subscribe(audio_topic.c_str());
 
+
+    for (int i = 0; i < currentSettings.numDataPoints; i++) {
+      if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !currentSettings.dataPoints[i].mqttTopic.empty()) {
+        mqttClient.subscribe(currentSettings.dataPoints[i].mqttTopic.c_str());
+      }
+      if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_HA) {
+        String base_dp_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/datapoint/" + String(i);
+        mqttClient.subscribe((base_dp_topic + "/month/set").c_str());
+        mqttClient.subscribe((base_dp_topic + "/day/set").c_str());
+        mqttClient.subscribe((base_dp_topic + "/year/set").c_str());
+        mqttClient.subscribe((base_dp_topic + "/time/set").c_str());
+      }
+    }
   } else {
     Serial.printf("MQTT_LOG: FAILED! rc=%d. ", mqttClient.state());
     switch (mqttClient.state()) {
@@ -488,13 +509,9 @@ void reconnectMqtt() {
       case 5: Serial.println("Not authorized."); break;
       default: Serial.println("Unknown error."); break;
     }
+    delay(100); // Added delay for visibility
   }
-  // --- END: MODIFIED LOGGING BLOCK ---
 }
-
-
-
-
 
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
