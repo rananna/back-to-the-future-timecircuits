@@ -6,7 +6,8 @@
 extern bool isRowInManualMode[3];
 extern std::string manualDisplayText[3][4];
 
-void updateNormalClockDisplay();
+// MODIFIED: Function now accepts flags to control which rows are updated
+void updateNormalClockDisplay(bool updateDest = true, bool updatePres = true, bool updateLast = true);
 void updateMarqueeDisplay();
 void handleWeatherDisplay();
 void displayOverrideMessage();

@@ -511,6 +511,8 @@ void setOverrideMessage(const char* line1, const char* line2, const char* line3)
     isMessageOverrideActive = true;
 }
 
+// back-to-the-future-timecircuits.ino
+
 void setup() {
 	Serial.begin(921600);
 	delay(1000);
@@ -548,15 +550,22 @@ void setup() {
     Serial.println(F("WEB_LOG: Web server started... OK"));
 
     hardwareInitialized = attemptHardwareInit();
-	if(hardwareInitialized) {
-        out = new AudioOutputI2S();
+if(hardwareInitialized) {
+    out = new AudioOutputI2S();
+    mp3 = new AudioGeneratorMP3(); // Create both objects first
+
+    // ADD THIS CHECK!
+    if (!out || !mp3) {
+        Serial.println(F("BOOT_LOG: CRITICAL ERROR - Failed to allocate memory for audio objects!"));
+        // Handle error, maybe by disabling audio features
+        hardwareInitialized = false; // Prevents further audio calls
+    } else {
         out->SetPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
         out->SetGain((float)currentSettings.notificationVolume / 30.0f);
-        mp3 = new AudioGeneratorMP3();
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
-        triggerFlashEffect(1, 3, 0); 
-	}
-
+        triggerFlashEffect(1, 3, 0);
+    }
+}
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
     Serial.println(F("BOOT_LOG: Timezone configured."));
@@ -593,7 +602,7 @@ void setup() {
     });
     ArduinoOTA.begin();
 
-    // --- THIS BLOCK IS NOW IN THE CORRECT LOCATION ---
+    // --- THIS BLOCK HAS BEEN MOVED TO THE CORRECT LOCATION (HERE) ---
     // Clear any persistent manual display overrides from the previous session
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -604,26 +613,6 @@ void setup() {
 
 	Serial.println(F("--- BOOT COMPLETE ---"));
     bootTimestamp = millis();
-}
-
-bool isMarketOpen() {
-    if (!timeSynchronized) return false;
-	setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
-	tzset();
-
-    struct tm timeinfo;
-    getLocalTime(&timeinfo);
-	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
-	if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
-        return false;
-	}
-
-    int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-    int market_open_minutes = 9 * 60 + 30;
-	int market_close_minutes = 16 * 60;
-
-    return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
 }
 
 // back-to-the-future-timecircuits.ino
@@ -995,4 +984,34 @@ void stopAudioStream() {
         fileSourceIcy = NULL;
     }
     mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
+}
+
+bool isMarketOpen() {
+    if (!timeSynchronized) return false;
+
+    // Temporarily set the timezone to US Eastern to check market hours
+    setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
+    tzset();
+
+    struct tm timeinfo;
+    getLocalTime(&timeinfo);
+
+    // IMPORTANT: Reset the timezone back to the user's configured setting
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
+
+    // Check if it's a weekday (Monday = 1, Friday = 5)
+    if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
+        return false;
+    }
+
+    // Convert current time to minutes from midnight
+    int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+    // Market opens at 9:30 AM ET
+    int market_open_minutes = 9 * 60 + 30;
+    // Market closes at 4:00 PM ET
+    int market_close_minutes = 16 * 60;
+
+    // Return true if the current time is within market hours
+    return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
 }

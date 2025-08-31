@@ -23,6 +23,7 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
 }
 
 const char* getIconForWeatherCode(int code) {
+    // ... function content remains the same ...
     switch (code) {
         case 0: case 1: return "SU";
         case 2: return "CL";
@@ -41,6 +42,7 @@ const char* getIconForWeatherCode(int code) {
 }
 
 void displayMarqueeOverride() {
+    // ... function content remains the same ...
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
     String textToDisplay = marqueeOverrideMessage;
@@ -80,6 +82,7 @@ void displayMarqueeOverride() {
 }
 
 void updateStockTickerDisplay() {
+    // ... function content remains the same ...
     if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
@@ -129,6 +132,7 @@ void updateStockTickerDisplay() {
 }
 
 void displayOverrideMessage() {
+    // ... function content remains the same ...
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
     printToDisplay(destRow.month, overrideMessageLine1.substring(0, 3).c_str(), 1);
@@ -152,6 +156,7 @@ void displayOverrideMessage() {
 }
 
 void updateDisplaySegment(int row, int segment, const std::string& text) {
+    // ... function content remains the same ...
     if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
     
     manualDisplayText[row][segment] = text;
@@ -168,68 +173,70 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
     updateNormalClockDisplay();
 }
 
-void updateNormalClockDisplay() {
+// --- MODIFIED: This function now selectively updates rows ---
+void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
   if (timeSynchronized) {
     time_t now_t;
     time(&now_t);
 
-    // --- Create the flashing signal for the Present Time row ---
-    bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
-
-    // --- Get Present Time ---
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
-    struct tm present_timeinfo;
-    localtime_r(&now_t, &present_timeinfo);
-
-    // --- PRESENT TIME (with flashing dot) ---
-    if(!isRowInManualMode[1]) {
-        updateDisplayRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent);
-    } else {
-        if (!manualDisplayText[1][0].empty()) printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
-        if (!manualDisplayText[1][1].empty()) printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
-        if (!manualDisplayText[1][2].empty()) printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
-        if (!manualDisplayText[1][3].empty()) printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
+    // --- Destination Time ---
+    if (updateDest) {
+        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+        tzset();
+        struct tm dest_timeinfo;
+        localtime_r(&now_t, &dest_timeinfo);
+        
+        if (!isRowInManualMode[0]) {
+            updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
+        } else {
+            if (!manualDisplayText[0][0].empty()) printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
+            if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
+            if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
+            if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
+        }
+        destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
     }
-    presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
 
-    // --- DESTINATION TIME (with solid dot) ---
-    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-    tzset();
-    struct tm dest_timeinfo;
-    localtime_r(&now_t, &dest_timeinfo);
-    
-    if (!isRowInManualMode[0]) {
-        // We pass 'true' here for a solid, non-flashing dot
-        updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
-    } else {
-        if (!manualDisplayText[0][0].empty()) printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
-        if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
-        if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
-        if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
+    // --- Present Time ---
+    if (updatePres) {
+        bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+        struct tm present_timeinfo;
+        localtime_r(&now_t, &present_timeinfo);
+
+        if(!isRowInManualMode[1]) {
+            updateDisplayRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent);
+        } else {
+            if (!manualDisplayText[1][0].empty()) printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
+            if (!manualDisplayText[1][1].empty()) printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
+            if (!manualDisplayText[1][2].empty()) printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
+            if (!manualDisplayText[1][3].empty()) printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
+        }
+        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
     }
-    destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
     
-    // --- LAST TIME DEPARTED (with solid dot) ---
-    struct tm lastTimeDepartedInfo = {0};
-    lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
-    lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
-    lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
-    lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
-    lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
-    
-    if(!isRowInManualMode[2]) {
-        // We also pass 'true' here for a solid dot
-        updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
-    } else {
-        if (!manualDisplayText[2][0].empty()) printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
-        if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
-        if (!manualDisplayText[2][2].empty()) printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
-        if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
+    // --- Last Time Departed ---
+    if (updateLast) {
+        struct tm lastTimeDepartedInfo = {0};
+        lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
+        lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
+        lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
+        lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
+        lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
+        
+        if(!isRowInManualMode[2]) {
+            updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
+        } else {
+            if (!manualDisplayText[2][0].empty()) printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
+            if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
+            if (!manualDisplayText[2][2].empty()) printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
+            if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
+        }
+        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
     }
-    lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
 
     // --- IMPORTANT: Reset Timezone to Present for other functions ---
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -239,7 +246,7 @@ void updateNormalClockDisplay() {
 }
 
 void handleWeatherDisplay() {
-    if (!currentSettings.weatherModeEnabled || !hardwareInitialized) return;
+// ... function content remains the same ...
 #if ENABLE_HARDWARE
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (!currentWeatherData.dataValid) {
@@ -314,11 +321,26 @@ void handleWeatherDisplay() {
 }
 
 void updateMarqueeDisplay() {
-    if (!currentSettings.dataLinkEnabled || currentSettings.numDataPoints == 0 || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     DisplayRow* targetRow = &lastRow;
+
+    // ✅ FIX: Add this check at the beginning of the function.
+    if (currentSettings.numDataPoints == 0) {
+        // If there's nothing to display, just show a blank or default state.
+        printToDisplay(targetRow->month, "NO");
+        printToDisplay(targetRow->day, "DATA", 2);
+        printToDisplay(targetRow->year, "POINTS");
+        printToDisplay(targetRow->time, "----");
+        targetRow->month.writeDisplay();
+        targetRow->day.writeDisplay();
+        targetRow->year.writeDisplay();
+        targetRow->time.writeDisplay();
+        return; // Exit the function to prevent the crash.
+    }
+
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (marqueeState == M_IDLE) {
+            // This line is now safe because we already checked numDataPoints.
             currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
             marqueeScrollPosition = 0;
             marqueeScrollPositionYear = 0;
@@ -326,6 +348,7 @@ void updateMarqueeDisplay() {
             lastMarqueeStateChange = millis();
         }
 
+        // ... the rest of the function remains the same ...
         DataPoint point = currentSettings.dataPoints[currentPageIndex];
         printToDisplay(targetRow->month, displayPages[currentPageIndex].month.c_str());
         if (!point.icon.empty()) {

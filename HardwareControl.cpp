@@ -508,6 +508,8 @@ void display88MphSpeed(float speed) {
  * @brief Plays a sound file from the LittleFS filesystem via the I2S DAC.
  * @param filepath The full path to the sound file to play (e.g., "/TIME_TRAVEL.mp3").
  */
+// In HardwareControl.cpp
+
 void playSound(const char* filepath) {
   #if ENABLE_HARDWARE
   if (isPlayingSound) {
@@ -515,10 +517,17 @@ void playSound(const char* filepath) {
   }
 
   file = new AudioFileSourceLittleFS(filepath);
+
+  // ✅ FIX: Check if the 'file' pointer is null *before* using it.
+  if (!file) {
+    Serial.printf("AUDIO_LOG: CRITICAL - Failed to allocate memory for audio file: %s\n", filepath);
+    return;
+  }
+  
   if (!file->isOpen()) {
     Serial.printf("AUDIO_LOG: Failed to open audio file: %s\n", filepath);
     delete file;
-    file = nullptr;
+    file = nullptr; // Set to nullptr after deleting
     return;
   }
   
@@ -526,6 +535,9 @@ void playSound(const char* filepath) {
   delay(10); // Small delay to allow amp to stabilize
   
   isPlayingSound = true;
-  mp3->begin(file, out);
+  // Also ensure the main mp3 object exists before using it
+  if (mp3) {
+      mp3->begin(file, out);
+  }
   #endif
 }
