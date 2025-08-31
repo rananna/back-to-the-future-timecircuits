@@ -155,14 +155,24 @@ void handleDisplayAnimation() {
             }
             break;
 
+// AnimationManager.cpp
+
+// ... inside the handleDisplayAnimation() function ...
         case ANIM_TIME_ACCELERATION:
-            if (elapsed < 3000) {
-                int speed = (elapsed / 3000.0) * 88;
+            // --- START: MODIFIED SPEED RAMP LOGIC ---
+            if (elapsed < 30000) { // Increased duration to 30 seconds
+                // Calculate progress as a value from 0.0 to 1.0
+                float progress = (float)elapsed / 30000.0f;
+                // Apply a quadratic ease-out function
+                float easedProgress = progress * (2.0f - progress);
+                int speed = 88 * easedProgress;
+                
                 displaySpeed(speed);
-                // Flicker the top two rows
+                // Flicker the top two rows while accelerating
                 animateDisplayRowRandomly(destRow);
                 animateDisplayRowRandomly(presRow);
             } else {
+            // --- END: MODIFIED SPEED RAMP LOGIC ---
                 displaySpeed(88);
                 flashAllDisplays(); // White flash at 88 MPH
                 currentPhase = ANIM_ARRIVAL;
@@ -172,7 +182,7 @@ void handleDisplayAnimation() {
                 }
             }
             break;
-
+// ...
         case ANIM_ARRIVAL:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
                 // The main time blur effect
@@ -348,29 +358,38 @@ void handleBootSequence() {
                 Serial.println("BOOT_LOG: Transitioning to BOOT_SPEEDOMETER.");
             }
             break;
-        case BOOT_SPEEDOMETER:
-            if (elapsed > BOOT_ANIMATION_FRAME_INTERVAL) {
-                speedometerValue += 2; // Increment the speed
+// AnimationManager.cpp
 
-                if (speedometerValue >= 88) {
-                    speedometerValue = 88;
-                    if (hardwareInitialized) {
-                        playSound("/TT_REACH88.mp3");
-                    }
-                    bootState = BOOT_REVEAL_INFO;
-                    bootStateStartTime = millis(); // Reset timer for the NEW state
-                    infoMessageSet = false;
-                    Serial.println("BOOT_LOG: Reached 88 MPH. Transitioning to BOOT_REVEAL_INFO.");
-                } else {
-                    // Update display ONLY if we haven't transitioned
-                    if (hardwareInitialized) {
-                        char speedo[20];
-                        sprintf(speedo, "SPEED %02d MPH", speedometerValue);
-                        setOverrideMessage("SYSTEMS READY", speedo, "");
-                    }
+// ... inside the handleBootSequence() function ...
+        case BOOT_SPEEDOMETER:
+            // --- START: MODIFIED SPEED RAMP LOGIC ---
+            if (elapsed < BOOT_SPEEDOMETER_DURATION) {
+                // Calculate progress as a value from 0.0 to 1.0
+                float progress = (float)elapsed / BOOT_SPEEDOMETER_DURATION;
+                // Apply a quadratic ease-out function for a non-linear ramp
+                // f(t) = t * (2 - t) -> starts fast, ends slow
+                float easedProgress = progress * (2.0f - progress);
+                speedometerValue = 88 * easedProgress;
+
+                if (hardwareInitialized) {
+                    char speedo[20];
+                    sprintf(speedo, "SPEED %02d MPH", speedometerValue);
+                    setOverrideMessage("SYSTEMS READY", speedo, "");
                 }
+            } else {
+                // Once the duration is over, lock it at 88
+                speedometerValue = 88;
+                if (hardwareInitialized) {
+                    playSound("/TT_REACH88.mp3");
+                }
+                bootState = BOOT_REVEAL_INFO;
+                bootStateStartTime = millis(); // Reset timer for the NEW state
+                infoMessageSet = false;
+                Serial.println("BOOT_LOG: Reached 88 MPH. Transitioning to BOOT_REVEAL_INFO.");
             }
+            // --- END: MODIFIED SPEED RAMP LOGIC ---
             break;
+// ...
         case BOOT_REVEAL_INFO:
             // FIX: Only set the message once to prevent crashing
             if (!infoMessageSet && hardwareInitialized) {

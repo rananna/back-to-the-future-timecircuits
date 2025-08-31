@@ -12,6 +12,7 @@
 #include "HardwareControl.h"
 #define BOOT_ANIMATION_FRAME_INTERVAL 50
 #define BOOT_INFO_DISPLAY_DURATION 5000
+#define BOOT_SPEEDOMETER_DURATION 30000 
 
 // --- Function Declarations for animations and effects ---
 
