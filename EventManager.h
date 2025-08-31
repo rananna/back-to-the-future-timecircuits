@@ -5,6 +5,7 @@
 #include <string>
 #include <PubSubClient.h>
 #include "HardwareControl.h" // CRITICAL FIX: Include hardware definitions
+#include "AnimationManager.h"
 
 #define MQTT_UNIQUE_ID "bttf_timecircuits_01"
 #define MQTT_DEVICE_TYPE "bttf-clock"

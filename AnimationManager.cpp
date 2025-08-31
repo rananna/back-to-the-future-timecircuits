@@ -18,7 +18,6 @@ extern void setOverrideMessage(const char* line1, const char* line2, const char*
 extern bool isMessageOverrideActive;
 extern unsigned long bootStateStartTime;
 
-
 // Helper function prototypes
 void playReconfiguringSound();
 void resetDisplayToNormal();
@@ -51,7 +50,7 @@ void triggerFlashEffect(int row, int segment, int duration) {
 /**
  * @brief Handles the state of any active flash effects. Called in the main loop.
  */
-#if ENABLE_HARDWARE // <-- Added this guard
+#if ENABLE_HARDWARE
 void handleFlashEffect() {
     for (int r = 0; r < 3; ++r) {
         for (int s = 0; s < 4; ++s) {
@@ -155,12 +154,8 @@ void handleDisplayAnimation() {
             }
             break;
 
-// AnimationManager.cpp
-
-// ... inside the handleDisplayAnimation() function ...
         case ANIM_TIME_ACCELERATION:
-            // --- START: MODIFIED SPEED RAMP LOGIC ---
-            if (elapsed < 30000) { // Increased duration to 30 seconds
+             if (elapsed < 30000) { // Increased duration to 30 seconds
                 // Calculate progress as a value from 0.0 to 1.0
                 float progress = (float)elapsed / 30000.0f;
                 // Apply a quadratic ease-out function
@@ -172,7 +167,6 @@ void handleDisplayAnimation() {
                 animateDisplayRowRandomly(destRow);
                 animateDisplayRowRandomly(presRow);
             } else {
-            // --- END: MODIFIED SPEED RAMP LOGIC ---
                 displaySpeed(88);
                 flashAllDisplays(); // White flash at 88 MPH
                 currentPhase = ANIM_ARRIVAL;
@@ -182,7 +176,7 @@ void handleDisplayAnimation() {
                 }
             }
             break;
-// ...
+
         case ANIM_ARRIVAL:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
                 // The main time blur effect
@@ -330,6 +324,7 @@ void handleMalfunction() {
 void runBootSequence() {
     Serial.println("BOOT_LOG: runBootSequence() called.");
     if (bootState == BOOT_INACTIVE) {
+        setOverrideMessage("", "", "");
         bootState = BOOT_START;
         bootStateStartTime = millis();
         if (hardwareInitialized) {
@@ -344,6 +339,9 @@ void runBootSequence() {
 /**
  * @brief State machine for the boot sequence.
  */
+// AnimationManager.cpp
+// AnimationManager.cpp
+
 void handleBootSequence() {
     if (bootState == BOOT_INACTIVE) return;
 
@@ -352,22 +350,71 @@ void handleBootSequence() {
     switch (bootState) {
         case BOOT_START:
             if (elapsed > 1000) {
-                bootState = BOOT_SPEEDOMETER;
+                if (hardwareInitialized) playSound("/power_hum.mp3");
+                bootState = BOOT_POWER_ON_DEST;
                 bootStateStartTime = millis();
-                speedometerValue = 0;
-                Serial.println("BOOT_LOG: Transitioning to BOOT_SPEEDOMETER.");
             }
             break;
-// AnimationManager.cpp
 
-// ... inside the handleBootSequence() function ...
+        case BOOT_POWER_ON_DEST:
+            if (hardwareInitialized) {
+                blankAllDisplays();
+                animateDisplayRowRandomly(destRow);
+            }
+            if (elapsed > BOOT_POWER_ON_DURATION) {
+                bootState = BOOT_POWER_ON_PRES;
+                bootStateStartTime = millis();
+            }
+            break;
+
+        case BOOT_POWER_ON_PRES:
+            if (hardwareInitialized) {
+                updateNormalClockDisplay(true, false, false);
+                animateDisplayRowRandomly(presRow);
+            }
+            if (elapsed > BOOT_POWER_ON_DURATION) {
+                bootState = BOOT_POWER_ON_LAST;
+                bootStateStartTime = millis();
+            }
+            break;
+
+        case BOOT_POWER_ON_LAST:
+            if (hardwareInitialized) {
+                updateNormalClockDisplay(true, true, false);
+                animateDisplayRowRandomly(lastRow);
+            }
+            if (elapsed > BOOT_POWER_ON_DURATION) {
+                bootState = BOOT_SYSTEM_CHECK;
+                bootStateStartTime = millis();
+            }
+            break;
+
+        case BOOT_SYSTEM_CHECK:
+            if (hardwareInitialized) {
+                static int lastPhase = -1;
+                int phase = elapsed / 2000;
+                if (phase != lastPhase) {
+                    if (phase > 0) playSound("/sys_beep.mp3");
+                    lastPhase = phase;
+                }
+                const char* line3 = "";
+                switch(phase) {
+                    case 0: line3 = "SYSTEM CHECK..."; break;
+                    case 1: line3 = "FLUX CAPACITOR... OK"; break;
+                    case 2: line3 = "TIME CIRCUITS... OK"; break;
+                }
+                setOverrideMessage("", "", line3);
+            }
+            if (elapsed > BOOT_SYSTEM_CHECK_DURATION) {
+                if (hardwareInitialized) playSound("/ACCELERATION.mp3");
+                bootState = BOOT_SPEEDOMETER;
+                bootStateStartTime = millis();
+            }
+            break;
+
         case BOOT_SPEEDOMETER:
-            // --- START: MODIFIED SPEED RAMP LOGIC ---
             if (elapsed < BOOT_SPEEDOMETER_DURATION) {
-                // Calculate progress as a value from 0.0 to 1.0
                 float progress = (float)elapsed / BOOT_SPEEDOMETER_DURATION;
-                // Apply a quadratic ease-out function for a non-linear ramp
-                // f(t) = t * (2 - t) -> starts fast, ends slow
                 float easedProgress = progress * (2.0f - progress);
                 speedometerValue = 88 * easedProgress;
 
@@ -377,49 +424,103 @@ void handleBootSequence() {
                     setOverrideMessage("SYSTEMS READY", speedo, "");
                 }
             } else {
-                // Once the duration is over, lock it at 88
                 speedometerValue = 88;
-                if (hardwareInitialized) {
-                    playSound("/TT_REACH88.mp3");
-                }
-                bootState = BOOT_REVEAL_INFO;
-                bootStateStartTime = millis(); // Reset timer for the NEW state
-                infoMessageSet = false;
-                Serial.println("BOOT_LOG: Reached 88 MPH. Transitioning to BOOT_REVEAL_INFO.");
+                if (hardwareInitialized) playSound("/TT_REACH88.mp3");
+                bootState = BOOT_FADE_TO_CLOCK;
+                bootStateStartTime = millis();
             }
-            // --- END: MODIFIED SPEED RAMP LOGIC ---
             break;
-// ...
-        case BOOT_REVEAL_INFO:
-            // FIX: Only set the message once to prevent crashing
-            if (!infoMessageSet && hardwareInitialized) {
-                setOverrideMessage("IP ADDRESS", WiFi.localIP().toString().c_str(), MQTT_UNIQUE_ID);
-                infoMessageSet = true;
-            }
 
-            if (elapsed > BOOT_INFO_DISPLAY_DURATION) {
+        case BOOT_FADE_TO_CLOCK:
+            if (hardwareInitialized) {
+                static bool fadeSoundPlayed = false;
+                if(!fadeSoundPlayed){
+                    playSound("/lock_on.mp3");
+                    fadeSoundPlayed = true;
+                }
+                
+                // --- START: NEW FADE LOGIC ---
+                // Calculate how many characters to reveal (from 0 to 12)
+                float progress = (float)elapsed / BOOT_FADE_DURATION;
+                int charsToReveal = progress * 12;
+
+                // Get the final, correct time info
+                time_t now_t;
+                time(&now_t);
+                struct tm timeinfo;
+                localtime_r(&now_t, &timeinfo);
+                
+                // Combine all "from" and "to" characters into single strings
+                const char* fromText = "SYSTEMS READY SPEED 88 MPH";
+                
+                // ✅ FIX: Increased buffer size to prevent overflow.
+                char toText[64];
+                const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+                
+                // Destination Time
+                int destHour = timeinfo.tm_hour;
+                if (!currentSettings.displayFormat24h && destHour > 12) destHour -= 12;
+                if (!currentSettings.displayFormat24h && destHour == 0) destHour = 12;
+                
+                // Present Time
+                int presHour = timeinfo.tm_hour;
+                if (!currentSettings.displayFormat24h && presHour > 12) presHour -= 12;
+                if (!currentSettings.displayFormat24h && presHour == 0) presHour = 12;
+                
+                // Last Departed Time
+                int lastHour = currentSettings.lastTimeDepartedHour;
+                if (!currentSettings.displayFormat24h && lastHour > 12) lastHour -= 12;
+                if (!currentSettings.displayFormat24h && lastHour == 0) lastHour = 12;
+
+                // ✅ FIX: Validate month index to prevent out-of-bounds access.
+                int lastDepartedMonthIndex = currentSettings.lastTimeDepartedMonth - 1;
+                if (lastDepartedMonthIndex < 0 || lastDepartedMonthIndex > 11) {
+                    lastDepartedMonthIndex = 0; // Default to January if data is corrupt
+                }
+
+                sprintf(toText, "%3s %02d %04d%02d%02d%3s %02d %04d%02d%02d%3s %02d %04d%02d%02d",
+                    months[timeinfo.tm_mon], timeinfo.tm_mday, currentSettings.destinationYear, destHour, timeinfo.tm_min,
+                    months[timeinfo.tm_mon], timeinfo.tm_mday, timeinfo.tm_year + 1900, presHour, timeinfo.tm_min,
+                    months[lastDepartedMonthIndex], currentSettings.lastTimeDepartedDay, currentSettings.lastTimeDepartedYear, lastHour, currentSettings.lastTimeDepartedMinute);
+
+                // Helper to update a single 4-char display
+                auto updateSegment = [&](Adafruit_AlphaNum4& display, int segmentIndex) {
+                    char buffer[5] = "    ";
+                    for (int i = 0; i < 4; i++) {
+                        int charIndex = segmentIndex * 4 + i;
+                        if (charIndex < charsToReveal) {
+                            buffer[i] = toText[charIndex];
+                        } else {
+                            buffer[i] = fromText[charIndex];
+                        }
+                    }
+                    printToDisplay(display, buffer);
+                    display.writeDisplay();
+                };
+                
+                // Update all 12 display segments
+                updateSegment(destRow.month, 0); updateSegment(destRow.day, 1); updateSegment(destRow.year, 2); updateSegment(destRow.time, 3);
+                updateSegment(presRow.month, 4); updateSegment(presRow.day, 5); updateSegment(presRow.year, 6); updateSegment(presRow.time, 7);
+                updateSegment(lastRow.month, 8); updateSegment(lastRow.day, 9); updateSegment(lastRow.year, 10); updateSegment(lastRow.time, 11);
+                // --- END: NEW FADE LOGIC ---
+            }
+            if (elapsed > BOOT_FADE_DURATION) {
                 bootState = BOOT_COMPLETE;
                 bootStateStartTime = millis();
-                Serial.println("BOOT_LOG: Info display complete. Transitioning to BOOT_COMPLETE.");
             }
             break;
+
         case BOOT_COMPLETE:
             if (elapsed > 500) {
                 isMessageOverrideActive = false;
                 bootState = BOOT_INACTIVE;
-                if (hardwareInitialized) {
-                    updateNormalClockDisplay();
-                }
+                if (hardwareInitialized) updateNormalClockDisplay();
                 Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
             }
             break;
-        case BOOT_INACTIVE:
-            // do nothing
-            break;
+            
         default:
-            // handle unknown state
             bootState = BOOT_INACTIVE;
-            Serial.println("BOOT_LOG: Unknown boot state. Resetting to INACTIVE.");
             break;
     }
 }
