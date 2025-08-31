@@ -780,7 +780,7 @@ void loop() {
                 updateStockTickerDisplay();
             } else if (isMarqueeOverrideActive) {
                 displayMarqueeOverride();
-            } else if (currentSettings.dataLinkEnabled) {
+          } else if (currentSettings.dataLinkEnabled && currentSettings.numDataPoints > 0) {
                 fetchDataLink();
                 updateMarqueeDisplay();
             } else if (currentSettings.weatherModeEnabled) {
