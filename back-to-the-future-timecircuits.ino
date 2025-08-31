@@ -778,6 +778,7 @@ void loop() {
                     }
                 }
                 updateStockTickerDisplay();
+                
             } else if (isMarqueeOverrideActive) {
                 displayMarqueeOverride();
           } else if (currentSettings.dataLinkEnabled && currentSettings.numDataPoints > 0) {
