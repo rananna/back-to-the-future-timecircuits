@@ -7,14 +7,10 @@
 #include <HTTPClient.h>
 #include <string>
 #include <WiFi.h>
-#include <AudioOutputI2S.h>
 #include <Update.h>
 #include <ArduinoOTA.h>
 #include "FS.h"
 #include <LITTLEFS.h>
-
-// Make the global 'out' object from the main .ino file available here
-extern AudioOutputI2S *out;
 
 // This is the one and only DEFINITION of the variable in the whole project.
 const char apiTemplates[] PROGMEM = "{\n"
@@ -566,8 +562,9 @@ void setupWebRoutes() {
     delay(100);
     mqttReconnectRequired = true;
 
-    if (hardwareInitialized && out) {
-        out->SetGain((float)currentSettings.notificationVolume / 30.0f);
+    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
+        audio.setVolume(currentSettings.notificationVolume);
+        xSemaphoreGive(xAudioMutex);
     }
 
     request->send(200, "text/plain", "Settings Saved!");

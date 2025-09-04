@@ -8,35 +8,18 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <Preferences.h>
-#include <AudioOutputI2S.h> // Add this include for the 'out' object
-#include <AudioFileSourceHTTPStream.h>
-#include <AudioFileSourceICYStream.h>
-#include <AudioGeneratorMP3.h>
-#include  <LCBUrl.h> // Include for URL parsing
+#include <LCBUrl.h> 
 
-// Make the global 'out' object from the main .ino file available here
-extern AudioOutputI2S *out;
 bool haDiscoveryPublished = false;
-
-// Audio Streaming Globals
-AudioGeneratorMP3 *audioGenerator = NULL;
-AudioFileSourceHTTPStream *fileSourceHttp = NULL;
-AudioFileSourceICYStream *fileSourceIcy = NULL;
-
-
 
 void setupMqtt() {
   if (currentSettings.mqttBroker.empty()) {
-    // --- START: ADDED LOGGING ---
     Serial.println("MQTT_LOG: No broker configured. MQTT setup skipped.");
-    // --- END: ADDED LOGGING ---
     return;
   }
   mqttClient.setServer(currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
   mqttClient.setCallback(mqttCallback);
-  // --- START: ADDED LOGGING ---
   Serial.printf("MQTT_LOG: Client configured for broker [%s] on port [%d]\n", currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
-  // --- END: ADDED LOGGING ---
 }
 
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
@@ -440,13 +423,11 @@ void publishHaAutoDiscovery() {
     haDiscoveryPublished = true;
 }
 
-// MqttManager.cpp
-
 void reconnectMqtt() {
   if (currentSettings.mqttBroker.empty()) return;
   
   Serial.println("MQTT_LOG: Attempting to connect...");
-  delay(100); // Added delay for visibility
+  delay(100); 
 
   String clientId = "BTTF-Clock-";
   clientId += String(random(0xffff), HEX);
@@ -463,7 +444,7 @@ void reconnectMqtt() {
 
   if (connectResult) {
     Serial.println("MQTT_LOG: SUCCESS! MQTT client connected.");
-    delay(100); // Added delay for visibility
+    delay(100); 
     
     mqttClient.publish(availability_topic.c_str(), "online", true);
 
@@ -509,10 +490,9 @@ void reconnectMqtt() {
       case 5: Serial.println("Not authorized."); break;
       default: Serial.println("Unknown error."); break;
     }
-    delay(100); // Added delay for visibility
+    delay(100); 
   }
 }
-
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     String message = "";
@@ -578,20 +558,21 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 broadcastWsStateUpdate("glitchEffectFrequency", freq);
             }
         }
-else if (component == "malfunction_chance") {
-    int chance = message.toInt();
-    if (chance >= 1 && chance <= 1000) { // <-- The limit is now increased
-        currentSettings.malfunctionFrequency = chance;
-        settingsChanged = true;
-        broadcastWsStateUpdate("malfunctionFrequency", chance);
-    }
-}
+        else if (component == "malfunction_chance") {
+            int chance = message.toInt();
+            if (chance >= 1 && chance <= 1000) {
+                currentSettings.malfunctionFrequency = chance;
+                settingsChanged = true;
+                broadcastWsStateUpdate("malfunctionFrequency", chance);
+            }
+        }
         else if (component == "volume") {
             int vol = message.toInt();
-            if (vol >= 0 && vol <= 30) {
+            if (vol >= 0 && vol <= 21) {
                 currentSettings.notificationVolume = vol;
-                if (hardwareInitialized && out) {
-                    out->SetGain((float)vol / 30.0f);
+                if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
+                    audio.setVolume(vol);
+                    xSemaphoreGive(xAudioMutex);
                 }
                 settingsChanged = true;
                 broadcastWsStateUpdate("notificationVolume", vol);
@@ -895,11 +876,9 @@ else if (component == "malfunction_chance") {
             currentSettings.alphaVantageApiKey = message.c_str();
             settingsChanged = true;
         }
-        // NEW: TTS Notifier handler
         else if (topicStr == base_topic + "tts/play") {
             startAudioStream(message.c_str(), true);
         }
-        // NEW: Radio Streamer handler
         else if (topicStr == base_topic + "radio/command") {
             if (message == "stop") {
                 stopAudioStream();
@@ -1039,8 +1018,8 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/stock_row_1/state").c_str(), currentSettings.stockRow1_symbol.c_str(), true);
     mqttClient.publish((base_topic + "/stock_row_2/state").c_str(), currentSettings.stockRow2_symbol.c_str(), true);
     mqttClient.publish((base_topic + "/stock_row_3/state").c_str(), currentSettings.stockRow3_symbol.c_str(), true);
-   mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), currentSettings.alphaVantageApiKey.c_str(), true);
-    mqttClient.publish((base_topic + "/audio/state").c_str(), (audioGenerator && audioGenerator->isRunning()) ? "PLAYING" : "IDLE", true);
+    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), currentSettings.alphaVantageApiKey.c_str(), true);
+    mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
 
     publishTimeSensors();
 }
@@ -1077,4 +1056,44 @@ void publishTimeSensors() {
     time_t ltd_time = mktime(&ltd_tm);
     strftime(iso_time, sizeof(iso_time), "%Y-%m-%dT%H:%M:%SZ", gmtime(&ltd_time));
     mqttClient.publish((base_topic + "/last_time_departed/state").c_str(), iso_time, true);
+}
+
+void startAudioStream(const char* url, bool is_tts) {
+    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
+        if (!hardwareInitialized) {
+            Serial.println("AUDIO_LOG: Hardware not initialized, cannot play audio.");
+            xSemaphoreGive(xAudioMutex);
+            return;
+        }
+
+        if (audio.isRunning()) {
+            audio.stopSong();
+        }
+        
+        digitalWrite(I2S_SD_PIN, HIGH);
+        isPlayingSound = true;
+        audio.setVolume(currentSettings.notificationVolume); // Use full volume for streams
+        audio.connecttohost(url);
+        
+        Serial.printf("AUDIO_LOG: Started streaming from URL: %s\n", url);
+        if (mqttClient.connected()) {
+            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
+        }
+        xSemaphoreGive(xAudioMutex);
+    }
+}
+
+void stopAudioStream() {
+    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
+        if (audio.isRunning()) {
+            if (currentSettings.timeTravelVolumeFade) {
+                // This creates a task that will stop the song after fading
+                xTaskCreate(volumeFadeTask, "FadeOut", 2048, (void*)false, 5, NULL);
+            } else {
+                audio.stopSong();
+            }
+            Serial.println("AUDIO_LOG: Stopped audio stream.");
+        }
+        xSemaphoreGive(xAudioMutex);
+    }
 }

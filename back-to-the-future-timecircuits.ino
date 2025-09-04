@@ -13,11 +13,8 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <freertos/semphr.h>
+#include <freertos/queue.h>
 #include <string>
-#include <AudioOutputI2S.h>
-#include <AudioFileSourceHTTPStream.h>
-#include <AudioFileSourceICYStream.h>
-#include <AudioGeneratorMP3.h>
 #include <LCBUrl.h>
 #include <ArduinoOTA.h>
 
@@ -31,20 +28,19 @@
 #include "MqttManager.h"
 
 // Audio Library Includes
-#include "AudioFileSourceLittleFS.h"
-#include "AudioOutputI2S.h"
-#include "AudioGeneratorMP3.h"
+#include "Audio.h"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2
 #endif
 
 // --- CONFIGURABLE CONSTANTS ---
-const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
+const unsigned long WIFI_CONNECT_TIMEOUT = 15000;
+// 15 seconds
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
-const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
+const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;
+// 1 minute
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
-// -- The two lines below have been REMOVED --
 
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
 enum WifiState {
@@ -69,34 +65,30 @@ int speedometerValue = 0;
 // --- DISPLAY MODE STATE MACHINE ---
 DisplayModeState currentDisplayMode = NORMAL_CLOCK;
 
+// --- UNIFIED AUDIO GLOBALS ---
+Audio audio;
+TaskHandle_t AudioTask;
+const uint32_t AUDIO_TASK_STACK_SIZE = 10240;
+bool isPlayingSound = false;
+SemaphoreHandle_t xAudioMutex;
+QueueHandle_t audioQueue;
+const int MAX_QUEUED_SOUNDS = 5;
+
+char MQTT_UNIQUE_ID[19];
+
 // --- FUNCTION PROTOTYPES ---
 void handlePresetCycling();
 void handleSleepSchedule();
 void handleSequencer();
 bool isMarketOpen();
 bool attemptHardwareInit();
-void handleAudio();
 void checkDataFetchStatusTask(void* p);
-void playTtsFromUrl(const char* url);
-void ttsDownloadTask(void* parameter);
-void playRadioStream(const char* url);
-void stopRadioStream();
 void startAudioStream(const char* url, bool is_tts);
 void stopAudioStream();
 void wifiManagerTask(void *pvParameters);
 void setOverrideMessage(const char* line1, const char* line2, const char* line3);
 void updateDisplaySegment(int row, int segment, const std::string& text);
 void testDecimalPointFlashing();
-
-
-// --- AUDIO LIBRARY GLOBALS ---
-AudioFileSourceLittleFS *file;
-AudioOutputI2S *out;
-AudioGeneratorMP3 *mp3;
-bool isPlayingSound = false;
-String ttsFile = "";
-SemaphoreHandle_t xAudioMutex;
-bool isStreamingRadio = false;
 // --- GLOBAL VARIABLES & CONSTANTS ---
 ClockSettings currentSettings;
 MarqueeData displayPages[5];
@@ -199,13 +191,68 @@ int currentSequenceStep = 0;
 unsigned long sequenceStepStartTime = 0;
 bool isSequenceActive = false;
 
-/**
- * @brief A dedicated test function to isolate and verify decimal point control.
-* @details This function takes over the device after boot and does nothing but
- * flash the decimal point on the "Present Time" row every second.
-* It also prints its status to the Serial Monitor for confirmation.
-*/
+// --- Callback function to handle audio events ---
+void audio_info(Audio::msg_t m) {
+    if (m.e == Audio::evt_eof) {
+        Serial.println("AUDIO_LOG: End of file.");
+        audio.stopSong(); // <-- This is the missing line that will fix the crash.
+        isPlayingSound = false;
+        
+        char nextFile[MAX_FILENAME_LENGTH];
+        // Check if there's another sound in the queue
+        if (xQueueReceive(audioQueue, &nextFile, (TickType_t)0) == pdPASS) {
+            Serial.printf("AUDIO_LOG: Playing next from queue: %s\n", nextFile);
+            digitalWrite(I2S_SD_PIN, HIGH);
+            isPlayingSound = true;
+            audio.connecttoFS(LittleFS, nextFile);
+        } else {
+            digitalWrite(I2S_SD_PIN, LOW);
+            // No more sounds, turn off amp
+        }
 
+        // Update Home Assistant that audio is idle
+        if (mqttClient.connected()) {
+            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
+        }
+    }
+}
+// --- Dedicated Task for Audio Processing ---
+void AudioProcessingTask(void *parameter) {
+  Serial.println("AUDIO_LOG: Audio processing task started.");
+  for (;;) {
+    // FIX: Only call audio.loop() if a sound is actually playing.
+    if (isPlayingSound) {
+        if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
+            audio.loop();
+            xSemaphoreGive(xAudioMutex);
+        }
+    }
+    // The delay is now outside the 'if' block to ensure the task always yields.
+    vTaskDelay(pdMS_TO_TICKS(2));
+  }
+}
+
+void volumeFadeTask(void* parameter) {
+    bool fadeIn = (bool)parameter;
+    int startVol = fadeIn ? 0 : currentSettings.notificationVolume;
+    int endVol = fadeIn ? currentSettings.notificationVolume : 0;
+    if (fadeIn) {
+        // Fade In
+        for (int i = startVol; i <= endVol; i++) {
+            audio.setVolume(i);
+            vTaskDelay(pdMS_TO_TICKS(20));
+        }
+    } else {
+        // Fade Out
+        for (int i = startVol; i >= endVol; i--) {
+            audio.setVolume(i);
+            vTaskDelay(pdMS_TO_TICKS(20));
+        }
+        audio.stopSong();
+    }
+    
+    vTaskDelete(NULL);
+}
 
 void saveSettings() {
     Serial.println("--- Saving Settings ---");
@@ -247,7 +294,6 @@ void saveSettings() {
 	preferences.putBool("useMetric", currentSettings.useMetricUnits);
 	preferences.putFloat("latitude", currentSettings.latitude);
 	preferences.putFloat("longitude", currentSettings.longitude);
-
 	preferences.putBool("stModeEnabled", currentSettings.stockTickerModeEnabled);
 	preferences.putString("stRow1Sym", currentSettings.stockRow1_symbol.c_str());
 	preferences.putString("stRow2Sym", currentSettings.stockRow2_symbol.c_str());
@@ -282,7 +328,6 @@ void saveSettings() {
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
 }
-// back-to-the-future-timecircuits.ino
 
 void loadSettings() {
     Serial.println("--- Loading Settings ---");
@@ -290,7 +335,6 @@ void loadSettings() {
 	bool needsInit = !preferences.isKey("destYear");
 	if (needsInit) {
 		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
-		// ... (default settings remain the same)
 		currentSettings.destinationYear = 1955;
 		currentSettings.destinationTimezoneIndex = 4;
 		currentSettings.departureHour = 22;
@@ -367,91 +411,67 @@ void loadSettings() {
 		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
 		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
 		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
-
-        // --- START: MODIFIED BLOCK WITH LOGGING ---
         String brokerStr = preferences.getString("mqttBroker", "");
-        currentSettings.mqttBroker = brokerStr.c_str();
-        Serial.printf("SETTINGS_LOG: Loaded MQTT Broker: [%s]\n", currentSettings.mqttBroker.c_str());
-
-		currentSettings.mqttPort = preferences.getInt("mqttPort", 1883); // Make sure port is loaded
+		currentSettings.mqttBroker = brokerStr.c_str();
+		Serial.printf("SETTINGS_LOG: Loaded MQTT Broker: [%s]\n", currentSettings.mqttBroker.c_str());
+		currentSettings.mqttPort = preferences.getInt("mqttPort", 1883);
 		Serial.printf("SETTINGS_LOG: Loaded MQTT Port: [%d]\n", currentSettings.mqttPort);
-
-        String userStr = preferences.getString("mqttUser", "");
+		String userStr = preferences.getString("mqttUser", "");
         currentSettings.mqttUser = userStr.c_str();
-        Serial.printf("SETTINGS_LOG: Loaded MQTT User: [%s]\n", currentSettings.mqttUser.c_str());
-
+		Serial.printf("SETTINGS_LOG: Loaded MQTT User: [%s]\n", currentSettings.mqttUser.c_str());
         String passStr = preferences.getString("mqttPass", "");
-        currentSettings.mqttPassword = passStr.c_str();
-        // Password is intentionally not logged for security.
-        // --- END: MODIFIED BLOCK WITH LOGGING ---
-
+		currentSettings.mqttPassword = passStr.c_str();
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
-
 		String tempString = preferences.getString("cityName", "New York");
 		currentSettings.cityName = tempString.c_str();
-
 		currentSettings.useMetricUnits = preferences.getBool("useMetric", false);
 		currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
 		currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
 		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
-
 		tempString = preferences.getString("stRow1Sym", "^GSPC");
 		currentSettings.stockRow1_symbol = tempString.c_str();
-
 		tempString = preferences.getString("stRow2Sym", "^GSPTSE");
 		currentSettings.stockRow2_symbol = tempString.c_str();
-		
 		tempString = preferences.getString("stRow3Sym", "^IXIC");
 		currentSettings.stockRow3_symbol = tempString.c_str();
-
 		tempString = preferences.getString("avApiKey", "");
-        Serial.printf("Loading avApiKey from Preferences: [%s]\n", tempString.c_str());
+		Serial.printf("Loading avApiKey from Preferences: [%s]\n", tempString.c_str());
 		currentSettings.alphaVantageApiKey = tempString.c_str();
         Serial.printf("Loaded avApiKey into currentSettings: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
-
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
 			tempString = preferences.getString((prefix + "url").c_str(), "");
 			currentSettings.dataPoints[i].url = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "monthPath").c_str(), "");
 			currentSettings.dataPoints[i].monthPath = tempString.c_str();
 			tempString = preferences.getString((prefix + "dayPath").c_str(), "");
 			currentSettings.dataPoints[i].dayPath = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "yearPath").c_str(), "");
 			currentSettings.dataPoints[i].yearPath = tempString.c_str();
 			tempString = preferences.getString((prefix + "timePath").c_str(), "");
 			currentSettings.dataPoints[i].timePath = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "prefix").c_str(), "");
 			currentSettings.dataPoints[i].prefix = tempString.c_str();
 			tempString = preferences.getString((prefix + "suffix").c_str(), "");
 			currentSettings.dataPoints[i].suffix = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "icon").c_str(), "");
 			currentSettings.dataPoints[i].icon = tempString.c_str();
 			currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
 			currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
-
 			tempString = preferences.getString((prefix + "topic").c_str(), "");
 			currentSettings.dataPoints[i].mqttTopic = tempString.c_str();
 			tempString = preferences.getString((prefix + "yearPrefix").c_str(), "");
 			currentSettings.dataPoints[i].yearPrefix = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "yearSuffix").c_str(), "");
 			currentSettings.dataPoints[i].yearSuffix = tempString.c_str();
 			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
-
 			tempString = preferences.getString((prefix + "scrollTxt").c_str(), "");
 			currentSettings.dataPoints[i].scrollingText = tempString.c_str();
 			tempString = preferences.getString((prefix + "authKey").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderKey = tempString.c_str();
-
 			tempString = preferences.getString((prefix + "authVal").c_str(), "");
 			currentSettings.dataPoints[i].authHeaderValue = tempString.c_str();
 			currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
-			
 			tempString = preferences.getString((prefix + "reqBody").c_str(), "");
 			currentSettings.dataPoints[i].requestBody = tempString.c_str();
 			currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
@@ -468,6 +488,7 @@ void loadSettings() {
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
 }
+
 void listAllFiles() {
 	Serial.println(F("\n--- Listing all files in LittleFS ---"));
 	File root = LittleFS.open("/");
@@ -488,7 +509,7 @@ bool attemptHardwareInit() {
     #if ENABLE_HARDWARE
     Serial.println(F("BOOT_LOG: Attempting to initialize hardware..."));
     setupPhysicalDisplay();
-	Serial.println(F("BOOT_LOG: Physical display setup... OK"));
+    Serial.println(F("BOOT_LOG: Physical display setup... OK"));
     return true; // Success
     #else
     Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
@@ -498,11 +519,10 @@ bool attemptHardwareInit() {
 
 void wifiManagerTask(void *pvParameters) {
   WiFiManager* wifiManager = (WiFiManager*)pvParameters;
-	wifiManager->autoConnect("BTTF-Clock-Setup");
+  wifiManager->autoConnect("BTTF-Clock-Setup");
   vTaskDelete(NULL);
   wifiManagerTaskHandle = NULL;
 }
-
 
 void setOverrideMessage(const char* line1, const char* line2, const char* line3) {
     overrideMessageLine1 = line1;
@@ -511,16 +531,15 @@ void setOverrideMessage(const char* line1, const char* line2, const char* line3)
     isMessageOverrideActive = true;
 }
 
-// back-to-the-future-timecircuits.ino
-
 void setup() {
-	Serial.begin(921600);
+	Serial.begin(115200);
 	delay(1000);
+-
 
 	Serial.println(F("\n\n--- BOOTING ---"));
 	Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
 	delay(10);
-	if (!LittleFS.begin(true)) {
+	if (!LittleFS.begin(true, "/spiffs")) {
 		ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
 		Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
 		delay(10000);
@@ -533,42 +552,48 @@ void setup() {
 	loadSettings();
 	Serial.println(F("BOOT_LOG: Settings loaded... OK"));
 	delay(10);
-    xDisplayDataMutex = xSemaphoreCreateMutex();
+	xDisplayDataMutex = xSemaphoreCreateMutex();
     xAudioMutex = xSemaphoreCreateMutex();
-    Serial.println(F("BOOT_LOG: Mutex created... OK"));
+    audioQueue = xQueueCreate(MAX_QUEUED_SOUNDS, sizeof(char[MAX_FILENAME_LENGTH]));
+    Serial.println(F("BOOT_LOG: Mutex and Queue created... OK"));
     
     WiFi.mode(WIFI_STA);
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    sprintf(MQTT_UNIQUE_ID, "BTTF_TC_%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     WiFi.begin();
-    wifiConnectStartTime = millis();
-    wifiState = WIFI_STATE_CONNECTING;
+	wifiConnectStartTime = millis();
+	wifiState = WIFI_STATE_CONNECTING;
 	Serial.println("BOOT_LOG: Non-blocking WiFi connection initiated...");
     Serial.println(F("WEB_LOG: Setting up web routes..."));
 	setupWebRoutes();
-    Serial.println(F("WEB_LOG: Web routes configured. Starting server..."));
-	server.begin();
-	ESP_LOGI("Web", "HTTP server started.");
-    Serial.println(F("WEB_LOG: Web server started... OK"));
+	Serial.println(F("WEB_LOG: Web routes configured."));
 
     hardwareInitialized = attemptHardwareInit();
-if(hardwareInitialized) {
-    out = new AudioOutputI2S();
-    mp3 = new AudioGeneratorMP3(); // Create both objects first
+    if (hardwareInitialized) {
+        Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
+        audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
+        audio.setVolume(currentSettings.notificationVolume);
+        Audio::audio_info_callback = audio_info;
 
-    // ADD THIS CHECK!
-    if (!out || !mp3) {
-        Serial.println(F("BOOT_LOG: CRITICAL ERROR - Failed to allocate memory for audio objects!"));
-        // Handle error, maybe by disabling audio features
-        hardwareInitialized = false; // Prevents further audio calls
-    } else {
-        out->SetPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
-        out->SetGain((float)currentSettings.notificationVolume / 30.0f);
+        // Start the dedicated audio task on Core 0
+// In back-to-the-future-timecircuits.ino
+xTaskCreatePinnedToCore(
+    AudioProcessingTask,      // Task function
+    "AudioTask",              // Name of the task
+    AUDIO_TASK_STACK_SIZE,    // Stack size
+    NULL,                     // Parameter
+    5,                        // Priority (Corrected to a reasonable level)
+    &AudioTask,               // Task handle
+    0);                       // Core ID
+ // Core ID
+
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
         triggerFlashEffect(1, 3, 0);
-    }
-}
+	}
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
-    Serial.println(F("BOOT_LOG: Timezone configured."));
+	Serial.println(F("BOOT_LOG: Timezone configured."));
 
 	setupMqtt();
 	Serial.println(F("BOOT_LOG: MQTT setup initiated."));
@@ -577,7 +602,7 @@ if(hardwareInitialized) {
 
     ArduinoOTA.setHostname("bttf-time-circuits");
     ArduinoOTA.setPassword("1.21gigawatts");
-	ArduinoOTA.onStart([]() {
+    ArduinoOTA.onStart([]() {
         String type;
         if (ArduinoOTA.getCommand() == U_FLASH) {
             type = "sketch";
@@ -586,13 +611,13 @@ if(hardwareInitialized) {
         }
         Serial.println("Start updating " + type);
     });
-	ArduinoOTA.onEnd([]() {
+    ArduinoOTA.onEnd([]() {
         Serial.println("\nEnd");
     });
-	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
         Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     });
-	ArduinoOTA.onError([](ota_error_t error) {
+    ArduinoOTA.onError([](ota_error_t error) {
         Serial.printf("Error[%u]: ", error);
         if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
         else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
@@ -602,24 +627,18 @@ if(hardwareInitialized) {
     });
     ArduinoOTA.begin();
 
-    // --- THIS BLOCK HAS BEEN MOVED TO THE CORRECT LOCATION (HERE) ---
     // Clear any persistent manual display overrides from the previous session
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 4; ++j) {
             updateDisplaySegment(i, j, "");
-        }
+		}
     }
-    // --- END OF MOVED BLOCK ---
 
 	Serial.println(F("--- BOOT COMPLETE ---"));
-    bootTimestamp = millis();
+	bootTimestamp = millis();
 }
 
-// back-to-the-future-timecircuits.ino
-
 void loop() {
-    // --- STATUS LOGGING ---
-    // This block only prints when a status value changes.
     static int prevWifiStatus = -1;
     static BootSequenceState prevBootState = BOOT_INACTIVE;
     static bool prevOverrideState = false;
@@ -638,7 +657,6 @@ void loop() {
         prevMqttConnected = currentMqttConnected;
     }
 
-    // --- WIFI & NETWORK LOGIC ---
     switch (wifiState) {
         case WIFI_STATE_CONNECTING:
             if (!logConnectingPrinted) {
@@ -669,11 +687,15 @@ void loop() {
                 static unsigned long reboot_time = 0;
                 if (reboot_time == 0) reboot_time = millis();
                 if (millis() - reboot_time > 2000) ESP.restart();
-            }
+             }
             break;
         case WIFI_STATE_CONNECTED:
             if (!logConnectedPrinted) {
                 ESP_LOGI("WiFi", "IP: %s", WiFi.localIP().toString().c_str());
+                // Start the web server now that we are connected
+                server.begin();
+                ESP_LOGI("Web", "HTTP server started on successful connection.");
+
                 logConnectedPrinted = true;
                 if (MDNS.begin("timecircuits")) {
                     MDNS.addService("http", "tcp", 80);
@@ -737,11 +759,11 @@ void loop() {
 
     ArduinoOTA.handle();
 
-    // --- BACKGROUND STATE HANDLERS ---
     if (hardwareInitialized) {
-        handleAudio();
         handleBootSequence();
-        handleFlashEffect();
+        if (bootState == BOOT_INACTIVE) { // Only allow other effects if boot is done
+            handleFlashEffect();
+        }
     }
     if (isMarqueeOverrideActive && marqueeOverrideEndTime > 0 && millis() > marqueeOverrideEndTime) {
         isMarqueeOverrideActive = false;
@@ -749,26 +771,48 @@ void loop() {
         publishAllHaStates();
     }
 
-    // --- MAIN DISPLAY LOGIC ---
     if (hardwareInitialized) {
+        // --- MODIFICATION: ADDED DEBUG LOGS ---
+        static DisplayModeState lastDisplayMode = (DisplayModeState)-1; // An invalid state
+        DisplayModeState currentMode;
+
         if (isMessageOverrideActive) {
-            // HIGHEST PRIORITY: Show boot sequence or other critical messages.
+            currentMode = OVERRIDE_MESSAGE;
+        } else if (isMalfunctioning) {
+            currentMode = (DisplayModeState)8; // Using a number to avoid creating a new enum
+        } else if (isAnimating) {
+            currentMode = (DisplayModeState)9; // Using a number to avoid creating a new enum
+        } else if (currentSettings.stockTickerModeEnabled) {
+            currentMode = STOCK_TICKER;
+        } else if (isMarqueeOverrideActive) {
+            currentMode = MARQUEE_OVERRIDE;
+        } else if (currentSettings.dataLinkEnabled) {
+            currentMode = MARQUEE;
+        } else if (currentSettings.weatherModeEnabled) {
+            currentMode = WEATHER;
+        } else {
+            currentMode = NORMAL_CLOCK;
+        }
+
+        if (currentMode != lastDisplayMode) {
+            Serial.printf("LOOP_LOG: Display mode changing from %d to %d\n", lastDisplayMode, currentMode);
+            lastDisplayMode = currentMode;
+        }
+        // --- END MODIFICATION ---
+
+        if (isMessageOverrideActive) {
             displayOverrideMessage();
         } else if (isMalfunctioning) {
-            // SECOND PRIORITY: Show the malfunction animation.
             handleMalfunction();
         } else if (isAnimating) {
-            // THIRD PRIORITY: Show the main time travel animation.
             handleDisplayAnimation();
         } else {
-            // LOWEST PRIORITY: Run all normal operational modes.
             restoreDisplayAfterGlitch();
             handleTemporalEcho();
             handleGlitchEffect();
             handleSequencer();
             handlePresetCycling();
             handleSleepSchedule();
-
             if (currentSettings.stockTickerModeEnabled) {
                 if (isMarketOpen() && (millis() - lastStockDataFetch > 300000)) {
                     lastStockDataFetch = millis();
@@ -778,10 +822,9 @@ void loop() {
                     }
                 }
                 updateStockTickerDisplay();
-                
             } else if (isMarqueeOverrideActive) {
                 displayMarqueeOverride();
-          } else if (currentSettings.dataLinkEnabled && currentSettings.numDataPoints > 0) {
+            } else if (currentSettings.dataLinkEnabled) {
                 fetchDataLink();
                 updateMarqueeDisplay();
             } else if (currentSettings.weatherModeEnabled) {
@@ -792,64 +835,45 @@ void loop() {
         }
     }
 }
-void handleAudio() {
-    if (xSemaphoreTake(xAudioMutex, 0) == pdTRUE) {
-        if (isStreamingRadio) {
-		} else if (isPlayingSound && mp3->isRunning()) {
-            if (!mp3->loop()) {
-                mp3->stop();
-				isPlayingSound = false;
-                digitalWrite(I2S_SD_PIN, LOW);
-                delete file;
-                file = nullptr;
-				if (ttsFile != "") {
-                    LittleFS.remove(ttsFile);
-					ttsFile = "";
-                }
-            }
-        }
-        xSemaphoreGive(xAudioMutex);
-	}
-}
 
 void handleSequencer() {
     if (!isSequenceActive) return;
     SequenceStep step = sequence[currentSequenceStep];
     unsigned long elapsed = millis() - sequenceStepStartTime;
-	switch (step.command) {
+    switch (step.command) {
         case SEQ_CMD_TEXT:
             if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
-			currentSequenceStep++;
+            currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_FLASH:
             if (hardwareInitialized) triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
-			currentSequenceStep++;
+            currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_SOUND:
             if (hardwareInitialized) playSound(step.stringParam.c_str());
-			currentSequenceStep++;
+            currentSequenceStep++;
 			sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_WAIT:
             if (elapsed >= (unsigned long)step.intParam) {
                 sequenceStepStartTime = millis();
-				currentSequenceStep++;
+                currentSequenceStep++;
             }
             break;
-		case SEQ_CMD_END:
+        case SEQ_CMD_END:
             isSequenceActive = false;
             currentSequenceStep = 0;
             break;
-	}
+    }
 }
 
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-	if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
-	}
+    }
 }
 
 void handleSleepSchedule() {
@@ -858,161 +882,43 @@ void handleSleepSchedule() {
   getLocalTime(&timeinfo);
   
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-	int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
+  int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
   int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
-	bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
+  bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-	if (shouldBeAsleep && !isDisplayAsleep) {
+  if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
-		if (hardwareInitialized) {
+    if (hardwareInitialized) {
         blankAllDisplays();
         playSound("/SLEEP_ON.mp3");
     }
     updateHaStatus("Asleep");
-	} else if (!shouldBeAsleep && isDisplayAsleep) {
+  } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
-		if (hardwareInitialized) {
+    if (hardwareInitialized) {
         updateNormalClockDisplay();
         playSound("/CONFIRM_ON.mp3");
     }
     updateHaStatus("Idle");
-	}
-}
-
-void ttsDownloadTask(void* parameter) {
-    const char* url = (const char*)parameter;
-	if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.printf("Downloading TTS audio from: %s\n", url);
-		HTTPClient http;
-        WiFiClient client;
-        http.begin(client, url);
-
-        int httpCode = http.GET();
-		if (httpCode == HTTP_CODE_OK) {
-            File ttsFileHandle = LittleFS.open("/tts.mp3", "w");
-			if (ttsFileHandle) {
-                http.writeToStream(&ttsFileHandle);
-                ttsFileHandle.close();
-				ttsFile = "/tts.mp3";
-                Serial.println("TTS file downloaded successfully.");
-                playSound(ttsFile.c_str());
-            } else {
-                Serial.println("Failed to open file for writing.");
-				ttsFile = "";
-            }
-        } else {
-            Serial.printf("HTTP GET failed with code: %d\n", httpCode);
-			ttsFile = "";
-        }
-        http.end();
-        xSemaphoreGive(xAudioMutex);
-    }
-    delete[] url;
-    vTaskDelete(NULL);
-}
-
-void playTtsFromUrl(const char* url) {
-    if (isPlayingSound || isStreamingRadio) return;
-    char* urlCopy = new char[strlen(url) + 1];
-	strcpy(urlCopy, url);
-    xTaskCreatePinnedToCore(ttsDownloadTask, "ttsDownloadTask", 8192, urlCopy, 1, NULL, 0);
-}
-
-void playRadioStream(const char* url) {
-    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.printf("Starting radio stream from: %s\n", url);
-		startAudioStream(url, false);
-        isStreamingRadio = true;
-        xSemaphoreGive(xAudioMutex);
-    }
-}
-
-void stopRadioStream() {
-    if (!isStreamingRadio) return;
-	if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.println("Stopping radio stream.");
-        stopAudioStream();
-        isStreamingRadio = false;
-		xSemaphoreGive(xAudioMutex);
-    }
-}
-
-void startAudioStream(const char* url, bool is_tts) {
-    stopAudioStream();
-	if (!hardwareInitialized || !out) {
-      Serial.println("Hardware not initialized, cannot play audio.");
-		return;
-	}
-
-    if (is_tts) {
-        fileSourceHttp = new AudioFileSourceHTTPStream(url);
-		audioGenerator = new AudioGeneratorMP3();
-        if (audioGenerator->begin(fileSourceHttp, out)) {
-            Serial.printf("Started playing TTS: %s\n", url);
-			mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
-        } else {
-            Serial.println("Failed to start TTS playback.");
-			stopAudioStream();
-        }
-    } else { // Radio streamer
-        fileSourceIcy = new AudioFileSourceICYStream(url);
-		audioGenerator = new AudioGeneratorMP3();
-        if (audioGenerator->begin(fileSourceIcy, out)) {
-            Serial.printf("Started playing radio stream: %s\n", url);
-			mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
-        } else {
-            Serial.println("Failed to start radio playback.");
-			stopAudioStream();
-        }
-    }
-}
-
-void stopAudioStream() {
-    if (audioGenerator) {
-        audioGenerator->stop();
-		delete audioGenerator;
-        audioGenerator = NULL;
-    }
-    if (fileSourceHttp) {
-        fileSourceHttp->close();
-		delete fileSourceHttp;
-        fileSourceHttp = NULL;
-    }
-    if (fileSourceIcy) {
-        fileSourceIcy->close();
-		delete fileSourceIcy;
-        fileSourceIcy = NULL;
-    }
-    mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
+  }
 }
 
 bool isMarketOpen() {
     if (!timeSynchronized) return false;
-
-    // Temporarily set the timezone to US Eastern to check market hours
     setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
     tzset();
-
     struct tm timeinfo;
-    getLocalTime(&timeinfo);
-
-    // IMPORTANT: Reset the timezone back to the user's configured setting
+    getLocalTime(&timeinfo);    
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
 
-    // Check if it's a weekday (Monday = 1, Friday = 5)
     if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
         return false;
     }
 
-    // Convert current time to minutes from midnight
     int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-    // Market opens at 9:30 AM ET
     int market_open_minutes = 9 * 60 + 30;
-    // Market closes at 4:00 PM ET
     int market_close_minutes = 16 * 60;
-
-    // Return true if the current time is within market hours
     return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
 }

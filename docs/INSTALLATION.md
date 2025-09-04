@@ -6,7 +6,7 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 
 | Category | Component | Qty | Notes |
 | :--- | :--- | :-: | :--- |
-| **Microcontroller** | [ESP32-S3-DevKitC-1](https://www.aliexpress.com/item/1005006212080137.html) | 1 | This specific development board is required as the project is configured for its pinout. |
+| **Microcontroller** | [ESP32-S3 Dev Module](https://www.aliexpress.com/item/1005006212080137.html) | 1 | A **38-pin** module is required for this project. An S3 model is recommended. |
 | **Audio** | [MAX98357A I2S DAC Amplifier](https://www.aliexpress.com/item/1005005929311653.html) | 1 | For playing sound effects directly from the ESP32. |
 | | [Small 8 Ohm Speaker](https://www.aliexpress.com/item/1005006682079525.html) | 1 | A 0.5W or 1W speaker is sufficient. |
 | **Displays** | **Adafruit HT16K33 14-Segment Alphanumeric Displays** | 12 | The core of the display. Ensure they are the **14-segment "Alphanumeric"** type. |
@@ -18,34 +18,32 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 ---
 ## 🔌 Wiring & Schematics
 
+![schematic diagram](../images/bttf_bb.png)
+
 This project uses two separate I2C buses to manage all 12 displays without address conflicts.
 
-### ESP32-S3-DevKitC-1 Specific Instructions
+#### Component Wiring Table (ESP32-S3 Safe Pinout)
 
-If you are using the common **ESP32-S3-DevKitC-1** development board, the project's code has been pre-configured for your board's pin layout. Please use the following wiring connections to ensure compatibility.
+> **Note:** The following pinout is specifically for ESP32-S3 boards to avoid hardware conflicts with the built-in USB controller.
 
-**Recommended Pin Connections:**
-
-| Function | GPIO Pin | Board Side |
-| :--- | :---: | :---: |
-| **I2C Bus 1 (SDA)** | `21` | Side 1 |
-| **I2C Bus 1 (SCL)** | `12` | Side 2 |
-| **I2C Bus 2 (SDA)** | `9` | Side 2 |
-| **I2C Bus 2 (SCL)** | `10` | Side 2 |
-| **I2S LRC** | `16` | Side 2 |
-| **I2S BCLK** | `17` | Side 2 |
-| **I2S DIN** | `5` | Side 2 |
-| **I2S Amp Shutdown** | `18` | Side 2 |
-| **Destination AM LED** | `13` | Side 2 |
-| **Destination PM LED** | `14` | Side 2 |
-| **Present AM LED** | `11` | Side 2 |
-| **Present PM LED** | `6` | Side 2 |
-| **Last Departed AM LED**| `2` | Side 1 |
-| **Last Departed PM LED**| `4` | Side 2 |
-| **Power (+5V)** | `5V` | Side 2 |
-| **Ground (GND)** | `GND` | Side 1 |
-
-*Note: The `HardwareControl.h` file reflects these pin assignments. No further code changes are needed if you use this wiring scheme.*
+| Component | ESP32 Pin | Suggested Wire Color | Connection / Notes |
+| :--- | :--- | :--- | :--- |
+| **I2C Bus 1 (SDA)** | `GPIO 8` | Yellow | Connects to the SDA pin of the 8 "Destination" and "Present" row displays. |
+| **I2C Bus 1 (SCL)** | `GPIO 9` | Green | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. |
+| **I2C Bus 2 (SDA)** | `GPIO 10` | Blue | Connects to the SDA pin of the 4 "Last Time Departed" row displays. |
+| **I2C Bus 2 (SCL)** | `GPIO 11` | White | Connects to the SCL pin of the 4 "Last Time Departed" row displays. |
+| **I2S DIN (Data)** | `GPIO 17` | Gray | Connects to the **DIN** pin of the MAX98357A. |
+| **I2S BCLK (Bit Clock)**| `GPIO 16` | Orange | Connects to the **BCLK** pin of the MAX98357A. |
+| **I2S LRC (Word Select)**|`GPIO 15` | Purple | Connects to the **LRC** pin of the MAX98357A. |
+| **I2S SD (Shutdown)** | `GPIO 18` | Brown | Connects to the **SD** pin of the MAX98357A. |
+| **Destination AM LED**| `GPIO 13` | | Connects to the anode (+) of the AM LED for the Destination row. |
+| **Destination PM LED**| `GPIO 14` | | Connects to the anode (+) of the PM LED for the Destination row. |
+| **Present AM LED** | `GPIO 38` | | Connects to the anode (+) of the AM LED for the Present row. |
+| **Present PM LED** | `GPIO 39` | | Connects to the anode (+) of the PM LED for the Present row. |
+| **Last Dept. AM LED** | `GPIO 1` | | Connects to the anode (+) of the Last Departed row LED. |
+| **Last Dept. PM LED** | `GPIO 2` | | Connects to the anode (+) of the Last Departed row LED. |
+| **Power (+5V)** | `5V` | Red | Connects to the VCC/VIN pin of all components. |
+| **Ground (GND)** | `GND` | Black | Connects all GND pins to a common ground rail. |
 
 ---
 ## 🔩 3D Printed Case & Assembly
@@ -68,13 +66,6 @@ A 3D printed enclosure is highly recommended for a professional finish.
 
 2.  **Understanding the Custom Partition Scheme**:
     > ⚠️ **Critical Step:** This project uses a custom partition scheme to allocate the necessary space for the application and the filesystem on a 16MB ESP32. By selecting "Custom" in the IDE, you are telling it to use the `partitions_custom.csv` file located in the sketch folder.
-
-    This partition scheme is structured as follows:
-    * **`nvs` (20KB):** Non-Volatile Storage for system settings like Wi-Fi credentials.
-    * **`otadata` (8KB):** Stores data to manage Over-The-Air (OTA) updates.
-    * **`app0` (3MB):** The primary partition where the main firmware runs.
-    * **`app1` (3MB):** A secondary partition used to store new firmware during an OTA update.
-    * **`ffat` (~9.9MB):** A large FAT filesystem partition. This is where all your sound files (MP3s) and web interface files (`index.html`, etc.) will be stored.
 
 3.  **Install Required Libraries**:
     * Open the Library Manager (`Sketch` -> `Include Library` -> `Manage Libraries...`).

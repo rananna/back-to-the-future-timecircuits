@@ -285,6 +285,8 @@ void handleMalfunction() {
                 malfunctionStartTime = millis();
             }
             break;
+// In AnimationManager.cpp, inside handleMalfunction()
+
         case MAL_ERROR_MESSAGE:
             if (elapsed < 3000) {
                 printToDisplay(presRow.month, "ERR", 1);
@@ -295,6 +297,9 @@ void handleMalfunction() {
                 presRow.day.writeDisplay();
                 presRow.year.writeDisplay();
                 presRow.time.writeDisplay();
+                
+                // FIX: Add a delay after this burst of writes.
+                vTaskDelay(pdMS_TO_TICKS(5));
             } else {
                 currentMalfunctionPhase = MAL_REBOOT;
                 malfunctionStartTime = millis();
@@ -321,21 +326,15 @@ void handleMalfunction() {
 /**
  * @brief Starts the boot-up animation.
  */
+// In AnimationManager.cpp
 void runBootSequence() {
     Serial.println("BOOT_LOG: runBootSequence() called.");
     if (bootState == BOOT_INACTIVE) {
-        setOverrideMessage("", "", "");
-        bootState = BOOT_START;
+        bootState = BOOT_START; // Only sets the initial state
         bootStateStartTime = millis();
-        if (hardwareInitialized) {
-            playSound("/BOOT_UP.mp3");
-        }
         Serial.println("BOOT_LOG: Boot sequence initiated.");
-    } else {
-        Serial.println("BOOT_LOG: Boot sequence already active.");
     }
 }
-
 /**
  * @brief State machine for the boot sequence.
  */
@@ -349,16 +348,39 @@ void handleBootSequence() {
 
     switch (bootState) {
         case BOOT_START:
+            Serial.println("BS_LOG: Entering BOOT_START");
+            // MODIFICATION: Changed the initial sound to the main boot sound
+            if (hardwareInitialized && elapsed < 50) { // Run only once
+                playSound("/BOOT_UP.mp3");
+            }
             if (elapsed > 1000) {
-                if (hardwareInitialized) playSound("/power_hum.mp3");
+                bootState = BOOT_PLAY_HUM_SOUND;
+                bootStateStartTime = millis();
+            }
+            break;
+
+        case BOOT_PLAY_HUM_SOUND:
+             // This state now handles the looping hum and a low-power message
+            if (hardwareInitialized && elapsed < 50) { // Run only once
+                playSound("/power_hum.mp3");
+                setOverrideMessage("", "SYSTEM CHECK...", ""); // Low-power display message
+            }
+            
+            // Wait for 1.5 seconds for audio power to stabilize before animating displays
+            if (elapsed > 1500) { 
                 bootState = BOOT_POWER_ON_DEST;
                 bootStateStartTime = millis();
             }
             break;
 
         case BOOT_POWER_ON_DEST:
+            Serial.println("BS_LOG: Entering BOOT_POWER_ON_DEST");
             if (hardwareInitialized) {
-                blankAllDisplays();
+                // MODIFICATION: Ensure override is disabled before starting animations
+                if (isMessageOverrideActive) {
+                    isMessageOverrideActive = false;
+                    blankAllDisplays();
+                }
                 animateDisplayRowRandomly(destRow);
             }
             if (elapsed > BOOT_POWER_ON_DURATION) {
@@ -367,7 +389,9 @@ void handleBootSequence() {
             }
             break;
 
+        // --- NO CHANGES to BOOT_POWER_ON_PRES or BOOT_POWER_ON_LAST ---
         case BOOT_POWER_ON_PRES:
+            Serial.println("BS_LOG: Entering BOOT_POWER_ON_PRES"); // LOGGING
             if (hardwareInitialized) {
                 updateNormalClockDisplay(true, false, false);
                 animateDisplayRowRandomly(presRow);
@@ -379,6 +403,7 @@ void handleBootSequence() {
             break;
 
         case BOOT_POWER_ON_LAST:
+            Serial.println("BS_LOG: Entering BOOT_POWER_ON_LAST"); // LOGGING
             if (hardwareInitialized) {
                 updateNormalClockDisplay(true, true, false);
                 animateDisplayRowRandomly(lastRow);
@@ -388,8 +413,10 @@ void handleBootSequence() {
                 bootStateStartTime = millis();
             }
             break;
-
+        
+        // --- NO CHANGES to the rest of the function ---
         case BOOT_SYSTEM_CHECK:
+            Serial.println("BS_LOG: Entering BOOT_SYSTEM_CHECK"); // LOGGING
             if (hardwareInitialized) {
                 static int lastPhase = -1;
                 int phase = elapsed / 2000;
@@ -413,6 +440,7 @@ void handleBootSequence() {
             break;
 
         case BOOT_SPEEDOMETER:
+            Serial.println("BS_LOG: Entering BOOT_SPEEDOMETER"); // LOGGING
             if (elapsed < BOOT_SPEEDOMETER_DURATION) {
                 float progress = (float)elapsed / BOOT_SPEEDOMETER_DURATION;
                 float easedProgress = progress * (2.0f - progress);
@@ -432,6 +460,7 @@ void handleBootSequence() {
             break;
 
         case BOOT_FADE_TO_CLOCK:
+            Serial.println("BS_LOG: Entering BOOT_FADE_TO_CLOCK"); // LOGGING
             if (hardwareInitialized) {
                 static bool fadeSoundPlayed = false;
                 if(!fadeSoundPlayed){
@@ -496,6 +525,9 @@ void handleBootSequence() {
                     }
                     printToDisplay(display, buffer);
                     display.writeDisplay();
+                    
+                    // FIX: Add the cooperative delay after every I2C write.
+                    vTaskDelay(pdMS_TO_TICKS(1));
                 };
                 
                 // Update all 12 display segments
@@ -509,8 +541,9 @@ void handleBootSequence() {
                 bootStateStartTime = millis();
             }
             break;
-
+            
         case BOOT_COMPLETE:
+            Serial.println("BS_LOG: Entering BOOT_COMPLETE"); // LOGGING
             if (elapsed > 500) {
                 isMessageOverrideActive = false;
                 bootState = BOOT_INACTIVE;
