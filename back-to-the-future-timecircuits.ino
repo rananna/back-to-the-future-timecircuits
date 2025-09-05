@@ -561,18 +561,15 @@ audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
         audio.setVolume(currentSettings.notificationVolume);
         Audio::audio_info_callback = audio_info;
 
-        // Start the dedicated audio task on Core 0
-        xTaskCreatePinnedToCore(
-            AudioProcessingTask,      // Task function
-            "AudioTask",              // Name of the task
-            AUDIO_TASK_STACK_SIZE,    // Stack size
-         
-   NULL,                     // Parameter
-            5,                        // Priority
-            &AudioTask,               // Task handle
-         
-   0                         // Core ID
-        );
+// Start the dedicated audio task without pinning it to a core
+xTaskCreate(
+    AudioProcessingTask,      // Task function
+    "AudioTask",              // Name of the task
+    AUDIO_TASK_STACK_SIZE,    // Stack size
+    NULL,                     // Parameter
+    5,                        // Priority
+    &AudioTask                // Task handle
+);
 Serial.println(F("BOOT_LOG: I2S Audio... OK"));
         triggerFlashEffect(1, 3, 0);
     }
@@ -697,7 +694,7 @@ if (reboot_time == 0) reboot_time = millis();
 }
             break;
 case WIFI_STATE_CONNECTED:
-            if (!logConnectingPrinted) {
+            if (!logConnectedPrinted) {
                 ESP_LOGI("WiFi", "IP: %s", WiFi.localIP().toString().c_str());
 // Start the web server now that we are connected
                 server.begin();
@@ -712,7 +709,7 @@ if (MDNS.begin("timecircuits")) {
 }
             if (WiFi.status() != WL_CONNECTED) {
                 wifiState = WIFI_STATE_CONNECTING;
-logConnectingPrinted = false;
+              logConnectingPrinted = false;
                 logConnectedPrinted = false;
                 wifiConnectStartTime = millis();
                 return;
@@ -794,6 +791,7 @@ handleGlitchEffect();
                         lastStockDataFetch = millis();
 for (int i=0; i<3; ++i) {
                             FetchDataParams* params = new FetchDataParams{ i, 0 };
+// This is the corrected line
 xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
                         }
                     }

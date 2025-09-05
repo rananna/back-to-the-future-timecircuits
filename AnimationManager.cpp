@@ -240,6 +240,7 @@ void handleGlitchEffect() {
     if (millis() - lastGlitchTime > 1000) { // Check once per second
         lastGlitchTime = millis();
 
+        /*
         // Check for a major malfunction
         if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
             isMalfunctioning = true;
@@ -248,15 +249,17 @@ void handleGlitchEffect() {
             updateHaStatus("Malfunctioning");
             return; // Prioritize malfunction over a simple glitch
         }
+        */
 
+        /*
         // Check for a minor glitch
         if (currentSettings.glitchEffectFrequency > 0 && random(100) < currentSettings.glitchEffectFrequency) {
             isGlitching = true;
             glitchStartTime = millis();
         }
+        */
     }
 }
-
 /**
  * @brief Restores the display to its normal state after a brief glitch effect has completed.
  */
