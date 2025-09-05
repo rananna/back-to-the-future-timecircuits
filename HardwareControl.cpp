@@ -61,7 +61,6 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
 }
 
 // --- FUNCTION IMPLEMENTATIONS ---
-
 /**
  * @brief Initializes all physical display hardware.
  * @details This function sets up the two I2C buses with their designated GPIO pins.
@@ -72,8 +71,8 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
 void setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
   // Initialize both I2C buses with their respective SDA/SCL pins.
-  I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 100000);
-  I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 100000);
+  I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
+  I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
 
   // Initialize the Adafruit_AlphaNum4 objects.
   destRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
@@ -213,7 +212,6 @@ void animateDisplayRowRandomly(DisplayRow& row) {
     vTaskDelay(pdMS_TO_TICKS(1)); // <-- ADD THIS LINE
   #endif
 }
-
 void displaySpeed(int speed) {
   #if ENABLE_HARDWARE
   char speedBuffer[5];
@@ -441,7 +439,6 @@ void blankAllDisplays() {
   vTaskDelay(pdMS_TO_TICKS(5)); // <-- ADD THIS LINE
   #endif
 }
-
 void display88MphSpeed(float speed) {
   #if ENABLE_HARDWARE
   printToDisplay(lastRow.day, "88", 2);
@@ -451,10 +448,6 @@ void display88MphSpeed(float speed) {
   #endif
 }
 
-
-// In HardwareControl.cpp
-
-// In HardwareControl.cpp
 
 void playSoundTask(void* parameter) {
     PlaySoundParams* params = (PlaySoundParams*)parameter;
@@ -478,7 +471,7 @@ void playSoundTask(void* parameter) {
             } else {
                 // The SD pin logic is harmless even if unwired.
                 digitalWrite(I2S_SD_PIN, HIGH);
-                delay(10);
+                vTaskDelay(pdMS_TO_TICKS(10));
                 isPlayingSound = true;
                 if (currentSettings.timeTravelVolumeFade) {
                     audio.setVolume(0);
@@ -500,22 +493,25 @@ void playSoundTask(void* parameter) {
     delete params;
     vTaskDelete(NULL);
 }
+
+
 void playSound(const char* filepath) {
     #if ENABLE_HARDWARE
-    Serial.printf("AUDIO_LOG: Request to play sound: %s\n", filepath); // MODIFICATION: Added logging
-    // Create a parameter object to pass the filename to the new task.
+    Serial.printf("AUDIO_LOG: Request to play sound: %s\n", filepath);
     PlaySoundParams* params = new PlaySoundParams();
     strncpy(params->filepath, filepath, MAX_FILENAME_LENGTH - 1);
     params->filepath[MAX_FILENAME_LENGTH - 1] = '\0';
 
     // Create the background task that will do the actual work.
-    xTaskCreate(
+    // MODIFICATION: Pin the task to Core 0 and adjust priority.
+    xTaskCreatePinnedToCore(
         playSoundTask,    // The function to run
         "playSoundTask",  // A name for the task
         8192,             // The stack size
         params,           // The parameters to pass to the function
-        5,                // The priority of the task
-        NULL              // The task handle (not needed)
+        4,                // Priority (Lower than AudioProcessingTask)
+        NULL,             // The task handle (not needed)
+        0                 // Pin to Core 0
     );
     #endif
 }

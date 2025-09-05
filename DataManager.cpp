@@ -25,6 +25,8 @@ String urlEncode(const char* msg) {
     return encodedMsg;
 }
 
+// In DataManager.cpp
+
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     if (!path) {
         return JsonVariant();

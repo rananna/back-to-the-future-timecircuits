@@ -61,6 +61,7 @@ struct MarqueeData {
 
 enum AnimationPhase {
   ANIM_INACTIVE,
+  ANIM_WAIT_FOR_SOUND,
   ANIM_POWER_UP,
   ANIM_FLICKER,
   ANIM_TIME_ACCELERATION,

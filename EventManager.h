@@ -72,6 +72,7 @@ extern bool isSequenceActive;
 extern Audio audio;
 extern SemaphoreHandle_t xAudioMutex;
 extern void volumeFadeTask(void* parameter);
+extern bool audioStopRequested; // MODIFICATION: Added new global flag
 
 extern bool hardwareInitialized;
 // Event types for inter-task communication
