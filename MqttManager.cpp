@@ -234,8 +234,7 @@ void publishHaAutoDiscovery() {
     }
 
      const char* switch_configs[][3] = {
-        {"24h_format", "24-Hour Format", "mdi:clock-time-twelve-outline"},
-        {"volume_fade", "Volume Fade Effect", "mdi:volume-variant-remove"}
+        {"24h_format", "24-Hour Format", "mdi:clock-time-twelve-outline"}
     };
     for (auto const& cfg : switch_configs) {
         doc.clear();
@@ -570,10 +569,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             int vol = message.toInt();
             if (vol >= 0 && vol <= 21) {
                 currentSettings.notificationVolume = vol;
-                if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
-                    audio.setVolume(vol);
-                    xSemaphoreGive(xAudioMutex);
-                }
+                audio.setVolume(vol);
                 settingsChanged = true;
                 broadcastWsStateUpdate("notificationVolume", vol);
             }
@@ -706,10 +702,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             currentSettings.displayFormat24h = (message == "ON");
             settingsChanged = true;
             broadcastWsStateUpdate("displayFormat24h", currentSettings.displayFormat24h);
-        } else if (topicStr == base_topic + "volume_fade/command") {
-            currentSettings.timeTravelVolumeFade = (message == "ON");
-            settingsChanged = true;
-            broadcastWsStateUpdate("timeTravelVolumeFade", currentSettings.timeTravelVolumeFade);
         } else if (topicStr == base_topic + "animation_interval/command") {
             currentSettings.timeTravelAnimationInterval = message.toInt();
             settingsChanged = true;
@@ -995,7 +987,6 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/weather_city/state").c_str(), currentSettings.cityName.c_str(), true);
 
     mqttClient.publish((base_topic + "/24h_format/state").c_str(), currentSettings.displayFormat24h ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/volume_fade/state").c_str(), currentSettings.timeTravelVolumeFade ? "ON" : "OFF", true);
     itoa(currentSettings.timeTravelAnimationInterval, payload, 10);
     mqttClient.publish((base_topic + "/animation_interval/state").c_str(), payload, true);
     itoa(currentSettings.timeTravelAnimationDuration, payload, 10);
@@ -1059,41 +1050,45 @@ void publishTimeSensors() {
 }
 
 void startAudioStream(const char* url, bool is_tts) {
-    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
-        if (!hardwareInitialized) {
-            Serial.println("AUDIO_LOG: Hardware not initialized, cannot play audio.");
-            xSemaphoreGive(xAudioMutex);
-            return;
-        }
+    Serial.printf("AUDIO_LOG: Request to start audio stream from URL: %s\n", url);
+    if (!hardwareInitialized) {
+        Serial.println("AUDIO_LOG: Hardware not initialized, cannot play audio.");
+        return;
+    }
 
-        if (audio.isRunning()) {
-            audio.stopSong();
-        }
-        
-        digitalWrite(I2S_SD_PIN, HIGH);
-        isPlayingSound = true;
-        audio.setVolume(currentSettings.notificationVolume); // Use full volume for streams
-        audio.connecttohost(url);
-        
-        Serial.printf("AUDIO_LOG: Started streaming from URL: %s\n", url);
+    if (audio.isRunning()) {
+        audio.stopSong();
+        Serial.println("AUDIO_LOG: Stopped existing audio to play new stream.");
+    }
+    
+    digitalWrite(I2S_SD_PIN, HIGH);
+    isPlayingSound = true;
+    audio.setVolume(currentSettings.notificationVolume); // Use full volume for streams
+    strncpy(currentSoundFile, url, MAX_FILENAME_LENGTH - 1);
+    currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
+    
+    if (audio.connecttohost(url)) {
+        Serial.printf("AUDIO_LOG: Successfully connected to host for streaming: %s\n", url);
         if (mqttClient.connected()) {
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
         }
-        xSemaphoreGive(xAudioMutex);
+    } else {
+        Serial.printf("AUDIO_LOG: Failed to connect to host for streaming: %s\n", url);
+        isPlayingSound = false;
+        currentSoundFile[0] = '\0';
+        digitalWrite(I2S_SD_PIN, LOW);
     }
 }
 
 void stopAudioStream() {
-    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
-        if (audio.isRunning()) {
-            if (currentSettings.timeTravelVolumeFade) {
-                // This creates a task that will stop the song after fading
-                xTaskCreate(volumeFadeTask, "FadeOut", 2048, (void*)false, 5, NULL);
-            } else {
-                audio.stopSong();
-            }
-            Serial.println("AUDIO_LOG: Stopped audio stream.");
-        }
-        xSemaphoreGive(xAudioMutex);
+    Serial.println("AUDIO_LOG: Request to stop audio stream.");
+    if (audio.isRunning()) {
+        audio.stopSong();
+        isPlayingSound = false; // Manually update state as stopSong() doesn't trigger callback immediately
+        currentSoundFile[0] = '\0';
+        digitalWrite(I2S_SD_PIN, LOW);
+        Serial.println("AUDIO_LOG: Audio stream stopped successfully.");
+    } else {
+        Serial.println("AUDIO_LOG: No audio stream was running.");
     }
 }

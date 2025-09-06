@@ -35,12 +35,6 @@
 #define ENABLE_HARDWARE 1
 #define MAX_FILENAME_LENGTH 64
 
-/**
- * @brief A struct to pass the filepath parameter to the playSoundTask.
- */
-struct PlaySoundParams {
-    char filepath[MAX_FILENAME_LENGTH];
-};
 // --- ENUMS & DATA STRUCTURES ---
 
 enum DisplayModeState {
@@ -131,7 +125,6 @@ struct ClockSettings {
   int animationStyle;
   int glitchEffectFrequency;
   int malfunctionFrequency;
-  bool timeTravelVolumeFade;
   bool dataLinkEnabled;
   int dataLinkTargetRow;
   int dataLinkRefreshInterval;

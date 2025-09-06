@@ -384,7 +384,6 @@ function saveSettings() {
     settings.presetCycleInterval = parseInt(document.getElementById('presetCycleInterval').value, 10);
 
     settings.timeTravelSoundToggle = document.getElementById('timeTravelSoundToggle').checked;
-    settings.timeTravelVolumeFade = document.getElementById('timeTravelVolumeFade').checked;
     settings.displayFormat24h = document.getElementById('displayFormat24h').checked;
 
     // Data Link, Weather & Stock Ticker Settings

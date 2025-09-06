@@ -256,7 +256,7 @@ async function applySettings(timecircuits, temporal, datalink) {
                 if (valueSpan) valueSpan.textContent = temporal[id];
             }
         });
-        ['timeTravelSoundToggle', 'timeTravelVolumeFade', 'displayFormat24h'].forEach(id => {
+        ['timeTravelSoundToggle', 'displayFormat24h'].forEach(id => {
             document.getElementById(id).checked = temporal[id];
         });
         document.getElementById('animationStyleSelect').value = temporal.animationStyle;
@@ -540,7 +540,7 @@ function handlePresetSelectionChange(event) {
         document.getElementById('presetName').value = selectedOption.textContent;
         const [year, month, day, hour, minute] = selectedOption.value.split('-');
         document.getElementById('presetDate').value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        document.getElementById('presetTime').value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        document.getElementById('presetTime').value = `${String(hour).padStart(2, '0')}-${String(minute).padStart(2, '0')}`;
     } else {
         // Otherwise, show the "add new" form
         resetPresetForm(false);

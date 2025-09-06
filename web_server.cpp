@@ -342,7 +342,6 @@ void setupWebRoutes() {
     doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency;
     doc["malfunctionFrequency"] = currentSettings.malfunctionFrequency;
     doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
-    doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade;
     doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
     String jsonString;
@@ -397,7 +396,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "application/json", TZ_JSON);
+    request->send(200, "application/json", TZ_JSON);
   });
 
   server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -493,7 +492,6 @@ void setupWebRoutes() {
     currentSettings.malfunctionFrequency = obj["malfunctionFrequency"] | currentSettings.malfunctionFrequency;
     currentSettings.notificationVolume = obj["notificationVolume"] | currentSettings.notificationVolume;
     currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"] | currentSettings.timeTravelSoundToggle;
-    currentSettings.timeTravelVolumeFade = obj["timeTravelVolumeFade"] | currentSettings.timeTravelVolumeFade;
     currentSettings.presentTimezoneIndex = obj["presentTimezoneIndex"] | currentSettings.presentTimezoneIndex;
     currentSettings.displayFormat24h = obj["displayFormat24h"] | currentSettings.displayFormat24h;
 
@@ -562,10 +560,7 @@ void setupWebRoutes() {
     delay(100);
     mqttReconnectRequired = true;
 
-    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
-        audio.setVolume(currentSettings.notificationVolume);
-        xSemaphoreGive(xAudioMutex);
-    }
+    audio.setVolume(currentSettings.notificationVolume);
 
     request->send(200, "text/plain", "Settings Saved!");
   });
@@ -659,7 +654,7 @@ void setupWebRoutes() {
       request->send(200, "text/plain", themeName);
   });
   server.on("/api/api_examples", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "application/json", apiTemplates);
+    request->send(200, "application/json", apiTemplates);
   });
   server.on("/api/setTheme", HTTP_POST, [](AsyncWebServerRequest *request){
     String theme = request->getParam("theme", true)->value();

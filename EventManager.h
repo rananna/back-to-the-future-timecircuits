@@ -46,6 +46,7 @@ extern PubSubClient mqttClient;
 extern bool timeSynchronized;
 extern int currentPageIndex;
 extern bool isPlayingSound;
+extern char currentSoundFile[MAX_FILENAME_LENGTH];
 
 
 extern bool isMessageOverrideActive;
@@ -70,10 +71,6 @@ extern bool isSequenceActive;
 
 // --- NEW GLOBAL AUDIO DECLARATIONS ---
 extern Audio audio;
-extern SemaphoreHandle_t xAudioMutex;
-extern void volumeFadeTask(void* parameter);
-extern bool audioStopRequested; // MODIFICATION: Added new global flag
-
 extern bool hardwareInitialized;
 // Event types for inter-task communication
 enum EventType {

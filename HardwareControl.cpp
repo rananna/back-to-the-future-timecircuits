@@ -27,7 +27,6 @@ DisplayRow lastRow;
 
 // --- Make global audio objects available ---
 extern bool isPlayingSound;
-extern QueueHandle_t audioQueue;
 
 #endif
 
@@ -279,13 +278,15 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
     }
     #endif
 }
+// In HardwareControl.cpp
+
 void flashAllDisplays() {
     #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i=0; i<3; ++i) {
         // Directly manipulate the display buffer to turn on all 16 segments (16 bits).
         // 0xFFFF in hex is a 16-bit number with all bits set to 1.
-        for(int j=0; j<16; ++j) {
+        for(int j=0; j<8; ++j) { // MODIFIED: Changed loop from 16 to 8
             rows[i]->month.displaybuffer[j] = 0xFFFF;
             rows[i]->day.displaybuffer[j] = 0xFFFF;
             rows[i]->year.displaybuffer[j] = 0xFFFF;
@@ -448,70 +449,36 @@ void display88MphSpeed(float speed) {
   #endif
 }
 
-
-void playSoundTask(void* parameter) {
-    PlaySoundParams* params = (PlaySoundParams*)parameter;
-
-    #if ENABLE_HARDWARE
-    // FIX: Take the mutex at the VERY BEGINNING of the task.
-    // This "locks" the audio system to prevent other sounds from starting
-    // while this one is being set up.
-    if (xSemaphoreTake(xAudioMutex, portMAX_DELAY) == pdTRUE) {
-
-        // The logic inside remains the same.
-        if (audio.isRunning()) {
-            if (xQueueSend(audioQueue, &params->filepath, (TickType_t)0) == pdPASS) {
-                Serial.printf("AUDIO_LOG: Queued sound: %s\n", params->filepath);
-            } else {
-                Serial.println("AUDIO_LOG: Audio queue is full.");
-            }
-        } else {
-            if (!LittleFS.exists(params->filepath)) {
-                Serial.printf("AUDIO_LOG: File not found: %s\n", params->filepath);
-            } else {
-                // The SD pin logic is harmless even if unwired.
-                digitalWrite(I2S_SD_PIN, HIGH);
-                vTaskDelay(pdMS_TO_TICKS(10));
-                isPlayingSound = true;
-                if (currentSettings.timeTravelVolumeFade) {
-                    audio.setVolume(0);
-                    xTaskCreate(volumeFadeTask, "FadeIn", 2048, (void*)true, 5, NULL);
-                } else {
-                    audio.setVolume(currentSettings.notificationVolume);
-                }
-                audio.connecttoFS(LittleFS, params->filepath);
-                Serial.printf("AUDIO_LOG: Playing %s\n", params->filepath);
-            }
-        }
-
-        // FIX: Release the mutex at the VERY END.
-        // This "unlocks" the audio system for the next sound task.
-        xSemaphoreGive(xAudioMutex);
-    }
-    #endif
-
-    delete params;
-    vTaskDelete(NULL);
-}
-
-
 void playSound(const char* filepath) {
     #if ENABLE_HARDWARE
     Serial.printf("AUDIO_LOG: Request to play sound: %s\n", filepath);
-    PlaySoundParams* params = new PlaySoundParams();
-    strncpy(params->filepath, filepath, MAX_FILENAME_LENGTH - 1);
-    params->filepath[MAX_FILENAME_LENGTH - 1] = '\0';
 
-    // Create the background task that will do the actual work.
-    // MODIFICATION: Pin the task to Core 0 and adjust priority.
-    xTaskCreatePinnedToCore(
-        playSoundTask,    // The function to run
-        "playSoundTask",  // A name for the task
-        8192,             // The stack size
-        params,           // The parameters to pass to the function
-        4,                // Priority (Lower than AudioProcessingTask)
-        NULL,             // The task handle (not needed)
-        0                 // Pin to Core 0
-    );
+    if (audio.isRunning()) {
+        Serial.printf("AUDIO_LOG: Ignored request for '%s' because a sound is already playing.\n", filepath);
+        return;
+    }
+    
+    if (!LittleFS.exists(filepath)) {
+        Serial.printf("AUDIO_LOG: File not found: %s\n", filepath);
+        return;
+    }
+
+    // The SD pin logic is harmless even if unwired.
+    digitalWrite(I2S_SD_PIN, HIGH);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    isPlayingSound = true;
+    audio.setVolume(currentSettings.notificationVolume);
+    strncpy(currentSoundFile, filepath, MAX_FILENAME_LENGTH - 1);
+    currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
+    
+    if (audio.connecttoFS(LittleFS, filepath)) {
+        Serial.printf("AUDIO_LOG: Started playing: %s\n", filepath);
+    } else {
+        Serial.printf("AUDIO_LOG: Failed to connect to file: %s\n", filepath);
+        isPlayingSound = false;
+        currentSoundFile[0] = '\0';
+        digitalWrite(I2S_SD_PIN, LOW);
+    }
     #endif
 }

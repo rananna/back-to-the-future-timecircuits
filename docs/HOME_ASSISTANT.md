@@ -5,7 +5,7 @@ This project includes deep, "headless" integration with Home Assistant using the
 This guide will walk you through setup, features, troubleshooting, and advanced usage.
 
 > ### ⚡ Quick Start
-
+>
 > Already familiar with MQTT and Home Assistant? Here's the fast track:
 > 1.  **Configure:** Add your MQTT Broker details in the clock's **Data Link** web UI and save the settings.
 > 2.  **Discover:** The clock will auto-discover in Home Assistant under the MQTT integration.
@@ -87,7 +87,6 @@ Entities are grouped by function to make them easy to find.
 * **`select.time_circuits_display_animation_style`**: Choose from 10 different animation styles.
 * **`number.time_circuits_display_animation_interval`**: How often to auto-play the animation (in minutes, 0=off).
 * **`number.time_circuits_display_animation_duration`**: Sets the length of the time travel effect (in milliseconds).
-* **`switch.time_circuits_display_volume_fade`**: Toggles the audio fade effect during animations.
 
 #### **Marquee & DataLink**
 * **`text.time_circuits_display_marquee_temp_override`**: Sends a temporary scrolling message. Use plain text or JSON for a timed message: `{"text": "ALERT", "duration": 60}`.
