@@ -433,11 +433,11 @@ void blankAllDisplays() {
   lastRow.month.clear(); lastRow.day.clear(); lastRow.year.clear(); lastRow.time.clear();
 
   destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-  
-  // Add a single delay after all writes are sent
-  vTaskDelay(pdMS_TO_TICKS(5)); // <-- ADD THIS LINE
+  vTaskDelay(pdMS_TO_TICKS(2));
   #endif
 }
 void display88MphSpeed(float speed) {

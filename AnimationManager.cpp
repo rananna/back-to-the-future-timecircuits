@@ -300,8 +300,6 @@ void handleMalfunction() {
                 presRow.day.writeDisplay();
                 presRow.year.writeDisplay();
                 presRow.time.writeDisplay();
-                
-                // FIX: Add a delay after this burst of writes.
                 vTaskDelay(pdMS_TO_TICKS(5));
             } else {
                 currentMalfunctionPhase = MAL_REBOOT;
@@ -385,6 +383,7 @@ void handleBootSequence() {
                 presRow.day.writeDisplay();
                 presRow.year.writeDisplay();
                 presRow.time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
                 stateActionCompleted = true;
             }
             if (elapsed > 2000) { // Display for 2 seconds
@@ -411,7 +410,6 @@ void handleBootSequence() {
             if (!stateActionCompleted && hardwareInitialized) {
                 Serial.println("BOOT_LOG: BOOT_POWER_ON_DEST action started.");
                 blankAllDisplays();
-                vTaskDelay(pdMS_TO_TICKS(5));
                 printToDisplay(destRow.month, "BTTF", 1);
                 printToDisplay(destRow.day, "88", 2);
                 printToDisplay(destRow.year, "1.21");
@@ -523,7 +521,6 @@ void handleBootSequence() {
             if (!stateActionCompleted && hardwareInitialized) {
                  Serial.println("BOOT_LOG: BOOT_SPEEDOMETER initial display.");
                  blankAllDisplays();
-                 vTaskDelay(pdMS_TO_TICKS(5));
                  printToDisplay(destRow.month, "SYS", 1);
                  printToDisplay(destRow.year, "RDY");
                  destRow.month.writeDisplay();
@@ -546,6 +543,7 @@ void handleBootSequence() {
                 presRow.day.writeDisplay();
                 presRow.year.writeDisplay();
                 presRow.time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
 
             } else {
                 speedometerValue = 88;

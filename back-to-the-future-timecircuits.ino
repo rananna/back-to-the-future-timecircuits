@@ -519,7 +519,6 @@ void setup() {
         audio.setVolume(currentSettings.notificationVolume);
         Audio::audio_info_callback = audio_info;
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
-        triggerFlashEffect(1, 3, 0);
     }
 
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
