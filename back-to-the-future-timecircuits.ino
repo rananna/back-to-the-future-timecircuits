@@ -39,6 +39,8 @@ const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
 const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
+const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates
+
 
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
 enum WifiState {
@@ -96,6 +98,7 @@ MarqueeData lastGoodDisplayPages[5];
 WeatherData currentWeatherData;
 StockData stockData[3];
 unsigned long lastStockDataFetch = 0;
+unsigned long lastDisplayUpdateTime = 0;
 std::string lastCityName = "";
 unsigned long bootTimestamp = 0;
 bool hardwareInitialized = false;
@@ -700,38 +703,44 @@ void loop() {
                 marqueeOverrideEndTime = 0;
                 publishAllHaStates();
             }
-            if (isMessageOverrideActive) {
-                displayOverrideMessage();
-            } else if (isMalfunctioning) {
-                handleMalfunction();
-            } else if (isAnimating) {
-                handleDisplayAnimation();
-            } else {
-                restoreDisplayAfterGlitch();
-                handleTemporalEcho();
-                handleGlitchEffect();
-                handleSequencer();
-                handlePresetCycling();
-                handleSleepSchedule();
-                if (currentSettings.stockTickerModeEnabled) {
-                    if (isMarketOpen() && (millis() - lastStockDataFetch > 300000)) {
-                        lastStockDataFetch = millis();
-                        for (int i=0; i<3; ++i) {
-                            FetchDataParams* params = new FetchDataParams{ i, 0 };
-                            // This is the corrected line
-                            xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
-                        }
-                    }
-                    updateStockTickerDisplay();
-                } else if (isMarqueeOverrideActive) {
-                    displayMarqueeOverride();
-                } else if (currentSettings.dataLinkEnabled) {
-                    fetchDataLink();
-                    updateMarqueeDisplay();
-                } else if (currentSettings.weatherModeEnabled) {
-                    handleWeatherDisplay();
+            
+            // Only update the display if enough time has passed
+            if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
+                lastDisplayUpdateTime = millis();
+
+                if (isMessageOverrideActive) {
+                    displayOverrideMessage();
+                } else if (isMalfunctioning) {
+                    handleMalfunction();
+                } else if (isAnimating) {
+                    handleDisplayAnimation();
                 } else {
-                    updateNormalClockDisplay();
+                    restoreDisplayAfterGlitch();
+                    handleTemporalEcho();
+                    handleGlitchEffect();
+                    handleSequencer();
+                    handlePresetCycling();
+                    handleSleepSchedule();
+                    if (currentSettings.stockTickerModeEnabled) {
+                        if (isMarketOpen() && (millis() - lastStockDataFetch > 300000)) {
+                            lastStockDataFetch = millis();
+                            for (int i=0; i<3; ++i) {
+                                FetchDataParams* params = new FetchDataParams{ i, 0 };
+                                // This is the corrected line
+                                xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
+                            }
+                        }
+                        updateStockTickerDisplay();
+                    } else if (isMarqueeOverrideActive) {
+                        displayMarqueeOverride();
+                    } else if (currentSettings.dataLinkEnabled) {
+                        fetchDataLink();
+                        updateMarqueeDisplay();
+                    } else if (currentSettings.weatherModeEnabled) {
+                        handleWeatherDisplay();
+                    } else {
+                        updateNormalClockDisplay();
+                    }
                 }
             }
         }

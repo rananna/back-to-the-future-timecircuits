@@ -378,8 +378,8 @@ void handleBootSequence() {
             if (!stateActionCompleted) {
                 Serial.println("BOOT_LOG: BOOT_SHOW_SYS_CHECK action started.");
                 printToDisplay(presRow.month, "SYS", 1);
-                printToDisplay(presRow.day, "TEM", 1);
-                printToDisplay(presRow.year, "CHK");
+                printToDisplay(presRow.day, "CK", 2);
+                printToDisplay(presRow.year, "....");
                 printToDisplay(presRow.time, "....");
                 presRow.month.writeDisplay();
                 presRow.day.writeDisplay();
@@ -412,7 +412,7 @@ void handleBootSequence() {
                 Serial.println("BOOT_LOG: BOOT_POWER_ON_DEST action started.");
                 blankAllDisplays();
                 vTaskDelay(pdMS_TO_TICKS(5));
-                printToDisplay(destRow.month, "BTTF");
+                printToDisplay(destRow.month, "BTTF", 1);
                 printToDisplay(destRow.day, "88", 2);
                 printToDisplay(destRow.year, "1.21");
                 printToDisplay(destRow.time, "GW");
@@ -433,7 +433,7 @@ void handleBootSequence() {
         case BOOT_POWER_ON_PRES:
             if (!stateActionCompleted && hardwareInitialized) {
                 Serial.println("BOOT_LOG: BOOT_POWER_ON_PRES action started.");
-                printToDisplay(presRow.month, "TIME");
+                printToDisplay(presRow.month, "TIME", 1);
                 printToDisplay(presRow.day, "CKT", 1);
                 printToDisplay(presRow.year, "ON");
                 printToDisplay(presRow.time, "LINE");
@@ -468,7 +468,9 @@ void handleBootSequence() {
             if (!stateActionCompleted) {
                 if(hardwareInitialized) {
                     blankAllDisplays();
-                    printToDisplay(presRow.year, "CHK");
+                    printToDisplay(presRow.month, "CHK", 1);
+                    printToDisplay(presRow.year, "SYS");
+                    presRow.month.writeDisplay();
                     presRow.year.writeDisplay();
                     vTaskDelay(pdMS_TO_TICKS(10));
                 }
@@ -483,9 +485,9 @@ void handleBootSequence() {
             if (!stateActionCompleted) {
                 if(hardwareInitialized) {
                     blankAllDisplays();
-                    printToDisplay(presRow.month, "FLUX");
-                    printToDisplay(presRow.day, "CAP");
-                    printToDisplay(presRow.year, "..OK");
+                    printToDisplay(presRow.month, "FLX", 1);
+                    printToDisplay(presRow.day, "OK", 2);
+                    printToDisplay(presRow.year, "CAP");
                     presRow.month.writeDisplay();
                     presRow.day.writeDisplay();
                     presRow.year.writeDisplay();
@@ -502,9 +504,9 @@ void handleBootSequence() {
             if (!stateActionCompleted) {
                 if(hardwareInitialized) {
                     blankAllDisplays();
-                    printToDisplay(presRow.month, "TIME");
-                    printToDisplay(presRow.day, "CKT");
-                    printToDisplay(presRow.year, "..OK");
+                    printToDisplay(presRow.month, "TME", 1);
+                    printToDisplay(presRow.day, "OK", 2);
+                    printToDisplay(presRow.year, "CKT");
                     presRow.month.writeDisplay();
                     presRow.day.writeDisplay();
                     presRow.year.writeDisplay();
@@ -522,8 +524,7 @@ void handleBootSequence() {
                  Serial.println("BOOT_LOG: BOOT_SPEEDOMETER initial display.");
                  blankAllDisplays();
                  vTaskDelay(pdMS_TO_TICKS(5));
-                 printToDisplay(destRow.month, "SYS");
-                 printToDisplay(destRow.day, "TEM");
+                 printToDisplay(destRow.month, "SYS", 1);
                  printToDisplay(destRow.year, "RDY");
                  destRow.month.writeDisplay();
                  destRow.day.writeDisplay();
@@ -539,7 +540,6 @@ void handleBootSequence() {
 
                 char speedo[5];
                 sprintf(speedo, "%02d", speedometerValue);
-                printToDisplay(presRow.month, "SPD");
                 printToDisplay(presRow.day, speedo, 2);
                 printToDisplay(presRow.year, "MPH");
                 presRow.month.writeDisplay();
