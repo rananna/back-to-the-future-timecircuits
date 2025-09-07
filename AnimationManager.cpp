@@ -410,15 +410,23 @@ void handleBootSequence() {
                 stateActionCompleted = true;
             }
             if (elapsed < 3000) {
-                printToDisplay(lastRow.year, "WIFI", 1); 
-                printToDisplay(lastRow.time, "OK");
+                printToDisplay(lastRow.month, "WFI", 1);
+                printToDisplay(lastRow.day, "OK", 2);
+                printToDisplay(lastRow.year, "");
+                printToDisplay(lastRow.time, "");
             } else if (elapsed < 6000) {
-                printToDisplay(lastRow.year, "IP", 1);
-                printToDisplay(lastRow.time, "OK");
+                printToDisplay(lastRow.month, "IP", 1);
+                printToDisplay(lastRow.day, "OK", 2);
+                printToDisplay(lastRow.year, "");
+                printToDisplay(lastRow.time, "");
             } else {
-                printToDisplay(lastRow.year, "MQTT", 1);
-                printToDisplay(lastRow.time, "OK");
+                printToDisplay(lastRow.month, "MQT", 1);
+                printToDisplay(lastRow.day, "OK", 2);
+                printToDisplay(lastRow.year, "");
+                printToDisplay(lastRow.time, "");
             }
+            lastRow.month.writeDisplay();
+            lastRow.day.writeDisplay();
             lastRow.year.writeDisplay();
             lastRow.time.writeDisplay();
 
@@ -468,7 +476,7 @@ void handleBootSequence() {
                 stateActionCompleted = true;
             }
              if (elapsed > 3000) {
-                printToDisplay(lastRow.year, "RDY", 0);
+                printToDisplay(lastRow.year, "RDY");
                 lastRow.year.writeDisplay();
             }
 
