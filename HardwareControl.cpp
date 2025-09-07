@@ -190,25 +190,25 @@ void animateDisplayRowRandomly(DisplayRow& row) {
     sprintf(buffer, "%04d", random(1000, 9999));
     printToDisplay(row.year, buffer);
     row.year.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); // <-- ADD THIS LINE
+    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate month
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
     printToDisplay(row.month, months[random(0,12)], 1); // Right justified
     row.month.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); // <-- ADD THIS LINE
+    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate day
     sprintf(buffer, "%02d", random(1, 32));
     printToDisplay(row.day, buffer, 2); // Center justified
     row.day.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); // <-- ADD THIS LINE
+    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate time
     sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
     printToDisplay(row.time, buffer);
     row.time.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); // <-- ADD THIS LINE
+    vTaskDelay(pdMS_TO_TICKS(1)); 
   #endif
 }
 void displaySpeed(int speed) {
@@ -346,6 +346,7 @@ void animateRandomRealTimes() {
         timeinfo.tm_hour = random(0, 24);
         timeinfo.tm_min = random(0, 60);
         updateDisplayRow(*rows[i], timeinfo, year, false);
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 #endif
 }

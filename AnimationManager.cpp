@@ -347,11 +347,13 @@ void handleBootSequence() {
     unsigned long elapsed = millis() - bootStateStartTime;
     static BootSequenceState lastLoggedState = BOOT_INACTIVE;
     static int lastDiagSecond = -1;
+    static bool typingStarted = false;
 
     if (bootState != lastLoggedState) {
         Serial.printf("BOOT_LOG: Entering state %d. Elapsed: %lu ms.\n", bootState, elapsed);
         lastLoggedState = bootState;
         stateActionCompleted = false; 
+        typingStarted = false;
     }
 
     switch (bootState) {
@@ -375,6 +377,7 @@ void handleBootSequence() {
         case BOOT_COLD_START:
             if (!stateActionCompleted) {
                 playSound("/relay_activation.mp3");
+                blankAllDisplays();
                 printToDisplay(destRow.day, "TM", 2);
                 printToDisplay(destRow.year, "CIRC");
                 printToDisplay(destRow.time, "UITS");
@@ -383,8 +386,9 @@ void handleBootSequence() {
                 destRow.time.writeDisplay();
                 stateActionCompleted = true;
             }
-            if (elapsed > 1000) {
+            if (elapsed > 1000 && !typingStarted) {
                 typeTextOnDisplay(presRow, "INITIATE PWR", 100, true);
+                typingStarted = true;
             }
             if (elapsed > BOOT_COLD_START_DURATION) {
                 bootState = BOOT_FLUX_CAPACITOR_IGNITION;
@@ -394,6 +398,7 @@ void handleBootSequence() {
         case BOOT_FLUX_CAPACITOR_IGNITION:
             if (!stateActionCompleted) {
                 playSound("/flux_capacitor_power_on.mp3");
+                blankAllDisplays();
                 flashAllDisplays();
                 stateActionCompleted = true;
             }
@@ -406,12 +411,14 @@ void handleBootSequence() {
         case BOOT_DIAGNOSTICS: {
             if (!stateActionCompleted) {
                 playSound("/keypad_beeps.mp3");
+                blankAllDisplays(); 
                 stateActionCompleted = true;
                 lastDiagSecond = -1; 
             }
 
             int currentSecond = elapsed / 2000;
             if (currentSecond != lastDiagSecond) {
+                blankAllDisplays();
                 if (currentSecond == 0) {
                     printToDisplay(destRow.month, "CPU", 1);
                     printToDisplay(destRow.day, "OK", 2);
@@ -450,29 +457,18 @@ void handleBootSequence() {
         case BOOT_FINAL_CHECKS: {
             if (!stateActionCompleted) {
                 playSound("/engine_rev.mp3");
-                // Clear all displays at the start of the stage
-                printToDisplay(destRow.month, "");
-                printToDisplay(destRow.day, "");
-                printToDisplay(presRow.month, "");
-                printToDisplay(presRow.day, "");
-                printToDisplay(presRow.year, "");
-                printToDisplay(presRow.time, "");
-                destRow.month.writeDisplay(); destRow.day.writeDisplay();
-                presRow.month.writeDisplay(); presRow.day.writeDisplay();
-                presRow.year.writeDisplay(); presRow.time.writeDisplay();
+                blankAllDisplays();
                 stateActionCompleted = true;
             }
 
-            // Calculate the speed with an ease-out effect
             float progress = (float)elapsed / BOOT_FINAL_CHECKS_DURATION;
             if (progress > 1.0) progress = 1.0;
-            float easedProgress = 1 - pow(1 - progress, 3); // Ease-out curve
+            float easedProgress = 1 - pow(1 - progress, 3); 
             int speed = 1 + (easedProgress * 87);
             if (speed > 88) speed = 88;
 
             displaySpeedRamp(speed);
 
-            // Display "SYS GO" on the top row
             printToDisplay(destRow.year, "SYS");
             printToDisplay(destRow.time, "GO");
             destRow.year.writeDisplay();
@@ -489,7 +485,7 @@ void handleBootSequence() {
                 playSound("/time_travel.mp3");
                 stateActionCompleted = true;
             }
-            animateRandomRealTimes(); // Use the new random flicker effect
+            animateRandomRealTimes();
             if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
                 bootState = BOOT_ARRIVAL;
                 bootStateStartTime = millis();
@@ -498,36 +494,21 @@ void handleBootSequence() {
         case BOOT_ARRIVAL:
             if (!stateActionCompleted) {
                 playSound("/arrival_chime.mp3");
-                // Clear month and day segments
-                printToDisplay(destRow.month, "");
-                printToDisplay(destRow.day, "");
-                printToDisplay(presRow.month, "");
-                printToDisplay(presRow.day, "");
-                
-                // Set year and time segments
+                blankAllDisplays();
                 printToDisplay(destRow.year, "ARRI");
                 printToDisplay(destRow.time, "VAL");
                 printToDisplay(presRow.year, "OUTA");
                 printToDisplay(presRow.time, "TIME");
 
-                // Write to hardware
-                destRow.month.writeDisplay();
-                destRow.day.writeDisplay();
                 destRow.year.writeDisplay();
                 destRow.time.writeDisplay();
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
                 presRow.year.writeDisplay();
                 presRow.time.writeDisplay();
                 stateActionCompleted = true;
             }
              if (elapsed > 3000) {
-                printToDisplay(lastRow.month, "");
-                printToDisplay(lastRow.day, "");
                 printToDisplay(lastRow.year, "WEL");
                 printToDisplay(lastRow.time, "COME");
-                lastRow.month.writeDisplay();
-                lastRow.day.writeDisplay();
                 lastRow.year.writeDisplay();
                 lastRow.time.writeDisplay();
             }
@@ -547,22 +528,25 @@ void handleBootSequence() {
                 audio.stopSong();
                 stateActionCompleted = true;
             }
-            // Fade out the displays
-            for (int i = 7; i >= 0; i--) {
-                destRow.month.setBrightness(i);
-                destRow.day.setBrightness(i);
-                destRow.year.setBrightness(i);
-                destRow.time.setBrightness(i);
-                presRow.month.setBrightness(i);
-                presRow.day.setBrightness(i);
-                presRow.year.setBrightness(i);
-                presRow.time.setBrightness(i);
-                lastRow.month.setBrightness(i);
-                lastRow.day.setBrightness(i);
-                lastRow.year.setBrightness(i);
-                lastRow.time.setBrightness(i);
-                delay(50);
+            {
+                float progress = (float)elapsed / BOOT_COOL_DOWN_DURATION;
+                if (progress > 1.0) progress = 1.0;
+                uint8_t brightness = 15 * (1.0 - progress);
+
+                destRow.month.setBrightness(brightness);
+                destRow.day.setBrightness(brightness);
+                destRow.year.setBrightness(brightness);
+                destRow.time.setBrightness(brightness);
+                presRow.month.setBrightness(brightness);
+                presRow.day.setBrightness(brightness);
+                presRow.year.setBrightness(brightness);
+                presRow.time.setBrightness(brightness);
+                lastRow.month.setBrightness(brightness);
+                lastRow.day.setBrightness(brightness);
+                lastRow.year.setBrightness(brightness);
+                lastRow.time.setBrightness(brightness);
             }
+
             if (elapsed > BOOT_COOL_DOWN_DURATION) {
                 bootState = BOOT_COMPLETE;
                 bootStateStartTime = millis();
@@ -572,6 +556,22 @@ void handleBootSequence() {
             if (elapsed > 500) {
                 isMessageOverrideActive = false;
                 bootState = BOOT_INACTIVE;
+                
+                uint8_t saved_brightness = round((currentSettings.brightness / 7.0) * 15.0);
+
+                destRow.month.setBrightness(saved_brightness);
+                destRow.day.setBrightness(saved_brightness);
+                destRow.year.setBrightness(saved_brightness);
+                destRow.time.setBrightness(saved_brightness);
+                presRow.month.setBrightness(saved_brightness);
+                presRow.day.setBrightness(saved_brightness);
+                presRow.year.setBrightness(saved_brightness);
+                presRow.time.setBrightness(saved_brightness);
+                lastRow.month.setBrightness(saved_brightness);
+                lastRow.day.setBrightness(saved_brightness);
+                lastRow.year.setBrightness(saved_brightness);
+                lastRow.time.setBrightness(saved_brightness);
+
                 if (hardwareInitialized) updateNormalClockDisplay();
                 Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
             }
