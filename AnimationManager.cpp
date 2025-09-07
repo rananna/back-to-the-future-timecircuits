@@ -366,9 +366,9 @@ void handleBootSequence() {
         case BOOT_WARM_UP:
             if (!stateActionCompleted) {
                 // Background hum is now in setup()
+                blankAllDisplays();
                 stateActionCompleted = true;
             }
-            animateTornadoFlicker();
             if (elapsed > BOOT_WARM_UP_DURATION) {
                 bootState = BOOT_COLD_START;
                 bootStateStartTime = millis();
@@ -398,11 +398,30 @@ void handleBootSequence() {
         case BOOT_FLUX_CAPACITOR_IGNITION:
             if (!stateActionCompleted) {
                 playSound("/flux_capacitor_power_on.mp3");
-                blankAllDisplays();
-                flashAllDisplays();
                 stateActionCompleted = true;
             }
-            animateFluxCapacitor();
+            if (elapsed < 3000) {
+                if ((elapsed / 250) % 2 == 0) {
+                    flashAllDisplays();
+                } else {
+                    blankAllDisplays();
+                }
+            } else {
+                animateDisplayRowRandomly(destRow);
+                animateDisplayRowRandomly(lastRow);
+                if ((elapsed / 250) % 2 == 0) {
+                    displayStaticFluxText();
+                } else {
+                    printToDisplay(presRow.month, "");
+                    printToDisplay(presRow.day, "");
+                    printToDisplay(presRow.year, "");
+                    printToDisplay(presRow.time, "");
+                    presRow.month.writeDisplay();
+                    presRow.day.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
+                }
+            }
             if (elapsed > BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
                 bootState = BOOT_DIAGNOSTICS;
                 bootStateStartTime = millis();

@@ -64,7 +64,7 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  * @brief Initializes all physical display hardware.
  * @details This function sets up the two I2C buses with their designated GPIO pins.
  * It then initializes all 12 Adafruit_AlphaNum4 display objects, associating each
- * with its correct I2C address and bus. Finally, it configures the AM/PM indicator
+ * with its correct I2C address and bus. Finally, it-configures the AM/PM indicator
  * LED pins and the I2S amplifier shutdown pin as outputs.
  */
 void setupPhysicalDisplay() {
@@ -625,6 +625,18 @@ void animateFluxCapacitor() {
     presRow.day.writeDisplay();
     presRow.year.writeDisplay();
   #endif
+}
+void displayStaticFluxText() {
+    #if ENABLE_HARDWARE
+    printToDisplay(presRow.month, "FLX", 1);
+    printToDisplay(presRow.day, "CP", 2);
+    printToDisplay(presRow.year, "ACTV");
+    printToDisplay(presRow.time, "");
+    presRow.month.writeDisplay();
+    presRow.day.writeDisplay();
+    presRow.year.writeDisplay();
+    presRow.time.writeDisplay();
+    #endif
 }
 void applyBrightness() {
   #if ENABLE_HARDWARE

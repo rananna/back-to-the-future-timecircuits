@@ -234,6 +234,7 @@ void flashAllDisplays();
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal = true);
 void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor);
 void animateFluxCapacitor();
+void displayStaticFluxText();
 void animateRandomRealTimes();
 void applyBrightness();
 #endif // HARDWARE_CONTROL_H
