@@ -485,6 +485,9 @@ void setupWebRoutes() {
     currentSettings.arrivalHour = obj["arrivalHour"] | currentSettings.arrivalHour;
     currentSettings.arrivalMinute = obj["arrivalMinute"] | currentSettings.arrivalMinute;
     currentSettings.brightness = obj["brightness"] | currentSettings.brightness;
+        if (hardwareInitialized) { // <-- ADD THIS BLOCK
+        applyBrightness();
+    }
     currentSettings.timeTravelAnimationDuration = obj["timeTravelAnimationDuration"] | currentSettings.timeTravelAnimationDuration;
     currentSettings.timeTravelAnimationInterval = obj["timeTravelAnimationInterval"] | currentSettings.timeTravelAnimationInterval;
     currentSettings.animationStyle = obj["animationStyle"] | currentSettings.animationStyle;
@@ -563,7 +566,7 @@ void setupWebRoutes() {
     audio.setVolume(currentSettings.notificationVolume);
 
     request->send(200, "text/plain", "Settings Saved!");
-  });
+ }, 8192); // This last argument is the increased buffer size
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){

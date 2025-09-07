@@ -235,4 +235,5 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year,
 void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor);
 void animateFluxCapacitor();
 void animateRandomRealTimes();
+void applyBrightness();
 #endif // HARDWARE_CONTROL_H

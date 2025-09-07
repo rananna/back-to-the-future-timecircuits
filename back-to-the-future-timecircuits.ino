@@ -507,6 +507,7 @@ void setup() {
 
     hardwareInitialized = attemptHardwareInit();
     if (hardwareInitialized) {
+        applyBrightness(); // <-- ADD THIS LINE
         Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
         audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
         audio.setVolume(currentSettings.notificationVolume);
@@ -564,7 +565,7 @@ void setup() {
 void loop() {
     vTaskDelay(1);
     audio.loop();
-
+    
     static int prevWifiStatus = -1;
     static BootSequenceState prevBootState = BOOT_INACTIVE;
     static bool prevOverrideState = false;
