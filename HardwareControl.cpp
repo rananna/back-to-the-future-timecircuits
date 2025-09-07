@@ -64,7 +64,7 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  * @brief Initializes all physical display hardware.
  * @details This function sets up the two I2C buses with their designated GPIO pins.
  * It then initializes all 12 Adafruit_AlphaNum4 display objects, associating each
- * with its correct I2C address and bus. Finally, it-configures the AM/PM indicator
+ * with its correct I2C address and bus. Finally, it configures the AM/PM indicator
  * LED pins and the I2S amplifier shutdown pin as outputs.
  */
 void setupPhysicalDisplay() {
@@ -233,15 +233,7 @@ void displaySpeed(int speed) {
 void displaySpeedRamp(int speed) {
 #if ENABLE_HARDWARE
     char speedBuffer[5];
-
-    // Add a 10% chance to flicker
-    if (random(100) < 10) {
-        int flickerSpeed = speed - random(1, 5);
-        if (flickerSpeed < 0) flickerSpeed = 0;
-        sprintf(speedBuffer, "%02d", flickerSpeed);
-    } else {
-        sprintf(speedBuffer, "%02d", speed);
-    }
+    sprintf(speedBuffer, "%02d", speed);
     
     // Clear unused segments
     printToDisplay(lastRow.month, "");
@@ -509,7 +501,6 @@ void playSound(const char* filepath) {
     digitalWrite(I2S_SD_PIN, HIGH);
     vTaskDelay(pdMS_TO_TICKS(10));
     
-    isPlayingSound = true;
     audio.setVolume(currentSettings.notificationVolume);
     strncpy(currentSoundFile, filepath, MAX_FILENAME_LENGTH - 1);
     currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
@@ -518,7 +509,6 @@ void playSound(const char* filepath) {
         Serial.printf("AUDIO_LOG: Started playing: %s\n", filepath);
     } else {
         Serial.printf("AUDIO_LOG: Failed to connect to file: %s\n", filepath);
-        isPlayingSound = false;
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
     }

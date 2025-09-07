@@ -151,7 +151,7 @@ void handleDisplayAnimation() {
 
     switch (currentPhase) {
         case ANIM_WAIT_FOR_SOUND:
-            if (!isPlayingSound) {
+            if (audio.isRunning()) {
                 currentPhase = nextPhaseAfterSound;
                 animationStartTime = millis();
             }
@@ -374,7 +374,7 @@ void handleBootSequence() {
             }
             break;
         case BOOT_WAIT_FOR_SOUND:
-            if (isPlayingSound) {
+            if (audio.isRunning()) {
                 bootState = nextStateAfterSound;
                 bootStateStartTime = millis();
             }
@@ -408,6 +408,9 @@ void handleBootSequence() {
             }
             break;
         case BOOT_FLUX_CAPACITOR_IGNITION:
+             if (!stateActionCompleted) {
+                stateActionCompleted = true;
+            }
             if (elapsed < 3000) {
                 if ((elapsed / 250) % 2 == 0) {
                     flashAllDisplays();

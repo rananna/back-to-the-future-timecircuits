@@ -70,7 +70,6 @@ DisplayModeState currentDisplayMode = NORMAL_CLOCK;
 
 // --- UNIFIED AUDIO GLOBALS ---
 Audio audio;
-bool isPlayingSound = false;
 char currentSoundFile[MAX_FILENAME_LENGTH] = "";
 
 
@@ -114,8 +113,7 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe" },
 	{ "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
 	{ "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
-	{ "<+03>-3", "Moscow 
- Standard Time", "Europe/Moscow", "Europe" },
+	{ "<+03>-3", "Moscow Standard Time", "Europe/Moscow", "Europe" },
 	{ "<+03>-3", "Turkey Time (Istanbul)","Europe/Istanbul", "Europe" },
 	{ "IST-5:30", "Indian Standard Time (Kolkata)", "Asia/Kolkata", "Asia" },
 	{ "<+08>-8", "Singapore Standard Time", "Asia/Singapore", "Asia" },
@@ -196,7 +194,6 @@ bool isSequenceActive = false;
 void audio_info(Audio::msg_t m) {
     if (m.e == Audio::evt_eof) {
         Serial.printf("AUDIO_LOG: Finished playing sound: %s\n", currentSoundFile);
-isPlayingSound = false;
         currentSoundFile[0] = '\0'; // Clear the filename
         // Update Home Assistant that audio is idle
         if (mqttClient.connected()) {
@@ -627,7 +624,7 @@ void loop() {
             }
             break;
         case WIFI_STATE_CONNECTED:
-            if (!logConnectedPrinted) {
+            if (!logConnectingPrinted) {
                 ESP_LOGI("WiFi", "IP: %s", WiFi.localIP().toString().c_str());
                 // Start the web server now that we are connected
                 server.begin();

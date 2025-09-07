@@ -45,7 +45,6 @@ extern volatile int requestsCompleted;
 extern PubSubClient mqttClient;
 extern bool timeSynchronized;
 extern int currentPageIndex;
-extern bool isPlayingSound;
 extern char currentSoundFile[MAX_FILENAME_LENGTH];
 
 
