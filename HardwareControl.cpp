@@ -651,6 +651,7 @@ void applyBrightness() {
   lastRow.month.setBrightness(brightnessValue);
   lastRow.day.setBrightness(brightnessValue);
   lastRow.year.setBrightness(brightnessValue);
+  
   lastRow.time.setBrightness(brightnessValue);
   #endif
 }
