@@ -340,18 +340,6 @@ void runBootSequence() {
 }
 
 
-// --- ADD THIS NEW HELPER FUNCTION ---
-void playSoundAndSetNextState(const char* filename, BootSequenceState nextState) {
-    Serial.printf("BOOT_LOG: playSoundAndSetNextState() called. Sound: %s, Next State: %d\n", filename, nextState);
-    if (hardwareInitialized) {
-        playSound(filename);
-    }
-    nextStateAfterSound = nextState;
-    bootState = BOOT_WAIT_FOR_SOUND;
-    bootStateStartTime = millis();
-    Serial.printf("BOOT_LOG: State changed to BOOT_WAIT_FOR_SOUND. Waiting for '%s' to finish.\n", filename);
-}
-
 void handleBootSequence() {
     if (bootState == BOOT_INACTIVE) return;
 
@@ -363,7 +351,7 @@ void handleBootSequence() {
     if (bootState != lastLoggedState) {
         Serial.printf("BOOT_LOG: Entering state %d. Elapsed: %lu ms.\n", bootState, elapsed);
         lastLoggedState = bootState;
-        stateActionCompleted = false; // Reset completion flag on state change
+        stateActionCompleted = false; 
     }
 
     switch (bootState) {
@@ -375,8 +363,7 @@ void handleBootSequence() {
             break;
         case BOOT_COLD_START:
             if (!stateActionCompleted) {
-                Serial.println("BOOT_LOG: BOOT_COLD_START action started.");
-                playSoundAndSetNextState("/relay_activation.mp3", BOOT_FLUX_CAPACITOR_IGNITION);
+                playSound("/relay_activation.mp3");
                 typeTextOnDisplay(destRow, "INITIATE PWR", 100, true);
                 stateActionCompleted = true;
             }
@@ -387,9 +374,7 @@ void handleBootSequence() {
             break;
         case BOOT_FLUX_CAPACITOR_IGNITION:
             if (!stateActionCompleted) {
-                Serial.println("BOOT_LOG: BOOT_FLUX_CAPACITOR_IGNITION action started.");
-                playSoundAndSetNextState("/flux_capacitor_power_on.mp3", BOOT_DIAGNOSTICS);
-                // Display Flux Capacitor visual
+                playSound("/flux_capacitor_power_on.mp3");
                 animateFluxCapacitor();
                 stateActionCompleted = true;
             }
@@ -400,8 +385,7 @@ void handleBootSequence() {
             break;
         case BOOT_DIAGNOSTICS: {
             if (!stateActionCompleted) {
-                Serial.println("BOOT_LOG: BOOT_DIAGNOSTICS action started.");
-                playSoundAndSetNextState("/keypad_beeps.mp3", BOOT_FINAL_CHECKS);
+                playSound("/keypad_beeps.mp3");
                 printToDisplay(destRow.month, "CPU", 1);
                 printToDisplay(destRow.day, "OK", 2);
                 printToDisplay(presRow.month, "MEM", 1);
@@ -437,8 +421,7 @@ void handleBootSequence() {
         }
         case BOOT_FINAL_CHECKS:
             if (!stateActionCompleted) {
-                Serial.println("BOOT_LOG: BOOT_FINAL_CHECKS action started.");
-                playSoundAndSetNextState("/engine_rev.mp3", BOOT_TEMPORAL_DISPLACEMENT);
+                playSound("/engine_rev.mp3");
                 stateActionCompleted = true;
             }
             displaySpeed(87);
@@ -455,8 +438,7 @@ void handleBootSequence() {
             break;
         case BOOT_TEMPORAL_DISPLACEMENT:
             if (!stateActionCompleted) {
-                Serial.println("BOOT_LOG: BOOT_TEMPORAL_DISPLACEMENT action started.");
-                playSoundAndSetNextState("/time_travel.mp3", BOOT_ARRIVAL);
+                playSound("/time_travel.mp3");
                 flashAllDisplays();
                 stateActionCompleted = true;
             }
@@ -467,8 +449,7 @@ void handleBootSequence() {
             break;
         case BOOT_ARRIVAL:
             if (!stateActionCompleted) {
-                Serial.println("BOOT_LOG: BOOT_ARRIVAL action started.");
-                playSoundAndSetNextState("/arrival_chime.mp3", BOOT_COMPLETE);
+                playSound("/arrival_chime.mp3");
                 printToDisplay(presRow.year, "OUTA");
                 printToDisplay(presRow.time, "TIME");
                 presRow.year.writeDisplay();
@@ -482,13 +463,6 @@ void handleBootSequence() {
 
             if (elapsed > BOOT_ARRIVAL_DURATION) {
                 bootState = BOOT_COMPLETE;
-                bootStateStartTime = millis();
-            }
-            break;
-        case BOOT_WAIT_FOR_SOUND:
-            if (!isPlayingSound) {
-                Serial.printf("BOOT_LOG: Sound finished. Transitioning from BOOT_WAIT_FOR_SOUND to %d.\n", nextStateAfterSound);
-                bootState = nextStateAfterSound;
                 bootStateStartTime = millis();
             }
             break;
