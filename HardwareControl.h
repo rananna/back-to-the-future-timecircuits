@@ -229,8 +229,10 @@ void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
 void playSound(const char* filepath);
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
 void displaySpeed(int speed);
+void displaySpeedRamp(int speed);
 void flashAllDisplays();
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal = true);
 void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor);
 void animateFluxCapacitor();
+void animateRandomRealTimes();
 #endif // HARDWARE_CONTROL_H

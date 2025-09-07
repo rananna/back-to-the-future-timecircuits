@@ -511,6 +511,7 @@ void setup() {
         audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
         audio.setVolume(currentSettings.notificationVolume);
         Audio::audio_info_callback = audio_info;
+        playSound("/hum.mp3");
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
     }
 

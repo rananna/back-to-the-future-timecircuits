@@ -357,6 +357,17 @@ void handleBootSequence() {
     switch (bootState) {
         case BOOT_START:
             if (elapsed > 1000) {
+                bootState = BOOT_WARM_UP;
+                bootStateStartTime = millis();
+            }
+            break;
+        case BOOT_WARM_UP:
+            if (!stateActionCompleted) {
+                // Background hum is now in setup()
+                stateActionCompleted = true;
+            }
+            animateTornadoFlicker();
+            if (elapsed > BOOT_WARM_UP_DURATION) {
                 bootState = BOOT_COLD_START;
                 bootStateStartTime = millis();
             }
@@ -364,8 +375,16 @@ void handleBootSequence() {
         case BOOT_COLD_START:
             if (!stateActionCompleted) {
                 playSound("/relay_activation.mp3");
-                typeTextOnDisplay(destRow, "INITIATE PWR", 100, true);
+                printToDisplay(destRow.day, "TM", 2);
+                printToDisplay(destRow.year, "CIRC");
+                printToDisplay(destRow.time, "UITS");
+                destRow.day.writeDisplay();
+                destRow.year.writeDisplay();
+                destRow.time.writeDisplay();
                 stateActionCompleted = true;
+            }
+            if (elapsed > 1000) {
+                typeTextOnDisplay(presRow, "INITIATE PWR", 100, true);
             }
             if (elapsed > BOOT_COLD_START_DURATION) {
                 bootState = BOOT_FLUX_CAPACITOR_IGNITION;
@@ -375,9 +394,10 @@ void handleBootSequence() {
         case BOOT_FLUX_CAPACITOR_IGNITION:
             if (!stateActionCompleted) {
                 playSound("/flux_capacitor_power_on.mp3");
-                animateFluxCapacitor();
+                flashAllDisplays();
                 stateActionCompleted = true;
             }
+            animateFluxCapacitor();
             if (elapsed > BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
                 bootState = BOOT_DIAGNOSTICS;
                 bootStateStartTime = millis();
@@ -386,30 +406,38 @@ void handleBootSequence() {
         case BOOT_DIAGNOSTICS: {
             if (!stateActionCompleted) {
                 playSound("/keypad_beeps.mp3");
-                printToDisplay(destRow.month, "CPU", 1);
-                printToDisplay(destRow.day, "OK", 2);
-                printToDisplay(presRow.month, "MEM", 1);
-                printToDisplay(presRow.day, "OK", 2);
-                destRow.month.writeDisplay(); destRow.day.writeDisplay();
-                presRow.month.writeDisplay(); presRow.day.writeDisplay();
                 stateActionCompleted = true;
                 lastDiagSecond = -1; 
             }
 
-            int currentSecond = elapsed / 3000;
+            int currentSecond = elapsed / 2000;
             if (currentSecond != lastDiagSecond) {
                 if (currentSecond == 0) {
+                    printToDisplay(destRow.month, "CPU", 1);
+                    printToDisplay(destRow.day, "OK", 2);
+                    destRow.month.writeDisplay();
+                    destRow.day.writeDisplay();
+                } else if (currentSecond == 1) {
+                    printToDisplay(presRow.month, "MEM", 1);
+                    printToDisplay(presRow.day, "OK", 2);
+                    presRow.month.writeDisplay();
+                    presRow.day.writeDisplay();
+                } else if (currentSecond == 2) {
                     printToDisplay(lastRow.month, "WFI", 1);
                     printToDisplay(lastRow.day, "OK", 2);
-                } else if (currentSecond == 1) {
+                    lastRow.month.writeDisplay();
+                    lastRow.day.writeDisplay();
+                } else if (currentSecond == 3) {
                     printToDisplay(lastRow.month, "IP", 1);
                     printToDisplay(lastRow.day, "OK", 2);
-                } else {
+                    lastRow.month.writeDisplay();
+                    lastRow.day.writeDisplay();
+                } else if (currentSecond == 4) {
                     printToDisplay(lastRow.month, "MQT", 1);
                     printToDisplay(lastRow.day, "OK", 2);
+                    lastRow.month.writeDisplay();
+                    lastRow.day.writeDisplay();
                 }
-                lastRow.month.writeDisplay();
-                lastRow.day.writeDisplay();
                 lastDiagSecond = currentSecond;
             }
 
@@ -419,29 +447,49 @@ void handleBootSequence() {
             }
             break;
         }
-        case BOOT_FINAL_CHECKS:
+        case BOOT_FINAL_CHECKS: {
             if (!stateActionCompleted) {
                 playSound("/engine_rev.mp3");
+                // Clear all displays at the start of the stage
+                printToDisplay(destRow.month, "");
+                printToDisplay(destRow.day, "");
+                printToDisplay(presRow.month, "");
+                printToDisplay(presRow.day, "");
+                printToDisplay(presRow.year, "");
+                printToDisplay(presRow.time, "");
+                destRow.month.writeDisplay(); destRow.day.writeDisplay();
+                presRow.month.writeDisplay(); presRow.day.writeDisplay();
+                presRow.year.writeDisplay(); presRow.time.writeDisplay();
                 stateActionCompleted = true;
             }
-            displaySpeed(87);
-            printToDisplay(destRow.time, "SYS", 0);
-            printToDisplay(destRow.year, "GO", 0);
-            destRow.time.writeDisplay();
-            destRow.year.writeDisplay();
 
+            // Calculate the speed with an ease-out effect
+            float progress = (float)elapsed / BOOT_FINAL_CHECKS_DURATION;
+            if (progress > 1.0) progress = 1.0;
+            float easedProgress = 1 - pow(1 - progress, 3); // Ease-out curve
+            int speed = 1 + (easedProgress * 87);
+            if (speed > 88) speed = 88;
+
+            displaySpeedRamp(speed);
+
+            // Display "SYS GO" on the top row
+            printToDisplay(destRow.year, "SYS");
+            printToDisplay(destRow.time, "GO");
+            destRow.year.writeDisplay();
+            destRow.time.writeDisplay();
 
             if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
                 bootState = BOOT_TEMPORAL_DISPLACEMENT;
                 bootStateStartTime = millis();
             }
             break;
+        }
         case BOOT_TEMPORAL_DISPLACEMENT:
             if (!stateActionCompleted) {
                 playSound("/time_travel.mp3");
-                flashAllDisplays();
                 stateActionCompleted = true;
             }
+            animateRandomRealTimes(); // Use the new random flicker effect
             if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
                 bootState = BOOT_ARRIVAL;
                 bootStateStartTime = millis();
@@ -450,18 +498,72 @@ void handleBootSequence() {
         case BOOT_ARRIVAL:
             if (!stateActionCompleted) {
                 playSound("/arrival_chime.mp3");
+                // Clear month and day segments
+                printToDisplay(destRow.month, "");
+                printToDisplay(destRow.day, "");
+                printToDisplay(presRow.month, "");
+                printToDisplay(presRow.day, "");
+                
+                // Set year and time segments
+                printToDisplay(destRow.year, "ARRI");
+                printToDisplay(destRow.time, "VAL");
                 printToDisplay(presRow.year, "OUTA");
                 printToDisplay(presRow.time, "TIME");
+
+                // Write to hardware
+                destRow.month.writeDisplay();
+                destRow.day.writeDisplay();
+                destRow.year.writeDisplay();
+                destRow.time.writeDisplay();
+                presRow.month.writeDisplay();
+                presRow.day.writeDisplay();
                 presRow.year.writeDisplay();
                 presRow.time.writeDisplay();
                 stateActionCompleted = true;
             }
              if (elapsed > 3000) {
-                printToDisplay(lastRow.year, "RDY");
+                printToDisplay(lastRow.month, "");
+                printToDisplay(lastRow.day, "");
+                printToDisplay(lastRow.year, "WEL");
+                printToDisplay(lastRow.time, "COME");
+                lastRow.month.writeDisplay();
+                lastRow.day.writeDisplay();
                 lastRow.year.writeDisplay();
+                lastRow.time.writeDisplay();
             }
 
             if (elapsed > BOOT_ARRIVAL_DURATION) {
+                bootState = BOOT_COOL_DOWN;
+                bootStateStartTime = millis();
+            }
+            break;
+        case BOOT_COOL_DOWN:
+            if (!stateActionCompleted) {
+                // Manually fade out the audio
+                for (int i = currentSettings.notificationVolume; i >= 0; i--) {
+                    audio.setVolume(i);
+                    delay(50);
+                }
+                audio.stopSong();
+                stateActionCompleted = true;
+            }
+            // Fade out the displays
+            for (int i = 7; i >= 0; i--) {
+                destRow.month.setBrightness(i);
+                destRow.day.setBrightness(i);
+                destRow.year.setBrightness(i);
+                destRow.time.setBrightness(i);
+                presRow.month.setBrightness(i);
+                presRow.day.setBrightness(i);
+                presRow.year.setBrightness(i);
+                presRow.time.setBrightness(i);
+                lastRow.month.setBrightness(i);
+                lastRow.day.setBrightness(i);
+                lastRow.year.setBrightness(i);
+                lastRow.time.setBrightness(i);
+                delay(50);
+            }
+            if (elapsed > BOOT_COOL_DOWN_DURATION) {
                 bootState = BOOT_COMPLETE;
                 bootStateStartTime = millis();
             }

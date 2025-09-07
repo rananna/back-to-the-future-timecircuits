@@ -230,6 +230,33 @@ void displaySpeed(int speed) {
   lastRow.time.writeDisplay();
   #endif
 }
+void displaySpeedRamp(int speed) {
+#if ENABLE_HARDWARE
+    char speedBuffer[5];
+
+    // Add a 10% chance to flicker
+    if (random(100) < 10) {
+        int flickerSpeed = speed - random(1, 5);
+        if (flickerSpeed < 0) flickerSpeed = 0;
+        sprintf(speedBuffer, "%02d", flickerSpeed);
+    } else {
+        sprintf(speedBuffer, "%02d", speed);
+    }
+    
+    // Clear unused segments
+    printToDisplay(lastRow.month, "");
+    printToDisplay(lastRow.time, "");
+    
+    // Display speed on "day" and "MPH" on "year"
+    printToDisplay(lastRow.day, speedBuffer, 2);
+    printToDisplay(lastRow.year, "MPH");
+
+    lastRow.month.writeDisplay();
+    lastRow.day.writeDisplay();
+    lastRow.year.writeDisplay();
+    lastRow.time.writeDisplay();
+#endif
+}
 
 // In HardwareControl.cpp
 
@@ -307,6 +334,20 @@ void animateTornadoFlicker() {
     animateDisplayRowRandomly(presRow);
     animateDisplayRowRandomly(lastRow);
     #endif
+}
+void animateRandomRealTimes() {
+#if ENABLE_HARDWARE
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    for (int i = 0; i < 3; ++i) {
+        struct tm timeinfo;
+        timeinfo.tm_mon = random(0, 12);
+        timeinfo.tm_mday = random(1, 29);
+        int year = random(1885, 2085);
+        timeinfo.tm_hour = random(0, 24);
+        timeinfo.tm_min = random(0, 60);
+        updateDisplayRow(*rows[i], timeinfo, year, false);
+    }
+#endif
 }
 
 void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
@@ -454,8 +495,8 @@ void playSound(const char* filepath) {
     Serial.printf("AUDIO_LOG: Request to play sound: %s\n", filepath);
 
     if (audio.isRunning()) {
-        Serial.printf("AUDIO_LOG: Ignored request for '%s' because a sound is already playing.\n", filepath);
-        return;
+        audio.stopSong();
+        vTaskDelay(pdMS_TO_TICKS(10)); 
     }
     
     if (!LittleFS.exists(filepath)) {
@@ -562,15 +603,25 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
 }
 void animateFluxCapacitor() {
   #if ENABLE_HARDWARE
-    // A simple representation of the Flux Capacitor
-    printToDisplay(presRow.month, " FLX");
-    printToDisplay(presRow.day, "CP", 2);
-    printToDisplay(presRow.year, "ACTV");
-    printToDisplay(presRow.time, "");
-    
+    static int frame = 0;
+    // Simple 3-frame pulse effect
+    if (frame == 0) {
+        printToDisplay(presRow.month, " FLX");
+        printToDisplay(presRow.day, "CP", 2);
+        printToDisplay(presRow.year, "ACTV");
+    } else if (frame == 1) {
+        printToDisplay(presRow.month, "FLX");
+        printToDisplay(presRow.day, "CP", 2);
+        printToDisplay(presRow.year, "ACTV");
+    } else {
+        printToDisplay(presRow.month, " FLX");
+        printToDisplay(presRow.day, "CP", 2);
+        printToDisplay(presRow.year, "ACTV");
+    }
+    frame = (frame + 1) % 3; // Cycle through frames
+
     presRow.month.writeDisplay();
     presRow.day.writeDisplay();
     presRow.year.writeDisplay();
-    presRow.time.writeDisplay();
   #endif
 }
