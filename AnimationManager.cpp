@@ -363,20 +363,25 @@ void handleBootSequence() {
                 bootStateStartTime = millis();
             }
             break;
+        case BOOT_WAIT_FOR_SOUND:
+            if (isPlayingSound) {
+                bootState = nextStateAfterSound;
+                bootStateStartTime = millis();
+            }
+            break;
         case BOOT_WARM_UP:
             if (!stateActionCompleted) {
-                // Background hum is now in setup()
                 blankAllDisplays();
                 stateActionCompleted = true;
             }
             if (elapsed > BOOT_WARM_UP_DURATION) {
-                bootState = BOOT_COLD_START;
-                bootStateStartTime = millis();
+                playSound("/relay_activation.mp3");
+                nextStateAfterSound = BOOT_COLD_START;
+                bootState = BOOT_WAIT_FOR_SOUND;
             }
             break;
         case BOOT_COLD_START:
             if (!stateActionCompleted) {
-                playSound("/relay_activation.mp3");
                 blankAllDisplays();
                 printToDisplay(destRow.day, "TM", 2);
                 printToDisplay(destRow.year, "CIRC");
@@ -391,15 +396,12 @@ void handleBootSequence() {
                 typingStarted = true;
             }
             if (elapsed > BOOT_COLD_START_DURATION) {
-                bootState = BOOT_FLUX_CAPACITOR_IGNITION;
-                bootStateStartTime = millis();
+                playSound("/flux_capacitor_power_on.mp3");
+                nextStateAfterSound = BOOT_FLUX_CAPACITOR_IGNITION;
+                bootState = BOOT_WAIT_FOR_SOUND;
             }
             break;
         case BOOT_FLUX_CAPACITOR_IGNITION:
-            if (!stateActionCompleted) {
-                playSound("/flux_capacitor_power_on.mp3");
-                stateActionCompleted = true;
-            }
             if (elapsed < 3000) {
                 if ((elapsed / 250) % 2 == 0) {
                     flashAllDisplays();
@@ -423,13 +425,13 @@ void handleBootSequence() {
                 }
             }
             if (elapsed > BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
-                bootState = BOOT_DIAGNOSTICS;
-                bootStateStartTime = millis();
+                playSound("/keypad_beeps.mp3");
+                nextStateAfterSound = BOOT_DIAGNOSTICS;
+                bootState = BOOT_WAIT_FOR_SOUND;
             }
             break;
         case BOOT_DIAGNOSTICS: {
             if (!stateActionCompleted) {
-                playSound("/keypad_beeps.mp3");
                 blankAllDisplays(); 
                 stateActionCompleted = true;
                 lastDiagSecond = -1; 
@@ -468,14 +470,14 @@ void handleBootSequence() {
             }
 
             if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
-                bootState = BOOT_FINAL_CHECKS;
-                bootStateStartTime = millis();
+                playSound("/engine_rev.mp3");
+                nextStateAfterSound = BOOT_FINAL_CHECKS;
+                bootState = BOOT_WAIT_FOR_SOUND;
             }
             break;
         }
         case BOOT_FINAL_CHECKS: {
             if (!stateActionCompleted) {
-                playSound("/engine_rev.mp3");
                 blankAllDisplays();
                 stateActionCompleted = true;
             }
@@ -494,25 +496,22 @@ void handleBootSequence() {
             destRow.time.writeDisplay();
 
             if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
-                bootState = BOOT_TEMPORAL_DISPLACEMENT;
-                bootStateStartTime = millis();
+                playSound("/time_travel.mp3");
+                nextStateAfterSound = BOOT_TEMPORAL_DISPLACEMENT;
+                bootState = BOOT_WAIT_FOR_SOUND;
             }
             break;
         }
         case BOOT_TEMPORAL_DISPLACEMENT:
-            if (!stateActionCompleted) {
-                playSound("/time_travel.mp3");
-                stateActionCompleted = true;
-            }
             animateRandomRealTimes();
             if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
-                bootState = BOOT_ARRIVAL;
-                bootStateStartTime = millis();
+                playSound("/arrival_chime.mp3");
+                nextStateAfterSound = BOOT_ARRIVAL;
+                bootState = BOOT_WAIT_FOR_SOUND;
             }
             break;
         case BOOT_ARRIVAL:
             if (!stateActionCompleted) {
-                playSound("/arrival_chime.mp3");
                 blankAllDisplays();
                 printToDisplay(destRow.year, "ARRI");
                 printToDisplay(destRow.time, "VAL");

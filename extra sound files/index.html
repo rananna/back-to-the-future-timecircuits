@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Temporal Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body class="theme-time-circuits">
+    <div id="messageBanner" class="message-banner"></div>
+    <div class="container">
+        <h1>Temporal Interface</h1>
+        <div class="header-circuits">
+            <div class="circuit-row destination" id="header-dest">
+                <div class="circuit-label">DESTINATION TIME</div>
+                <div class="circuit-content">
+                    <div class="circuit-display">
+                        <span class="month" id="header-dest-month">OCT</span>
+                        <span class="day" id="header-dest-day">26</span>
+                        <span class="year" id="header-dest-year">1995</span>
+                    </div>
+                    <div class="circuit-time">
+                        <span class="hour" id="header-dest-hour">01</span><span class="minute" id="header-dest-minute">21</span>
+                        <span class="ampm-text" id="header-dest-ampm">AM</span>
+                    </div>
+                </div>
+            </div>
+            <div class="circuit-row present" id="header-pres">
+                <div class="circuit-label">PRESENT TIME</div>
+                <div class="circuit-content">
+                    <div class="circuit-display">
+                        <span class="month" id="header-pres-month">OCT</span>
+                        <span class="day" id="header-pres-day">26</span>
+                        <span class="year" id="header-pres-year">1985</span>
+                    </div>
+                    <div class="circuit-time">
+                        <span class="hour" id="header-pres-hour">01</span><span class="minute" id="header-pres-minute">24</span>
+                        <span class="ampm-text" id="header-pres-ampm">AM</span>
+                    </div>
+                </div>
+            </div>
+            <div class="circuit-row last-departed" id="header-last">
+                <div class="circuit-label">LAST TIME DEPARTED</div>
+                <div class="circuit-content">
+                    <div class="circuit-display">
+                        <span class="month" id="header-last-month">OCT</span>
+                        <span class="day" id="header-last-day">26</span>
+                        <span class="year" id="header-last-year">1985</span>
+                    </div>
+                    <div class="circuit-time">
+                        <span class="hour" id="header-last-hour">01</span><span class="minute" id="header-last-minute">20</span>
+                        <span class="ampm-text" id="header-last-ampm">AM</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-nav">
+            <button class="tab-link active" onclick="openTab(event, 'TimeCircuits')" data-tab="TimeCircuits">Time Circuits</button>
+            <button class="tab-link" onclick="openTab(event, 'DisplaySound')" data-tab="DisplaySound">Temporal Controls</button>
+            <button class="tab-link" onclick="openTab(event, 'DataLink')" data-tab="DataLink">Data Link</button>
+            <button class="tab-link" onclick="openTab(event, 'System')" data-tab="System">Network & System</button>
+            <button class="tab-link" onclick="openTab(event, 'Help')" data-tab="Help">Help</button>
+        </div>
+        <div id="TimeCircuits" class="tab-content" style="display: block;">
+            <div class="setting-group" id="destinationTimeSettings">
+                <h3>Destination Time & Year</h3>
+                <label for="destinationTimezoneSelect">Time Zone:</label>
+                <select id="destinationTimezoneSelect"></select>
+                <div class="time-circuit-display">
+                    <div class="time-circuit-row">
+                        <label for="destinationYear" class="time-circuit-label">YEAR</label>
+                        <input type="number" id="destinationYear" class="time-circuit-input" min="1000" max="9999" value="1955">
+                    </div>
+                </div>
+                <div class="contextual-save-wrapper">
+                    <button class="action-button contextual-save" onclick="saveSettings()">Save Destination</button>
+                </div>
+            </div>
+            <div class="setting-group" id="lastDepartedSettings">
+                <h3>Last Time Departed & Presets</h3>
+                <p id="lastTimeDepartedDisplay" class="static-time-display">-- -- ---- --:-- --</p>
+                <div style="display:none;">
+                    <span id="lastTimeDepartedYear"></span><span id="lastTimeDepartedMonth"></span><span id="lastTimeDepartedDay"></span>
+                    <span id="lastTimeDepartedHour"></span><span id="lastTimeDepartedMinute"></span>
+                </div>
+
+                <label for="presetDateSelect">Famous & Custom Time Jumps:</label>
+                <select id="presetDateSelect">
+                    <optgroup label="From the Movies">
+                        <option value="">-- Select a Famous Date --</option>
+                        <option value="1985-10-26-01-20">Einstein's Test (1985)</option>
+                        <option value="1985-10-26-01-35">Marty's First Jump (1985)</option>
+                        <option value="1955-11-05-06-00">Arrival in Past (1955)</option>
+                        <option value="1955-11-12-22-04">Lightning Strike (1955)</option>
+                        <option value="2015-10-21-16-29">Future Arrival (2015)</option>
+                        <option value="1955-11-12-18-38">Old Biff Gives Almanac (1955)</option>
+                        <option value="1885-01-01-00-00">Doc's Arrival in Old West (1885)</option>
+                        <option value="1885-09-02-08-00">Marty's Arrival in Old West (1885)</option>
+                        <option value="1885-09-07-09-00">Train Push to Future (1885)</option>
+                    </optgroup>
+                </select>
+
+                <div id="presetFormContainer" class="preset-adder">
+                    <h4 id="presetFormTitle">Add a New Custom Time Jump</h4>
+                    <input type="text" id="presetName" placeholder="Preset Name (e.g., My Birthday)">
+                    <div class="preset-date-inputs">
+                        <input type="date" id="presetDate">
+                        <input type="time" id="presetTime">
+                    </div>
+                    <div id="presetActions" class="preset-buttons">
+                        <button id="savePresetBtn">Add to Presets</button>
+                        <button id="deletePresetBtn" class="delete-button hidden">Delete Selected Preset</button>
+                        <button id="newPresetBtn" class="action-button hidden" style="margin-top: 10px;">+ Create New Preset</button>
+                    </div>
+                </div>
+
+                <hr>
+                <label for="presetCycleInterval">Cycle Presets Every (min, 0=Off): <span id="presetCycleIntervalValue">10</span></label>
+                <div class="slider-container">
+                    <input type="range" id="presetCycleInterval" min="0" max="60">
+                </div>
+                <div class="contextual-save-wrapper">
+                    <button class="action-button contextual-save" onclick="saveSettings()">Save Presets & Cycle</button>
+                </div>
+            </div>
+        </div>
+        <div id="DisplaySound" class="tab-content">
+            <div class="setting-group">
+                <h3>Departure/Arrival (Sleep) Times</h3>
+                <label for="departureTime">Departure Time:</label>
+                <input type="time" id="departureTime" name="departureTime">
+                <label for="arrivalTime">Arrival Time:</label>
+                <input type="time" id="arrivalTime" name="arrivalTime">
+                <div class="sleep-schedule-container">
+                    <div class="awake-time-label">Awake Time</div>
+                    <div class="sleep-schedule-visual">
+                        <div id="sleepScheduleBar" class="sleep-schedule-bar"></div>
+                        <div id="sleepScheduleBar2" class="sleep-schedule-bar"></div>
+                        <div id="currentTimeMarker"></div>
+                        <span class="sleep-time-display time-0">12AM</span>
+                        <span class="sleep-time-display time-6">6AM</span>
+                        <span class="sleep-time-display time-12">12PM</span>
+                        <span class="sleep-time-display time-18">6PM</span>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-group">
+                <div class="setting-sub-group">
+                    <h4>Display</h4>
+                    <label for="brightness">Display Brightness: <span id="brightnessValue">5</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="brightness" min="0" max="7">
+                    </div>
+                    <label for="displayFormat24h" class="toggle-label">24 Hour Format:</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="displayFormat24h">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="setting-sub-group">
+                    <h4>Animation</h4>
+                    <label for="animationStyleSelect">Animation Style:</label>
+                    <div class="animation-style-container">
+                        <select id="animationStyleSelect">
+                            <option value="0">Sequential Flicker</option>
+                            <option value="1">Random Flicker</option>
+                            <option value="2">All Displays Random</option>
+                            <option value="3">Counting Up</option>
+                            <option value="4">Wave Flicker</option>
+                            <option value="5">Tornado Flicker</option>
+                            <option value="6">Capacitor Charge-Up</option>
+                            <option value="7">Digital Rain</option>
+                            <option value="8">Waveform Collapse</option>
+                            <option value="9">Timeline Skim</option>
+                        </select>
+                        <button id="previewAnimationBtn" class="action-button">Preview</button>
+                    </div>
+                    <label for="timeTravelAnimationDuration">Animation Duration (ms): <span id="timeTravelAnimationDurationValue">4000</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="timeTravelAnimationDuration" min="1000" max="10000" step="100">
+                    </div>
+                    <label for="timeTravelAnimationInterval">Animation Every (min, 0=Off): <span id="timeTravelAnimationIntervalValue">15</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="timeTravelAnimationInterval" min="0" max="120">
+                    </div>
+                </div>
+                <div class="setting-sub-group">
+                    <h4>Effects</h4>
+                    <label for="glitchEffectFrequency">Glitch Instability (%): <span id="glitchEffectFrequencyValue">0</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="glitchEffectFrequency" min="0" max="100">
+                    </div>
+                    <label for="malfunctionFrequency">Malfunction Chance (1 in X): <span id="malfunctionFrequencyValue">25</span></label>
+                    <div class="slider-container">
+                    <input type="range" id="malfunctionFrequency" min="1" max="1000" value="25">
+                    </div>
+                </div>
+            </div>
+            <div class="setting-group">
+                <h3>Sound</h3>
+                <label for="notificationVolume">Volume: <span id="volumeValue">15</span></label>
+                <div class="slider-container">
+                    <input type="range" id="notificationVolume" min="0" max="30">
+                </div>
+                <label for="timeTravelSoundToggle" class="toggle-label">Time Travel Sound FX:</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="timeTravelSoundToggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="contextual-save-wrapper">
+                <button class="action-button contextual-save" onclick="saveSettings()">Save Temporal Settings</button>
+            </div>
+        </div>
+        <div id="DataLink" class="tab-content">
+            <p class="info-text">You can use either the Live Weather, Data Link Marquee, or Stock Ticker to control the display rows.</p>
+            
+            <div class="setting-group" id="stockTickerGroup">
+                <h3>Stock Market Ticker Mode</h3>
+                <label for="stockTickerModeEnabled" class="toggle-label">Enable Stock Ticker Mode</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="stockTickerModeEnabled">
+                    <span class="slider round"></span>
+                </label>
+                <div id="stockTickerSettingsContainer" style="display:none; margin-top: 20px;">
+                  <label for="alphaVantageApiKey">Stock API Key (from FMP):</label>
+                  <input type="text" id="alphaVantageApiKey" placeholder="Enter your free FMP API key">
+
+                    <label for="stockRow1_symbol">Destination Row Symbol:</label>
+                    <div class="stock-row-input">
+                        <input type="text" id="stockRow1_symbol" placeholder="e.g., ^GSPC, AAPL">
+                        <button class="action-button fetch-stock-btn" data-index="0">Fetch</button>
+                    </div>
+                     <div class="stock-preview-container" id="stock_preview_0">
+                        <span class="stock-price">--</span>
+                        <span class="stock-change">--</span>
+                    </div>
+
+                    <label for="stockRow2_symbol">Present Row Symbol:</label>
+                    <div class="stock-row-input">
+                        <input type="text" id="stockRow2_symbol" placeholder="e.g., ^GSPTSE, GOOGL">
+                        <button class="action-button fetch-stock-btn" data-index="1">Fetch</button>
+                    </div>
+                     <div class="stock-preview-container" id="stock_preview_1">
+                        <span class="stock-price">--</span>
+                        <span class="stock-change">--</span>
+                    </div>
+
+                    <label for="stockRow3_symbol">Last Departed Row Symbol:</label>
+                     <div class="stock-row-input">
+                        <input type="text" id="stockRow3_symbol" placeholder="e.g., ^IXIC, MSFT">
+                        <button class="action-button fetch-stock-btn" data-index="2">Fetch</button>
+                    </div>
+                     <div class="stock-preview-container" id="stock_preview_2">
+                        <span class="stock-price">--</span>
+                        <span class="stock-change">--</span>
+                    </div>
+                     <p style="font-size: 0.8em; opacity: 0.7;">Note: Use Yahoo Finance ticker symbols. Indices often start with '^'.</p>
+                </div>
+            </div>
+
+            <div class="setting-group" id="weatherModeGroup">
+                <h3>Live Weather Display</h3>
+                <label for="weatherModeEnabled" class="toggle-label">Enable Live Weather</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="weatherModeEnabled">
+                    <span class="slider round"></span>
+                </label>
+                <div id="weatherSettingsContainer" style="display:none; margin-top: 15px;">
+                    <label for="cityName">City Name:</label>
+                    <input type="text" id="cityName" placeholder="e.g., New York">
+                    <label for="useMetricUnits" class="toggle-label">Use Metric Units (C°, km/h)</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="useMetricUnits">
+                        <span class="slider round"></span>
+                    </label>
+                    <div id="weatherDisplay" class="weather-display-container">
+                        <div class="weather-item">
+                            <span class="weather-label">Temperature</span>
+                            <span id="weatherTemp" class="weather-value">--</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="weather-label">Feels Like</span>
+                            <span id="weatherFeelsLike" class="weather-value">--</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="weather-label">Humidity</span>
+                            <span id="weatherHumidity" class="weather-value">--</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="weather-label">Wind</span>
+                            <span id="weatherWind" class="weather-value">--</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="weather-label">High / Low</span>
+                            <span id="weatherHighLow" class="weather-value">-- / --</span>
+                        </div>
+                        <div class="loading-spinner-container" style="display: none;">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                    <div id="hourlyForecastContainer" class="hourly-forecast-container"></div>
+                    <div class="weather-preview">
+                        <button id="refreshWeatherBtn" class="action-button">Refresh</button>
+                        <div id="weatherPreview" class="weather-preview-text"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-group" id="dataLinkGroup">
+                <h3>Data Link Configuration</h3>
+                <label for="dataLinkEnabled" class="toggle-label">Enable Data Link Marquee</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="dataLinkEnabled">
+                    <span class="slider round"></span>
+                </label>
+                <div id="dataLinkSettingsContainer" style="display:none;">
+                    <div class="setting-group">
+                        <h3>Global MQTT Broker Settings</h3>
+                        <label for="mqttBroker">MQTT Broker Address:</label>
+                        <input type="text" id="mqttBroker" placeholder="e.g., 192.168.1.100">
+                        <label for="mqttPort">MQTT Port:</label>
+                        <input type="number" id="mqttPort" value="1883">
+                        <label for="mqttUser">MQTT Username (optional):</label>
+                        <input type="text" id="mqttUser">
+                        <label for="mqttPassword">MQTT Password (optional):</label>
+                        <input type="password" id="mqttPassword">
+                    </div>
+                    <div class="setting-group">
+                         <h3>Global Marquee Settings</h3>
+                         <label for="dataLinkRefreshInterval">Refresh All Data Every (min): <span id="dataLinkRefreshIntervalValue">10</span></label>
+                         <div class="slider-container">
+                             <input type="range" id="dataLinkRefreshInterval" min="1" max="60" value="10">
+                         </div>
+                    </div>
+                    <div class="setting-group">
+                        <h3>Data Points</h3>
+                         <button id="testAllDataPointsBtn" class="action-button" style="margin-bottom: 20px;">Test All Data Points</button>
+                         <label for="numDataPoints">Number of Data Points: <span id="numDataPointsValue">1</span></label>
+                         <div class="slider-container">
+                             <input type="range" id="numDataPoints" min="0" max="5" value="1">
+                         </div>
+                         <div id="dataPointsConfigContainer"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="contextual-save-wrapper">
+                <button class="action-button contextual-save" onclick="saveSettings()">Save Data Link Settings</button>
+            </div>
+        </div>
+        <div id="System" class="tab-content">
+            <div class="setting-group" id="presentTimeSettings">
+                 <h3>Present Time</h3>
+                <p>Time Synchronized: <span id="timeSyncStatus">No</span></p>
+                <label for="presentTimezoneSelect">Time Zone:</label>
+                <select id="presentTimezoneSelect"></select>
+                <button id="syncNtpBtn">Calibrate Present Time</button>
+                <div class="contextual-save-wrapper">
+                    <button class="action-button contextual-save" onclick="saveSettings()">Save Time Settings</button>
+                </div>
+            </div>
+            <div class="setting-group">
+                <h3>System Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Free Memory</span>
+                        <span id="freeMemory" class="status-value">--</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Wi-Fi Signal</span>
+                        <span id="wifiSignal" class="status-value">--</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Device Uptime</span>
+                        <span id="deviceUptime" class="status-value">--</span>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-group">
+                <h3>Firmware Update (OTA)</h3>
+                <p>Upload a new firmware (.bin) file to update the device over the air.</p>
+                <form id="firmware-upload-form">
+                    <input type="file" name="update" accept=".bin">
+                    <button type="submit">Upload and Update Firmware</button>
+                    <div class="progress-bar-container">
+                        <div id="firmware-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <p id="firmware-status-message" class="status-message"></p>
+                </form>
+            </div>
+            <div class="setting-group" id="ui-upload-container">
+                <h3>UI File Update</h3>
+                <p>Upload new UI files (index.html, style.css, etc.).</p>
+                <form id="ui-upload-form">
+                    <input type="file" name="ui-files" multiple>
+                    <button type="submit">Upload UI Files</button>
+                    <div class="progress-bar-container">
+                        <div id="ui-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <p id="ui-status-message" class="status-message"></p>
+                </form>
+            </div>
+            <div class="setting-group">
+                <h3>UI Theme</h3>
+                <div id="themeSelector" class="theme-selector">
+                    <div class="theme-option" data-theme="theme-time-circuits">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #00ff00, #00ffff);"></div>
+                        <span class="theme-name">Time Circuits</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-outatime">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #ff0000, #ffdd00);"></div>
+                        <span class="theme-name">OUTATIME</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-88mph">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #7df9ff, #005f73);"></div>
+                        <span class="theme-name">88 MPH</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-plutonium-glow">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #a0ffa0, #ffffaa);"></div>
+                        <span class="theme-name">Plutonium Glow</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-mr-fusion">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #ff6a00, #cccccc);"></div>
+                        <span class="theme-name">Mr. Fusion</span>
+                    </div>
+                    <div class="theme-option" data-theme="theme-clock-tower">
+                        <div class="theme-swatch" style="background: linear-gradient(45deg, #daa520, #f5f5dc);"></div>
+                        <span class="theme-name">Clock Tower</span>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-group">
+                <h3>Device Actions</h3>
+                <button id="greatScottBtn">Great Scott!</button>
+                <button id="resetDefaultsBtn" class="reset-button">Reset All Settings to Default</button>
+            </div>
+        </div>
+        <div id="Help" class="tab-content">
+            <div class="setting-group">
+                <h3>Project Documentation</h3>
+                <p>
+                    For complete details on hardware setup, software installation, features, and troubleshooting, please refer to the official project documentation on GitHub.
+                </p>
+                <p style="text-align: center; margin-top: 20px;">
+                    <a href="https://github.com/rananna/back-to-the-future-timecircuits/blob/main/readme.md" target="_blank" rel="noopener noreferrer" class="action-button" style="display: inline-block; width: auto;">View on GitHub</a>
+                </p>
+            </div>
+        </div>
+        <button id="saveSettingsBtn" disabled>Engage Time Circuits (Save All Settings)</button>
+    </div>
+    <div id="customConfirm" class="modal">
+        <div class="modal-content">
+            <p id="confirmMsg"></p>
+            <button id="confirmYes">Yes</button>
+            <button id="confirmNo">No</button>
+        </div>
+    </div>
+    <script src="/data_handling.js"></script>
+    <script src="/main_ui.js"></script>
+</body>
+</html>
