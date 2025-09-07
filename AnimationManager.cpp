@@ -368,36 +368,115 @@ void handleBootSequence() {
     switch (bootState) {
         case BOOT_START:
             if (elapsed > 1000) {
-                bootState = BOOT_SHOW_SYS_CHECK;
+                bootState = BOOT_COLD_START;
                 bootStateStartTime = millis();
             }
             break;
-        case BOOT_SHOW_SYS_CHECK:
+        case BOOT_COLD_START:
             if (!stateActionCompleted) {
-                Serial.println("BOOT_LOG: BOOT_SHOW_SYS_CHECK action started.");
-                printToDisplay(presRow.month, "SYS", 1);
-                printToDisplay(presRow.day, "CK", 2);
-                printToDisplay(presRow.year, "....");
-                printToDisplay(presRow.time, "....");
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
+                Serial.println("BOOT_LOG: BOOT_COLD_START action started.");
+                playSoundAndSetNextState("/relay_activation.mp3", BOOT_FLUX_CAPACITOR_IGNITION);
+                typeTextOnDisplay(destRow, "INITIATE PWR", 100, true);
+                stateActionCompleted = true;
+            }
+            if (elapsed > BOOT_COLD_START_DURATION) {
+                bootState = BOOT_FLUX_CAPACITOR_IGNITION;
+                bootStateStartTime = millis();
+            }
+            break;
+        case BOOT_FLUX_CAPACITOR_IGNITION:
+            if (!stateActionCompleted) {
+                Serial.println("BOOT_LOG: BOOT_FLUX_CAPACITOR_IGNITION action started.");
+                playSoundAndSetNextState("/flux_capacitor_power_on.mp3", BOOT_DIAGNOSTICS);
+                // Display Flux Capacitor visual
+                animateFluxCapacitor();
+                stateActionCompleted = true;
+            }
+            if (elapsed > BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
+                bootState = BOOT_DIAGNOSTICS;
+                bootStateStartTime = millis();
+            }
+            break;
+        case BOOT_DIAGNOSTICS:
+            if (!stateActionCompleted) {
+                Serial.println("BOOT_LOG: BOOT_DIAGNOSTICS action started.");
+                playSoundAndSetNextState("/keypad_beeps.mp3", BOOT_FINAL_CHECKS);
+                printToDisplay(destRow.month, "CPU", 1);
+                printToDisplay(destRow.day, "OK", 2);
+                printToDisplay(presRow.month, "MEM", 1);
+                printToDisplay(presRow.day, "OK", 2);
+                destRow.month.writeDisplay(); destRow.day.writeDisplay();
+                presRow.month.writeDisplay(); presRow.day.writeDisplay();
+                stateActionCompleted = true;
+            }
+            if (elapsed < 3000) {
+                printToDisplay(lastRow.year, "WIFI", 1); 
+                printToDisplay(lastRow.time, "OK");
+            } else if (elapsed < 6000) {
+                printToDisplay(lastRow.year, "IP", 1);
+                printToDisplay(lastRow.time, "OK");
+            } else {
+                printToDisplay(lastRow.year, "MQTT", 1);
+                printToDisplay(lastRow.time, "OK");
+            }
+            lastRow.year.writeDisplay();
+            lastRow.time.writeDisplay();
+
+            if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
+                bootState = BOOT_FINAL_CHECKS;
+                bootStateStartTime = millis();
+            }
+            break;
+        case BOOT_FINAL_CHECKS:
+            if (!stateActionCompleted) {
+                Serial.println("BOOT_LOG: BOOT_FINAL_CHECKS action started.");
+                playSoundAndSetNextState("/engine_rev.mp3", BOOT_TEMPORAL_DISPLACEMENT);
+                stateActionCompleted = true;
+            }
+            displaySpeed(87);
+            printToDisplay(destRow.time, "SYS", 0);
+            printToDisplay(destRow.year, "GO", 0);
+            destRow.time.writeDisplay();
+            destRow.year.writeDisplay();
+
+
+            if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
+                bootState = BOOT_TEMPORAL_DISPLACEMENT;
+                bootStateStartTime = millis();
+            }
+            break;
+        case BOOT_TEMPORAL_DISPLACEMENT:
+            if (!stateActionCompleted) {
+                Serial.println("BOOT_LOG: BOOT_TEMPORAL_DISPLACEMENT action started.");
+                playSoundAndSetNextState("/time_travel.mp3", BOOT_ARRIVAL);
+                flashAllDisplays();
+                stateActionCompleted = true;
+            }
+            if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
+                bootState = BOOT_ARRIVAL;
+                bootStateStartTime = millis();
+            }
+            break;
+        case BOOT_ARRIVAL:
+            if (!stateActionCompleted) {
+                Serial.println("BOOT_LOG: BOOT_ARRIVAL action started.");
+                playSoundAndSetNextState("/arrival_chime.mp3", BOOT_COMPLETE);
+                printToDisplay(presRow.year, "OUTA");
+                printToDisplay(presRow.time, "TIME");
                 presRow.year.writeDisplay();
                 presRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(2));
                 stateActionCompleted = true;
             }
-            if (elapsed > 2000) { // Display for 2 seconds
-                bootState = BOOT_PLAY_HUM_SOUND;
+             if (elapsed > 3000) {
+                printToDisplay(lastRow.year, "RDY", 0);
+                lastRow.year.writeDisplay();
+            }
+
+            if (elapsed > BOOT_ARRIVAL_DURATION) {
+                bootState = BOOT_COMPLETE;
                 bootStateStartTime = millis();
             }
             break;
-        case BOOT_PLAY_HUM_SOUND:
-            if (!stateActionCompleted) {
-                playSoundAndSetNextState("/power_hum.mp3", BOOT_POWER_ON_DEST);
-                stateActionCompleted = true;
-            }
-            break;
-
         case BOOT_WAIT_FOR_SOUND:
             if (!isPlayingSound) {
                 Serial.printf("BOOT_LOG: Sound finished. Transitioning from BOOT_WAIT_FOR_SOUND to %d.\n", nextStateAfterSound);
@@ -405,163 +484,6 @@ void handleBootSequence() {
                 bootStateStartTime = millis();
             }
             break;
-
-        case BOOT_POWER_ON_DEST:
-            if (!stateActionCompleted && hardwareInitialized) {
-                Serial.println("BOOT_LOG: BOOT_POWER_ON_DEST action started.");
-                blankAllDisplays();
-                printToDisplay(destRow.month, "BTTF", 1);
-                printToDisplay(destRow.day, "88", 2);
-                printToDisplay(destRow.year, "1.21");
-                printToDisplay(destRow.time, "GW");
-                destRow.month.writeDisplay();
-                destRow.day.writeDisplay();
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(50)); // Small delay for visual effect
-                stateActionCompleted = true;
-                Serial.println("BOOT_LOG: BOOT_POWER_ON_DEST action completed.");
-            }
-            if (elapsed > BOOT_POWER_ON_DURATION) {
-                bootState = BOOT_POWER_ON_PRES;
-                bootStateStartTime = millis();
-            }
-            break;
-
-        case BOOT_POWER_ON_PRES:
-            if (!stateActionCompleted && hardwareInitialized) {
-                Serial.println("BOOT_LOG: BOOT_POWER_ON_PRES action started.");
-                printToDisplay(presRow.month, "TIME", 1);
-                printToDisplay(presRow.day, "CKT", 1);
-                printToDisplay(presRow.year, "ON");
-                printToDisplay(presRow.time, "LINE");
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(50));
-                stateActionCompleted = true;
-                 Serial.println("BOOT_LOG: BOOT_POWER_ON_PRES action completed.");
-            }
-            if (elapsed > BOOT_POWER_ON_DURATION) {
-                bootState = BOOT_POWER_ON_LAST;
-                bootStateStartTime = millis();
-            }
-            break;
-
-        case BOOT_POWER_ON_LAST:
-             if (!stateActionCompleted && hardwareInitialized) {
-                Serial.println("BOOT_LOG: BOOT_POWER_ON_LAST action started.");
-                updateNormalClockDisplay(false, false, true);
-                stateActionCompleted = true;
-                Serial.println("BOOT_LOG: BOOT_POWER_ON_LAST action completed.");
-            }
-            if (elapsed > BOOT_POWER_ON_DURATION) {
-                bootState = BOOT_SYSTEM_CHECK_PHASE1;
-                bootStateStartTime = millis();
-            }
-            break;
-            
-        case BOOT_SYSTEM_CHECK_PHASE1:
-            if (!stateActionCompleted) {
-                if(hardwareInitialized) {
-                    blankAllDisplays();
-                    printToDisplay(presRow.month, "CHK", 1);
-                    printToDisplay(presRow.year, "SYS");
-                    presRow.month.writeDisplay();
-                    presRow.year.writeDisplay();
-                    vTaskDelay(pdMS_TO_TICKS(10));
-                }
-                stateActionCompleted = true;
-            }
-            if (elapsed > BOOT_SYSTEM_CHECK_DURATION) {
-                playSoundAndSetNextState("/sys_beep.mp3", BOOT_SYSTEM_CHECK_PHASE2);
-            }
-            break;
-
-        case BOOT_SYSTEM_CHECK_PHASE2:
-            if (!stateActionCompleted) {
-                if(hardwareInitialized) {
-                    blankAllDisplays();
-                    printToDisplay(presRow.month, "FLX", 1);
-                    printToDisplay(presRow.day, "OK", 2);
-                    printToDisplay(presRow.year, "CAP");
-                    presRow.month.writeDisplay();
-                    presRow.day.writeDisplay();
-                    presRow.year.writeDisplay();
-                    vTaskDelay(pdMS_TO_TICKS(10));
-                }
-                stateActionCompleted = true;
-            }
-            if (elapsed > BOOT_SYSTEM_CHECK_DURATION) {
-                playSoundAndSetNextState("/sys_beep.mp3", BOOT_SYSTEM_CHECK_PHASE3);
-            }
-            break;
-
-        case BOOT_SYSTEM_CHECK_PHASE3:
-            if (!stateActionCompleted) {
-                if(hardwareInitialized) {
-                    blankAllDisplays();
-                    printToDisplay(presRow.month, "TME", 1);
-                    printToDisplay(presRow.day, "OK", 2);
-                    printToDisplay(presRow.year, "CKT");
-                    presRow.month.writeDisplay();
-                    presRow.day.writeDisplay();
-                    presRow.year.writeDisplay();
-                    vTaskDelay(pdMS_TO_TICKS(10));
-                }
-                stateActionCompleted = true;
-            }
-            if (elapsed > BOOT_SYSTEM_CHECK_DURATION) {
-                playSoundAndSetNextState("/ACCELERATION.mp3", BOOT_SPEEDOMETER);
-            }
-            break;
-
-        case BOOT_SPEEDOMETER:
-            if (!stateActionCompleted && hardwareInitialized) {
-                 Serial.println("BOOT_LOG: BOOT_SPEEDOMETER initial display.");
-                 blankAllDisplays();
-                 printToDisplay(destRow.month, "SYS", 1);
-                 printToDisplay(destRow.year, "RDY");
-                 destRow.month.writeDisplay();
-                 destRow.day.writeDisplay();
-                 destRow.year.writeDisplay();
-                 destRow.time.writeDisplay();
-                 stateActionCompleted = true;
-            }
-
-            if (elapsed < BOOT_SPEEDOMETER_DURATION) {
-                float progress = (float)elapsed / BOOT_SPEEDOMETER_DURATION;
-                float easedProgress = progress * (2.0f - progress);
-                speedometerValue = 88 * easedProgress;
-
-                char speedo[5];
-                sprintf(speedo, "%02d", speedometerValue);
-                printToDisplay(presRow.day, speedo, 2);
-                printToDisplay(presRow.year, "MPH");
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(2));
-
-            } else {
-                speedometerValue = 88;
-                playSoundAndSetNextState("/TT_REACH88.mp3", BOOT_FADE_TO_CLOCK);
-            }
-            break;
-
-        case BOOT_FADE_TO_CLOCK:
-            if (!stateActionCompleted) { // This action only runs once to start the sound
-                playSoundAndSetNextState("/lock_on.mp3", BOOT_COMPLETE);
-                stateActionCompleted = true;
-            }
-            
-            if (hardwareInitialized) {
-                 // Visual fade logic here...
-            }
-            break;
-            
         case BOOT_COMPLETE:
             if (elapsed > 500) {
                 isMessageOverrideActive = false;
@@ -570,7 +492,6 @@ void handleBootSequence() {
                 Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
             }
             break;
-            
         default:
             Serial.printf("BOOT_LOG: Unknown boot state %d. Resetting to INACTIVE.\n", bootState);
             bootState = BOOT_INACTIVE;

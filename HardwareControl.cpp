@@ -482,3 +482,95 @@ void playSound(const char* filepath) {
     }
     #endif
 }
+void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor) {
+  #if ENABLE_HARDWARE
+  Adafruit_AlphaNum4* displays[] = {&row.month, &row.day, &row.year, &row.time};
+  
+  // Clear the entire row first
+  for (int i = 0; i < 4; i++) {
+    displays[i]->clear();
+    displays[i]->writeDisplay();
+  }
+  vTaskDelay(pdMS_TO_TICKS(10));
+
+  int len = strlen(text);
+  const int total_visual_width = 13; 
+  if (len > total_visual_width) len = total_visual_width;
+
+  for (int i = 0; i < len; i++) {
+    int displayIndex, digitIndex;
+    if (i < 3) { 
+        displayIndex = 0;
+        digitIndex = i + 1; 
+    } else if (i < 5) { 
+        displayIndex = 1;
+        digitIndex = (i - 3) + 1; 
+    } else if (i < 9) { 
+        displayIndex = 2;
+        digitIndex = i - 5;
+    } else { 
+        displayIndex = 3;
+        digitIndex = i - 9;
+    }
+    
+    displays[displayIndex]->writeDigitAscii(digitIndex, text[i]);
+    
+    if (withCursor && (i + 1 < len)) {
+        int next_i = i + 1;
+        int nextDisplayIndex, nextDigitIndex;
+        if (next_i < 3) {
+            nextDisplayIndex = 0;
+            nextDigitIndex = next_i + 1;
+        } else if (next_i < 5) {
+            nextDisplayIndex = 1;
+            nextDigitIndex = (next_i - 3) + 1;
+        } else if (next_i < 9) {
+            nextDisplayIndex = 2;
+            nextDigitIndex = next_i - 5;
+        } else {
+            nextDisplayIndex = 3;
+            nextDigitIndex = next_i - 9;
+        }
+        displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, '_');
+        displays[nextDisplayIndex]->writeDisplay();
+    }
+    
+    displays[displayIndex]->writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(typeDelay));
+
+    if (withCursor && (i + 1 < len)) {
+        int next_i = i + 1;
+        int nextDisplayIndex, nextDigitIndex;
+        if (next_i < 3) {
+            nextDisplayIndex = 0;
+            nextDigitIndex = next_i + 1;
+        } else if (next_i < 5) {
+            nextDisplayIndex = 1;
+            nextDigitIndex = (next_i - 3) + 1;
+        } else if (next_i < 9) {
+            nextDisplayIndex = 2;
+            nextDigitIndex = next_i - 5;
+        } else {
+            nextDisplayIndex = 3;
+            nextDigitIndex = next_i - 9;
+        }
+        displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, ' ');
+        displays[nextDisplayIndex]->writeDisplay();
+    }
+  }
+  #endif
+}
+void animateFluxCapacitor() {
+  #if ENABLE_HARDWARE
+    // A simple representation of the Flux Capacitor
+    printToDisplay(presRow.month, " FLX");
+    printToDisplay(presRow.day, "CP", 2);
+    printToDisplay(presRow.year, "ACTV");
+    printToDisplay(presRow.time, "");
+    
+    presRow.month.writeDisplay();
+    presRow.day.writeDisplay();
+    presRow.year.writeDisplay();
+    presRow.time.writeDisplay();
+  #endif
+}

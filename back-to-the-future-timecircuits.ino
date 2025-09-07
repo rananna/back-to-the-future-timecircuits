@@ -52,20 +52,16 @@ enum WifiState {
 WifiState wifiState = WIFI_STATE_CONNECTING;
 unsigned long wifiConnectStartTime = 0;
 TaskHandle_t wifiManagerTaskHandle = NULL;
-
 // --- ONE-TIME LOGGING FLAGS ---
 bool logConnectingPrinted = false;
 bool logPortalMsgPrinted = false;
 bool logConnectedPrinted = false;
-
 // --- MQTT EXPONENTIAL BACKOFF ---
 unsigned long nextMqttReconnectAttempt = 0;
 unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
-
 // --- THEMED BOOT SEQUENCE ---
 BootSequenceState bootState = BOOT_INACTIVE;
 int speedometerValue = 0;
-
 // --- DISPLAY MODE STATE MACHINE ---
 DisplayModeState currentDisplayMode = NORMAL_CLOCK;
 
@@ -87,7 +83,6 @@ void checkDataFetchStatusTask(void* p);
 void startAudioStream(const char* url, bool is_tts);
 void stopAudioStream();
 void wifiManagerTask(void *pvParameters);
-
 void updateDisplaySegment(int row, int segment, const std::string& text);
 void testDecimalPointFlashing();
 
@@ -124,7 +119,7 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "KST-9", "Korea Standard Time (Seoul)", "Asia/Seoul", "Asia" },
 	{ "JST-9", "Japan Standard Time (Tokyo)", "Asia/Tokyo", "Asia" },
 	{ "<+04>-4", "Gulf Standard Time (Dubai)", "Asia/Dubai", "Asia" },
-	{ "AWST-8", "AWST (Perth)", "Australia/Perth", "Australia & Oceania" },
+	{ "AWST-8", "AWST (Perth)", "Australia & Oceania" },
 	{ "AEST-10AEDT,M10.1.0,M4.1.0/3", "AEST/AEDT (Sydney)", "Australia/Sydney", "Australia & Oceania" },
 	{ "NZST-12NZDT,M9.5.0,M4.1.0/3", "NZST/NZDT (Auckland)", "Pacific/Auckland", "Australia & Oceania" },
 	{ "ChST-10", "Chamorro Time (Guam)", "Pacific/Guam", "Australia & Oceania" },
@@ -506,13 +501,11 @@ void setup() {
     wifiConnectStartTime = millis();
     wifiState = WIFI_STATE_CONNECTING;
     Serial.println("BOOT_LOG: Non-blocking WiFi connection initiated...");
-
     Serial.println(F("WEB_LOG: Setting up web routes..."));
     setupWebRoutes();
     Serial.println(F("WEB_LOG: Web routes configured."));
 
     hardwareInitialized = attemptHardwareInit();
-
     if (hardwareInitialized) {
         Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
         audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
@@ -577,12 +570,12 @@ void loop() {
     static bool prevMqttConnected = false;
     int currentWifiStatus = WiFi.status();
     bool currentMqttConnected = mqttClient.connected();
-
     if (currentWifiStatus != prevWifiStatus || bootState != prevBootState || isMessageOverrideActive != prevOverrideState || currentMqttConnected != prevMqttConnected) {
         Serial.printf("STATUS_UPDATE -> WiFi: %d | Boot: %d | Override: %d | MQTT: %d\n",
                       currentWifiStatus,
                       bootState,
-                      isMessageOverrideActive,
+                    
+      isMessageOverrideActive,
                       currentMqttConnected);
         prevWifiStatus = currentWifiStatus;
         prevBootState = bootState;
@@ -706,7 +699,6 @@ void loop() {
             // Only update the display if enough time has passed
             if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
                 lastDisplayUpdateTime = millis();
-
                 if (isMessageOverrideActive) {
                     displayOverrideMessage();
                 } else if (isMalfunctioning) {

@@ -231,5 +231,6 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
 void displaySpeed(int speed);
 void flashAllDisplays();
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal = true);
-
+void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor);
+void animateFluxCapacitor();
 #endif // HARDWARE_CONTROL_H
