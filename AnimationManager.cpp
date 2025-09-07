@@ -403,19 +403,31 @@ void handleBootSequence() {
                 bootStateStartTime = millis();
             }
             break;
+        
+        // --- FIX START: Decouple audio from animation ---
         case BOOT_FLUX_CAPACITOR_IGNITION:
+            // This state now ONLY starts the sound and waits for it to begin playing.
             if (!stateActionCompleted) {
                 playSound("/flux_capacitor_power_on.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
-                if (elapsed < 3000) {
+            // Once the audio is confirmed to be running, move to the animation state.
+            if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
+                bootState = BOOT_FLUX_CAPACITOR_ANIMATION;
+                bootStateStartTime = millis(); // Reset the timer for the animation phase
+            }
+            break;
+
+        case BOOT_FLUX_CAPACITOR_ANIMATION:
+            // This new state handles all the visuals. The sound is guaranteed to be playing.
+            if (elapsed < BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
+                 if (elapsed < 3000) { // First 3 seconds: flash
                     if ((elapsed / 250) % 2 == 0) {
                         flashAllDisplays();
                     } else {
                         blankAllDisplays();
                     }
-                } else {
+                } else { // The rest of the animation
                     animateDisplayRowRandomly(destRow);
                     animateDisplayRowRandomly(lastRow);
                     if ((elapsed / 250) % 2 == 0) {
@@ -431,12 +443,14 @@ void handleBootSequence() {
                         presRow.time.writeDisplay();
                     }
                 }
-            }
-            if (elapsed > BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
+            } else {
+                // When the animation duration is over, transition to the next major step.
                 bootState = BOOT_DIAGNOSTICS;
                 bootStateStartTime = millis();
             }
             break;
+        // --- FIX END ---
+
         case BOOT_DIAGNOSTICS:
             if (!stateActionCompleted) {
                 playSound("/keypad_beeps.mp3");
