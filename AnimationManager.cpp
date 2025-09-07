@@ -373,17 +373,14 @@ void handleBootSequence() {
                 bootStateStartTime = millis();
             }
             break;
-        case BOOT_WAIT_FOR_SOUND:
-            if (audio.isRunning()) {
-                bootState = nextStateAfterSound;
-                bootStateStartTime = millis();
-            }
-            break;
         case BOOT_WARM_UP:
-            if (elapsed > BOOT_WARM_UP_DURATION) {
+            if (!stateActionCompleted) {
                 playSound("/relay_activation.mp3");
-                nextStateAfterSound = BOOT_COLD_START;
-                bootState = BOOT_WAIT_FOR_SOUND;
+                stateActionCompleted = true;
+            }
+            if (audio.isRunning()) {
+                bootState = BOOT_COLD_START;
+                bootStateStartTime = millis();
             }
             break;
         case BOOT_COLD_START:
@@ -402,144 +399,155 @@ void handleBootSequence() {
                 typingStarted = true;
             }
             if (elapsed > BOOT_COLD_START_DURATION) {
-                playSound("/flux_capacitor_power_on.mp3");
-                nextStateAfterSound = BOOT_FLUX_CAPACITOR_IGNITION;
-                bootState = BOOT_WAIT_FOR_SOUND;
+                bootState = BOOT_FLUX_CAPACITOR_IGNITION;
+                bootStateStartTime = millis();
             }
             break;
         case BOOT_FLUX_CAPACITOR_IGNITION:
-             if (!stateActionCompleted) {
+            if (!stateActionCompleted) {
+                playSound("/flux_capacitor_power_on.mp3");
                 stateActionCompleted = true;
             }
-            if (elapsed < 3000) {
-                if ((elapsed / 250) % 2 == 0) {
-                    flashAllDisplays();
+            if (audio.isRunning()) {
+                if (elapsed < 3000) {
+                    if ((elapsed / 250) % 2 == 0) {
+                        flashAllDisplays();
+                    } else {
+                        blankAllDisplays();
+                    }
                 } else {
-                    blankAllDisplays();
-                }
-            } else {
-                animateDisplayRowRandomly(destRow);
-                animateDisplayRowRandomly(lastRow);
-                if ((elapsed / 250) % 2 == 0) {
-                    displayStaticFluxText();
-                } else {
-                    printToDisplay(presRow.month, "");
-                    printToDisplay(presRow.day, "");
-                    printToDisplay(presRow.year, "");
-                    printToDisplay(presRow.time, "");
-                    presRow.month.writeDisplay();
-                    presRow.day.writeDisplay();
-                    presRow.year.writeDisplay();
-                    presRow.time.writeDisplay();
+                    animateDisplayRowRandomly(destRow);
+                    animateDisplayRowRandomly(lastRow);
+                    if ((elapsed / 250) % 2 == 0) {
+                        displayStaticFluxText();
+                    } else {
+                        printToDisplay(presRow.month, "");
+                        printToDisplay(presRow.day, "");
+                        printToDisplay(presRow.year, "");
+                        printToDisplay(presRow.time, "");
+                        presRow.month.writeDisplay();
+                        presRow.day.writeDisplay();
+                        presRow.year.writeDisplay();
+                        presRow.time.writeDisplay();
+                    }
                 }
             }
             if (elapsed > BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
+                bootState = BOOT_DIAGNOSTICS;
+                bootStateStartTime = millis();
+            }
+            break;
+        case BOOT_DIAGNOSTICS:
+            if (!stateActionCompleted) {
                 playSound("/keypad_beeps.mp3");
-                nextStateAfterSound = BOOT_DIAGNOSTICS;
-                bootState = BOOT_WAIT_FOR_SOUND;
-            }
-            break;
-        case BOOT_DIAGNOSTICS: {
-            if (!stateActionCompleted) {
-                blankAllDisplays(); 
                 stateActionCompleted = true;
-                lastDiagSecond = -1; 
             }
-
-            int currentSecond = elapsed / 2000;
-            if (currentSecond != lastDiagSecond) {
-                blankAllDisplays();
-                if (currentSecond == 0) {
-                    printToDisplay(destRow.month, "CPU", 1);
-                    printToDisplay(destRow.day, "OK", 2);
-                    destRow.month.writeDisplay();
-                    destRow.day.writeDisplay();
-                } else if (currentSecond == 1) {
-                    printToDisplay(presRow.month, "MEM", 1);
-                    printToDisplay(presRow.day, "OK", 2);
-                    presRow.month.writeDisplay();
-                    presRow.day.writeDisplay();
-                } else if (currentSecond == 2) {
-                    printToDisplay(lastRow.month, "WFI", 1);
-                    printToDisplay(lastRow.day, "OK", 2);
-                    lastRow.month.writeDisplay();
-                    lastRow.day.writeDisplay();
-                } else if (currentSecond == 3) {
-                    printToDisplay(lastRow.month, "IP", 1);
-                    printToDisplay(lastRow.day, "OK", 2);
-                    lastRow.month.writeDisplay();
-                    lastRow.day.writeDisplay();
-                } else if (currentSecond == 4) {
-                    printToDisplay(lastRow.month, "MQT", 1);
-                    printToDisplay(lastRow.day, "OK", 2);
-                    lastRow.month.writeDisplay();
-                    lastRow.day.writeDisplay();
+            if (audio.isRunning()) {
+                int currentSecond = elapsed / 2000;
+                if (currentSecond != lastDiagSecond) {
+                    blankAllDisplays();
+                    if (currentSecond == 0) {
+                        printToDisplay(destRow.month, "CPU", 1);
+                        printToDisplay(destRow.day, "OK", 2);
+                        destRow.month.writeDisplay();
+                        destRow.day.writeDisplay();
+                    } else if (currentSecond == 1) {
+                        printToDisplay(presRow.month, "MEM", 1);
+                        printToDisplay(presRow.day, "OK", 2);
+                        presRow.month.writeDisplay();
+                        presRow.day.writeDisplay();
+                    } else if (currentSecond == 2) {
+                        printToDisplay(lastRow.month, "WFI", 1);
+                        printToDisplay(lastRow.day, "OK", 2);
+                        lastRow.month.writeDisplay();
+                        lastRow.day.writeDisplay();
+                    } else if (currentSecond == 3) {
+                        printToDisplay(lastRow.month, "IP", 1);
+                        printToDisplay(lastRow.day, "OK", 2);
+                        lastRow.month.writeDisplay();
+                        lastRow.day.writeDisplay();
+                    } else if (currentSecond == 4) {
+                        printToDisplay(lastRow.month, "MQT", 1);
+                        printToDisplay(lastRow.day, "OK", 2);
+                        lastRow.month.writeDisplay();
+                        lastRow.day.writeDisplay();
+                    }
+                    lastDiagSecond = currentSecond;
                 }
-                lastDiagSecond = currentSecond;
             }
-
             if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
-                playSound("/engine_rev.mp3");
-                nextStateAfterSound = BOOT_FINAL_CHECKS;
-                bootState = BOOT_WAIT_FOR_SOUND;
+                bootState = BOOT_FINAL_CHECKS;
+                bootStateStartTime = millis();
             }
             break;
-        }
-        case BOOT_FINAL_CHECKS: {
+        case BOOT_FINAL_CHECKS:
             if (!stateActionCompleted) {
-                blankAllDisplays();
+                playSound("/engine_rev.mp3");
                 stateActionCompleted = true;
             }
+            if (audio.isRunning()) {
+                if (!stateActionCompleted) {
+                    blankAllDisplays();
+                    stateActionCompleted = true;
+                }
 
-            float progress = (float)elapsed / BOOT_FINAL_CHECKS_DURATION;
-            if (progress > 1.0) progress = 1.0;
-            float easedProgress = 1 - pow(1 - progress, 3); 
-            int speed = 1 + (easedProgress * 87);
-            if (speed > 88) speed = 88;
+                float progress = (float)elapsed / BOOT_FINAL_CHECKS_DURATION;
+                if (progress > 1.0) progress = 1.0;
+                float easedProgress = 1 - pow(1 - progress, 3); 
+                int speed = 1 + (easedProgress * 87);
+                if (speed > 88) speed = 88;
 
-            displaySpeedRamp(speed);
+                displaySpeedRamp(speed);
 
-            printToDisplay(destRow.year, "SYS");
-            printToDisplay(destRow.time, "GO");
-            destRow.year.writeDisplay();
-            destRow.time.writeDisplay();
-
+                printToDisplay(destRow.year, "SYS");
+                printToDisplay(destRow.time, "GO");
+                destRow.year.writeDisplay();
+                destRow.time.writeDisplay();
+            }
             if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
-                playSound("/time_travel.mp3");
-                nextStateAfterSound = BOOT_TEMPORAL_DISPLACEMENT;
-                bootState = BOOT_WAIT_FOR_SOUND;
+                bootState = BOOT_TEMPORAL_DISPLACEMENT;
+                bootStateStartTime = millis();
             }
             break;
-        }
         case BOOT_TEMPORAL_DISPLACEMENT:
-            animateRandomRealTimes();
+            if (!stateActionCompleted) {
+                playSound("/time_travel.mp3");
+                stateActionCompleted = true;
+            }
+            if (audio.isRunning()) {
+                animateRandomRealTimes();
+            }
             if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
-                playSound("/arrival_chime.mp3");
-                nextStateAfterSound = BOOT_ARRIVAL;
-                bootState = BOOT_WAIT_FOR_SOUND;
+                bootState = BOOT_ARRIVAL;
+                bootStateStartTime = millis();
             }
             break;
         case BOOT_ARRIVAL:
             if (!stateActionCompleted) {
-                blankAllDisplays();
-                printToDisplay(destRow.year, "ARRI");
-                printToDisplay(destRow.time, "VAL");
-                printToDisplay(presRow.year, "OUTA");
-                printToDisplay(presRow.time, "TIME");
-
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
+                playSound("/arrival_chime.mp3");
                 stateActionCompleted = true;
             }
-             if (elapsed > 3000) {
-                printToDisplay(lastRow.year, "WEL");
-                printToDisplay(lastRow.time, "COME");
-                lastRow.year.writeDisplay();
-                lastRow.time.writeDisplay();
-            }
+            if (audio.isRunning()) {
+                if (!stateActionCompleted) {
+                    blankAllDisplays();
+                    printToDisplay(destRow.year, "ARRI");
+                    printToDisplay(destRow.time, "VAL");
+                    printToDisplay(presRow.year, "OUTA");
+                    printToDisplay(presRow.time, "TIME");
 
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
+                    stateActionCompleted = true;
+                }
+                if (elapsed > 3000) {
+                    printToDisplay(lastRow.year, "WEL");
+                    printToDisplay(lastRow.time, "COME");
+                    lastRow.year.writeDisplay();
+                    lastRow.time.writeDisplay();
+                }
+            }
             if (elapsed > BOOT_ARRIVAL_DURATION) {
                 bootState = BOOT_COOL_DOWN;
                 bootStateStartTime = millis();

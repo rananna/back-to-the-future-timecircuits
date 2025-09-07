@@ -1062,7 +1062,6 @@ void startAudioStream(const char* url, bool is_tts) {
     }
     
     digitalWrite(I2S_SD_PIN, HIGH);
-    isPlayingSound = true;
     audio.setVolume(currentSettings.notificationVolume); // Use full volume for streams
     strncpy(currentSoundFile, url, MAX_FILENAME_LENGTH - 1);
     currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
@@ -1074,7 +1073,6 @@ void startAudioStream(const char* url, bool is_tts) {
         }
     } else {
         Serial.printf("AUDIO_LOG: Failed to connect to host for streaming: %s\n", url);
-        isPlayingSound = false;
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
     }
@@ -1084,7 +1082,6 @@ void stopAudioStream() {
     Serial.println("AUDIO_LOG: Request to stop audio stream.");
     if (audio.isRunning()) {
         audio.stopSong();
-        isPlayingSound = false; // Manually update state as stopSong() doesn't trigger callback immediately
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
         Serial.println("AUDIO_LOG: Audio stream stopped successfully.");

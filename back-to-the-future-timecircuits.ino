@@ -624,7 +624,7 @@ void loop() {
             }
             break;
         case WIFI_STATE_CONNECTED:
-            if (!logConnectingPrinted) {
+            if (!logConnectedPrinted) {
                 ESP_LOGI("WiFi", "IP: %s", WiFi.localIP().toString().c_str());
                 // Start the web server now that we are connected
                 server.begin();
@@ -635,15 +635,8 @@ void loop() {
                     MDNS.addService("http", "tcp", 80);
                 }
                 ntpSyncRequested = true;
-                runBootSequence();
             }
-            if (WiFi.status() != WL_CONNECTED) {
-                wifiState = WIFI_STATE_CONNECTING;
-                logConnectingPrinted = false;
-                logConnectedPrinted = false;
-                wifiConnectStartTime = millis();
-                return;
-            }
+            runBootSequence();
             if (!currentSettings.mqttBroker.empty()) {
                 if (!mqttClient.connected()) {
                     unsigned long now = millis();
