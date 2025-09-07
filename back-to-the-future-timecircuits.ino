@@ -126,8 +126,7 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "NZST-12NZDT,M9.5.0,M4.1.0/3", "NZST/NZDT (Auckland)", "Pacific/Auckland", "Australia & Oceania" },
 	{ "ChST-10", "Chamorro Time (Guam)", "Pacific/Guam", "Australia & Oceania" },
 	{ "WAT-1", "West Africa Time (Lagos)", "Africa/Lagos", "Africa" },
-	{ "SAST-2", "South 
- Africa Standard Time", "Africa/Johannesburg", "Africa" },
+	{ "SAST-2", "South Africa Standard Time", "Africa/Johannesburg", "Africa" },
 	{ "EET-2","EET (Cairo)", "Africa/Cairo", "Africa" },
 	{ "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
 	{ "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
