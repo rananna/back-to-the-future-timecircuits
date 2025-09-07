@@ -409,26 +409,18 @@ void handleBootSequence() {
                 presRow.month.writeDisplay(); presRow.day.writeDisplay();
                 stateActionCompleted = true;
             }
-            if (elapsed < 3000) {
+           if (elapsed < 3000) {
                 printToDisplay(lastRow.month, "WFI", 1);
                 printToDisplay(lastRow.day, "OK", 2);
-                printToDisplay(lastRow.year, "");
-                printToDisplay(lastRow.time, "");
             } else if (elapsed < 6000) {
                 printToDisplay(lastRow.month, "IP", 1);
                 printToDisplay(lastRow.day, "OK", 2);
-                printToDisplay(lastRow.year, "");
-                printToDisplay(lastRow.time, "");
             } else {
                 printToDisplay(lastRow.month, "MQT", 1);
                 printToDisplay(lastRow.day, "OK", 2);
-                printToDisplay(lastRow.year, "");
-                printToDisplay(lastRow.time, "");
             }
             lastRow.month.writeDisplay();
             lastRow.day.writeDisplay();
-            lastRow.year.writeDisplay();
-            lastRow.time.writeDisplay();
 
             if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
                 bootState = BOOT_FINAL_CHECKS;
