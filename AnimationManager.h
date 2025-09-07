@@ -11,6 +11,7 @@
 #include "HardwareControl.h"
 
 // --- MODIFIED: New constants and states for the cinematic boot sequence ---
+#define BOOT_AWAIT_HUM_DURATION 10000
 #define BOOT_WARM_UP_DURATION 1000
 #define BOOT_COLD_START_DURATION 5000
 #define BOOT_FLUX_CAPACITOR_IGNITION_DURATION 10000
@@ -24,6 +25,7 @@
 // THIS IS NOW THE ONLY DEFINITION OF THIS ENUM
 enum BootSequenceState {
   BOOT_INACTIVE,
+  BOOT_AWAIT_HUM,
   BOOT_START,
   BOOT_WAIT_FOR_SOUND,
   BOOT_WARM_UP,

@@ -331,7 +331,7 @@ void handleMalfunction() {
 void runBootSequence() {
     Serial.println("BOOT_LOG: runBootSequence() called.");
     if (bootState == BOOT_INACTIVE) {
-        bootState = BOOT_START; // Only sets the initial state
+        bootState = BOOT_AWAIT_HUM;
         bootStateStartTime = millis();
         Serial.println("BOOT_LOG: Boot sequence initiated.");
     } else {
@@ -357,6 +357,16 @@ void handleBootSequence() {
     }
 
     switch (bootState) {
+        case BOOT_AWAIT_HUM:
+            if (!stateActionCompleted) {
+                playSound("/hum.mp3");
+                stateActionCompleted = true;
+            }
+            if (elapsed > BOOT_AWAIT_HUM_DURATION) {
+                bootState = BOOT_START;
+                bootStateStartTime = millis();
+            }
+            break;
         case BOOT_START:
             if (elapsed > 1000) {
                 bootState = BOOT_WARM_UP;
@@ -370,10 +380,6 @@ void handleBootSequence() {
             }
             break;
         case BOOT_WARM_UP:
-            if (!stateActionCompleted) {
-                blankAllDisplays();
-                stateActionCompleted = true;
-            }
             if (elapsed > BOOT_WARM_UP_DURATION) {
                 playSound("/relay_activation.mp3");
                 nextStateAfterSound = BOOT_COLD_START;

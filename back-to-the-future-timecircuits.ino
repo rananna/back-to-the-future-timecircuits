@@ -35,11 +35,14 @@
 #endif
 
 // --- CONFIGURABLE CONSTANTS ---
-const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
+const unsigned long WIFI_CONNECT_TIMEOUT = 15000;
+// 15 seconds
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
-const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
+const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;
+// 1 minute
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
-const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates
+const unsigned long DISPLAY_UPDATE_INTERVAL = 250;
+// Milliseconds between display updates
 
 
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
@@ -111,7 +114,8 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe" },
 	{ "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
 	{ "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
-	{ "<+03>-3", "Moscow Standard Time", "Europe/Moscow", "Europe" },
+	{ "<+03>-3", "Moscow 
+ Standard Time", "Europe/Moscow", "Europe" },
 	{ "<+03>-3", "Turkey Time (Istanbul)","Europe/Istanbul", "Europe" },
 	{ "IST-5:30", "Indian Standard Time (Kolkata)", "Asia/Kolkata", "Asia" },
 	{ "<+08>-8", "Singapore Standard Time", "Asia/Singapore", "Asia" },
@@ -124,7 +128,8 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "NZST-12NZDT,M9.5.0,M4.1.0/3", "NZST/NZDT (Auckland)", "Pacific/Auckland", "Australia & Oceania" },
 	{ "ChST-10", "Chamorro Time (Guam)", "Pacific/Guam", "Australia & Oceania" },
 	{ "WAT-1", "West Africa Time (Lagos)", "Africa/Lagos", "Africa" },
-	{ "SAST-2", "South Africa Standard Time", "Africa/Johannesburg", "Africa" },
+	{ "SAST-2", "South 
+ Africa Standard Time", "Africa/Johannesburg", "Africa" },
 	{ "EET-2","EET (Cairo)", "Africa/Cairo", "Africa" },
 	{ "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
 	{ "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
@@ -191,7 +196,7 @@ bool isSequenceActive = false;
 void audio_info(Audio::msg_t m) {
     if (m.e == Audio::evt_eof) {
         Serial.printf("AUDIO_LOG: Finished playing sound: %s\n", currentSoundFile);
-        isPlayingSound = false;
+isPlayingSound = false;
         currentSoundFile[0] = '\0'; // Clear the filename
         // Update Home Assistant that audio is idle
         if (mqttClient.connected()) {
@@ -470,11 +475,13 @@ void wifiManagerTask(void *pvParameters) {
 
 void setup() {
     Serial.begin(115200);
-    delay(1000); // Wait for Serial to initialize
+    delay(1000);
+    // Wait for Serial to initialize
 
     Serial.println(F("\n\n--- BOOTING ---"));
     Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
-    delay(10); // MODIFICATION: Small delay for stability
+    delay(10);
+    // MODIFICATION: Small delay for stability
 
     if (!LittleFS.begin(true, "/spiffs")) {
         ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
@@ -483,12 +490,14 @@ void setup() {
         ESP.restart();
     }
     Serial.println(F("BOOT_LOG: LittleFS mount... OK"));
-    delay(10); // MODIFICATION: Small delay for stability
+    delay(10);
+    // MODIFICATION: Small delay for stability
 
     Serial.println(F("BOOT_LOG: Loading settings..."));
     loadSettings();
     Serial.println(F("BOOT_LOG: Settings loaded... OK"));
-    delay(10); // MODIFICATION: Small delay for stability
+    delay(10);
+    // MODIFICATION: Small delay for stability
 
     xDisplayDataMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
@@ -507,12 +516,11 @@ void setup() {
 
     hardwareInitialized = attemptHardwareInit();
     if (hardwareInitialized) {
-        applyBrightness(); // <-- ADD THIS LINE
+        applyBrightness();
         Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
         audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
         audio.setVolume(currentSettings.notificationVolume);
         Audio::audio_info_callback = audio_info;
-        playSound("/hum.mp3");
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
     }
 
@@ -577,9 +585,10 @@ void loop() {
                       currentWifiStatus,
                       bootState,
                     
+
       isMessageOverrideActive,
                       currentMqttConnected);
-        prevWifiStatus = currentWifiStatus;
+		prevWifiStatus = currentWifiStatus;
         prevBootState = bootState;
         prevOverrideState = isMessageOverrideActive;
         prevMqttConnected = currentMqttConnected;
@@ -589,7 +598,7 @@ void loop() {
         case WIFI_STATE_CONNECTING:
             if (!logConnectingPrinted) {
                 Serial.println("WIFI_LOG: State is WIFI_STATE_CONNECTING.");
-                logConnectingPrinted = true;
+				logConnectingPrinted = true;
             }
             if (WiFi.status() == WL_CONNECTED) {
                 wifiState = WIFI_STATE_CONNECTED;
@@ -600,20 +609,20 @@ void loop() {
         case WIFI_STATE_START_PORTAL:
             if (!logPortalMsgPrinted) {
                 Serial.println("WIFI_LOG: State is WIFI_STATE_START_PORTAL. Starting WiFiManager.");
-                logPortalMsgPrinted = true;
+				logPortalMsgPrinted = true;
             }
             xTaskCreate(wifiManagerTask, "WiFiManager", 4096, &wifiManager, 1, &wifiManagerTaskHandle);
-            wifiState = WIFI_STATE_PORTAL_RUNNING;
+			wifiState = WIFI_STATE_PORTAL_RUNNING;
             break;
         case WIFI_STATE_PORTAL_RUNNING:
              if (WiFi.status() == WL_CONNECTED) {
                 Serial.println("WIFI_LOG: WiFi connected via portal. Rebooting...");
-                if(wifiManagerTaskHandle != NULL) {
+				if(wifiManagerTaskHandle != NULL) {
                     vTaskDelete(wifiManagerTaskHandle);
-                    wifiManagerTaskHandle = NULL;
+					wifiManagerTaskHandle = NULL;
                 }
                 static unsigned long reboot_time = 0;
-                if (reboot_time == 0) reboot_time = millis();
+				if (reboot_time == 0) reboot_time = millis();
                 if (millis() - reboot_time > 2000) ESP.restart();
             }
             break;
@@ -625,7 +634,7 @@ void loop() {
                 ESP_LOGI("Web", "HTTP server started on successful connection.");
 
                 logConnectedPrinted = true;
-                if (MDNS.begin("timecircuits")) {
+				if (MDNS.begin("timecircuits")) {
                     MDNS.addService("http", "tcp", 80);
                 }
                 ntpSyncRequested = true;
@@ -641,12 +650,12 @@ void loop() {
             if (!currentSettings.mqttBroker.empty()) {
                 if (!mqttClient.connected()) {
                     unsigned long now = millis();
-                    if (now > nextMqttReconnectAttempt) {
+					if (now > nextMqttReconnectAttempt) {
                         reconnectMqtt();
-                        nextMqttReconnectAttempt = now + mqttReconnectInterval;
+						nextMqttReconnectAttempt = now + mqttReconnectInterval;
                         if (!mqttClient.connected()) {
                             mqttReconnectInterval *= 2;
-                            if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
+							if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
                                 mqttReconnectInterval = MQTT_MAX_RETRY_INTERVAL;
                             }
                         } else {
@@ -663,24 +672,24 @@ void loop() {
                 int retries = 0;
                 while (!syncSuccess && retries < NUM_NTP_SERVERS) {
                     configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
-                    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+					setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
                     tzset();
                     struct tm timeinfo;
                     if (getLocalTime(&timeinfo, 10000)) {
                         timeSynchronized = true;
-                        syncSuccess = true;
+						syncSuccess = true;
                     } else {
                         currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
-                        retries++;
+						retries++;
                     }
                 }
                 lastNtpUpdate = millis();
-                ntpSyncRequested = false;
+				ntpSyncRequested = false;
             }
             static unsigned long lastHaStateUpdate = 0;
             if (timeSynchronized && millis() - lastHaStateUpdate > 5000) {
                 publishAllHaStates();
-                lastHaStateUpdate = millis();
+				lastHaStateUpdate = millis();
             }
             break;
     }
@@ -692,16 +701,16 @@ void loop() {
             handleBootSequence();
         } else {
             handleFlashEffect();
-            if (isMarqueeOverrideActive && marqueeOverrideEndTime > 0 && millis() > marqueeOverrideEndTime) {
+			if (isMarqueeOverrideActive && marqueeOverrideEndTime > 0 && millis() > marqueeOverrideEndTime) {
                 isMarqueeOverrideActive = false;
-                marqueeOverrideEndTime = 0;
+				marqueeOverrideEndTime = 0;
                 publishAllHaStates();
             }
             
             // Only update the display if enough time has passed
             if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
                 lastDisplayUpdateTime = millis();
-                if (isMessageOverrideActive) {
+				if (isMessageOverrideActive) {
                     displayOverrideMessage();
                 } else if (isMalfunctioning) {
                     handleMalfunction();
@@ -709,7 +718,7 @@ void loop() {
                     handleDisplayAnimation();
                 } else {
                     restoreDisplayAfterGlitch();
-                    handleTemporalEcho();
+					handleTemporalEcho();
                     handleGlitchEffect();
                     handleSequencer();
                     handlePresetCycling();
@@ -717,9 +726,9 @@ void loop() {
                     if (currentSettings.stockTickerModeEnabled) {
                         if (isMarketOpen() && (millis() - lastStockDataFetch > 300000)) {
                             lastStockDataFetch = millis();
-                            for (int i=0; i<3; ++i) {
+							for (int i=0; i<3; ++i) {
                                 FetchDataParams* params = new FetchDataParams{ i, 0 };
-                                // This is the corrected line
+								// This is the corrected line
                                 xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
                             }
                         }
@@ -728,7 +737,7 @@ void loop() {
                         displayMarqueeOverride();
                     } else if (currentSettings.dataLinkEnabled) {
                         fetchDataLink();
-                        updateMarqueeDisplay();
+						updateMarqueeDisplay();
                     } else if (currentSettings.weatherModeEnabled) {
                         handleWeatherDisplay();
                     } else {
@@ -741,28 +750,28 @@ void loop() {
 }
 void handleSequencer() {
     if (!isSequenceActive) return;
-    SequenceStep step = sequence[currentSequenceStep];
+	SequenceStep step = sequence[currentSequenceStep];
     unsigned long elapsed = millis() - sequenceStepStartTime;
-    switch (step.command) {
+	switch (step.command) {
         case SEQ_CMD_TEXT:
             if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
-            currentSequenceStep++;
+			currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_FLASH:
             if (hardwareInitialized) triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
-            currentSequenceStep++;
+			currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_SOUND:
             if (hardwareInitialized) playSound(step.stringParam.c_str());
-            currentSequenceStep++;
+			currentSequenceStep++;
 			sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_WAIT:
             if (elapsed >= (unsigned long)step.intParam) {
                 sequenceStepStartTime = millis();
-                currentSequenceStep++;
+				currentSequenceStep++;
             }
             break;
         case SEQ_CMD_END:
@@ -774,7 +783,7 @@ void handleSequencer() {
 
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+	if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
     }
 }
@@ -792,14 +801,14 @@ void handleSleepSchedule() {
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
-    if (hardwareInitialized) {
+	if (hardwareInitialized) {
         blankAllDisplays();
         playSound("/SLEEP_ON.mp3");
     }
     updateHaStatus("Asleep");
   } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
-    if (hardwareInitialized) {
+	if (hardwareInitialized) {
         updateNormalClockDisplay();
         playSound("/CONFIRM_ON.mp3");
     }
@@ -813,7 +822,7 @@ bool isMarketOpen() {
     tzset();
     struct tm timeinfo;
     getLocalTime(&timeinfo);
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
 
     if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
@@ -822,6 +831,6 @@ bool isMarketOpen() {
 
     int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
     int market_open_minutes = 9 * 60 + 30;
-    int market_close_minutes = 16 * 60;
+	int market_close_minutes = 16 * 60;
     return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
 }
