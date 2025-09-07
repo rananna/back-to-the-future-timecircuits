@@ -358,6 +358,7 @@ void handleBootSequence() {
     static bool stateActionCompleted = false;
     unsigned long elapsed = millis() - bootStateStartTime;
     static BootSequenceState lastLoggedState = BOOT_INACTIVE;
+    static int lastDiagSecond = -1;
 
     if (bootState != lastLoggedState) {
         Serial.printf("BOOT_LOG: Entering state %d. Elapsed: %lu ms.\n", bootState, elapsed);
@@ -397,7 +398,7 @@ void handleBootSequence() {
                 bootStateStartTime = millis();
             }
             break;
-        case BOOT_DIAGNOSTICS:
+        case BOOT_DIAGNOSTICS: {
             if (!stateActionCompleted) {
                 Serial.println("BOOT_LOG: BOOT_DIAGNOSTICS action started.");
                 playSoundAndSetNextState("/keypad_beeps.mp3", BOOT_FINAL_CHECKS);
@@ -408,25 +409,32 @@ void handleBootSequence() {
                 destRow.month.writeDisplay(); destRow.day.writeDisplay();
                 presRow.month.writeDisplay(); presRow.day.writeDisplay();
                 stateActionCompleted = true;
+                lastDiagSecond = -1; 
             }
-           if (elapsed < 3000) {
-                printToDisplay(lastRow.month, "WFI", 1);
-                printToDisplay(lastRow.day, "OK", 2);
-            } else if (elapsed < 6000) {
-                printToDisplay(lastRow.month, "IP", 1);
-                printToDisplay(lastRow.day, "OK", 2);
-            } else {
-                printToDisplay(lastRow.month, "MQT", 1);
-                printToDisplay(lastRow.day, "OK", 2);
+
+            int currentSecond = elapsed / 3000;
+            if (currentSecond != lastDiagSecond) {
+                if (currentSecond == 0) {
+                    printToDisplay(lastRow.month, "WFI", 1);
+                    printToDisplay(lastRow.day, "OK", 2);
+                } else if (currentSecond == 1) {
+                    printToDisplay(lastRow.month, "IP", 1);
+                    printToDisplay(lastRow.day, "OK", 2);
+                } else {
+                    printToDisplay(lastRow.month, "MQT", 1);
+                    printToDisplay(lastRow.day, "OK", 2);
+                }
+                lastRow.month.writeDisplay();
+                lastRow.day.writeDisplay();
+                lastDiagSecond = currentSecond;
             }
-            lastRow.month.writeDisplay();
-            lastRow.day.writeDisplay();
 
             if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
                 bootState = BOOT_FINAL_CHECKS;
                 bootStateStartTime = millis();
             }
             break;
+        }
         case BOOT_FINAL_CHECKS:
             if (!stateActionCompleted) {
                 Serial.println("BOOT_LOG: BOOT_FINAL_CHECKS action started.");
