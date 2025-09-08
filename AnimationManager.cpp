@@ -149,7 +149,7 @@ void handleDisplayAnimation() {
                     playSound("SAVE_POWER_UP.mp3");
                     break;
                 case ANIM_TIME_ACCELERATION:
-                    playSound("SAVE_ACCELERATION.mp3");
+                    playSound("engine_rev.mp3");
                     break;
                 case ANIM_ARRIVAL:
                     playSound("SAVE_TIME_TRAVEL.mp3");

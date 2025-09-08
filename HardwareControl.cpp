@@ -351,11 +351,22 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
 
     auto fillRow = [&](DisplayRow& row, int numChars) {
         char buffer[17] = "################";
+        char temp[5]; // Temporary buffer for segments
+
         if (numChars < 16) buffer[numChars] = '\0';
-        printToDisplay(row.month, String(buffer).substring(0, 4).c_str());
-        printToDisplay(row.day, String(buffer).substring(4, 8).c_str());
-        printToDisplay(row.year, String(buffer).substring(8, 12).c_str());
-        printToDisplay(row.time, String(buffer).substring(12, 16).c_str());
+        
+        strncpy(temp, buffer, 4); temp[4] = '\0';
+        printToDisplay(row.month, temp);
+        
+        strncpy(temp, buffer + 4, 4); temp[4] = '\0';
+        printToDisplay(row.day, temp);
+
+        strncpy(temp, buffer + 8, 4); temp[4] = '\0';
+        printToDisplay(row.year, temp);
+
+        strncpy(temp, buffer + 12, 4); temp[4] = '\0';
+        printToDisplay(row.time, temp);
+
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
@@ -417,10 +428,16 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
             strcpy(pattern, scrolledPattern);
         }
 
-        printToDisplay(row.month, String(pattern).substring(0, 4).c_str());
-        printToDisplay(row.day, String(pattern).substring(1, 3).c_str(), 2);
-        printToDisplay(row.year, String(pattern).substring(0, 4).c_str());
-        printToDisplay(row.time, String(pattern).substring(1, 5).c_str());
+        char temp[5]; // Temporary buffer for segments
+        strncpy(temp, scrolledPattern, 4); temp[4] = '\0';
+        printToDisplay(row.month, temp);
+        strncpy(temp, scrolledPattern + 1, 2); temp[2] = '\0';
+        printToDisplay(row.day, temp, 2);
+        strncpy(temp, scrolledPattern, 4); temp[4] = '\0';
+        printToDisplay(row.year, temp);
+        strncpy(temp, scrolledPattern + 1, 4); temp[4] = '\0';
+        printToDisplay(row.time, temp);
+
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
@@ -485,15 +502,26 @@ void display88MphSpeed(float speed) {
 
 void playSound(const char* filepath) {
     #if ENABLE_HARDWARE
-    Serial.printf("AUDIO_LOG: Request to play sound: %s\n", filepath);
+    char fullPath[MAX_FILENAME_LENGTH];
+
+    // Ensure the path starts with a single '/'
+    if (filepath[0] == '/') {
+        strncpy(fullPath, filepath, MAX_FILENAME_LENGTH);
+    } else {
+        snprintf(fullPath, MAX_FILENAME_LENGTH, "/%s", filepath);
+    }
+    // Ensure null-termination in case of overflow
+    fullPath[MAX_FILENAME_LENGTH - 1] = '\0';
+
+    Serial.printf("AUDIO_LOG: Request to play sound: %s\n", fullPath);
 
     if (audio.isRunning()) {
         audio.stopSong();
         vTaskDelay(pdMS_TO_TICKS(10)); 
     }
     
-    if (!LittleFS.exists(filepath)) {
-        Serial.printf("AUDIO_LOG: File not found: %s\n", filepath);
+    if (!LittleFS.exists(fullPath)) {
+        Serial.printf("AUDIO_LOG: File not found: %s\n", fullPath);
         return;
     }
 
@@ -502,13 +530,13 @@ void playSound(const char* filepath) {
     vTaskDelay(pdMS_TO_TICKS(10));
     
     audio.setVolume(currentSettings.notificationVolume);
-    strncpy(currentSoundFile, filepath, MAX_FILENAME_LENGTH - 1);
+    strncpy(currentSoundFile, fullPath, MAX_FILENAME_LENGTH - 1);
     currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
     
-    if (audio.connecttoFS(LittleFS, filepath)) {
-        Serial.printf("AUDIO_LOG: Started playing: %s\n", filepath);
+    if (audio.connecttoFS(LittleFS, fullPath)) {
+        Serial.printf("AUDIO_LOG: Started playing: %s\n", fullPath);
     } else {
-        Serial.printf("AUDIO_LOG: Failed to connect to file: %s\n", filepath);
+        Serial.printf("AUDIO_LOG: Failed to connect to file: %s\n", fullPath);
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
     }
