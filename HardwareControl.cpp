@@ -351,22 +351,11 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
 
     auto fillRow = [&](DisplayRow& row, int numChars) {
         char buffer[17] = "################";
-        char temp[5]; // Temporary buffer for segments
-
         if (numChars < 16) buffer[numChars] = '\0';
-        
-        strncpy(temp, buffer, 4); temp[4] = '\0';
-        printToDisplay(row.month, temp);
-        
-        strncpy(temp, buffer + 4, 4); temp[4] = '\0';
-        printToDisplay(row.day, temp);
-
-        strncpy(temp, buffer + 8, 4); temp[4] = '\0';
-        printToDisplay(row.year, temp);
-
-        strncpy(temp, buffer + 12, 4); temp[4] = '\0';
-        printToDisplay(row.time, temp);
-
+        printToDisplay(row.month, String(buffer).substring(0, 4).c_str());
+        printToDisplay(row.day, String(buffer).substring(4, 8).c_str());
+        printToDisplay(row.year, String(buffer).substring(8, 12).c_str());
+        printToDisplay(row.time, String(buffer).substring(12, 16).c_str());
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
@@ -428,16 +417,10 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
             strcpy(pattern, scrolledPattern);
         }
 
-        char temp[5]; // Temporary buffer for segments
-        strncpy(temp, scrolledPattern, 4); temp[4] = '\0';
-        printToDisplay(row.month, temp);
-        strncpy(temp, scrolledPattern + 1, 2); temp[2] = '\0';
-        printToDisplay(row.day, temp, 2);
-        strncpy(temp, scrolledPattern, 4); temp[4] = '\0';
-        printToDisplay(row.year, temp);
-        strncpy(temp, scrolledPattern + 1, 4); temp[4] = '\0';
-        printToDisplay(row.time, temp);
-
+        printToDisplay(row.month, String(pattern).substring(0, 4).c_str());
+        printToDisplay(row.day, String(pattern).substring(1, 3).c_str(), 2);
+        printToDisplay(row.year, String(pattern).substring(0, 4).c_str());
+        printToDisplay(row.time, String(pattern).substring(1, 5).c_str());
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 

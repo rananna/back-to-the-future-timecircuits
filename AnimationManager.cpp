@@ -146,16 +146,10 @@ void handleDisplayAnimation() {
         if (currentSettings.timeTravelSoundToggle) {
             switch (currentPhase) {
                 case ANIM_POWER_UP:
-                    playSound("SAVE_POWER_UP.mp3");
-                    break;
-                case ANIM_TIME_ACCELERATION:
                     playSound("engine_rev.mp3");
                     break;
                 case ANIM_ARRIVAL:
-                    playSound("SAVE_TIME_TRAVEL.mp3");
-                    break;
-                case ANIM_LANDING:
-                    playSound("SAVE_LANDING.mp3");
+                    playSound("time_travel.mp3");
                     break;
                 default:
                     break; // No sound for other states

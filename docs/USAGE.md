@@ -75,15 +75,13 @@ When you press the button, you will see the following changes in the web UI:
 
 ### Hardware Animation and Sound Sequence
 
-Pressing the save button triggers a cinematic 17-second animation on the physical display, complete with synchronized sound effects.
+Pressing the save button triggers a cinematic 17-second animation on the physical display, complete with a synchronized sound effect.
 
 | Phase | Duration | Visuals | Sound Effect |
 | :--- | :--- | :--- | :--- |
-| | | | (All sounds are controlled by the **"Time Travel Sound FX"** toggle under the "Temporal Controls" tab) |
-| **1. Power Up** | 2 seconds | The displays flicker with random characters, simulating a power surge. | A low hum builds in intensity with the sound of crackling electricity and mechanical relays (**SAVE\_POWER\_UP.mp3**). |
-| **2. Acceleration**| 10 seconds | The bottom row displays a speedometer ramping up to 88 MPH while the other rows continue to flicker. | The sound of a powerful engine revving up (**engine\_rev.mp3**). |
-| **3. Time Travel**| 4 seconds | At 88 MPH, all displays flash brightly, then show a "time blur" effect where the years rapidly skim forward or backward. | A loud "sonic boom" transitions into a chaotic whoosh of temporal winds (**SAVE\_TIME\_TRAVEL.mp3**). |
-| **4. Landing** | 1 second | The displays flicker one last time before settling on the new destination and present times. | A deep "thud" combined with a final crackle of electricity confirms the arrival (**SAVE\_LANDING.mp3**). |
+| **1. Power Up & Acceleration** | 12 seconds | The displays flicker, then the bottom row ramps up to 88 MPH. | The sound of a powerful engine revving up (**engine\_rev.mp3**). |
+| **2. Time Travel**| 4 seconds | At 88 MPH, all displays flash brightly, then show a "time blur" effect where the years rapidly skim forward or backward. | *None* |
+| **3. Landing** | 1 second | The displays flicker one last time before settling on the new destination and present times. | *None* |
 
 #### Smart Saving Technology
 
