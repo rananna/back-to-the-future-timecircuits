@@ -179,7 +179,6 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
     updateNormalClockDisplay();
 }
 
-// --- MODIFIED: This function now selectively updates rows ---
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
@@ -191,8 +190,15 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
     if (updateDest) {
         setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
         tzset();
-        struct tm dest_timeinfo;
-        localtime_r(&now_t, &dest_timeinfo);
+        struct tm current_timeinfo;
+        localtime_r(&now_t, &current_timeinfo);
+        
+        struct tm dest_timeinfo = {0};
+        dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+        dest_timeinfo.tm_mon = current_timeinfo.tm_mon; // Use current month
+        dest_timeinfo.tm_mday = current_timeinfo.tm_mday; // Use current day
+        dest_timeinfo.tm_hour = current_timeinfo.tm_hour; // Use current hour
+        dest_timeinfo.tm_min = current_timeinfo.tm_min; // Use current minute
         
         if (!isRowInManualMode[0]) {
             updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
