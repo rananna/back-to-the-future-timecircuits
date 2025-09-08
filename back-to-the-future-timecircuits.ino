@@ -35,11 +35,16 @@
 #endif
 
 // --- CONFIGURABLE CONSTANTS ---
-const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
+const unsigned long WIFI_CONNECT_TIMEOUT = 15000;
+// 15 seconds
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
-const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
+const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;
+// 1 minute
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
-const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates
+const unsigned long DISPLAY_UPDATE_INTERVAL = 250;
+// Milliseconds between display updates. A lower value (e.g., 100) will be more responsive
+// but use more processing power. A higher value (e.g., 500) will be less responsive
+// but more efficient. 250ms is a good balance.
 
 
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
@@ -110,7 +115,8 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "GMT0BST,M3.5.0/1,M10.5.0", "GMT/BST (London)", "Europe/London", "Europe" },
 	{ "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
 	{ "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
-	{ "<+03>-3", "Moscow Standard Time", "Europe/Moscow", "Europe" },
+	{ "<+03>-3", "Moscow 
+Standard Time", "Europe/Moscow", "Europe" },
 	{ "<+03>-3", "Turkey Time (Istanbul)","Europe/Istanbul", "Europe" },
 	{ "IST-5:30", "Indian Standard Time (Kolkata)", "Asia/Kolkata", "Asia" },
 	{ "<+08>-8", "Singapore Standard Time", "Asia/Singapore", "Asia" },
@@ -123,7 +129,8 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "NZST-12NZDT,M9.5.0,M4.1.0/3", "NZST/NZDT (Auckland)", "Pacific/Auckland", "Australia & Oceania" },
 	{ "ChST-10", "Chamorro Time (Guam)", "Pacific/Guam", "Australia & Oceania" },
 	{ "WAT-1", "West Africa Time (Lagos)", "Africa/Lagos", "Africa" },
-	{ "SAST-2", "South Africa Standard Time", "Africa/Johannesburg", "Africa" },
+	{ "SAST-2", "South 
+Africa Standard Time", "Africa/Johannesburg", "Africa" },
 	{ "EET-2","EET (Cairo)", "Africa/Cairo", "Africa" },
 	{ "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
 	{ "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
@@ -186,6 +193,20 @@ int currentSequenceStep = 0;
 unsigned long sequenceStepStartTime = 0;
 bool isSequenceActive = false;
 
+// --- NEW DISPLAY STATE MACHINE ---
+enum DisplayState {
+    STATE_NORMAL_CLOCK,
+    STATE_MESSAGE_OVERRIDE,
+    STATE_MALFUNCTION,
+    STATE_ANIMATING,
+    STATE_STOCK_TICKER,
+    STATE_MARQUEE_OVERRIDE,
+    STATE_DATA_LINK,
+    STATE_WEATHER
+};
+DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
+
+
 // --- Callback function to handle audio events ---
 void audio_info(Audio::msg_t m) {
     if (m.e == Audio::evt_eof) {
@@ -214,72 +235,125 @@ void audioTask(void *pvParameters) {
 }
 
 void saveSettings() {
-    Serial.println("--- Saving Settings ---");
+    Serial.println("--- Saving Settings (Dirty Flag Check) ---");
     preferences.begin(PREFERENCES_NAMESPACE, false);
-	preferences.putInt("destYear", currentSettings.destinationYear);
-	preferences.putInt("destTzIndex", currentSettings.destinationTimezoneIndex);
-	preferences.putInt("depHour", currentSettings.departureHour);
-	preferences.putInt("depMinute", currentSettings.departureMinute);
-	preferences.putInt("arrHour", currentSettings.arrivalHour);
-	preferences.putInt("arrMinute", currentSettings.arrivalMinute);
-	preferences.putInt("lastYear", currentSettings.lastTimeDepartedYear);
-	preferences.putInt("lastMonth", currentSettings.lastTimeDepartedMonth);
-	preferences.putInt("lastDay", currentSettings.lastTimeDepartedDay);
-	preferences.putInt("lastHour", currentSettings.lastTimeDepartedHour);
-	preferences.putInt("lastMinute", currentSettings.lastTimeDepartedMinute);
-	preferences.putUChar("brightness", currentSettings.brightness);
-	preferences.putUChar("volume", currentSettings.notificationVolume);
-	preferences.putBool("soundToggle", currentSettings.timeTravelSoundToggle);
-	preferences.putInt("presTzIndex", currentSettings.presentTimezoneIndex);
-	preferences.putInt("presetCycle", currentSettings.presetCycleInterval);
-	preferences.putBool("format24h", currentSettings.displayFormat24h);
-	preferences.putInt("theme", currentSettings.theme);
-	preferences.putInt("animInterval", currentSettings.timeTravelAnimationInterval);
-	preferences.putInt("animDuration", currentSettings.timeTravelAnimationDuration);
-	preferences.putInt("animStyle", currentSettings.animationStyle);
-	preferences.putInt("glitchFreq", currentSettings.glitchEffectFrequency);
-	preferences.putInt("malfuncFreq", currentSettings.malfunctionFrequency);
-	preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
-	preferences.putInt("dlTargetRow", currentSettings.dataLinkTargetRow);
-	preferences.putInt("dlRefresh", currentSettings.dataLinkRefreshInterval);
-	preferences.putInt("numDataPoints", currentSettings.numDataPoints);
-	preferences.putString("mqttBroker", currentSettings.mqttBroker.c_str());
-	preferences.putInt("mqttPort", currentSettings.mqttPort);
-	preferences.putString("mqttUser", currentSettings.mqttUser.c_str());
-	preferences.putString("mqttPass", currentSettings.mqttPassword.c_str());
-	preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
-	preferences.putString("cityName", currentSettings.cityName.c_str());
-	preferences.putBool("useMetric", currentSettings.useMetricUnits);
-	preferences.putFloat("latitude", currentSettings.latitude);
-	preferences.putFloat("longitude", currentSettings.longitude);
-	preferences.putBool("stModeEnabled", currentSettings.stockTickerModeEnabled);
-	preferences.putString("stRow1Sym", currentSettings.stockRow1_symbol.c_str());
-	preferences.putString("stRow2Sym", currentSettings.stockRow2_symbol.c_str());
-	preferences.putString("stRow3Sym", currentSettings.stockRow3_symbol.c_str());
-    Serial.printf("Saving avApiKey: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
-	preferences.putString("avApiKey", currentSettings.alphaVantageApiKey.c_str());
+
+    // Helper macro to reduce boilerplate
+    #define SAVE_IF_CHANGED(key, type, value) \
+        if (preferences.get##type(key, -1) != value) { \
+            preferences.put##type(key, value); \
+            Serial.printf("SAVING: %s -> %d\n", key, value); \
+        }
+
+    #define SAVE_STRING_IF_CHANGED(key, value) \
+        if (preferences.getString(key, "") != value) { \
+            preferences.putString(key, value); \
+            Serial.printf("SAVING: %s -> %s\n", key, value.c_str()); \
+        }
+
+    SAVE_IF_CHANGED("destYear", Int, currentSettings.destinationYear);
+    SAVE_IF_CHANGED("destTzIndex", Int, currentSettings.destinationTimezoneIndex);
+    SAVE_IF_CHANGED("depHour", Int, currentSettings.departureHour);
+    SAVE_IF_CHANGED("depMinute", Int, currentSettings.departureMinute);
+    SAVE_IF_CHANGED("arrHour", Int, currentSettings.arrivalHour);
+    SAVE_IF_CHANGED("arrMinute", Int, currentSettings.arrivalMinute);
+    SAVE_IF_CHANGED("lastYear", Int, currentSettings.lastTimeDepartedYear);
+    SAVE_IF_CHANGED("lastMonth", Int, currentSettings.lastTimeDepartedMonth);
+    SAVE_IF_CHANGED("lastDay", Int, currentSettings.lastTimeDepartedDay);
+    SAVE_IF_CHANGED("lastHour", Int, currentSettings.lastTimeDepartedHour);
+    SAVE_IF_CHANGED("lastMinute", Int, currentSettings.lastTimeDepartedMinute);
+    SAVE_IF_CHANGED("brightness", UChar, currentSettings.brightness);
+    SAVE_IF_CHANGED("volume", UChar, currentSettings.notificationVolume);
+    
+    if (preferences.getBool("soundToggle", true) != currentSettings.timeTravelSoundToggle) {
+        preferences.putBool("soundToggle", currentSettings.timeTravelSoundToggle);
+        Serial.printf("SAVING: soundToggle -> %s\n", currentSettings.timeTravelSoundToggle ? "true" : "false");
+    }
+
+    SAVE_IF_CHANGED("presTzIndex", Int, currentSettings.presentTimezoneIndex);
+    SAVE_IF_CHANGED("presetCycle", Int, currentSettings.presetCycleInterval);
+
+    if (preferences.getBool("format24h", false) != currentSettings.displayFormat24h) {
+        preferences.putBool("format24h", currentSettings.displayFormat24h);
+        Serial.printf("SAVING: format24h -> %s\n", currentSettings.displayFormat24h ? "true" : "false");
+    }
+    
+    SAVE_IF_CHANGED("theme", Int, currentSettings.theme);
+    SAVE_IF_CHANGED("animInterval", Int, currentSettings.timeTravelAnimationInterval);
+    SAVE_IF_CHANGED("animDuration", Int, currentSettings.timeTravelAnimationDuration);
+    SAVE_IF_CHANGED("animStyle", Int, currentSettings.animationStyle);
+    SAVE_IF_CHANGED("glitchFreq", Int, currentSettings.glitchEffectFrequency);
+    SAVE_IF_CHANGED("malfuncFreq", Int, currentSettings.malfunctionFrequency);
+
+    if (preferences.getBool("dlEnabled", false) != currentSettings.dataLinkEnabled) {
+        preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
+        Serial.printf("SAVING: dlEnabled -> %s\n", currentSettings.dataLinkEnabled ? "true" : "false");
+    }
+
+    SAVE_IF_CHANGED("dlTargetRow", Int, currentSettings.dataLinkTargetRow);
+    SAVE_IF_CHANGED("dlRefresh", Int, currentSettings.dataLinkRefreshInterval);
+    SAVE_IF_CHANGED("numDataPoints", Int, currentSettings.numDataPoints);
+
+    SAVE_STRING_IF_CHANGED("mqttBroker", currentSettings.mqttBroker.c_str());
+    SAVE_IF_CHANGED("mqttPort", Int, currentSettings.mqttPort);
+    SAVE_STRING_IF_CHANGED("mqttUser", currentSettings.mqttUser.c_str());
+    SAVE_STRING_IF_CHANGED("mqttPass", currentSettings.mqttPassword.c_str());
+
+    if (preferences.getBool("weatherMode", false) != currentSettings.weatherModeEnabled) {
+        preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
+        Serial.printf("SAVING: weatherMode -> %s\n", currentSettings.weatherModeEnabled ? "true" : "false");
+    }
+
+    SAVE_STRING_IF_CHANGED("cityName", currentSettings.cityName.c_str());
+
+    if (preferences.getBool("useMetric", false) != currentSettings.useMetricUnits) {
+        preferences.putBool("useMetric", currentSettings.useMetricUnits);
+        Serial.printf("SAVING: useMetric -> %s\n", currentSettings.useMetricUnits ? "true" : "false");
+    }
+    
+    // Note: Comparing floats can be tricky due to precision.
+    // A small tolerance might be needed for production code, but this is fine for this use case.
+    if (preferences.getFloat("latitude", 0.0) != currentSettings.latitude) {
+        preferences.putFloat("latitude", currentSettings.latitude);
+        Serial.printf("SAVING: latitude -> %f\n", currentSettings.latitude);
+    }
+    if (preferences.getFloat("longitude", 0.0) != currentSettings.longitude) {
+        preferences.putFloat("longitude", currentSettings.longitude);
+        Serial.printf("SAVING: longitude -> %f\n", currentSettings.longitude);
+    }
+    
+    if (preferences.getBool("stModeEnabled", false) != currentSettings.stockTickerModeEnabled) {
+        preferences.putBool("stModeEnabled", currentSettings.stockTickerModeEnabled);
+        Serial.printf("SAVING: stModeEnabled -> %s\n", currentSettings.stockTickerModeEnabled ? "true" : "false");
+    }
+
+    SAVE_STRING_IF_CHANGED("stRow1Sym", currentSettings.stockRow1_symbol.c_str());
+    SAVE_STRING_IF_CHANGED("stRow2Sym", currentSettings.stockRow2_symbol.c_str());
+    SAVE_STRING_IF_CHANGED("stRow3Sym", currentSettings.stockRow3_symbol.c_str());
+    SAVE_STRING_IF_CHANGED("avApiKey", currentSettings.alphaVantageApiKey.c_str());
+
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
-		preferences.putString((prefix + "url").c_str(), currentSettings.dataPoints[i].url.c_str());
-		preferences.putString((prefix + "monthPath").c_str(), currentSettings.dataPoints[i].monthPath.c_str());
-		preferences.putString((prefix + "dayPath").c_str(), currentSettings.dataPoints[i].dayPath.c_str());
-		preferences.putString((prefix + "yearPath").c_str(), currentSettings.dataPoints[i].yearPath.c_str());
-		preferences.putString((prefix + "timePath").c_str(), currentSettings.dataPoints[i].timePath.c_str());
-		preferences.putString((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefix.c_str());
-		preferences.putString((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffix.c_str());
-		preferences.putString((prefix + "icon").c_str(), currentSettings.dataPoints[i].icon.c_str());
-		preferences.putInt((prefix + "scroll").c_str(), currentSettings.dataPoints[i].scrollSpeed);
-		preferences.putInt((prefix + "srcType").c_str(), (int)currentSettings.dataPoints[i].dataSourceType);
-		preferences.putString((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic.c_str());
-		preferences.putString((prefix + "yearPrefix").c_str(), currentSettings.dataPoints[i].yearPrefix.c_str());
-		preferences.putString((prefix + "yearSuffix").c_str(), currentSettings.dataPoints[i].yearSuffix.c_str());
-		preferences.putInt((prefix + "dispMode").c_str(), (int)currentSettings.dataPoints[i].displayMode);
-		preferences.putString((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText.c_str());
-		preferences.putString((prefix + "authKey").c_str(), currentSettings.dataPoints[i].authHeaderKey.c_str());
-		preferences.putString((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue.c_str());
-		preferences.putInt((prefix + "httpMethod").c_str(), (int)currentSettings.dataPoints[i].httpMethod);
-		preferences.putString((prefix + "reqBody").c_str(), currentSettings.dataPoints[i].requestBody.c_str());
-		preferences.putString((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "url").c_str(), currentSettings.dataPoints[i].url.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "monthPath").c_str(), currentSettings.dataPoints[i].monthPath.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "dayPath").c_str(), currentSettings.dataPoints[i].dayPath.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "yearPath").c_str(), currentSettings.dataPoints[i].yearPath.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "timePath").c_str(), currentSettings.dataPoints[i].timePath.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefix.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffix.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "icon").c_str(), currentSettings.dataPoints[i].icon.c_str());
+		SAVE_IF_CHANGED((prefix + "scroll").c_str(), Int, currentSettings.dataPoints[i].scrollSpeed);
+		SAVE_IF_CHANGED((prefix + "srcType").c_str(), Int, (int)currentSettings.dataPoints[i].dataSourceType);
+		SAVE_STRING_IF_CHANGED((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "yearPrefix").c_str(), currentSettings.dataPoints[i].yearPrefix.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "yearSuffix").c_str(), currentSettings.dataPoints[i].yearSuffix.c_str());
+		SAVE_IF_CHANGED((prefix + "dispMode").c_str(), Int, (int)currentSettings.dataPoints[i].displayMode);
+		SAVE_STRING_IF_CHANGED((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "authKey").c_str(), currentSettings.dataPoints[i].authHeaderKey.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue.c_str());
+		SAVE_IF_CHANGED((prefix + "httpMethod").c_str(), Int, (int)currentSettings.dataPoints[i].httpMethod);
+		SAVE_STRING_IF_CHANGED((prefix + "reqBody").c_str(), currentSettings.dataPoints[i].requestBody.c_str());
+		SAVE_STRING_IF_CHANGED((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey.c_str());
 	}
 	preferences.end();
     Serial.println("--- Settings Saved ---");
@@ -289,7 +363,7 @@ void saveSettings() {
 
 void loadSettings() {
     Serial.println("--- Loading Settings ---");
-	preferences.begin(PREFERENCES_NAMESPACE, true);
+    preferences.begin(PREFERENCES_NAMESPACE, true);
 	bool needsInit = !preferences.isKey("destYear");
 	if (needsInit) {
 		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
@@ -483,11 +557,11 @@ void wifiManagerTask(void *pvParameters) {
 
 void setup() {
     Serial.begin(115200);
-    delay(1000); // Wait for Serial to initialize
+    delay(1000);
 
     Serial.println(F("\n\n--- BOOTING ---"));
     Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
-    delay(10); // MODIFICATION: Small delay for stability
+    delay(10);
 
     if (!LittleFS.begin(true, "/spiffs")) {
         ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
@@ -496,12 +570,12 @@ void setup() {
         ESP.restart();
     }
     Serial.println(F("BOOT_LOG: LittleFS mount... OK"));
-    delay(10); // MODIFICATION: Small delay for stability
+    delay(10);
 
     Serial.println(F("BOOT_LOG: Loading settings..."));
     loadSettings();
     Serial.println(F("BOOT_LOG: Settings loaded... OK"));
-    delay(10); // MODIFICATION: Small delay for stability
+    delay(10);
 
     xDisplayDataMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
@@ -531,6 +605,7 @@ void setup() {
             audioTask,          // Task function
             "AudioTask",        // Name of the task
             4096,               // FIX: Increased stack size from 2048 to 4096 words
+         
             NULL,               // Task input parameter
             5,                  // Priority of the task (high)
             NULL,               // Task handle
@@ -584,6 +659,76 @@ void setup() {
     Serial.println(F("--- BOOT COMPLETE ---"));
     bootTimestamp = millis();
 }
+
+// --- NEW STATE DETERMINATION FUNCTION ---
+void updateDisplayState() {
+    if (isMessageOverrideActive) {
+        currentDisplayState = STATE_MESSAGE_OVERRIDE;
+    } else if (isMalfunctioning) {
+        currentDisplayState = STATE_MALFUNCTION;
+    } else if (isAnimating) {
+        currentDisplayState = STATE_ANIMATING;
+    } else if (isMarqueeOverrideActive) {
+        currentDisplayState = STATE_MARQUEE_OVERRIDE;
+    } else if (currentSettings.stockTickerModeEnabled) {
+        currentDisplayState = STATE_STOCK_TICKER;
+    } else if (currentSettings.dataLinkEnabled) {
+        currentDisplayState = STATE_DATA_LINK;
+    } else if (currentSettings.weatherModeEnabled) {
+        currentDisplayState = STATE_WEATHER;
+    } else {
+        currentDisplayState = STATE_NORMAL_CLOCK;
+    }
+}
+
+// --- NEW DISPLAY HANDLER FUNCTION ---
+void handleDisplay() {
+    // These effects can run concurrently with the main display modes
+    restoreDisplayAfterGlitch();
+    handleTemporalEcho();
+    handleGlitchEffect();
+    handleSequencer();
+    handlePresetCycling();
+    handleSleepSchedule();
+
+    switch (currentDisplayState) {
+        case STATE_MESSAGE_OVERRIDE:
+            displayOverrideMessage();
+            break;
+        case STATE_MALFUNCTION:
+            handleMalfunction();
+            break;
+        case STATE_ANIMATING:
+            handleDisplayAnimation();
+            break;
+        case STATE_MARQUEE_OVERRIDE:
+            displayMarqueeOverride();
+            break;
+        case STATE_STOCK_TICKER:
+            if (isMarketOpen() && (millis() - lastStockDataFetch > 300000)) {
+                lastStockDataFetch = millis();
+                for (int i=0; i<3; ++i) {
+                    FetchDataParams* params = new FetchDataParams{ i, 0 };
+                    xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
+                }
+            }
+            updateStockTickerDisplay();
+            break;
+        case STATE_DATA_LINK:
+            fetchDataLink();
+            updateMarqueeDisplay();
+            break;
+        case STATE_WEATHER:
+            handleWeatherDisplay();
+            break;
+        case STATE_NORMAL_CLOCK:
+        default:
+            updateNormalClockDisplay();
+            break;
+    }
+}
+
+
 void loop() {
     vTaskDelay(1);
     
@@ -597,6 +742,7 @@ void loop() {
         Serial.printf("STATUS_UPDATE -> WiFi: %d | Boot: %d | Override: %d | MQTT: %d\n",
                       currentWifiStatus,
                       bootState,
+                    
                       isMessageOverrideActive,
                       currentMqttConnected);
         prevWifiStatus = currentWifiStatus;
@@ -714,40 +860,10 @@ void loop() {
             // Only update the display if enough time has passed
             if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
                 lastDisplayUpdateTime = millis();
-                if (isMessageOverrideActive) {
-                    displayOverrideMessage();
-                } else if (isMalfunctioning) {
-                    handleMalfunction();
-                } else if (isAnimating) {
-                    handleDisplayAnimation();
-                } else {
-                    restoreDisplayAfterGlitch();
-                    handleTemporalEcho();
-                    handleGlitchEffect();
-                    handleSequencer();
-                    handlePresetCycling();
-                    handleSleepSchedule();
-                    if (currentSettings.stockTickerModeEnabled) {
-                        if (isMarketOpen() && (millis() - lastStockDataFetch > 300000)) {
-                            lastStockDataFetch = millis();
-                            for (int i=0; i<3; ++i) {
-                                FetchDataParams* params = new FetchDataParams{ i, 0 };
-                                // This is the corrected line
-                                xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
-                            }
-                        }
-                        updateStockTickerDisplay();
-                    } else if (isMarqueeOverrideActive) {
-                        displayMarqueeOverride();
-                    } else if (currentSettings.dataLinkEnabled) {
-                        fetchDataLink();
-                        updateMarqueeDisplay();
-                    } else if (currentSettings.weatherModeEnabled) {
-                        handleWeatherDisplay();
-                    } else {
-                        updateNormalClockDisplay();
-                    }
-                }
+                
+                // Call the new state machine functions
+                updateDisplayState();
+                handleDisplay();
             }
         }
     }

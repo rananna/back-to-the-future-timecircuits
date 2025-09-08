@@ -19,7 +19,7 @@ void publishAllHaStates();
 void clearHaEntity(const char* component, const char* unique_id_suffix);
 void publishDeviceTriggers();
 void publishTimeSensors();
-void startAudioStream(const char* url, bool is_tts);
+void startAudioStream(const char* url, bool is_tts, int volume = -1);
 void stopAudioStream();
 
 

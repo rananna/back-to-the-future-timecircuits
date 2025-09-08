@@ -116,7 +116,8 @@ void startTimeTravelAnimation() {
     if (isAnimating) return;
     isAnimating = true;
     animationStartTime = millis();
-    currentPhase = ANIM_POWER_UP;
+    // Set the initial phase; the state machine will handle the rest.
+    currentPhase = ANIM_POWER_UP; 
     updateHaStatus("Animating");
 
     // For authenticity, save the current "Last Time Departed" and set it to the current "Present Time"
@@ -129,16 +130,6 @@ void startTimeTravelAnimation() {
     currentSettings.lastTimeDepartedDay = timeinfo.tm_mday;
     currentSettings.lastTimeDepartedHour = timeinfo.tm_hour;
     currentSettings.lastTimeDepartedMinute = timeinfo.tm_min;
-
-#if ENABLE_HARDWARE
-    if (currentSettings.timeTravelSoundToggle) {
-        if (hardwareInitialized) {
-            playSoundAndSetNextPhase("FLUX_CAPACITOR_CHARGE", ANIM_TIME_ACCELERATION);
-        }
-    } else {
-        currentPhase = ANIM_TIME_ACCELERATION;
-    }
-#endif
 }
 
 /**
@@ -148,65 +139,85 @@ void handleDisplayAnimation() {
     if (!isAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - animationStartTime;
+    static AnimationPhase lastPhase = ANIM_INACTIVE;
+
+    // Detect when the animation phase changes to trigger the sound for the new phase.
+    if (currentPhase != lastPhase) {
+        if (currentSettings.timeTravelSoundToggle) {
+            switch (currentPhase) {
+                case ANIM_POWER_UP:
+                    playSound("SAVE_POWER_UP.mp3");
+                    break;
+                case ANIM_TIME_ACCELERATION:
+                    playSound("SAVE_ACCELERATION.mp3");
+                    break;
+                case ANIM_ARRIVAL:
+                    playSound("SAVE_TIME_TRAVEL.mp3");
+                    break;
+                case ANIM_LANDING:
+                    playSound("SAVE_LANDING.mp3");
+                    break;
+                default:
+                    break; // No sound for other states
+            }
+        }
+        lastPhase = currentPhase;
+    }
 
     switch (currentPhase) {
-        case ANIM_WAIT_FOR_SOUND:
-            if (audio.isRunning()) {
-                currentPhase = nextPhaseAfterSound;
-                animationStartTime = millis();
-            }
-            break;
         case ANIM_POWER_UP:
             if (elapsed < 2000) {
-                // Initial random flicker
                 animateTornadoFlicker();
             } else {
-                playSoundAndSetNextPhase("ACCELERATION", ANIM_TIME_ACCELERATION);
+                currentPhase = ANIM_TIME_ACCELERATION;
+                animationStartTime = millis(); // Reset timer for the next phase
             }
             break;
 
         case ANIM_TIME_ACCELERATION:
-             if (elapsed < 30000) { // Increased duration to 30 seconds
-                // Calculate progress as a value from 0.0 to 1.0
-                float progress = (float)elapsed / 30000.0f;
-                // Apply a quadratic ease-out function
+             if (elapsed < 10000) { // Duration is 10 seconds
+                float progress = (float)elapsed / 10000.0f;
                 float easedProgress = progress * (2.0f - progress);
                 int speed = 88 * easedProgress;
                 
                 displaySpeed(speed);
-                // Flicker the top two rows while accelerating
                 animateDisplayRowRandomly(destRow);
                 animateDisplayRowRandomly(presRow);
             } else {
                 displaySpeed(88);
-                flashAllDisplays(); // White flash at 88 MPH
-                playSoundAndSetNextPhase("TIME_TRAVEL", ANIM_ARRIVAL);
+                flashAllDisplays();
+                currentPhase = ANIM_ARRIVAL;
+                animationStartTime = millis();
             }
             break;
 
         case ANIM_ARRIVAL:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
-                // The main time blur effect
                 animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
             } else {
-                playSoundAndSetNextPhase("ARRIVAL_THUD", ANIM_LANDING);
+                currentPhase = ANIM_LANDING;
+                animationStartTime = millis();
             }
             break;
 
         case ANIM_LANDING:
              if (elapsed < 1000) {
-                // Final arrival flicker
                 animateTornadoFlicker();
             } else {
                 isAnimating = false;
                 currentPhase = ANIM_INACTIVE;
-                updateNormalClockDisplay(); // Restore the correct time
+                lastPhase = ANIM_INACTIVE; // Reset for next run
+                updateNormalClockDisplay();
                 updateHaStatus("Idle");
-                isEchoEffectActive = true; // Start the post-travel echo effect
+                isEchoEffectActive = true;
                 echoEffectStartTime = millis();
             }
             break;
         default:
+            // Failsafe to prevent getting stuck in an unknown state
+            isAnimating = false;
+            currentPhase = ANIM_INACTIVE;
+            lastPhase = ANIM_INACTIVE;
             break;
     }
 #endif

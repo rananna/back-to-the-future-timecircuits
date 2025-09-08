@@ -31,15 +31,15 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     if (!path) {
         return JsonVariant();
     }
-    // --- START: MODIFICATION ---
-    // Use dynamic allocation to prevent a stack buffer overflow from long JSON paths.
+    // Using dynamic allocation for the path copy prevents a stack buffer overflow,
+    // which could occur if a very long JSON path is provided by the user.
+    // This makes the function more robust against potentially malicious or malformed input.
     size_t path_len = strlen(path) + 1;
     char* path_copy = new char[path_len];
     if (!path_copy) {
         return JsonVariant(); // Allocation failed
     }
     strncpy(path_copy, path, path_len);
-    // --- END: MODIFICATION ---
 
     JsonVariant current = root;
     char* context = NULL;

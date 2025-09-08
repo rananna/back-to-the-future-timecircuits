@@ -5,7 +5,7 @@
 #include "DataManager.h"
 #include "web_server.h"
 #include <PubSubClient.h>
-#include <ArduinoJson.h>
+#include <ArduinoJson.hh>
 #include <WiFi.h>
 #include <Preferences.h>
 #include <LCBUrl.h> 
@@ -869,7 +869,30 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             settingsChanged = true;
         }
         else if (topicStr == base_topic + "tts/play") {
-            startAudioStream(message.c_str(), true);
+            DynamicJsonDocument doc(256);
+            DeserializationError error = deserializeJson(doc, message);
+
+            if (error == DeserializationError::Ok) {
+                // Handle JSON payload: {"url": "...", "volume": 80}
+                const char* url = doc["url"];
+                int volume = doc["volume"] | -1; // Use default if volume is not specified
+                startAudioStream(url, true, volume);
+            } else {
+                // Handle plain URL for backward compatibility
+                startAudioStream(message.c_str(), true);
+            }
+        }
+        else if (topicStr == base_topic + "notification/command") {
+            if (message == "START") {
+                isMessageOverrideActive = true;
+                overrideMessageLine1 = "INCOMING";
+                overrideMessageLine2 = "MESSAGE";
+                overrideMessageLine3 = "";
+                // A short flash effect could be added here
+            } else if (message == "END") {
+                isMessageOverrideActive = false;
+            }
+            stateChanged = true;
         }
         else if (topicStr == base_topic + "radio/command") {
             if (message == "stop") {
@@ -1049,7 +1072,7 @@ void publishTimeSensors() {
     mqttClient.publish((base_topic + "/last_time_departed/state").c_str(), iso_time, true);
 }
 
-void startAudioStream(const char* url, bool is_tts) {
+void startAudioStream(const char* url, bool is_tts, int volume) {
     Serial.printf("AUDIO_LOG: Request to start audio stream from URL: %s\n", url);
     if (!hardwareInitialized) {
         Serial.println("AUDIO_LOG: Hardware not initialized, cannot play audio.");
@@ -1062,7 +1085,16 @@ void startAudioStream(const char* url, bool is_tts) {
     }
     
     digitalWrite(I2S_SD_PIN, HIGH);
-    audio.setVolume(currentSettings.notificationVolume); // Use full volume for streams
+    
+    if (volume >= 0 && volume <= 100) {
+        // Map 0-100 volume from HA to the device's 0-21 scale
+        int device_volume = round(volume / 100.0 * 21.0);
+        audio.setVolume(device_volume);
+        Serial.printf("AUDIO_LOG: Set dynamic volume to %d (%d/100)\n", device_volume, volume);
+    } else {
+        audio.setVolume(currentSettings.notificationVolume); // Use default volume
+    }
+
     strncpy(currentSoundFile, url, MAX_FILENAME_LENGTH - 1);
     currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
     

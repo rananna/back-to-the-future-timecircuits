@@ -219,6 +219,22 @@ Trigger the time travel sequence with a voice command to Google Assistant or Ale
     * **In the Google Home App:** Create a new routine. For the starter, use a voice command like "Activate the time circuits." For the action, choose "Try adding your own" and enter "Activate Time Circuits."
     * **In the Alexa App:** Create a new routine. For "When this happens," choose "Voice" and enter a phrase like "Great Scott." For the action, choose "Smart Home" and select the "Activate Time Circuits" script.
 
+### **Advanced Text-to-Speech (TTS) Notifications**
+The Time Circuits clock can function as a powerful, themed notification device for your smart home using the **TTS Notifier Blueprint**. Recent improvements have made this feature even more dynamic and integrated.
+
+#### **Dynamic Volume Control**
+Each TTS announcement can now have its own volume level, set directly in your Home Assistant automation. This allows for context-aware alerts:
+* A critical security warning can be set to **100% volume**.
+* A routine announcement, like "The laundry is finished," can be set to a quieter **40% volume**.
+
+#### **Visual Notification Mode**
+To make announcements feel more polished, the clock now enters a special "Notification Mode":
+1.  **Intro**: When a TTS message is triggered, the display will show "INCOMING MESSAGE" for a moment to get your attention.
+2.  **Custom Message**: Your optional custom text (e.g., a speaker icon `🔊`) is then displayed.
+3.  **Audio Playback**: The audio message plays at your specified volume.
+4.  **Outro**: Once finished, the clock automatically returns to its normal display.
+
+This creates a seamless and professional notification experience, turning your clock into a true smart home information hub.
 ### **Advanced Templating Examples**
 The "Dynamic Data Display" blueprint can be made even more powerful with templates. Here are some examples for the `Display Text` field:
 
