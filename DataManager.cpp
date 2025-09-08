@@ -25,10 +25,15 @@ String urlEncode(const char* msg) {
     return encodedMsg;
 }
 
+// In DataManager.cpp
+
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     if (!path) {
         return JsonVariant();
     }
+    // Using dynamic allocation for the path copy prevents a stack buffer overflow,
+    // which could occur if a very long JSON path is provided by the user.
+    // This makes the function more robust against potentially malicious or malformed input.
     size_t path_len = strlen(path) + 1;
     char* path_copy = new char[path_len];
     if (!path_copy) {
@@ -41,7 +46,7 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     char* token = strtok_r(path_copy, ".[]", &context);
     while (token != NULL) {
         if (current.isNull()) {
-            delete[] path_copy;
+            delete[] path_copy; // Clean up memory
             return JsonVariant();
         }
         if (current.is<JsonObject>()) {
@@ -49,13 +54,13 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
         } else if (current.is<JsonArray>()) {
             current = current[atoi(token)];
         } else {
-            delete[] path_copy;
+            delete[] path_copy; // Clean up memory
             return JsonVariant();
         }
         token = strtok_r(NULL, ".[]", &context);
     }
 
-    delete[] path_copy;
+    delete[] path_copy; // Clean up memory before returning
     return current;
 }
 

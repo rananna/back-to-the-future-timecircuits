@@ -15,11 +15,8 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
     printToDisplay(lastRow.year, year);
     printToDisplay(lastRow.time, time);
     lastRow.month.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(2));
     lastRow.day.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(2));
     lastRow.year.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(2));
     lastRow.time.writeDisplay();
     vTaskDelay(pdMS_TO_TICKS(2));
     delay(duration);
@@ -27,6 +24,7 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
 }
 
 const char* getIconForWeatherCode(int code) {
+    // ... function content remains the same ...
     switch (code) {
         case 0: case 1: return "SU";
         case 2: return "CL";
@@ -45,6 +43,7 @@ const char* getIconForWeatherCode(int code) {
 }
 
 void displayMarqueeOverride() {
+    // ... function content remains the same ...
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
     String textToDisplay = marqueeOverrideMessage;
@@ -67,11 +66,8 @@ void displayMarqueeOverride() {
         printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
 
         lastRow.month.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         lastRow.day.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         lastRow.year.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         lastRow.time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(2));
 
@@ -88,6 +84,7 @@ void displayMarqueeOverride() {
 }
 
 void updateStockTickerDisplay() {
+    // ... function content remains the same ...
     if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
@@ -129,11 +126,8 @@ void updateStockTickerDisplay() {
              xSemaphoreGive(xDisplayDataMutex);
         }
         rows[i]->month.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         rows[i]->day.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         rows[i]->year.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         rows[i]->time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(2));
     }
@@ -141,6 +135,7 @@ void updateStockTickerDisplay() {
 }
 
 void displayOverrideMessage() {
+    // ... function content remains the same ...
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
     printToDisplay(destRow.month, overrideMessageLine1.substring(0, 3).c_str(), 1);
@@ -167,6 +162,7 @@ void displayOverrideMessage() {
 }
 
 void updateDisplaySegment(int row, int segment, const std::string& text) {
+    // ... function content remains the same ...
     if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
     
     manualDisplayText[row][segment] = text;
@@ -183,6 +179,7 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
     updateNormalClockDisplay();
 }
 
+// --- MODIFIED: This function now selectively updates rows ---
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
@@ -204,15 +201,9 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
             if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
             if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
             if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
-            destRow.month.writeDisplay(); 
-            vTaskDelay(pdMS_TO_TICKS(2));
-            destRow.day.writeDisplay(); 
-            vTaskDelay(pdMS_TO_TICKS(2));
-            destRow.year.writeDisplay(); 
-            vTaskDelay(pdMS_TO_TICKS(2));
-            destRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
         }
+        destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 
     // --- Present Time ---
@@ -230,15 +221,9 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
             if (!manualDisplayText[1][1].empty()) printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
             if (!manualDisplayText[1][2].empty()) printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
             if (!manualDisplayText[1][3].empty()) printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
-            presRow.month.writeDisplay(); 
-            vTaskDelay(pdMS_TO_TICKS(2));
-            presRow.day.writeDisplay(); 
-            vTaskDelay(pdMS_TO_TICKS(2));
-            presRow.year.writeDisplay(); 
-            vTaskDelay(pdMS_TO_TICKS(2));
-            presRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
         }
+        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
     
     // --- Last Time Departed ---
@@ -257,15 +242,9 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
             if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
             if (!manualDisplayText[2][2].empty()) printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
             if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
-            lastRow.month.writeDisplay(); 
-            vTaskDelay(pdMS_TO_TICKS(2));
-            lastRow.day.writeDisplay(); 
-            vTaskDelay(pdMS_TO_TICKS(2));
-            lastRow.year.writeDisplay(); 
-            vTaskDelay(pdMS_TO_TICKS(2));
-            lastRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
         }
+        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 
     // --- IMPORTANT: Reset Timezone to Present for other functions ---
@@ -276,6 +255,7 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 }
 
 void handleWeatherDisplay() {
+// ... function content remains the same ...
 #if ENABLE_HARDWARE
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (!currentWeatherData.dataValid) {
@@ -342,11 +322,8 @@ void handleWeatherDisplay() {
         }
         xSemaphoreGive(xDisplayDataMutex);
         lastRow.month.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         lastRow.day.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         lastRow.year.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         lastRow.time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(2));
     }
@@ -357,24 +334,24 @@ void updateMarqueeDisplay() {
 #if ENABLE_HARDWARE
     DisplayRow* targetRow = &lastRow;
 
+    // ✅ FIX: Add this check at the beginning of the function.
     if (currentSettings.numDataPoints == 0) {
+        // If there's nothing to display, just show a blank or default state.
         printToDisplay(targetRow->month, "NO");
         printToDisplay(targetRow->day, "DATA", 2);
         printToDisplay(targetRow->year, "POINTS");
         printToDisplay(targetRow->time, "----");
         targetRow->month.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         targetRow->day.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         targetRow->year.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         targetRow->time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(2));
-        return;
+        return; // Exit the function to prevent the crash.
     }
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (marqueeState == M_IDLE) {
+            // This line is now safe because we already checked numDataPoints.
             currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
             marqueeScrollPosition = 0;
             marqueeScrollPositionYear = 0;
@@ -382,6 +359,7 @@ void updateMarqueeDisplay() {
             lastMarqueeStateChange = millis();
         }
 
+        // ... the rest of the function remains the same ...
         DataPoint point = currentSettings.dataPoints[currentPageIndex];
         printToDisplay(targetRow->month, displayPages[currentPageIndex].month.c_str());
         if (!point.icon.empty()) {
@@ -445,11 +423,8 @@ void updateMarqueeDisplay() {
         }
 
         targetRow->month.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         targetRow->day.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         targetRow->year.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         targetRow->time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(2));
     }
