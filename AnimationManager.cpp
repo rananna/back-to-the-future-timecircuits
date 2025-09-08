@@ -5,6 +5,11 @@
 #include "MqttManager.h"
 #include <WiFi.h>
 
+// --- Add these extern declarations for the new state variables ---
+extern bool isStyledAnimating;
+extern unsigned long styledAnimationStartTime;
+extern AnimationPhase currentStyledPhase;
+
 static BootSequenceState nextStateAfterSound = BOOT_INACTIVE;
 static AnimationPhase nextPhaseAfterSound = ANIM_INACTIVE;
 
@@ -133,7 +138,7 @@ void startTimeTravelAnimation() {
 }
 
 /**
- * @brief The main state machine for the time travel animation. Called in the main loop.
+ * @brief The main state machine for the CINEMATIC time travel animation. Called in the main loop.
  */
 void handleDisplayAnimation() {
     if (!isAnimating || !hardwareInitialized) return;
@@ -217,6 +222,101 @@ void handleDisplayAnimation() {
 #endif
 }
 
+
+// --- NEW FUNCTIONS FOR STYLED ANIMATION ---
+
+/**
+ * @brief Initiates the styled animation sequence for scheduled events.
+ */
+void startStyledAnimation() {
+    if (isStyledAnimating || isAnimating) return; // Prevent animations from overlapping
+    isStyledAnimating = true;
+    styledAnimationStartTime = millis();
+    currentStyledPhase = ANIM_POWER_UP;
+    updateHaStatus("Animating");
+}
+
+/**
+ * @brief The state machine for the STYLED time travel animation.
+ */
+void handleStyledAnimation() {
+    if (!isStyledAnimating || !hardwareInitialized) return;
+#if ENABLE_HARDWARE
+    unsigned long elapsed = millis() - styledAnimationStartTime;
+
+    switch (currentStyledPhase) {
+        case ANIM_POWER_UP:
+            if (elapsed < 2000) {
+                animateTornadoFlicker();
+            } else {
+                currentStyledPhase = ANIM_FLICKER;
+                styledAnimationStartTime = millis();
+            }
+            break;
+
+        case ANIM_FLICKER:
+            if (elapsed < currentSettings.timeTravelAnimationDuration) {
+                switch (currentSettings.animationStyle) {
+                    case ANIMATION_SEQUENTIAL_FLICKER:
+                        animateSequentialFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_RANDOM_FLICKER:
+                        animateTornadoFlicker();
+                        break;
+                    case ANIMATION_ALL_DISPLAYS_RANDOM:
+                        animateRandomRealTimes();
+                        break;
+                    case ANIMATION_COUNTING_UP:
+                        animateCountingUp(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_WAVE_FLICKER:
+                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_TORNADO_FLICKER:
+                        animateTornadoFlicker();
+                        break;
+                    case ANIMATION_CAPACITOR_CHARGE_UP:
+                        animateCapacitorChargeUp(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_DIGITAL_RAIN:
+                        animateDigitalRain(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_WAVEFORM_COLLAPSE:
+                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_TIMELINE_SKIM:
+                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
+                        break;
+                    default:
+                        animateTornadoFlicker();
+                        break;
+                }
+            } else {
+                currentStyledPhase = ANIM_LANDING;
+                styledAnimationStartTime = millis();
+            }
+            break;
+
+        case ANIM_LANDING:
+            if (elapsed < 1000) {
+                animateTornadoFlicker();
+            } else {
+                isStyledAnimating = false;
+                currentStyledPhase = ANIM_INACTIVE;
+                updateNormalClockDisplay();
+                updateHaStatus("Idle");
+            }
+            break;
+
+        default:
+            isStyledAnimating = false;
+            currentStyledPhase = ANIM_INACTIVE;
+            break;
+    }
+#endif
+}
+
+
 // --- OTHER EFFECTS ---
 
 /**
@@ -245,7 +345,7 @@ void handleGlitchEffect() {
     if (millis() - lastGlitchTime > 1000) { // Check once per second
         lastGlitchTime = millis();
 
-        /*
+        
         // Check for a major malfunction
         if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
             isMalfunctioning = true;
@@ -254,15 +354,15 @@ void handleGlitchEffect() {
             updateHaStatus("Malfunctioning");
             return; // Prioritize malfunction over a simple glitch
         }
-        */
+        
 
-        /*
+        
         // Check for a minor glitch
         if (currentSettings.glitchEffectFrequency > 0 && random(100) < currentSettings.glitchEffectFrequency) {
             isGlitching = true;
             glitchStartTime = millis();
         }
-        */
+        
     }
 }
 /**

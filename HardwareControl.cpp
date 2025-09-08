@@ -396,31 +396,35 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
 
 void animateWaveformCollapse(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-    const char* wave[] = {"-___-", "_--_-", "__-__"};
+    // 13-char patterns designed to fit the 3-2-4-4 display layout
+    const char* waves[] = {
+        "---  --  ----  ----",
+        " -   --   --   -- ",
+        "  -      -  -  -  "
+    };
     int waveIndex = (elapsed / 200) % 3;
-    int scrollOffset = (elapsed / 100) % 5;
+    const char* basePattern = waves[waveIndex];
 
     auto drawWave = [&](DisplayRow& row, bool inverse) {
-        char pattern[6];
-        const char* basePattern = wave[waveIndex];
-        
-        char scrolledPattern[6];
-        for(int i=0; i<5; ++i) {
-            scrolledPattern[i] = basePattern[(i + scrollOffset) % 5];
-        }
-        scrolledPattern[5] = '\0';
-        
+        char finalPattern[14];
         if(inverse) { 
-            for(int i=0; i<5; ++i) pattern[i] = (scrolledPattern[i] == '-') ? '_' : '-';
-            pattern[5] = '\0';
+            for(int i=0; i<13; ++i) finalPattern[i] = (basePattern[i] == '-') ? ' ' : '-';
+            finalPattern[13] = '\0';
         } else {
-            strcpy(pattern, scrolledPattern);
+            strncpy(finalPattern, basePattern, 14);
         }
 
-        printToDisplay(row.month, String(pattern).substring(0, 4).c_str());
-        printToDisplay(row.day, String(pattern).substring(1, 3).c_str(), 2);
-        printToDisplay(row.year, String(pattern).substring(0, 4).c_str());
-        printToDisplay(row.time, String(pattern).substring(1, 5).c_str());
+        // Extract substrings for each segment based on the 3-2-4-4 layout
+        char monthStr[4], dayStr[3], yearStr[5], timeStr[5];
+        strncpy(monthStr, finalPattern, 3); monthStr[3] = '\0';
+        strncpy(dayStr, finalPattern + 5, 2); dayStr[2] = '\0';
+        strncpy(yearStr, finalPattern + 9, 4); yearStr[4] = '\0';
+        strncpy(timeStr, finalPattern + 14, 4); timeStr[4] = '\0';
+
+        printToDisplay(row.month, monthStr, 1);
+        printToDisplay(row.day, dayStr, 2);
+        printToDisplay(row.year, yearStr);
+        printToDisplay(row.time, timeStr);
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
@@ -667,4 +671,83 @@ void applyBrightness() {
   
   lastRow.time.setBrightness(brightnessValue);
   #endif
+}
+
+void animateSequentialFlicker(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    // Create an array of all display segments for easy iteration
+    Adafruit_AlphaNum4* displays[] = {
+        &destRow.month, &destRow.day, &destRow.year, &destRow.time,
+        &presRow.month, &presRow.day, &presRow.year, &presRow.time,
+        &lastRow.month, &lastRow.day, &lastRow.year, &lastRow.time
+    };
+    const char* labels[] = {"CPU", "MEM", "I2C1", "I2C2", "SND", "WIFI", "NTP", "MQTT", "SYS", "CORE", "STAT", "PWR"};
+    const int numDisplays = 12;
+    const int phaseDuration = 300; // ms for each segment check
+
+    int activeIndex = (elapsed / phaseDuration) % numDisplays;
+    int phaseTime = elapsed % phaseDuration;
+
+    for (int i = 0; i < numDisplays; ++i) {
+        if (i < activeIndex) {
+            // Segments that have already been "checked"
+            printToDisplay(*displays[i], "OK--");
+        } else if (i == activeIndex) {
+            // The currently active segment
+            if (phaseTime < (phaseDuration / 2)) {
+                printToDisplay(*displays[i], labels[i]);
+            } else {
+                if ((phaseTime / 100) % 2 == 0) {
+                     printToDisplay(*displays[i], "OK--");
+                } else {
+                     printToDisplay(*displays[i], "");
+                }
+            }
+        } else {
+            // Segments waiting to be checked
+            displays[i]->clear();
+        }
+        displays[i]->writeDisplay();
+    }
+    #endif
+}
+
+void animateCountingUp(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    char buffer[5];
+
+    // Create a time structure and advance it based on elapsed time
+    // This creates a much more realistic "fast forward" effect
+    time_t startTime = 1445433600; // Approx Oct 21, 2015
+    time_t fastForwardTime = startTime + (elapsed * 60); // Each ms represents one minute
+
+    struct tm timeinfo;
+    gmtime_r(&fastForwardTime, &timeinfo);
+
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    for (int i = 0; i < 3; ++i) {
+        // Offset each row slightly for more visual interest
+        time_t rowTime = fastForwardTime + (i * 3600 * 24 * 157); // Offset by ~5 months
+        gmtime_r(&rowTime, &timeinfo);
+
+        printToDisplay(rows[i]->month, months[timeinfo.tm_mon], 1);
+        
+        sprintf(buffer, "%02d", timeinfo.tm_mday);
+        printToDisplay(rows[i]->day, buffer, 2);
+
+        sprintf(buffer, "%04d", timeinfo.tm_year + 1900);
+        printToDisplay(rows[i]->year, buffer);
+        
+        sprintf(buffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
+        printToDisplay(rows[i]->time, buffer);
+        
+        rows[i]->month.writeDisplay();
+        rows[i]->day.writeDisplay();
+        rows[i]->year.writeDisplay();
+        rows[i]->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(4)); 
+    }
+    #endif
 }

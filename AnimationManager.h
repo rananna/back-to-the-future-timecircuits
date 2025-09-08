@@ -43,6 +43,8 @@ enum BootSequenceState {
 // --- Function Declarations for animations and effects ---
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
+void startStyledAnimation();
+void handleStyledAnimation();
 void handleTemporalEcho();
 void handleGlitchEffect();
 void restoreDisplayAfterGlitch();

@@ -237,4 +237,6 @@ void animateFluxCapacitor();
 void displayStaticFluxText();
 void animateRandomRealTimes();
 void applyBrightness();
+void animateSequentialFlicker(unsigned long elapsed, int duration);
+void animateCountingUp(unsigned long elapsed, int duration);
 #endif // HARDWARE_CONTROL_H
