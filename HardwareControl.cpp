@@ -64,14 +64,14 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  * @brief Initializes all physical display hardware.
  * @details This function sets up the two I2C buses with their designated GPIO pins.
  * It then initializes all 12 Adafruit_AlphaNum4 display objects, associating each
- * with its correct I2C address and bus. Finally, it configures the AM/PM indicator
+ * with its correct I2C address and bus. Finally, it-configures the AM/PM indicator
  * LED pins and the I2S amplifier shutdown pin as outputs.
  */
 void setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
   // Initialize both I2C buses with their respective SDA/SCL pins.
-  I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
-  I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
+  I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 100000);
+  I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 100000);
 
   // Initialize the Adafruit_AlphaNum4 objects.
   destRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
@@ -164,9 +164,13 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
   
   // Write all changes to the hardware
   row.month.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   row.day.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   row.year.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   row.time.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   #endif
 }
 
@@ -180,8 +184,6 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year,
     }
     #endif
 }
-
-// In HardwareControl.cpp
 
 void animateDisplayRowRandomly(DisplayRow& row) {
   #if ENABLE_HARDWARE
@@ -225,9 +227,13 @@ void displaySpeed(int speed) {
   printToDisplay(lastRow.time, "MPH");
 
   lastRow.month.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   lastRow.day.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   lastRow.year.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   lastRow.time.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   #endif
 }
 void displaySpeedRamp(int speed) {
@@ -244,13 +250,15 @@ void displaySpeedRamp(int speed) {
     printToDisplay(lastRow.year, "MPH");
 
     lastRow.month.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     lastRow.day.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     lastRow.year.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     lastRow.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
 #endif
 }
-
-// In HardwareControl.cpp
 
 void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
@@ -263,7 +271,6 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
     if(elapsed < 100) startYear = random(1, 2100); // Pick a new random start year each time.
     int currentYear = startYear + (destinationYear - startYear) * progress;
     
-    // --- FIX: RESTORED MISSING VARIABLE DECLARATIONS ---
     char yearStr[5];
     sprintf(yearStr, "%04d", currentYear);
 
@@ -274,7 +281,6 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
     int hour = (elapsed / 20) % 24;
     int minute = (elapsed / 10) % 60;
     char buffer[5];
-    // --- END OF FIX ---
 
     // Update all three rows with the blurred time.
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
@@ -288,34 +294,35 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
 
         // Write the changes to the physical hardware.
         rows[i]->year.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
         rows[i]->month.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
         rows[i]->day.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
         rows[i]->time.writeDisplay();
-        
-        // Keep the cooperative delay to prevent bus saturation.
-        vTaskDelay(pdMS_TO_TICKS(4)); 
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
     #endif
 }
-// In HardwareControl.cpp
 
 void flashAllDisplays() {
     #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i=0; i<3; ++i) {
-        // Directly manipulate the display buffer to turn on all 16 segments (16 bits).
-        // 0xFFFF in hex is a 16-bit number with all bits set to 1.
-        for(int j=0; j<8; ++j) { // MODIFIED: Changed loop from 16 to 8
+        for(int j=0; j<8; ++j) {
             rows[i]->month.displaybuffer[j] = 0xFFFF;
             rows[i]->day.displaybuffer[j] = 0xFFFF;
             rows[i]->year.displaybuffer[j] = 0xFFFF;
             rows[i]->time.displaybuffer[j] = 0xFFFF;
         }
-        // Write the modified buffer to the hardware.
         rows[i]->month.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
         rows[i]->day.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
         rows[i]->year.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
         rows[i]->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
     #endif
 }
@@ -338,7 +345,6 @@ void animateRandomRealTimes() {
         timeinfo.tm_hour = random(0, 24);
         timeinfo.tm_min = random(0, 60);
         updateDisplayRow(*rows[i], timeinfo, year, false);
-        vTaskDelay(pdMS_TO_TICKS(1));
     }
 #endif
 }
@@ -356,7 +362,14 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
         printToDisplay(row.day, String(buffer).substring(4, 8).c_str());
         printToDisplay(row.year, String(buffer).substring(8, 12).c_str());
         printToDisplay(row.time, String(buffer).substring(12, 16).c_str());
-        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+        row.month.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
+        row.day.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
+        row.year.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
+        row.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     };
 
     if (phase == 0) { 
@@ -383,9 +396,9 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
             l_c[i] = chars[random(strlen(chars))];
         }
         d_c[4] = p_c[4] = l_c[4] = '\0';
-        printToDisplay(d, d_c); d.writeDisplay();
-        printToDisplay(p, p_c); p.writeDisplay();
-        printToDisplay(l, l_c); l.writeDisplay();
+        printToDisplay(d, d_c); d.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
+        printToDisplay(p, p_c); p.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
+        printToDisplay(l, l_c); l.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
     };
     rainColumn(destRow.month, presRow.month, lastRow.month);
     rainColumn(destRow.day, presRow.day, lastRow.day);
@@ -421,7 +434,10 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
         printToDisplay(row.day, String(pattern).substring(1, 3).c_str(), 2);
         printToDisplay(row.year, String(pattern).substring(0, 4).c_str());
         printToDisplay(row.time, String(pattern).substring(1, 5).c_str());
-        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+        row.month.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
+        row.day.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
+        row.year.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
+        row.time.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
     };
 
     drawWave(destRow, false);
@@ -443,22 +459,21 @@ void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYea
     char yearStr[5];
     sprintf(yearStr, "%04d", currentYear);
 
-    printToDisplay(destRow.year, yearStr); destRow.year.writeDisplay();
-    printToDisplay(presRow.year, yearStr); presRow.year.writeDisplay();
-    printToDisplay(lastRow.year, yearStr); lastRow.year.writeDisplay();
+    printToDisplay(destRow.year, yearStr); destRow.year.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
+    printToDisplay(presRow.year, yearStr); presRow.year.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
+    printToDisplay(lastRow.year, yearStr); lastRow.year.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
 
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-    printToDisplay(destRow.month, months[random(0,12)], 1); destRow.month.writeDisplay();
+    printToDisplay(destRow.month, months[random(0,12)], 1); destRow.month.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
     
     char buffer[5];
     sprintf(buffer, "%02d", random(1, 32));
-    printToDisplay(presRow.day, buffer, 2); presRow.day.writeDisplay();
+    printToDisplay(presRow.day, buffer, 2); presRow.day.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
     
     sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
-    printToDisplay(lastRow.time, buffer); lastRow.time.writeDisplay();
+    printToDisplay(lastRow.time, buffer); lastRow.time.writeDisplay(); vTaskDelay(pdMS_TO_TICKS(2));
     #endif
 }
-// In HardwareControl.cpp
 
 void blankAllDisplays() {
   #if ENABLE_HARDWARE
@@ -472,6 +487,13 @@ void blankAllDisplays() {
   vTaskDelay(pdMS_TO_TICKS(2));
   lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
   vTaskDelay(pdMS_TO_TICKS(2));
+
+  digitalWrite(DEST_AM_PIN, LOW);
+  digitalWrite(DEST_PM_PIN, LOW);
+  digitalWrite(PRES_AM_PIN, LOW);
+  digitalWrite(PRES_PM_PIN, LOW);
+  digitalWrite(LAST_AM_PIN, LOW);
+  digitalWrite(LAST_PM_PIN, LOW);
   #endif
 }
 void display88MphSpeed(float speed) {
@@ -479,7 +501,9 @@ void display88MphSpeed(float speed) {
   printToDisplay(lastRow.day, "88", 2);
   printToDisplay(lastRow.year, "MPH");
   lastRow.day.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   lastRow.year.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   #endif
 }
 
@@ -497,7 +521,6 @@ void playSound(const char* filepath) {
         return;
     }
 
-    // The SD pin logic is harmless even if unwired.
     digitalWrite(I2S_SD_PIN, HIGH);
     vTaskDelay(pdMS_TO_TICKS(10));
     
@@ -518,12 +541,11 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
   #if ENABLE_HARDWARE
   Adafruit_AlphaNum4* displays[] = {&row.month, &row.day, &row.year, &row.time};
   
-  // Clear the entire row first
   for (int i = 0; i < 4; i++) {
     displays[i]->clear();
     displays[i]->writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
   }
-  vTaskDelay(pdMS_TO_TICKS(10));
 
   int len = strlen(text);
   const int total_visual_width = 13; 
@@ -565,6 +587,7 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
         }
         displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, '_');
         displays[nextDisplayIndex]->writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
     
     displays[displayIndex]->writeDisplay();
@@ -588,6 +611,7 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
         }
         displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, ' ');
         displays[nextDisplayIndex]->writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
   }
   #endif
@@ -595,7 +619,6 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
 void animateFluxCapacitor() {
   #if ENABLE_HARDWARE
     static int frame = 0;
-    // Simple 3-frame pulse effect
     if (frame == 0) {
         printToDisplay(presRow.month, " FLX");
         printToDisplay(presRow.day, "CP", 2);
@@ -609,11 +632,14 @@ void animateFluxCapacitor() {
         printToDisplay(presRow.day, "CP", 2);
         printToDisplay(presRow.year, "ACTV");
     }
-    frame = (frame + 1) % 3; // Cycle through frames
+    frame = (frame + 1) % 3;
 
     presRow.month.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     presRow.day.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     presRow.year.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
   #endif
 }
 void displayStaticFluxText() {
@@ -623,23 +649,23 @@ void displayStaticFluxText() {
     printToDisplay(presRow.year, "ACTV");
     printToDisplay(presRow.time, "");
     presRow.month.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     presRow.day.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     presRow.year.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     presRow.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     #endif
 }
 void applyBrightness() {
   #if ENABLE_HARDWARE
-  // Corrected: The UI provides a value from 0-7. We will use this value directly.
-  // Although the hardware supports 0-15, the 0-7 range is what the UI and diagnostic test use.
   uint8_t brightnessValue = currentSettings.brightness;
 
-  // The setBrightness function can accept values up to 15, but we are clamping it to the UI's max of 7.
   if (brightnessValue > 7) {
       brightnessValue = 7;
   }
   
-  // Apply the new brightness level to all 12 display segments
   destRow.month.setBrightness(brightnessValue);
   destRow.day.setBrightness(brightnessValue);
   destRow.year.setBrightness(brightnessValue);

@@ -8,47 +8,34 @@
 static BootSequenceState nextStateAfterSound = BOOT_INACTIVE;
 static AnimationPhase nextPhaseAfterSound = ANIM_INACTIVE;
 
-
-// --- Static flag to prevent boot loop ---
 static bool infoMessageSet = false;
 
-// --- Extern variable/function declarations ---
 extern void setOverrideMessage(const char* line1, const char* line2, const char* line3);
 extern bool isMessageOverrideActive;
 extern unsigned long bootStateStartTime;
 
-// Helper function prototypes
 void playReconfiguringSound();
 void resetDisplayToNormal();
 
 extern int speedometerValue;
 
-// Extern variables should be within the conditional block
 #if ENABLE_HARDWARE
 extern DisplayRow destRow, presRow, lastRow;
 #endif
 
-// --- FLASH EFFECT ---
 bool isFlashing[3][4] = {{false}};
 unsigned long flashEndTimes[3][4] = {{0}};
 bool flashStates[3][4] = {{false}};
 unsigned long lastFlashToggle[3][4] = {{0}};
 
-/**
- * @brief Triggers a temporary flashing effect on a specific display segment.
- */
 void triggerFlashEffect(int row, int segment, int duration) {
     if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
     isFlashing[row][segment] = true;
-    // A duration of 0 means flash indefinitely
     flashEndTimes[row][segment] = (duration == 0) ? 0 : millis() + duration;
     flashStates[row][segment] = true;
     lastFlashToggle[row][segment] = millis();
 }
 
-/**
- * @brief Handles the state of any active flash effects. Called in the main loop.
- */
 #if ENABLE_HARDWARE
 void handleFlashEffect() {
     for (int r = 0; r < 3; ++r) {
@@ -56,7 +43,6 @@ void handleFlashEffect() {
             if (isFlashing[r][s]) {
                 if (flashEndTimes[r][s] != 0 && millis() > flashEndTimes[r][s]) {
                     isFlashing[r][s] = false;
-                    // Restore the display by calling the main update function in the next loop
                 } else {
                     if (millis() - lastFlashToggle[r][s] > 500) { // Toggle every 500ms
                         flashStates[r][s] = !flashStates[r][s];
@@ -73,23 +59,19 @@ void handleFlashEffect() {
                         }
 
                         if (displaySegment) {
-                           // Special case for the persistent Present Time dot
                            if (r == 1 && s == 3) {
                                if (flashStates[r][s]) {
-                                   // Turn ON the dot on the SECOND character (index 1)
                                    displaySegment->displaybuffer[1] |= 0x4000;
                                } else {
-                                   // Turn OFF the dot on the SECOND character (index 1)
                                    displaySegment->displaybuffer[1] &= ~0x4000;
                                }
-                           } else { // Generic flash for other segments
+                           } else { 
                                 if (flashStates[r][s]) {
                                     displaySegment->clear();
-                                } else {
-                                    // The main display logic will restore the content
                                 }
                            }
                            displaySegment->writeDisplay();
+                           vTaskDelay(pdMS_TO_TICKS(2));
                         }
                     }
                 }
@@ -97,9 +79,8 @@ void handleFlashEffect() {
         }
     }
 }
-#endif // ENABLE_HARDWARE
+#endif
 
-// --- TIME TRAVEL ANIMATION ---
 void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
     if (hardwareInitialized && currentSettings.timeTravelSoundToggle) {
         playSound(filename);
@@ -109,18 +90,13 @@ void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
     animationStartTime = millis();
 }
 
-/**
- * @brief Initiates the multi-stage time travel animation sequence.
- */
 void startTimeTravelAnimation() {
     if (isAnimating) return;
     isAnimating = true;
     animationStartTime = millis();
-    // Set the initial phase; the state machine will handle the rest.
     currentPhase = ANIM_POWER_UP; 
     updateHaStatus("Animating");
 
-    // For authenticity, save the current "Last Time Departed" and set it to the current "Present Time"
     time_t now;
     time(&now);
     struct tm timeinfo;
@@ -132,16 +108,12 @@ void startTimeTravelAnimation() {
     currentSettings.lastTimeDepartedMinute = timeinfo.tm_min;
 }
 
-/**
- * @brief The main state machine for the time travel animation. Called in the main loop.
- */
 void handleDisplayAnimation() {
     if (!isAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - animationStartTime;
     static AnimationPhase lastPhase = ANIM_INACTIVE;
 
-    // Detect when the animation phase changes to trigger the sound for the new phase.
     if (currentPhase != lastPhase) {
         if (currentSettings.timeTravelSoundToggle) {
             switch (currentPhase) {
@@ -158,7 +130,7 @@ void handleDisplayAnimation() {
                     playSound("SAVE_LANDING.mp3");
                     break;
                 default:
-                    break; // No sound for other states
+                    break;
             }
         }
         lastPhase = currentPhase;
@@ -170,12 +142,12 @@ void handleDisplayAnimation() {
                 animateTornadoFlicker();
             } else {
                 currentPhase = ANIM_TIME_ACCELERATION;
-                animationStartTime = millis(); // Reset timer for the next phase
+                animationStartTime = millis();
             }
             break;
 
         case ANIM_TIME_ACCELERATION:
-             if (elapsed < 10000) { // Duration is 10 seconds
+             if (elapsed < 10000) {
                 float progress = (float)elapsed / 10000.0f;
                 float easedProgress = progress * (2.0f - progress);
                 int speed = 88 * easedProgress;
@@ -206,7 +178,7 @@ void handleDisplayAnimation() {
             } else {
                 isAnimating = false;
                 currentPhase = ANIM_INACTIVE;
-                lastPhase = ANIM_INACTIVE; // Reset for next run
+                lastPhase = ANIM_INACTIVE;
                 updateNormalClockDisplay();
                 updateHaStatus("Idle");
                 isEchoEffectActive = true;
@@ -214,68 +186,38 @@ void handleDisplayAnimation() {
             }
             break;
         default:
-            // Failsafe to prevent getting stuck in an unknown state
             isAnimating = false;
             currentPhase = ANIM_INACTIVE;
             lastPhase = ANIM_INACTIVE;
             break;
     }
+    vTaskDelay(pdMS_TO_TICKS(20));
 #endif
 }
 
-// --- OTHER EFFECTS ---
-
-/**
- * @brief Handles the "temporal echo" effect after a time jump.
- */
 void handleTemporalEcho() {
     if (!isEchoEffectActive || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
-    if (millis() - echoEffectStartTime > 60000) { // Effect lasts for 1 minute
+    if (millis() - echoEffectStartTime > 60000) {
         isEchoEffectActive = false;
         return;
     }
 
-    // Randomly flicker the "Present Time" display
     if (random(100) < 10) {
         animateDisplayRowRandomly(presRow);
     }
 #endif
 }
 
-/**
- * @brief Handles the random glitch and malfunction effects during normal operation.
- */
 void handleGlitchEffect() {
     if (isAnimating || isDisplayAsleep || isMalfunctioning) return;
-    if (millis() - lastGlitchTime > 1000) { // Check once per second
+    if (millis() - lastGlitchTime > 1000) {
         lastGlitchTime = millis();
-
-        /*
-        // Check for a major malfunction
-        if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
-            isMalfunctioning = true;
-            malfunctionStartTime = millis();
-            currentMalfunctionPhase = MAL_HAYWIRE;
-            updateHaStatus("Malfunctioning");
-            return; // Prioritize malfunction over a simple glitch
-        }
-        */
-
-        /*
-        // Check for a minor glitch
-        if (currentSettings.glitchEffectFrequency > 0 && random(100) < currentSettings.glitchEffectFrequency) {
-            isGlitching = true;
-            glitchStartTime = millis();
-        }
-        */
     }
 }
-/**
- * @brief Restores the display to its normal state after a brief glitch effect has completed.
- */
+
 void restoreDisplayAfterGlitch() {
-    if (isGlitching && (millis() - glitchStartTime > 200)) { // Glitch duration
+    if (isGlitching && (millis() - glitchStartTime > 200)) {
         isGlitching = false;
 #if ENABLE_HARDWARE
         if (hardwareInitialized) {
@@ -299,8 +241,6 @@ void handleMalfunction() {
                 malfunctionStartTime = millis();
             }
             break;
-// In AnimationManager.cpp, inside handleMalfunction()
-
         case MAL_ERROR_MESSAGE:
             if (elapsed < 3000) {
                 printToDisplay(presRow.month, "ERR", 1);
@@ -308,10 +248,13 @@ void handleMalfunction() {
                 printToDisplay(presRow.year, "FAIL");
                 printToDisplay(presRow.time, "----");
                 presRow.month.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
                 presRow.day.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
                 presRow.year.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
                 presRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(5));
+                vTaskDelay(pdMS_TO_TICKS(2));
             } else {
                 currentMalfunctionPhase = MAL_REBOOT;
                 malfunctionStartTime = millis();
@@ -323,7 +266,7 @@ void handleMalfunction() {
             } else {
                 isMalfunctioning = false;
                 currentMalfunctionPhase = MAL_INACTIVE;
-                runBootSequence(); // Simulate a reboot by running the boot sequence
+                runBootSequence();
                 updateHaStatus("Idle");
             }
             break;
@@ -333,12 +276,6 @@ void handleMalfunction() {
 #endif
 }
 
-// --- BOOT SEQUENCE ---
-
-/**
- * @brief Starts the boot-up animation.
- */
-// In AnimationManager.cpp
 void runBootSequence() {
     Serial.println("BOOT_LOG: runBootSequence() called.");
     if (bootState == BOOT_INACTIVE) {
@@ -401,8 +338,11 @@ void handleBootSequence() {
                 printToDisplay(destRow.year, "CIRC");
                 printToDisplay(destRow.time, "UITS");
                 destRow.day.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
                 destRow.year.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
                 destRow.time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
                 stateActionCompleted = true;
             }
             if (elapsed > 1000 && !typingStarted) {
@@ -415,30 +355,26 @@ void handleBootSequence() {
             }
             break;
         
-        // --- FIX START: Decouple audio from animation ---
         case BOOT_FLUX_CAPACITOR_IGNITION:
-            // This state now ONLY starts the sound and waits for it to begin playing.
             if (!stateActionCompleted) {
                 playSound("/flux_capacitor_power_on.mp3");
                 stateActionCompleted = true;
             }
-            // Once the audio is confirmed to be running, move to the animation state.
-            if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
+            if (audio.isRunning() || elapsed > 2000) {
                 bootState = BOOT_FLUX_CAPACITOR_ANIMATION;
-                bootStateStartTime = millis(); // Reset the timer for the animation phase
+                bootStateStartTime = millis();
             }
             break;
 
         case BOOT_FLUX_CAPACITOR_ANIMATION:
-            // This new state handles all the visuals. The sound is guaranteed to be playing.
             if (elapsed < BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
-                 if (elapsed < 3000) { // First 3 seconds: flash
+                 if (elapsed < 3000) {
                     if ((elapsed / 250) % 2 == 0) {
                         flashAllDisplays();
                     } else {
                         blankAllDisplays();
                     }
-                } else { // The rest of the animation
+                } else {
                     animateDisplayRowRandomly(destRow);
                     animateDisplayRowRandomly(lastRow);
                     if ((elapsed / 250) % 2 == 0) {
@@ -449,18 +385,20 @@ void handleBootSequence() {
                         printToDisplay(presRow.year, "");
                         printToDisplay(presRow.time, "");
                         presRow.month.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                         presRow.day.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                         presRow.year.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                         presRow.time.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                     }
                 }
             } else {
-                // When the animation duration is over, transition to the next major step.
                 bootState = BOOT_DIAGNOSTICS;
                 bootStateStartTime = millis();
             }
             break;
-        // --- FIX END ---
 
         case BOOT_DIAGNOSTICS:
             if (!stateActionCompleted) {
@@ -475,27 +413,37 @@ void handleBootSequence() {
                         printToDisplay(destRow.month, "CPU", 1);
                         printToDisplay(destRow.day, "OK", 2);
                         destRow.month.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                         destRow.day.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                     } else if (currentSecond == 1) {
                         printToDisplay(presRow.month, "MEM", 1);
                         printToDisplay(presRow.day, "OK", 2);
                         presRow.month.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                         presRow.day.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                     } else if (currentSecond == 2) {
                         printToDisplay(lastRow.month, "WFI", 1);
                         printToDisplay(lastRow.day, "OK", 2);
                         lastRow.month.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                         lastRow.day.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                     } else if (currentSecond == 3) {
                         printToDisplay(lastRow.month, "IP", 1);
                         printToDisplay(lastRow.day, "OK", 2);
                         lastRow.month.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                         lastRow.day.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                     } else if (currentSecond == 4) {
                         printToDisplay(lastRow.month, "MQT", 1);
                         printToDisplay(lastRow.day, "OK", 2);
                         lastRow.month.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                         lastRow.day.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
                     }
                     lastDiagSecond = currentSecond;
                 }
@@ -527,7 +475,9 @@ void handleBootSequence() {
                 printToDisplay(destRow.year, "SYS");
                 printToDisplay(destRow.time, "GO");
                 destRow.year.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
                 destRow.time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
             }
             if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
                 bootState = BOOT_TEMPORAL_DISPLACEMENT;
@@ -561,16 +511,22 @@ void handleBootSequence() {
                     printToDisplay(presRow.time, "TIME");
 
                     destRow.year.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
                     destRow.time.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
                     presRow.year.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
                     presRow.time.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
                     stateActionCompleted = true;
                 }
                 if (elapsed > 3000) {
                     printToDisplay(lastRow.year, "WEL");
                     printToDisplay(lastRow.time, "COME");
                     lastRow.year.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
                     lastRow.time.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
                 }
             }
             if (elapsed > BOOT_ARRIVAL_DURATION) {
@@ -580,7 +536,6 @@ void handleBootSequence() {
             break;
         case BOOT_COOL_DOWN:
             if (!stateActionCompleted) {
-                // Manually fade out the audio
                 for (int i = currentSettings.notificationVolume; i >= 0; i--) {
                     audio.setVolume(i);
                     delay(50);
@@ -642,19 +597,11 @@ void handleBootSequence() {
             break;
     }
 }
-/**
- * @brief Resets all display rows and flags to the normal clock view.
- * @details This function is a robust way to exit any special display mode
- * (like an override message or manual text) and ensure the correct time is
- * shown. It clears all relevant state flags before forcing a full redraw
- * of all three time circuit rows.
- */
+
 void resetDisplayToNormal() {
-    // Clear any active override message flags
     isMessageOverrideActive = false;
     isMarqueeOverrideActive = false;
 
-    // Reset manual text override for all display segments
     for (int r = 0; r < 3; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
@@ -662,34 +609,16 @@ void resetDisplayToNormal() {
         }
     }
 
-    // Force a full redraw of all three rows to the current time
     updateNormalClockDisplay(true, true, true);
 }
 
-/**
- * @brief Triggers the "temporal glitch" effect when time is first synchronized.
- */
-/**
- * @brief Triggers the start of the temporal glitch effect.
- * @details This function simply sets the global state flags to initiate
- * the glitch effect, which is then handled by handleTemporalGlitch()
- * in the main loop.
- */
 void triggerTemporalGlitch() {
-    // Only start a new glitch if one is not already active.
     if (!isGlitching) {
         isGlitching = true;
         glitchStartTime = millis();
     }
 }
 
-/**
- * @brief Handles the visual part of the temporal glitch effect.
- * @details This function creates a controlled flicker on the "Present Time"
- * display for a set duration. It limits the rate of I2C updates to prevent
- * bus flooding and ensures the display is properly restored when the
- * effect is complete.
- */
 void handleTemporalGlitch() {
     if (!isGlitching || !hardwareInitialized) {
         return;
@@ -698,29 +627,22 @@ void handleTemporalGlitch() {
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - glitchStartTime;
 
-    // The total duration of the glitch effect.
     const int GLITCH_DURATION_MS = 1500;
 
     if (elapsed < GLITCH_DURATION_MS) {
-        // To prevent I2C bus flooding, only update the display periodically.
         static unsigned long lastFlickerTime = 0;
-        if (millis() - lastFlickerTime > 100) { // Flicker every 100ms.
+        if (millis() - lastFlickerTime > 100) {
             lastFlickerTime = millis();
 
-            // Alternate between showing random characters and the correct time
-            // for a more realistic "glitching" effect.
             if (random(100) < 50) {
                 animateDisplayRowRandomly(presRow);
             } else {
-                // Briefly show the correct time.
                 updateNormalClockDisplay(false, true, false);
             }
         }
     } else {
-        // The glitch effect is over.
         isGlitching = false;
         
-        // Explicitly restore all displays to their normal state.
         resetDisplayToNormal();
     }
 #endif

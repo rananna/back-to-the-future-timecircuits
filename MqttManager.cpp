@@ -5,7 +5,7 @@
 #include "DataManager.h"
 #include "web_server.h"
 #include <PubSubClient.h>
-#include <ArduinoJson.hh>
+#include <ArduinoJson.h>
 #include <WiFi.h>
 #include <Preferences.h>
 #include <LCBUrl.h> 
