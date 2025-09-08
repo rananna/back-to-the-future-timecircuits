@@ -7,7 +7,7 @@
  */
 
 #include "HardwareControl.h"
-#include "EventManager.h" 
+#include "EventManager.h"
 #include "DisplayManager.h"
 #include "LittleFS.h"
 
@@ -748,6 +748,158 @@ void animateCountingUp(unsigned long elapsed, int duration) {
         rows[i]->year.writeDisplay();
         rows[i]->time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(4)); 
+    }
+    #endif
+}
+
+// New animation function implementations
+void animateSpeedometerOverload(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    int speed = 88 * progress;
+    if (speed > 88) speed = 88;
+
+    displaySpeed(speed);
+
+    // Increase flicker intensity as speed increases
+    if (random(100) < (speed / 2)) {
+        animateDisplayRowRandomly(destRow);
+        animateDisplayRowRandomly(presRow);
+    }
+    #endif
+}
+
+void animateGlitchAndRebuild(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    // Phase 1: Shatter into digital noise
+    if (elapsed < duration / 2) {
+        animateDigitalRain(elapsed, duration);
+    } 
+    // Phase 2: Rebuild the destination time
+    else {
+        time_t now_t;
+        time(&now_t);
+        struct tm dest_timeinfo;
+        localtime_r(&now_t, &dest_timeinfo);
+        dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+        
+        char yearStr[5];
+        sprintf(yearStr, "%04d", currentSettings.destinationYear);
+
+        float rebuildProgress = (float)(elapsed - (duration / 2)) / (duration / 2);
+        int charsToShow = 12 * rebuildProgress;
+
+        if (charsToShow > 0) printToDisplay(destRow.month, "OCT");
+        if (charsToShow > 1) printToDisplay(destRow.day, "26");
+        if (charsToShow > 2) printToDisplay(destRow.year, yearStr);
+        if (charsToShow > 8) printToDisplay(destRow.time, "0121");
+    }
+    #endif
+}
+
+void animateParadoxCorrection(unsigned long elapsed, int duration, int destinationYear) {
+    #if ENABLE_HARDWARE
+    char yearStr[5];
+    char altYearStr[5];
+    sprintf(yearStr, "%04d", destinationYear);
+    sprintf(altYearStr, "%04dA", destinationYear);
+
+    if ((elapsed / 200) % 2 == 0) {
+        printToDisplay(destRow.year, yearStr);
+    } else {
+        printToDisplay(destRow.year, altYearStr);
+    }
+    destRow.year.writeDisplay();
+    #endif
+}
+
+void animateDigitalWormhole(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    // This is a simplified visual effect
+    int phase = (elapsed / 200) % 4;
+    switch(phase) {
+        case 0: 
+            printToDisplay(presRow.month, "   -");
+            printToDisplay(presRow.day, "--");
+            printToDisplay(presRow.year, "----");
+            printToDisplay(presRow.time, "-   ");
+            break;
+        case 1: 
+            printToDisplay(presRow.month, "  - ");
+            printToDisplay(presRow.day, "--");
+            printToDisplay(presRow.year, "----");
+            printToDisplay(presRow.time, " -  ");
+            break;
+        case 2: 
+            printToDisplay(presRow.month, " -  ");
+            printToDisplay(presRow.day, "--");
+            printToDisplay(presRow.year, "----");
+            printToDisplay(presRow.time, "  - ");
+            break;
+        case 3: 
+            printToDisplay(presRow.month, "-   ");
+            printToDisplay(presRow.day, "--");
+            printToDisplay(presRow.year, "----");
+            printToDisplay(presRow.time, "   -");
+            break;
+    }
+    presRow.month.writeDisplay();
+    presRow.day.writeDisplay();
+    presRow.year.writeDisplay();
+    presRow.time.writeDisplay();
+    #endif
+}
+
+void animateQuoteTicker(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    const char* quotes[] = { "GREAT SCOTT", "1 21 GIGAWATTS", "THIS IS HEAVY", "OUTATIME" };
+    int quoteIndex = (elapsed / duration) % 4;
+    const char* quote = quotes[quoteIndex];
+    
+    int len = strlen(quote);
+    int scrollSpeed = 200; // ms per character
+    int totalScrollTime = len * scrollSpeed;
+    int currentPos = (elapsed % totalScrollTime) / scrollSpeed;
+
+    char displayStr[14] = "             "; // 13 spaces
+    for (int i=0; i<13; ++i) {
+        int quoteCharIndex = i - (13 - currentPos);
+        if (quoteCharIndex >= 0 && quoteCharIndex < len) {
+            displayStr[i] = quote[quoteCharIndex];
+        }
+    }
+    
+    printToDisplay(destRow.month, String(displayStr).substring(0,3).c_str());
+    printToDisplay(destRow.day, String(displayStr).substring(3,5).c_str());
+    printToDisplay(destRow.year, String(displayStr).substring(5,9).c_str());
+    printToDisplay(destRow.time, String(displayStr).substring(9,13).c_str());
+    destRow.month.writeDisplay();
+    destRow.day.writeDisplay();
+    destRow.year.writeDisplay();
+    destRow.time.writeDisplay();
+    #endif
+}
+
+void animateSystemDiagnostics(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    animateSequentialFlicker(elapsed, duration);
+    #endif
+}
+
+void animateDestinationPreview(unsigned long elapsed, int duration, int destinationYear) {
+    #if ENABLE_HARDWARE
+    const char* previewText = "";
+    if (destinationYear == 1955) previewText = "ENCHANTMENT";
+    else if (destinationYear == 2015) previewText = "FUTURE";
+    else if (destinationYear == 1885) previewText = "OLD WEST";
+    
+    if (strlen(previewText) > 0) {
+        if ((elapsed / 500) % 2 == 0) {
+            printToDisplay(presRow.year, previewText);
+        } else {
+            presRow.year.clear();
+        }
+        presRow.year.writeDisplay();
     }
     #endif
 }

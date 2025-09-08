@@ -17,6 +17,7 @@
 #include <string>
 #include <LCBUrl.h>
 #include <ArduinoOTA.h>
+#include <vector>
 
 #include "HardwareControl.h"
 #include "web_server.h"
@@ -35,12 +36,15 @@
 #endif
 
 // --- CONFIGURABLE CONSTANTS ---
-const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
+const unsigned long WIFI_CONNECT_TIMEOUT = 15000;
+// 15 seconds
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
-const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
+const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;
+// 1 minute
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
-const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates. A lower value (e.g., 100) will be more responsive but use more processing power. A higher value (e.g., 500) will be less responsive but more efficient. 250ms is a good balance.
-
+const unsigned long DISPLAY_UPDATE_INTERVAL = 250;
+// Milliseconds between display updates. A lower value (e.g., 100) will be more responsive but use more processing power.
+// A higher value (e.g., 500) will be less responsive but more efficient. 250ms is a good balance.
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
 enum WifiState {
   WIFI_STATE_CONNECTING,
@@ -51,20 +55,16 @@ enum WifiState {
 WifiState wifiState = WIFI_STATE_CONNECTING;
 unsigned long wifiConnectStartTime = 0;
 TaskHandle_t wifiManagerTaskHandle = NULL;
-
 // --- ONE-TIME LOGGING FLAGS ---
 bool logConnectingPrinted = false;
 bool logPortalMsgPrinted = false;
 bool logConnectedPrinted = false;
-
 // --- MQTT EXPONENTIAL BACKOFF ---
 unsigned long nextMqttReconnectAttempt = 0;
 unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
-
 // --- THEMED BOOT SEQUENCE ---
 BootSequenceState bootState = BOOT_INACTIVE;
 int speedometerValue = 0;
-
 // --- DISPLAY MODE STATE MACHINE ---
 DisplayModeState currentDisplayMode = NORMAL_CLOCK;
 
@@ -115,7 +115,8 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
 	{ "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
 	{ "<+03>-3", "Moscow Standard Time", "Europe/Moscow", "Europe" },
-	{ "<+03>-3", "Turkey Time (Istanbul)","Europe/Istanbul", "Europe" },
+	{ "<+03>-3", "Turkey Time (Istanbul)","Europe/Istanbul", 
+"Europe" },
 	{ "IST-5:30", "Indian Standard Time (Kolkata)", "Asia/Kolkata", "Asia" },
 	{ "<+08>-8", "Singapore Standard Time", "Asia/Singapore", "Asia" },
 	{ "CST-8", "China Standard Time (Shanghai)", "Asia/Shanghai", "Asia" },
@@ -128,7 +129,8 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "ChST-10", "Chamorro Time (Guam)", "Pacific/Guam", "Australia & Oceania" },
 	{ "WAT-1", "West Africa Time (Lagos)", "Africa/Lagos", "Africa" },
 	{ "SAST-2", "South Africa Standard Time", "Africa/Johannesburg", "Africa" },
-	{ "EET-2","EET (Cairo)", "Africa/Cairo", "Africa" },
+	{ "EET-2","EET (Cairo)", 
+"Africa/Cairo", "Africa" },
 	{ "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
 	{ "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
 	{ "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
@@ -223,7 +225,8 @@ void audio_info(Audio::msg_t m) {
 /**
  * @brief A dedicated FreeRTOS task to handle audio processing.
  * @details This task runs in a continuous loop, calling audio.loop() to ensure
- * the I2S buffer is always fed with audio data. This prevents animations or other
+ * the I2S buffer is always fed with audio data.
+This prevents animations or other
  * long-running code in the main loop from starving the audio system and causing
  * stuttering or delays.
  * @param pvParameters Standard FreeRTOS task parameters (unused).
@@ -361,7 +364,7 @@ void loadSettings() {
     Serial.println("--- Loading Settings ---");
     preferences.begin(PREFERENCES_NAMESPACE, true);
 	bool needsInit = !preferences.isKey("destYear");
-	if (needsInit) {
+    if (needsInit) {
 		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
 		currentSettings.destinationYear = 1955;
 		currentSettings.destinationTimezoneIndex = 4;
@@ -404,6 +407,8 @@ void loadSettings() {
 		currentSettings.stockRow2_symbol = "^GSPTSE";
 		currentSettings.stockRow3_symbol = "^IXIC";
 		currentSettings.alphaVantageApiKey = "";
+        currentSettings.useAnimationPlaylist = false;
+        currentSettings.quotes = {"GREAT SCOTT", "1 21 GIGAWATTS", "THIS IS HEAVY", "OUTATIME"};
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
 		}
@@ -438,7 +443,7 @@ void loadSettings() {
 		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
 		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
         String brokerStr = preferences.getString("mqttBroker", "");
-        currentSettings.mqttBroker = brokerStr.c_str();
+		currentSettings.mqttBroker = brokerStr.c_str();
 		Serial.printf("SETTINGS_LOG: Loaded MQTT Broker: [%s]\n", currentSettings.mqttBroker.c_str());
 		currentSettings.mqttPort = preferences.getInt("mqttPort", 1883);
 		Serial.printf("SETTINGS_LOG: Loaded MQTT Port: [%d]\n", currentSettings.mqttPort);
@@ -446,7 +451,7 @@ void loadSettings() {
         currentSettings.mqttUser = userStr.c_str();
 		Serial.printf("SETTINGS_LOG: Loaded MQTT User: [%s]\n", currentSettings.mqttUser.c_str());
         String passStr = preferences.getString("mqttPass", "");
-        currentSettings.mqttPassword = passStr.c_str();
+		currentSettings.mqttPassword = passStr.c_str();
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
 		String tempString = preferences.getString("cityName", "New York");
 		currentSettings.cityName = tempString.c_str();
@@ -464,7 +469,7 @@ void loadSettings() {
 		Serial.printf("Loading avApiKey from Preferences: [%s]\n", tempString.c_str());
 		currentSettings.alphaVantageApiKey = tempString.c_str();
         Serial.printf("Loaded avApiKey into currentSettings: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
-		for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
 			tempString = preferences.getString((prefix + "url").c_str(), "");
 			currentSettings.dataPoints[i].url = tempString.c_str();
@@ -505,7 +510,7 @@ void loadSettings() {
 	}
 	preferences.end();
 	Serial.println("--- Settings Loaded ---");
-	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
+    if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.presentTimezoneIndex = 0;
 	}
 	if (currentSettings.destinationTimezoneIndex < 0 || currentSettings.destinationTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
@@ -519,7 +524,7 @@ void listAllFiles() {
 	Serial.println(F("\n--- Listing all files in LittleFS ---"));
 	File root = LittleFS.open("/");
 	File file = root.openNextFile();
-	while (file) {
+    while (file) {
 		Serial.print(F("  FILE: "));
 		Serial.print(file.name());
 		Serial.print(F("\tSIZE: "));
@@ -528,7 +533,7 @@ void listAllFiles() {
 		file = root.openNextFile();
 	}
 	Serial.println(F("--- End of file list ---\n"));
-	root.close();
+    root.close();
 }
 
 bool attemptHardwareInit() {
@@ -584,7 +589,6 @@ void setup() {
     wifiConnectStartTime = millis();
     wifiState = WIFI_STATE_CONNECTING;
     Serial.println("BOOT_LOG: Non-blocking WiFi connection initiated...");
-
     Serial.println(F("WEB_LOG: Setting up web routes..."));
     setupWebRoutes();
     Serial.println(F("WEB_LOG: Web routes configured."));
@@ -602,6 +606,7 @@ void setup() {
             audioTask,          // Task function
             "AudioTask",        // Name of the task
             4096,               // FIX: Increased stack size from 2048 to 4096 words
+         
             NULL,               // Task input parameter
             5,                  // Priority of the task (high)
             NULL,               // Task handle
@@ -615,7 +620,6 @@ void setup() {
 
     setupMqtt();
     Serial.println(F("BOOT_LOG: MQTT setup initiated."));
-
     ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
     Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
 
@@ -735,11 +739,11 @@ void loop() {
     static bool prevMqttConnected = false;
     int currentWifiStatus = WiFi.status();
     bool currentMqttConnected = mqttClient.connected();
-
     if (currentWifiStatus != prevWifiStatus || bootState != prevBootState || isMessageOverrideActive != prevOverrideState || currentMqttConnected != prevMqttConnected) {
         Serial.printf("STATUS_UPDATE -> WiFi: %d | Boot: %d | Override: %d | MQTT: %d\n",
                       currentWifiStatus,
                       bootState,
+                    
                       isMessageOverrideActive,
                       currentMqttConnected);
         prevWifiStatus = currentWifiStatus;
@@ -815,7 +819,6 @@ void loop() {
             }
             
             handleScheduledAnimation();
-
             static unsigned long lastNtpUpdate = 0;
             if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
                 bool syncSuccess = false;
@@ -875,7 +878,6 @@ void handleSequencer() {
     if (!isSequenceActive) return;
     SequenceStep step = sequence[currentSequenceStep];
     unsigned long elapsed = millis() - sequenceStepStartTime;
-
     switch (step.command) {
         case SEQ_CMD_TEXT:
             if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
@@ -944,7 +946,6 @@ void handleSleepSchedule() {
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     if (hardwareInitialized) {
@@ -968,7 +969,6 @@ bool isMarketOpen() {
     tzset();
     struct tm timeinfo;
     getLocalTime(&timeinfo);
-
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
 

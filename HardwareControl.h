@@ -144,6 +144,9 @@ struct ClockSettings {
   std::string stockRow2_symbol;
   std::string stockRow3_symbol;
   std::string alphaVantageApiKey;
+  std::vector<std::string> quotes;
+  bool useAnimationPlaylist;
+  std::vector<int> animationPlaylist;
 };
 
 struct StockData {
@@ -184,10 +187,23 @@ struct TimeZoneEntry {
 };
 
 enum AnimationStyle {
-  ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
-  ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
-  ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
-  ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM
+  // Classic Visuals
+  ANIMATION_SEQUENTIAL_FLICKER,
+  ANIMATION_RANDOM_FLICKER,
+  ANIMATION_TORNADO_FLICKER,
+  ANIMATION_CAPACITOR_CHARGE_UP,
+  ANIMATION_DIGITAL_RAIN,
+  ANIMATION_WAVEFORM_COLLAPSE,
+  ANIMATION_TIMELINE_SKIM,
+  // Cinematic Visuals
+  ANIMATION_SPEEDOMETER_OVERLOAD,
+  ANIMATION_GLITCH_AND_REBUILD,
+  ANIMATION_PARADOX_CORRECTION,
+  ANIMATION_DIGITAL_WORMHOLE,
+  // Themed Text & Scenes
+  ANIMATION_QUOTE_TICKER,
+  ANIMATION_SYSTEM_DIAGNOSTICS,
+  ANIMATION_DESTINATION_PREVIEW
 };
 
 // --- START: SEQUENCER DEFINITIONS ---
@@ -239,4 +255,14 @@ void animateRandomRealTimes();
 void applyBrightness();
 void animateSequentialFlicker(unsigned long elapsed, int duration);
 void animateCountingUp(unsigned long elapsed, int duration);
+
+// New animation function declarations
+void animateSpeedometerOverload(unsigned long elapsed, int duration);
+void animateGlitchAndRebuild(unsigned long elapsed, int duration);
+void animateParadoxCorrection(unsigned long elapsed, int duration, int destinationYear);
+void animateDigitalWormhole(unsigned long elapsed, int duration);
+void animateQuoteTicker(unsigned long elapsed, int duration);
+void animateSystemDiagnostics(unsigned long elapsed, int duration);
+void animateDestinationPreview(unsigned long elapsed, int duration, int destinationYear);
+
 #endif // HARDWARE_CONTROL_H

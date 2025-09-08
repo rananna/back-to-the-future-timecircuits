@@ -32,7 +32,10 @@ The web interface is organized into several tabs for easy configuration.
 
 ### Temporal Controls Tab
 * **Departure/Arrival (Sleep) Times**: Configure a daily schedule to automatically turn the displays off and on to save power.
-* **Display & Animation**: Adjust the display brightness, select from 10 different time travel animation styles, and control the duration and frequency of automatic animations.
+* **Display & Animation**: Adjust the display brightness, select from a wide range of animation styles, and control the duration and frequency of automatic animations.
+* **Interactive Animation Preview**: When you select an animation style from the dropdown, you will now see a live, client-side preview of that animation, allowing you to see what it looks like without having to save your settings and trigger the full sequence on the hardware.
+* **Animation Playlists**: Instead of the clock playing the same scheduled animation every time, you can now create a "playlist" of your favorite animation styles. When the "Use Playlist" option is enabled, the clock will cycle through your selected animations for the scheduled events, adding variety and preventing the effects from becoming repetitive.
+* **Dynamic Quote Management**: For the "Quote Ticker" animation, you can now add, edit, and delete your own custom quotes, allowing you to personalize the clock with your favorite lines from the movies or your own custom messages.
 * **Effects**: Control the "instability" of your time circuits by setting the frequency of random visual glitches and the chance of a major malfunction sequence.
 * **Sound**: Adjust the volume of the sound effects and toggle them on or off.
 
@@ -75,13 +78,15 @@ When you press the button, you will see the following changes in the web UI:
 
 ### Hardware Animation and Sound Sequence
 
-Pressing the save button triggers a cinematic 17-second animation on the physical display, complete with a synchronized sound effect.
+Pressing the save button triggers a cinematic 17-second animation on the physical display, complete with synchronized sound effects.
 
 | Phase | Duration | Visuals | Sound Effect |
 | :--- | :--- | :--- | :--- |
-| **1. Power Up & Acceleration** | 12 seconds | The displays flicker, then the bottom row ramps up to 88 MPH. | The sound of a powerful engine revving up (**engine\_rev.mp3**). |
-| **2. Time Travel**| 4 seconds | At 88 MPH, all displays flash brightly, then show a "time blur" effect where the years rapidly skim forward or backward. | *None* |
-| **3. Landing** | 1 second | The displays flicker one last time before settling on the new destination and present times. | *None* |
+| | | | (All sounds are controlled by the **"Time Travel Sound FX"** toggle under the "Temporal Controls" tab) |
+| **1. Power Up** | 2 seconds | The displays flicker with random characters, simulating a power surge. | A low hum builds in intensity with the sound of crackling electricity and mechanical relays (**SAVE\_POWER\_UP.mp3**). |
+| **2. Acceleration**| 10 seconds | The bottom row displays a speedometer ramping up to 88 MPH while the other rows continue to flicker. | A futuristic engine whine increases in pitch and volume, conveying a sense of immense speed (**SAVE\_ACCELERATION.mp3**). |
+| **3. Time Travel**| 4 seconds | At 88 MPH, all displays flash brightly, then show a "time blur" effect where the years rapidly skim forward or backward. | A loud "sonic boom" transitions into a chaotic whoosh of temporal winds (**SAVE\_TIME\_TRAVEL.mp3**). |
+| **4. Landing** | 1 second | The displays flicker one last time before settling on the new destination and present times. | A deep "thud" combined with a final crackle of electricity confirms the arrival (**SAVE\_LANDING.mp3**). |
 
 #### Smart Saving Technology
 

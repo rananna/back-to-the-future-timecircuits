@@ -1,6 +1,7 @@
 // Global state for the animation preview interval
 let animationPreviewInterval = null;
 
+
 /**
  * Initializes the UI when the DOM is fully loaded.
  */
@@ -17,82 +18,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Dynamically creates and injects the UI file uploader into the DOM.
- */
-function createUiUploader() {
-    const container = document.getElementById('ui-upload-container');
-    if (!container) {
-        console.error("UI Upload container not found!");
-        return;
-    }
-
-    // Create elements
-    const form = document.createElement('form');
-    const hiddenInput = document.createElement('input');
-    const visibleButton = document.createElement('button');
-    const fileListP = document.createElement('p');
-
-    // Configure hidden file input
-    hiddenInput.type = 'file';
-    hiddenInput.id = 'ui-file-input';
-    hiddenInput.name = 'ui-file';
-    hiddenInput.accept = '.html,.css,.js,.mp3';
-    hiddenInput.multiple = true;
-    hiddenInput.style.display = 'none';
-
-    // Configure visible button
-    visibleButton.type = 'button'; // Prevents form submission
-    visibleButton.id = 'ui-upload-button';
-    visibleButton.className = 'action-button';
-    visibleButton.textContent = 'Choose UI Files';
-
-    // Configure file list paragraph
-    fileListP.id = 'ui-file-list';
-    fileListP.style.marginTop = '10px';
-    fileListP.style.fontStyle = 'italic';
-
-    // Assemble elements
-    form.appendChild(hiddenInput);
-    form.appendChild(visibleButton);
-    form.appendChild(fileListP);
-    container.appendChild(form);
-
-    // --- Attach Event Listeners ---
-    visibleButton.addEventListener('click', () => {
-        hiddenInput.click();
-    });
-
-    hiddenInput.addEventListener('change', () => {
-        if (hiddenInput.files.length > 0) {
-            fileListP.textContent = `${hiddenInput.files.length} file(s) selected. Uploading...`;
-            const formData = new FormData();
-            for (const file of hiddenInput.files) {
-                formData.append('ui-file', file, file.name);
-            }
-
-            fetch('/upload-ui', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.text())
-            .then(result => {
-                console.log('Success:', result);
-                fileListP.textContent = result;
-                showMessage(result, 'success');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                fileListP.textContent = 'Upload failed.';
-                showMessage('Upload failed.', 'error');
-            });
-        } else {
-            fileListP.textContent = '';
-        }
-    });
-}
-
-
-/**
  * Initializes the main UI components and fetches initial data.
  */
 async function initializeUI() {
@@ -101,7 +26,8 @@ async function initializeUI() {
         const initialEndpoints = [
             '/api/settings/timecircuits', '/api/settings/temporal',
             '/api/settings/datalink', '/api/timezones',
-            '/api/getPresets', '/api/getTheme', '/api/api_examples'
+            '/api/getPresets', '/api/getTheme', '/api/api_examples',
+            '/api/getQuotes' // New endpoint for quotes
         ];
         // Fetch all the initial data in parallel
         const promises = initialEndpoints.map(url => fetch(url).then(res => {
@@ -110,10 +36,14 @@ async function initializeUI() {
         }));
 
         // Wait for all promises to resolve
-        const [timecircuits, temporal, datalink, timezones, presets, theme, examples] = await Promise.all(promises);
+        const [timecircuits, temporal, datalink, timezones, presets, theme, examples, quotes] = await Promise.all(promises);
 
         // Store the API examples globally
         window.apiExamples = examples;
+        
+        // Store quotes globally and render them
+        customQuotes = quotes;
+        renderQuotes();
 
         // Apply the fetched theme to the UI
         document.body.className = theme.trim();
@@ -137,8 +67,6 @@ async function initializeUI() {
         setInterval(fetchSystemStatus, 5000); // Fetch system status every 5 seconds
         // Attach all the event listeners to the UI elements
         attachEventListeners();
-        // Dynamically create the UI uploader
-        // createUiUploader();
         
         showMessage('System Online', 'success');
 
@@ -256,10 +184,19 @@ async function applySettings(timecircuits, temporal, datalink) {
                 if (valueSpan) valueSpan.textContent = temporal[id];
             }
         });
-        ['timeTravelSoundToggle', 'displayFormat24h'].forEach(id => {
+        ['timeTravelSoundToggle', 'displayFormat24h', 'useAnimationPlaylist'].forEach(id => {
             document.getElementById(id).checked = temporal[id];
         });
         document.getElementById('animationStyleSelect').value = temporal.animationStyle;
+        
+        // Populate and check playlist items
+        populatePlaylistCheckboxes();
+        if (temporal.animationPlaylist) {
+            temporal.animationPlaylist.forEach(styleValue => {
+                const checkbox = document.getElementById(`playlist_anim_${styleValue}`);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
     }
 
     // Update the Last Departed display
@@ -513,6 +450,18 @@ function attachEventListeners() {
 
     // Firmware upload form
     document.getElementById('firmware-upload-form').onsubmit = handleFirmwareUpload;
+
+    // New Event Listeners for Quote Manager and Playlist
+    document.getElementById('addQuoteBtn').onclick = addQuote;
+    document.getElementById('animationStyleSelect').onchange = () => {
+        const selectedStyle = document.getElementById('animationStyleSelect').value;
+        const quoteManager = document.getElementById('quoteManagerContainer');
+        if (selectedStyle === '11') { // Value for "Quote Ticker"
+            quoteManager.classList.remove('hidden');
+        } else {
+            quoteManager.classList.add('hidden');
+        }
+    };
 }
 
 /**
@@ -1558,4 +1507,69 @@ function setButtonLoading(button, isLoading) {
         button.innerHTML = button.dataset.originalText || 'Upload';
         button.disabled = false;
     }
+}
+
+// New functions for quote and playlist management
+
+function renderQuotes() {
+    const quoteList = document.getElementById('quoteList');
+    quoteList.innerHTML = '';
+    customQuotes.forEach((quote, index) => {
+        const item = document.createElement('div');
+        item.className = 'quote-item';
+        item.innerHTML = `
+            <span>${quote}</span>
+            <button class="delete-quote-btn" data-index="${index}">Delete</button>
+        `;
+        quoteList.appendChild(item);
+    });
+
+    document.querySelectorAll('.delete-quote-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            const index = parseInt(e.target.dataset.index, 10);
+            deleteQuote(index);
+        };
+    });
+}
+
+function addQuote() {
+    const input = document.getElementById('newQuoteInput');
+    const newQuote = input.value.trim().toUpperCase();
+    if (newQuote) {
+        customQuotes.push(newQuote);
+        saveQuotes();
+        input.value = '';
+    }
+}
+
+function deleteQuote(index) {
+    customQuotes.splice(index, 1);
+    saveQuotes();
+}
+
+function saveQuotes() {
+    fetch('/api/saveQuotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customQuotes)
+    }).then(() => {
+        renderQuotes();
+        showMessage('Quotes saved.', 'success');
+    });
+}
+
+function populatePlaylistCheckboxes() {
+    const container = document.getElementById('animationPlaylistCheckboxes');
+    container.innerHTML = '';
+    const select = document.getElementById('animationStyleSelect');
+    
+    Array.from(select.options).forEach(option => {
+        const div = document.createElement('div');
+        div.className = 'playlist-item';
+        div.innerHTML = `
+            <input type="checkbox" id="playlist_anim_${option.value}" value="${option.value}">
+            <label for="playlist_anim_${option.value}">${option.textContent}</label>
+        `;
+        container.appendChild(div);
+    });
 }

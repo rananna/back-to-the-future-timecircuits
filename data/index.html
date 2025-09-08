@@ -162,19 +162,51 @@
                     <label for="animationStyleSelect">Animation Style:</label>
                     <div class="animation-style-container">
                         <select id="animationStyleSelect">
-                            <option value="0">Sequential Flicker</option>
-                            <option value="1">Random Flicker</option>
-                            <option value="2">All Displays Random</option>
-                            <option value="3">Counting Up</option>
-                            <option value="4">Wave Flicker</option>
-                            <option value="5">Tornado Flicker</option>
-                            <option value="6">Capacitor Charge-Up</option>
-                            <option value="7">Digital Rain</option>
-                            <option value="8">Waveform Collapse</option>
-                            <option value="9">Timeline Skim</option>
+                            <optgroup label="Classic Visuals">
+                                <option value="0">Sequential Flicker</option>
+                                <option value="1">Random Flicker</option>
+                                <option value="2">Tornado Flicker</option>
+                                <option value="3">Capacitor Charge-Up</option>
+                                <option value="4">Digital Rain</option>
+                                <option value="5">Waveform Collapse</option>
+                                <option value="6">Timeline Skim</option>
+                            </optgroup>
+                            <optgroup label="Cinematic Visuals">
+                                <option value="7">Speedometer Overload</option>
+                                <option value="8">Glitch & Rebuild</option>
+                                <option value="9">Paradox Correction</option>
+                                <option value="10">Digital Wormhole</option>
+                            </optgroup>
+                            <optgroup label="Themed Text & Scenes">
+                                <option value="11">Quote Ticker</option>
+                                <option value="12">System Diagnostics</option>
+                                <option value="13">Destination Preview</option>
+                            </optgroup>
                         </select>
                         <button id="previewAnimationBtn" class="action-button">Preview</button>
                     </div>
+
+                    <div id="animationPreviewContainer" class="animation-preview-container">
+                        <div class="animation-preview-row">
+                            <span class="preview-segment" data-row="0" data-seg="0">MON</span>
+                            <span class="preview-segment" data-row="0" data-seg="1">DA</span>
+                            <span class="preview-segment" data-row="0" data-seg="2">YEAR</span>
+                            <span class="preview-segment" data-row="0" data-seg="3">TIME</span>
+                        </div>
+                        <div class="animation-preview-row">
+                           <span class="preview-segment" data-row="1" data-seg="0">MON</span>
+                           <span class="preview-segment" data-row="1" data-seg="1">DA</span>
+                           <span class="preview-segment" data-row="1" data-seg="2">YEAR</span>
+                           <span class="preview-segment" data-row="1" data-seg="3">TIME</span>
+                        </div>
+                        <div class="animation-preview-row">
+                           <span class="preview-segment" data-row="2" data-seg="0">MON</span>
+                           <span class="preview-segment" data-row="2" data-seg="1">DA</span>
+                           <span class="preview-segment" data-row="2" data-seg="2">YEAR</span>
+                           <span class="preview-segment" data-row="2" data-seg="3">TIME</span>
+                        </div>
+                    </div>
+
                     <label for="timeTravelAnimationDuration">Animation Duration (ms): <span id="timeTravelAnimationDurationValue">4000</span></label>
                     <div class="slider-container">
                         <input type="range" id="timeTravelAnimationDuration" min="1000" max="10000" step="100">
@@ -184,6 +216,27 @@
                         <input type="range" id="timeTravelAnimationInterval" min="0" max="120">
                     </div>
                 </div>
+
+                <div id="quoteManagerContainer" class="setting-sub-group hidden">
+                    <h4>Quote Ticker Management</h4>
+                    <div id="quoteList" class="quote-list"></div>
+                    <div class="quote-add-form">
+                        <input type="text" id="newQuoteInput" placeholder="Enter a new quote">
+                        <button id="addQuoteBtn" class="action-button">Add Quote</button>
+                    </div>
+                </div>
+
+                <div id="playlistManagerContainer" class="setting-sub-group">
+                    <h4>Animation Playlist</h4>
+                    <label for="useAnimationPlaylist" class="toggle-label">Use Playlist for Scheduled Animations</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="useAnimationPlaylist">
+                        <span class="slider round"></span>
+                    </label>
+                    <div id="animationPlaylistCheckboxes" class="playlist-checkbox-container">
+                        </div>
+                </div>
+
                 <div class="setting-sub-group">
                     <h4>Effects</h4>
                     <label for="glitchEffectFrequency">Glitch Instability (%): <span id="glitchEffectFrequencyValue">0</span></label>

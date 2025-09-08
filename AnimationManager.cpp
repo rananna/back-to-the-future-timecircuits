@@ -256,21 +256,14 @@ void handleStyledAnimation() {
 
         case ANIM_FLICKER:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
-                switch (currentSettings.animationStyle) {
+                switch ((AnimationStyle)currentSettings.animationStyle) {
+                    // Classic Visuals
                     case ANIMATION_SEQUENTIAL_FLICKER:
                         animateSequentialFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_RANDOM_FLICKER:
-                        animateTornadoFlicker();
-                        break;
-                    case ANIMATION_ALL_DISPLAYS_RANDOM:
-                        animateRandomRealTimes();
-                        break;
-                    case ANIMATION_COUNTING_UP:
-                        animateCountingUp(elapsed, currentSettings.timeTravelAnimationDuration);
-                        break;
-                    case ANIMATION_WAVE_FLICKER:
-                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateDisplayRowRandomly(presRow);
+                        animateDisplayRowRandomly(destRow);
                         break;
                     case ANIMATION_TORNADO_FLICKER:
                         animateTornadoFlicker();
@@ -286,6 +279,29 @@ void handleStyledAnimation() {
                         break;
                     case ANIMATION_TIMELINE_SKIM:
                         animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
+                        break;
+                    // Cinematic Visuals
+                    case ANIMATION_SPEEDOMETER_OVERLOAD:
+                        animateSpeedometerOverload(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_GLITCH_AND_REBUILD:
+                        animateGlitchAndRebuild(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_PARADOX_CORRECTION:
+                        animateParadoxCorrection(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
+                        break;
+                    case ANIMATION_DIGITAL_WORMHOLE:
+                        animateDigitalWormhole(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    // Themed Text & Scenes
+                    case ANIMATION_QUOTE_TICKER:
+                        animateQuoteTicker(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_SYSTEM_DIAGNOSTICS:
+                        animateSystemDiagnostics(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_DESTINATION_PREVIEW:
+                        animateDestinationPreview(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
                         break;
                     default:
                         animateTornadoFlicker();

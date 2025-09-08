@@ -12,6 +12,7 @@ let dataPointStatus = {}; // Stores the success/error status of each data point
 let ws; // The WebSocket object for real-time communication
 let weatherInterval; // The interval ID for fetching weather data periodically
 let isLoading = true; // Flag to indicate if the initial data is still loading
+let customQuotes = []; // New global to store custom quotes
 
 /**
  * Initializes the WebSocket connection to the server.
