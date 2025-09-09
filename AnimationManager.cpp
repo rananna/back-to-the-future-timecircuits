@@ -106,7 +106,7 @@ void handleFlashEffect() {
 
 // --- TIME TRAVEL ANIMATION ---
 void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
-    if (hardwareInitialized && currentSettings.timeTravelSoundToggle) {
+    if (hardwareInitialized) {
         playSound(filename);
     }
     nextPhaseAfterSound = nextPhase;
@@ -157,17 +157,15 @@ void handleDisplayAnimation() {
 
     // Detect when the animation phase changes to trigger the sound for the new phase.
     if (currentPhase != lastPhase) {
-        if (currentSettings.timeTravelSoundToggle) {
-            switch (currentPhase) {
-                case ANIM_POWER_UP:
-                    playSound("engine_rev.mp3");
-                    break;
-                case ANIM_ARRIVAL:
-                    playSound("time_travel.mp3");
-                    break;
-                default:
-                    break; // No sound for other states
-            }
+        switch (currentPhase) {
+            case ANIM_POWER_UP:
+                playSound("engine_rev.mp3");
+                break;
+            case ANIM_ARRIVAL:
+                playSound("time_travel.mp3");
+                break;
+            default:
+                break; // No sound for other states
         }
         lastPhase = currentPhase;
     }
@@ -539,7 +537,7 @@ void handleBootSequence() {
                 playSound("/relay_activation.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
+            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
                 bootState = BOOT_COLD_START;
                 bootStateStartTime = millis();
             }
@@ -573,7 +571,7 @@ void handleBootSequence() {
                 stateActionCompleted = true;
             }
             // Once the audio is confirmed to be running, move to the animation state.
-            if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
+            if (audio.isRunning() || elapsed > 2000 || !currentSettings.timeTravelSoundToggle) { // Failsafe timeout of 2s
                 bootState = BOOT_FLUX_CAPACITOR_ANIMATION;
                 bootStateStartTime = millis(); // Reset the timer for the animation phase
             }
@@ -617,7 +615,7 @@ void handleBootSequence() {
                 playSound("/keypad_beeps.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
+            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
                 int currentSecond = elapsed / 2000;
                 if (currentSecond != lastDiagSecond) {
                     blankAllDisplays();
@@ -660,7 +658,7 @@ void handleBootSequence() {
                 playSound("/engine_rev.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
+            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
                 if (!stateActionCompleted) {
                     blankAllDisplays();
                     stateActionCompleted = true;
@@ -689,7 +687,7 @@ void handleBootSequence() {
                 playSound("/time_travel.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
+            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
                 animateRandomRealTimes();
             }
             if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
@@ -702,7 +700,7 @@ void handleBootSequence() {
                 playSound("/arrival_chime.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
+            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
                 if (!stateActionCompleted) {
                     blankAllDisplays();
                     printToDisplay(destRow.year, "ARRI");

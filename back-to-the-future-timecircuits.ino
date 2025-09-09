@@ -39,7 +39,7 @@ const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
 const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
-const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates. A lower value (e.g., 100) will be more responsive but use more processing power. A higher value (e.g., 500) will be less responsive but more efficient. 250ms is a good balance.
+const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates. A lower value (e.g., 100) will be more responsive but use more processing power.
 
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
 enum WifiState {
@@ -51,20 +51,16 @@ enum WifiState {
 WifiState wifiState = WIFI_STATE_CONNECTING;
 unsigned long wifiConnectStartTime = 0;
 TaskHandle_t wifiManagerTaskHandle = NULL;
-
 // --- ONE-TIME LOGGING FLAGS ---
 bool logConnectingPrinted = false;
 bool logPortalMsgPrinted = false;
 bool logConnectedPrinted = false;
-
 // --- MQTT EXPONENTIAL BACKOFF ---
 unsigned long nextMqttReconnectAttempt = 0;
 unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
-
 // --- THEMED BOOT SEQUENCE ---
 BootSequenceState bootState = BOOT_INACTIVE;
 int speedometerValue = 0;
-
 // --- DISPLAY MODE STATE MACHINE ---
 DisplayModeState currentDisplayMode = NORMAL_CLOCK;
 
@@ -243,13 +239,13 @@ void saveSettings() {
     #define SAVE_IF_CHANGED(key, type, value) \
         if (preferences.get##type(key, -1) != value) { \
             preferences.put##type(key, value); \
-            Serial.printf("SAVING: %s -> %d\n", key, value); \
+            Serial.printf("SAVING: %s -> %d\n", #key, value); \
         }
 
     #define SAVE_STRING_IF_CHANGED(key, value) \
-        if (preferences.getString(key, "") != value.c_str()) { \
+        if (!preferences.isKey(key) || preferences.getString(key, "") != value.c_str()) { \
             preferences.putString(key, value.c_str()); \
-            Serial.printf("SAVING: %s -> %s\n", key, value.c_str()); \
+            Serial.printf("SAVING: %s -> %s\n", #key, value.c_str()); \
         }
 
     SAVE_IF_CHANGED("destYear", Int, currentSettings.destinationYear);
@@ -353,7 +349,7 @@ void saveSettings() {
 	}
 	preferences.end();
     Serial.println("--- Settings Saved ---");
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
 }
 
@@ -584,7 +580,6 @@ void setup() {
     wifiConnectStartTime = millis();
     wifiState = WIFI_STATE_CONNECTING;
     Serial.println("BOOT_LOG: Non-blocking WiFi connection initiated...");
-
     Serial.println(F("WEB_LOG: Setting up web routes..."));
     setupWebRoutes();
     Serial.println(F("WEB_LOG: Web routes configured."));
@@ -602,7 +597,8 @@ void setup() {
             audioTask,          // Task function
             "AudioTask",        // Name of the task
             4096,               // FIX: Increased stack size from 2048 to 4096 words
-            NULL,               // Task input parameter
+         
+           NULL,               // Task input parameter
             5,                  // Priority of the task (high)
             NULL,               // Task handle
             0                   // Core where the task should run (Core 0)
@@ -615,7 +611,6 @@ void setup() {
 
     setupMqtt();
     Serial.println(F("BOOT_LOG: MQTT setup initiated."));
-
     ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
     Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
 
@@ -735,11 +730,11 @@ void loop() {
     static bool prevMqttConnected = false;
     int currentWifiStatus = WiFi.status();
     bool currentMqttConnected = mqttClient.connected();
-
     if (currentWifiStatus != prevWifiStatus || bootState != prevBootState || isMessageOverrideActive != prevOverrideState || currentMqttConnected != prevMqttConnected) {
         Serial.printf("STATUS_UPDATE -> WiFi: %d | Boot: %d | Override: %d | MQTT: %d\n",
                       currentWifiStatus,
                       bootState,
+                    
                       isMessageOverrideActive,
                       currentMqttConnected);
         prevWifiStatus = currentWifiStatus;
@@ -815,7 +810,6 @@ void loop() {
             }
             
             handleScheduledAnimation();
-
             static unsigned long lastNtpUpdate = 0;
             if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
                 bool syncSuccess = false;
@@ -875,7 +869,6 @@ void handleSequencer() {
     if (!isSequenceActive) return;
     SequenceStep step = sequence[currentSequenceStep];
     unsigned long elapsed = millis() - sequenceStepStartTime;
-
     switch (step.command) {
         case SEQ_CMD_TEXT:
             if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
@@ -944,7 +937,6 @@ void handleSleepSchedule() {
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
                         (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     if (hardwareInitialized) {
@@ -968,7 +960,6 @@ bool isMarketOpen() {
     tzset();
     struct tm timeinfo;
     getLocalTime(&timeinfo);
-
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
 

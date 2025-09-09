@@ -511,6 +511,9 @@ void display88MphSpeed(float speed) {
 
 void playSound(const char* filepath) {
     #if ENABLE_HARDWARE
+    if (!currentSettings.timeTravelSoundToggle) {
+        return;
+    }
     char fullPath[MAX_FILENAME_LENGTH];
 
     // Ensure the path starts with a single '/'
