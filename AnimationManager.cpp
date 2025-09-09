@@ -835,3 +835,78 @@ void handleTemporalGlitch() {
     }
 #endif
 }
+
+void animateQuoteTicker(unsigned long elapsed, int duration) {
+#if ENABLE_HARDWARE
+    if (elapsed > duration) {
+        updateNormalClockDisplay();
+        return;
+    }
+
+    if (elapsed < 500) {
+        blankAllDisplays();
+    }
+
+    if (currentSettings.quotes.empty()) {
+        printToDisplay(destRow.year, "NOQT");
+        destRow.year.writeDisplay();
+        return;
+    }
+
+    static int quoteIndex = -1;
+    if (elapsed < 500 || quoteIndex == -1) {
+        quoteIndex = (millis() / duration) % currentSettings.quotes.size();
+    }
+    std::string quote = currentSettings.quotes[quoteIndex];
+    
+    std::string paddedQuote = "             " + quote + "             ";
+    
+    int scroll_step = elapsed / 500;
+
+    if (scroll_step > paddedQuote.length() - 13) {
+        updateNormalClockDisplay();
+        return;
+    }
+
+    std::string displayStr = paddedQuote.substr(scroll_step, 13);
+
+    char monthStr[4], dayStr[3], yearStr[5], timeStr[5];
+    strncpy(monthStr, displayStr.substr(0, 3).c_str(), sizeof(monthStr));
+    monthStr[3] = '\0';
+    strncpy(dayStr, displayStr.substr(3, 2).c_str(), sizeof(dayStr));
+    dayStr[2] = '\0';
+    strncpy(yearStr, displayStr.substr(5, 4).c_str(), sizeof(yearStr));
+    yearStr[4] = '\0';
+    strncpy(timeStr, displayStr.substr(9, 4).c_str(), sizeof(timeStr));
+    timeStr[4] = '\0';
+
+    printToDisplay(destRow.month, monthStr);
+    printToDisplay(destRow.day, dayStr);
+    printToDisplay(destRow.year, yearStr);
+    printToDisplay(destRow.time, timeStr);
+
+    presRow.month.clear();
+    presRow.day.clear();
+    presRow.year.clear();
+    presRow.time.clear();
+    lastRow.month.clear();
+    lastRow.day.clear();
+    lastRow.year.clear();
+    lastRow.time.clear();
+
+    destRow.month.writeDisplay();
+    destRow.day.writeDisplay();
+    destRow.year.writeDisplay();
+    destRow.time.writeDisplay();
+    
+    presRow.month.writeDisplay();
+    presRow.day.writeDisplay();
+    presRow.year.writeDisplay();
+    presRow.time.writeDisplay();
+    
+    lastRow.month.writeDisplay();
+    lastRow.day.writeDisplay();
+    lastRow.year.writeDisplay();
+    lastRow.time.writeDisplay();
+#endif
+}

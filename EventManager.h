@@ -46,6 +46,9 @@ extern PubSubClient mqttClient;
 extern bool timeSynchronized;
 extern int currentPageIndex;
 extern char currentSoundFile[MAX_FILENAME_LENGTH];
+extern bool isStyledAnimating;
+extern unsigned long styledAnimationStartTime;
+extern AnimationPhase currentStyledPhase;
 
 
 extern bool isMessageOverrideActive;

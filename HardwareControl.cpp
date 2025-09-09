@@ -850,36 +850,6 @@ void animateDigitalWormhole(unsigned long elapsed, int duration) {
     #endif
 }
 
-void animateQuoteTicker(unsigned long elapsed, int duration) {
-    #if ENABLE_HARDWARE
-    const char* quotes[] = { "GREAT SCOTT", "1 21 GIGAWATTS", "THIS IS HEAVY", "OUTATIME" };
-    int quoteIndex = (elapsed / duration) % 4;
-    const char* quote = quotes[quoteIndex];
-    
-    int len = strlen(quote);
-    int scrollSpeed = 200; // ms per character
-    int totalScrollTime = len * scrollSpeed;
-    int currentPos = (elapsed % totalScrollTime) / scrollSpeed;
-
-    char displayStr[14] = "             "; // 13 spaces
-    for (int i=0; i<13; ++i) {
-        int quoteCharIndex = i - (13 - currentPos);
-        if (quoteCharIndex >= 0 && quoteCharIndex < len) {
-            displayStr[i] = quote[quoteCharIndex];
-        }
-    }
-    
-    printToDisplay(destRow.month, String(displayStr).substring(0,3).c_str());
-    printToDisplay(destRow.day, String(displayStr).substring(3,5).c_str());
-    printToDisplay(destRow.year, String(displayStr).substring(5,9).c_str());
-    printToDisplay(destRow.time, String(displayStr).substring(9,13).c_str());
-    destRow.month.writeDisplay();
-    destRow.day.writeDisplay();
-    destRow.year.writeDisplay();
-    destRow.time.writeDisplay();
-    #endif
-}
-
 void animateSystemDiagnostics(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
     animateSequentialFlicker(elapsed, duration);

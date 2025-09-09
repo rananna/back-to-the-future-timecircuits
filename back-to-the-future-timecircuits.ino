@@ -354,6 +354,28 @@ void saveSettings() {
 		SAVE_STRING_IF_CHANGED((prefix + "reqBody").c_str(), currentSettings.dataPoints[i].requestBody);
 		SAVE_STRING_IF_CHANGED((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey);
 	}
+    
+    // Save quotes
+    String quotesJson;
+    DynamicJsonDocument doc(1024);
+    JsonArray quotesArray = doc.to<JsonArray>();
+    for (const auto& quote : currentSettings.quotes) {
+        quotesArray.add(quote.c_str());
+    }
+    serializeJson(doc, quotesJson);
+    preferences.putString("quotes", quotesJson);
+
+    // Save playlist
+    String playlistJson;
+    doc.clear();
+    JsonArray playlistArray = doc.to<JsonArray>();
+    for (int style : currentSettings.animationPlaylist) {
+        playlistArray.add(style);
+    }
+    serializeJson(doc, playlistJson);
+    preferences.putString("playlist", playlistJson);
+    preferences.putBool("usePlaylist", currentSettings.useAnimationPlaylist);
+
 	preferences.end();
     Serial.println("--- Settings Saved ---");
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -507,6 +529,25 @@ void loadSettings() {
 			currentSettings.dataPoints[i].requestBody = tempString.c_str();
 			currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
 		}
+
+        String quotesJson = preferences.getString("quotes", "[]");
+        DynamicJsonDocument doc(1024);
+        deserializeJson(doc, quotesJson);
+        JsonArray quotesArray = doc.as<JsonArray>();
+        currentSettings.quotes.clear();
+        for (JsonVariant v : quotesArray) {
+            currentSettings.quotes.push_back(v.as<std::string>());
+        }
+
+        String playlistJson = preferences.getString("playlist", "[]");
+        doc.clear();
+        deserializeJson(doc, playlistJson);
+        JsonArray playlistArray = doc.as<JsonArray>();
+        currentSettings.animationPlaylist.clear();
+        for (JsonVariant v : playlistArray) {
+            currentSettings.animationPlaylist.push_back(v.as<int>());
+        }
+        currentSettings.useAnimationPlaylist = preferences.getBool("usePlaylist", false);
 	}
 	preferences.end();
 	Serial.println("--- Settings Loaded ---");
