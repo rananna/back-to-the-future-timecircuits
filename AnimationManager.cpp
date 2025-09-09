@@ -765,20 +765,7 @@ void handleBootSequence() {
                 isMessageOverrideActive = false;
                 bootState = BOOT_INACTIVE;
                 
-                uint8_t saved_brightness = round((currentSettings.brightness / 7.0) * 15.0);
-
-                destRow.month.setBrightness(saved_brightness);
-                destRow.day.setBrightness(saved_brightness);
-                destRow.year.setBrightness(saved_brightness);
-                destRow.time.setBrightness(saved_brightness);
-                presRow.month.setBrightness(saved_brightness);
-                presRow.day.setBrightness(saved_brightness);
-                presRow.year.setBrightness(saved_brightness);
-                presRow.time.setBrightness(saved_brightness);
-                lastRow.month.setBrightness(saved_brightness);
-                lastRow.day.setBrightness(saved_brightness);
-                lastRow.year.setBrightness(saved_brightness);
-                lastRow.time.setBrightness(saved_brightness);
+                applyBrightness();
 
                 if (hardwareInitialized) updateNormalClockDisplay();
                 Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
