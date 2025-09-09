@@ -7,11 +7,9 @@
  */
 
 #include "HardwareControl.h"
-#include "EventManager.h" // Needed for audio library objects
-#include <AudioFileSourceLittleFS.h>
-#include <AudioOutputI2S.h>
-#include <AudioGeneratorMP3.h>
+#include "EventManager.h" 
 #include "DisplayManager.h"
+#include "LittleFS.h"
 
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
@@ -27,11 +25,9 @@ DisplayRow presRow;
 /** @brief Struct containing the 4 display segments for the Last Time Departed row. */
 DisplayRow lastRow;
 
-// --- Audio library objects (defined in the main .ino file) ---
-extern AudioFileSourceLittleFS *file;
-extern AudioOutputI2S *out;
-extern AudioGeneratorMP3 *mp3;
+// --- Make global audio objects available ---
 extern bool isPlayingSound;
+
 #endif
 
 // --- HELPER FUNCTION ---
@@ -64,7 +60,6 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
 }
 
 // --- FUNCTION IMPLEMENTATIONS ---
-
 /**
  * @brief Initializes all physical display hardware.
  * @details This function sets up the two I2C buses with their designated GPIO pins.
@@ -75,8 +70,8 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
 void setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
   // Initialize both I2C buses with their respective SDA/SCL pins.
-  I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 100000);
-  I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 100000);
+  I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
+  I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
 
   // Initialize the Adafruit_AlphaNum4 objects.
   destRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
@@ -175,7 +170,6 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
   #endif
 }
 
-// Also update the animateTemporalLockOn function to provide the new parameter
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
     #if ENABLE_HARDWARE
     // 50% chance to show the correct time, 50% chance to show random garbage.
@@ -186,10 +180,9 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year,
     }
     #endif
 }
-/**
- * @brief Fills a display row with random characters for a flicker effect.
- * @param row A reference to the DisplayRow struct to be animated.
- */
+
+// In HardwareControl.cpp
+
 void animateDisplayRowRandomly(DisplayRow& row) {
   #if ENABLE_HARDWARE
     char buffer[5];
@@ -197,28 +190,27 @@ void animateDisplayRowRandomly(DisplayRow& row) {
     sprintf(buffer, "%04d", random(1000, 9999));
     printToDisplay(row.year, buffer);
     row.year.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate month
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
     printToDisplay(row.month, months[random(0,12)], 1); // Right justified
     row.month.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate day
     sprintf(buffer, "%02d", random(1, 32));
     printToDisplay(row.day, buffer, 2); // Center justified
     row.day.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate time
     sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
     printToDisplay(row.time, buffer);
     row.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1)); 
   #endif
 }
-
-/**
- * @brief Displays the current speed on the bottom row during the 88 MPH acceleration animation.
- * @param speed The speed to display (0-88).
- */
 void displaySpeed(int speed) {
   #if ENABLE_HARDWARE
   char speedBuffer[5];
@@ -238,76 +230,77 @@ void displaySpeed(int speed) {
   lastRow.time.writeDisplay();
   #endif
 }
+void displaySpeedRamp(int speed) {
+#if ENABLE_HARDWARE
+    char speedBuffer[5];
+    sprintf(speedBuffer, "%02d", speed);
+    
+    // Clear unused segments
+    printToDisplay(lastRow.month, "");
+    printToDisplay(lastRow.time, "");
+    
+    // Display speed on "day" and "MPH" on "year"
+    printToDisplay(lastRow.day, speedBuffer, 2);
+    printToDisplay(lastRow.year, "MPH");
 
-/**
- * @brief Animates a coordinated "time blur" effect across all three display rows.
- * @param elapsed The time in milliseconds since the animation phase started.
- * @param duration The total duration of the animation phase in milliseconds.
- * @param destinationYear The target year for the animation.
- */
-void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
+    lastRow.month.writeDisplay();
+    lastRow.day.writeDisplay();
+    lastRow.year.writeDisplay();
+    lastRow.time.writeDisplay();
+#endif
+}
+
+// In HardwareControl.cpp
+
+void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp) {
     #if ENABLE_HARDWARE
-    // Calculate the animation progress with an easing function for a smoother effect.
     float progress = (float)elapsed / duration;
-    progress = 1 - pow(1 - progress, 3); // Ease-out curve.
+    progress = 1 - pow(1 - progress, 3); // Ease-out curve
 
-    // Calculate the current year to display based on progress.
     static int startYear = 0;
-    if(elapsed < 100) startYear = random(1, 2100); // Pick a new random start year each time.
+    if(elapsed < 100) startYear = isCountingUp ? (destinationYear - 100) : random(1, 2100);
+
     int currentYear = startYear + (destinationYear - startYear) * progress;
     char yearStr[5];
     sprintf(yearStr, "%04d", currentYear);
 
-    // Rapidly cycle other date/time fields based on elapsed time.
-    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-    int monthIndex = (elapsed / 50) % 12;
-    int day = (elapsed / 30) % 31 + 1;
-    int hour = (elapsed / 20) % 24;
-    int minute = (elapsed / 10) % 60;
-    
-    char buffer[5];
-
-    // Update all three rows with the blurred time.
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i=0; i<3; ++i) {
         printToDisplay(rows[i]->year, yearStr);
-        printToDisplay(rows[i]->month, months[monthIndex], 1);
-        sprintf(buffer, "%02d", day);
-        printToDisplay(rows[i]->day, buffer, 2);
-        sprintf(buffer, "%02d%02d", hour, minute);
-        printToDisplay(rows[i]->time, buffer);
+         
+        if (isCountingUp) {
+            // For "Counting Up", keep other fields static to focus on the year
+            printToDisplay(rows[i]->month, "---");
+            printToDisplay(rows[i]->day, "--", 2);
+            printToDisplay(rows[i]->time, "----");
+        } else {
+            // For "Timeline Skim", use a high-speed random blur effect
+            const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+            printToDisplay(rows[i]->month, months[(elapsed / 50) % 12], 1);
+            char buffer[5];
+            sprintf(buffer, "%02d", (elapsed / 30) % 31 + 1);
+            printToDisplay(rows[i]->day, buffer, 2);
+            sprintf(buffer, "%02d%02d", (elapsed / 20) % 24, (elapsed / 10) % 60);
+            printToDisplay(rows[i]->time, buffer);
+        }
 
-        // Write the changes to the physical hardware.
         rows[i]->year.writeDisplay();
         rows[i]->month.writeDisplay();
         rows[i]->day.writeDisplay();
         rows[i]->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(4)); 
     }
     #endif
 }
+// In HardwareControl.cpp
 
-/**
- * @brief Implements the "Temporal Lock-On" effect where a display flickers between random data and the correct time.
- * @param row A reference to the DisplayRow struct to animate.
- * @param timeinfo A `tm` struct containing the correct time to lock on to.
- * @param year The correct four-digit year.
- */
-/**
-
-
-/**
- * @brief Turns on all segments of all 12 displays to create a bright white flash effect.
- * @details This is achieved by directly manipulating the display buffer of each segment,
- * setting all 16 bits of each character position to 1 (0xFFFF), and then writing
- * the buffer to the hardware.
- */
 void flashAllDisplays() {
     #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i=0; i<3; ++i) {
         // Directly manipulate the display buffer to turn on all 16 segments (16 bits).
         // 0xFFFF in hex is a 16-bit number with all bits set to 1.
-        for(int j=0; j<16; ++j) {
+        for(int j=0; j<8; ++j) { // MODIFIED: Changed loop from 16 to 8
             rows[i]->month.displaybuffer[j] = 0xFFFF;
             rows[i]->day.displaybuffer[j] = 0xFFFF;
             rows[i]->year.displaybuffer[j] = 0xFFFF;
@@ -322,9 +315,6 @@ void flashAllDisplays() {
     #endif
 }
 
-/**
- * @brief Animation style: a chaotic flicker on all displays.
- */
 void animateTornadoFlicker() {
     #if ENABLE_HARDWARE
     animateDisplayRowRandomly(destRow);
@@ -332,20 +322,28 @@ void animateTornadoFlicker() {
     animateDisplayRowRandomly(lastRow);
     #endif
 }
+void animateRandomRealTimes() {
+#if ENABLE_HARDWARE
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    for (int i = 0; i < 3; ++i) {
+        struct tm timeinfo;
+        timeinfo.tm_mon = random(0, 12);
+        timeinfo.tm_mday = random(1, 29);
+        int year = random(1885, 2085);
+        timeinfo.tm_hour = random(0, 24);
+        timeinfo.tm_min = random(0, 60);
+        updateDisplayRow(*rows[i], timeinfo, year, false);
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+#endif
+}
 
-/**
- * @brief Animation style: fills the displays from bottom to top like a charging capacitor.
- * @param elapsed The time in milliseconds since the animation phase started.
- * @param duration The total duration of the animation phase in milliseconds.
- */
 void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-    // Divide the animation into three phases, one for each row.
     int phase = elapsed / (duration / 3);
     float progress = (float)(elapsed % (duration / 3)) / (duration / 3);
-    int charsToShow = progress * 16; // 16 total characters across a row.
+    int charsToShow = progress * 16; 
 
-    // Helper lambda to fill a row with a certain number of characters.
     auto fillRow = [&](DisplayRow& row, int numChars) {
         char buffer[17] = "################";
         if (numChars < 16) buffer[numChars] = '\0';
@@ -356,12 +354,12 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
-    if (phase == 0) { // Phase 1: Fill bottom row.
+    if (phase == 0) { 
         fillRow(lastRow, charsToShow);
-    } else if (phase == 1) { // Phase 2: Fill middle row.
+    } else if (phase == 1) { 
         fillRow(lastRow, 16);
         fillRow(presRow, charsToShow);
-    } else { // Phase 3: Fill top row.
+    } else { 
         fillRow(lastRow, 16);
         fillRow(presRow, 16);
         fillRow(destRow, charsToShow);
@@ -369,15 +367,9 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     #endif
 }
 
-/**
- * @brief Animation style: fills displays with random falling characters like a digital rain effect.
- * @param elapsed The time in milliseconds since the animation phase started.
- * @param duration The total duration of the animation phase in milliseconds.
- */
 void animateDigitalRain(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
     const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    // Helper lambda to apply the rain effect to one column of displays.
     auto rainColumn = [&](Adafruit_AlphaNum4& d, Adafruit_AlphaNum4& p, Adafruit_AlphaNum4& l) {
         char d_c[5], p_c[5], l_c[5];
         for(int i=0; i<4; ++i) {
@@ -397,39 +389,37 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
     #endif
 }
 
-/**
- * @brief Animation style: shows a scrolling sine-wave pattern on the displays.
- * @param elapsed The time in milliseconds since the animation phase started.
- * @param duration The total duration of the animation phase in milliseconds.
- */
 void animateWaveformCollapse(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-    const char* wave[] = {"-___-", "_--_-", "__-__"};
+    // 13-char patterns designed to fit the 3-2-4-4 display layout
+    const char* waves[] = {
+        "---  --  ----  ----",
+        " -   --   --   -- ",
+        "  -      -  -  -  "
+    };
     int waveIndex = (elapsed / 200) % 3;
-    int scrollOffset = (elapsed / 100) % 5;
+    const char* basePattern = waves[waveIndex];
 
-    // Helper lambda to draw the wave pattern on a row.
     auto drawWave = [&](DisplayRow& row, bool inverse) {
-        char pattern[6];
-        const char* basePattern = wave[waveIndex];
-        
-        char scrolledPattern[6];
-        for(int i=0; i<5; ++i) {
-            scrolledPattern[i] = basePattern[(i + scrollOffset) % 5];
-        }
-        scrolledPattern[5] = '\0';
-        
-        if(inverse) { // Invert the pattern for the middle row.
-            for(int i=0; i<5; ++i) pattern[i] = (scrolledPattern[i] == '-') ? '_' : '-';
-            pattern[5] = '\0';
+        char finalPattern[14];
+        if(inverse) { 
+            for(int i=0; i<13; ++i) finalPattern[i] = (basePattern[i] == '-') ? ' ' : '-';
+            finalPattern[13] = '\0';
         } else {
-            strcpy(pattern, scrolledPattern);
+            strncpy(finalPattern, basePattern, 14);
         }
 
-        printToDisplay(row.month, String(pattern).substring(0, 4).c_str());
-        printToDisplay(row.day, String(pattern).substring(1, 3).c_str(), 2);
-        printToDisplay(row.year, String(pattern).substring(0, 4).c_str());
-        printToDisplay(row.time, String(pattern).substring(1, 5).c_str());
+        // Extract substrings for each segment based on the 3-2-4-4 layout
+        char monthStr[4], dayStr[3], yearStr[5], timeStr[5];
+        strncpy(monthStr, finalPattern, 3); monthStr[3] = '\0';
+        strncpy(dayStr, finalPattern + 5, 2); dayStr[2] = '\0';
+        strncpy(yearStr, finalPattern + 9, 4); yearStr[4] = '\0';
+        strncpy(timeStr, finalPattern + 14, 4); timeStr[4] = '\0';
+
+        printToDisplay(row.month, monthStr, 1);
+        printToDisplay(row.day, dayStr, 2);
+        printToDisplay(row.year, yearStr);
+        printToDisplay(row.time, timeStr);
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
@@ -439,16 +429,10 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
     #endif
 }
 
-/**
- * @brief Animation style: rapidly cycles the year while other fields flicker randomly.
- * @param elapsed The time in milliseconds since the animation phase started.
- * @param duration The total duration of the animation phase in milliseconds.
- * @param destinationYear The target year for the animation.
- */
 void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
-    progress = 1 - pow(1 - progress, 3); // Ease-out curve
+    progress = 1 - pow(1 - progress, 3);
     
     static int startYear = 0;
     if(elapsed < 100) startYear = random(1, 2100);
@@ -458,12 +442,10 @@ void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYea
     char yearStr[5];
     sprintf(yearStr, "%04d", currentYear);
 
-    // Update only the year on all rows.
     printToDisplay(destRow.year, yearStr); destRow.year.writeDisplay();
     printToDisplay(presRow.year, yearStr); presRow.year.writeDisplay();
     printToDisplay(lastRow.year, yearStr); lastRow.year.writeDisplay();
 
-    // Flicker other random fields.
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
     printToDisplay(destRow.month, months[random(0,12)], 1); destRow.month.writeDisplay();
     
@@ -475,10 +457,8 @@ void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYea
     printToDisplay(lastRow.time, buffer); lastRow.time.writeDisplay();
     #endif
 }
+// In HardwareControl.cpp
 
-/**
- * @brief Clears all 12 displays.
- */
 void blankAllDisplays() {
   #if ENABLE_HARDWARE
   destRow.month.clear(); destRow.day.clear(); destRow.year.clear(); destRow.time.clear();
@@ -486,15 +466,13 @@ void blankAllDisplays() {
   lastRow.month.clear(); lastRow.day.clear(); lastRow.year.clear(); lastRow.time.clear();
 
   destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+  vTaskDelay(pdMS_TO_TICKS(2));
   #endif
 }
-
-/**
- * @brief Special display function for the boot sequence to show "88 MPH".
- * @param speed Not currently used, but could be used for animation.
- */
 void display88MphSpeed(float speed) {
   #if ENABLE_HARDWARE
   printToDisplay(lastRow.day, "88", 2);
@@ -504,40 +482,267 @@ void display88MphSpeed(float speed) {
   #endif
 }
 
-/**
- * @brief Plays a sound file from the LittleFS filesystem via the I2S DAC.
- * @param filepath The full path to the sound file to play (e.g., "/TIME_TRAVEL.mp3").
- */
-// In HardwareControl.cpp
-
 void playSound(const char* filepath) {
+    #if ENABLE_HARDWARE
+    char fullPath[MAX_FILENAME_LENGTH];
+
+    // Ensure the path starts with a single '/'
+    if (filepath[0] == '/') {
+        strncpy(fullPath, filepath, MAX_FILENAME_LENGTH);
+    } else {
+        snprintf(fullPath, MAX_FILENAME_LENGTH, "/%s", filepath);
+    }
+    // Ensure null-termination in case of overflow
+    fullPath[MAX_FILENAME_LENGTH - 1] = '\0';
+
+    Serial.printf("AUDIO_LOG: Request to play sound: %s\n", fullPath);
+
+    if (audio.isRunning()) {
+        audio.stopSong();
+        vTaskDelay(pdMS_TO_TICKS(10)); 
+    }
+    
+    if (!LittleFS.exists(fullPath)) {
+        Serial.printf("AUDIO_LOG: File not found: %s\n", fullPath);
+        return;
+    }
+
+    // The SD pin logic is harmless even if unwired.
+    digitalWrite(I2S_SD_PIN, HIGH);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    audio.setVolume(currentSettings.notificationVolume);
+    strncpy(currentSoundFile, fullPath, MAX_FILENAME_LENGTH - 1);
+    currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
+    
+    if (audio.connecttoFS(LittleFS, fullPath)) {
+        Serial.printf("AUDIO_LOG: Started playing: %s\n", fullPath);
+    } else {
+        Serial.printf("AUDIO_LOG: Failed to connect to file: %s\n", fullPath);
+        currentSoundFile[0] = '\0';
+        digitalWrite(I2S_SD_PIN, LOW);
+    }
+    #endif
+}
+void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor) {
   #if ENABLE_HARDWARE
-  if (isPlayingSound) {
-    return; // Don't interrupt a sound that is already playing
+  Adafruit_AlphaNum4* displays[] = {&row.month, &row.day, &row.year, &row.time};
+  
+  // Clear the entire row first
+  for (int i = 0; i < 4; i++) {
+    displays[i]->clear();
+    displays[i]->writeDisplay();
   }
+  vTaskDelay(pdMS_TO_TICKS(10));
 
-  file = new AudioFileSourceLittleFS(filepath);
+  int len = strlen(text);
+  const int total_visual_width = 13; 
+  if (len > total_visual_width) len = total_visual_width;
 
-  // ✅ FIX: Check if the 'file' pointer is null *before* using it.
-  if (!file) {
-    Serial.printf("AUDIO_LOG: CRITICAL - Failed to allocate memory for audio file: %s\n", filepath);
-    return;
-  }
-  
-  if (!file->isOpen()) {
-    Serial.printf("AUDIO_LOG: Failed to open audio file: %s\n", filepath);
-    delete file;
-    file = nullptr; // Set to nullptr after deleting
-    return;
-  }
-  
-  digitalWrite(I2S_SD_PIN, HIGH); // Enable the amplifier
-  delay(10); // Small delay to allow amp to stabilize
-  
-  isPlayingSound = true;
-  // Also ensure the main mp3 object exists before using it
-  if (mp3) {
-      mp3->begin(file, out);
+  for (int i = 0; i < len; i++) {
+    int displayIndex, digitIndex;
+    if (i < 3) { 
+        displayIndex = 0;
+        digitIndex = i + 1; 
+    } else if (i < 5) { 
+        displayIndex = 1;
+        digitIndex = (i - 3) + 1; 
+    } else if (i < 9) { 
+        displayIndex = 2;
+        digitIndex = i - 5;
+    } else { 
+        displayIndex = 3;
+        digitIndex = i - 9;
+    }
+    
+    displays[displayIndex]->writeDigitAscii(digitIndex, text[i]);
+    
+    if (withCursor && (i + 1 < len)) {
+        int next_i = i + 1;
+        int nextDisplayIndex, nextDigitIndex;
+        if (next_i < 3) {
+            nextDisplayIndex = 0;
+            nextDigitIndex = next_i + 1;
+        } else if (next_i < 5) {
+            nextDisplayIndex = 1;
+            nextDigitIndex = (next_i - 3) + 1;
+        } else if (next_i < 9) {
+            nextDisplayIndex = 2;
+            nextDigitIndex = next_i - 5;
+        } else {
+            nextDisplayIndex = 3;
+            nextDigitIndex = next_i - 9;
+        }
+        displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, '_');
+        displays[nextDisplayIndex]->writeDisplay();
+    }
+    
+    displays[displayIndex]->writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(typeDelay));
+
+    if (withCursor && (i + 1 < len)) {
+        int next_i = i + 1;
+        int nextDisplayIndex, nextDigitIndex;
+        if (next_i < 3) {
+            nextDisplayIndex = 0;
+            nextDigitIndex = next_i + 1;
+        } else if (next_i < 5) {
+            nextDisplayIndex = 1;
+            nextDigitIndex = (next_i - 3) + 1;
+        } else if (next_i < 9) {
+            nextDisplayIndex = 2;
+            nextDigitIndex = next_i - 5;
+        } else {
+            nextDisplayIndex = 3;
+            nextDigitIndex = next_i - 9;
+        }
+        displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, ' ');
+        displays[nextDisplayIndex]->writeDisplay();
+    }
   }
   #endif
+}
+void animateFluxCapacitor() {
+  #if ENABLE_HARDWARE
+    static int frame = 0;
+    // Simple 3-frame pulse effect
+    if (frame == 0) {
+        printToDisplay(presRow.month, " FLX");
+        printToDisplay(presRow.day, "CP", 2);
+        printToDisplay(presRow.year, "ACTV");
+    } else if (frame == 1) {
+        printToDisplay(presRow.month, "FLX");
+        printToDisplay(presRow.day, "CP", 2);
+        printToDisplay(presRow.year, "ACTV");
+    } else {
+        printToDisplay(presRow.month, " FLX");
+        printToDisplay(presRow.day, "CP", 2);
+        printToDisplay(presRow.year, "ACTV");
+    }
+    frame = (frame + 1) % 3; // Cycle through frames
+
+    presRow.month.writeDisplay();
+    presRow.day.writeDisplay();
+    presRow.year.writeDisplay();
+  #endif
+}
+void displayStaticFluxText() {
+    #if ENABLE_HARDWARE
+    printToDisplay(presRow.month, "FLX", 1);
+    printToDisplay(presRow.day, "CP", 2);
+    printToDisplay(presRow.year, "ACTV");
+    printToDisplay(presRow.time, "");
+    presRow.month.writeDisplay();
+    presRow.day.writeDisplay();
+    presRow.year.writeDisplay();
+    presRow.time.writeDisplay();
+    #endif
+}
+void applyBrightness() {
+  #if ENABLE_HARDWARE
+  // Corrected: The UI provides a value from 0-7. We will use this value directly.
+  // Although the hardware supports 0-15, the 0-7 range is what the UI and diagnostic test use.
+  uint8_t brightnessValue = currentSettings.brightness;
+
+  // The setBrightness function can accept values up to 15, but we are clamping it to the UI's max of 7.
+  if (brightnessValue > 7) {
+      brightnessValue = 7;
+  }
+  
+  // Apply the new brightness level to all 12 display segments
+  destRow.month.setBrightness(brightnessValue);
+  destRow.day.setBrightness(brightnessValue);
+  destRow.year.setBrightness(brightnessValue);
+  destRow.time.setBrightness(brightnessValue);
+  
+  presRow.month.setBrightness(brightnessValue);
+  presRow.day.setBrightness(brightnessValue);
+  presRow.year.setBrightness(brightnessValue);
+  presRow.time.setBrightness(brightnessValue);
+  
+  lastRow.month.setBrightness(brightnessValue);
+  lastRow.day.setBrightness(brightnessValue);
+  lastRow.year.setBrightness(brightnessValue);
+  
+  lastRow.time.setBrightness(brightnessValue);
+  #endif
+}
+
+void animateSequentialFlicker(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    // Create an array of all display segments for easy iteration
+    Adafruit_AlphaNum4* displays[] = {
+        &destRow.month, &destRow.day, &destRow.year, &destRow.time,
+        &presRow.month, &presRow.day, &presRow.year, &presRow.time,
+        &lastRow.month, &lastRow.day, &lastRow.year, &lastRow.time
+    };
+    const char* labels[] = {"CPU", "MEM", "I2C1", "I2C2", "SND", "WIFI", "NTP", "MQTT", "SYS", "CORE", "STAT", "PWR"};
+    const int numDisplays = 12;
+    const int phaseDuration = 300; // ms for each segment check
+
+    int activeIndex = (elapsed / phaseDuration) % numDisplays;
+    int phaseTime = elapsed % phaseDuration;
+
+    for (int i = 0; i < numDisplays; ++i) {
+        if (i < activeIndex) {
+            // Segments that have already been "checked"
+            printToDisplay(*displays[i], "OK--");
+        } else if (i == activeIndex) {
+            // The currently active segment
+            if (phaseTime < (phaseDuration / 2)) {
+                printToDisplay(*displays[i], labels[i]);
+            } else {
+                if ((phaseTime / 100) % 2 == 0) {
+                     printToDisplay(*displays[i], "OK--");
+                } else {
+                     printToDisplay(*displays[i], "");
+                }
+            }
+        } else {
+            // Segments waiting to be checked
+            displays[i]->clear();
+        }
+        displays[i]->writeDisplay();
+    }
+    #endif
+}
+
+void animateCountingUp(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    char buffer[5];
+
+    // Create a time structure and advance it based on elapsed time
+    // This creates a much more realistic "fast forward" effect
+    time_t startTime = 1445433600; // Approx Oct 21, 2015
+    time_t fastForwardTime = startTime + (elapsed * 60); // Each ms represents one minute
+
+    struct tm timeinfo;
+    gmtime_r(&fastForwardTime, &timeinfo);
+
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    for (int i = 0; i < 3; ++i) {
+        // Offset each row slightly for more visual interest
+        time_t rowTime = fastForwardTime + (i * 3600 * 24 * 157); // Offset by ~5 months
+        gmtime_r(&rowTime, &timeinfo);
+
+        printToDisplay(rows[i]->month, months[timeinfo.tm_mon], 1);
+        
+        sprintf(buffer, "%02d", timeinfo.tm_mday);
+        printToDisplay(rows[i]->day, buffer, 2);
+
+        sprintf(buffer, "%04d", timeinfo.tm_year + 1900);
+        printToDisplay(rows[i]->year, buffer);
+        
+        sprintf(buffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
+        printToDisplay(rows[i]->time, buffer);
+        
+        rows[i]->month.writeDisplay();
+        rows[i]->day.writeDisplay();
+        rows[i]->year.writeDisplay();
+        rows[i]->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(4)); 
+    }
+    #endif
 }

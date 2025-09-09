@@ -4,12 +4,9 @@
 #include <ArduinoJson.h>
 #include <string>
 #include <PubSubClient.h>
-#include "HardwareControl.h" // CRITICAL FIX: Include hardware definitions
+#include "HardwareControl.h"
 #include "AnimationManager.h"
-
-#define MQTT_UNIQUE_ID "bttf_timecircuits_01"
-#define MQTT_DEVICE_TYPE "bttf-clock"
-#define MQTT_BASE_TOPIC "homeassistant"
+#include "Audio.h"
 
 // --- EXTERN DECLARATIONS for global variables in the main .ino file ---
 extern ClockSettings currentSettings;
@@ -48,6 +45,8 @@ extern volatile int requestsCompleted;
 extern PubSubClient mqttClient;
 extern bool timeSynchronized;
 extern int currentPageIndex;
+extern char currentSoundFile[MAX_FILENAME_LENGTH];
+
 
 extern bool isMessageOverrideActive;
 extern String overrideMessageLine1;
@@ -69,7 +68,8 @@ extern unsigned long sequenceStepStartTime;
 extern bool isSequenceActive;
 // --- END: SEQUENCER GLOBALS ---
 
-// --- NEW GLOBAL FLAG ---
+// --- NEW GLOBAL AUDIO DECLARATIONS ---
+extern Audio audio;
 extern bool hardwareInitialized;
 // Event types for inter-task communication
 enum EventType {
@@ -81,8 +81,6 @@ enum EventType {
     EVENT_TIME_SYNC,
     EVENT_SETTINGS_UPDATED
 };
-
-
 
 // Function Prototypes
 void initializeEventManager();

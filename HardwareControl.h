@@ -7,25 +7,33 @@
 #include "Adafruit_GFX.h"
 #include <time.h>
 
-// --- PIN DEFINITIONS (UPDATED FOR ESP32-S3-DEVKITC-1) ---
-#define I2C_SDA_1 21     // Side 1
-#define I2C_SCL_1 12     // Side 2 (Moved from 22)
-#define I2S_LRC_PIN 16   // Side 2
-#define I2S_BCLK_PIN 17  // Side 2
-#define I2S_DIN_PIN 5    // Side 2
-#define I2S_SD_PIN 18    // Side 2
-#define DEST_AM_PIN 13   // Side 2
-#define DEST_PM_PIN 14   // Side 2
-#define PRES_AM_PIN 11   // Side 2 (Moved from 32)
-#define PRES_PM_PIN 6    // Side 2 (Moved from 27)
-#define LAST_AM_PIN 2    // Side 1
-#define LAST_PM_PIN 4    // Side 2
-#define I2C_SDA_2 9      // Side 2 (Moved from 25)
-#define I2C_SCL_2 10     // Side 2 (Moved from 26)
+// --- PIN DEFINITIONS (MINIMAL CHANGE ESP32-S3 SAFE VERSION) ---
+// I2C Bus 1 (8 displays: Destination & Present)
+#define I2C_SDA_1 8
+#define I2C_SCL_1 9
+
+// I2C Bus 2 (4 displays: Last Time Departed)
+#define I2C_SDA_2 10
+#define I2C_SCL_2 11
+
+// I2S Audio Pins
+#define I2S_LRC_PIN 15   // LRC / WSEL
+#define I2S_BCLK_PIN 16  // BCLK / CLK
+#define I2S_DIN_PIN 17   // DOUT / DIN
+#define I2S_SD_PIN 18    // Amplifier Shutdown/Enable Pin
+
+// LED Indicator Pins
+#define DEST_AM_PIN 13
+#define DEST_PM_PIN 14
+#define PRES_AM_PIN 38
+#define PRES_PM_PIN 39
+#define LAST_AM_PIN 4    // MOVED FROM 1
+#define LAST_PM_PIN 6    // MOVED FROM 2
 
 
 // --- HARDWARE CONFIG ---
 #define ENABLE_HARDWARE 1
+#define MAX_FILENAME_LENGTH 64
 
 // --- ENUMS & DATA STRUCTURES ---
 
@@ -47,6 +55,7 @@ struct MarqueeData {
 
 enum AnimationPhase {
   ANIM_INACTIVE,
+  ANIM_WAIT_FOR_SOUND,
   ANIM_POWER_UP,
   ANIM_FLICKER,
   ANIM_TIME_ACCELERATION,
@@ -116,7 +125,6 @@ struct ClockSettings {
   int animationStyle;
   int glitchEffectFrequency;
   int malfunctionFrequency;
-  bool timeTravelVolumeFade;
   bool dataLinkEnabled;
   int dataLinkTargetRow;
   int dataLinkRefreshInterval;
@@ -210,7 +218,7 @@ void setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal);
 void updateDisplaySegment(Adafruit_AlphaNum4& display, const struct tm& timeinfo, int year, int segment);
 void animateDisplayRowRandomly(DisplayRow& row);
-void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
+void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp);
 void animateTornadoFlicker();
 void animateCapacitorChargeUp(unsigned long elapsed, int duration);
 void animateDigitalRain(unsigned long elapsed, int duration);
@@ -221,8 +229,14 @@ void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
 void playSound(const char* filepath);
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
 void displaySpeed(int speed);
+void displaySpeedRamp(int speed);
 void flashAllDisplays();
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal = true);
-
-
+void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor);
+void animateFluxCapacitor();
+void displayStaticFluxText();
+void animateRandomRealTimes();
+void applyBrightness();
+void animateSequentialFlicker(unsigned long elapsed, int duration);
+void animateCountingUp(unsigned long elapsed, int duration);
 #endif // HARDWARE_CONTROL_H

@@ -7,14 +7,10 @@
 #include <HTTPClient.h>
 #include <string>
 #include <WiFi.h>
-#include <AudioOutputI2S.h>
 #include <Update.h>
 #include <ArduinoOTA.h>
 #include "FS.h"
 #include <LITTLEFS.h>
-
-// Make the global 'out' object from the main .ino file available here
-extern AudioOutputI2S *out;
 
 // This is the one and only DEFINITION of the variable in the whole project.
 const char apiTemplates[] PROGMEM = "{\n"
@@ -346,7 +342,6 @@ void setupWebRoutes() {
     doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency;
     doc["malfunctionFrequency"] = currentSettings.malfunctionFrequency;
     doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
-    doc["timeTravelVolumeFade"] = currentSettings.timeTravelVolumeFade;
     doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
     String jsonString;
@@ -401,7 +396,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "application/json", TZ_JSON);
+    request->send(200, "application/json", TZ_JSON);
   });
 
   server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -490,6 +485,9 @@ void setupWebRoutes() {
     currentSettings.arrivalHour = obj["arrivalHour"] | currentSettings.arrivalHour;
     currentSettings.arrivalMinute = obj["arrivalMinute"] | currentSettings.arrivalMinute;
     currentSettings.brightness = obj["brightness"] | currentSettings.brightness;
+        if (hardwareInitialized) { // <-- ADD THIS BLOCK
+        applyBrightness();
+    }
     currentSettings.timeTravelAnimationDuration = obj["timeTravelAnimationDuration"] | currentSettings.timeTravelAnimationDuration;
     currentSettings.timeTravelAnimationInterval = obj["timeTravelAnimationInterval"] | currentSettings.timeTravelAnimationInterval;
     currentSettings.animationStyle = obj["animationStyle"] | currentSettings.animationStyle;
@@ -497,7 +495,6 @@ void setupWebRoutes() {
     currentSettings.malfunctionFrequency = obj["malfunctionFrequency"] | currentSettings.malfunctionFrequency;
     currentSettings.notificationVolume = obj["notificationVolume"] | currentSettings.notificationVolume;
     currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"] | currentSettings.timeTravelSoundToggle;
-    currentSettings.timeTravelVolumeFade = obj["timeTravelVolumeFade"] | currentSettings.timeTravelVolumeFade;
     currentSettings.presentTimezoneIndex = obj["presentTimezoneIndex"] | currentSettings.presentTimezoneIndex;
     currentSettings.displayFormat24h = obj["displayFormat24h"] | currentSettings.displayFormat24h;
 
@@ -566,12 +563,10 @@ void setupWebRoutes() {
     delay(100);
     mqttReconnectRequired = true;
 
-    if (hardwareInitialized && out) {
-        out->SetGain((float)currentSettings.notificationVolume / 30.0f);
-    }
+    audio.setVolume(currentSettings.notificationVolume);
 
     request->send(200, "text/plain", "Settings Saved!");
-  });
+ }, 8192); // This last argument is the increased buffer size
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -662,7 +657,7 @@ void setupWebRoutes() {
       request->send(200, "text/plain", themeName);
   });
   server.on("/api/api_examples", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "application/json", apiTemplates);
+    request->send(200, "application/json", apiTemplates);
   });
   server.on("/api/setTheme", HTTP_POST, [](AsyncWebServerRequest *request){
     String theme = request->getParam("theme", true)->value();

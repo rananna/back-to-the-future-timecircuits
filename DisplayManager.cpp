@@ -18,6 +18,7 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
     lastRow.day.writeDisplay();
     lastRow.year.writeDisplay();
     lastRow.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
     delay(duration);
 #endif
 }
@@ -68,6 +69,7 @@ void displayMarqueeOverride() {
         lastRow.day.writeDisplay();
         lastRow.year.writeDisplay();
         lastRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
 
         if (textToDisplay.length() > 13) {
             scrollPosition++;
@@ -127,6 +129,7 @@ void updateStockTickerDisplay() {
         rows[i]->day.writeDisplay();
         rows[i]->year.writeDisplay();
         rows[i]->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 #endif
 }
@@ -140,18 +143,21 @@ void displayOverrideMessage() {
     printToDisplay(destRow.year, overrideMessageLine1.substring(5, 9).c_str());
     printToDisplay(destRow.time, overrideMessageLine1.substring(9, 13).c_str());
     destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
 
     printToDisplay(presRow.month, overrideMessageLine2.substring(0, 3).c_str(), 1);
     printToDisplay(presRow.day, overrideMessageLine2.substring(3, 5).c_str(), 2);
     printToDisplay(presRow.year, overrideMessageLine2.substring(5, 9).c_str());
     printToDisplay(presRow.time, overrideMessageLine2.substring(9, 13).c_str());
     presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
 
     printToDisplay(lastRow.month, overrideMessageLine3.substring(0, 3).c_str(), 1);
     printToDisplay(lastRow.day, overrideMessageLine3.substring(3, 5).c_str(), 2);
     printToDisplay(lastRow.year, overrideMessageLine3.substring(5, 9).c_str());
     printToDisplay(lastRow.time, overrideMessageLine3.substring(9, 13).c_str());
     lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
 #endif
 }
 
@@ -173,7 +179,6 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
     updateNormalClockDisplay();
 }
 
-// --- MODIFIED: This function now selectively updates rows ---
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
@@ -185,8 +190,15 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
     if (updateDest) {
         setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
         tzset();
-        struct tm dest_timeinfo;
-        localtime_r(&now_t, &dest_timeinfo);
+        struct tm current_timeinfo;
+        localtime_r(&now_t, &current_timeinfo);
+        
+        struct tm dest_timeinfo = {0};
+        dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+        dest_timeinfo.tm_mon = current_timeinfo.tm_mon; // Use current month
+        dest_timeinfo.tm_mday = current_timeinfo.tm_mday; // Use current day
+        dest_timeinfo.tm_hour = current_timeinfo.tm_hour; // Use current hour
+        dest_timeinfo.tm_min = current_timeinfo.tm_min; // Use current minute
         
         if (!isRowInManualMode[0]) {
             updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
@@ -197,6 +209,7 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
             if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
         }
         destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 
     // --- Present Time ---
@@ -216,6 +229,7 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
             if (!manualDisplayText[1][3].empty()) printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
         }
         presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
     
     // --- Last Time Departed ---
@@ -236,6 +250,7 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
             if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
         }
         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 
     // --- IMPORTANT: Reset Timezone to Present for other functions ---
@@ -316,6 +331,7 @@ void handleWeatherDisplay() {
         lastRow.day.writeDisplay();
         lastRow.year.writeDisplay();
         lastRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 #endif
 }
@@ -335,6 +351,7 @@ void updateMarqueeDisplay() {
         targetRow->day.writeDisplay();
         targetRow->year.writeDisplay();
         targetRow->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
         return; // Exit the function to prevent the crash.
     }
 
@@ -415,6 +432,7 @@ void updateMarqueeDisplay() {
         targetRow->day.writeDisplay();
         targetRow->year.writeDisplay();
         targetRow->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 #endif
 }

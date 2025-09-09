@@ -61,6 +61,38 @@ This mode transforms the three display rows into a real-time stock and index tic
 
 ***
 
+## Engaging the Time Circuits: The Save Sequence
+
+💡 **What This Button Does:** The large **"Engage Time Circuits"** button at the bottom of the page performs two actions at once: it saves **all** of your settings from every tab and immediately triggers the full time travel animation sequence on the hardware.
+
+### Web Interface Feedback
+
+When you press the button, you will see the following changes in the web UI:
+
+1.  **Loading State**: The button will be temporarily disabled and show a loading spinner with the text "Saving..." to confirm your action is being processed.
+2.  **Save Confirmation**: A message banner will appear at the top of the screen confirming "Settings Saved!".
+3.  **Temporal Displacement Effect**: The entire web page will flash for the duration of the hardware animation, mimicking the bright lights of the DeLorean's temporal displacement.
+
+### Hardware Animation and Sound Sequence
+
+Pressing the save button triggers a cinematic 17-second animation on the physical display, complete with a synchronized sound effect.
+
+| Phase | Duration | Visuals | Sound Effect |
+| :--- | :--- | :--- | :--- |
+| **1. Power Up & Acceleration** | 12 seconds | The displays flicker, then the bottom row ramps up to 88 MPH. | The sound of a powerful engine revving up (**engine\_rev.mp3**). |
+| **2. Time Travel**| 4 seconds | At 88 MPH, all displays flash brightly, then show a "time blur" effect where the years rapidly skim forward or backward. | *None* |
+| **3. Landing** | 1 second | The displays flicker one last time before settling on the new destination and present times. | *None* |
+
+#### Smart Saving Technology
+
+Even though pressing the button saves all settings, the device is designed for longevity. It intelligently checks which settings have actually been changed and only writes the new values to its memory. This "smart saving" process is extremely fast and minimizes wear on the hardware, ensuring your Time Circuits will be ready for many trips to the future.
+
+### ⚡ Tip for Quick Configuration
+
+Because every press of the "Engage Time Circuits" button triggers the full 17-second animation, it's most efficient to **make all of your desired changes across all tabs first**, and then press the save button only once when you are finished.
+
+***
+
 ## 🚀 Updating Your Device
 
 There are three primary ways to update the files on your Time Circuits device.

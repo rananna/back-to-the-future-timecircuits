@@ -3,15 +3,12 @@
 
 #include <Arduino.h>
 #include <string>
-#include <AudioFileSourceHTTPStream.h>
-#include <AudioFileSourceICYStream.h>
-#include <AudioGeneratorMP3.h>
-#include <AudioOutputI2S.h>
 
-extern AudioOutputI2S *out;
-extern AudioGeneratorMP3 *audioGenerator;
-extern AudioFileSourceHTTPStream *fileSourceHttp;
-extern AudioFileSourceICYStream *fileSourceIcy;
+// --- MQTT Configuration ---
+#define MQTT_BASE_TOPIC "homeassistant"
+#define MQTT_DEVICE_TYPE "timecircuits"
+extern char MQTT_UNIQUE_ID[19];
+
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length);
 void setupMqtt();
@@ -22,7 +19,7 @@ void publishAllHaStates();
 void clearHaEntity(const char* component, const char* unique_id_suffix);
 void publishDeviceTriggers();
 void publishTimeSensors();
-void startAudioStream(const char* url, bool is_tts);
+void startAudioStream(const char* url, bool is_tts, int volume = -1);
 void stopAudioStream();
 
 

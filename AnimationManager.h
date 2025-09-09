@@ -11,24 +11,31 @@
 #include "HardwareControl.h"
 
 // --- MODIFIED: New constants and states for the cinematic boot sequence ---
-#define BOOT_ANIMATION_FRAME_INTERVAL 50
-#define BOOT_POWER_ON_DURATION 1500
-#define BOOT_SYSTEM_CHECK_DURATION 6000
-#define BOOT_TEMPORAL_LOCK_DURATION 3000
-#define BOOT_SPEEDOMETER_DURATION 30000
-#define BOOT_FADE_DURATION 2000
+#define BOOT_AWAIT_HUM_DURATION 10000
+#define BOOT_WARM_UP_DURATION 1000
+#define BOOT_COLD_START_DURATION 5000
+#define BOOT_FLUX_CAPACITOR_IGNITION_DURATION 10000
+#define BOOT_DIAGNOSTICS_DURATION 10000
+#define BOOT_FINAL_CHECKS_DURATION 15000
+#define BOOT_TEMPORAL_DISPLACEMENT_DURATION 6000
+#define BOOT_ARRIVAL_DURATION 5000
+#define BOOT_COOL_DOWN_DURATION 2000
+
 
 // THIS IS NOW THE ONLY DEFINITION OF THIS ENUM
 enum BootSequenceState {
   BOOT_INACTIVE,
+  BOOT_AWAIT_HUM,
   BOOT_START,
-  BOOT_POWER_ON_DEST,
-  BOOT_POWER_ON_PRES,
-  BOOT_POWER_ON_LAST,
-  BOOT_SYSTEM_CHECK,
-  BOOT_TEMPORAL_LOCK,
-  BOOT_SPEEDOMETER,
-  BOOT_FADE_TO_CLOCK,
+  BOOT_WARM_UP,
+  BOOT_COLD_START,
+  BOOT_FLUX_CAPACITOR_IGNITION,
+  BOOT_FLUX_CAPACITOR_ANIMATION, // <-- FIX: New state added for animation
+  BOOT_DIAGNOSTICS,
+  BOOT_FINAL_CHECKS,
+  BOOT_TEMPORAL_DISPLACEMENT,
+  BOOT_ARRIVAL,
+  BOOT_COOL_DOWN,
   BOOT_COMPLETE
 };
 // --- END MODIFICATION ---
@@ -36,6 +43,8 @@ enum BootSequenceState {
 // --- Function Declarations for animations and effects ---
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
+void startStyledAnimation();
+void handleStyledAnimation();
 void handleTemporalEcho();
 void handleGlitchEffect();
 void restoreDisplayAfterGlitch();
