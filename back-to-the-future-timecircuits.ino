@@ -841,7 +841,7 @@ void loop() {
             }
             
             // Only update the display if enough time has passed
-            if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
+            if (!isAnimating && !isStyledAnimating && (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL)) {
                 lastDisplayUpdateTime = millis();
                 // Call the new state machine functions
                 updateDisplayState();

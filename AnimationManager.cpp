@@ -384,9 +384,11 @@ void handleTemporalEcho() {
         return;
     }
 
-    // Randomly flicker the "Present Time" display
+    // Randomly flicker all displays
     if (random(100) < 10) {
+        animateDisplayRowRandomly(destRow);
         animateDisplayRowRandomly(presRow);
+        animateDisplayRowRandomly(lastRow);
     }
 #endif
 }
