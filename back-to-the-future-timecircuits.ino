@@ -35,11 +35,14 @@
 #endif
 
 // --- CONFIGURABLE CONSTANTS ---
-const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
+const unsigned long WIFI_CONNECT_TIMEOUT = 15000;
+// 15 seconds
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
-const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
+const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;
+// 1 minute
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
-const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates.
+const unsigned long DISPLAY_UPDATE_INTERVAL = 250;
+// Milliseconds between display updates.
 
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
 enum WifiState {
@@ -111,7 +114,8 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "CET-1CEST,M3.5.0,M10.5.0", "CET/CEST (Berlin)", "Europe/Berlin", "Europe" },
 	{ "EET-2EEST,M3.5.0/3,M10.5.0/4", "EET/EEST (Athens)", "Europe/Athens", "Europe" },
 	{ "<+03>-3", "Moscow Standard Time", "Europe/Moscow", "Europe" },
-	{ "<+03>-3", "Turkey Time (Istanbul)","Europe/Istanbul", "Europe" },
+	{ "<+03>-3", "Turkey Time (Istanbul)","Europe/Istanbul", 
+"Europe" },
 	{ "IST-5:30", "Indian Standard Time (Kolkata)", "Asia/Kolkata", "Asia" },
 	{ "<+08>-8", "Singapore Standard Time", "Asia/Singapore", "Asia" },
 	{ "CST-8", "China Standard Time (Shanghai)", "Asia/Shanghai", "Asia" },
@@ -124,7 +128,8 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "ChST-10", "Chamorro Time (Guam)", "Pacific/Guam", "Australia & Oceania" },
 	{ "WAT-1", "West Africa Time (Lagos)", "Africa/Lagos", "Africa" },
 	{ "SAST-2", "South Africa Standard Time", "Africa/Johannesburg", "Africa" },
-	{ "EET-2","EET (Cairo)", "Africa/Cairo", "Africa" },
+	{ "EET-2","EET (Cairo)", 
+"Africa/Cairo", "Africa" },
 	{ "EAT-3", "East Africa Time (Nairobi)", "Africa/Nairobi", "Africa" },
 	{ "<-03>3", "Brasilia Time (Sao Paulo)", "America/Sao_Paulo", "South America" },
 	{ "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
@@ -208,18 +213,19 @@ DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
 void audio_info(Audio::msg_t m) {
     if (m.e == Audio::evt_eof) {
         Serial.printf("AUDIO_LOG: Finished playing sound: %s\n", currentSoundFile);
-        currentSoundFile[0] = '\0'; // Clear the filename
+currentSoundFile[0] = '\0'; // Clear the filename
         // Update Home Assistant that audio is idle
         if (mqttClient.connected()) {
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
-        }
+}
     }
 }
 
 /**
  * @brief A dedicated FreeRTOS task to handle audio processing.
  * @details This task runs in a continuous loop, calling audio.loop() to ensure
- * the I2S buffer is always fed with audio data. This prevents animations or other
+ * the I2S buffer is always fed with audio data.
+ This prevents animations or other
  * long-running code in the main loop from starving the audio system and causing
  * stuttering or delays.
  * @param pvParameters Standard FreeRTOS task parameters (unused).
@@ -227,13 +233,13 @@ void audio_info(Audio::msg_t m) {
 void audioTask(void *pvParameters) {
   for (;;) {
     audio.loop();
-    vTaskDelay(2 / portTICK_PERIOD_MS); // Run this task every 2 milliseconds
+vTaskDelay(2 / portTICK_PERIOD_MS); // Run this task every 2 milliseconds
   }
 }
 
 void saveSettings() {
     Serial.println("--- Saving Settings (Dirty Flag Check) ---");
-    preferences.begin(PREFERENCES_NAMESPACE, false);
+preferences.begin(PREFERENCES_NAMESPACE, false);
 
     // Helper macro to reduce boilerplate
     #define SAVE_IF_CHANGED(key, type, value) \
@@ -250,106 +256,106 @@ void saveSettings() {
 
     SAVE_IF_CHANGED("destYear", Int, currentSettings.destinationYear);
     SAVE_IF_CHANGED("destTzIndex", Int, currentSettings.destinationTimezoneIndex);
-    SAVE_IF_CHANGED("depHour", Int, currentSettings.departureHour);
+SAVE_IF_CHANGED("depHour", Int, currentSettings.departureHour);
     SAVE_IF_CHANGED("depMinute", Int, currentSettings.departureMinute);
     SAVE_IF_CHANGED("arrHour", Int, currentSettings.arrivalHour);
     SAVE_IF_CHANGED("arrMinute", Int, currentSettings.arrivalMinute);
     SAVE_IF_CHANGED("lastYear", Int, currentSettings.lastTimeDepartedYear);
     SAVE_IF_CHANGED("lastMonth", Int, currentSettings.lastTimeDepartedMonth);
-    SAVE_IF_CHANGED("lastDay", Int, currentSettings.lastTimeDepartedDay);
+SAVE_IF_CHANGED("lastDay", Int, currentSettings.lastTimeDepartedDay);
     SAVE_IF_CHANGED("lastHour", Int, currentSettings.lastTimeDepartedHour);
     SAVE_IF_CHANGED("lastMinute", Int, currentSettings.lastTimeDepartedMinute);
     SAVE_IF_CHANGED("brightness", UChar, currentSettings.brightness);
     SAVE_IF_CHANGED("volume", UChar, currentSettings.notificationVolume);
-    if (preferences.getBool("soundToggle", true) != currentSettings.timeTravelSoundToggle) {
+if (preferences.getBool("soundToggle", true) != currentSettings.timeTravelSoundToggle) {
         preferences.putBool("soundToggle", currentSettings.timeTravelSoundToggle);
-        Serial.printf("SAVING: soundToggle -> %s\n", currentSettings.timeTravelSoundToggle ? "true" : "false");
+Serial.printf("SAVING: soundToggle -> %s\n", currentSettings.timeTravelSoundToggle ? "true" : "false");
     }
 
     SAVE_IF_CHANGED("presTzIndex", Int, currentSettings.presentTimezoneIndex);
     SAVE_IF_CHANGED("presetCycle", Int, currentSettings.presetCycleInterval);
-    if (preferences.getBool("format24h", false) != currentSettings.displayFormat24h) {
+if (preferences.getBool("format24h", false) != currentSettings.displayFormat24h) {
         preferences.putBool("format24h", currentSettings.displayFormat24h);
-        Serial.printf("SAVING: format24h -> %s\n", currentSettings.displayFormat24h ? "true" : "false");
+Serial.printf("SAVING: format24h -> %s\n", currentSettings.displayFormat24h ? "true" : "false");
     }
     
     SAVE_IF_CHANGED("theme", Int, currentSettings.theme);
-    SAVE_IF_CHANGED("animInterval", Int, currentSettings.timeTravelAnimationInterval);
+SAVE_IF_CHANGED("animInterval", Int, currentSettings.timeTravelAnimationInterval);
     SAVE_IF_CHANGED("animDuration", Int, currentSettings.timeTravelAnimationDuration);
     SAVE_IF_CHANGED("animStyle", Int, currentSettings.animationStyle);
     SAVE_IF_CHANGED("glitchFreq", Int, currentSettings.glitchEffectFrequency);
     SAVE_IF_CHANGED("malfuncFreq", Int, currentSettings.malfunctionFrequency);
-    if (preferences.getBool("dlEnabled", false) != currentSettings.dataLinkEnabled) {
+if (preferences.getBool("dlEnabled", false) != currentSettings.dataLinkEnabled) {
         preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
-        Serial.printf("SAVING: dlEnabled -> %s\n", currentSettings.dataLinkEnabled ? "true" : "false");
+Serial.printf("SAVING: dlEnabled -> %s\n", currentSettings.dataLinkEnabled ? "true" : "false");
     }
 
     SAVE_IF_CHANGED("dlTargetRow", Int, currentSettings.dataLinkTargetRow);
     SAVE_IF_CHANGED("dlRefresh", Int, currentSettings.dataLinkRefreshInterval);
-    SAVE_IF_CHANGED("numDataPoints", Int, currentSettings.numDataPoints);
+SAVE_IF_CHANGED("numDataPoints", Int, currentSettings.numDataPoints);
 
     SAVE_STRING_IF_CHANGED("mqttBroker", currentSettings.mqttBroker);
     SAVE_IF_CHANGED("mqttPort", Int, currentSettings.mqttPort);
     SAVE_STRING_IF_CHANGED("mqttUser", currentSettings.mqttUser);
     SAVE_STRING_IF_CHANGED("mqttPass", currentSettings.mqttPassword);
-    if (preferences.getBool("weatherMode", false) != currentSettings.weatherModeEnabled) {
+if (preferences.getBool("weatherMode", false) != currentSettings.weatherModeEnabled) {
         preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
-        Serial.printf("SAVING: weatherMode -> %s\n", currentSettings.weatherModeEnabled ? "true" : "false");
+Serial.printf("SAVING: weatherMode -> %s\n", currentSettings.weatherModeEnabled ? "true" : "false");
     }
 
     SAVE_STRING_IF_CHANGED("cityName", currentSettings.cityName);
-    if (preferences.getBool("useMetric", false) != currentSettings.useMetricUnits) {
+if (preferences.getBool("useMetric", false) != currentSettings.useMetricUnits) {
         preferences.putBool("useMetric", currentSettings.useMetricUnits);
-        Serial.printf("SAVING: useMetric -> %s\n", currentSettings.useMetricUnits ? "true" : "false");
+Serial.printf("SAVING: useMetric -> %s\n", currentSettings.useMetricUnits ? "true" : "false");
     }
     
     // Note: Comparing floats can be tricky due to precision.
-    // A small tolerance might be needed for production code, but this is fine for this use case.
-    if (preferences.getFloat("latitude", 0.0) != currentSettings.latitude) {
+// A small tolerance might be needed for production code, but this is fine for this use case.
+if (preferences.getFloat("latitude", 0.0) != currentSettings.latitude) {
         preferences.putFloat("latitude", currentSettings.latitude);
         Serial.printf("SAVING: latitude -> %f\n", currentSettings.latitude);
-    }
+}
     if (preferences.getFloat("longitude", 0.0) != currentSettings.longitude) {
         preferences.putFloat("longitude", currentSettings.longitude);
-        Serial.printf("SAVING: longitude -> %f\n", currentSettings.longitude);
+Serial.printf("SAVING: longitude -> %f\n", currentSettings.longitude);
     }
     
     if (preferences.getBool("stModeEnabled", false) != currentSettings.stockTickerModeEnabled) {
         preferences.putBool("stModeEnabled", currentSettings.stockTickerModeEnabled);
-        Serial.printf("SAVING: stModeEnabled -> %s\n", currentSettings.stockTickerModeEnabled ? "true" : "false");
+Serial.printf("SAVING: stModeEnabled -> %s\n", currentSettings.stockTickerModeEnabled ? "true" : "false");
     }
 
     SAVE_STRING_IF_CHANGED("stRow1Sym", currentSettings.stockRow1_symbol);
     SAVE_STRING_IF_CHANGED("stRow2Sym", currentSettings.stockRow2_symbol);
     SAVE_STRING_IF_CHANGED("stRow3Sym", currentSettings.stockRow3_symbol);
-    SAVE_STRING_IF_CHANGED("avApiKey", currentSettings.alphaVantageApiKey);
+SAVE_STRING_IF_CHANGED("avApiKey", currentSettings.alphaVantageApiKey);
 
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
-		SAVE_STRING_IF_CHANGED((prefix + "url").c_str(), currentSettings.dataPoints[i].url);
+SAVE_STRING_IF_CHANGED((prefix + "url").c_str(), currentSettings.dataPoints[i].url);
 		SAVE_STRING_IF_CHANGED((prefix + "monthPath").c_str(), currentSettings.dataPoints[i].monthPath);
 		SAVE_STRING_IF_CHANGED((prefix + "dayPath").c_str(), currentSettings.dataPoints[i].dayPath);
 		SAVE_STRING_IF_CHANGED((prefix + "yearPath").c_str(), currentSettings.dataPoints[i].yearPath);
 		SAVE_STRING_IF_CHANGED((prefix + "timePath").c_str(), currentSettings.dataPoints[i].timePath);
-		SAVE_STRING_IF_CHANGED((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefix);
+SAVE_STRING_IF_CHANGED((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefix);
 		SAVE_STRING_IF_CHANGED((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffix);
 		SAVE_STRING_IF_CHANGED((prefix + "icon").c_str(), currentSettings.dataPoints[i].icon);
 		SAVE_IF_CHANGED((prefix + "scroll").c_str(), Int, currentSettings.dataPoints[i].scrollSpeed);
-		SAVE_IF_CHANGED((prefix + "srcType").c_str(), Int, (int)currentSettings.dataPoints[i].dataSourceType);
+SAVE_IF_CHANGED((prefix + "srcType").c_str(), Int, (int)currentSettings.dataPoints[i].dataSourceType);
 		SAVE_STRING_IF_CHANGED((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
 		SAVE_STRING_IF_CHANGED((prefix + "yearPrefix").c_str(), currentSettings.dataPoints[i].yearPrefix);
 		SAVE_STRING_IF_CHANGED((prefix + "yearSuffix").c_str(), currentSettings.dataPoints[i].yearSuffix);
-		SAVE_IF_CHANGED((prefix + "dispMode").c_str(), Int, (int)currentSettings.dataPoints[i].displayMode);
+SAVE_IF_CHANGED((prefix + "dispMode").c_str(), Int, (int)currentSettings.dataPoints[i].displayMode);
 		SAVE_STRING_IF_CHANGED((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText);
 		SAVE_STRING_IF_CHANGED((prefix + "authKey").c_str(), currentSettings.dataPoints[i].authHeaderKey);
 		SAVE_STRING_IF_CHANGED((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue);
-		SAVE_IF_CHANGED((prefix + "httpMethod").c_str(), Int, (int)currentSettings.dataPoints[i].httpMethod);
+SAVE_IF_CHANGED((prefix + "httpMethod").c_str(), Int, (int)currentSettings.dataPoints[i].httpMethod);
 		SAVE_STRING_IF_CHANGED((prefix + "reqBody").c_str(), currentSettings.dataPoints[i].requestBody);
 		SAVE_STRING_IF_CHANGED((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey);
 	}
 	preferences.end();
     Serial.println("--- Settings Saved ---");
-	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
 }
 
@@ -357,138 +363,138 @@ void loadSettings() {
     Serial.println("--- Loading Settings ---");
     preferences.begin(PREFERENCES_NAMESPACE, true);
 	bool needsInit = !preferences.isKey("destYear");
-	if (needsInit) {
+if (needsInit) {
 		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
 		currentSettings.destinationYear = 1955;
 		currentSettings.destinationTimezoneIndex = 4;
 		currentSettings.departureHour = 22;
-		currentSettings.departureMinute = 0;
+currentSettings.departureMinute = 0;
 		currentSettings.arrivalHour = 7;
 		currentSettings.arrivalMinute = 0;
 		currentSettings.lastTimeDepartedYear = 1985;
 		currentSettings.lastTimeDepartedMonth = 10;
 		currentSettings.lastTimeDepartedDay = 26;
-		currentSettings.lastTimeDepartedHour = 1;
+currentSettings.lastTimeDepartedHour = 1;
 		currentSettings.lastTimeDepartedMinute = 21;
 		currentSettings.brightness = 5;
 		currentSettings.notificationVolume = 15;
 		currentSettings.timeTravelSoundToggle = true;
 		currentSettings.presentTimezoneIndex = 1;
-		currentSettings.presetCycleInterval = 10;
+currentSettings.presetCycleInterval = 10;
 		currentSettings.displayFormat24h = false;
 		currentSettings.theme = THEME_TIME_CIRCUITS;
 		currentSettings.timeTravelAnimationInterval = 15;
 		currentSettings.timeTravelAnimationDuration = 4000;
 		currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
-		currentSettings.glitchEffectFrequency = 0;
+currentSettings.glitchEffectFrequency = 0;
 		currentSettings.malfunctionFrequency = 0;
 		currentSettings.dataLinkEnabled = false;
 		currentSettings.dataLinkTargetRow = 2;
 		currentSettings.dataLinkRefreshInterval = 10;
 		currentSettings.numDataPoints = 0;
-		currentSettings.mqttBroker = "broker.emqx.io";
+currentSettings.mqttBroker = "broker.emqx.io";
 		currentSettings.mqttPort = 1883;
 		currentSettings.mqttUser = "";
 		currentSettings.mqttPassword = "";
 		currentSettings.weatherModeEnabled = false;
 		currentSettings.cityName = "New York";
-		currentSettings.useMetricUnits = false;
+currentSettings.useMetricUnits = false;
 		currentSettings.latitude = 40.7128;
 		currentSettings.longitude = -74.0060;
 		currentSettings.stockTickerModeEnabled = false;
 		currentSettings.stockRow1_symbol = "^GSPC";
 		currentSettings.stockRow2_symbol = "^GSPTSE";
-		currentSettings.stockRow3_symbol = "^IXIC";
+currentSettings.stockRow3_symbol = "^IXIC";
 		currentSettings.alphaVantageApiKey = "";
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
 		}
 		saveSettings();
-	} else {
+} else {
 		ESP_LOGI("SETTINGS", "Loading settings from NVS.");
 		currentSettings.destinationYear = preferences.getInt("destYear");
 		currentSettings.destinationTimezoneIndex = preferences.getInt("destTzIndex");
 		currentSettings.departureHour = preferences.getInt("depHour");
 		currentSettings.departureMinute = preferences.getInt("depMinute");
-		currentSettings.arrivalHour = preferences.getInt("arrHour");
+currentSettings.arrivalHour = preferences.getInt("arrHour");
 		currentSettings.arrivalMinute = preferences.getInt("arrMinute");
 		currentSettings.lastTimeDepartedYear = preferences.getInt("lastYear");
 		currentSettings.lastTimeDepartedMonth = preferences.getInt("lastMonth");
 		currentSettings.lastTimeDepartedDay = preferences.getInt("lastDay");
 		currentSettings.lastTimeDepartedHour = preferences.getInt("lastHour");
-		currentSettings.lastTimeDepartedMinute = preferences.getInt("lastMinute");
+currentSettings.lastTimeDepartedMinute = preferences.getInt("lastMinute");
 		currentSettings.brightness = preferences.getUChar("brightness");
 		currentSettings.notificationVolume = preferences.getUChar("volume");
 		currentSettings.timeTravelSoundToggle = preferences.getBool("soundToggle");
 		currentSettings.presentTimezoneIndex = preferences.getInt("presTzIndex");
 		currentSettings.presetCycleInterval = preferences.getInt("presetCycle");
-		currentSettings.displayFormat24h = preferences.getBool("format24h");
+currentSettings.displayFormat24h = preferences.getBool("format24h");
 		currentSettings.theme = preferences.getInt("theme", THEME_TIME_CIRCUITS);
 		currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval");
 		currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration");
 		currentSettings.animationStyle = preferences.getInt("animStyle");
 		currentSettings.glitchEffectFrequency = preferences.getInt("glitchFreq");
-		currentSettings.malfunctionFrequency = preferences.getInt("malfuncFreq");
+currentSettings.malfunctionFrequency = preferences.getInt("malfuncFreq");
 		currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
 		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
 		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
 		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
         String brokerStr = preferences.getString("mqttBroker", "");
-        currentSettings.mqttBroker = brokerStr.c_str();
+currentSettings.mqttBroker = brokerStr.c_str();
 		Serial.printf("SETTINGS_LOG: Loaded MQTT Broker: [%s]\n", currentSettings.mqttBroker.c_str());
 		currentSettings.mqttPort = preferences.getInt("mqttPort", 1883);
 		Serial.printf("SETTINGS_LOG: Loaded MQTT Port: [%d]\n", currentSettings.mqttPort);
-        String userStr = preferences.getString("mqttUser", "");
+String userStr = preferences.getString("mqttUser", "");
         currentSettings.mqttUser = userStr.c_str();
 		Serial.printf("SETTINGS_LOG: Loaded MQTT User: [%s]\n", currentSettings.mqttUser.c_str());
         String passStr = preferences.getString("mqttPass", "");
-        currentSettings.mqttPassword = passStr.c_str();
+currentSettings.mqttPassword = passStr.c_str();
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
 		String tempString = preferences.getString("cityName", "New York");
 		currentSettings.cityName = tempString.c_str();
 		currentSettings.useMetricUnits = preferences.getBool("useMetric", false);
-		currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
+currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
 		currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
 		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
 		tempString = preferences.getString("stRow1Sym", "^GSPC");
 		currentSettings.stockRow1_symbol = tempString.c_str();
-		tempString = preferences.getString("stRow2Sym", "^GSPTSE");
+tempString = preferences.getString("stRow2Sym", "^GSPTSE");
 		currentSettings.stockRow2_symbol = tempString.c_str();
 		tempString = preferences.getString("stRow3Sym", "^IXIC");
 		currentSettings.stockRow3_symbol = tempString.c_str();
 		tempString = preferences.getString("avApiKey", "");
-		Serial.printf("Loading avApiKey from Preferences: [%s]\n", tempString.c_str());
+Serial.printf("Loading avApiKey from Preferences: [%s]\n", tempString.c_str());
 		currentSettings.alphaVantageApiKey = tempString.c_str();
         Serial.printf("Loaded avApiKey into currentSettings: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
-		for (int i = 0; i < 5; i++) {
+for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
-			if(preferences.isKey((prefix + "url").c_str())) currentSettings.dataPoints[i].url = preferences.getString((prefix + "url").c_str(), "").c_str();
+if(preferences.isKey((prefix + "url").c_str())) currentSettings.dataPoints[i].url = preferences.getString((prefix + "url").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "monthPath").c_str())) currentSettings.dataPoints[i].monthPath = preferences.getString((prefix + "monthPath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "dayPath").c_str())) currentSettings.dataPoints[i].dayPath = preferences.getString((prefix + "dayPath").c_str(), "").c_str();
+if(preferences.isKey((prefix + "dayPath").c_str())) currentSettings.dataPoints[i].dayPath = preferences.getString((prefix + "dayPath").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "yearPath").c_str())) currentSettings.dataPoints[i].yearPath = preferences.getString((prefix + "yearPath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "timePath").c_str())) currentSettings.dataPoints[i].timePath = preferences.getString((prefix + "timePath").c_str(), "").c_str();
+if(preferences.isKey((prefix + "timePath").c_str())) currentSettings.dataPoints[i].timePath = preferences.getString((prefix + "timePath").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "prefix").c_str())) currentSettings.dataPoints[i].prefix = preferences.getString((prefix + "prefix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "suffix").c_str())) currentSettings.dataPoints[i].suffix = preferences.getString((prefix + "suffix").c_str(), "").c_str();
+if(preferences.isKey((prefix + "suffix").c_str())) currentSettings.dataPoints[i].suffix = preferences.getString((prefix + "suffix").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "icon").c_str())) currentSettings.dataPoints[i].icon = preferences.getString((prefix + "icon").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "scroll").c_str())) currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
+if(preferences.isKey((prefix + "scroll").c_str())) currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
 			if(preferences.isKey((prefix + "srcType").c_str())) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
-			if(preferences.isKey((prefix + "topic").c_str())) currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
+if(preferences.isKey((prefix + "topic").c_str())) currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "yearPrefix").c_str())) currentSettings.dataPoints[i].yearPrefix = preferences.getString((prefix + "yearPrefix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "yearSuffix").c_str())) currentSettings.dataPoints[i].yearSuffix = preferences.getString((prefix + "yearSuffix").c_str(), "").c_str();
+if(preferences.isKey((prefix + "yearSuffix").c_str())) currentSettings.dataPoints[i].yearSuffix = preferences.getString((prefix + "yearSuffix").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "dispMode").c_str())) currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
-			if(preferences.isKey((prefix + "scrollTxt").c_str())) currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
+if(preferences.isKey((prefix + "scrollTxt").c_str())) currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "authKey").c_str())) currentSettings.dataPoints[i].authHeaderKey = preferences.getString((prefix + "authKey").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "authVal").c_str())) currentSettings.dataPoints[i].authHeaderValue = preferences.getString((prefix + "authVal").c_str(), "").c_str();
+if(preferences.isKey((prefix + "authVal").c_str())) currentSettings.dataPoints[i].authHeaderValue = preferences.getString((prefix + "authVal").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "httpMethod").c_str())) currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
-			if(preferences.isKey((prefix + "reqBody").c_str())) currentSettings.dataPoints[i].requestBody = preferences.getString((prefix + "reqBody").c_str(), "").c_str();
+if(preferences.isKey((prefix + "reqBody").c_str())) currentSettings.dataPoints[i].requestBody = preferences.getString((prefix + "reqBody").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "apiKey").c_str())) currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
 		}
 	}
 	preferences.end();
-	Serial.println("--- Settings Loaded ---");
+Serial.println("--- Settings Loaded ---");
 	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.presentTimezoneIndex = 0;
-	}
+}
 	if (currentSettings.destinationTimezoneIndex < 0 || currentSettings.destinationTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.destinationTimezoneIndex = 0;
 	}
@@ -500,7 +506,7 @@ void listAllFiles() {
 	Serial.println(F("\n--- Listing all files in LittleFS ---"));
 	File root = LittleFS.open("/");
 	File file = root.openNextFile();
-	while (file) {
+while (file) {
 		Serial.print(F("  FILE: "));
 		Serial.print(file.name());
 		Serial.print(F("\tSIZE: "));
@@ -509,24 +515,24 @@ void listAllFiles() {
 		file = root.openNextFile();
 	}
 	Serial.println(F("--- End of file list ---\n"));
-	root.close();
+root.close();
 }
 
 bool attemptHardwareInit() {
     #if ENABLE_HARDWARE
     Serial.println(F("BOOT_LOG: Attempting to initialize hardware..."));
     setupPhysicalDisplay();
-    Serial.println(F("BOOT_LOG: Physical display setup... OK"));
+Serial.println(F("BOOT_LOG: Physical display setup... OK"));
     return true; // Success
     #else
     Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
-    return false; // Hardware is disabled, so it's not "initialized"
+return false; // Hardware is disabled, so it's not "initialized"
     #endif
 }
 
 void wifiManagerTask(void *pvParameters) {
   WiFiManager* wifiManager = (WiFiManager*)pvParameters;
-  wifiManager->autoConnect("BTTF-Clock-Setup");
+wifiManager->autoConnect("BTTF-Clock-Setup");
   vTaskDelete(NULL);
   wifiManagerTaskHandle = NULL;
 }
@@ -538,11 +544,11 @@ void setup() {
 
     Serial.println(F("\n\n--- BOOTING ---"));
     Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
-    delay(10);
+delay(10);
 
     if (!LittleFS.begin(true, "/spiffs")) {
         ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
-        Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
+Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
         delay(10000);
         ESP.restart();
     }
@@ -551,7 +557,7 @@ void setup() {
 
     Serial.println(F("BOOT_LOG: Loading settings..."));
     loadSettings();
-    Serial.println(F("BOOT_LOG: Settings loaded... OK"));
+Serial.println(F("BOOT_LOG: Settings loaded... OK"));
     delay(10);
 
     xDisplayDataMutex = xSemaphoreCreateMutex();
@@ -560,22 +566,22 @@ void setup() {
     WiFi.mode(WIFI_STA);
     uint8_t mac[6];
     WiFi.macAddress(mac);
-    sprintf(MQTT_UNIQUE_ID, "BTTF_TC_%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+sprintf(MQTT_UNIQUE_ID, "BTTF_TC_%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     WiFi.begin();
     wifiConnectStartTime = millis();
     wifiState = WIFI_STATE_CONNECTING;
     Serial.println("BOOT_LOG: Non-blocking WiFi connection initiated...");
-    Serial.println(F("WEB_LOG: Setting up web routes..."));
+Serial.println(F("WEB_LOG: Setting up web routes..."));
     setupWebRoutes();
     Serial.println(F("WEB_LOG: Web routes configured."));
 
     hardwareInitialized = attemptHardwareInit();
-    if (hardwareInitialized) {
+if (hardwareInitialized) {
         applyBrightness();
         Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
         audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
         audio.setVolume(currentSettings.notificationVolume);
-        Audio::audio_info_callback = audio_info;
+Audio::audio_info_callback = audio_info;
         Serial.println(F("BOOT_LOG: I2S Audio... OK"));
         
         xTaskCreatePinnedToCore(
@@ -583,12 +589,14 @@ void setup() {
             "AudioTask",        // Name of the task
             4096,               // FIX: Increased stack size from 2048 to 4096 words
          
+
            NULL,               // Task input parameter
             5,                  // Priority of the task (high)
             NULL,               // Task handle
-            0                   // Core where the task should run (Core 0)
+       
+     0                   // Core where the task should run (Core 0)
         );
-    }
+}
 
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
@@ -596,12 +604,12 @@ void setup() {
 
     setupMqtt();
     Serial.println(F("BOOT_LOG: MQTT setup initiated."));
-    ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
+ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
     Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
 
     ArduinoOTA.setHostname("bttf-time-circuits");
     ArduinoOTA.setPassword("1.21gigawatts");
-    ArduinoOTA.onStart([]() {
+ArduinoOTA.onStart([]() {
         String type;
         if (ArduinoOTA.getCommand() == U_FLASH) {
             type = "sketch";
@@ -610,13 +618,13 @@ void setup() {
         }
         Serial.println("Start updating " + type);
     });
-    ArduinoOTA.onEnd([]() {
+ArduinoOTA.onEnd([]() {
         Serial.println("\nEnd");
     });
-    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
         Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     });
-    ArduinoOTA.onError([](ota_error_t error) {
+ArduinoOTA.onError([](ota_error_t error) {
         Serial.printf("Error[%u]: ", error);
         if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
         else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
@@ -624,13 +632,13 @@ void setup() {
         else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
         else if (error == OTA_END_ERROR) Serial.println("End Failed");
     });
-    ArduinoOTA.begin();
+ArduinoOTA.begin();
 
     // Clear any persistent manual display overrides from the previous session
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 4; ++j) {
             updateDisplaySegment(i, j, "");
-        }
+}
     }
 
     Serial.println(F("--- BOOT COMPLETE ---"));
@@ -662,7 +670,7 @@ void updateDisplayState() {
 void handleDisplay() {
     // These effects can run concurrently with the main display modes
     restoreDisplayAfterGlitch();
-    handleTemporalEcho();
+handleTemporalEcho();
     handleGlitchEffect();
     handleSequencer();
     handlePresetCycling();
@@ -671,37 +679,37 @@ void handleDisplay() {
     switch (currentDisplayState) {
         case STATE_MESSAGE_OVERRIDE:
             displayOverrideMessage();
-            break;
+break;
         case STATE_MALFUNCTION:
             handleMalfunction();
             break;
-        case STATE_ANIMATING:
+case STATE_ANIMATING:
             handleDisplayAnimation();
             break;
-        case STATE_MARQUEE_OVERRIDE:
+case STATE_MARQUEE_OVERRIDE:
             displayMarqueeOverride();
             break;
-        case STATE_STOCK_TICKER:
+case STATE_STOCK_TICKER:
             if (isMarketOpen() && (millis() - lastStockDataFetch > 300000)) {
                 lastStockDataFetch = millis();
-                for (int i=0; i<3; ++i) {
+for (int i=0; i<3; ++i) {
                     FetchDataParams* params = new FetchDataParams{ i, 0 };
-                    xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
+xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
                 }
             }
             updateStockTickerDisplay();
-            break;
+break;
         case STATE_DATA_LINK:
             fetchDataLink();
             updateMarqueeDisplay();
             break;
-        case STATE_WEATHER:
+case STATE_WEATHER:
             handleWeatherDisplay();
             break;
-        case STATE_NORMAL_CLOCK:
+case STATE_NORMAL_CLOCK:
         default:
             updateNormalClockDisplay();
-            break;
+break;
     }
 }
 
@@ -709,25 +717,6 @@ void handleDisplay() {
 void loop() {
     vTaskDelay(1);
     
-    static int prevWifiStatus = -1;
-    static BootSequenceState prevBootState = BOOT_INACTIVE;
-    static bool prevOverrideState = false;
-    static bool prevMqttConnected = false;
-    int currentWifiStatus = WiFi.status();
-    bool currentMqttConnected = mqttClient.connected();
-    if (currentWifiStatus != prevWifiStatus || bootState != prevBootState || isMessageOverrideActive != prevOverrideState || currentMqttConnected != prevMqttConnected) {
-        Serial.printf("STATUS_UPDATE -> WiFi: %d | Boot: %d | Override: %d | MQTT: %d\n",
-                      currentWifiStatus,
-                      bootState,
-                    
-                      isMessageOverrideActive,
-                      currentMqttConnected);
-        prevWifiStatus = currentWifiStatus;
-        prevBootState = bootState;
-        prevOverrideState = isMessageOverrideActive;
-        prevMqttConnected = currentMqttConnected;
-    }
-
     switch (wifiState) {
         case WIFI_STATE_CONNECTING:
             if (!logConnectingPrinted) {
@@ -820,74 +809,68 @@ void loop() {
                 publishAllHaStates();
                 lastHaStateUpdate = millis();
             }
+            
+            if (hardwareInitialized) {
+                if (bootState != BOOT_INACTIVE) {
+                    handleBootSequence();
+                } else {
+                    handleFlashEffect();
+
+                    if (isAnimating) {
+                        handleDisplayAnimation();
+                    } else if (isStyledAnimating) {
+                        handleStyledAnimation();
+                    } else {
+                        if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
+                            lastDisplayUpdateTime = millis();
+                            updateDisplayState();
+                            handleDisplay();
+                        }
+                    }
+                }
+            }
             break;
     }
-
     ArduinoOTA.handle();
-
-    if (hardwareInitialized) {
-        if (bootState != BOOT_INACTIVE) {
-            handleBootSequence();
-        } else {
-            handleFlashEffect();
-            if (isMarqueeOverrideActive && marqueeOverrideEndTime > 0 && millis() > marqueeOverrideEndTime) {
-                isMarqueeOverrideActive = false;
-                marqueeOverrideEndTime = 0;
-                publishAllHaStates();
-            }
-
-            if (isStyledAnimating) {
-                handleStyledAnimation();
-            }
-            
-            // Only update the display if enough time has passed
-            if (!isAnimating && !isStyledAnimating && (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL)) {
-                lastDisplayUpdateTime = millis();
-                // Call the new state machine functions
-                updateDisplayState();
-                handleDisplay();
-            }
-        }
-    }
 }
 void handleSequencer() {
     if (!isSequenceActive) return;
-    SequenceStep step = sequence[currentSequenceStep];
+SequenceStep step = sequence[currentSequenceStep];
     unsigned long elapsed = millis() - sequenceStepStartTime;
-    switch (step.command) {
+switch (step.command) {
         case SEQ_CMD_TEXT:
             if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
-            currentSequenceStep++;
+currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_FLASH:
             if (hardwareInitialized) triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
-            currentSequenceStep++;
+currentSequenceStep++;
             sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_SOUND:
             if (hardwareInitialized) playSound(step.stringParam.c_str());
-            currentSequenceStep++;
+currentSequenceStep++;
 			sequenceStepStartTime = millis();
             break;
         case SEQ_CMD_WAIT:
             if (elapsed >= (unsigned long)step.intParam) {
                 sequenceStepStartTime = millis();
-                currentSequenceStep++;
+currentSequenceStep++;
             }
             break;
-        case SEQ_CMD_END:
+case SEQ_CMD_END:
             isSequenceActive = false;
             currentSequenceStep = 0;
             break;
-    }
+}
 }
 
 void handlePresetCycling() {
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
-    if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
+if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis();
-    }
+}
 }
 
 /**
@@ -899,44 +882,44 @@ void handlePresetCycling() {
 void handleScheduledAnimation() {
     // Don't start a new animation if one is already playing, the display is off,
     // or the feature is disabled (interval is 0).
-    if (currentSettings.timeTravelAnimationInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
+if (currentSettings.timeTravelAnimationInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
         return;
-    }
+}
 
     // Check if the configured time in minutes has passed since the last animation.
-    if (millis() - lastScheduledAnimationTime > (unsigned long)currentSettings.timeTravelAnimationInterval * 60000) {
+if (millis() - lastScheduledAnimationTime > (unsigned long)currentSettings.timeTravelAnimationInterval * 60000) {
         startStyledAnimation();
-        lastScheduledAnimationTime = millis(); // Reset the timer for the next interval.
+lastScheduledAnimationTime = millis(); // Reset the timer for the next interval.
     }
 }
 
 void handleSleepSchedule() {
   if (!timeSynchronized) return;
-  struct tm timeinfo;
+struct tm timeinfo;
   getLocalTime(&timeinfo);
   
   int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
   int sleep_minutes = currentSettings.departureHour * 60 + currentSettings.departureMinute;
-  int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
+int wake_minutes = currentSettings.arrivalHour * 60 + currentSettings.arrivalMinute;
 
   bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
-                        (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
+(now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
                         (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
-  if (shouldBeAsleep && !isDisplayAsleep) {
+if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
-    if (hardwareInitialized) {
+if (hardwareInitialized) {
         blankAllDisplays();
         playSound("/SLEEP_ON.mp3");
     }
     updateHaStatus("Asleep");
-  } else if (!shouldBeAsleep && isDisplayAsleep) {
+} else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
-    if (hardwareInitialized) {
+if (hardwareInitialized) {
         updateNormalClockDisplay();
         playSound("/CONFIRM_ON.mp3");
     }
     updateHaStatus("Idle");
-  }
+}
 }
 
 bool isMarketOpen() {
@@ -945,15 +928,15 @@ bool isMarketOpen() {
     tzset();
     struct tm timeinfo;
     getLocalTime(&timeinfo);
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
 
     if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
         return false;
-    }
+}
 
     int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
     int market_open_minutes = 9 * 60 + 30;
-    int market_close_minutes = 16 * 60;
+int market_close_minutes = 16 * 60;
     return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
 }

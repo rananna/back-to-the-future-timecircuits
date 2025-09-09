@@ -64,7 +64,7 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  * @brief Initializes all physical display hardware.
  * @details This function sets up the two I2C buses with their designated GPIO pins.
  * It then initializes all 12 Adafruit_AlphaNum4 display objects, associating each
- * with its correct I2C address and bus. Finally, it configures the AM/PM indicator
+ * with its correct I2C address and bus. Finally, it newpinModeures the AM/PM indicator
  * LED pins and the I2S amplifier shutdown pin as outputs.
  */
 void setupPhysicalDisplay() {
@@ -191,7 +191,7 @@ void animateDisplayRowRandomly(DisplayRow& row, int flickerProbability) {
       sprintf(buffer, "%04d", random(1000, 9999));
       printToDisplay(row.year, buffer);
       row.year.writeDisplay();
-      vTaskDelay(pdMS_TO_TICKS(1)); 
+      vTaskDelay(pdMS_TO_TICKS(5)); 
     }
 
     // Animate month
@@ -199,7 +199,7 @@ void animateDisplayRowRandomly(DisplayRow& row, int flickerProbability) {
       const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
       printToDisplay(row.month, months[random(0,12)], 1); // Right justified
       row.month.writeDisplay();
-      vTaskDelay(pdMS_TO_TICKS(1)); 
+      vTaskDelay(pdMS_TO_TICKS(5)); 
     }
 
     // Animate day
@@ -207,7 +207,7 @@ void animateDisplayRowRandomly(DisplayRow& row, int flickerProbability) {
       sprintf(buffer, "%02d", random(1, 32));
       printToDisplay(row.day, buffer, 2); // Center justified
       row.day.writeDisplay();
-      vTaskDelay(pdMS_TO_TICKS(1)); 
+      vTaskDelay(pdMS_TO_TICKS(5)); 
     }
 
     // Animate time
@@ -215,7 +215,7 @@ void animateDisplayRowRandomly(DisplayRow& row, int flickerProbability) {
       sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
       printToDisplay(row.time, buffer);
       row.time.writeDisplay();
-      vTaskDelay(pdMS_TO_TICKS(1)); 
+      vTaskDelay(pdMS_TO_TICKS(5)); 
     }
   #endif
 }

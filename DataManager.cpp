@@ -28,39 +28,43 @@ String urlEncode(const char* msg) {
 // In DataManager.cpp
 
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
-    if (!path) {
+    if (!path || path[0] == '\0') {
         return JsonVariant();
     }
-    // Using dynamic allocation for the path copy prevents a stack buffer overflow,
-    // which could occur if a very long JSON path is provided by the user.
-    // This makes the function more robust against potentially malicious or malformed input.
-    size_t path_len = strlen(path) + 1;
-    char* path_copy = new char[path_len];
-    if (!path_copy) {
-        return JsonVariant(); // Allocation failed
+
+    // Use a stack-allocated buffer to avoid heap fragmentation.
+    // This is safer for long-running embedded systems.
+    const size_t max_path_len = 256; // A reasonable limit for JSON paths.
+    if (strlen(path) >= max_path_len) {
+        Serial.println("ERROR: JSON path is too long!");
+        return JsonVariant();
     }
-    strncpy(path_copy, path, path_len);
+    char path_copy[max_path_len];
+    strncpy(path_copy, path, max_path_len);
+    path_copy[max_path_len - 1] = '\0'; // Ensure null termination.
 
     JsonVariant current = root;
     char* context = NULL;
     char* token = strtok_r(path_copy, ".[]", &context);
     while (token != NULL) {
         if (current.isNull()) {
-            delete[] path_copy; // Clean up memory
             return JsonVariant();
         }
         if (current.is<JsonObject>()) {
             current = current[token];
         } else if (current.is<JsonArray>()) {
-            current = current[atoi(token)];
+            char* endptr;
+            long index = strtol(token, &endptr, 10);
+            if (*endptr == '\0') { // It's a valid number
+                 current = current[index];
+            } else { // It's a key in an object that happens to be a number-like string
+                 current = current[token];
+            }
         } else {
-            delete[] path_copy; // Clean up memory
             return JsonVariant();
         }
         token = strtok_r(NULL, ".[]", &context);
     }
-
-    delete[] path_copy; // Clean up memory before returning
     return current;
 }
 

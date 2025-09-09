@@ -249,7 +249,7 @@ void handleDisplayAnimation() {
                 isAnimating = false;
                 currentPhase = ANIM_INACTIVE;
                 lastPhase = ANIM_INACTIVE; // Reset for next run
-                updateNormalClockDisplay();
+                updateNormalClockDisplay(true, true, true);
                 updateHaStatus("Idle");
                 isEchoEffectActive = true;
                 echoEffectStartTime = millis();
@@ -658,14 +658,11 @@ void handleBootSequence() {
         case BOOT_FINAL_CHECKS:
             if (!stateActionCompleted) {
                 playSound("/engine_rev.mp3");
+                blankAllDisplays(); // Clear the previous state's text
                 stateActionCompleted = true;
             }
-            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
-                if (!stateActionCompleted) {
-                    blankAllDisplays();
-                    stateActionCompleted = true;
-                }
 
+            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
                 float progress = (float)elapsed / BOOT_FINAL_CHECKS_DURATION;
                 if (progress > 1.0) progress = 1.0;
                 float easedProgress = 1 - pow(1 - progress, 3); 
@@ -700,29 +697,30 @@ void handleBootSequence() {
         case BOOT_ARRIVAL:
             if (!stateActionCompleted) {
                 playSound("/arrival_chime.mp3");
+                
+                // Perform one-time display setup here
+                blankAllDisplays();
+                printToDisplay(destRow.year, "ARRI");
+                printToDisplay(destRow.time, "VAL");
+                printToDisplay(presRow.year, "OUTA");
+                printToDisplay(presRow.time, "TIME");
+
+                destRow.year.writeDisplay();
+                destRow.time.writeDisplay();
+                presRow.year.writeDisplay();
+                presRow.time.writeDisplay();
+
                 stateActionCompleted = true;
             }
-            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
-                if (!stateActionCompleted) {
-                    blankAllDisplays();
-                    printToDisplay(destRow.year, "ARRI");
-                    printToDisplay(destRow.time, "VAL");
-                    printToDisplay(presRow.year, "OUTA");
-                    printToDisplay(presRow.time, "TIME");
-
-                    destRow.year.writeDisplay();
-                    destRow.time.writeDisplay();
-                    presRow.year.writeDisplay();
-                    presRow.time.writeDisplay();
-                    stateActionCompleted = true;
-                }
-                if (elapsed > 3000) {
-                    printToDisplay(lastRow.year, "WEL");
-                    printToDisplay(lastRow.time, "COME");
-                    lastRow.year.writeDisplay();
-                    lastRow.time.writeDisplay();
-                }
+            
+            // This part handles the delayed appearance of "WELCOME"
+            if (elapsed > 3000) {
+                printToDisplay(lastRow.year, "WEL");
+                printToDisplay(lastRow.time, "COME");
+                lastRow.year.writeDisplay();
+                lastRow.time.writeDisplay();
             }
+
             if (elapsed > BOOT_ARRIVAL_DURATION) {
                 bootState = BOOT_COOL_DOWN;
                 bootStateStartTime = millis();

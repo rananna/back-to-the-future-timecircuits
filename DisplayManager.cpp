@@ -180,7 +180,7 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
 }
 
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
-  if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
+  if (isDisplayAsleep || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
   if (timeSynchronized) {
     time_t now_t;
