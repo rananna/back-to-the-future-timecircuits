@@ -329,7 +329,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/settings/temporal", HTTP_GET, [](AsyncWebServerRequest *request) {
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<384> doc;
     doc["departureHour"] = currentSettings.departureHour;
     doc["departureMinute"] = currentSettings.departureMinute;
     doc["arrivalHour"] = currentSettings.arrivalHour;
@@ -344,13 +344,6 @@ void setupWebRoutes() {
     doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
     doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
-    doc["useAnimationPlaylist"] = currentSettings.useAnimationPlaylist;
-
-    JsonArray playlist = doc.createNestedArray("animationPlaylist");
-    for (int style : currentSettings.animationPlaylist) {
-        playlist.add(style);
-    }
-
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -412,39 +405,6 @@ void setupWebRoutes() {
     preferences.end();
     request->send(200, "application/json", presets);
   });
-
-  server.on("/api/getQuotes", HTTP_GET, [](AsyncWebServerRequest *request) {
-    DynamicJsonDocument doc(1024);
-    JsonArray quotesArray = doc.to<JsonArray>();
-    for (const auto& quote : currentSettings.quotes) {
-        quotesArray.add(quote.c_str());
-    }
-    String response;
-    serializeJson(doc, response);
-    request->send(200, "application/json", response);
-  });
-
-  AsyncCallbackJsonWebHandler* saveQuotesHandler = new AsyncCallbackJsonWebHandler("/api/saveQuotes", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    JsonArray quotesArray = json.as<JsonArray>();
-    currentSettings.quotes.clear();
-    for (JsonVariant v : quotesArray) {
-        currentSettings.quotes.push_back(v.as<std::string>());
-    }
-    saveSettings(); // This will persist the quotes vector
-    request->send(200, "text/plain", "Quotes saved!");
-  });
-  server.addHandler(saveQuotesHandler);
-
-  AsyncCallbackJsonWebHandler* savePlaylistHandler = new AsyncCallbackJsonWebHandler("/api/savePlaylist", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    JsonArray playlistArray = json.as<JsonArray>();
-    currentSettings.animationPlaylist.clear();
-    for (JsonVariant v : playlistArray) {
-        currentSettings.animationPlaylist.push_back(v.as<int>());
-    }
-    saveSettings();
-    request->send(200, "text/plain", "Playlist saved!");
-  });
-  server.addHandler(savePlaylistHandler);
 
   server.on("/api/time", HTTP_GET, [](AsyncWebServerRequest *request) {
     time_t now;
