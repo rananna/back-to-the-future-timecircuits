@@ -252,42 +252,47 @@ void displaySpeedRamp(int speed) {
 
 // In HardwareControl.cpp
 
-void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp) {
+void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
+    // Calculate the animation progress with an easing function for a smoother effect.
     float progress = (float)elapsed / duration;
-    progress = 1 - pow(1 - progress, 3); // Ease-out curve
+    progress = 1 - pow(1 - progress, 3); // Ease-out curve.
 
+    // Calculate the current year to display based on progress.
     static int startYear = 0;
-    if(elapsed < 100) startYear = isCountingUp ? (destinationYear - 100) : random(1, 2100);
-
+    if(elapsed < 100) startYear = random(1, 2100); // Pick a new random start year each time.
     int currentYear = startYear + (destinationYear - startYear) * progress;
+    
+    // --- FIX: RESTORED MISSING VARIABLE DECLARATIONS ---
     char yearStr[5];
     sprintf(yearStr, "%04d", currentYear);
 
+    // Rapidly cycle other date/time fields based on elapsed time.
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+    int monthIndex = (elapsed / 50) % 12;
+    int day = (elapsed / 30) % 31 + 1;
+    int hour = (elapsed / 20) % 24;
+    int minute = (elapsed / 10) % 60;
+    char buffer[5];
+    // --- END OF FIX ---
+
+    // Update all three rows with the blurred time.
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i=0; i<3; ++i) {
         printToDisplay(rows[i]->year, yearStr);
-         
-        if (isCountingUp) {
-            // For "Counting Up", keep other fields static to focus on the year
-            printToDisplay(rows[i]->month, "---");
-            printToDisplay(rows[i]->day, "--", 2);
-            printToDisplay(rows[i]->time, "----");
-        } else {
-            // For "Timeline Skim", use a high-speed random blur effect
-            const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-            printToDisplay(rows[i]->month, months[(elapsed / 50) % 12], 1);
-            char buffer[5];
-            sprintf(buffer, "%02d", (elapsed / 30) % 31 + 1);
-            printToDisplay(rows[i]->day, buffer, 2);
-            sprintf(buffer, "%02d%02d", (elapsed / 20) % 24, (elapsed / 10) % 60);
-            printToDisplay(rows[i]->time, buffer);
-        }
+        printToDisplay(rows[i]->month, months[monthIndex], 1);
+        sprintf(buffer, "%02d", day);
+        printToDisplay(rows[i]->day, buffer, 2);
+        sprintf(buffer, "%02d%02d", hour, minute);
+        printToDisplay(rows[i]->time, buffer);
 
+        // Write the changes to the physical hardware.
         rows[i]->year.writeDisplay();
         rows[i]->month.writeDisplay();
         rows[i]->day.writeDisplay();
         rows[i]->time.writeDisplay();
+        
+        // Keep the cooperative delay to prevent bus saturation.
         vTaskDelay(pdMS_TO_TICKS(4)); 
     }
     #endif

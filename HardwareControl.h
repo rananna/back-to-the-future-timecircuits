@@ -218,7 +218,7 @@ void setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal);
 void updateDisplaySegment(Adafruit_AlphaNum4& display, const struct tm& timeinfo, int year, int segment);
 void animateDisplayRowRandomly(DisplayRow& row);
-void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp);
+void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
 void animateTornadoFlicker();
 void animateCapacitorChargeUp(unsigned long elapsed, int duration);
 void animateDigitalRain(unsigned long elapsed, int duration);

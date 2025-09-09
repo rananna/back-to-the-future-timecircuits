@@ -968,8 +968,13 @@ void publishAllHaStates() {
     itoa(currentSettings.notificationVolume, payload, 10);
     mqttClient.publish((base_topic + "/volume/state").c_str(), payload, true);
 
-    const char* styles[] = {"Sequential Flicker", "Random Flicker", "All Displays Random", "Counting Up", "Wave Flicker", "Tornado Flicker", "Capacitor Charge-Up", "Digital Rain", "Waveform Collapse", "Timeline Skim"};
-    if (currentSettings.animationStyle >= 0 && currentSettings.animationStyle < 10) {
+    const char* styles[] = {
+        "Sequential Flicker", "Random Flicker", "Tornado Flicker", 
+        "Capacitor Charge-Up", "Digital Rain", "Waveform Collapse", "Timeline Skim",
+        "Speedometer Overload", "Glitch & Rebuild", "Paradox Correction", "Digital Wormhole",
+        "Quote Ticker", "System Diagnostics", "Destination Preview"
+    };
+    if (currentSettings.animationStyle >= 0 && currentSettings.animationStyle < 14) {
         mqttClient.publish((base_topic + "/animation_style/state").c_str(), styles[currentSettings.animationStyle], true);
     }
     
