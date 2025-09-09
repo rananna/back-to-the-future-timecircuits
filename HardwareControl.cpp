@@ -183,32 +183,40 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year,
 
 // In HardwareControl.cpp
 
-void animateDisplayRowRandomly(DisplayRow& row) {
+void animateDisplayRowRandomly(DisplayRow& row, int flickerProbability) {
   #if ENABLE_HARDWARE
     char buffer[5];
     // Animate year
-    sprintf(buffer, "%04d", random(1000, 9999));
-    printToDisplay(row.year, buffer);
-    row.year.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); 
+    if(random(100) < flickerProbability) {
+      sprintf(buffer, "%04d", random(1000, 9999));
+      printToDisplay(row.year, buffer);
+      row.year.writeDisplay();
+      vTaskDelay(pdMS_TO_TICKS(1)); 
+    }
 
     // Animate month
-    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-    printToDisplay(row.month, months[random(0,12)], 1); // Right justified
-    row.month.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); 
+    if(random(100) < flickerProbability) {
+      const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+      printToDisplay(row.month, months[random(0,12)], 1); // Right justified
+      row.month.writeDisplay();
+      vTaskDelay(pdMS_TO_TICKS(1)); 
+    }
 
     // Animate day
-    sprintf(buffer, "%02d", random(1, 32));
-    printToDisplay(row.day, buffer, 2); // Center justified
-    row.day.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); 
+    if(random(100) < flickerProbability) {
+      sprintf(buffer, "%02d", random(1, 32));
+      printToDisplay(row.day, buffer, 2); // Center justified
+      row.day.writeDisplay();
+      vTaskDelay(pdMS_TO_TICKS(1)); 
+    }
 
     // Animate time
-    sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
-    printToDisplay(row.time, buffer);
-    row.time.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); 
+    if(random(100) < flickerProbability) {
+      sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
+      printToDisplay(row.time, buffer);
+      row.time.writeDisplay();
+      vTaskDelay(pdMS_TO_TICKS(1)); 
+    }
   #endif
 }
 void displaySpeed(int speed) {
@@ -252,47 +260,42 @@ void displaySpeedRamp(int speed) {
 
 // In HardwareControl.cpp
 
-void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
+void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp) {
     #if ENABLE_HARDWARE
-    // Calculate the animation progress with an easing function for a smoother effect.
     float progress = (float)elapsed / duration;
-    progress = 1 - pow(1 - progress, 3); // Ease-out curve.
+    progress = 1 - pow(1 - progress, 3); // Ease-out curve
 
-    // Calculate the current year to display based on progress.
     static int startYear = 0;
-    if(elapsed < 100) startYear = random(1, 2100); // Pick a new random start year each time.
+    if(elapsed < 100) startYear = isCountingUp ? (destinationYear - 100) : random(1, 2100);
+
     int currentYear = startYear + (destinationYear - startYear) * progress;
-    
-    // --- FIX: RESTORED MISSING VARIABLE DECLARATIONS ---
     char yearStr[5];
     sprintf(yearStr, "%04d", currentYear);
 
-    // Rapidly cycle other date/time fields based on elapsed time.
-    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-    int monthIndex = (elapsed / 50) % 12;
-    int day = (elapsed / 30) % 31 + 1;
-    int hour = (elapsed / 20) % 24;
-    int minute = (elapsed / 10) % 60;
-    char buffer[5];
-    // --- END OF FIX ---
-
-    // Update all three rows with the blurred time.
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i=0; i<3; ++i) {
         printToDisplay(rows[i]->year, yearStr);
-        printToDisplay(rows[i]->month, months[monthIndex], 1);
-        sprintf(buffer, "%02d", day);
-        printToDisplay(rows[i]->day, buffer, 2);
-        sprintf(buffer, "%02d%02d", hour, minute);
-        printToDisplay(rows[i]->time, buffer);
+         
+        if (isCountingUp) {
+            // For "Counting Up", keep other fields static to focus on the year
+            printToDisplay(rows[i]->month, "---");
+            printToDisplay(rows[i]->day, "--", 2);
+            printToDisplay(rows[i]->time, "----");
+        } else {
+            // For "Timeline Skim", use a high-speed random blur effect
+            const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+            printToDisplay(rows[i]->month, months[(elapsed / 50) % 12], 1);
+            char buffer[5];
+            sprintf(buffer, "%02d", (elapsed / 30) % 31 + 1);
+            printToDisplay(rows[i]->day, buffer, 2);
+            sprintf(buffer, "%02d%02d", (elapsed / 20) % 24, (elapsed / 10) % 60);
+            printToDisplay(rows[i]->time, buffer);
+        }
 
-        // Write the changes to the physical hardware.
         rows[i]->year.writeDisplay();
         rows[i]->month.writeDisplay();
         rows[i]->day.writeDisplay();
         rows[i]->time.writeDisplay();
-        
-        // Keep the cooperative delay to prevent bus saturation.
         vTaskDelay(pdMS_TO_TICKS(4)); 
     }
     #endif
@@ -322,9 +325,9 @@ void flashAllDisplays() {
 
 void animateTornadoFlicker() {
     #if ENABLE_HARDWARE
-    animateDisplayRowRandomly(destRow);
-    animateDisplayRowRandomly(presRow);
-    animateDisplayRowRandomly(lastRow);
+    animateDisplayRowRandomly(destRow, 100);
+    animateDisplayRowRandomly(presRow, 100);
+    animateDisplayRowRandomly(lastRow, 100);
     #endif
 }
 void animateRandomRealTimes() {
@@ -375,22 +378,41 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
 void animateDigitalRain(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
     const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    auto rainColumn = [&](Adafruit_AlphaNum4& d, Adafruit_AlphaNum4& p, Adafruit_AlphaNum4& l) {
-        char d_c[5], p_c[5], l_c[5];
-        for(int i=0; i<4; ++i) {
-            d_c[i] = chars[random(strlen(chars))];
-            p_c[i] = chars[random(strlen(chars))];
-            l_c[i] = chars[random(strlen(chars))];
+    static char rain[3][13];
+    if(elapsed < 100) { // Initialize on first run
+        for(int r=0; r<3; ++r) {
+            for(int c=0; c<13; ++c) {
+                rain[r][c] = chars[random(strlen(chars))];
+            }
         }
-        d_c[4] = p_c[4] = l_c[4] = '\0';
-        printToDisplay(d, d_c); d.writeDisplay();
-        printToDisplay(p, p_c); p.writeDisplay();
-        printToDisplay(l, l_c); l.writeDisplay();
-    };
-    rainColumn(destRow.month, presRow.month, lastRow.month);
-    rainColumn(destRow.day, presRow.day, lastRow.day);
-    rainColumn(destRow.year, presRow.year, lastRow.year);
-    rainColumn(destRow.time, presRow.time, lastRow.time);
+    }
+
+    // Shift characters down
+    for(int c=0; c<13; ++c) {
+        rain[2][c] = rain[1][c];
+        rain[1][c] = rain[0][c];
+        rain[0][c] = chars[random(strlen(chars))];
+    }
+
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    for(int r=0; r<3; ++r) {
+        char monthStr[4], dayStr[3], yearStr[5], timeStr[5];
+        strncpy(monthStr, &rain[r][0], 3); monthStr[3] = '\0';
+        strncpy(dayStr, &rain[r][3], 2); dayStr[2] = '\0';
+        strncpy(yearStr, &rain[r][5], 4); yearStr[4] = '\0';
+        strncpy(timeStr, &rain[r][9], 4); timeStr[4] = '\0';
+        
+        printToDisplay(rows[r]->month, monthStr, 1);
+        printToDisplay(rows[r]->day, dayStr, 2);
+        printToDisplay(rows[r]->year, yearStr);
+        printToDisplay(rows[r]->time, timeStr);
+
+        rows[r]->month.writeDisplay();
+        rows[r]->day.writeDisplay();
+        rows[r]->year.writeDisplay();
+        rows[r]->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
+    }
     #endif
 }
 
@@ -748,6 +770,28 @@ void animateCountingUp(unsigned long elapsed, int duration) {
         rows[i]->year.writeDisplay();
         rows[i]->time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(4)); 
+    }
+    #endif
+}
+
+void animateWaveFlicker(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    Adafruit_AlphaNum4* displays[] = {
+        &destRow.month, &destRow.day, &destRow.year, &destRow.time,
+        &presRow.month, &presRow.day, &presRow.year, &presRow.time,
+        &lastRow.month, &lastRow.day, &lastRow.year, &lastRow.time
+    };
+    int numDisplays = 12;
+    float progress = (float)elapsed / duration;
+    int wavePosition = progress * (numDisplays * 2);
+
+    for (int i = 0; i < numDisplays; i++) {
+        int distance = abs(i - wavePosition);
+        int brightness = 15 - (distance * 3);
+        if (brightness < 0) brightness = 0;
+        if (brightness > 15) brightness = 15;
+        displays[i]->setBrightness(brightness);
+        displays[i]->writeDisplay();
     }
     #endif
 }

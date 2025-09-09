@@ -187,7 +187,7 @@ enum AnimationStyle {
   ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
   ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
   ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
-  ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM
+  ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM, ANIMATION_RANDOM_ALL
 };
 
 // --- START: SEQUENCER DEFINITIONS ---
@@ -217,8 +217,8 @@ extern DisplayRow destRow, presRow, lastRow;
 void setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal);
 void updateDisplaySegment(Adafruit_AlphaNum4& display, const struct tm& timeinfo, int year, int segment);
-void animateDisplayRowRandomly(DisplayRow& row);
-void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
+void animateDisplayRowRandomly(DisplayRow& row, int flickerProbability = 100);
+void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp);
 void animateTornadoFlicker();
 void animateCapacitorChargeUp(unsigned long elapsed, int duration);
 void animateDigitalRain(unsigned long elapsed, int duration);
@@ -239,4 +239,5 @@ void animateRandomRealTimes();
 void applyBrightness();
 void animateSequentialFlicker(unsigned long elapsed, int duration);
 void animateCountingUp(unsigned long elapsed, int duration);
+void animateWaveFlicker(unsigned long elapsed, int duration);
 #endif // HARDWARE_CONTROL_H

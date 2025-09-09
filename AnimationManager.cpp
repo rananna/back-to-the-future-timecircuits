@@ -145,6 +145,15 @@ void handleDisplayAnimation() {
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - animationStartTime;
     static AnimationPhase lastPhase = ANIM_INACTIVE;
+    static AnimationStyle randomAnimationStyle = ANIMATION_RANDOM_ALL;
+
+    if (currentPhase == ANIM_POWER_UP && elapsed < 100) { // Pick a random animation only at the beginning
+        if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
+            randomAnimationStyle = (AnimationStyle)random(0, ANIMATION_RANDOM_ALL);
+        } else {
+            randomAnimationStyle = (AnimationStyle)currentSettings.animationStyle;
+        }
+    }
 
     // Detect when the animation phase changes to trigger the sound for the new phase.
     if (currentPhase != lastPhase) {
@@ -192,7 +201,43 @@ void handleDisplayAnimation() {
 
         case ANIM_ARRIVAL:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
-                animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
+                switch (randomAnimationStyle) { // Use the randomly selected style
+                    case ANIMATION_SEQUENTIAL_FLICKER:
+                        animateSequentialFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_RANDOM_FLICKER:
+                        // "Unstable Flux": Less intense, brief glitches
+                        updateNormalClockDisplay();
+                        animateDisplayRowRandomly(presRow, 10);
+                        break;
+                    case ANIMATION_COUNTING_UP:
+                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, true);
+                        break;
+                    case ANIMATION_TIMELINE_SKIM:
+                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, false);
+                        break;
+                    // The rest of the styles remain as they are, providing variety.
+                    case ANIMATION_WAVE_FLICKER:
+                        animateWaveFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_WAVEFORM_COLLAPSE:
+                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_CAPACITOR_CHARGE_UP:
+                        animateCapacitorChargeUp(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    case ANIMATION_DIGITAL_RAIN:
+                        animateDigitalRain(elapsed, currentSettings.timeTravelAnimationDuration);
+                        break;
+                    // These remain the most intense, fully random flickers
+                    case ANIMATION_ALL_DISPLAYS_RANDOM:
+                        animateRandomRealTimes();
+                        break;
+                    case ANIMATION_TORNADO_FLICKER:
+                    default:
+                        animateTornadoFlicker();
+                        break;
+                }
             } else {
                 currentPhase = ANIM_LANDING;
                 animationStartTime = millis();
@@ -243,6 +288,16 @@ void handleStyledAnimation() {
     if (!isStyledAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - styledAnimationStartTime;
+    static AnimationStyle randomAnimationStyle = ANIMATION_RANDOM_ALL;
+
+    if (currentStyledPhase == ANIM_POWER_UP && elapsed < 100) { // Pick a random animation only at the beginning
+        if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
+            randomAnimationStyle = (AnimationStyle)random(0, ANIMATION_RANDOM_ALL);
+        } else {
+            randomAnimationStyle = (AnimationStyle)currentSettings.animationStyle;
+        }
+    }
+
 
     switch (currentStyledPhase) {
         case ANIM_POWER_UP:
@@ -256,21 +311,22 @@ void handleStyledAnimation() {
 
         case ANIM_FLICKER:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
-                switch (currentSettings.animationStyle) {
+                switch (randomAnimationStyle) { // Use the randomly selected style
                     case ANIMATION_SEQUENTIAL_FLICKER:
                         animateSequentialFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_RANDOM_FLICKER:
-                        animateTornadoFlicker();
+                        updateNormalClockDisplay();
+                        animateDisplayRowRandomly(presRow, 10);
                         break;
                     case ANIMATION_ALL_DISPLAYS_RANDOM:
                         animateRandomRealTimes();
                         break;
                     case ANIMATION_COUNTING_UP:
-                        animateCountingUp(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, true);
                         break;
                     case ANIMATION_WAVE_FLICKER:
-                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateWaveFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_TORNADO_FLICKER:
                         animateTornadoFlicker();
@@ -285,7 +341,7 @@ void handleStyledAnimation() {
                         animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_TIMELINE_SKIM:
-                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
+                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, false);
                         break;
                     default:
                         animateTornadoFlicker();
