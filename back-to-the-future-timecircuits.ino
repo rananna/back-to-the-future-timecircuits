@@ -39,7 +39,7 @@ const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
 const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
-const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates. A lower value (e.g., 100) will be more responsive but use more processing power.
+const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates.
 
 // --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
 enum WifiState {
@@ -462,41 +462,26 @@ void loadSettings() {
         Serial.printf("Loaded avApiKey into currentSettings: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
-			tempString = preferences.getString((prefix + "url").c_str(), "");
-			currentSettings.dataPoints[i].url = tempString.c_str();
-			tempString = preferences.getString((prefix + "monthPath").c_str(), "");
-			currentSettings.dataPoints[i].monthPath = tempString.c_str();
-			tempString = preferences.getString((prefix + "dayPath").c_str(), "");
-			currentSettings.dataPoints[i].dayPath = tempString.c_str();
-			tempString = preferences.getString((prefix + "yearPath").c_str(), "");
-			currentSettings.dataPoints[i].yearPath = tempString.c_str();
-			tempString = preferences.getString((prefix + "timePath").c_str(), "");
-			currentSettings.dataPoints[i].timePath = tempString.c_str();
-			tempString = preferences.getString((prefix + "prefix").c_str(), "");
-			currentSettings.dataPoints[i].prefix = tempString.c_str();
-			tempString = preferences.getString((prefix + "suffix").c_str(), "");
-			currentSettings.dataPoints[i].suffix = tempString.c_str();
-			tempString = preferences.getString((prefix + "icon").c_str(), "");
-			currentSettings.dataPoints[i].icon = tempString.c_str();
-			currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
-			currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
-			tempString = preferences.getString((prefix + "topic").c_str(), "");
-			currentSettings.dataPoints[i].mqttTopic = tempString.c_str();
-			tempString = preferences.getString((prefix + "yearPrefix").c_str(), "");
-			currentSettings.dataPoints[i].yearPrefix = tempString.c_str();
-			tempString = preferences.getString((prefix + "yearSuffix").c_str(), "");
-			currentSettings.dataPoints[i].yearSuffix = tempString.c_str();
-			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
-			tempString = preferences.getString((prefix + "scrollTxt").c_str(), "");
-			currentSettings.dataPoints[i].scrollingText = tempString.c_str();
-			tempString = preferences.getString((prefix + "authKey").c_str(), "");
-			currentSettings.dataPoints[i].authHeaderKey = tempString.c_str();
-			tempString = preferences.getString((prefix + "authVal").c_str(), "");
-			currentSettings.dataPoints[i].authHeaderValue = tempString.c_str();
-			currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
-			tempString = preferences.getString((prefix + "reqBody").c_str(), "");
-			currentSettings.dataPoints[i].requestBody = tempString.c_str();
-			currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "url").c_str())) currentSettings.dataPoints[i].url = preferences.getString((prefix + "url").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "monthPath").c_str())) currentSettings.dataPoints[i].monthPath = preferences.getString((prefix + "monthPath").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "dayPath").c_str())) currentSettings.dataPoints[i].dayPath = preferences.getString((prefix + "dayPath").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "yearPath").c_str())) currentSettings.dataPoints[i].yearPath = preferences.getString((prefix + "yearPath").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "timePath").c_str())) currentSettings.dataPoints[i].timePath = preferences.getString((prefix + "timePath").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "prefix").c_str())) currentSettings.dataPoints[i].prefix = preferences.getString((prefix + "prefix").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "suffix").c_str())) currentSettings.dataPoints[i].suffix = preferences.getString((prefix + "suffix").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "icon").c_str())) currentSettings.dataPoints[i].icon = preferences.getString((prefix + "icon").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "scroll").c_str())) currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
+			if(preferences.isKey((prefix + "srcType").c_str())) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
+			if(preferences.isKey((prefix + "topic").c_str())) currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "yearPrefix").c_str())) currentSettings.dataPoints[i].yearPrefix = preferences.getString((prefix + "yearPrefix").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "yearSuffix").c_str())) currentSettings.dataPoints[i].yearSuffix = preferences.getString((prefix + "yearSuffix").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "dispMode").c_str())) currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
+			if(preferences.isKey((prefix + "scrollTxt").c_str())) currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "authKey").c_str())) currentSettings.dataPoints[i].authHeaderKey = preferences.getString((prefix + "authKey").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "authVal").c_str())) currentSettings.dataPoints[i].authHeaderValue = preferences.getString((prefix + "authVal").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "httpMethod").c_str())) currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
+			if(preferences.isKey((prefix + "reqBody").c_str())) currentSettings.dataPoints[i].requestBody = preferences.getString((prefix + "reqBody").c_str(), "").c_str();
+			if(preferences.isKey((prefix + "apiKey").c_str())) currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
 		}
 	}
 	preferences.end();
