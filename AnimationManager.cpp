@@ -242,6 +242,9 @@ void handleDisplayAnimation() {
             }
             break;
 
+        //#################################################################
+        //########################## FIX START ##########################
+        //#################################################################
         case ANIM_LANDING:
              if (elapsed < 1000) {
                 animateTornadoFlicker();
@@ -249,12 +252,15 @@ void handleDisplayAnimation() {
                 isAnimating = false;
                 currentPhase = ANIM_INACTIVE;
                 lastPhase = ANIM_INACTIVE; // Reset for next run
-                updateNormalClockDisplay(true, true, true);
+                // updateNormalClockDisplay(true, true, true); // THIS LINE IS REMOVED
                 updateHaStatus("Idle");
                 isEchoEffectActive = true;
                 echoEffectStartTime = millis();
             }
             break;
+        //#################################################################
+        //########################### FIX END ###########################
+        //#################################################################
         default:
             // Failsafe to prevent getting stuck in an unknown state
             isAnimating = false;

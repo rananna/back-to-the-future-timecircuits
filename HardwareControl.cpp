@@ -7,7 +7,7 @@
  */
 
 #include "HardwareControl.h"
-#include "EventManager.h" 
+#include "EventManager.h"
 #include "DisplayManager.h"
 #include "LittleFS.h"
 
@@ -706,24 +706,32 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
         &presRow.month, &presRow.day, &presRow.year, &presRow.time,
         &lastRow.month, &lastRow.day, &lastRow.year, &lastRow.time
     };
-    const char* labels[] = {"CPU", "MEM", "I2C1", "I2C2", "SND", "WIFI", "NTP", "MQTT", "SYS", "CORE", "STAT", "PWR"};
+    const char* labels[] = {"CPU", "ME", "I2C1", "I2C2", "SND", "WF", "NTP", "MQTT", "SYS", "CO", "STAT", "PWR"};
     const int numDisplays = 12;
-    const int phaseDuration = 300; // ms for each segment check
+    const int phaseDuration = 1200; // MODIFIED: Increased display time
 
     int activeIndex = (elapsed / phaseDuration) % numDisplays;
     int phaseTime = elapsed % phaseDuration;
 
     for (int i = 0; i < numDisplays; ++i) {
+        int segmentType = i % 4; // 0=month, 1=day, 2=year, 3=time
+        int justification = 0;
+        switch(segmentType) {
+            case 0: justification = 1; break; // Right-justified for month
+            case 1: justification = 2; break; // Center-justified for day
+            default: justification = 0; break; // Left-justified for year/time
+        }
+
         if (i < activeIndex) {
             // Segments that have already been "checked"
-            printToDisplay(*displays[i], "OK--");
+            printToDisplay(*displays[i], "OK--", justification);
         } else if (i == activeIndex) {
             // The currently active segment
             if (phaseTime < (phaseDuration / 2)) {
-                printToDisplay(*displays[i], labels[i]);
+                printToDisplay(*displays[i], labels[i], justification);
             } else {
                 if ((phaseTime / 100) % 2 == 0) {
-                     printToDisplay(*displays[i], "OK--");
+                     printToDisplay(*displays[i], "OK--", justification);
                 } else {
                      printToDisplay(*displays[i], "");
                 }
