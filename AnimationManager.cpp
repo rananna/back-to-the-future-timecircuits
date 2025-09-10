@@ -1,11 +1,3 @@
-/**
- * @file AnimationManager.cpp
- * @brief Manages all visual animations and special effects for the display.
- * @details This module contains the state machines and handlers for complex visual sequences
- * such as the time travel animation, boot sequence, and random glitch effects. It is designed
- * to be non-blocking to ensure smooth visual performance.
- */
-
 #include "AnimationManager.h"
 #include "EventManager.h"
 #include "HardwareControl.h"
@@ -46,6 +38,9 @@ bool isFlashing[3][4] = {{false}};
 unsigned long flashEndTimes[3][4] = {{0}};
 bool flashStates[3][4] = {{false}};
 unsigned long lastFlashToggle[3][4] = {{0}};
+
+// File-scoped variable to hold the chosen animation style for a single run
+static int randomAnimationStyle = -1;
 
 /**
  * @brief Triggers a temporary flashing effect on a specific display segment.
@@ -114,7 +109,7 @@ void handleFlashEffect() {
 
 // --- TIME TRAVEL ANIMATION ---
 void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
-    if (hardwareInitialized) {
+    if (hardwareInitialized && currentSettings.timeTravelSoundToggle) {
         playSound(filename);
     }
     nextPhaseAfterSound = nextPhase;
@@ -153,27 +148,20 @@ void handleDisplayAnimation() {
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - animationStartTime;
     static AnimationPhase lastPhase = ANIM_INACTIVE;
-    static AnimationStyle randomAnimationStyle = ANIMATION_RANDOM_ALL;
-
-    if (currentPhase == ANIM_POWER_UP && elapsed < 100) { // Pick a random animation only at the beginning
-        if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
-            randomAnimationStyle = (AnimationStyle)random(0, ANIMATION_RANDOM_ALL);
-        } else {
-            randomAnimationStyle = (AnimationStyle)currentSettings.animationStyle;
-        }
-    }
 
     // Detect when the animation phase changes to trigger the sound for the new phase.
     if (currentPhase != lastPhase) {
-        switch (currentPhase) {
-            case ANIM_POWER_UP:
-                playSound("engine_rev.mp3");
-                break;
-            case ANIM_ARRIVAL:
-                playSound("time_travel.mp3");
-                break;
-            default:
-                break; // No sound for other states
+        if (currentSettings.timeTravelSoundToggle) {
+            switch (currentPhase) {
+                case ANIM_POWER_UP:
+                    playSound("engine_rev.mp3");
+                    break;
+                case ANIM_ARRIVAL:
+                    playSound("time_travel.mp3");
+                    break;
+                default:
+                    break; // No sound for other states
+            }
         }
         lastPhase = currentPhase;
     }
@@ -207,48 +195,14 @@ void handleDisplayAnimation() {
 
         case ANIM_ARRIVAL:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
-                switch (randomAnimationStyle) { // Use the randomly selected style
-                    case ANIMATION_SEQUENTIAL_FLICKER:
-                        animateSequentialFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
-                        break;
-                    case ANIMATION_RANDOM_FLICKER:
-                        // "Unstable Flux": Less intense, brief glitches
-                        updateNormalClockDisplay();
-                        animateDisplayRowRandomly(presRow, 10);
-                        break;
-                    case ANIMATION_COUNTING_UP:
-                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, true);
-                        break;
-                    case ANIMATION_TIMELINE_SKIM:
-                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, false);
-                        break;
-                    // The rest of the styles remain as they are, providing variety.
-                    case ANIMATION_WAVE_FLICKER:
-                        animateWaveFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
-                        break;
-                    case ANIMATION_WAVEFORM_COLLAPSE:
-                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
-                        break;
-                    case ANIMATION_CAPACITOR_CHARGE_UP:
-                        animateCapacitorChargeUp(elapsed, currentSettings.timeTravelAnimationDuration);
-                        break;
-                    case ANIMATION_DIGITAL_RAIN:
-                        animateDigitalRain(elapsed, currentSettings.timeTravelAnimationDuration);
-                        break;
-                    // These remain the most intense, fully random flickers
-                    case ANIMATION_ALL_DISPLAYS_RANDOM:
-                        animateRandomRealTimes();
-                        break;
-                    case ANIMATION_TORNADO_FLICKER:
-                    default:
-                        animateTornadoFlicker();
-                        break;
-                }
+                // The main cinematic animation always uses the "Timeline Skim" effect.
+                animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, false);
             } else {
                 currentPhase = ANIM_LANDING;
                 animationStartTime = millis();
             }
             break;
+
         case ANIM_LANDING:
              if (elapsed < 1000) {
                 animateTornadoFlicker();
@@ -256,7 +210,7 @@ void handleDisplayAnimation() {
                 isAnimating = false;
                 currentPhase = ANIM_INACTIVE;
                 lastPhase = ANIM_INACTIVE; // Reset for next run
-                updateNormalClockDisplay(true, true, true);
+                updateNormalClockDisplay();
                 updateHaStatus("Idle");
                 isEchoEffectActive = true;
                 echoEffectStartTime = millis();
@@ -282,8 +236,15 @@ void startStyledAnimation() {
     if (isStyledAnimating || isAnimating) return; // Prevent animations from overlapping
     isStyledAnimating = true;
     styledAnimationStartTime = millis();
-    currentStyledPhase = ANIM_POWER_UP;
+    currentStyledPhase = ANIM_FLICKER; // Skip power up
     updateHaStatus("Animating");
+
+    // Set the animation style for this run
+    if (currentSettings.animationStyle == ANIMATION_RANDOM) {
+        randomAnimationStyle = random(0, 10);
+    } else {
+        randomAnimationStyle = currentSettings.animationStyle;
+    }
 }
 
 /**
@@ -293,48 +254,29 @@ void handleStyledAnimation() {
     if (!isStyledAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - styledAnimationStartTime;
-    static AnimationStyle randomAnimationStyle = ANIMATION_RANDOM_ALL;
-
-    if (currentStyledPhase == ANIM_POWER_UP && elapsed < 100) { // Pick a random animation only at the beginning
-        if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
-            randomAnimationStyle = (AnimationStyle)random(0, ANIMATION_RANDOM_ALL);
-        } else {
-            randomAnimationStyle = (AnimationStyle)currentSettings.animationStyle;
-        }
-    }
-
 
     switch (currentStyledPhase) {
-        case ANIM_POWER_UP:
-            if (elapsed < 2000) {
-                animateTornadoFlicker();
-            } else {
-                currentStyledPhase = ANIM_FLICKER;
-                styledAnimationStartTime = millis();
-            }
-            break;
-
         case ANIM_FLICKER:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
-                switch (randomAnimationStyle) { // Use the randomly selected style
+                switch (randomAnimationStyle) {
                     case ANIMATION_SEQUENTIAL_FLICKER:
                         animateSequentialFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_RANDOM_FLICKER:
-                        updateNormalClockDisplay();
-                        animateDisplayRowRandomly(presRow, 10);
-                        break;
-                    case ANIMATION_ALL_DISPLAYS_RANDOM:
-                        animateRandomRealTimes();
+                        // "Unstable Flux": Less intense, brief glitches
+                        if (random(100) < 30) animateTornadoFlicker();
+                        else updateNormalClockDisplay();
                         break;
                     case ANIMATION_COUNTING_UP:
                         animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, true);
                         break;
-                    case ANIMATION_WAVE_FLICKER:
-                        animateWaveFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
+                    case ANIMATION_TIMELINE_SKIM:
+                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, false);
                         break;
-                    case ANIMATION_TORNADO_FLICKER:
-                        animateTornadoFlicker();
+                    // The rest of the styles remain as they are, providing variety.
+                    case ANIMATION_WAVE_FLICKER:
+                    case ANIMATION_WAVEFORM_COLLAPSE:
+                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_CAPACITOR_CHARGE_UP:
                         animateCapacitorChargeUp(elapsed, currentSettings.timeTravelAnimationDuration);
@@ -342,12 +284,9 @@ void handleStyledAnimation() {
                     case ANIMATION_DIGITAL_RAIN:
                         animateDigitalRain(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
-                    case ANIMATION_WAVEFORM_COLLAPSE:
-                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
-                        break;
-                    case ANIMATION_TIMELINE_SKIM:
-                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, false);
-                        break;
+                    // These remain the most intense, fully random flickers
+                    case ANIMATION_ALL_DISPLAYS_RANDOM:
+                    case ANIMATION_TORNADO_FLICKER:
                     default:
                         animateTornadoFlicker();
                         break;
@@ -391,11 +330,9 @@ void handleTemporalEcho() {
         return;
     }
 
-    // Randomly flicker all displays
+    // Randomly flicker the "Present Time" display
     if (random(100) < 10) {
-        animateDisplayRowRandomly(destRow);
         animateDisplayRowRandomly(presRow);
-        animateDisplayRowRandomly(lastRow);
     }
 #endif
 }
@@ -408,7 +345,7 @@ void handleGlitchEffect() {
     if (millis() - lastGlitchTime > 1000) { // Check once per second
         lastGlitchTime = millis();
 
-        
+
         // Check for a major malfunction
         if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
             isMalfunctioning = true;
@@ -417,15 +354,15 @@ void handleGlitchEffect() {
             updateHaStatus("Malfunctioning");
             return; // Prioritize malfunction over a simple glitch
         }
-        
 
-        
+
+
         // Check for a minor glitch
         if (currentSettings.glitchEffectFrequency > 0 && random(100) < currentSettings.glitchEffectFrequency) {
             isGlitching = true;
             glitchStartTime = millis();
         }
-        
+
     }
 }
 /**
@@ -460,10 +397,10 @@ void handleMalfunction() {
 
         case MAL_ERROR_MESSAGE:
             if (elapsed < 3000) {
-                printToDisplay(presRow.month, "ERR", 1, 3);
-                printToDisplay(presRow.day, "", 2, 2);
-                printToDisplay(presRow.year, "FAIL", 0, 4);
-                printToDisplay(presRow.time, "----", 0, 4);
+                printToDisplay(presRow.month, "ERR", 1);
+                printToDisplay(presRow.day, "", 2);
+                printToDisplay(presRow.year, "FAIL");
+                printToDisplay(presRow.time, "----");
                 presRow.month.writeDisplay();
                 presRow.day.writeDisplay();
                 presRow.year.writeDisplay();
@@ -520,7 +457,7 @@ void handleBootSequence() {
     if (bootState != lastLoggedState) {
         Serial.printf("BOOT_LOG: Entering state %d. Elapsed: %lu ms.\n", bootState, elapsed);
         lastLoggedState = bootState;
-        stateActionCompleted = false; 
+        stateActionCompleted = false;
         typingStarted = false;
     }
 
@@ -546,7 +483,7 @@ void handleBootSequence() {
                 playSound("/relay_activation.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle || elapsed > 2000) {
+            if (audio.isRunning()) {
                 bootState = BOOT_COLD_START;
                 bootStateStartTime = millis();
             }
@@ -554,11 +491,9 @@ void handleBootSequence() {
         case BOOT_COLD_START:
             if (!stateActionCompleted) {
                 blankAllDisplays();
-                printToDisplay(destRow.month, "TIM", 1, 3);
-                printToDisplay(destRow.day, "E", 2, 2);
-                printToDisplay(destRow.year, "CIRC", 0, 4);
-                printToDisplay(destRow.time, "UITS", 0, 4);
-                destRow.month.writeDisplay();
+                printToDisplay(destRow.day, "TM", 2);
+                printToDisplay(destRow.year, "CIRC");
+                printToDisplay(destRow.time, "UITS");
                 destRow.day.writeDisplay();
                 destRow.year.writeDisplay();
                 destRow.time.writeDisplay();
@@ -573,7 +508,7 @@ void handleBootSequence() {
                 bootStateStartTime = millis();
             }
             break;
-        
+
         // --- FIX START: Decouple audio from animation ---
         case BOOT_FLUX_CAPACITOR_IGNITION:
             // This state now ONLY starts the sound and waits for it to begin playing.
@@ -582,7 +517,7 @@ void handleBootSequence() {
                 stateActionCompleted = true;
             }
             // Once the audio is confirmed to be running, move to the animation state.
-            if (audio.isRunning() || elapsed > 2000 || !currentSettings.timeTravelSoundToggle) { // Failsafe timeout of 2s
+            if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
                 bootState = BOOT_FLUX_CAPACITOR_ANIMATION;
                 bootStateStartTime = millis(); // Reset the timer for the animation phase
             }
@@ -603,10 +538,10 @@ void handleBootSequence() {
                     if ((elapsed / 250) % 2 == 0) {
                         displayStaticFluxText();
                     } else {
-                        printToDisplay(presRow.month, "", 0, 3);
-                        printToDisplay(presRow.day, "", 0, 2);
-                        printToDisplay(presRow.year, "", 0, 4);
-                        printToDisplay(presRow.time, "", 0, 4);
+                        printToDisplay(presRow.month, "");
+                        printToDisplay(presRow.day, "");
+                        printToDisplay(presRow.year, "");
+                        printToDisplay(presRow.time, "");
                         presRow.month.writeDisplay();
                         presRow.day.writeDisplay();
                         presRow.year.writeDisplay();
@@ -626,33 +561,33 @@ void handleBootSequence() {
                 playSound("/keypad_beeps.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
+            if (audio.isRunning()) {
                 int currentSecond = elapsed / 2000;
                 if (currentSecond != lastDiagSecond) {
                     blankAllDisplays();
                     if (currentSecond == 0) {
-                        printToDisplay(destRow.month, "CPU", 1, 3);
-                        printToDisplay(destRow.day, "OK", 2, 2);
+                        printToDisplay(destRow.month, "CPU", 1);
+                        printToDisplay(destRow.day, "OK", 2);
                         destRow.month.writeDisplay();
                         destRow.day.writeDisplay();
                     } else if (currentSecond == 1) {
-                        printToDisplay(presRow.month, "MEM", 1, 3);
-                        printToDisplay(presRow.day, "OK", 2, 2);
+                        printToDisplay(presRow.month, "MEM", 1);
+                        printToDisplay(presRow.day, "OK", 2);
                         presRow.month.writeDisplay();
                         presRow.day.writeDisplay();
                     } else if (currentSecond == 2) {
-                        printToDisplay(lastRow.month, "WFI", 1, 3);
-                        printToDisplay(lastRow.day, "OK", 2, 2);
+                        printToDisplay(lastRow.month, "WFI", 1);
+                        printToDisplay(lastRow.day, "OK", 2);
                         lastRow.month.writeDisplay();
                         lastRow.day.writeDisplay();
                     } else if (currentSecond == 3) {
-                        printToDisplay(lastRow.month, "IP", 1, 3);
-                        printToDisplay(lastRow.day, "OK", 2, 2);
+                        printToDisplay(lastRow.month, "IP", 1);
+                        printToDisplay(lastRow.day, "OK", 2);
                         lastRow.month.writeDisplay();
                         lastRow.day.writeDisplay();
                     } else if (currentSecond == 4) {
-                        printToDisplay(lastRow.month, "MQT", 1, 3);
-                        printToDisplay(lastRow.day, "OK", 2, 2);
+                        printToDisplay(lastRow.month, "MQT", 1);
+                        printToDisplay(lastRow.day, "OK", 2);
                         lastRow.month.writeDisplay();
                         lastRow.day.writeDisplay();
                     }
@@ -667,21 +602,24 @@ void handleBootSequence() {
         case BOOT_FINAL_CHECKS:
             if (!stateActionCompleted) {
                 playSound("/engine_rev.mp3");
-                blankAllDisplays(); // Clear the previous state's text
                 stateActionCompleted = true;
             }
+            if (audio.isRunning()) {
+                if (!stateActionCompleted) {
+                    blankAllDisplays();
+                    stateActionCompleted = true;
+                }
 
-            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
                 float progress = (float)elapsed / BOOT_FINAL_CHECKS_DURATION;
                 if (progress > 1.0) progress = 1.0;
-                float easedProgress = 1 - pow(1 - progress, 3); 
+                float easedProgress = 1 - pow(1 - progress, 3);
                 int speed = 1 + (easedProgress * 87);
                 if (speed > 88) speed = 88;
 
                 displaySpeedRamp(speed);
 
-                printToDisplay(destRow.year, "SYS", 0, 4);
-                printToDisplay(destRow.time, "GO", 0, 4);
+                printToDisplay(destRow.year, "SYS");
+                printToDisplay(destRow.time, "GO");
                 destRow.year.writeDisplay();
                 destRow.time.writeDisplay();
             }
@@ -695,7 +633,7 @@ void handleBootSequence() {
                 playSound("/time_travel.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
+            if (audio.isRunning()) {
                 animateRandomRealTimes();
             }
             if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
@@ -706,30 +644,29 @@ void handleBootSequence() {
         case BOOT_ARRIVAL:
             if (!stateActionCompleted) {
                 playSound("/arrival_chime.mp3");
-                
-                // Perform one-time display setup here
-                blankAllDisplays();
-                printToDisplay(destRow.year, "ARRI", 0, 4);
-                printToDisplay(destRow.time, "VAL", 0, 4);
-                printToDisplay(presRow.year, "OUTA", 0, 4);
-                printToDisplay(presRow.time, "TIME", 0, 4);
-
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
-
                 stateActionCompleted = true;
             }
-            
-            // This part handles the delayed appearance of "WELCOME"
-            if (elapsed > 3000) {
-                printToDisplay(lastRow.year, "WEL", 0, 4);
-                printToDisplay(lastRow.time, "COME", 0, 4);
-                lastRow.year.writeDisplay();
-                lastRow.time.writeDisplay();
-            }
+            if (audio.isRunning()) {
+                if (!stateActionCompleted) {
+                    blankAllDisplays();
+                    printToDisplay(destRow.year, "ARRI");
+                    printToDisplay(destRow.time, "VAL");
+                    printToDisplay(presRow.year, "OUTA");
+                    printToDisplay(presRow.time, "TIME");
 
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
+                    stateActionCompleted = true;
+                }
+                if (elapsed > 3000) {
+                    printToDisplay(lastRow.year, "WEL");
+                    printToDisplay(lastRow.time, "COME");
+                    lastRow.year.writeDisplay();
+                    lastRow.time.writeDisplay();
+                }
+            }
             if (elapsed > BOOT_ARRIVAL_DURATION) {
                 bootState = BOOT_COOL_DOWN;
                 bootStateStartTime = millis();
@@ -773,8 +710,21 @@ void handleBootSequence() {
             if (elapsed > 500) {
                 isMessageOverrideActive = false;
                 bootState = BOOT_INACTIVE;
-                
-                applyBrightness();
+
+                uint8_t saved_brightness = round((currentSettings.brightness / 7.0) * 15.0);
+
+                destRow.month.setBrightness(saved_brightness);
+                destRow.day.setBrightness(saved_brightness);
+                destRow.year.setBrightness(saved_brightness);
+                destRow.time.setBrightness(saved_brightness);
+                presRow.month.setBrightness(saved_brightness);
+                presRow.day.setBrightness(saved_brightness);
+                presRow.year.setBrightness(saved_brightness);
+                presRow.time.setBrightness(saved_brightness);
+                lastRow.month.setBrightness(saved_brightness);
+                lastRow.day.setBrightness(saved_brightness);
+                lastRow.year.setBrightness(saved_brightness);
+                lastRow.time.setBrightness(saved_brightness);
 
                 if (hardwareInitialized) updateNormalClockDisplay();
                 Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
@@ -855,6 +805,7 @@ void handleTemporalGlitch() {
             // for a more realistic "glitching" effect.
             if (random(100) < 50) {
                 animateDisplayRowRandomly(presRow);
+                
             } else {
                 // Briefly show the correct time.
                 updateNormalClockDisplay(false, true, false);
@@ -863,7 +814,7 @@ void handleTemporalGlitch() {
     } else {
         // The glitch effect is over.
         isGlitching = false;
-        
+
         // Explicitly restore all displays to their normal state.
         resetDisplayToNormal();
     }

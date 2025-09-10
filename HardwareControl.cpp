@@ -583,32 +583,31 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
 
   for (int i = 0; i < len; i++) {
     int displayIndex, digitIndex;
-    if (i < 3) { 
+    if (i < 3) { // month, 3 chars
         displayIndex = 0;
-        digitIndex = i; 
-    } else if (i < 5) { 
+        digitIndex = i; // FIX: Was i + 1
+    } else if (i < 5) { // day, 2 chars
         displayIndex = 1;
-        digitIndex = i - 3; 
-    } else if (i < 9) { 
+        digitIndex = i - 3; // FIX: Was (i - 3) + 1
+    } else if (i < 9) { // year, 4 chars
         displayIndex = 2;
         digitIndex = i - 5;
-    } else { 
+    } else { // time, 4 chars
         displayIndex = 3;
         digitIndex = i - 9;
     }
     
     displays[displayIndex]->writeDigitAscii(digitIndex, text[i]);
-    displays[displayIndex]->writeDisplay();
-
+    
     if (withCursor && (i + 1 < len)) {
         int next_i = i + 1;
         int nextDisplayIndex, nextDigitIndex;
         if (next_i < 3) {
             nextDisplayIndex = 0;
-            nextDigitIndex = next_i;
+            nextDigitIndex = next_i; // FIX
         } else if (next_i < 5) {
             nextDisplayIndex = 1;
-            nextDigitIndex = next_i - 3;
+            nextDigitIndex = next_i - 3; // FIX
         } else if (next_i < 9) {
             nextDisplayIndex = 2;
             nextDigitIndex = next_i - 5;
@@ -618,12 +617,29 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
         }
         displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, '_');
         displays[nextDisplayIndex]->writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(typeDelay / 2));
+    }
+    
+    displays[displayIndex]->writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(typeDelay));
+
+    if (withCursor && (i + 1 < len)) {
+        int next_i = i + 1;
+        int nextDisplayIndex, nextDigitIndex;
+        if (next_i < 3) {
+            nextDisplayIndex = 0;
+            nextDigitIndex = next_i; // FIX
+        } else if (next_i < 5) {
+            nextDisplayIndex = 1;
+            nextDigitIndex = next_i - 3; // FIX
+        } else if (next_i < 9) {
+            nextDisplayIndex = 2;
+            nextDigitIndex = next_i - 5;
+        } else {
+            nextDisplayIndex = 3;
+            nextDigitIndex = next_i - 9;
+        }
         displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, ' ');
         displays[nextDisplayIndex]->writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(typeDelay / 2));
-    } else {
-      vTaskDelay(pdMS_TO_TICKS(typeDelay));
     }
   }
   #endif
