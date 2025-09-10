@@ -553,9 +553,11 @@ void handleBootSequence() {
         case BOOT_COLD_START:
             if (!stateActionCompleted) {
                 blankAllDisplays();
-                printToDisplay(destRow.day, "TM", 2, 2);
+                printToDisplay(destRow.month, "TIM", 1, 3);
+                printToDisplay(destRow.day, "E", 2, 2);
                 printToDisplay(destRow.year, "CIRC", 0, 4);
                 printToDisplay(destRow.time, "UITS", 0, 4);
+                destRow.month.writeDisplay();
                 destRow.day.writeDisplay();
                 destRow.year.writeDisplay();
                 destRow.time.writeDisplay();

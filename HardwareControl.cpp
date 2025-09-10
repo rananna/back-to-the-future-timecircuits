@@ -43,15 +43,26 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
   int len = strlen(text);
   int startPos = 0;
 
-  // Calculate the starting position based on justification and actual width.
+  // Calculate the starting position based on justification and logical width.
   if (justification == 1) { // Right Justify
     startPos = width - len;
   } else if (justification == 2) { // Center Justify
     startPos = (width - len) / 2;
   }
 
-  // Write characters to the display buffer, respecting the physical width.
-  for (int i = 0; i < width; i++) {
+  // FIX: Apply a physical offset for the month and day displays.
+  // This shifts the text one character to the right as requested.
+  if (width == 3 || width == 2) {
+      startPos += 1;
+  }
+
+  // Ensure start position is non-negative
+  if (startPos < 0) {
+      startPos = 0;
+  }
+
+  // FIX: The loop must iterate over all 4 physical characters of the display segment.
+  for (int i = 0; i < 4; i++) {
     if (i >= startPos && i < (startPos + len)) {
       display.writeDigitAscii(i, text[i - startPos]);
     } else {
