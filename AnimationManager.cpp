@@ -685,7 +685,7 @@ void handleBootSequence() {
             {
                 float progress = (float)elapsed / BOOT_COOL_DOWN_DURATION;
                 if (progress > 1.0) progress = 1.0;
-                uint8_t brightness = 15 * (1.0 - progress);
+                uint8_t brightness = 7 * (1.0 - progress);
 
                 destRow.month.setBrightness(brightness);
                 destRow.day.setBrightness(brightness);
@@ -711,7 +711,7 @@ void handleBootSequence() {
                 isMessageOverrideActive = false;
                 bootState = BOOT_INACTIVE;
 
-                uint8_t saved_brightness = round((currentSettings.brightness / 7.0) * 15.0);
+                uint8_t saved_brightness = currentSettings.brightness;
 
                 destRow.month.setBrightness(saved_brightness);
                 destRow.day.setBrightness(saved_brightness);
