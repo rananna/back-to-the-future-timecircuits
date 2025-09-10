@@ -195,10 +195,10 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
         
         struct tm dest_timeinfo = {0};
         dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
-        dest_timeinfo.tm_mon = current_timeinfo.tm_mon; // Use current month
-        dest_timeinfo.tm_mday = current_timeinfo.tm_mday; // Use current day
-        dest_timeinfo.tm_hour = current_timeinfo.tm_hour; // Use current hour
-        dest_timeinfo.tm_min = current_timeinfo.tm_min; // Use current minute
+        dest_timeinfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
+        dest_timeinfo.tm_mday = currentSettings.lastTimeDepartedDay;
+        dest_timeinfo.tm_hour = currentSettings.departureHour;
+        dest_timeinfo.tm_min = currentSettings.departureMinute;
         
         if (!isRowInManualMode[0]) {
             updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
