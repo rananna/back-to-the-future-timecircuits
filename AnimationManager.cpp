@@ -500,7 +500,14 @@ void handleBootSequence() {
                 stateActionCompleted = true;
             }
             if (elapsed > 1000 && !typingStarted) {
-                typeTextOnDisplay(presRow, " INITIATE PWR", 100, true);
+                printToDisplay(presRow.month, "INI");
+                printToDisplay(presRow.day, "TI", 2);
+                printToDisplay(presRow.year, "ATE");
+                printToDisplay(presRow.time, "PWR");
+                presRow.month.writeDisplay();
+                presRow.day.writeDisplay();
+                presRow.year.writeDisplay();
+                presRow.time.writeDisplay();
                 typingStarted = true;
             }
             if (elapsed > BOOT_COLD_START_DURATION) {
