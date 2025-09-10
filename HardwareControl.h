@@ -227,7 +227,7 @@ void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYea
 void blankAllDisplays();
 void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
 void playSound(const char* filepath);
-void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
+void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0, int width = 4);
 void displaySpeed(int speed);
 void displaySpeedRamp(int speed);
 void flashAllDisplays();

@@ -459,10 +459,10 @@ void handleMalfunction() {
 
         case MAL_ERROR_MESSAGE:
             if (elapsed < 3000) {
-                printToDisplay(presRow.month, "ERR", 1);
-                printToDisplay(presRow.day, "", 2);
-                printToDisplay(presRow.year, "FAIL");
-                printToDisplay(presRow.time, "----");
+                printToDisplay(presRow.month, "ERR", 1, 3);
+                printToDisplay(presRow.day, "", 2, 2);
+                printToDisplay(presRow.year, "FAIL", 0, 4);
+                printToDisplay(presRow.time, "----", 0, 4);
                 presRow.month.writeDisplay();
                 presRow.day.writeDisplay();
                 presRow.year.writeDisplay();
@@ -553,9 +553,9 @@ void handleBootSequence() {
         case BOOT_COLD_START:
             if (!stateActionCompleted) {
                 blankAllDisplays();
-                printToDisplay(destRow.day, "TM", 2);
-                printToDisplay(destRow.year, "CIRC");
-                printToDisplay(destRow.time, "UITS");
+                printToDisplay(destRow.day, "TM", 2, 2);
+                printToDisplay(destRow.year, "CIRC", 0, 4);
+                printToDisplay(destRow.time, "UITS", 0, 4);
                 destRow.day.writeDisplay();
                 destRow.year.writeDisplay();
                 destRow.time.writeDisplay();
@@ -600,10 +600,10 @@ void handleBootSequence() {
                     if ((elapsed / 250) % 2 == 0) {
                         displayStaticFluxText();
                     } else {
-                        printToDisplay(presRow.month, "");
-                        printToDisplay(presRow.day, "");
-                        printToDisplay(presRow.year, "");
-                        printToDisplay(presRow.time, "");
+                        printToDisplay(presRow.month, "", 0, 3);
+                        printToDisplay(presRow.day, "", 0, 2);
+                        printToDisplay(presRow.year, "", 0, 4);
+                        printToDisplay(presRow.time, "", 0, 4);
                         presRow.month.writeDisplay();
                         presRow.day.writeDisplay();
                         presRow.year.writeDisplay();
@@ -628,28 +628,28 @@ void handleBootSequence() {
                 if (currentSecond != lastDiagSecond) {
                     blankAllDisplays();
                     if (currentSecond == 0) {
-                        printToDisplay(destRow.month, "CPU", 1);
-                        printToDisplay(destRow.day, "OK", 2);
+                        printToDisplay(destRow.month, "CPU", 1, 3);
+                        printToDisplay(destRow.day, "OK", 2, 2);
                         destRow.month.writeDisplay();
                         destRow.day.writeDisplay();
                     } else if (currentSecond == 1) {
-                        printToDisplay(presRow.month, "MEM", 1);
-                        printToDisplay(presRow.day, "OK", 2);
+                        printToDisplay(presRow.month, "MEM", 1, 3);
+                        printToDisplay(presRow.day, "OK", 2, 2);
                         presRow.month.writeDisplay();
                         presRow.day.writeDisplay();
                     } else if (currentSecond == 2) {
-                        printToDisplay(lastRow.month, "WFI", 1);
-                        printToDisplay(lastRow.day, "OK", 2);
+                        printToDisplay(lastRow.month, "WFI", 1, 3);
+                        printToDisplay(lastRow.day, "OK", 2, 2);
                         lastRow.month.writeDisplay();
                         lastRow.day.writeDisplay();
                     } else if (currentSecond == 3) {
-                        printToDisplay(lastRow.month, "IP", 1);
-                        printToDisplay(lastRow.day, "OK", 2);
+                        printToDisplay(lastRow.month, "IP", 1, 3);
+                        printToDisplay(lastRow.day, "OK", 2, 2);
                         lastRow.month.writeDisplay();
                         lastRow.day.writeDisplay();
                     } else if (currentSecond == 4) {
-                        printToDisplay(lastRow.month, "MQT", 1);
-                        printToDisplay(lastRow.day, "OK", 2);
+                        printToDisplay(lastRow.month, "MQT", 1, 3);
+                        printToDisplay(lastRow.day, "OK", 2, 2);
                         lastRow.month.writeDisplay();
                         lastRow.day.writeDisplay();
                     }
@@ -677,8 +677,8 @@ void handleBootSequence() {
 
                 displaySpeedRamp(speed);
 
-                printToDisplay(destRow.year, "SYS");
-                printToDisplay(destRow.time, "GO");
+                printToDisplay(destRow.year, "SYS", 0, 4);
+                printToDisplay(destRow.time, "GO", 0, 4);
                 destRow.year.writeDisplay();
                 destRow.time.writeDisplay();
             }
@@ -706,10 +706,10 @@ void handleBootSequence() {
                 
                 // Perform one-time display setup here
                 blankAllDisplays();
-                printToDisplay(destRow.year, "ARRI");
-                printToDisplay(destRow.time, "VAL");
-                printToDisplay(presRow.year, "OUTA");
-                printToDisplay(presRow.time, "TIME");
+                printToDisplay(destRow.year, "ARRI", 0, 4);
+                printToDisplay(destRow.time, "VAL", 0, 4);
+                printToDisplay(presRow.year, "OUTA", 0, 4);
+                printToDisplay(presRow.time, "TIME", 0, 4);
 
                 destRow.year.writeDisplay();
                 destRow.time.writeDisplay();
@@ -721,8 +721,8 @@ void handleBootSequence() {
             
             // This part handles the delayed appearance of "WELCOME"
             if (elapsed > 3000) {
-                printToDisplay(lastRow.year, "WEL");
-                printToDisplay(lastRow.time, "COME");
+                printToDisplay(lastRow.year, "WEL", 0, 4);
+                printToDisplay(lastRow.time, "COME", 0, 4);
                 lastRow.year.writeDisplay();
                 lastRow.time.writeDisplay();
             }
