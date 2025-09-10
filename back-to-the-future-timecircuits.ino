@@ -874,16 +874,18 @@ void handlePresetCycling() {
  * animation sequence after the specified number of minutes.
  */
 void handleScheduledAnimation() {
-    // Don't start a new animation if one is already playing, the display is off,
-    // or the feature is disabled (interval is 0).
     if (currentSettings.timeTravelAnimationInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
         return;
     }
 
-    // Check if the configured time in minutes has passed since the last animation.
-    if (millis() - lastScheduledAnimationTime > (unsigned long)currentSettings.timeTravelAnimationInterval * 60000) {
+    // NEW: Reset the timer once right after the boot sequence completes.
+    if (lastScheduledAnimationTime == 0 && bootState == BOOT_INACTIVE) {
+        lastScheduledAnimationTime = millis();
+    }
+
+    if (lastScheduledAnimationTime > 0 && (millis() - lastScheduledAnimationTime > (unsigned long)currentSettings.timeTravelAnimationInterval * 60000)) {
         startStyledAnimation();
-        lastScheduledAnimationTime = millis(); // Reset the timer for the next interval.
+        lastScheduledAnimationTime = millis();
     }
 }
 
