@@ -553,6 +553,7 @@ void handleBootSequence() {
         case BOOT_COLD_START:
             if (!stateActionCompleted) {
                 blankAllDisplays();
+                // FIX: Correctly display "TIME CIRCUITS"
                 printToDisplay(destRow.month, "TIM", 1, 3);
                 printToDisplay(destRow.day, "E", 2, 2);
                 printToDisplay(destRow.year, "CIRC", 0, 4);

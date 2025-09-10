@@ -49,7 +49,7 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
   } else if (justification == 2) { // Center Justify
     startPos = (width - len) / 2;
   }
-
+  
   // FIX: Apply a physical offset for the month and day displays.
   // This shifts the text one character to the right as requested.
   if (width == 3 || width == 2) {
@@ -585,10 +585,10 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
     int displayIndex, digitIndex;
     if (i < 3) { 
         displayIndex = 0;
-        digitIndex = i + 1; 
+        digitIndex = i; 
     } else if (i < 5) { 
         displayIndex = 1;
-        digitIndex = (i - 3) + 1; 
+        digitIndex = i - 3; 
     } else if (i < 9) { 
         displayIndex = 2;
         digitIndex = i - 5;
@@ -604,10 +604,10 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
         int nextDisplayIndex, nextDigitIndex;
         if (next_i < 3) {
             nextDisplayIndex = 0;
-            nextDigitIndex = next_i + 1;
+            nextDigitIndex = next_i;
         } else if (next_i < 5) {
             nextDisplayIndex = 1;
-            nextDigitIndex = (next_i - 3) + 1;
+            nextDigitIndex = next_i - 3;
         } else if (next_i < 9) {
             nextDisplayIndex = 2;
             nextDigitIndex = next_i - 5;
@@ -627,10 +627,10 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
         int nextDisplayIndex, nextDigitIndex;
         if (next_i < 3) {
             nextDisplayIndex = 0;
-            nextDigitIndex = next_i + 1;
+            nextDigitIndex = next_i;
         } else if (next_i < 5) {
             nextDisplayIndex = 1;
-            nextDigitIndex = (next_i - 3) + 1;
+            nextDigitIndex = next_i - 3;
         } else if (next_i < 9) {
             nextDisplayIndex = 2;
             nextDigitIndex = next_i - 5;
