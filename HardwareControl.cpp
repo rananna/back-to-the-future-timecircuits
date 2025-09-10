@@ -36,20 +36,21 @@ extern bool isPlayingSound;
  * @param display The Adafruit_AlphaNum4 object to write to.
  * @param text The C-string to display.
  * @param justification 0 for left, 1 for right, 2 for center.
+ * @param width The physical character width of the display segment.
  */
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification, int width) {
   display.clear();
   int len = strlen(text);
   int startPos = 0;
 
-  // Calculate the starting position based on justification.
+  // Calculate the starting position based on justification and actual width.
   if (justification == 1) { // Right Justify
     startPos = width - len;
   } else if (justification == 2) { // Center Justify
     startPos = (width - len) / 2;
   }
 
-  // Write characters to the display buffer.
+  // Write characters to the display buffer, respecting the physical width.
   for (int i = 0; i < width; i++) {
     if (i >= startPos && i < (startPos + len)) {
       display.writeDigitAscii(i, text[i - startPos]);
@@ -350,11 +351,11 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
     int phase = elapsed / (duration / 3);
     float progress = (float)(elapsed % (duration / 3)) / (duration / 3);
-    int charsToShow = progress * 16; 
+    int charsToShow = progress * 13; // Use 13 for total display width (3+2+4+4)
 
     auto fillRow = [&](DisplayRow& row, int numChars) {
-        char buffer[17] = "################";
-        if (numChars < 16) buffer[numChars] = '\0';
+        char buffer[14] = "#############";
+        if (numChars < 13) buffer[numChars] = '\0';
         printToDisplay(row.month, String(buffer).substring(0, 3).c_str(), 1, 3);
         printToDisplay(row.day, String(buffer).substring(3, 5).c_str(), 2, 2);
         printToDisplay(row.year, String(buffer).substring(5, 9).c_str(), 0, 4);
@@ -365,11 +366,11 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     if (phase == 0) { 
         fillRow(lastRow, charsToShow);
     } else if (phase == 1) { 
-        fillRow(lastRow, 16);
+        fillRow(lastRow, 13);
         fillRow(presRow, charsToShow);
     } else { 
-        fillRow(lastRow, 16);
-        fillRow(presRow, 16);
+        fillRow(lastRow, 13);
+        fillRow(presRow, 13);
         fillRow(destRow, charsToShow);
     }
     #endif
