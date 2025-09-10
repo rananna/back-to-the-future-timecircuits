@@ -500,14 +500,7 @@ void handleBootSequence() {
                 stateActionCompleted = true;
             }
             if (elapsed > 1000 && !typingStarted) {
-                printToDisplay(presRow.month, "INI");
-                printToDisplay(presRow.day, "TI", 2);
-                printToDisplay(presRow.year, "ATE");
-                printToDisplay(presRow.time, "PWR");
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
+                typeTextOnDisplay(presRow, "INITIATE PWR", 100, true);
                 typingStarted = true;
             }
             if (elapsed > BOOT_COLD_START_DURATION) {
@@ -651,23 +644,28 @@ void handleBootSequence() {
         case BOOT_ARRIVAL:
             if (!stateActionCompleted) {
                 playSound("/arrival_chime.mp3");
-                blankAllDisplays();
-                printToDisplay(destRow.year, "ARRI");
-                printToDisplay(destRow.time, "VAL");
-                printToDisplay(presRow.year, "OUTA");
-                printToDisplay(presRow.time, "TIME");
-
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
                 stateActionCompleted = true;
             }
-            if (elapsed > 3000) {
-                printToDisplay(lastRow.year, "WEL");
-                printToDisplay(lastRow.time, "COME");
-                lastRow.year.writeDisplay();
-                lastRow.time.writeDisplay();
+            if (audio.isRunning()) {
+                if (!stateActionCompleted) {
+                    blankAllDisplays();
+                    printToDisplay(destRow.year, "ARRI");
+                    printToDisplay(destRow.time, "VAL");
+                    printToDisplay(presRow.year, "OUTA");
+                    printToDisplay(presRow.time, "TIME");
+
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
+                    stateActionCompleted = true;
+                }
+                if (elapsed > 3000) {
+                    printToDisplay(lastRow.year, "WEL");
+                    printToDisplay(lastRow.time, "COME");
+                    lastRow.year.writeDisplay();
+                    lastRow.time.writeDisplay();
+                }
             }
             if (elapsed > BOOT_ARRIVAL_DURATION) {
                 bootState = BOOT_COOL_DOWN;

@@ -534,67 +534,74 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
 
   int len = strlen(text);
   const int total_visual_width = 13; 
-  if (len > total_visual_width) len = total_visual_width;
+  int shift_offset = 1; // Shift the whole animation 1 character to the right
 
   for (int i = 0; i < len; i++) {
+    int virtual_pos = i + shift_offset;
+    if (virtual_pos >= total_visual_width) continue;
+
     int displayIndex, digitIndex;
-    if (i < 3) { // month, 3 chars
+    if (virtual_pos < 3) { // month, 3 chars
         displayIndex = 0;
-        digitIndex = i;
-    } else if (i < 5) { // day, 2 chars
+        digitIndex = virtual_pos;
+    } else if (virtual_pos < 5) { // day, 2 chars
         displayIndex = 1;
-        digitIndex = i - 3;
-    } else if (i < 9) { // year, 4 chars
+        digitIndex = (virtual_pos - 3) + 1; // Center on the physical 4-char display
+    } else if (virtual_pos < 9) { // year, 4 chars
         displayIndex = 2;
-        digitIndex = i - 5;
+        digitIndex = virtual_pos - 5;
     } else { // time, 4 chars
         displayIndex = 3;
-        digitIndex = i - 9;
+        digitIndex = virtual_pos - 9;
     }
     
     displays[displayIndex]->writeDigitAscii(digitIndex, text[i]);
     
     if (withCursor && (i + 1 < len)) {
-        int next_i = i + 1;
-        int nextDisplayIndex, nextDigitIndex;
-        if (next_i < 3) {
-            nextDisplayIndex = 0;
-            nextDigitIndex = next_i;
-        } else if (next_i < 5) {
-            nextDisplayIndex = 1;
-            nextDigitIndex = next_i - 3;
-        } else if (next_i < 9) {
-            nextDisplayIndex = 2;
-            nextDigitIndex = next_i - 5;
-        } else {
-            nextDisplayIndex = 3;
-            nextDigitIndex = next_i - 9;
+        int next_virtual_pos = (i + 1) + shift_offset;
+        if (next_virtual_pos < total_visual_width) {
+            int nextDisplayIndex, nextDigitIndex;
+            if (next_virtual_pos < 3) {
+                nextDisplayIndex = 0;
+                nextDigitIndex = next_virtual_pos;
+            } else if (next_virtual_pos < 5) {
+                nextDisplayIndex = 1;
+                nextDigitIndex = (next_virtual_pos - 3) + 1;
+            } else if (next_virtual_pos < 9) {
+                nextDisplayIndex = 2;
+                nextDigitIndex = next_virtual_pos - 5;
+            } else {
+                nextDisplayIndex = 3;
+                nextDigitIndex = next_virtual_pos - 9;
+            }
+            displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, '_');
+            displays[nextDisplayIndex]->writeDisplay();
         }
-        displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, '_');
-        displays[nextDisplayIndex]->writeDisplay();
     }
     
     displays[displayIndex]->writeDisplay();
     vTaskDelay(pdMS_TO_TICKS(typeDelay));
 
     if (withCursor && (i + 1 < len)) {
-        int next_i = i + 1;
-        int nextDisplayIndex, nextDigitIndex;
-        if (next_i < 3) {
-            nextDisplayIndex = 0;
-            nextDigitIndex = next_i;
-        } else if (next_i < 5) {
-            nextDisplayIndex = 1;
-            nextDigitIndex = next_i - 3;
-        } else if (next_i < 9) {
-            nextDisplayIndex = 2;
-            nextDigitIndex = next_i - 5;
-        } else {
-            nextDisplayIndex = 3;
-            nextDigitIndex = next_i - 9;
+        int next_virtual_pos = (i + 1) + shift_offset;
+        if (next_virtual_pos < total_visual_width) {
+            int nextDisplayIndex, nextDigitIndex;
+            if (next_virtual_pos < 3) {
+                nextDisplayIndex = 0;
+                nextDigitIndex = next_virtual_pos;
+            } else if (next_virtual_pos < 5) {
+                nextDisplayIndex = 1;
+                nextDigitIndex = (next_virtual_pos - 3) + 1;
+            } else if (next_virtual_pos < 9) {
+                nextDisplayIndex = 2;
+                nextDigitIndex = next_virtual_pos - 5;
+            } else {
+                nextDisplayIndex = 3;
+                nextDigitIndex = next_virtual_pos - 9;
+            }
+            displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, ' ');
+            displays[nextDisplayIndex]->writeDisplay();
         }
-        displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, ' ');
-        displays[nextDisplayIndex]->writeDisplay();
     }
   }
   #endif
