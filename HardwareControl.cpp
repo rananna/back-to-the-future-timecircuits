@@ -7,7 +7,7 @@
  */
 
 #include "HardwareControl.h"
-#include "EventManager.h"
+#include "EventManager.h" 
 #include "DisplayManager.h"
 #include "LittleFS.h"
 
@@ -36,32 +36,20 @@ extern bool isPlayingSound;
  * @param display The Adafruit_AlphaNum4 object to write to.
  * @param text The C-string to display.
  * @param justification 0 for left, 1 for right, 2 for center.
- * @param width The physical character width of the display segment.
  */
-void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification, int width) {
+void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification) {
   display.clear();
   int len = strlen(text);
   int startPos = 0;
 
-  // Calculate the starting position based on justification and logical width.
+  // Calculate the starting position based on justification.
   if (justification == 1) { // Right Justify
-    startPos = width - len;
+    startPos = 4 - len;
   } else if (justification == 2) { // Center Justify
-    startPos = (width - len) / 2;
-  }
-  
-  // FIX: Apply a physical offset for the month and day displays.
-  // This shifts the text one character to the right as requested.
-  if (width == 3 || width == 2) {
-      startPos += 1;
+    startPos = (4 - len) / 2;
   }
 
-  // Ensure start position is non-negative
-  if (startPos < 0) {
-      startPos = 0;
-  }
-
-  // FIX: The loop must iterate over all 4 physical characters of the display segment.
+  // Write characters to the display buffer.
   for (int i = 0; i < 4; i++) {
     if (i >= startPos && i < (startPos + len)) {
       display.writeDigitAscii(i, text[i - startPos]);
@@ -76,7 +64,7 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  * @brief Initializes all physical display hardware.
  * @details This function sets up the two I2C buses with their designated GPIO pins.
  * It then initializes all 12 Adafruit_AlphaNum4 display objects, associating each
- * with its correct I2C address and bus. Finally, it newpinModeures the AM/PM indicator
+ * with its correct I2C address and bus. Finally, it configures the AM/PM indicator
  * LED pins and the I2S amplifier shutdown pin as outputs.
  */
 void setupPhysicalDisplay() {
@@ -113,15 +101,15 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
   const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
   
   // Month (3 chars, right justified)
-  printToDisplay(row.month, months[timeinfo.tm_mon], 1, 3);
+  printToDisplay(row.month, months[timeinfo.tm_mon], 1);
 
   // Day (2 chars, center justified)
   sprintf(buffer, "%02d", timeinfo.tm_mday);
-  printToDisplay(row.day, buffer, 2, 2);
+  printToDisplay(row.day, buffer, 2);
 
   // Year (4 chars)
   sprintf(buffer, "%04d", year);
-  printToDisplay(row.year, buffer, 0, 4);
+  printToDisplay(row.year, buffer);
 
   // --- Time Display Logic (Corrected) ---
   int displayHour = timeinfo.tm_hour;
@@ -195,40 +183,32 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year,
 
 // In HardwareControl.cpp
 
-void animateDisplayRowRandomly(DisplayRow& row, int flickerProbability) {
+void animateDisplayRowRandomly(DisplayRow& row) {
   #if ENABLE_HARDWARE
     char buffer[5];
     // Animate year
-    if(random(100) < flickerProbability) {
-      sprintf(buffer, "%04d", random(1000, 9999));
-      printToDisplay(row.year, buffer, 0, 4);
-      row.year.writeDisplay();
-      vTaskDelay(pdMS_TO_TICKS(5)); 
-    }
+    sprintf(buffer, "%04d", random(1000, 9999));
+    printToDisplay(row.year, buffer);
+    row.year.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate month
-    if(random(100) < flickerProbability) {
-      const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-      printToDisplay(row.month, months[random(0,12)], 1, 3); // Right justified
-      row.month.writeDisplay();
-      vTaskDelay(pdMS_TO_TICKS(5)); 
-    }
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+    printToDisplay(row.month, months[random(0,12)], 1); // Right justified
+    row.month.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate day
-    if(random(100) < flickerProbability) {
-      sprintf(buffer, "%02d", random(1, 32));
-      printToDisplay(row.day, buffer, 2, 2); // Center justified
-      row.day.writeDisplay();
-      vTaskDelay(pdMS_TO_TICKS(5)); 
-    }
+    sprintf(buffer, "%02d", random(1, 32));
+    printToDisplay(row.day, buffer, 2); // Center justified
+    row.day.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate time
-    if(random(100) < flickerProbability) {
-      sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
-      printToDisplay(row.time, buffer, 0, 4);
-      row.time.writeDisplay();
-      vTaskDelay(pdMS_TO_TICKS(5)); 
-    }
+    sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
+    printToDisplay(row.time, buffer);
+    row.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1)); 
   #endif
 }
 void displaySpeed(int speed) {
@@ -237,12 +217,12 @@ void displaySpeed(int speed) {
   sprintf(speedBuffer, "%02d", speed);
 
   // Clear the first two displays of the bottom row.
-  printToDisplay(lastRow.month, "", 0, 3);
-  printToDisplay(lastRow.day, "", 0, 2);
+  printToDisplay(lastRow.month, "");
+  printToDisplay(lastRow.day, "");
   
   // Display speed on the "year" slot and "MPH" on the "time" slot.
-  printToDisplay(lastRow.year, speedBuffer, 1, 4); // Right-justify speed.
-  printToDisplay(lastRow.time, "MPH", 0, 4);
+  printToDisplay(lastRow.year, speedBuffer, 1); // Right-justify speed.
+  printToDisplay(lastRow.time, "MPH");
 
   lastRow.month.writeDisplay();
   lastRow.day.writeDisplay();
@@ -256,12 +236,12 @@ void displaySpeedRamp(int speed) {
     sprintf(speedBuffer, "%02d", speed);
     
     // Clear unused segments
-    printToDisplay(lastRow.month, "", 0, 3);
-    printToDisplay(lastRow.time, "", 0, 4);
+    printToDisplay(lastRow.month, "");
+    printToDisplay(lastRow.time, "");
     
     // Display speed on "day" and "MPH" on "year"
-    printToDisplay(lastRow.day, speedBuffer, 2, 2);
-    printToDisplay(lastRow.year, "MPH", 0, 4);
+    printToDisplay(lastRow.day, speedBuffer, 2);
+    printToDisplay(lastRow.year, "MPH");
 
     lastRow.month.writeDisplay();
     lastRow.day.writeDisplay();
@@ -269,8 +249,6 @@ void displaySpeedRamp(int speed) {
     lastRow.time.writeDisplay();
 #endif
 }
-
-// In HardwareControl.cpp
 
 void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp) {
     #if ENABLE_HARDWARE
@@ -286,22 +264,22 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
 
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i=0; i<3; ++i) {
-        printToDisplay(rows[i]->year, yearStr, 0, 4);
-         
+        printToDisplay(rows[i]->year, yearStr);
+        
         if (isCountingUp) {
             // For "Counting Up", keep other fields static to focus on the year
-            printToDisplay(rows[i]->month, "---", 1, 3);
-            printToDisplay(rows[i]->day, "--", 2, 2);
-            printToDisplay(rows[i]->time, "----", 0, 4);
+            printToDisplay(rows[i]->month, "---");
+            printToDisplay(rows[i]->day, "--", 2);
+            printToDisplay(rows[i]->time, "----");
         } else {
             // For "Timeline Skim", use a high-speed random blur effect
             const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-            printToDisplay(rows[i]->month, months[(elapsed / 50) % 12], 1, 3);
+            printToDisplay(rows[i]->month, months[(elapsed / 50) % 12], 1);
             char buffer[5];
             sprintf(buffer, "%02d", (elapsed / 30) % 31 + 1);
-            printToDisplay(rows[i]->day, buffer, 2, 2);
+            printToDisplay(rows[i]->day, buffer, 2);
             sprintf(buffer, "%02d%02d", (elapsed / 20) % 24, (elapsed / 10) % 60);
-            printToDisplay(rows[i]->time, buffer, 0, 4);
+            printToDisplay(rows[i]->time, buffer);
         }
 
         rows[i]->year.writeDisplay();
@@ -312,7 +290,6 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
     }
     #endif
 }
-// In HardwareControl.cpp
 
 void flashAllDisplays() {
     #if ENABLE_HARDWARE
@@ -320,7 +297,7 @@ void flashAllDisplays() {
     for (int i=0; i<3; ++i) {
         // Directly manipulate the display buffer to turn on all 16 segments (16 bits).
         // 0xFFFF in hex is a 16-bit number with all bits set to 1.
-        for(int j=0; j<8; ++j) { // MODIFIED: Changed loop from 16 to 8
+        for(int j=0; j<8; ++j) {
             rows[i]->month.displaybuffer[j] = 0xFFFF;
             rows[i]->day.displaybuffer[j] = 0xFFFF;
             rows[i]->year.displaybuffer[j] = 0xFFFF;
@@ -337,9 +314,9 @@ void flashAllDisplays() {
 
 void animateTornadoFlicker() {
     #if ENABLE_HARDWARE
-    animateDisplayRowRandomly(destRow, 100);
-    animateDisplayRowRandomly(presRow, 100);
-    animateDisplayRowRandomly(lastRow, 100);
+    animateDisplayRowRandomly(destRow);
+    animateDisplayRowRandomly(presRow);
+    animateDisplayRowRandomly(lastRow);
     #endif
 }
 void animateRandomRealTimes() {
@@ -362,26 +339,26 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
     int phase = elapsed / (duration / 3);
     float progress = (float)(elapsed % (duration / 3)) / (duration / 3);
-    int charsToShow = progress * 13; // Use 13 for total display width (3+2+4+4)
+    int charsToShow = progress * 16; 
 
     auto fillRow = [&](DisplayRow& row, int numChars) {
-        char buffer[14] = "#############";
-        if (numChars < 13) buffer[numChars] = '\0';
-        printToDisplay(row.month, String(buffer).substring(0, 3).c_str(), 1, 3);
-        printToDisplay(row.day, String(buffer).substring(3, 5).c_str(), 2, 2);
-        printToDisplay(row.year, String(buffer).substring(5, 9).c_str(), 0, 4);
-        printToDisplay(row.time, String(buffer).substring(9, 13).c_str(), 0, 4);
+        char buffer[17] = "################";
+        if (numChars < 16) buffer[numChars] = '\0';
+        printToDisplay(row.month, String(buffer).substring(0, 4).c_str());
+        printToDisplay(row.day, String(buffer).substring(4, 8).c_str());
+        printToDisplay(row.year, String(buffer).substring(8, 12).c_str());
+        printToDisplay(row.time, String(buffer).substring(12, 16).c_str());
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
     if (phase == 0) { 
         fillRow(lastRow, charsToShow);
     } else if (phase == 1) { 
-        fillRow(lastRow, 13);
+        fillRow(lastRow, 16);
         fillRow(presRow, charsToShow);
     } else { 
-        fillRow(lastRow, 13);
-        fillRow(presRow, 13);
+        fillRow(lastRow, 16);
+        fillRow(presRow, 16);
         fillRow(destRow, charsToShow);
     }
     #endif
@@ -390,41 +367,22 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
 void animateDigitalRain(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
     const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    static char rain[3][13];
-    if(elapsed < 100) { // Initialize on first run
-        for(int r=0; r<3; ++r) {
-            for(int c=0; c<13; ++c) {
-                rain[r][c] = chars[random(strlen(chars))];
-            }
+    auto rainColumn = [&](Adafruit_AlphaNum4& d, Adafruit_AlphaNum4& p, Adafruit_AlphaNum4& l) {
+        char d_c[5], p_c[5], l_c[5];
+        for(int i=0; i<4; ++i) {
+            d_c[i] = chars[random(strlen(chars))];
+            p_c[i] = chars[random(strlen(chars))];
+            l_c[i] = chars[random(strlen(chars))];
         }
-    }
-
-    // Shift characters down
-    for(int c=0; c<13; ++c) {
-        rain[2][c] = rain[1][c];
-        rain[1][c] = rain[0][c];
-        rain[0][c] = chars[random(strlen(chars))];
-    }
-
-    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
-    for(int r=0; r<3; ++r) {
-        char monthStr[4], dayStr[3], yearStr[5], timeStr[5];
-        strncpy(monthStr, &rain[r][0], 3); monthStr[3] = '\0';
-        strncpy(dayStr, &rain[r][3], 2); dayStr[2] = '\0';
-        strncpy(yearStr, &rain[r][5], 4); yearStr[4] = '\0';
-        strncpy(timeStr, &rain[r][9], 4); timeStr[4] = '\0';
-        
-        printToDisplay(rows[r]->month, monthStr, 1, 3);
-        printToDisplay(rows[r]->day, dayStr, 2, 2);
-        printToDisplay(rows[r]->year, yearStr, 0, 4);
-        printToDisplay(rows[r]->time, timeStr, 0, 4);
-
-        rows[r]->month.writeDisplay();
-        rows[r]->day.writeDisplay();
-        rows[r]->year.writeDisplay();
-        rows[r]->time.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
-    }
+        d_c[4] = p_c[4] = l_c[4] = '\0';
+        printToDisplay(d, d_c); d.writeDisplay();
+        printToDisplay(p, p_c); p.writeDisplay();
+        printToDisplay(l, l_c); l.writeDisplay();
+    };
+    rainColumn(destRow.month, presRow.month, lastRow.month);
+    rainColumn(destRow.day, presRow.day, lastRow.day);
+    rainColumn(destRow.year, presRow.year, lastRow.year);
+    rainColumn(destRow.time, presRow.time, lastRow.time);
     #endif
 }
 
@@ -455,10 +413,10 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
         strncpy(yearStr, finalPattern + 9, 4); yearStr[4] = '\0';
         strncpy(timeStr, finalPattern + 14, 4); timeStr[4] = '\0';
 
-        printToDisplay(row.month, monthStr, 1, 3);
-        printToDisplay(row.day, dayStr, 2, 2);
-        printToDisplay(row.year, yearStr, 0, 4);
-        printToDisplay(row.time, timeStr, 0, 4);
+        printToDisplay(row.month, monthStr, 1);
+        printToDisplay(row.day, dayStr, 2);
+        printToDisplay(row.year, yearStr);
+        printToDisplay(row.time, timeStr);
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
@@ -481,19 +439,19 @@ void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYea
     char yearStr[5];
     sprintf(yearStr, "%04d", currentYear);
 
-    printToDisplay(destRow.year, yearStr, 0, 4); destRow.year.writeDisplay();
-    printToDisplay(presRow.year, yearStr, 0, 4); presRow.year.writeDisplay();
-    printToDisplay(lastRow.year, yearStr, 0, 4); lastRow.year.writeDisplay();
+    printToDisplay(destRow.year, yearStr); destRow.year.writeDisplay();
+    printToDisplay(presRow.year, yearStr); presRow.year.writeDisplay();
+    printToDisplay(lastRow.year, yearStr); lastRow.year.writeDisplay();
 
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-    printToDisplay(destRow.month, months[random(0,12)], 1, 3); destRow.month.writeDisplay();
+    printToDisplay(destRow.month, months[random(0,12)], 1); destRow.month.writeDisplay();
     
     char buffer[5];
     sprintf(buffer, "%02d", random(1, 32));
-    printToDisplay(presRow.day, buffer, 2, 2); presRow.day.writeDisplay();
+    printToDisplay(presRow.day, buffer, 2); presRow.day.writeDisplay();
     
     sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
-    printToDisplay(lastRow.time, buffer, 0, 4); lastRow.time.writeDisplay();
+    printToDisplay(lastRow.time, buffer); lastRow.time.writeDisplay();
     #endif
 }
 // In HardwareControl.cpp
@@ -514,8 +472,8 @@ void blankAllDisplays() {
 }
 void display88MphSpeed(float speed) {
   #if ENABLE_HARDWARE
-  printToDisplay(lastRow.day, "88", 2, 2);
-  printToDisplay(lastRow.year, "MPH", 0, 4);
+  printToDisplay(lastRow.day, "88", 2);
+  printToDisplay(lastRow.year, "MPH");
   lastRow.day.writeDisplay();
   lastRow.year.writeDisplay();
   #endif
@@ -523,9 +481,6 @@ void display88MphSpeed(float speed) {
 
 void playSound(const char* filepath) {
     #if ENABLE_HARDWARE
-    if (!currentSettings.timeTravelSoundToggle) {
-        return;
-    }
     char fullPath[MAX_FILENAME_LENGTH];
 
     // Ensure the path starts with a single '/'
@@ -585,10 +540,10 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
     int displayIndex, digitIndex;
     if (i < 3) { // month, 3 chars
         displayIndex = 0;
-        digitIndex = i; // FIX: Was i + 1
+        digitIndex = i;
     } else if (i < 5) { // day, 2 chars
         displayIndex = 1;
-        digitIndex = i - 3; // FIX: Was (i - 3) + 1
+        digitIndex = i - 3;
     } else if (i < 9) { // year, 4 chars
         displayIndex = 2;
         digitIndex = i - 5;
@@ -604,10 +559,10 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
         int nextDisplayIndex, nextDigitIndex;
         if (next_i < 3) {
             nextDisplayIndex = 0;
-            nextDigitIndex = next_i; // FIX
+            nextDigitIndex = next_i;
         } else if (next_i < 5) {
             nextDisplayIndex = 1;
-            nextDigitIndex = next_i - 3; // FIX
+            nextDigitIndex = next_i - 3;
         } else if (next_i < 9) {
             nextDisplayIndex = 2;
             nextDigitIndex = next_i - 5;
@@ -627,10 +582,10 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
         int nextDisplayIndex, nextDigitIndex;
         if (next_i < 3) {
             nextDisplayIndex = 0;
-            nextDigitIndex = next_i; // FIX
+            nextDigitIndex = next_i;
         } else if (next_i < 5) {
             nextDisplayIndex = 1;
-            nextDigitIndex = next_i - 3; // FIX
+            nextDigitIndex = next_i - 3;
         } else if (next_i < 9) {
             nextDisplayIndex = 2;
             nextDigitIndex = next_i - 5;
@@ -649,17 +604,17 @@ void animateFluxCapacitor() {
     static int frame = 0;
     // Simple 3-frame pulse effect
     if (frame == 0) {
-        printToDisplay(presRow.month, " FLX", 0, 3);
-        printToDisplay(presRow.day, "CP", 2, 2);
-        printToDisplay(presRow.year, "ACTV", 0, 4);
+        printToDisplay(presRow.month, " FLX");
+        printToDisplay(presRow.day, "CP", 2);
+        printToDisplay(presRow.year, "ACTV");
     } else if (frame == 1) {
-        printToDisplay(presRow.month, "FLX", 0, 3);
-        printToDisplay(presRow.day, "CP", 2, 2);
-        printToDisplay(presRow.year, "ACTV", 0, 4);
+        printToDisplay(presRow.month, "FLX");
+        printToDisplay(presRow.day, "CP", 2);
+        printToDisplay(presRow.year, "ACTV");
     } else {
-        printToDisplay(presRow.month, " FLX", 0, 3);
-        printToDisplay(presRow.day, "CP", 2, 2);
-        printToDisplay(presRow.year, "ACTV", 0, 4);
+        printToDisplay(presRow.month, " FLX");
+        printToDisplay(presRow.day, "CP", 2);
+        printToDisplay(presRow.year, "ACTV");
     }
     frame = (frame + 1) % 3; // Cycle through frames
 
@@ -670,10 +625,10 @@ void animateFluxCapacitor() {
 }
 void displayStaticFluxText() {
     #if ENABLE_HARDWARE
-    printToDisplay(presRow.month, "FLX", 1, 3);
-    printToDisplay(presRow.day, "CP", 2, 2);
-    printToDisplay(presRow.year, "ACTV", 0, 4);
-    printToDisplay(presRow.time, "", 0, 4);
+    printToDisplay(presRow.month, "FLX", 1);
+    printToDisplay(presRow.day, "CP", 2);
+    printToDisplay(presRow.year, "ACTV");
+    printToDisplay(presRow.time, "");
     presRow.month.writeDisplay();
     presRow.day.writeDisplay();
     presRow.year.writeDisplay();
@@ -712,49 +667,132 @@ void applyBrightness() {
 
 void animateSequentialFlicker(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-    // Create an array of all display segments for easy iteration
-    Adafruit_AlphaNum4* displays[] = {
+    float progress = (float)elapsed / duration;
+    int segmentsToShow = (int)(progress * 12);
+
+    Adafruit_AlphaNum4* all_displays[] = {
         &destRow.month, &destRow.day, &destRow.year, &destRow.time,
         &presRow.month, &presRow.day, &presRow.year, &presRow.time,
         &lastRow.month, &lastRow.day, &lastRow.year, &lastRow.time
     };
-    const char* labels[] = {"CPU", "ME", "I2C1", "I2C2", "SND", "WF", "NTP", "MQTT", "SYS", "CO", "STAT", "PWR"};
-    const int numDisplays = 12;
-    const int phaseDuration = 800; 
 
-    int activeIndex = (elapsed / phaseDuration) % numDisplays;
-    int phaseTime = elapsed % phaseDuration;
+    // Get current times
+    time_t now_t;
+    time(&now_t);
+    
+    // --- Destination Time ---
+    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+    tzset();
+    struct tm dest_timeinfo;
+    localtime_r(&now_t, &dest_timeinfo);
+    dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
 
-    for (int i = 0; i < numDisplays; ++i) {
-        int segmentType = i % 4; // 0=month, 1=day, 2=year, 3=time
-        int justification = 0;
-        int width = 4;
-        switch(segmentType) {
-            case 0: justification = 1; width = 3; break;
-            case 1: justification = 2; width = 2; break;
-            default: justification = 0; width = 4; break;
+    // --- Present Time ---
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
+    struct tm present_timeinfo;
+    localtime_r(&now_t, &present_timeinfo);
+    bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
+
+    // --- Last Time Departed ---
+    struct tm lastTimeDepartedInfo = {0};
+    lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
+    lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
+    lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
+    lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
+    lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
+    
+    char buffer[5];
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    // Helper lambda to update a single segment
+    auto updateSegment = [&](int index, Adafruit_AlphaNum4* display, const struct tm& time, int year, bool showDecimal = false) {
+        if (index >= segmentsToShow) {
+            display->clear();
+            return;
         }
 
-        if (i < activeIndex) {
-            // Segments that have already been "checked"
-            printToDisplay(*displays[i], "OK--", justification, width);
-        } else if (i == activeIndex) {
-            // The currently active segment
-            if (phaseTime < (phaseDuration / 2)) {
-                printToDisplay(*displays[i], labels[i], justification, width);
-            } else {
-                if ((phaseTime / 100) % 2 == 0) {
-                     printToDisplay(*displays[i], "OK--", justification, width);
-                } else {
-                     printToDisplay(*displays[i], "", justification, width);
+        int segmentIndex = index % 4;
+        switch(segmentIndex) {
+            case 0: // Month
+                printToDisplay(*display, months[time.tm_mon], 1);
+                break;
+            case 1: // Day
+                sprintf(buffer, "%02d", time.tm_mday);
+                printToDisplay(*display, buffer, 2);
+                break;
+            case 2: // Year
+                sprintf(buffer, "%04d", year);
+                printToDisplay(*display, buffer);
+                break;
+            case 3: // Time
+                int displayHour = time.tm_hour;
+                if (!currentSettings.displayFormat24h) {
+                    if (displayHour >= 13) displayHour -= 12;
+                    else if (displayHour == 0) displayHour = 12;
                 }
-            }
-        } else {
-            // Segments waiting to be checked
-            displays[i]->clear();
+                sprintf(buffer, "%02d%02d", displayHour, time.tm_min);
+                display->clear();
+                display->writeDigitAscii(0, buffer[0]);
+                display->writeDigitAscii(1, buffer[1], showDecimal);
+                display->writeDigitAscii(2, buffer[2]);
+                display->writeDigitAscii(3, buffer[3]);
+                break;
         }
-        displays[i]->writeDisplay();
+    };
+
+    // Update all segments based on segmentsToShow
+    updateSegment(0, &destRow.month, dest_timeinfo, currentSettings.destinationYear);
+    updateSegment(1, &destRow.day, dest_timeinfo, currentSettings.destinationYear);
+    updateSegment(2, &destRow.year, dest_timeinfo, currentSettings.destinationYear);
+    updateSegment(3, &destRow.time, dest_timeinfo, currentSettings.destinationYear);
+
+    updateSegment(4, &presRow.month, present_timeinfo, present_timeinfo.tm_year + 1900);
+    updateSegment(5, &presRow.day, present_timeinfo, present_timeinfo.tm_year + 1900);
+    updateSegment(6, &presRow.year, present_timeinfo, present_timeinfo.tm_year + 1900);
+    updateSegment(7, &presRow.time, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent);
+
+    updateSegment(8, &lastRow.month, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
+    updateSegment(9, &lastRow.day, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
+    updateSegment(10, &lastRow.year, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
+    updateSegment(11, &lastRow.time, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
+
+
+    // AM/PM LEDs - update them based on row visibility
+    if (segmentsToShow > 0 && !currentSettings.displayFormat24h) {
+        bool is_pm = dest_timeinfo.tm_hour >= 12;
+        digitalWrite(DEST_AM_PIN, !is_pm);
+        digitalWrite(DEST_PM_PIN, is_pm);
+    } else {
+        digitalWrite(DEST_AM_PIN, LOW);
+        digitalWrite(DEST_PM_PIN, LOW);
     }
+    if (segmentsToShow > 4 && !currentSettings.displayFormat24h) {
+        bool is_pm = present_timeinfo.tm_hour >= 12;
+        digitalWrite(PRES_AM_PIN, !is_pm);
+        digitalWrite(PRES_PM_PIN, is_pm);
+    } else {
+        digitalWrite(PRES_AM_PIN, LOW);
+        digitalWrite(PRES_PM_PIN, LOW);
+    }
+     if (segmentsToShow > 8 && !currentSettings.displayFormat24h) {
+        bool is_pm = lastTimeDepartedInfo.tm_hour >= 12;
+        digitalWrite(LAST_AM_PIN, !is_pm);
+        digitalWrite(LAST_PM_PIN, is_pm);
+    } else {
+        digitalWrite(LAST_AM_PIN, LOW);
+        digitalWrite(LAST_PM_PIN, LOW);
+    }
+
+
+    // Write all changes to hardware
+    for (int i = 0; i < 12; ++i) {
+        all_displays[i]->writeDisplay();
+    }
+
+    // Reset timezone
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+	tzset();
     #endif
 }
 
@@ -778,44 +816,22 @@ void animateCountingUp(unsigned long elapsed, int duration) {
         time_t rowTime = fastForwardTime + (i * 3600 * 24 * 157); // Offset by ~5 months
         gmtime_r(&rowTime, &timeinfo);
 
-        printToDisplay(rows[i]->month, months[timeinfo.tm_mon], 1, 3);
+        printToDisplay(rows[i]->month, months[timeinfo.tm_mon], 1);
         
         sprintf(buffer, "%02d", timeinfo.tm_mday);
-        printToDisplay(rows[i]->day, buffer, 2, 2);
+        printToDisplay(rows[i]->day, buffer, 2);
 
         sprintf(buffer, "%04d", timeinfo.tm_year + 1900);
-        printToDisplay(rows[i]->year, buffer, 0, 4);
+        printToDisplay(rows[i]->year, buffer);
         
         sprintf(buffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
-        printToDisplay(rows[i]->time, buffer, 0, 4);
+        printToDisplay(rows[i]->time, buffer);
         
         rows[i]->month.writeDisplay();
         rows[i]->day.writeDisplay();
         rows[i]->year.writeDisplay();
         rows[i]->time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(4)); 
-    }
-    #endif
-}
-
-void animateWaveFlicker(unsigned long elapsed, int duration) {
-    #if ENABLE_HARDWARE
-    Adafruit_AlphaNum4* displays[] = {
-        &destRow.month, &destRow.day, &destRow.year, &destRow.time,
-        &presRow.month, &presRow.day, &presRow.year, &presRow.time,
-        &lastRow.month, &lastRow.day, &lastRow.year, &lastRow.time
-    };
-    int numDisplays = 12;
-    float progress = (float)elapsed / duration;
-    int wavePosition = progress * (numDisplays * 2);
-
-    for (int i = 0; i < numDisplays; i++) {
-        int distance = abs(i - wavePosition);
-        int brightness = 15 - (distance * 3);
-        if (brightness < 0) brightness = 0;
-        if (brightness > 15) brightness = 15;
-        displays[i]->setBrightness(brightness);
-        displays[i]->writeDisplay();
     }
     #endif
 }

@@ -240,7 +240,7 @@ void startStyledAnimation() {
     updateHaStatus("Animating");
 
     // Set the animation style for this run
-    if (currentSettings.animationStyle == ANIMATION_RANDOM) {
+    if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
         randomAnimationStyle = random(0, 10);
     } else {
         randomAnimationStyle = currentSettings.animationStyle;

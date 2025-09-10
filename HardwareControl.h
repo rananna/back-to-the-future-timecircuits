@@ -217,7 +217,7 @@ extern DisplayRow destRow, presRow, lastRow;
 void setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal);
 void updateDisplaySegment(Adafruit_AlphaNum4& display, const struct tm& timeinfo, int year, int segment);
-void animateDisplayRowRandomly(DisplayRow& row, int flickerProbability = 100);
+void animateDisplayRowRandomly(DisplayRow& row);
 void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp);
 void animateTornadoFlicker();
 void animateCapacitorChargeUp(unsigned long elapsed, int duration);
@@ -227,7 +227,7 @@ void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYea
 void blankAllDisplays();
 void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
 void playSound(const char* filepath);
-void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0, int width = 4);
+void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
 void displaySpeed(int speed);
 void displaySpeedRamp(int speed);
 void flashAllDisplays();
@@ -239,5 +239,4 @@ void animateRandomRealTimes();
 void applyBrightness();
 void animateSequentialFlicker(unsigned long elapsed, int duration);
 void animateCountingUp(unsigned long elapsed, int duration);
-void animateWaveFlicker(unsigned long elapsed, int duration);
 #endif // HARDWARE_CONTROL_H
