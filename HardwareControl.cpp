@@ -598,7 +598,8 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
     }
     
     displays[displayIndex]->writeDigitAscii(digitIndex, text[i]);
-    
+    displays[displayIndex]->writeDisplay();
+
     if (withCursor && (i + 1 < len)) {
         int next_i = i + 1;
         int nextDisplayIndex, nextDigitIndex;
@@ -617,29 +618,12 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
         }
         displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, '_');
         displays[nextDisplayIndex]->writeDisplay();
-    }
-    
-    displays[displayIndex]->writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(typeDelay));
-
-    if (withCursor && (i + 1 < len)) {
-        int next_i = i + 1;
-        int nextDisplayIndex, nextDigitIndex;
-        if (next_i < 3) {
-            nextDisplayIndex = 0;
-            nextDigitIndex = next_i;
-        } else if (next_i < 5) {
-            nextDisplayIndex = 1;
-            nextDigitIndex = next_i - 3;
-        } else if (next_i < 9) {
-            nextDisplayIndex = 2;
-            nextDigitIndex = next_i - 5;
-        } else {
-            nextDisplayIndex = 3;
-            nextDigitIndex = next_i - 9;
-        }
+        vTaskDelay(pdMS_TO_TICKS(typeDelay / 2));
         displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, ' ');
         displays[nextDisplayIndex]->writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(typeDelay / 2));
+    } else {
+      vTaskDelay(pdMS_TO_TICKS(typeDelay));
     }
   }
   #endif

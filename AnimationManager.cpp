@@ -1,3 +1,11 @@
+/**
+ * @file AnimationManager.cpp
+ * @brief Manages all visual animations and special effects for the display.
+ * @details This module contains the state machines and handlers for complex visual sequences
+ * such as the time travel animation, boot sequence, and random glitch effects. It is designed
+ * to be non-blocking to ensure smooth visual performance.
+ */
+
 #include "AnimationManager.h"
 #include "EventManager.h"
 #include "HardwareControl.h"
@@ -241,10 +249,6 @@ void handleDisplayAnimation() {
                 animationStartTime = millis();
             }
             break;
-
-        //#################################################################
-        //########################## FIX START ##########################
-        //#################################################################
         case ANIM_LANDING:
              if (elapsed < 1000) {
                 animateTornadoFlicker();
@@ -252,15 +256,12 @@ void handleDisplayAnimation() {
                 isAnimating = false;
                 currentPhase = ANIM_INACTIVE;
                 lastPhase = ANIM_INACTIVE; // Reset for next run
-                // updateNormalClockDisplay(true, true, true); // THIS LINE IS REMOVED
+                updateNormalClockDisplay(true, true, true);
                 updateHaStatus("Idle");
                 isEchoEffectActive = true;
                 echoEffectStartTime = millis();
             }
             break;
-        //#################################################################
-        //########################### FIX END ###########################
-        //#################################################################
         default:
             // Failsafe to prevent getting stuck in an unknown state
             isAnimating = false;
@@ -545,7 +546,7 @@ void handleBootSequence() {
                 playSound("/relay_activation.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle) {
+            if (audio.isRunning() || !currentSettings.timeTravelSoundToggle || elapsed > 2000) {
                 bootState = BOOT_COLD_START;
                 bootStateStartTime = millis();
             }
@@ -553,7 +554,6 @@ void handleBootSequence() {
         case BOOT_COLD_START:
             if (!stateActionCompleted) {
                 blankAllDisplays();
-                // FIX: Correctly display "TIME CIRCUITS"
                 printToDisplay(destRow.month, "TIM", 1, 3);
                 printToDisplay(destRow.day, "E", 2, 2);
                 printToDisplay(destRow.year, "CIRC", 0, 4);
