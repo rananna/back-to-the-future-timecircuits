@@ -128,16 +128,8 @@ void startTimeTravelAnimation() {
     currentPhase = ANIM_POWER_UP; 
     updateHaStatus("Animating");
 
-    // For authenticity, save the current "Last Time Departed" and set it to the current "Present Time"
-    time_t now;
-    time(&now);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
-    currentSettings.lastTimeDepartedYear = timeinfo.tm_year + 1900;
-    currentSettings.lastTimeDepartedMonth = timeinfo.tm_mon + 1;
-    currentSettings.lastTimeDepartedDay = timeinfo.tm_mday;
-    currentSettings.lastTimeDepartedHour = timeinfo.tm_hour;
-    currentSettings.lastTimeDepartedMinute = timeinfo.tm_min;
+    // The Last Time Departed is now exclusively set via the UI.
+    // This animation is purely visual.
 }
 
 /**
