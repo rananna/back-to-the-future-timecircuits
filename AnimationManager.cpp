@@ -316,6 +316,7 @@ void startStyledAnimation() {
  * @brief The state machine for the STYLED time travel animation.
  */
 void handleStyledAnimation() {
+    Serial.println("DEBUG: Entered handleStyledAnimation()");
     if (!isStyledAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - styledAnimationStartTime;

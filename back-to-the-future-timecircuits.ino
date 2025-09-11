@@ -1066,9 +1066,12 @@ void loop() {
                             xSemaphoreGive(xDisplayDataMutex);
                         }
                     } else if (isStyledAnimating) {
+                        Serial.println("DEBUG: isStyledAnimating is true. Attempting to take mutex...");
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                            Serial.println("DEBUG: Mutex taken. Calling handleStyledAnimation().");
                             handleStyledAnimation();
                             xSemaphoreGive(xDisplayDataMutex);
+                            Serial.println("DEBUG: Mutex released.");
                         }
                     } else {
                         if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
