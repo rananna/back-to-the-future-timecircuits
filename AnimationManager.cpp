@@ -348,8 +348,15 @@ void handleStyledAnimation() {
             // This new state plays the sound and immediately transitions to the next state.
             playSound("/keypad_beeps.mp3");
             Serial.println("ANIM_LOG: Keypad sound requested.");
-            currentStyledPhase = ANIM_FLICKER;
-            styledAnimationStartTime = millis(); // Reset timer for the flicker phase
+            currentStyledPhase = ANIM_WAIT_FOR_KEYPAD_SOUND;
+            styledAnimationStartTime = millis(); // Reset timer for the wait phase
+            break;
+
+        case ANIM_WAIT_FOR_KEYPAD_SOUND:
+            if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
+                currentStyledPhase = ANIM_FLICKER;
+                styledAnimationStartTime = millis(); // Reset timer for the flicker phase
+            }
             break;
 
         case ANIM_FLICKER:
