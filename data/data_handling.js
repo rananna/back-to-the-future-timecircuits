@@ -108,6 +108,9 @@ function initWebSocket() {
                 statusMessage.textContent = `Error: ${msg.message}`;
             }
             showMessage(`Upload failed: ${msg.message}`, 'error');
+        } else if (msg.action === 'animationComplete') {
+            console.log("CLIENT_DEBUG: Animation complete message received. Re-enabling save button.");
+            showLoading('saveSettingsBtn', false);
         }
     };
 
@@ -466,8 +469,6 @@ function saveSettings() {
     .catch(err => {
         console.error("CLIENT_DEBUG: An error occurred during the save/animation process.", err);
         showMessage(`Error: ${err.message}`, 'error');
-    })
-    .finally(() => {
         showLoading('saveSettingsBtn', false);
     });
 }

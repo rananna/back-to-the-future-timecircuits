@@ -4,6 +4,8 @@
 #include "DisplayManager.h"
 #include "MqttManager.h"
 #include <WiFi.h>
+#include "web_server.h"
+#include <ArduinoJson.h>
 
 // --- Add these extern declarations for the new state variables ---
 extern bool isStyledAnimating;
@@ -33,6 +35,17 @@ extern int speedometerValue;
 #if ENABLE_HARDWARE
 extern DisplayRow destRow, presRow, lastRow;
 #endif
+
+void broadcastAnimationComplete() {
+    if (ws.count() > 0) {
+        DynamicJsonDocument doc(64);
+        doc["action"] = "animationComplete";
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
+        Serial.println("SERVER_DEBUG: Broadcasted animationComplete message.");
+    }
+}
 
 // --- FLASH EFFECT ---
 bool isFlashing[3][4] = {{false}};
@@ -405,12 +418,14 @@ void handleStyledAnimation() {
                 isStyledAnimating = false;
                 currentStyledPhase = ANIM_INACTIVE;
                 updateHaStatus("Idle");
+                broadcastAnimationComplete();
             }
             break;
 
         default:
             isStyledAnimating = false;
             currentStyledPhase = ANIM_INACTIVE;
+            broadcastAnimationComplete();
             break;
     }
 #endif
