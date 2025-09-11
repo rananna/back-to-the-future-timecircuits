@@ -55,42 +55,44 @@ const char* getIconForWeatherCode(int code) {
 }
 
 void displayMarqueeOverride() {
-    // ... function content remains the same ...
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
-    String textToDisplay = marqueeOverrideMessage;
-
-    if (textToDisplay.length() > 13) {
-        textToDisplay = "  " + textToDisplay + "  ";
-    }
-
-    static unsigned long lastScrollTime = 0;
-    static int scrollPosition = 0;
-
-    if (millis() - lastScrollTime > currentSettings.dataPoints[currentPageIndex].scrollSpeed) {
-        lastScrollTime = millis();
-
-        String viewport = textToDisplay.substring(scrollPosition, scrollPosition + 13);
-
-        printToDisplay(lastRow.month, viewport.substring(0, 3).c_str(), 0);
-        printToDisplay(lastRow.day, viewport.substring(3, 5).c_str(), 0);
-        printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
-        printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
-
-        lastRow.month.writeDisplay();
-        lastRow.day.writeDisplay();
-        lastRow.year.writeDisplay();
-        lastRow.time.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        String textToDisplay = marqueeOverrideMessage;
 
         if (textToDisplay.length() > 13) {
-            scrollPosition++;
-            if (scrollPosition > textToDisplay.length() - 13) {
+            textToDisplay = "  " + textToDisplay + "  ";
+        }
+
+        static unsigned long lastScrollTime = 0;
+        static int scrollPosition = 0;
+
+        if (millis() - lastScrollTime > currentSettings.dataPoints[currentPageIndex].scrollSpeed) {
+            lastScrollTime = millis();
+
+            String viewport = textToDisplay.substring(scrollPosition, scrollPosition + 13);
+
+            printToDisplay(lastRow.month, viewport.substring(0, 3).c_str(), 0);
+            printToDisplay(lastRow.day, viewport.substring(3, 5).c_str(), 0);
+            printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
+            printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
+
+            lastRow.month.writeDisplay();
+            lastRow.day.writeDisplay();
+            lastRow.year.writeDisplay();
+            lastRow.time.writeDisplay();
+            vTaskDelay(pdMS_TO_TICKS(2));
+
+            if (textToDisplay.length() > 13) {
+                scrollPosition++;
+                if (scrollPosition > textToDisplay.length() - 13) {
+                    scrollPosition = 0;
+                }
+            } else {
                 scrollPosition = 0;
             }
-        } else {
-            scrollPosition = 0;
         }
+        xSemaphoreGive(xDisplayDataMutex);
     }
 #endif
 }
@@ -147,29 +149,31 @@ void updateStockTickerDisplay() {
 }
 
 void displayOverrideMessage() {
-    // ... function content remains the same ...
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
-    printToDisplay(destRow.month, overrideMessageLine1.substring(0, 3).c_str(), 1);
-    printToDisplay(destRow.day, overrideMessageLine1.substring(3, 5).c_str(), 2);
-    printToDisplay(destRow.year, overrideMessageLine1.substring(5, 9).c_str());
-    printToDisplay(destRow.time, overrideMessageLine1.substring(9, 13).c_str());
-    destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(2));
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        printToDisplay(destRow.month, overrideMessageLine1.substring(0, 3).c_str(), 1);
+        printToDisplay(destRow.day, overrideMessageLine1.substring(3, 5).c_str(), 2);
+        printToDisplay(destRow.year, overrideMessageLine1.substring(5, 9).c_str());
+        printToDisplay(destRow.time, overrideMessageLine1.substring(9, 13).c_str());
+        destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
 
-    printToDisplay(presRow.month, overrideMessageLine2.substring(0, 3).c_str(), 1);
-    printToDisplay(presRow.day, overrideMessageLine2.substring(3, 5).c_str(), 2);
-    printToDisplay(presRow.year, overrideMessageLine2.substring(5, 9).c_str());
-    printToDisplay(presRow.time, overrideMessageLine2.substring(9, 13).c_str());
-    presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(2));
+        printToDisplay(presRow.month, overrideMessageLine2.substring(0, 3).c_str(), 1);
+        printToDisplay(presRow.day, overrideMessageLine2.substring(3, 5).c_str(), 2);
+        printToDisplay(presRow.year, overrideMessageLine2.substring(5, 9).c_str());
+        printToDisplay(presRow.time, overrideMessageLine2.substring(9, 13).c_str());
+        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
 
-    printToDisplay(lastRow.month, overrideMessageLine3.substring(0, 3).c_str(), 1);
-    printToDisplay(lastRow.day, overrideMessageLine3.substring(3, 5).c_str(), 2);
-    printToDisplay(lastRow.year, overrideMessageLine3.substring(5, 9).c_str());
-    printToDisplay(lastRow.time, overrideMessageLine3.substring(9, 13).c_str());
-    lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(2));
+        printToDisplay(lastRow.month, overrideMessageLine3.substring(0, 3).c_str(), 1);
+        printToDisplay(lastRow.day, overrideMessageLine3.substring(3, 5).c_str(), 2);
+        printToDisplay(lastRow.year, overrideMessageLine3.substring(5, 9).c_str());
+        printToDisplay(lastRow.time, overrideMessageLine3.substring(9, 13).c_str());
+        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
+        xSemaphoreGive(xDisplayDataMutex);
+    }
 #endif
 }
 
@@ -204,77 +208,80 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
   if (isDisplayAsleep || isAnimating || isGlitching || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
-  if (timeSynchronized) {
-    time_t now_t;
-    time(&now_t);
+  if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+    if (timeSynchronized) {
+      time_t now_t;
+      time(&now_t);
 
-    // --- Destination Time ---
-    if (updateDest) {
-        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-        tzset();
-        struct tm dest_timeinfo;
-        localtime_r(&now_t, &dest_timeinfo);
-        
-        // The struct is now correctly populated with the current date/time in the destination's timezone.
-        // We only need to override the year with the one from settings.
-        dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
-        
-        if (!isRowInManualMode[0]) {
-            updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
-        } else {
-            if (!manualDisplayText[0][0].empty()) printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
-            if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
-            if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
-            if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
-        }
-        destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
+      // --- Destination Time ---
+      if (updateDest) {
+          setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+          tzset();
+          struct tm dest_timeinfo;
+          localtime_r(&now_t, &dest_timeinfo);
+
+          // The struct is now correctly populated with the current date/time in the destination's timezone.
+          // We only need to override the year with the one from settings.
+          dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+
+          if (!isRowInManualMode[0]) {
+              updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
+          } else {
+              if (!manualDisplayText[0][0].empty()) printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
+              if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
+              if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
+              if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
+          }
+          destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+          vTaskDelay(pdMS_TO_TICKS(2));
+      }
+
+      // --- Present Time ---
+      if (updatePres) {
+          bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
+          setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+          tzset();
+          struct tm present_timeinfo;
+          localtime_r(&now_t, &present_timeinfo);
+
+          if(!isRowInManualMode[1]) {
+              updateDisplayRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent);
+          } else {
+              if (!manualDisplayText[1][0].empty()) printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
+              if (!manualDisplayText[1][1].empty()) printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
+              if (!manualDisplayText[1][2].empty()) printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
+              if (!manualDisplayText[1][3].empty()) printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
+          }
+          presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+          vTaskDelay(pdMS_TO_TICKS(2));
+      }
+
+      // --- Last Time Departed ---
+      if (updateLast) {
+          struct tm lastTimeDepartedInfo = {0};
+          lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
+          lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
+          lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
+          lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
+          lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
+
+          if(!isRowInManualMode[2]) {
+              updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
+          } else {
+              if (!manualDisplayText[2][0].empty()) printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
+              if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
+              if (!manualDisplayText[2][2].empty()) printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
+              if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
+          }
+          lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+          vTaskDelay(pdMS_TO_TICKS(2));
+      }
+
+      // --- IMPORTANT: Reset Timezone to Present for other functions ---
+      setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+      tzset();
     }
-
-    // --- Present Time ---
-    if (updatePres) {
-        bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
-        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-        tzset();
-        struct tm present_timeinfo;
-        localtime_r(&now_t, &present_timeinfo);
-
-        if(!isRowInManualMode[1]) {
-            updateDisplayRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent);
-        } else {
-            if (!manualDisplayText[1][0].empty()) printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
-            if (!manualDisplayText[1][1].empty()) printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
-            if (!manualDisplayText[1][2].empty()) printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
-            if (!manualDisplayText[1][3].empty()) printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
-        }
-        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
-    }
-    
-    // --- Last Time Departed ---
-    if (updateLast) {
-        struct tm lastTimeDepartedInfo = {0};
-        lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
-        lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
-        lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
-        lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
-        lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
-        
-        if(!isRowInManualMode[2]) {
-            updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
-        } else {
-            if (!manualDisplayText[2][0].empty()) printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
-            if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
-            if (!manualDisplayText[2][2].empty()) printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
-            if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
-        }
-        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
-    }
-
-    // --- IMPORTANT: Reset Timezone to Present for other functions ---
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-	tzset();
+    xSemaphoreGive(xDisplayDataMutex);
   }
 #endif
 }

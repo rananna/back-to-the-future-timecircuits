@@ -881,9 +881,15 @@ void loop() {
                     handleFlashEffect();
 
                     if (isAnimating) {
-                        handleDisplayAnimation();
+                        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                            handleDisplayAnimation();
+                            xSemaphoreGive(xDisplayDataMutex);
+                        }
                     } else if (isStyledAnimating) {
-                        handleStyledAnimation();
+                        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                            handleStyledAnimation();
+                            xSemaphoreGive(xDisplayDataMutex);
+                        }
                     } else {
                         if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
                             lastDisplayUpdateTime = millis();
