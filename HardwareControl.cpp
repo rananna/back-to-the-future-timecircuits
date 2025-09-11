@@ -833,7 +833,7 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
 
   int len = strlen(text);
   const int total_visual_width = 13; 
-  int shift_offset = 1; // Shift the whole animation 1 character to the right
+  int shift_offset = 2; // Shift the whole animation 1 character to the right
 
   for (int i = 0; i < len; i++) {
     int virtual_pos = i + shift_offset;
