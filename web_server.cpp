@@ -506,36 +506,60 @@ void setupWebRoutes() {
     serializeJson(obj, receivedJson);
     Serial.println(receivedJson);
 
+    // --- FIX: Input Validation ---
+    // Helper lambda to validate and set an integer value from JSON
+    auto validateAndSet = [&](const char* key, int& setting, int min, int max) {
+        if (obj.containsKey(key)) {
+            int value = obj[key].as<int>();
+            if (value >= min && value <= max) {
+                setting = value;
+            } else {
+                Serial.printf("VALIDATION_ERROR: %s value %d is out of range (%d-%d).\n", key, value, min, max);
+            }
+        }
+    };
+
+    // Helper lambda for unsigned char
+    auto validateAndSetUChar = [&](const char* key, uint8_t& setting, uint8_t min, uint8_t max) {
+        if (obj.containsKey(key)) {
+            uint8_t value = obj[key].as<uint8_t>();
+            if (value >= min && value <= max) {
+                setting = value;
+            } else {
+                Serial.printf("VALIDATION_ERROR: %s value %u is out of range (%u-%u).\n", key, value, min, max);
+            }
+        }
+    };
+
     std::string oldMqttBroker = currentSettings.mqttBroker;
     int oldMqttPort = currentSettings.mqttPort;
     std::string oldCityName = currentSettings.cityName;
 
-    currentSettings.destinationYear = obj["destinationYear"] | currentSettings.destinationYear;
-    currentSettings.destinationTimezoneIndex = obj["destinationTimezoneIndex"] | currentSettings.destinationTimezoneIndex;
-    currentSettings.lastTimeDepartedYear = obj["lastTimeDepartedYear"] | currentSettings.lastTimeDepartedYear;
-    currentSettings.lastTimeDepartedMonth = obj["lastTimeDepartedMonth"] | currentSettings.lastTimeDepartedMonth;
-    currentSettings.lastTimeDepartedDay = obj["lastTimeDepartedDay"] | currentSettings.lastTimeDepartedDay;
-    currentSettings.lastTimeDepartedHour = obj["lastTimeDepartedHour"] | currentSettings.lastTimeDepartedHour;
-    currentSettings.lastTimeDepartedMinute = obj["lastTimeDepartedMinute"] | currentSettings.lastTimeDepartedMinute;
-    currentSettings.presetCycleInterval = obj["presetCycleInterval"] | currentSettings.presetCycleInterval;
-    currentSettings.departureHour = obj["departureHour"] | currentSettings.departureHour;
-    currentSettings.departureMinute = obj["departureMinute"] | currentSettings.departureMinute;
-    currentSettings.arrivalHour = obj["arrivalHour"] | currentSettings.arrivalHour;
-    currentSettings.arrivalMinute = obj["arrivalMinute"] | currentSettings.arrivalMinute;
-    currentSettings.brightness = obj["brightness"] | currentSettings.brightness;
-        if (hardwareInitialized) { // <-- ADD THIS BLOCK
+    validateAndSet("destinationYear", currentSettings.destinationYear, 0, 9999);
+    validateAndSet("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
+    validateAndSet("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear, 0, 9999);
+    validateAndSet("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth, 1, 12);
+    validateAndSet("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay, 1, 31);
+    validateAndSet("lastTimeDepartedHour", currentSettings.lastTimeDepartedHour, 0, 23);
+    validateAndSet("lastTimeDepartedMinute", currentSettings.lastTimeDepartedMinute, 0, 59);
+    validateAndSet("presetCycleInterval", currentSettings.presetCycleInterval, 0, 1440);
+    validateAndSet("departureHour", currentSettings.departureHour, 0, 23);
+    validateAndSet("departureMinute", currentSettings.departureMinute, 0, 59);
+    validateAndSet("arrivalHour", currentSettings.arrivalHour, 0, 23);
+    validateAndSet("arrivalMinute", currentSettings.arrivalMinute, 0, 59);
+    validateAndSetUChar("brightness", currentSettings.brightness, 0, 15);
+    if (hardwareInitialized) {
         applyBrightness();
     }
-    currentSettings.timeTravelAnimationDuration = obj["timeTravelAnimationDuration"] | currentSettings.timeTravelAnimationDuration;
-    currentSettings.timeTravelAnimationInterval = obj["timeTravelAnimationInterval"] | currentSettings.timeTravelAnimationInterval;
-    currentSettings.animationStyle = obj["animationStyle"] | currentSettings.animationStyle;
-    currentSettings.glitchEffectFrequency = obj["glitchEffectFrequency"] | currentSettings.glitchEffectFrequency;
-    currentSettings.notificationVolume = obj["notificationVolume"] | currentSettings.notificationVolume;
-    currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"] | currentSettings.timeTravelSoundToggle;
-    currentSettings.presentTimezoneIndex = obj["presentTimezoneIndex"] | currentSettings.presentTimezoneIndex;
-    currentSettings.displayFormat24h = obj["displayFormat24h"] | currentSettings.displayFormat24h;
-
-    currentSettings.dataLinkEnabled = obj["dataLinkEnabled"] | currentSettings.dataLinkEnabled;
+    validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
+    validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
+    validateAndSet("animationStyle", currentSettings.animationStyle, 0, 15); // Adjust max based on number of animation styles
+    validateAndSet("glitchEffectFrequency", currentSettings.glitchEffectFrequency, 0, 100);
+    validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
+    if (obj.containsKey("timeTravelSoundToggle")) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
+    validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
+    if (obj.containsKey("displayFormat24h")) currentSettings.displayFormat24h = obj["displayFormat24h"];
+    if (obj.containsKey("dataLinkEnabled")) currentSettings.dataLinkEnabled = obj["dataLinkEnabled"];
     currentSettings.dataLinkRefreshInterval = obj["dataLinkRefreshInterval"] | currentSettings.dataLinkRefreshInterval;
     if (obj.containsKey("mqttBroker")) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
     currentSettings.mqttPort = obj["mqttPort"] | 1883;
