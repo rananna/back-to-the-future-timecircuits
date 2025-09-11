@@ -2,6 +2,13 @@
 
 This guide covers the day-to-day use and configuration of your Time Circuits display via its built-in web interface.
 
+### **Table of Contents**
+1. [First-Time WiFi Setup](#first-time-wifi-setup)
+2. [Accessing the Web Interface](#accessing-the-web-interface)
+3. [Web Interface Tabs](#web-interface-tabs)
+4. [The "Engage Time Circuits" Button](#the-engage-time-circuits-button)
+5. [Cinematic Save Sequence](#cinematic-save-sequence)
+
 ***
 
 ## First-Time WiFi Setup
@@ -64,9 +71,24 @@ This mode transforms the three display rows into a real-time stock and index tic
 
 ***
 
-## Engaging the Time Circuits: The Save Sequence
+## The "Engage Time Circuits" Button
 
-💡 **What This Button Does:** The large **"Engage Time Circuits"** button at the bottom of the page performs two actions at once: it saves **all** of your settings from every tab and immediately triggers the full time travel animation sequence on the hardware.
+The large **"Engage Time Circuits"** button at the bottom of the page is your primary way to save settings and trigger the clock's signature animation.
+
+💡 **What it Does:** This button performs two actions at once:
+1.  **Saves All Settings:** It saves every configuration option from all tabs.
+2.  **Triggers Animation:** It immediately starts the full time travel sequence on the hardware.
+
+Even though it saves all settings, the device is designed for longevity. It intelligently checks which settings have actually been changed and only writes the new values to its memory. This "smart saving" process is extremely fast and minimizes wear on the hardware.
+
+> ⚡ **Tip for Quick Configuration**
+> Because every press of the button triggers the full 17-second animation, it's most efficient to **make all of your desired changes across all tabs first**, and then press the save button only once when you are finished.
+
+***
+
+## Cinematic Save Sequence
+
+Pressing the "Engage Time Circuits" button triggers a cinematic 17-second animation on the physical display, complete with synchronized sound effects and feedback in the web interface.
 
 ### Web Interface Feedback
 
@@ -78,7 +100,7 @@ When you press the button, you will see the following changes in the web UI:
 
 ### Hardware Animation and Sound Sequence
 
-Pressing the save button triggers a cinematic 17-second animation on the physical display, complete with synchronized sound effects.
+This table details the sequence of events on the physical clock.
 
 | Phase | Duration | Visuals | Sound Effect |
 | :--- | :--- | :--- | :--- |
@@ -87,48 +109,3 @@ Pressing the save button triggers a cinematic 17-second animation on the physica
 | **2. Acceleration**| 10 seconds | The bottom row displays a speedometer ramping up to 88 MPH while the other rows continue to flicker. | A futuristic engine whine increases in pitch and volume, conveying a sense of immense speed (**SAVE\_ACCELERATION.mp3**). |
 | **3. Time Travel**| 4 seconds | At 88 MPH, all displays flash brightly, then show a "time blur" effect where the years rapidly skim forward or backward. | A loud "sonic boom" transitions into a chaotic whoosh of temporal winds (**SAVE\_TIME\_TRAVEL.mp3**). |
 | **4. Landing** | 1 second | The displays flicker one last time before settling on the new destination and present times. | A deep "thud" combined with a final crackle of electricity confirms the arrival (**SAVE\_LANDING.mp3**). |
-
-#### Smart Saving Technology
-
-Even though pressing the button saves all settings, the device is designed for longevity. It intelligently checks which settings have actually been changed and only writes the new values to its memory. This "smart saving" process is extremely fast and minimizes wear on the hardware, ensuring your Time Circuits will be ready for many trips to the future.
-
-### ⚡ Tip for Quick Configuration
-
-Because every press of the "Engage Time Circuits" button triggers the full 17-second animation, it's most efficient to **make all of your desired changes across all tabs first**, and then press the save button only once when you are finished.
-
-***
-
-## 🚀 Updating Your Device
-
-There are three primary ways to update the files on your Time Circuits device.
-
-### Method 1: Web UI Firmware Update (Recommended)
-
-This is the easiest and recommended method for updating the device's core software (firmware). This process flashes the main application logic.
-
-1.  In the Arduino IDE, compile your sketch (`Sketch` > `Verify/Compile`).
-2.  Export the compiled binary (`Sketch` > `Export compiled Binary`). This will create a `.bin` file in your sketch folder.
-3.  In the web UI, navigate to the **System** tab.
-4.  Under the **Firmware Update (OTA)** section, click **Choose File** and select the `.bin` file you just exported.
-5.  Click **Upload and Update Firmware**. The update process will begin, and the device will automatically reboot when it's complete.
-
-> ⚠️ **Password Note**: For security, the OTA update process requires a password. The default password is **`1.21gigawatts`**. This is currently hardcoded and can be changed in `web_server.cpp`.
-
-### Method 2: ArduinoOTA Update (For Developers)
-
-This method allows developers to upload new firmware directly from the Arduino IDE over the network, which is often faster for rapid testing.
-
-1.  Ensure your computer is on the same network as the Time Circuits device.
-2.  In the Arduino IDE, go to **Tools > Port**.
-3.  Under the "Network Ports" section, you should see your device listed (e.g., `BTTF-Time-Circuits at 192.168.1.123`). Select it.
-4.  Click the normal "Upload" button in the IDE. The new firmware will be compiled and sent to the device over WiFi.
-
-### Method 3: Web UI Data File Update
-
-This feature allows you to update the files that make up the web interface itself (HTML, CSS, JavaScript) or the sound effects (`.mp3` files) without re-flashing the entire firmware.
-
-1.  Navigate to the **System** tab.
-2.  Under the **UI File Update** section, click **Choose Files**.
-3.  Select the UI or sound files you want to update. You can select multiple files at once.
-4.  Click **Upload UI Files**. The files will be uploaded to the device's filesystem.
-5.  Once the upload is complete, you must **manually refresh the page** in your browser to see the changes.
