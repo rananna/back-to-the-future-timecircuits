@@ -10,6 +10,7 @@
 #include "web_server.h"
 #include "api_templates.h"
 #include "DataManager.h"
+#include "timezone.h"
 #include "EventManager.h"
 #include <AsyncJson.h>
 #include <WiFiClientSecure.h>

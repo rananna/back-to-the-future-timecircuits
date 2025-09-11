@@ -176,11 +176,6 @@ struct DisplayRow {
     Adafruit_AlphaNum4 year; Adafruit_AlphaNum4 time;
 };
 
-struct TimeZoneEntry {
-  const char* tzString; const char* displayName;
-  const char* ianaTzName; const char* region;
-};
-
 enum AnimationStyle {
   ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
   ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,

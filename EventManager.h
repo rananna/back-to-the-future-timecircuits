@@ -54,7 +54,6 @@ extern bool isMarqueeOverrideActive;
 extern String marqueeOverrideMessage;
 extern unsigned long marqueeOverrideEndTime;
 
-extern const TimeZoneEntry TZ_DATA[];
 extern SemaphoreHandle_t xDisplayDataMutex;
 extern std::string lastCityName;
 
