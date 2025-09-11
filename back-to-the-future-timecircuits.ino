@@ -57,6 +57,7 @@ const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000;  // Initial time in ms to
 const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;     // Maximum time in ms for the exponential backoff for MQTT reconnects.
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000;      // Delay in ms after connecting to WiFi before the first NTP sync.
 const unsigned long DISPLAY_UPDATE_INTERVAL = 250;      // Milliseconds between display updates for the main clock.
+const unsigned long HARDWARE_INIT_RETRY_INTERVAL = 30000; // Time in ms to wait before retrying hardware init.
 
 // --- WIFI STATE MANAGEMENT ---
 // Manages the asynchronous, non-blocking WiFi connection process.
@@ -96,6 +97,7 @@ void handleSleepSchedule();
 void handleSequencer();
 bool isMarketOpen();
 bool attemptHardwareInit();
+void onHardwareInitialized();
 void checkDataFetchStatusTask(void* p);
 void startAudioStream(const char* url, bool is_tts);
 void stopAudioStream();
@@ -115,6 +117,7 @@ unsigned long lastDisplayUpdateTime = 0;// Timestamp of the last main display up
 std::string lastCityName = "";        // Caches the last city name used for a weather lookup to avoid redundant geocoding.
 unsigned long bootTimestamp = 0;      // Timestamp (millis) when the setup() function completed.
 bool hardwareInitialized = false;     // Flag indicating whether the physical hardware (displays, etc.) was successfully initialized.
+unsigned long lastHardwareInitAttempt = 0; // Timestamp for the last hardware initialization attempt.
 
 // --- TIMEZONE DATA ---
 // A comprehensive list of timezones supported by the clock.
@@ -553,13 +556,37 @@ void listAllFiles() {
 bool attemptHardwareInit() {
     #if ENABLE_HARDWARE
     Serial.println(F("BOOT_LOG: Attempting to initialize hardware..."));
-    setupPhysicalDisplay();
-    Serial.println(F("BOOT_LOG: Physical display setup... OK"));
-    return true; // Success
+    if (setupPhysicalDisplay()) {
+        Serial.println(F("BOOT_LOG: Physical display setup... OK"));
+        return true; // Success
+    } else {
+        Serial.println(F("BOOT_LOG: Physical display setup... FAILED"));
+        return false; // Failure
+    }
     #else
     Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
-    return false; // Hardware is disabled, so it's not "initialized"
+    return true; // Keep original logic: if disabled, it's "not failed"
     #endif
+}
+
+void onHardwareInitialized() {
+    Serial.println(F("SYSTEM_LOG: Hardware successfully initialized. Running post-init tasks."));
+    applyBrightness();
+    Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
+    audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
+    audio.setVolume(currentSettings.notificationVolume);
+    Audio::audio_info_callback = audio_info;
+    Serial.println(F("BOOT_LOG: I2S Audio... OK"));
+
+    xTaskCreatePinnedToCore(
+        audioTask,          // Task function
+        "AudioTask",        // Name of the task
+        4096,               // Increased stack size
+        NULL,               // Task input parameter
+        5,                  // Priority of the task
+        NULL,               // Task handle
+        0                   // Core where the task should run
+    );
 }
 
 void wifiManagerTask(void *pvParameters) {
@@ -616,24 +643,7 @@ void setup() {
 
     hardwareInitialized = attemptHardwareInit();
     if (hardwareInitialized) {
-        applyBrightness();
-        Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
-        audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
-        audio.setVolume(currentSettings.notificationVolume);
-        Audio::audio_info_callback = audio_info;
-        Serial.println(F("BOOT_LOG: I2S Audio... OK"));
-        
-        xTaskCreatePinnedToCore(
-            audioTask,          // Task function
-            "AudioTask",        // Name of the task
-            4096,               // FIX: Increased stack size from 2048 to 4096 words
-         
-           NULL,               // Task input parameter
-            5,                  // Priority of the task (high)
-            NULL,               // Task handle
-       
-     0                   // Core where the task should run (Core 0)
-        );
+        onHardwareInitialized();
     }
 
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -880,6 +890,20 @@ void loop() {
                             updateDisplayState();
                             handleDisplay();
                         }
+                    }
+                }
+            } else {
+                // Hardware failed to initialize, retry periodically
+                unsigned long now = millis();
+                if (now - lastHardwareInitAttempt > HARDWARE_INIT_RETRY_INTERVAL) {
+                    Serial.println("LOOP_LOG: Retrying hardware initialization...");
+                    lastHardwareInitAttempt = now;
+                    hardwareInitialized = attemptHardwareInit();
+                    if (hardwareInitialized) {
+                        Serial.println("LOOP_LOG: Hardware initialized successfully on retry.");
+                        onHardwareInitialized();
+                    } else {
+                        Serial.println("LOOP_LOG: Hardware initialization retry failed.");
                     }
                 }
             }
