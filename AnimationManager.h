@@ -48,7 +48,6 @@ void handleStyledAnimation();
 void handleTemporalEcho();
 void handleGlitchEffect();
 void restoreDisplayAfterGlitch();
-void handleMalfunction();
 void runBootSequence();
 void handleBootSequence();
 void triggerTemporalGlitch();

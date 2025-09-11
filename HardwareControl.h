@@ -68,7 +68,6 @@ enum AnimationPhase {
 // It is now defined solely in AnimationManager.h.
 
 enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
-enum MalfunctionPhase { MAL_INACTIVE, MAL_HAYWIRE, MAL_ERROR_MESSAGE, MAL_REBOOT };
 
 struct FetchDataParams {
     int pointIndex;
@@ -124,7 +123,6 @@ struct ClockSettings {
   int timeTravelAnimationDuration;
   int animationStyle;
   int glitchEffectFrequency;
-  int malfunctionFrequency;
   bool dataLinkEnabled;
   int dataLinkTargetRow;
   int dataLinkRefreshInterval;

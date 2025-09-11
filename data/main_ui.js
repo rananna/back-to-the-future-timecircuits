@@ -248,7 +248,7 @@ async function applySettings(timecircuits, temporal, datalink) {
     if (temporal) {
         document.getElementById('departureTime').value = `${String(temporal.departureHour).padStart(2, '0')}:${String(temporal.departureMinute).padStart(2, '0')}`;
         document.getElementById('arrivalTime').value = `${String(temporal.arrivalHour).padStart(2, '0')}:${String(temporal.arrivalMinute).padStart(2, '0')}`;
-        ['brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'presetCycleInterval', 'glitchEffectFrequency', 'malfunctionFrequency'].forEach(id => {
+        ['brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'presetCycleInterval', 'glitchEffectFrequency'].forEach(id => {
             const slider = document.getElementById(id);
             if (slider) {
                 slider.value = temporal[id];
@@ -455,6 +455,10 @@ function attachEventListeners() {
     });
 
     // Number of data points slider
+    document.getElementById('notificationVolume').addEventListener('input', (e) => {
+        document.getElementById('notificationVolumeValue').textContent = e.target.value;
+    });
+
     document.getElementById('numDataPoints').oninput = (e) => {
         document.getElementById('numDataPointsValue').textContent = e.target.value;
         updateDataPointsUI(parseInt(e.target.value, 10));
