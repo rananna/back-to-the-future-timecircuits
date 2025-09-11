@@ -129,15 +129,20 @@ void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
  * called on each iteration of the main loop.
  */
 void startTimeTravelAnimation() {
-    if (isAnimating) return; // Don't start a new animation if one is already running.
+    if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
+        return;
+    }
+
+    if (isAnimating || isStyledAnimating) {
+        xSemaphoreGive(xAnimationStartMutex);
+        return;
+    }
     isAnimating = true;
+    xSemaphoreGive(xAnimationStartMutex);
+
     animationStartTime = millis();
-    // Set the initial phase; the state machine will handle the rest.
     currentPhase = ANIM_POWER_UP; 
     updateHaStatus("Animating");
-
-    // The Last Time Departed is now exclusively set via the UI.
-    // This animation is purely visual.
 }
 
 /**
@@ -251,16 +256,24 @@ void handleDisplayAnimation() {
  * @brief Initiates the styled animation sequence for scheduled events.
  */
 void startStyledAnimation() {
-    if (isStyledAnimating || isAnimating) return; // Prevent animations from overlapping
-    playSound("/keypad_beeps.mp3");
+    if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
+        return;
+    }
+
+    if (isStyledAnimating || isAnimating) {
+        xSemaphoreGive(xAnimationStartMutex);
+        return;
+    }
     isStyledAnimating = true;
+    xSemaphoreGive(xAnimationStartMutex);
+
+    playSound("/keypad_beeps.mp3");
     styledAnimationStartTime = millis();
-    currentStyledPhase = ANIM_FLICKER; // Skip power up
+    currentStyledPhase = ANIM_FLICKER;
     updateHaStatus("Animating");
 
-    // Set the animation style for this run
     if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
-        randomAnimationStyle = random(0, 11); // Updated to include the new animation
+        randomAnimationStyle = random(0, 11);
     } else {
         randomAnimationStyle = currentSettings.animationStyle;
     }

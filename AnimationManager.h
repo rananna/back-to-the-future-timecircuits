@@ -9,6 +9,9 @@
 #ifndef ANIMATION_MANAGER_H
 #define ANIMATION_MANAGER_H
 #include "HardwareControl.h"
+#include <freertos/semphr.h>
+
+extern SemaphoreHandle_t xAnimationStartMutex;
 
 // --- MODIFIED: New constants and states for the cinematic boot sequence ---
 #define BOOT_AWAIT_HUM_DURATION 10000
