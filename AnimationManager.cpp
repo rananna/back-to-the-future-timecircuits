@@ -154,6 +154,17 @@ void handleDisplayAnimation() {
     if (!isAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - animationStartTime;
+
+    // --- FIX: Add a global timeout to prevent the animation from hanging indefinitely ---
+    const unsigned long MAX_ANIMATION_DURATION = 30000; // 30 seconds
+    if (elapsed > MAX_ANIMATION_DURATION) {
+        Serial.println(F("ANIMATION_ERROR: Time travel animation timed out. Forcing exit."));
+        isAnimating = false;
+        currentPhase = ANIM_INACTIVE;
+        updateNormalClockDisplay();
+        updateHaStatus("Idle");
+        return;
+    }
     static AnimationPhase lastPhase = ANIM_INACTIVE;
 
     // Detect when the animation phase changes to trigger the sound for the new phase.
@@ -241,6 +252,7 @@ void handleDisplayAnimation() {
  */
 void startStyledAnimation() {
     if (isStyledAnimating || isAnimating) return; // Prevent animations from overlapping
+    playSound("/keypad_beeps.mp3");
     isStyledAnimating = true;
     styledAnimationStartTime = millis();
     currentStyledPhase = ANIM_FLICKER; // Skip power up
@@ -337,6 +349,9 @@ void handleStyledAnimation() {
             if (elapsed < 1000) {
                 animateTornadoFlicker();
             } else {
+                if (audio.isRunning()) {
+                    audio.stopSong();
+                }
                 isStyledAnimating = false;
                 currentStyledPhase = ANIM_INACTIVE;
                 updateNormalClockDisplay();

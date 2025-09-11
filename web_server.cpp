@@ -665,6 +665,8 @@ void setupWebRoutes() {
 
     audio.setVolume(currentSettings.notificationVolume);
 
+    startStyledAnimation();
+
     request->send(200, "text/plain", "Settings Saved!");
  }, 8192); // This last argument is the increased buffer size
   server.addHandler(saveSettingsHandler);
