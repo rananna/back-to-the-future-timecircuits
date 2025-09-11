@@ -990,6 +990,13 @@ void handleSleepSchedule() {
     isDisplayAsleep = true;
     if (hardwareInitialized) {
         blankAllDisplays();
+        // --- FIX: Turn off all AM/PM LEDs ---
+        digitalWrite(DEST_AM_PIN, LOW);
+        digitalWrite(DEST_PM_PIN, LOW);
+        digitalWrite(PRES_AM_PIN, LOW);
+        digitalWrite(PRES_PM_PIN, LOW);
+        digitalWrite(LAST_AM_PIN, LOW);
+        digitalWrite(LAST_PM_PIN, LOW);
         playSound("/SLEEP_ON.mp3");
     }
     updateHaStatus("Asleep");
