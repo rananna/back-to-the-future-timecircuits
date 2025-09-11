@@ -139,6 +139,14 @@ AnimationPhase currentPhase = ANIM_INACTIVE;
 bool isStyledAnimating = false;
 unsigned long styledAnimationStartTime = 0;
 AnimationPhase currentStyledPhase = ANIM_INACTIVE;
+
+// --- Asynchronous Settings Save Mechanism ---
+// This flag is set by the web server when a save request is received.
+// The main loop then handles the actual saving process in the background.
+volatile bool saveSettingsRequested = false;
+// This string buffers the JSON payload from the web UI to be saved.
+String settingsToSaveJson;
+
 bool isDisplayAsleep = false;
 unsigned long bootStateStartTime = 0;
 unsigned long lastGlitchTime = 0;
@@ -219,6 +227,206 @@ void audioTask(void *pvParameters) {
     vTaskDelay(2 / portTICK_PERIOD_MS); // Run this task every 2 milliseconds
   }
 }
+
+/**
+void applySettingsFromJson(const JsonObject& obj); // Forward declaration
+
+/**
+ * @brief Handles the asynchronous saving of settings requested from the web UI.
+ * @details This function is called from the main loop when the `saveSettingsRequested`
+ * flag is true. It parses the buffered JSON string, applies the new settings,
+ * saves them to persistent storage, triggers the confirmation animation, and
+ * handles any necessary service reconnections (like MQTT).
+ */
+void handleBackgroundSave() {
+    saveSettingsRequested = false; // Reset the flag immediately.
+
+    Serial.println("--- Background Save Started ---");
+
+    // Create a JSON document to parse the buffered string.
+    DynamicJsonDocument doc(8192);
+    DeserializationError error = deserializeJson(doc, settingsToSaveJson);
+
+    if (error) {
+        Serial.print(F("handleBackgroundSave: deserializeJson() failed: "));
+        Serial.println(error.c_str());
+        settingsToSaveJson = ""; // Clear the invalid JSON.
+        return;
+    }
+
+    JsonObject obj = doc.as<JsonObject>();
+
+    // Apply the new settings from the JSON object.
+    applySettingsFromJson(obj);
+
+    // Save the newly applied settings to NVS.
+    saveSettings();
+
+    // Set the volume (might have changed).
+    audio.setVolume(currentSettings.notificationVolume);
+
+    // Trigger the physical confirmation animation.
+    startStyledAnimation();
+
+    // Clear the buffer to free up memory.
+    settingsToSaveJson = "";
+    Serial.println("--- Background Save Finished ---");
+}
+
+
+/**
+ * @brief Parses a JSON object and applies its values to the global `currentSettings` struct.
+ * @details This function contains the core logic for validating and updating the application's
+ * settings based on a JSON object, typically received from the web interface. It includes
+ * logic to detect changes that require service reconnections (e.g., MQTT).
+ * @param obj A const reference to the JsonObject containing the new settings.
+ */
+void applySettingsFromJson(const JsonObject& obj) {
+    Serial.println("SERVER_DEBUG: Applying settings from JSON object.");
+
+    // --- Input Validation Lambdas ---
+    auto validateAndSet = [&](const char* key, int& setting, int min, int max) {
+        if (obj.containsKey(key)) {
+            int value = obj[key].as<int>();
+            if (value >= min && value <= max) {
+                setting = value;
+            } else {
+                Serial.printf("VALIDATION_ERROR: %s value %d is out of range (%d-%d).\n", key, value, min, max);
+            }
+        }
+    };
+    auto validateAndSetUChar = [&](const char* key, uint8_t& setting, uint8_t min, uint8_t max) {
+        if (obj.containsKey(key)) {
+            uint8_t value = obj[key].as<uint8_t>();
+            if (value >= min && value <= max) {
+                setting = value;
+            } else {
+                Serial.printf("VALIDATION_ERROR: %s value %u is out of range (%u-%u).\n", key, value, min, max);
+            }
+        }
+    };
+
+    // --- Detect Changes for Service Reconnections ---
+    bool needsMqttReconnect = false;
+    std::string oldMqttBroker = currentSettings.mqttBroker;
+    int oldMqttPort = currentSettings.mqttPort;
+    std::string oldMqttUser = currentSettings.mqttUser;
+    std::string oldMqttPass = currentSettings.mqttPassword;
+    int oldNumDataPoints = currentSettings.numDataPoints;
+    DataPoint oldDataPoints[5];
+    for(int i=0; i<5; ++i) {
+        oldDataPoints[i] = currentSettings.dataPoints[i];
+    }
+    std::string oldCityName = currentSettings.cityName;
+
+    // --- Apply All Settings from JSON ---
+    validateAndSet("destinationYear", currentSettings.destinationYear, 0, 9999);
+    validateAndSet("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
+    validateAndSet("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear, 0, 9999);
+    validateAndSet("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth, 1, 12);
+    validateAndSet("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay, 1, 31);
+    validateAndSet("lastTimeDepartedHour", currentSettings.lastTimeDepartedHour, 0, 23);
+    validateAndSet("lastTimeDepartedMinute", currentSettings.lastTimeDepartedMinute, 0, 59);
+    validateAndSet("presetCycleInterval", currentSettings.presetCycleInterval, 0, 1440);
+    validateAndSet("departureHour", currentSettings.departureHour, 0, 23);
+    validateAndSet("departureMinute", currentSettings.departureMinute, 0, 59);
+    validateAndSet("arrivalHour", currentSettings.arrivalHour, 0, 23);
+    validateAndSet("arrivalMinute", currentSettings.arrivalMinute, 0, 59);
+    validateAndSetUChar("brightness", currentSettings.brightness, 0, 15);
+    if (hardwareInitialized) {
+        applyBrightness();
+    }
+    validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
+    validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
+    validateAndSet("animationStyle", currentSettings.animationStyle, 0, 15);
+    validateAndSet("glitchEffectFrequency", currentSettings.glitchEffectFrequency, 0, 100);
+    validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
+    if (obj.containsKey("timeTravelSoundToggle")) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
+    validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
+    if (obj.containsKey("displayFormat24h")) currentSettings.displayFormat24h = obj["displayFormat24h"];
+    if (obj.containsKey("dataLinkEnabled")) currentSettings.dataLinkEnabled = obj["dataLinkEnabled"];
+    currentSettings.dataLinkRefreshInterval = obj["dataLinkRefreshInterval"] | currentSettings.dataLinkRefreshInterval;
+    if (obj.containsKey("mqttBroker")) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
+    currentSettings.mqttPort = obj["mqttPort"] | 1883;
+    if (obj.containsKey("mqttUser")) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
+    if (obj.containsKey("mqttPassword")) currentSettings.mqttPassword = obj["mqttPassword"].as<std::string>();
+    currentSettings.weatherModeEnabled = obj["weatherModeEnabled"] | currentSettings.weatherModeEnabled;
+    if (obj.containsKey("cityName")) {
+        std::string newCityName = obj["cityName"].as<std::string>();
+        if (newCityName != oldCityName) {
+            lastCityName = "";
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                currentWeatherData.dataValid = false;
+                xSemaphoreGive(xDisplayDataMutex);
+            }
+        }
+        currentSettings.cityName = newCityName;
+    }
+    currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
+    currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
+    if (obj.containsKey("financialModelingPrepApiKey")) {
+        currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
+    }
+    if (obj.containsKey("stockRow1_symbol")) currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
+    if (obj.containsKey("stockRow2_symbol")) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
+    if (obj.containsKey("stockRow3_symbol")) currentSettings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
+
+    int numPoints = obj["numDataPoints"] | 0;
+    currentSettings.numDataPoints = (numPoints < 0) ? 0 : (numPoints > 5 ? 5 : numPoints);
+    if (obj.containsKey("dataPoints")) {
+        JsonArray dataPoints = obj["dataPoints"];
+        for (int i = 0; i < 5; i++) {
+            if (i < currentSettings.numDataPoints && i < dataPoints.size()) {
+                JsonObject dp = dataPoints[i];
+                if (dp.containsKey("dataSourceType")) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
+                if (dp.containsKey("url")) currentSettings.dataPoints[i].url = dp["url"].as<std::string>();
+                if (dp.containsKey("monthPath")) currentSettings.dataPoints[i].monthPath = dp["monthPath"].as<std::string>();
+                if (dp.containsKey("dayPath")) currentSettings.dataPoints[i].dayPath = dp["dayPath"].as<std::string>();
+                if (dp.containsKey("yearPath")) currentSettings.dataPoints[i].yearPath = dp["yearPath"].as<std::string>();
+                if (dp.containsKey("timePath")) currentSettings.dataPoints[i].timePath = dp["timePath"].as<std::string>();
+                if (dp.containsKey("prefix")) currentSettings.dataPoints[i].prefix = dp["prefix"].as<std::string>();
+                if (dp.containsKey("suffix")) currentSettings.dataPoints[i].suffix = dp["suffix"].as<std::string>();
+                if (dp.containsKey("icon")) currentSettings.dataPoints[i].icon = dp["icon"].as<std::string>();
+                currentSettings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
+                if (dp.containsKey("mqttTopic")) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
+                if (dp.containsKey("yearPrefix")) currentSettings.dataPoints[i].yearPrefix = dp["yearPrefix"].as<std::string>();
+                if (dp.containsKey("yearSuffix")) currentSettings.dataPoints[i].yearSuffix = dp["yearSuffix"].as<std::string>();
+                if (dp.containsKey("displayMode")) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
+                if (dp.containsKey("scrollingText")) currentSettings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
+                if (dp.containsKey("authHeaderKey")) currentSettings.dataPoints[i].authHeaderKey = dp["authHeaderKey"].as<std::string>();
+                if (dp.containsKey("authHeaderValue")) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
+                if (dp.containsKey("apiExampleKey")) currentSettings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
+            } else {
+                currentSettings.dataPoints[i] = {}; // Clear unused data points
+            }
+        }
+    }
+
+    // --- Finalize MQTT Reconnect Logic ---
+    if (oldMqttBroker != currentSettings.mqttBroker ||
+        oldMqttPort != currentSettings.mqttPort ||
+        oldMqttUser != currentSettings.mqttUser ||
+        oldMqttPass != currentSettings.mqttPassword ||
+        oldNumDataPoints != currentSettings.numDataPoints) {
+        needsMqttReconnect = true;
+    } else {
+        for(int i=0; i<5; ++i) {
+            if (oldDataPoints[i].dataSourceType != currentSettings.dataPoints[i].dataSourceType ||
+                oldDataPoints[i].mqttTopic != currentSettings.dataPoints[i].mqttTopic) {
+                needsMqttReconnect = true;
+                break;
+            }
+        }
+    }
+    if (needsMqttReconnect) {
+        Serial.println("SERVER_DEBUG: MQTT settings changed. Forcing reconnect.");
+        if (mqttClient.connected()) {
+            mqttClient.disconnect();
+        }
+        mqttReconnectRequired = true;
+    }
+}
+
 
 /**
  * @brief Saves the current settings to non-volatile storage (NVS).
@@ -739,9 +947,16 @@ void handleDisplay() {
  *    display mode's logic (clock, weather, animation, etc.).
  * 5. OTA Updates: Listens for Over-The-Air update requests.
  */
+void handleBackgroundSave(); // Forward declaration
+
 void loop() {
     vTaskDelay(1); // Yield to other tasks, making the system responsive.
     
+    // Check if a settings save has been requested by the web server
+    if (saveSettingsRequested) {
+        handleBackgroundSave();
+    }
+
     // This state machine manages the WiFi connection process in a non-blocking way.
     // This state machine manages the WiFi connection process in a non-blocking way.
     // It handles the initial connection attempt, starting the WiFiManager portal if
