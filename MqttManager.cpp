@@ -120,11 +120,6 @@ void publishDeviceTriggers() {
     serializeJson(doc, payload);
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
-    doc["type"] = "malfunction_triggered";
-    topic = String(MQTT_BASE_TOPIC) + "/device_automation/" + MQTT_UNIQUE_ID + "/malfunction/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
-
     doc["type"] = "preset_changed";
     topic = String(MQTT_BASE_TOPIC) + "/device_automation/" + MQTT_UNIQUE_ID + "/preset_changed/config";
     serializeJson(doc, payload);
@@ -589,14 +584,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 broadcastWsStateUpdate("glitchEffectFrequency", freq);
             }
         }
-        else if (component == "malfunction_chance") {
-            int chance = message.toInt();
-            if (chance >= 1 && chance <= 1000) {
-                currentSettings.malfunctionFrequency = chance;
-                settingsChanged = true;
-                broadcastWsStateUpdate("malfunctionFrequency", chance);
-            }
-        }
         else if (component == "volume") {
             int vol = message.toInt();
             if (vol >= 0 && vol <= 21) {
@@ -651,11 +638,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         }
         else if (topicStr == base_topic + "trigger_effect/command") {
             if (message == "Trigger Glitch") triggerTemporalGlitch();
-            else if (message == "Trigger Malfunction") {
-                isMalfunctioning = true;
-                malfunctionStartTime = millis();
-                currentMalfunctionPhase = MAL_HAYWIRE;
-            }
             else if (message == "Run Boot Sequence") runBootSequence();
             mqttClient.publish((base_topic + "trigger_effect/state").c_str(), "None", true);
         }
@@ -787,7 +769,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 currentSettings.notificationVolume = 15;
                 currentSettings.timeTravelSoundToggle = true;
                 currentSettings.glitchEffectFrequency = 0;
-                currentSettings.malfunctionFrequency = 25;
             } else if (message == "Cinematic") {
                 currentSettings.animationStyle = ANIMATION_TIMELINE_SKIM;
                 currentSettings.timeTravelAnimationDuration = 8000;
@@ -800,7 +781,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             } else if (message == "Unstable") {
                 currentSettings.brightness = 7;
                 currentSettings.glitchEffectFrequency = 75;
-                currentSettings.malfunctionFrequency = 20;
             }
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;
@@ -897,7 +877,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             settingsChanged = true;
         }
         else if (component == "alpha_vantage_api_key") {
-            currentSettings.alphaVantageApiKey = message.c_str();
+            currentSettings.financialModelingPrepApiKey = message.c_str();
             settingsChanged = true;
         }
         else if (topicStr == base_topic + "tts/play") {
@@ -994,9 +974,6 @@ void publishAllHaStates() {
     itoa(currentSettings.glitchEffectFrequency, payload, 10);
     mqttClient.publish((base_topic + "/glitch_freq/state").c_str(), payload, true);
 
-    itoa(currentSettings.malfunctionFrequency, payload, 10);
-    mqttClient.publish((base_topic + "/malfunction_chance/state").c_str(), payload, true);
-
     itoa(currentSettings.notificationVolume, payload, 10);
     mqttClient.publish((base_topic + "/volume/state").c_str(), payload, true);
 
@@ -1034,7 +1011,6 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/sound_toggle/state").c_str(), currentSettings.timeTravelSoundToggle ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_animating/state").c_str(), isAnimating ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_glitching/state").c_str(), isGlitching ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/is_malfunctioning/state").c_str(), isMalfunctioning ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_asleep/state").c_str(), isDisplayAsleep ? "ON" : "OFF", true);
     itoa(currentPageIndex + 1, payload, 10);
     mqttClient.publish((base_topic + "/marquee_page/state").c_str(), payload, true);
@@ -1064,7 +1040,7 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/stock_row_1/state").c_str(), currentSettings.stockRow1_symbol.c_str(), true);
     mqttClient.publish((base_topic + "/stock_row_2/state").c_str(), currentSettings.stockRow2_symbol.c_str(), true);
     mqttClient.publish((base_topic + "/stock_row_3/state").c_str(), currentSettings.stockRow3_symbol.c_str(), true);
-    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), currentSettings.alphaVantageApiKey.c_str(), true);
+    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), currentSettings.financialModelingPrepApiKey.c_str(), true);
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
 
     publishTimeSensors();

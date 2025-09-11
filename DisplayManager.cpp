@@ -97,7 +97,7 @@ void displayMarqueeOverride() {
 
 void updateStockTickerDisplay() {
     // ... function content remains the same ...
-    if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
+    if (isDisplayAsleep || isAnimating || isGlitching || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i = 0; i < 3; ++i) {
@@ -123,7 +123,7 @@ void updateStockTickerDisplay() {
                     printToDisplay(rows[i]->day, "--", 2);
                     printToDisplay(rows[i]->year, "EMPTY");
                     printToDisplay(rows[i]->time, "----");
-                } else if (currentSettings.alphaVantageApiKey.empty()) {
+                } else if (currentSettings.financialModelingPrepApiKey.empty()) {
                     printToDisplay(rows[i]->month, "NO");
                     printToDisplay(rows[i]->day, "API", 2);
                     printToDisplay(rows[i]->year, "KEY");
@@ -202,7 +202,7 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
  * @param updateLast If true, the last time departed row is updated.
  */
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
-  if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
+  if (isDisplayAsleep || isAnimating || isGlitching || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
   if (timeSynchronized) {
     time_t now_t;
