@@ -351,6 +351,14 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
     unsigned long yearPhaseDuration = duration * 0.45;
     unsigned long monthPhaseDuration = duration * 0.35;
 
+    // Correctly determine the destination timeinfo
+    time_t now_t;
+    time(&now_t);
+    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+    tzset();
+    struct tm dest_timeinfo;
+    localtime_r(&now_t, &dest_timeinfo);
+
     char buffer[5];
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
@@ -376,14 +384,14 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
             printToDisplay(rows[i]->month, months[random(0, 12)], 1);
             printToDisplay(rows[i]->day, "--", 2);
         } else if (elapsed >= yearPhaseDuration + monthPhaseDuration) {
-            // Month is locked (Note: we don't have dest month, so we use a static value for effect)
-            printToDisplay(rows[i]->month, months[currentSettings.lastTimeDepartedMonth -1], 1);
+            // Month is locked to the correct destination month
+            printToDisplay(rows[i]->month, months[dest_timeinfo.tm_mon], 1);
         }
 
         // --- DAY LOGIC ---
         if (elapsed >= yearPhaseDuration + monthPhaseDuration) {
-            // Phase 3: Day is animating
-            sprintf(buffer, "%02d", random(1, 29));
+            // Phase 3: Day is animating (it will lock on the final frame)
+            sprintf(buffer, "%02d", random(1, dest_timeinfo.tm_mday + 1));
             printToDisplay(rows[i]->day, buffer, 2);
         }
 
@@ -398,6 +406,10 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
         rows[i]->time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(2));
     }
+
+    // Restore the original timezone
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
     #endif
 }
 
@@ -468,16 +480,21 @@ void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYea
 void animateTemporalDesync() {
     #if ENABLE_HARDWARE
     // Row 1 (Top): Steady Destination Time
-    // We need to construct a timeinfo struct for the destination time.
-    // We'll use the last departed time for month/day/time as a stable source.
-    struct tm dest_timeinfo = {0};
-    dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
-    dest_timeinfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
-    dest_timeinfo.tm_mday = currentSettings.lastTimeDepartedDay;
-    dest_timeinfo.tm_hour = currentSettings.departureHour;
-    dest_timeinfo.tm_min = currentSettings.departureMinute;
+    // Correctly calculate the destination timeinfo
+    time_t now_t;
+    time(&now_t);
+    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+    tzset();
+    struct tm dest_timeinfo;
+    localtime_r(&now_t, &dest_timeinfo);
+
+    // Update the display row with the correct destination info
     updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, false);
     vTaskDelay(pdMS_TO_TICKS(2));
+
+    // Restore the original timezone to not affect other operations
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
 
     // Row 2 (Middle): Timeline Skim / Randomly animating
     animateDisplayRowRandomly(presRow);
@@ -577,38 +594,48 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
 
 void animateWaveformCollapse(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-    // 13-char patterns designed to fit the 3-2-4-4 display layout
+    // Define clean, 13-character patterns for a "collapsing" and "expanding" wave.
     const char* waves[] = {
-        "---  --  ----  ----",
-        " -   --   --   -- ",
-        "  -      -  -  -  "
+        "-------------",
+        " ---     --- ",
+        "  ---   ---  ",
+        "   -------   ",
+        "  ---   ---  ",
+        " ---     --- "
     };
-    int waveIndex = (elapsed / 200) % 3;
-    const char* basePattern = waves[waveIndex];
+    // Cycle through the 6 patterns over the animation's duration
+    int waveIndex = (elapsed * 6 / duration) % 6;
+    const char* pattern = waves[waveIndex];
 
     auto drawWave = [&](DisplayRow& row, bool inverse) {
+        char p_month[4], p_day[3], p_year[5], p_time[5];
+
+        // Create the final pattern for this row (either normal or inverted)
         char finalPattern[14];
-        if(inverse) { 
-            for(int i=0; i<13; ++i) finalPattern[i] = (basePattern[i] == '-') ? ' ' : '-';
-            finalPattern[13] = '\0';
-        } else {
-            strncpy(finalPattern, basePattern, 14);
+        for(int i=0; i<13; ++i) {
+            // Use the pattern character if it's not a space, otherwise use a space.
+            // This allows patterns to have spaces inside them.
+            char baseChar = (pattern[i] == '-') ? '-' : ' ';
+            finalPattern[i] = inverse ? ((baseChar == '-') ? ' ' : '-') : baseChar;
         }
+        finalPattern[13] = '\0';
 
-        // Extract substrings for each segment based on the 3-2-4-4 layout
-        char monthStr[4], dayStr[3], yearStr[5], timeStr[5];
-        strncpy(monthStr, finalPattern, 3); monthStr[3] = '\0';
-        strncpy(dayStr, finalPattern + 5, 2); dayStr[2] = '\0';
-        strncpy(yearStr, finalPattern + 9, 4); yearStr[4] = '\0';
-        strncpy(timeStr, finalPattern + 14, 4); timeStr[4] = '\0';
+        // Safely extract substrings for each segment from the 13-char string.
+        // Layout is Month(3), Day(2), Year(4), Time(4).
+        strncpy(p_month, finalPattern + 0, 3); p_month[3] = '\0';
+        strncpy(p_day,   finalPattern + 3, 2); p_day[2]   = '\0';
+        strncpy(p_year,  finalPattern + 5, 4); p_year[4]  = '\0';
+        strncpy(p_time,  finalPattern + 9, 4); p_time[4]  = '\0';
 
-        printToDisplay(row.month, monthStr, 1);
-        printToDisplay(row.day, dayStr, 2);
-        printToDisplay(row.year, yearStr);
-        printToDisplay(row.time, timeStr);
+        // Write to the displays with correct justification
+        printToDisplay(row.month, p_month, 1); // Right justified
+        printToDisplay(row.day,   p_day,   2); // Center justified
+        printToDisplay(row.year,  p_year);
+        printToDisplay(row.time,  p_time);
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
+    // Draw the wave on all three rows, with the middle one inverted for a nice effect.
     drawWave(destRow, false);
     drawWave(presRow, true);
     drawWave(lastRow, false);
