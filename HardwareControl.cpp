@@ -221,29 +221,28 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year,
 void animateDisplayRowRandomly(DisplayRow& row) {
   #if ENABLE_HARDWARE
     char buffer[5];
+
     // Animate year
     sprintf(buffer, "%04d", random(1000, 9999));
     printToDisplay(row.year, buffer);
-    row.year.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate month
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
     printToDisplay(row.month, months[random(0,12)], 1); // Right justified
-    row.month.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate day
     sprintf(buffer, "%02d", random(1, 32));
     printToDisplay(row.day, buffer, 2); // Center justified
-    row.day.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); 
 
     // Animate time
     sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
     printToDisplay(row.time, buffer);
+
+    // Write all changes to the hardware at once
+    row.year.writeDisplay();
+    row.month.writeDisplay();
+    row.day.writeDisplay();
     row.time.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(1)); 
   #endif
 }
 /**
@@ -355,11 +354,53 @@ void flashAllDisplays() {
 }
 
 void animateTornadoFlicker() {
-    #if ENABLE_HARDWARE
-    animateDisplayRowRandomly(destRow);
-    animateDisplayRowRandomly(presRow);
-    animateDisplayRowRandomly(lastRow);
-    #endif
+  #if ENABLE_HARDWARE
+    char buffer[5];
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    // --- Destination Row ---
+    sprintf(buffer, "%04d", random(1000, 9999));
+    printToDisplay(destRow.year, buffer);
+    printToDisplay(destRow.month, months[random(0,12)], 1);
+    sprintf(buffer, "%02d", random(1, 32));
+    printToDisplay(destRow.day, buffer, 2);
+    sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
+    printToDisplay(destRow.time, buffer);
+
+    // --- Present Row ---
+    sprintf(buffer, "%04d", random(1000, 9999));
+    printToDisplay(presRow.year, buffer);
+    printToDisplay(presRow.month, months[random(0,12)], 1);
+    sprintf(buffer, "%02d", random(1, 32));
+    printToDisplay(presRow.day, buffer, 2);
+    sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
+    printToDisplay(presRow.time, buffer);
+
+    // --- Last Departed Row ---
+    sprintf(buffer, "%04d", random(1000, 9999));
+    printToDisplay(lastRow.year, buffer);
+    printToDisplay(lastRow.month, months[random(0,12)], 1);
+    sprintf(buffer, "%02d", random(1, 32));
+    printToDisplay(lastRow.day, buffer, 2);
+    sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
+    printToDisplay(lastRow.time, buffer);
+
+    // --- Write all 12 segments at once ---
+    destRow.year.writeDisplay();
+    destRow.month.writeDisplay();
+    destRow.day.writeDisplay();
+    destRow.time.writeDisplay();
+
+    presRow.year.writeDisplay();
+    presRow.month.writeDisplay();
+    presRow.day.writeDisplay();
+    presRow.time.writeDisplay();
+
+    lastRow.year.writeDisplay();
+    lastRow.month.writeDisplay();
+    lastRow.day.writeDisplay();
+    lastRow.time.writeDisplay();
+  #endif
 }
 
 /**
