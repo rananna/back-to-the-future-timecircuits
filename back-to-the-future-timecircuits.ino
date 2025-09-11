@@ -20,7 +20,6 @@
 #include <WiFiManager.h>
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
-#include <Preferences.h>
 #include <WiFiUdp.h>
 #include <time.h>
 #include <ESPAsyncWebServer.h>
@@ -43,6 +42,9 @@
 #include "DisplayManager.h"
 #include "DataManager.h"
 #include "MqttManager.h"
+#include "SettingsManager.h"
+#include "WiFiManagerHelper.h"
+#include "NTPManager.h"
 
 // Audio Library Includes
 #include "Audio.h"
@@ -57,21 +59,6 @@ const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000;  // Initial time in ms to
 const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;     // Maximum time in ms for the exponential backoff for MQTT reconnects.
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000;      // Delay in ms after connecting to WiFi before the first NTP sync.
 const unsigned long DISPLAY_UPDATE_INTERVAL = 250;      // Milliseconds between display updates for the main clock.
-
-// --- WIFI STATE MANAGEMENT ---
-// Manages the asynchronous, non-blocking WiFi connection process.
-enum WifiState {
-  WIFI_STATE_CONNECTING,      // Actively trying to connect with saved credentials.
-  WIFI_STATE_START_PORTAL,    // Connection failed, preparing to launch the WiFiManager captive portal.
-  WIFI_STATE_PORTAL_RUNNING,  // Captive portal is active and awaiting user configuration.
-  WIFI_STATE_CONNECTED        // WiFi connection is successful.
-};
-WifiState wifiState = WIFI_STATE_CONNECTING; // Current state of the WiFi connection.
-unsigned long wifiConnectStartTime = 0;      // Timestamp (millis) when the WiFi connection process began.
-TaskHandle_t wifiManagerTaskHandle = NULL;   // Handle for the FreeRTOS task running the WiFiManager portal.
-bool logConnectingPrinted = false;           // Flag to ensure the "Connecting..." message is logged only once.
-bool logPortalMsgPrinted = false;            // Flag to ensure the "Portal Starting..." message is logged only once.
-bool logConnectedPrinted = false;            // Flag to ensure the "Connected" message is logged only once.
 
 // --- MQTT STATE MANAGEMENT ---
 // Handles the exponential backoff strategy for reconnecting to the MQTT broker.
@@ -99,13 +86,12 @@ bool attemptHardwareInit();
 void checkDataFetchStatusTask(void* p);
 void startAudioStream(const char* url, bool is_tts);
 void stopAudioStream();
-void wifiManagerTask(void *pvParameters);
 void updateDisplaySegment(int row, int segment, const std::string& text);
 void testDecimalPointFlashing();
 void handleScheduledAnimation();
 
 // --- GLOBAL DATA STRUCTURES & SETTINGS ---
-ClockSettings currentSettings;        // Holds all user-configurable settings for the clock.
+SettingsManager settingsManager;
 MarqueeData displayPages[5];          // An array to hold the content for the 5 pages of the Data Link marquee.
 MarqueeData lastGoodDisplayPages[5];  // A backup of the last valid marquee data to prevent displaying corrupted info.
 WeatherData currentWeatherData;       // Holds the most recently fetched weather data.
@@ -153,15 +139,9 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
 };
 const int NUM_TIMEZONE_OPTIONS = sizeof(TZ_DATA) / sizeof(TZ_DATA[0]);
-const char TZ_JSON[] PROGMEM = "{\"Global\":[{\"value\":0,\"text\":\"UTC\",\"ianaTzName\":\"Etc/UTC\"}],\"Americas\":[{\"value\":1,\"text\":\"Newfoundland (St. John's)\",\"ianaTzName\":\"America/St_Johns\"},{\"value\":2,\"text\":\"Atlantic (Halifax)\",\"ianaTzName\":\"America/Halifax\"},{\"value\":3,\"text\":\"Eastern (New York)\",\"ianaTzName\":\"America/New_York\"},{\"value\":4,\"text\":\"Central (Chicago)\",\"ianaTzName\":\"America/Chicago\"},{\"value\":5,\"text\":\"Mountain (Denver)\",\"ianaTzName\":\"America/Denver\"},{\"value\":6,\"text\":\"Pacific (Los Angeles)\",\"ianaTzName\":\"America/Los_Angeles\"},{\"value\":7,\"text\":\"Alaska (Anchorage)\",\"ianaTzName\":\"America/Anchorage\"},{\"value\":8,\"text\":\"Mountain (Phoenix, No DST)\",\"ianaTzName\":\"America/Phoenix\"},{\"value\":9,\"text\":\"Hawaii (Honolulu, No DST)\",\"ianaTzName\":\"Pacific/Honolulu\"}],\"Europe\":[{\"value\":10,\"text\":\"GMT/BST (London)\",\"ianaTzName\":\"Europe/London\"},{\"value\":11,\"text\":\"CET/CEST (Berlin)\",\"ianaTzName\":\"Europe/Berlin\"},{\"value\":12,\"text\":\"EET/EEST (Athens)\",\"ianaTzName\":\"Europe/Athens\"},{\"value\":13,\"text\":\"Moscow Standard Time\",\"ianaTzName\":\"Europe/Moscow\"},{\"value\":14,\"text\":\"Turkey Time (Istanbul)\",\"ianaTzName\":\"Europe/Istanbul\"}],\"Asia\":[{\"value\":15,\"text\":\"Indian Standard Time (Kolkata)\",\"ianaTzName\":\"Asia/Kolkata\"},{\"value\":16,\"text\":\"Singapore Standard Time\",\"ianaTzName\":\"Asia/Singapore\"},{\"value\":17,\"text\":\"China Standard Time (Shanghai)\",\"ianaTzName\":\"Asia/Shanghai\"},{\"value\":18,\"text\":\"Korea Standard Time (Seoul)\",\"ianaTzName\":\"Asia/Seoul\"},{\"value\":19,\"text\":\"Japan Standard Time (Tokyo)\",\"ianaTzName\":\"Asia/Tokyo\"},{\"value\":20,\"text\":\"Gulf Standard Time (Dubai)\",\"ianaTzName\":\"Asia/Dubai\"}],\"Australia & Oceania\":[{\"value\":21,\"text\":\"AWST (Perth)\",\"ianaTzName\":\"Australia/Perth\"},{\"value\":23,\"text\":\"NZST/NZDT (Auckland)\",\"ianaTzName\":\"Pacific/Auckland\"},{\"value\":22,\"text\":\"AEST/AEDT (Sydney)\",\"ianaTzName\":\"Australia/Sydney\"},{\"value\":24,\"text\":\"Chamorro Time (Guam)\",\"ianaTzName\":\"Pacific/Guam\"}],\"Africa\":[{\"value\":25,\"text\":\"West Africa Time (Lagos)\",\"ianaTzName\":\"Africa/Lagos\"},{\"value\":26,\"text\":\"South Africa Standard Time\",\"ianaTzName\":\"Africa/Johannesburg\"},{\"value\":27,\"text\":\"EET (Cairo)\",\"ianaTzName\":\"Africa/Cairo\"},{\"value\":28,\"text\":\"East Africa Time (Nairobi)\",\"ianaTzName\":\"Africa/Nairobi\"}],\"South America\":[{\"value\":29,\"text\":\"Brasilia Time (Sao Paulo)\",\"ianaTzName\":\"America/Sao_Paulo\"},{\"value\":30,\"text\":\"Argentina Time (Buenos Aires)\",\"ianaTzName\":\"America/Argentina/Buenos_Aires\"}]}";
-const char *NTP_SERVERS[] = { "pool.ntp.org", "time.google.com", "time.nist.gov" };
-const int NUM_NTP_SERVERS = sizeof(NTP_SERVERS) / sizeof(NTP_SERVERS[0]);
-int currentNtpServerIndex = 0;
-bool timeSynchronized = false;
-bool ntpSyncRequested = false;
-WiFiManager wifiManager;
+WiFiManagerHelper wifiManagerHelper;
+NTPManager ntpManager;
 AsyncWebServer server(80);
-Preferences preferences;
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 unsigned long lastMqttReconnectAttempt = 0;
@@ -253,285 +233,430 @@ void audioTask(void *pvParameters) {
   }
 }
 
-/**
- * @brief Saves the current settings to non-volatile storage (NVS).
- * @details This function uses the Preferences library to persist the `currentSettings`
- * object. To minimize unnecessary writes to the flash memory, it checks each setting
- * against its previously saved value and only writes if the value has actually changed.
- */
-void saveSettings() {
-    Serial.println("--- Saving Settings (Dirty Flag Check) ---");
-    preferences.begin(PREFERENCES_NAMESPACE, false); // Open preferences in read-write mode.
-
-    // Helper macro to reduce boilerplate code for saving numeric types.
-    // It gets the existing value, compares it to the new value, and puts the new value if different.
-    #define SAVE_IF_CHANGED(key, type, value) \
-        if (preferences.get##type(key, -1) != value) { \
-            preferences.put##type(key, value); \
-            Serial.printf("SAVING: %s -> %d\n", #key, value); \
-        }
-
-    // Helper macro for saving string types. It handles the case where the key might not exist yet.
-    #define SAVE_STRING_IF_CHANGED(key, value) \
-        if (!preferences.isKey(key) || preferences.getString(key, "") != value.c_str()) { \
-            preferences.putString(key, value.c_str()); \
-            Serial.printf("SAVING: %s -> %s\n", #key, value.c_str()); \
-        }
-
-    // --- Save each setting using the helper macros ---
-    SAVE_IF_CHANGED("destYear", Int, currentSettings.destinationYear);
-    SAVE_IF_CHANGED("destTzIndex", Int, currentSettings.destinationTimezoneIndex);
-    SAVE_IF_CHANGED("depHour", Int, currentSettings.departureHour);
-    SAVE_IF_CHANGED("depMinute", Int, currentSettings.departureMinute);
-    SAVE_IF_CHANGED("arrHour", Int, currentSettings.arrivalHour);
-    SAVE_IF_CHANGED("arrMinute", Int, currentSettings.arrivalMinute);
-    SAVE_IF_CHANGED("lastYear", Int, currentSettings.lastTimeDepartedYear);
-    SAVE_IF_CHANGED("lastMonth", Int, currentSettings.lastTimeDepartedMonth);
-    SAVE_IF_CHANGED("lastDay", Int, currentSettings.lastTimeDepartedDay);
-    SAVE_IF_CHANGED("lastHour", Int, currentSettings.lastTimeDepartedHour);
-    SAVE_IF_CHANGED("lastMinute", Int, currentSettings.lastTimeDepartedMinute);
-    SAVE_IF_CHANGED("brightness", UChar, currentSettings.brightness);
-    SAVE_IF_CHANGED("volume", UChar, currentSettings.notificationVolume);
-    if (preferences.getBool("soundToggle", true) != currentSettings.timeTravelSoundToggle) {
-        preferences.putBool("soundToggle", currentSettings.timeTravelSoundToggle);
-        Serial.printf("SAVING: soundToggle -> %s\n", currentSettings.timeTravelSoundToggle ? "true" : "false");
-    }
-
-    SAVE_IF_CHANGED("presTzIndex", Int, currentSettings.presentTimezoneIndex);
-    SAVE_IF_CHANGED("presetCycle", Int, currentSettings.presetCycleInterval);
-    if (preferences.getBool("format24h", false) != currentSettings.displayFormat24h) {
-        preferences.putBool("format24h", currentSettings.displayFormat24h);
-        Serial.printf("SAVING: format24h -> %s\n", currentSettings.displayFormat24h ? "true" : "false");
-    }
-    
-    SAVE_IF_CHANGED("theme", Int, currentSettings.theme);
-    SAVE_IF_CHANGED("animInterval", Int, currentSettings.timeTravelAnimationInterval);
-    SAVE_IF_CHANGED("animDuration", Int, currentSettings.timeTravelAnimationDuration);
-    SAVE_IF_CHANGED("animStyle", Int, currentSettings.animationStyle);
-    SAVE_IF_CHANGED("glitchFreq", Int, currentSettings.glitchEffectFrequency);
-    if (preferences.getBool("dlEnabled", false) != currentSettings.dataLinkEnabled) {
-        preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
-        Serial.printf("SAVING: dlEnabled -> %s\n", currentSettings.dataLinkEnabled ? "true" : "false");
-    }
-
-    SAVE_IF_CHANGED("dlTargetRow", Int, currentSettings.dataLinkTargetRow);
-    SAVE_IF_CHANGED("dlRefresh", Int, currentSettings.dataLinkRefreshInterval);
-    SAVE_IF_CHANGED("numDataPoints", Int, currentSettings.numDataPoints);
-
-    SAVE_STRING_IF_CHANGED("mqttBroker", currentSettings.mqttBroker);
-    SAVE_IF_CHANGED("mqttPort", Int, currentSettings.mqttPort);
-    SAVE_STRING_IF_CHANGED("mqttUser", currentSettings.mqttUser);
-    SAVE_STRING_IF_CHANGED("mqttPass", currentSettings.mqttPassword);
-    if (preferences.getBool("weatherMode", false) != currentSettings.weatherModeEnabled) {
-        preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
-        Serial.printf("SAVING: weatherMode -> %s\n", currentSettings.weatherModeEnabled ? "true" : "false");
-    }
-
-    SAVE_STRING_IF_CHANGED("cityName", currentSettings.cityName);
-    if (preferences.getBool("useMetric", false) != currentSettings.useMetricUnits) {
-        preferences.putBool("useMetric", currentSettings.useMetricUnits);
-        Serial.printf("SAVING: useMetric -> %s\n", currentSettings.useMetricUnits ? "true" : "false");
-    }
-    
-    // Note: Comparing floats can be tricky due to precision.
-    // A small tolerance might be needed for production code, but this is fine for this use case.
-    if (preferences.getFloat("latitude", 0.0) != currentSettings.latitude) {
-        preferences.putFloat("latitude", currentSettings.latitude);
-        Serial.printf("SAVING: latitude -> %f\n", currentSettings.latitude);
-    }
-    if (preferences.getFloat("longitude", 0.0) != currentSettings.longitude) {
-        preferences.putFloat("longitude", currentSettings.longitude);
-        Serial.printf("SAVING: longitude -> %f\n", currentSettings.longitude);
-    }
-    
-    if (preferences.getBool("stModeEnabled", false) != currentSettings.stockTickerModeEnabled) {
-        preferences.putBool("stModeEnabled", currentSettings.stockTickerModeEnabled);
-        Serial.printf("SAVING: stModeEnabled -> %s\n", currentSettings.stockTickerModeEnabled ? "true" : "false");
-    }
-
-    SAVE_STRING_IF_CHANGED("stRow1Sym", currentSettings.stockRow1_symbol);
-    SAVE_STRING_IF_CHANGED("stRow2Sym", currentSettings.stockRow2_symbol);
-    SAVE_STRING_IF_CHANGED("stRow3Sym", currentSettings.stockRow3_symbol);
-    SAVE_STRING_IF_CHANGED("fmpApiKey", currentSettings.financialModelingPrepApiKey);
-
-	for (int i = 0; i < 5; i++) {
-		String prefix = "dp" + String(i) + "_";
-        SAVE_STRING_IF_CHANGED((prefix + "url").c_str(), currentSettings.dataPoints[i].url);
-		SAVE_STRING_IF_CHANGED((prefix + "monthPath").c_str(), currentSettings.dataPoints[i].monthPath);
-		SAVE_STRING_IF_CHANGED((prefix + "dayPath").c_str(), currentSettings.dataPoints[i].dayPath);
-		SAVE_STRING_IF_CHANGED((prefix + "yearPath").c_str(), currentSettings.dataPoints[i].yearPath);
-		SAVE_STRING_IF_CHANGED((prefix + "timePath").c_str(), currentSettings.dataPoints[i].timePath);
-        SAVE_STRING_IF_CHANGED((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefix);
-		SAVE_STRING_IF_CHANGED((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffix);
-		SAVE_STRING_IF_CHANGED((prefix + "icon").c_str(), currentSettings.dataPoints[i].icon);
-		SAVE_IF_CHANGED((prefix + "scroll").c_str(), Int, currentSettings.dataPoints[i].scrollSpeed);
-        SAVE_IF_CHANGED((prefix + "srcType").c_str(), Int, (int)currentSettings.dataPoints[i].dataSourceType);
-		SAVE_STRING_IF_CHANGED((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
-		SAVE_STRING_IF_CHANGED((prefix + "yearPrefix").c_str(), currentSettings.dataPoints[i].yearPrefix);
-		SAVE_STRING_IF_CHANGED((prefix + "yearSuffix").c_str(), currentSettings.dataPoints[i].yearSuffix);
-        SAVE_IF_CHANGED((prefix + "dispMode").c_str(), Int, (int)currentSettings.dataPoints[i].displayMode);
-		SAVE_STRING_IF_CHANGED((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText);
-		SAVE_STRING_IF_CHANGED((prefix + "authKey").c_str(), currentSettings.dataPoints[i].authHeaderKey);
-		SAVE_STRING_IF_CHANGED((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue);
-        SAVE_IF_CHANGED((prefix + "httpMethod").c_str(), Int, (int)currentSettings.dataPoints[i].httpMethod);
-		SAVE_STRING_IF_CHANGED((prefix + "reqBody").c_str(), currentSettings.dataPoints[i].requestBody);
-		SAVE_STRING_IF_CHANGED((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey);
+void listAllFiles() {
+	Serial.println(F("\n--- Listing all files in LittleFS ---"));
+	File root = LittleFS.open("/");
+	File file = root.openNextFile();
+	while (file) {
+		Serial.print(F("  FILE: "));
+		Serial.print(file.name());
+		Serial.print(F("\tSIZE: "));
+		Serial.println(file.size());
+		file.close();
+		file = root.openNextFile();
 	}
-	preferences.end();
-    Serial.println("--- Settings Saved ---");
+	Serial.println(F("--- End of file list ---\n"));
+	root.close();
+}
 
-    // After saving, immediately apply the timezone setting to the system.
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-	tzset();
+bool attemptHardwareInit() {
+    #if ENABLE_HARDWARE
+    Serial.println(F("BOOT_LOG: Attempting to initialize hardware..."));
+    setupPhysicalDisplay();
+    Serial.println(F("BOOT_LOG: Physical display setup... OK"));
+    return true; // Success
+    #else
+    Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
+    return false; // Hardware is disabled, so it's not "initialized"
+    #endif
+}
+
+void wifiManagerTask(void *pvParameters) {
+  WiFiManager* wifiManager = (WiFiManager*)pvParameters;
+  wifiManager->autoConnect("BTTF-Clock-Setup");
+  vTaskDelete(NULL);
+  wifiManagerTaskHandle = NULL;
+}
+
+
+/**
+ * @brief The main setup function, run once at boot.
+ * @details Initializes all essential systems: Serial communication, LittleFS filesystem,
+ * loading settings, creating the display data mutex, setting up Wi-Fi, configuring web
+ * routes, initializing hardware (display and audio), setting the timezone, and starting
+ * the MQTT client and OTA update service.
+ */
+void setup() {
+    Serial.begin(115200);
+    delay(1000); // Wait for serial monitor to connect.
+
+    Serial.println(F("\n\n--- BOOTING ---"));
+    Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
+    delay(10);
+
+    if (!LittleFS.begin(true, "/spiffs")) {
+        ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
+        Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
+        delay(10000);
+        ESP.restart();
+    }
+    Serial.println(F("BOOT_LOG: LittleFS mount... OK"));
+    delay(10);
+
+    Serial.println(F("BOOT_LOG: Loading settings..."));
+    settingsManager.load();
+    Serial.println(F("BOOT_LOG: Settings loaded... OK"));
+    delay(10);
+
+    xDisplayDataMutex = xSemaphoreCreateMutex();
+    Serial.println(F("BOOT_LOG: Mutex created... OK"));
+
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    sprintf(MQTT_UNIQUE_ID, "BTTF_TC_%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    wifiManagerHelper.init();
+    ntpManager.init();
+    Serial.println(F("WEB_LOG: Setting up web routes..."));
+    setupWebRoutes();
+    Serial.println(F("WEB_LOG: Web routes configured."));
+
+    hardwareInitialized = attemptHardwareInit();
+    if (hardwareInitialized) {
+        applyBrightness();
+        Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
+        audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
+        audio.setVolume(settingsManager.settings.notificationVolume);
+        Audio::audio_info_callback = audio_info;
+        Serial.println(F("BOOT_LOG: I2S Audio... OK"));
+
+        xTaskCreatePinnedToCore(
+            audioTask,          // Task function
+            "AudioTask",        // Name of the task
+            4096,               // FIX: Increased stack size from 2048 to 4096 words
+
+           NULL,               // Task input parameter
+            5,                  // Priority of the task (high)
+            NULL,               // Task handle
+
+     0                   // Core where the task should run (Core 0)
+        );
+    }
+
+    setenv("TZ", TZ_DATA[settingsManager.settings.presentTimezoneIndex].tzString, 1);
+    tzset();
+    Serial.println(F("BOOT_LOG: Timezone configured."));
+
+    setupMqtt();
+    Serial.println(F("BOOT_LOG: MQTT setup initiated."));
+    ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
+    Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
+
+    ArduinoOTA.setHostname("bttf-time-circuits");
+    ArduinoOTA.setPassword("1.21gigawatts");
+    ArduinoOTA.onStart([]() {
+        String type;
+        if (ArduinoOTA.getCommand() == U_FLASH) {
+            type = "sketch";
+        } else {
+            type = "filesystem";
+        }
+        Serial.println("Start updating " + type);
+    });
+    ArduinoOTA.onEnd([]() {
+        Serial.println("\nEnd");
+    });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    });
+    ArduinoOTA.onError([](ota_error_t error) {
+        Serial.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+    ArduinoOTA.begin();
+
+    // Clear any persistent manual display overrides from the previous session
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            updateDisplaySegment(i, j, "");
+        }
+    }
+
+    Serial.println(F("--- BOOT COMPLETE ---"));
+    bootTimestamp = millis();
+}
+
+// --- NEW STATE DETERMINATION FUNCTION ---
+void updateDisplayState() {
+    if (isMessageOverrideActive) {
+        currentDisplayState = STATE_MESSAGE_OVERRIDE;
+    } else if (isAnimating) {
+        currentDisplayState = STATE_ANIMATING;
+    } else if (isMarqueeOverrideActive) {
+        currentDisplayState = STATE_MARQUEE_OVERRIDE;
+    } else if (settingsManager.settings.stockTickerModeEnabled) {
+        currentDisplayState = STATE_STOCK_TICKER;
+    } else if (settingsManager.settings.dataLinkEnabled) {
+        currentDisplayState = STATE_DATA_LINK;
+    } else if (settingsManager.settings.weatherModeEnabled) {
+        currentDisplayState = STATE_WEATHER;
+    } else {
+        currentDisplayState = STATE_NORMAL_CLOCK;
+    }
+}
+
+// --- NEW DISPLAY HANDLER FUNCTION ---
+void handleDisplay() {
+    // These effects can run concurrently with the main display modes
+    restoreDisplayAfterGlitch();
+    handleTemporalEcho();
+    handleGlitchEffect();
+    handleSequencer();
+    handlePresetCycling();
+    handleSleepSchedule();
+
+    // --- Main Display State Machine ---
+    // This switch statement is the heart of the display logic. It ensures that only one
+    // primary display mode is active at any given time, preventing conflicts. The state
+    // is determined by the `updateDisplayState()` function, which prioritizes certain
+    // states over others (e.g., an override message takes precedence over the clock).
+    switch (currentDisplayState) {
+        case STATE_MESSAGE_OVERRIDE:
+            displayOverrideMessage();
+            break;
+        case STATE_ANIMATING:
+            handleDisplayAnimation();
+            break;
+        case STATE_MARQUEE_OVERRIDE:
+            displayMarqueeOverride();
+            break;
+        case STATE_STOCK_TICKER:
+            if (isMarketOpen() && (millis() - lastStockDataFetch > 300000)) {
+                lastStockDataFetch = millis();
+                for (int i=0; i<3; ++i) {
+                    FetchDataParams* params = new FetchDataParams{ i, 0 };
+                    xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
+                }
+            }
+            updateStockTickerDisplay();
+            break;
+        case STATE_DATA_LINK:
+            fetchDataLink();
+            updateMarqueeDisplay();
+            break;
+        case STATE_WEATHER:
+            handleWeatherDisplay();
+            break;
+        case STATE_NORMAL_CLOCK:
+        default:
+            updateNormalClockDisplay();
+            break;
+    }
+}
+
+
+/**
+ * @brief The main application loop.
+ * @details This function is the heart of the firmware, executed continuously. It uses a
+ * cooperative multitasking approach with `vTaskDelay(1)` to yield to other FreeRTOS tasks.
+ * The loop manages several key state machines:
+ * 1. WiFi Connection: Handles connecting, launching the portal on failure, and reconnecting.
+ * 2. MQTT Client: Manages the MQTT connection and message loop.
+ * 3. NTP Sync: Periodically synchronizes the internal clock with an NTP server.
+ * 4. Display Rendering: Calls the main display handler, which then executes the current
+ *    display mode's logic (clock, weather, animation, etc.).
+ * 5. OTA Updates: Listens for Over-The-Air update requests.
+ */
+void loop() {
+    vTaskDelay(1); // Yield to other tasks, making the system responsive.
+    
+    wifiManagerHelper.loop();
+    ntpManager.loop();
+
+    if (wifiManagerHelper.isConnected()) {
+        if (!logConnectedPrinted) {
+            ESP_LOGI("WiFi", "IP: %s", WiFi.localIP().toString().c_str());
+            // Start the web server now that we are connected
+            server.begin();
+            ESP_LOGI("Web", "HTTP server started on successful connection.");
+
+            logConnectedPrinted = true;
+            if (MDNS.begin("timecircuits")) {
+                MDNS.addService("http", "tcp", 80);
+            }
+            runBootSequence();
+        }
+        if (!settingsManager.settings.mqttBroker.empty()) {
+            if (!mqttClient.connected()) {
+                unsigned long now = millis();
+                if (now > nextMqttReconnectAttempt) {
+                    reconnectMqtt();
+                    nextMqttReconnectAttempt = now + mqttReconnectInterval;
+                    if (!mqttClient.connected()) {
+                        mqttReconnectInterval *= 2;
+                        if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
+                            mqttReconnectInterval = MQTT_MAX_RETRY_INTERVAL;
+                        }
+                    } else {
+                         mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
+                    }
+                }
+            } else {
+                mqttClient.loop();
+            }
+        }
+
+        handleScheduledAnimation();
+        static unsigned long lastNtpUpdate = 0;
+        if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
+            bool syncSuccess = false;
+            int retries = 0;
+            while (!syncSuccess && retries < NUM_NTP_SERVERS) {
+                configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
+                setenv("TZ", TZ_DATA[settingsManager.settings.presentTimezoneIndex].tzString, 1);
+                tzset();
+                struct tm timeinfo;
+                if (getLocalTime(&timeinfo, 10000)) {
+                    timeSynchronized = true;
+                    syncSuccess = true;
+                } else {
+                    currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
+                    retries++;
+                }
+            }
+            lastNtpUpdate = millis();
+            ntpSyncRequested = false;
+        }
+        static unsigned long lastHaStateUpdate = 0;
+        if (timeSynchronized && millis() - lastHaStateUpdate > 5000) {
+            publishAllHaStates();
+            lastHaStateUpdate = millis();
+        }
+
+        if (hardwareInitialized) {
+            if (bootState != BOOT_INACTIVE) {
+                handleBootSequence();
+            } else {
+                handleFlashEffect();
+
+                if (isAnimating) {
+                    handleDisplayAnimation();
+                } else if (isStyledAnimating) {
+                    handleStyledAnimation();
+                } else {
+                    if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
+                        lastDisplayUpdateTime = millis();
+                        updateDisplayState();
+                        handleDisplay();
+                    }
+                }
+            }
+        }
+    }
+    ArduinoOTA.handle();
+}
+void handleSequencer() {
+    if (!isSequenceActive) return;
+    SequenceStep step = sequence[currentSequenceStep];
+    unsigned long elapsed = millis() - sequenceStepStartTime;
+    switch (step.command) {
+        case SEQ_CMD_TEXT:
+            if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+            currentSequenceStep++;
+            sequenceStepStartTime = millis();
+            break;
+        case SEQ_CMD_FLASH:
+            if (hardwareInitialized) triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
+            currentSequenceStep++;
+            sequenceStepStartTime = millis();
+            break;
+        case SEQ_CMD_SOUND:
+            if (hardwareInitialized) playSound(step.stringParam.c_str());
+            currentSequenceStep++;
+			sequenceStepStartTime = millis();
+            break;
+        case SEQ_CMD_WAIT:
+            if (elapsed >= (unsigned long)step.intParam) {
+                sequenceStepStartTime = millis();
+                currentSequenceStep++;
+            }
+            break;
+        case SEQ_CMD_END:
+            isSequenceActive = false;
+            currentSequenceStep = 0;
+            break;
+    }
+}
+
+void handlePresetCycling() {
+    if (settingsManager.settings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
+    if (millis() - lastPresetCycleTime > (unsigned long)settingsManager.settings.presetCycleInterval * 60000) {
+        lastPresetCycleTime = millis();
+    }
 }
 
 /**
- * @brief Loads settings from non-volatile storage (NVS) into the `currentSettings` object.
- * @details This function reads all configuration data from flash memory using the
- * Preferences library. If it detects that this is the first boot (i.e., no settings
- * have been saved yet), it initializes the `currentSettings` object with a set of
- * sensible defaults and then calls `saveSettings()` to create the initial configuration.
+ * @brief Checks if a scheduled time travel animation should be triggered.
+ * @details This function is called in the main loop and uses the
+ * `timeTravelAnimationInterval` setting to automatically start the
+ * animation sequence after the specified number of minutes.
  */
-void loadSettings() {
-    Serial.println("--- Loading Settings ---");
-    preferences.begin(PREFERENCES_NAMESPACE, true); // Open preferences in read-only mode.
+void handleScheduledAnimation() {
+    if (settingsManager.settings.timeTravelAnimationInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
+        return;
+    }
 
-    // Check if a key exists. If not, we assume it's the first boot.
-	bool needsInit = !preferences.isKey("destYear");
-    if (needsInit) {
-        // --- INITIALIZE WITH DEFAULT VALUES ---
-		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
-		currentSettings.destinationYear = 1955;
-		currentSettings.destinationTimezoneIndex = 4; // Default to Pacific Time
-		currentSettings.departureHour = 22;
-		currentSettings.departureMinute = 0;
-		currentSettings.arrivalHour = 7;
-		currentSettings.arrivalMinute = 0;
-		currentSettings.lastTimeDepartedYear = 1985;
-		currentSettings.lastTimeDepartedMonth = 10;
-		currentSettings.lastTimeDepartedDay = 26;
-		currentSettings.lastTimeDepartedHour = 1;
-		currentSettings.lastTimeDepartedMinute = 21;
-		currentSettings.brightness = 5;
-		currentSettings.notificationVolume = 15;
-		currentSettings.timeTravelSoundToggle = true;
-		currentSettings.presentTimezoneIndex = 1;
-		currentSettings.presetCycleInterval = 10;
-		currentSettings.displayFormat24h = false;
-		currentSettings.theme = THEME_TIME_CIRCUITS;
-		currentSettings.timeTravelAnimationInterval = 15;
-		currentSettings.timeTravelAnimationDuration = 4000;
-		currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
-		currentSettings.glitchEffectFrequency = 0;
-		currentSettings.dataLinkEnabled = false;
-		currentSettings.dataLinkTargetRow = 2;
-		currentSettings.dataLinkRefreshInterval = 10;
-		currentSettings.numDataPoints = 0;
-		currentSettings.mqttBroker = "broker.emqx.io";
-		currentSettings.mqttPort = 1883;
-		currentSettings.mqttUser = "";
-		currentSettings.mqttPassword = "";
-		currentSettings.weatherModeEnabled = false;
-		currentSettings.cityName = "New York";
-		currentSettings.useMetricUnits = false;
-		currentSettings.latitude = 40.7128;
-		currentSettings.longitude = -74.0060;
-		currentSettings.stockTickerModeEnabled = false;
-		currentSettings.stockRow1_symbol = "^GSPC";
-		currentSettings.stockRow2_symbol = "^GSPTSE";
-		currentSettings.stockRow3_symbol = "^IXIC";
-		currentSettings.financialModelingPrepApiKey = "";
-		for (int i = 0; i < 5; i++) {
-			currentSettings.dataPoints[i] = {};
-		}
-		saveSettings();
-	} else {
-		ESP_LOGI("SETTINGS", "Loading settings from NVS.");
-		currentSettings.destinationYear = preferences.getInt("destYear");
-		currentSettings.destinationTimezoneIndex = preferences.getInt("destTzIndex");
-		currentSettings.departureHour = preferences.getInt("depHour");
-		currentSettings.departureMinute = preferences.getInt("depMinute");
-		currentSettings.arrivalHour = preferences.getInt("arrHour");
-		currentSettings.arrivalMinute = preferences.getInt("arrMinute");
-		currentSettings.lastTimeDepartedYear = preferences.getInt("lastYear");
-		currentSettings.lastTimeDepartedMonth = preferences.getInt("lastMonth");
-		currentSettings.lastTimeDepartedDay = preferences.getInt("lastDay");
-		currentSettings.lastTimeDepartedHour = preferences.getInt("lastHour");
-		currentSettings.lastTimeDepartedMinute = preferences.getInt("lastMinute");
-		currentSettings.brightness = preferences.getUChar("brightness");
-		currentSettings.notificationVolume = preferences.getUChar("volume");
-		currentSettings.timeTravelSoundToggle = preferences.getBool("soundToggle");
-		currentSettings.presentTimezoneIndex = preferences.getInt("presTzIndex");
-		currentSettings.presetCycleInterval = preferences.getInt("presetCycle");
-		currentSettings.displayFormat24h = preferences.getBool("format24h");
-		currentSettings.theme = preferences.getInt("theme", THEME_TIME_CIRCUITS);
-		currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval");
-		currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration");
-		currentSettings.animationStyle = preferences.getInt("animStyle");
-		currentSettings.glitchEffectFrequency = preferences.getInt("glitchFreq");
-		currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
-		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
-		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
-		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
-        String brokerStr = preferences.getString("mqttBroker", "");
-        currentSettings.mqttBroker = brokerStr.c_str();
-		Serial.printf("SETTINGS_LOG: Loaded MQTT Broker: [%s]\n", currentSettings.mqttBroker.c_str());
-		currentSettings.mqttPort = preferences.getInt("mqttPort", 1883);
-		Serial.printf("SETTINGS_LOG: Loaded MQTT Port: [%d]\n", currentSettings.mqttPort);
-        String userStr = preferences.getString("mqttUser", "");
-        currentSettings.mqttUser = userStr.c_str();
-		Serial.printf("SETTINGS_LOG: Loaded MQTT User: [%s]\n", currentSettings.mqttUser.c_str());
-        String passStr = preferences.getString("mqttPass", "");
-        currentSettings.mqttPassword = passStr.c_str();
-		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
-		String tempString = preferences.getString("cityName", "New York");
-		currentSettings.cityName = tempString.c_str();
-		currentSettings.useMetricUnits = preferences.getBool("useMetric", false);
-		currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
-		currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
-		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
-		tempString = preferences.getString("stRow1Sym", "^GSPC");
-		currentSettings.stockRow1_symbol = tempString.c_str();
-		tempString = preferences.getString("stRow2Sym", "^GSPTSE");
-		currentSettings.stockRow2_symbol = tempString.c_str();
-		tempString = preferences.getString("stRow3Sym", "^IXIC");
-		currentSettings.stockRow3_symbol = tempString.c_str();
-		tempString = preferences.getString("fmpApiKey", "");
-		currentSettings.financialModelingPrepApiKey = tempString.c_str();
-		for (int i = 0; i < 5; i++) {
-			String prefix = "dp" + String(i) + "_";
-			if(preferences.isKey((prefix + "url").c_str())) currentSettings.dataPoints[i].url = preferences.getString((prefix + "url").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "monthPath").c_str())) currentSettings.dataPoints[i].monthPath = preferences.getString((prefix + "monthPath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "dayPath").c_str())) currentSettings.dataPoints[i].dayPath = preferences.getString((prefix + "dayPath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "yearPath").c_str())) currentSettings.dataPoints[i].yearPath = preferences.getString((prefix + "yearPath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "timePath").c_str())) currentSettings.dataPoints[i].timePath = preferences.getString((prefix + "timePath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "prefix").c_str())) currentSettings.dataPoints[i].prefix = preferences.getString((prefix + "prefix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "suffix").c_str())) currentSettings.dataPoints[i].suffix = preferences.getString((prefix + "suffix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "icon").c_str())) currentSettings.dataPoints[i].icon = preferences.getString((prefix + "icon").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "scroll").c_str())) currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
-			if(preferences.isKey((prefix + "srcType").c_str())) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
-			if(preferences.isKey((prefix + "topic").c_str())) currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "yearPrefix").c_str())) currentSettings.dataPoints[i].yearPrefix = preferences.getString((prefix + "yearPrefix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "yearSuffix").c_str())) currentSettings.dataPoints[i].yearSuffix = preferences.getString((prefix + "yearSuffix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "dispMode").c_str())) currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
-			if(preferences.isKey((prefix + "scrollTxt").c_str())) currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "authKey").c_str())) currentSettings.dataPoints[i].authHeaderKey = preferences.getString((prefix + "authKey").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "authVal").c_str())) currentSettings.dataPoints[i].authHeaderValue = preferences.getString((prefix + "authVal").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "httpMethod").c_str())) currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
-			if(preferences.isKey((prefix + "reqBody").c_str())) currentSettings.dataPoints[i].requestBody = preferences.getString((prefix + "reqBody").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "apiKey").c_str())) currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
-		}
-	}
-	preferences.end();
-	Serial.println("--- Settings Loaded ---");
-	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
-		currentSettings.presentTimezoneIndex = 0;
-	}
-	if (currentSettings.destinationTimezoneIndex < 0 || currentSettings.destinationTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
-		currentSettings.destinationTimezoneIndex = 0;
-	}
-	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-	tzset();
+    // NEW: Reset the timer once right after the boot sequence completes.
+    if (lastScheduledAnimationTime == 0 && bootState == BOOT_INACTIVE) {
+        lastScheduledAnimationTime = millis();
+    }
+
+    if (lastScheduledAnimationTime > 0 && (millis() - lastScheduledAnimationTime > (unsigned long)settingsManager.settings.timeTravelAnimationInterval * 60000)) {
+        startStyledAnimation();
+        lastScheduledAnimationTime = millis();
+    }
+}
+
+void handleSleepSchedule() {
+  if (!ntpManager.isTimeSynchronized()) return;
+  struct tm timeinfo;
+  getLocalTime(&timeinfo);
+
+  int now_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+  int sleep_minutes = settingsManager.settings.departureHour * 60 + settingsManager.settings.departureMinute;
+  int wake_minutes = settingsManager.settings.arrivalHour * 60 + settingsManager.settings.arrivalMinute;
+
+  bool shouldBeAsleep = (sleep_minutes < wake_minutes) ?
+                        (now_minutes >= sleep_minutes && now_minutes < wake_minutes) :
+                        (now_minutes >= sleep_minutes || now_minutes < wake_minutes);
+
+  if (shouldBeAsleep && !isDisplayAsleep) {
+    isDisplayAsleep = true;
+    if (hardwareInitialized) {
+        blankAllDisplays();
+        playSound("/SLEEP_ON.mp3");
+    }
+    updateHaStatus("Asleep");
+  } else if (!shouldBeAsleep && isDisplayAsleep) {
+    isDisplayAsleep = false;
+    if (hardwareInitialized) {
+        updateNormalClockDisplay();
+        playSound("/CONFIRM_ON.mp3");
+    }
+    updateHaStatus("Idle");
+  }
+}
+
+bool isMarketOpen() {
+    if (!ntpManager.isTimeSynchronized()) return false;
+    setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
+    tzset();
+    struct tm timeinfo;
+    getLocalTime(&timeinfo);
+    setenv("TZ", TZ_DATA[settingsManager.settings.presentTimezoneIndex].tzString, 1);
+    tzset();
+
+    if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
+        return false;
+    }
+
+    int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+    int market_open_minutes = 9 * 60 + 30;
+    int market_close_minutes = 16 * 60;
+    return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
 }
 
 void listAllFiles() {
@@ -838,28 +963,8 @@ void loop() {
             }
             
             handleScheduledAnimation();
-            static unsigned long lastNtpUpdate = 0;
-            if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
-                bool syncSuccess = false;
-                int retries = 0;
-                while (!syncSuccess && retries < NUM_NTP_SERVERS) {
-                    configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
-                    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                    tzset();
-                    struct tm timeinfo;
-                    if (getLocalTime(&timeinfo, 10000)) {
-                        timeSynchronized = true;
-                        syncSuccess = true;
-                    } else {
-                        currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
-                        retries++;
-                    }
-                }
-                lastNtpUpdate = millis();
-                ntpSyncRequested = false;
-            }
             static unsigned long lastHaStateUpdate = 0;
-            if (timeSynchronized && millis() - lastHaStateUpdate > 5000) {
+            if (ntpManager.isTimeSynchronized() && millis() - lastHaStateUpdate > 5000) {
                 publishAllHaStates();
                 lastHaStateUpdate = millis();
             }

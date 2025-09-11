@@ -1,12 +1,3 @@
-/**
- * @file web_server.cpp
- * @brief Implements the asynchronous web server and WebSocket communication.
- * @details This file sets up all the necessary routes for serving the web interface
- * (HTML, CSS, JS), provides a RESTful API for getting and setting the clock's
- * configuration, and manages a WebSocket connection for real-time, bidirectional
- * communication with the web UI.
- */
-
 #include "web_server.h"
 #include "api_templates.h"
 #include "DataManager.h"
@@ -21,14 +12,6 @@
 #include "FS.h"
 #include <LITTLEFS.h>
 
-/**
- * @brief A PROGMEM string containing a JSON object of API endpoint examples.
- * @details This large string is stored in flash memory to save RAM. It provides a list of
- * pre-configured API examples that the user can select from in the "Data Link" tab of the
- * web interface. This allows users to quickly populate the URL and other fields for common
- * data sources like weather, stocks, and cryptocurrency without having to manually look up
- * the API documentation.
- */
 const char apiTemplates[] PROGMEM = "{\n"
     "    \"stock_aapl_price\": {\n"
     "        \"name\": \"Stock: Apple Price\",\n"
@@ -129,18 +112,12 @@ void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
     }
 }
 
-/**
- * @brief Overloaded function to broadcast an integer state update via WebSocket.
- */
 void broadcastWsStateUpdate(const char* key, int value) {
     StaticJsonDocument<32> doc;
     doc.set(value);
     broadcastWsStateUpdate(key, doc.as<JsonVariant>());
 }
 
-/**
- * @brief Overloaded function to broadcast a boolean state update via WebSocket.
- */
 void broadcastWsStateUpdate(const char* key, bool value) {
     StaticJsonDocument<32> doc;
     doc.set(value);
@@ -214,20 +191,6 @@ void makeApiRequestTask(void* p) {
     vTaskDelete(NULL); // End the task
 }
 
-/**
- * @brief Handles all incoming WebSocket events.
- * @details This function is the central callback for the WebSocket server. It handles
- * new client connections, disconnections, and incoming data messages. For data
- * messages, it parses the JSON payload to determine the requested action (e.g.,
- * 'testApi', 'testStock') and then creates a dedicated FreeRTOS task to handle
- * the request asynchronously.
- * @param server Pointer to the WebSocket server instance.
- * @param client Pointer to the client that triggered the event.
- * @param type The type of WebSocket event that occurred.
- * @param arg A pointer to additional event-specific arguments.
- * @param data A pointer to the payload data for data events.
- * @param len The length of the payload data.
- */
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
         Serial.printf("WEB_LOG: WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
@@ -309,18 +272,9 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     }
 }
 
-
-/**
- * @brief Configures and attaches all web server and WebSocket routes.
- * @details This function is called once from the main `setup()` function. It sets up
- * the WebSocket event handler and then defines all the routes for the web server.
- * This includes routes for serving static files (HTML, CSS, JS) from LittleFS and
- * a series of RESTful API endpoints for interacting with the clock's settings and state.
- */
 void setupWebRoutes() {
   Serial.println(F("WEB_LOG: Inside setupWebRoutes(). Attaching handlers..."));
 
-  // Attach the WebSocket event handler.
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
 
@@ -354,14 +308,14 @@ void setupWebRoutes() {
 
   server.on("/api/settings/timecircuits", HTTP_GET, [](AsyncWebServerRequest *request) {
     StaticJsonDocument<256> doc;
-    doc["destinationYear"] = currentSettings.destinationYear;
-    doc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;
-    doc["lastTimeDepartedYear"] = currentSettings.lastTimeDepartedYear;
-    doc["lastTimeDepartedMonth"] = currentSettings.lastTimeDepartedMonth;
-    doc["lastTimeDepartedDay"] = currentSettings.lastTimeDepartedDay;
-    doc["lastTimeDepartedHour"] = currentSettings.lastTimeDepartedHour;
-    doc["lastTimeDepartedMinute"] = currentSettings.lastTimeDepartedMinute;
-    doc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
+    doc["destinationYear"] = settingsManager.settings.destinationYear;
+    doc["destinationTimezoneIndex"] = settingsManager.settings.destinationTimezoneIndex;
+    doc["lastTimeDepartedYear"] = settingsManager.settings.lastTimeDepartedYear;
+    doc["lastTimeDepartedMonth"] = settingsManager.settings.lastTimeDepartedMonth;
+    doc["lastTimeDepartedDay"] = settingsManager.settings.lastTimeDepartedDay;
+    doc["lastTimeDepartedHour"] = settingsManager.settings.lastTimeDepartedHour;
+    doc["lastTimeDepartedMinute"] = settingsManager.settings.lastTimeDepartedMinute;
+    doc["presentTimezoneIndex"] = settingsManager.settings.presentTimezoneIndex;
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -369,19 +323,19 @@ void setupWebRoutes() {
 
   server.on("/api/settings/temporal", HTTP_GET, [](AsyncWebServerRequest *request) {
     StaticJsonDocument<384> doc;
-    doc["departureHour"] = currentSettings.departureHour;
-    doc["departureMinute"] = currentSettings.departureMinute;
-    doc["arrivalHour"] = currentSettings.arrivalHour;
-    doc["arrivalMinute"] = currentSettings.arrivalMinute;
-    doc["brightness"] = currentSettings.brightness;
-    doc["notificationVolume"] = currentSettings.notificationVolume;
-    doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
-    doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
-    doc["animationStyle"] = currentSettings.animationStyle;
-    doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency;
-    doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
-    doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
-    doc["displayFormat24h"] = currentSettings.displayFormat24h;
+    doc["departureHour"] = settingsManager.settings.departureHour;
+    doc["departureMinute"] = settingsManager.settings.departureMinute;
+    doc["arrivalHour"] = settingsManager.settings.arrivalHour;
+    doc["arrivalMinute"] = settingsManager.settings.arrivalMinute;
+    doc["brightness"] = settingsManager.settings.brightness;
+    doc["notificationVolume"] = settingsManager.settings.notificationVolume;
+    doc["timeTravelAnimationDuration"] = settingsManager.settings.timeTravelAnimationDuration;
+    doc["timeTravelAnimationInterval"] = settingsManager.settings.timeTravelAnimationInterval;
+    doc["animationStyle"] = settingsManager.settings.animationStyle;
+    doc["glitchEffectFrequency"] = settingsManager.settings.glitchEffectFrequency;
+    doc["timeTravelSoundToggle"] = settingsManager.settings.timeTravelSoundToggle;
+    doc["presetCycleInterval"] = settingsManager.settings.presetCycleInterval;
+    doc["displayFormat24h"] = settingsManager.settings.displayFormat24h;
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -389,43 +343,43 @@ void setupWebRoutes() {
 
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
     DynamicJsonDocument doc(2048);
-    doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
-    doc["dataLinkRefreshInterval"] = currentSettings.dataLinkRefreshInterval;
-    doc["numDataPoints"] = currentSettings.numDataPoints;
-    doc["mqttBroker"] = currentSettings.mqttBroker.c_str();
-    doc["mqttPort"] = currentSettings.mqttPort;
-    doc["mqttUser"] = currentSettings.mqttUser.c_str();
-    doc["mqttPassword"] = currentSettings.mqttPassword.c_str();
-    doc["weatherModeEnabled"] = currentSettings.weatherModeEnabled;
-    doc["cityName"] = currentSettings.cityName.c_str();
-    doc["useMetricUnits"] = currentSettings.useMetricUnits;
-    doc["stockTickerModeEnabled"] = currentSettings.stockTickerModeEnabled;
-    doc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
-    doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
-    doc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
-    doc["stockRow3_symbol"] = currentSettings.stockRow3_symbol.c_str();
+    doc["dataLinkEnabled"] = settingsManager.settings.dataLinkEnabled;
+    doc["dataLinkRefreshInterval"] = settingsManager.settings.dataLinkRefreshInterval;
+    doc["numDataPoints"] = settingsManager.settings.numDataPoints;
+    doc["mqttBroker"] = settingsManager.settings.mqttBroker.c_str();
+    doc["mqttPort"] = settingsManager.settings.mqttPort;
+    doc["mqttUser"] = settingsManager.settings.mqttUser.c_str();
+    doc["mqttPassword"] = settingsManager.settings.mqttPassword.c_str();
+    doc["weatherModeEnabled"] = settingsManager.settings.weatherModeEnabled;
+    doc["cityName"] = settingsManager.settings.cityName.c_str();
+    doc["useMetricUnits"] = settingsManager.settings.useMetricUnits;
+    doc["stockTickerModeEnabled"] = settingsManager.settings.stockTickerModeEnabled;
+    doc["financialModelingPrepApiKey"] = settingsManager.settings.financialModelingPrepApiKey.c_str();
+    doc["stockRow1_symbol"] = settingsManager.settings.stockRow1_symbol.c_str();
+    doc["stockRow2_symbol"] = settingsManager.settings.stockRow2_symbol.c_str();
+    doc["stockRow3_symbol"] = settingsManager.settings.stockRow3_symbol.c_str();
 
     JsonArray dataPoints = doc.createNestedArray("dataPoints");
-    for (int i = 0; i < currentSettings.numDataPoints; i++) {
+    for (int i = 0; i < settingsManager.settings.numDataPoints; i++) {
         JsonObject dp = dataPoints.createNestedObject();
-        dp["url"] = currentSettings.dataPoints[i].url.c_str();
-        dp["monthPath"] = currentSettings.dataPoints[i].monthPath.c_str();
-        dp["dayPath"] = currentSettings.dataPoints[i].dayPath.c_str();
-        dp["yearPath"] = currentSettings.dataPoints[i].yearPath.c_str();
-        dp["timePath"] = currentSettings.dataPoints[i].timePath.c_str();
-        dp["prefix"] = currentSettings.dataPoints[i].prefix.c_str();
-        dp["suffix"] = currentSettings.dataPoints[i].suffix.c_str();
-        dp["icon"] = currentSettings.dataPoints[i].icon.c_str();
-        dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
-        dp["dataSourceType"] = (int)currentSettings.dataPoints[i].dataSourceType;
-        dp["mqttTopic"] = currentSettings.dataPoints[i].mqttTopic.c_str();
-        dp["yearPrefix"] = currentSettings.dataPoints[i].yearPrefix.c_str();
-        dp["yearSuffix"] = currentSettings.dataPoints[i].yearSuffix.c_str();
-        dp["displayMode"] = (int)currentSettings.dataPoints[i].displayMode;
-        dp["scrollingText"] = currentSettings.dataPoints[i].scrollingText.c_str();
-        dp["authHeaderKey"] = currentSettings.dataPoints[i].authHeaderKey.c_str();
-        dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue.c_str();
-        dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey.c_str();
+        dp["url"] = settingsManager.settings.dataPoints[i].url.c_str();
+        dp["monthPath"] = settingsManager.settings.dataPoints[i].monthPath.c_str();
+        dp["dayPath"] = settingsManager.settings.dataPoints[i].dayPath.c_str();
+        dp["yearPath"] = settingsManager.settings.dataPoints[i].yearPath.c_str();
+        dp["timePath"] = settingsManager.settings.dataPoints[i].timePath.c_str();
+        dp["prefix"] = settingsManager.settings.dataPoints[i].prefix.c_str();
+        dp["suffix"] = settingsManager.settings.dataPoints[i].suffix.c_str();
+        dp["icon"] = settingsManager.settings.dataPoints[i].icon.c_str();
+        dp["scrollSpeed"] = settingsManager.settings.dataPoints[i].scrollSpeed;
+        dp["dataSourceType"] = (int)settingsManager.settings.dataPoints[i].dataSourceType;
+        dp["mqttTopic"] = settingsManager.settings.dataPoints[i].mqttTopic.c_str();
+        dp["yearPrefix"] = settingsManager.settings.dataPoints[i].yearPrefix.c_str();
+        dp["yearSuffix"] = settingsManager.settings.dataPoints[i].yearSuffix.c_str();
+        dp["displayMode"] = (int)settingsManager.settings.dataPoints[i].displayMode;
+        dp["scrollingText"] = settingsManager.settings.dataPoints[i].scrollingText.c_str();
+        dp["authHeaderKey"] = settingsManager.settings.dataPoints[i].authHeaderKey.c_str();
+        dp["authHeaderValue"] = settingsManager.settings.dataPoints[i].authHeaderValue.c_str();
+        dp["apiExampleKey"] = settingsManager.settings.dataPoints[i].apiExampleKey.c_str();
     }
 
     String response;
@@ -433,8 +387,31 @@ void setupWebRoutes() {
     request->send(200, "application/json", response);
   });
 
+String generateTimezoneJson() {
+    DynamicJsonDocument doc(4096); // Allocate enough memory for the JSON
+    JsonObject root = doc.to<JsonObject>();
+
+    extern const TimeZoneEntry TZ_DATA[];
+    extern const int NUM_TIMEZONE_OPTIONS;
+
+    for (int i = 0; i < NUM_TIMEZONE_OPTIONS; ++i) {
+        const TimeZoneEntry& entry = TZ_DATA[i];
+        JsonArray regionArray = root.getOrAdd<JsonArray>(entry.region);
+
+        JsonObject tzObject = regionArray.createNestedObject();
+        tzObject["value"] = i;
+        tzObject["text"] = entry.displayName;
+        tzObject["ianaTzName"] = entry.ianaTzName;
+    }
+
+    String jsonString;
+    serializeJson(doc, jsonString);
+    return jsonString;
+}
+
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "application/json", TZ_JSON);
+    String tzJson = generateTimezoneJson();
+    request->send(200, "application/json", tzJson);
   });
 
   server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -506,42 +483,42 @@ void setupWebRoutes() {
     serializeJson(obj, receivedJson);
     Serial.println(receivedJson);
 
-    std::string oldMqttBroker = currentSettings.mqttBroker;
-    int oldMqttPort = currentSettings.mqttPort;
-    std::string oldCityName = currentSettings.cityName;
+    std::string oldMqttBroker = settingsManager.settings.mqttBroker;
+    int oldMqttPort = settingsManager.settings.mqttPort;
+    std::string oldCityName = settingsManager.settings.cityName;
 
-    currentSettings.destinationYear = obj["destinationYear"] | currentSettings.destinationYear;
-    currentSettings.destinationTimezoneIndex = obj["destinationTimezoneIndex"] | currentSettings.destinationTimezoneIndex;
-    currentSettings.lastTimeDepartedYear = obj["lastTimeDepartedYear"] | currentSettings.lastTimeDepartedYear;
-    currentSettings.lastTimeDepartedMonth = obj["lastTimeDepartedMonth"] | currentSettings.lastTimeDepartedMonth;
-    currentSettings.lastTimeDepartedDay = obj["lastTimeDepartedDay"] | currentSettings.lastTimeDepartedDay;
-    currentSettings.lastTimeDepartedHour = obj["lastTimeDepartedHour"] | currentSettings.lastTimeDepartedHour;
-    currentSettings.lastTimeDepartedMinute = obj["lastTimeDepartedMinute"] | currentSettings.lastTimeDepartedMinute;
-    currentSettings.presetCycleInterval = obj["presetCycleInterval"] | currentSettings.presetCycleInterval;
-    currentSettings.departureHour = obj["departureHour"] | currentSettings.departureHour;
-    currentSettings.departureMinute = obj["departureMinute"] | currentSettings.departureMinute;
-    currentSettings.arrivalHour = obj["arrivalHour"] | currentSettings.arrivalHour;
-    currentSettings.arrivalMinute = obj["arrivalMinute"] | currentSettings.arrivalMinute;
-    currentSettings.brightness = obj["brightness"] | currentSettings.brightness;
+    settingsManager.settings.destinationYear = obj["destinationYear"] | settingsManager.settings.destinationYear;
+    settingsManager.settings.destinationTimezoneIndex = obj["destinationTimezoneIndex"] | settingsManager.settings.destinationTimezoneIndex;
+    settingsManager.settings.lastTimeDepartedYear = obj["lastTimeDepartedYear"] | settingsManager.settings.lastTimeDepartedYear;
+    settingsManager.settings.lastTimeDepartedMonth = obj["lastTimeDepartedMonth"] | settingsManager.settings.lastTimeDepartedMonth;
+    settingsManager.settings.lastTimeDepartedDay = obj["lastTimeDepartedDay"] | settingsManager.settings.lastTimeDepartedDay;
+    settingsManager.settings.lastTimeDepartedHour = obj["lastTimeDepartedHour"] | settingsManager.settings.lastTimeDepartedHour;
+    settingsManager.settings.lastTimeDepartedMinute = obj["lastTimeDepartedMinute"] | settingsManager.settings.lastTimeDepartedMinute;
+    settingsManager.settings.presetCycleInterval = obj["presetCycleInterval"] | settingsManager.settings.presetCycleInterval;
+    settingsManager.settings.departureHour = obj["departureHour"] | settingsManager.settings.departureHour;
+    settingsManager.settings.departureMinute = obj["departureMinute"] | settingsManager.settings.departureMinute;
+    settingsManager.settings.arrivalHour = obj["arrivalHour"] | settingsManager.settings.arrivalHour;
+    settingsManager.settings.arrivalMinute = obj["arrivalMinute"] | settingsManager.settings.arrivalMinute;
+    settingsManager.settings.brightness = obj["brightness"] | settingsManager.settings.brightness;
         if (hardwareInitialized) { // <-- ADD THIS BLOCK
         applyBrightness();
     }
-    currentSettings.timeTravelAnimationDuration = obj["timeTravelAnimationDuration"] | currentSettings.timeTravelAnimationDuration;
-    currentSettings.timeTravelAnimationInterval = obj["timeTravelAnimationInterval"] | currentSettings.timeTravelAnimationInterval;
-    currentSettings.animationStyle = obj["animationStyle"] | currentSettings.animationStyle;
-    currentSettings.glitchEffectFrequency = obj["glitchEffectFrequency"] | currentSettings.glitchEffectFrequency;
-    currentSettings.notificationVolume = obj["notificationVolume"] | currentSettings.notificationVolume;
-    currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"] | currentSettings.timeTravelSoundToggle;
-    currentSettings.presentTimezoneIndex = obj["presentTimezoneIndex"] | currentSettings.presentTimezoneIndex;
-    currentSettings.displayFormat24h = obj["displayFormat24h"] | currentSettings.displayFormat24h;
+    settingsManager.settings.timeTravelAnimationDuration = obj["timeTravelAnimationDuration"] | settingsManager.settings.timeTravelAnimationDuration;
+    settingsManager.settings.timeTravelAnimationInterval = obj["timeTravelAnimationInterval"] | settingsManager.settings.timeTravelAnimationInterval;
+    settingsManager.settings.animationStyle = obj["animationStyle"] | settingsManager.settings.animationStyle;
+    settingsManager.settings.glitchEffectFrequency = obj["glitchEffectFrequency"] | settingsManager.settings.glitchEffectFrequency;
+    settingsManager.settings.notificationVolume = obj["notificationVolume"] | settingsManager.settings.notificationVolume;
+    settingsManager.settings.timeTravelSoundToggle = obj["timeTravelSoundToggle"] | settingsManager.settings.timeTravelSoundToggle;
+    settingsManager.settings.presentTimezoneIndex = obj["presentTimezoneIndex"] | settingsManager.settings.presentTimezoneIndex;
+    settingsManager.settings.displayFormat24h = obj["displayFormat24h"] | settingsManager.settings.displayFormat24h;
 
-    currentSettings.dataLinkEnabled = obj["dataLinkEnabled"] | currentSettings.dataLinkEnabled;
-    currentSettings.dataLinkRefreshInterval = obj["dataLinkRefreshInterval"] | currentSettings.dataLinkRefreshInterval;
-    if (obj.containsKey("mqttBroker")) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
-    currentSettings.mqttPort = obj["mqttPort"] | 1883;
-    if (obj.containsKey("mqttUser")) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
-    if (obj.containsKey("mqttPassword")) currentSettings.mqttPassword = obj["mqttPassword"].as<std::string>();
-    currentSettings.weatherModeEnabled = obj["weatherModeEnabled"] | currentSettings.weatherModeEnabled;
+    settingsManager.settings.dataLinkEnabled = obj["dataLinkEnabled"] | settingsManager.settings.dataLinkEnabled;
+    settingsManager.settings.dataLinkRefreshInterval = obj["dataLinkRefreshInterval"] | settingsManager.settings.dataLinkRefreshInterval;
+    if (obj.containsKey("mqttBroker")) settingsManager.settings.mqttBroker = obj["mqttBroker"].as<std::string>();
+    settingsManager.settings.mqttPort = obj["mqttPort"] | 1883;
+    if (obj.containsKey("mqttUser")) settingsManager.settings.mqttUser = obj["mqttUser"].as<std::string>();
+    if (obj.containsKey("mqttPassword")) settingsManager.settings.mqttPassword = obj["mqttPassword"].as<std::string>();
+    settingsManager.settings.weatherModeEnabled = obj["weatherModeEnabled"] | settingsManager.settings.weatherModeEnabled;
     if (obj.containsKey("cityName")) {
         std::string newCityName = obj["cityName"].as<std::string>();
         if (newCityName != oldCityName) {
@@ -551,16 +528,16 @@ void setupWebRoutes() {
                 xSemaphoreGive(xDisplayDataMutex);
             }
         }
-        currentSettings.cityName = newCityName;
+        settingsManager.settings.cityName = newCityName;
     }
-    currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
-    currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
+    settingsManager.settings.useMetricUnits = obj["useMetricUnits"] | settingsManager.settings.useMetricUnits;
+    settingsManager.settings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | settingsManager.settings.stockTickerModeEnabled;
     if (obj.containsKey("financialModelingPrepApiKey")) {
-        currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
+        settingsManager.settings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
     }
-    if (obj.containsKey("stockRow1_symbol")) currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
-    if (obj.containsKey("stockRow2_symbol")) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
-    if (obj.containsKey("stockRow3_symbol")) currentSettings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
+    if (obj.containsKey("stockRow1_symbol")) settingsManager.settings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
+    if (obj.containsKey("stockRow2_symbol")) settingsManager.settings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
+    if (obj.containsKey("stockRow3_symbol")) settingsManager.settings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
 
     int numPoints = obj["numDataPoints"] | 0;
     if (numPoints < 0) {
@@ -568,32 +545,32 @@ void setupWebRoutes() {
     } else if (numPoints > 5) {
       numPoints = 5;
     }
-    currentSettings.numDataPoints = numPoints;
+    settingsManager.settings.numDataPoints = numPoints;
     if (obj.containsKey("dataPoints")) {
         JsonArray dataPoints = obj["dataPoints"];
         for (int i = 0; i < 5; i++) {
-            if (i < currentSettings.numDataPoints && i < dataPoints.size()) {
+            if (i < settingsManager.settings.numDataPoints && i < dataPoints.size()) {
                 JsonObject dp = dataPoints[i];
-                if (dp.containsKey("dataSourceType")) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
-                if (dp.containsKey("url")) currentSettings.dataPoints[i].url = dp["url"].as<std::string>();
-                if (dp.containsKey("monthPath")) currentSettings.dataPoints[i].monthPath = dp["monthPath"].as<std::string>();
-                if (dp.containsKey("dayPath")) currentSettings.dataPoints[i].dayPath = dp["dayPath"].as<std::string>();
-                if (dp.containsKey("yearPath")) currentSettings.dataPoints[i].yearPath = dp["yearPath"].as<std::string>();
-                if (dp.containsKey("timePath")) currentSettings.dataPoints[i].timePath = dp["timePath"].as<std::string>();
-                if (dp.containsKey("prefix")) currentSettings.dataPoints[i].prefix = dp["prefix"].as<std::string>();
-                if (dp.containsKey("suffix")) currentSettings.dataPoints[i].suffix = dp["suffix"].as<std::string>();
-                if (dp.containsKey("icon")) currentSettings.dataPoints[i].icon = dp["icon"].as<std::string>();
-                currentSettings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
-                if (dp.containsKey("mqttTopic")) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
-                if (dp.containsKey("yearPrefix")) currentSettings.dataPoints[i].yearPrefix = dp["yearPrefix"].as<std::string>();
-                if (dp.containsKey("yearSuffix")) currentSettings.dataPoints[i].yearSuffix = dp["yearSuffix"].as<std::string>();
-                if (dp.containsKey("displayMode")) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
-                if (dp.containsKey("scrollingText")) currentSettings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
-                if (dp.containsKey("authHeaderKey")) currentSettings.dataPoints[i].authHeaderKey = dp["authHeaderKey"].as<std::string>();
-                if (dp.containsKey("authHeaderValue")) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
-                if (dp.containsKey("apiExampleKey")) currentSettings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
+                if (dp.containsKey("dataSourceType")) settingsManager.settings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
+                if (dp.containsKey("url")) settingsManager.settings.dataPoints[i].url = dp["url"].as<std::string>();
+                if (dp.containsKey("monthPath")) settingsManager.settings.dataPoints[i].monthPath = dp["monthPath"].as<std::string>();
+                if (dp.containsKey("dayPath")) settingsManager.settings.dataPoints[i].dayPath = dp["dayPath"].as<std::string>();
+                if (dp.containsKey("yearPath")) settingsManager.settings.dataPoints[i].yearPath = dp["yearPath"].as<std::string>();
+                if (dp.containsKey("timePath")) settingsManager.settings.dataPoints[i].timePath = dp["timePath"].as<std::string>();
+                if (dp.containsKey("prefix")) settingsManager.settings.dataPoints[i].prefix = dp["prefix"].as<std::string>();
+                if (dp.containsKey("suffix")) settingsManager.settings.dataPoints[i].suffix = dp["suffix"].as<std::string>();
+                if (dp.containsKey("icon")) settingsManager.settings.dataPoints[i].icon = dp["icon"].as<std::string>();
+                settingsManager.settings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
+                if (dp.containsKey("mqttTopic")) settingsManager.settings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
+                if (dp.containsKey("yearPrefix")) settingsManager.settings.dataPoints[i].yearPrefix = dp["yearPrefix"].as<std::string>();
+                if (dp.containsKey("yearSuffix")) settingsManager.settings.dataPoints[i].yearSuffix = dp["yearSuffix"].as<std::string>();
+                if (dp.containsKey("displayMode")) settingsManager.settings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
+                if (dp.containsKey("scrollingText")) settingsManager.settings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
+                if (dp.containsKey("authHeaderKey")) settingsManager.settings.dataPoints[i].authHeaderKey = dp["authHeaderKey"].as<std::string>();
+                if (dp.containsKey("authHeaderValue")) settingsManager.settings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
+                if (dp.containsKey("apiExampleKey")) settingsManager.settings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
             } else {
-                currentSettings.dataPoints[i] = {}; // Clear unused data points
+                settingsManager.settings.dataPoints[i] = {}; // Clear unused data points
             }
         }
     }
@@ -601,11 +578,11 @@ void setupWebRoutes() {
     if (mqttClient.connected()) {
         mqttClient.disconnect();
     }
-    saveSettings();
+    settingsManager.save();
     delay(100);
     mqttReconnectRequired = true;
 
-    audio.setVolume(currentSettings.notificationVolume);
+    audio.setVolume(settingsManager.settings.notificationVolume);
 
     request->send(200, "text/plain", "Settings Saved!");
  }, 8192); // This last argument is the increased buffer size
@@ -685,7 +662,7 @@ void setupWebRoutes() {
     preferences.remove("customPresets");
     preferences.remove(THEME_PREF_KEY);
     LittleFS.remove("/api_templates.json");
-    loadSettings();
+    settingsManager.load();
     request->send(200, "text/plain", "Settings have been reset to default.");
   });
   server.on("/api/syncTime", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -716,7 +693,7 @@ void setupWebRoutes() {
     preferences.putInt("theme", themeEnum);
     preferences.end();
 
-    currentSettings.theme = themeEnum;
+    settingsManager.settings.theme = themeEnum;
 
     request->send(200, "text/plain", "Theme saved.");
   });

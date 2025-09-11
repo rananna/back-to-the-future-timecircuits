@@ -1,13 +1,3 @@
-/**
- * @file DataManager.cpp
- * @brief Handles fetching and parsing data from external web APIs.
- * @details This module is responsible for all outbound network requests to services
- * like Open-Meteo (for weather), Financial Modeling Prep (for stocks), and custom
- * user-defined APIs for the Data Link feature. It uses FreeRTOS tasks to perform
- * these network operations asynchronously, preventing the main application loop
- * from blocking and ensuring the display remains responsive.
- */
-
 #include "DataManager.h"
 #include "EventManager.h"
 #include "DisplayManager.h"
@@ -104,17 +94,17 @@ void fetchStockDataTask(void* p) {
     delete params;
 
     std::string symbol_str;
-    if (rowIndex == 0) symbol_str = currentSettings.stockRow1_symbol;
-    else if (rowIndex == 1) symbol_str = currentSettings.stockRow2_symbol;
-    else symbol_str = currentSettings.stockRow3_symbol;
+    if (rowIndex == 0) symbol_str = settingsManager.settings.stockRow1_symbol;
+    else if (rowIndex == 1) symbol_str = settingsManager.settings.stockRow2_symbol;
+    else symbol_str = settingsManager.settings.stockRow3_symbol;
 
-    if (symbol_str.empty() || currentSettings.alphaVantageApiKey.empty()) {
+    if (symbol_str.empty() || settingsManager.settings.financialModelingPrepApiKey.empty()) {
         vTaskDelete(NULL);
         return;
     }
 
     String symbol = String(symbol_str.c_str());
-    String apiKey = currentSettings.alphaVantageApiKey.c_str();
+    String apiKey = settingsManager.settings.financialModelingPrepApiKey.c_str();
     String url;
 
     if (symbol.startsWith("^")) {
@@ -221,8 +211,8 @@ void fetchWeatherData(WeatherTaskParams* params) {
                     JsonArray results = doc["results"];
                     if (!results.isNull() && results.size() > 0) {
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                            currentSettings.latitude = doc["results"][0]["latitude"];
-                            currentSettings.longitude = doc["results"][0]["longitude"];
+                            settingsManager.settings.latitude = doc["results"][0]["latitude"];
+                            settingsManager.settings.longitude = doc["results"][0]["longitude"];
                             lastCityName = taskCityName;
                             xSemaphoreGive(xDisplayDataMutex);
                         }
@@ -251,10 +241,10 @@ void fetchWeatherData(WeatherTaskParams* params) {
         HTTPClient http;
         WiFiClientSecure client;
         client.setInsecure();
-        String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
-        String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
-        String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 4) + 
-                     "&longitude=" + String(currentSettings.longitude, 4) + 
+        String tempUnit = settingsManager.settings.useMetricUnits ? "celsius" : "fahrenheit";
+        String speedUnit = settingsManager.settings.useMetricUnits ? "kmh" : "mph";
+        String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(settingsManager.settings.latitude, 4) +
+                     "&longitude=" + String(settingsManager.settings.longitude, 4) +
                      "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
                      "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max" + 
                      "&hourly=temperature_2m,weather_code" +
@@ -324,7 +314,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
 }
 
 void fetchWeatherDataTask(void* p) {
-    WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
+    WeatherTaskParams* params = new WeatherTaskParams{settingsManager.settings.cityName, false};
     fetchWeatherData(params);
     vTaskDelete(NULL);
 }
@@ -340,12 +330,12 @@ void fetchApiDataTask(void* p) {
 	int index = params->pointIndex;
 	delete params;
 
-	if (index < 0 || index >= currentSettings.numDataPoints) {
+	if (index < 0 || index >= settingsManager.settings.numDataPoints) {
 		vTaskDelete(NULL);
 		return;
 	}
 
-	DataPoint point = currentSettings.dataPoints[index];
+	DataPoint point = settingsManager.settings.dataPoints[index];
 	HTTPClient http;
 	WiFiClientSecure client;
 	client.setInsecure();
@@ -424,13 +414,13 @@ void fetchDataLink() {
 		return;
 	}
 
-	if (!currentSettings.dataLinkEnabled || isFetchingData) {
+	if (!settingsManager.settings.dataLinkEnabled || isFetchingData) {
 		xSemaphoreGive(xDisplayDataMutex);
 		return;
 	}
 
 	unsigned long now = millis();
-	if (now - lastDataLinkFetch > (unsigned long)currentSettings.dataLinkRefreshInterval * 60000) {
+	if (now - lastDataLinkFetch > (unsigned long)settingsManager.settings.dataLinkRefreshInterval * 60000) {
 		lastDataLinkFetch = now;
 		isFetchingData = true;
 		xSemaphoreGive(xDisplayDataMutex);
@@ -438,8 +428,8 @@ void fetchDataLink() {
 		requestsCompleted = 0;
         int tasksCreated = 0;
 
-		for (int i = 0; i < currentSettings.numDataPoints; i++) {
-			if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_API && !currentSettings.dataPoints[i].url.empty()) {
+		for (int i = 0; i < settingsManager.settings.numDataPoints; i++) {
+			if (settingsManager.settings.dataPoints[i].dataSourceType == DATA_SOURCE_API && !settingsManager.settings.dataPoints[i].url.empty()) {
 				FetchDataParams* params = new FetchDataParams{ i, 0 };
 				if (xTaskCreatePinnedToCore(fetchApiDataTask, "fetchApiDataTask", 8192, params, 1, NULL, 0) == pdPASS) {
 					tasksCreated++;

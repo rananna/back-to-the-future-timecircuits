@@ -1,13 +1,5 @@
-/**
- * @file HardwareControl.cpp
- * @brief Implements low-level control functions for displays, LEDs, and sound.
- * @details This file contains the concrete implementations for initializing and controlling
- * the hardware components. It directly interfaces with the Adafruit GFX and LED Backpack
- * libraries, as well as the custom audio library for I2S sound.
- */
-
 #include "HardwareControl.h"
-#include "EventManager.h" 
+#include "EventManager.h"
 #include "DisplayManager.h"
 #include "LittleFS.h"
 
@@ -128,7 +120,7 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
   else if (&row == &lastRow) rowIndex = 2;
 
   // Handle AM/PM and 12/24 hour logic
-  if (!currentSettings.displayFormat24h) {
+  if (!settingsManager.settings.displayFormat24h) {
     bool is_pm = displayHour >= 12;
     if (rowIndex == 0) {
       digitalWrite(DEST_AM_PIN, !is_pm);
@@ -377,7 +369,7 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
     // Correctly determine the destination timeinfo
     time_t now_t;
     time(&now_t);
-    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+    setenv("TZ", TZ_DATA[settingsManager.settings.destinationTimezoneIndex].tzString, 1);
     tzset();
     struct tm dest_timeinfo;
     localtime_r(&now_t, &dest_timeinfo);
@@ -397,7 +389,7 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
             printToDisplay(rows[i]->day, "--", 2);
         } else {
             // Year is locked
-            sprintf(buffer, "%04d", currentSettings.destinationYear);
+            sprintf(buffer, "%04d", settingsManager.settings.destinationYear);
             printToDisplay(rows[i]->year, buffer);
         }
 
@@ -431,7 +423,7 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
     }
 
     // Restore the original timezone
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    setenv("TZ", TZ_DATA[settingsManager.settings.presentTimezoneIndex].tzString, 1);
     tzset();
     #endif
 }
@@ -506,17 +498,17 @@ void animateTemporalDesync() {
     // Correctly calculate the destination timeinfo
     time_t now_t;
     time(&now_t);
-    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+    setenv("TZ", TZ_DATA[settingsManager.settings.destinationTimezoneIndex].tzString, 1);
     tzset();
     struct tm dest_timeinfo;
     localtime_r(&now_t, &dest_timeinfo);
 
     // Update the display row with the correct destination info
-    updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, false);
+    updateDisplayRow(destRow, dest_timeinfo, settingsManager.settings.destinationYear, false);
     vTaskDelay(pdMS_TO_TICKS(2));
 
     // Restore the original timezone to not affect other operations
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    setenv("TZ", TZ_DATA[settingsManager.settings.presentTimezoneIndex].tzString, 1);
     tzset();
 
     // Row 2 (Middle): Timeline Skim / Randomly animating
@@ -747,7 +739,7 @@ void playSound(const char* filepath) {
     digitalWrite(I2S_SD_PIN, HIGH);
     vTaskDelay(pdMS_TO_TICKS(10));
     
-    audio.setVolume(currentSettings.notificationVolume);
+    audio.setVolume(settingsManager.settings.notificationVolume);
     strncpy(currentSoundFile, fullPath, MAX_FILENAME_LENGTH - 1);
     currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
     
@@ -885,7 +877,7 @@ void applyBrightness() {
   #if ENABLE_HARDWARE
   // Corrected: The UI provides a value from 0-7. We will use this value directly.
   // Although the hardware supports 0-15, the 0-7 range is what the UI and diagnostic test use.
-  uint8_t brightnessValue = currentSettings.brightness;
+  uint8_t brightnessValue = settingsManager.settings.brightness;
 
   // The setBrightness function can accept values up to 15, but we are clamping it to the UI's max of 7.
   if (brightnessValue > 7) {
@@ -927,14 +919,14 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
     time(&now_t);
     
     // --- Destination Time ---
-    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+    setenv("TZ", TZ_DATA[settingsManager.settings.destinationTimezoneIndex].tzString, 1);
     tzset();
     struct tm dest_timeinfo;
     localtime_r(&now_t, &dest_timeinfo);
-    dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+    dest_timeinfo.tm_year = settingsManager.settings.destinationYear - 1900;
 
     // --- Present Time ---
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    setenv("TZ", TZ_DATA[settingsManager.settings.presentTimezoneIndex].tzString, 1);
     tzset();
     struct tm present_timeinfo;
     localtime_r(&now_t, &present_timeinfo);
@@ -942,11 +934,11 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
 
     // --- Last Time Departed ---
     struct tm lastTimeDepartedInfo = {0};
-    lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
-    lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
-    lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
-    lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
-    lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
+    lastTimeDepartedInfo.tm_year = settingsManager.settings.lastTimeDepartedYear - 1900;
+    lastTimeDepartedInfo.tm_mon = settingsManager.settings.lastTimeDepartedMonth - 1;
+    lastTimeDepartedInfo.tm_mday = settingsManager.settings.lastTimeDepartedDay;
+    lastTimeDepartedInfo.tm_hour = settingsManager.settings.lastTimeDepartedHour;
+    lastTimeDepartedInfo.tm_min = settingsManager.settings.lastTimeDepartedMinute;
     
     char buffer[5];
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
@@ -973,7 +965,7 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
                 break;
             case 3: // Time
                 int displayHour = time.tm_hour;
-                if (!currentSettings.displayFormat24h) {
+                if (!settingsManager.settings.displayFormat24h) {
                     if (displayHour >= 13) displayHour -= 12;
                     else if (displayHour == 0) displayHour = 12;
                 }
@@ -988,24 +980,24 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
     };
 
     // Update all segments based on segmentsToShow
-    updateSegment(0, &destRow.month, dest_timeinfo, currentSettings.destinationYear);
-    updateSegment(1, &destRow.day, dest_timeinfo, currentSettings.destinationYear);
-    updateSegment(2, &destRow.year, dest_timeinfo, currentSettings.destinationYear);
-    updateSegment(3, &destRow.time, dest_timeinfo, currentSettings.destinationYear);
+    updateSegment(0, &destRow.month, dest_timeinfo, settingsManager.settings.destinationYear);
+    updateSegment(1, &destRow.day, dest_timeinfo, settingsManager.settings.destinationYear);
+    updateSegment(2, &destRow.year, dest_timeinfo, settingsManager.settings.destinationYear);
+    updateSegment(3, &destRow.time, dest_timeinfo, settingsManager.settings.destinationYear);
 
     updateSegment(4, &presRow.month, present_timeinfo, present_timeinfo.tm_year + 1900);
     updateSegment(5, &presRow.day, present_timeinfo, present_timeinfo.tm_year + 1900);
     updateSegment(6, &presRow.year, present_timeinfo, present_timeinfo.tm_year + 1900);
     updateSegment(7, &presRow.time, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent);
 
-    updateSegment(8, &lastRow.month, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
-    updateSegment(9, &lastRow.day, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
-    updateSegment(10, &lastRow.year, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear);
-    updateSegment(11, &lastRow.time, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
+    updateSegment(8, &lastRow.month, lastTimeDepartedInfo, settingsManager.settings.lastTimeDepartedYear);
+    updateSegment(9, &lastRow.day, lastTimeDepartedInfo, settingsManager.settings.lastTimeDepartedYear);
+    updateSegment(10, &lastRow.year, lastTimeDepartedInfo, settingsManager.settings.lastTimeDepartedYear);
+    updateSegment(11, &lastRow.time, lastTimeDepartedInfo, settingsManager.settings.lastTimeDepartedYear, true);
 
 
     // AM/PM LEDs - update them based on row visibility
-    if (segmentsToShow > 0 && !currentSettings.displayFormat24h) {
+    if (segmentsToShow > 0 && !settingsManager.settings.displayFormat24h) {
         bool is_pm = dest_timeinfo.tm_hour >= 12;
         digitalWrite(DEST_AM_PIN, !is_pm);
         digitalWrite(DEST_PM_PIN, is_pm);
@@ -1013,7 +1005,7 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
         digitalWrite(DEST_AM_PIN, LOW);
         digitalWrite(DEST_PM_PIN, LOW);
     }
-    if (segmentsToShow > 4 && !currentSettings.displayFormat24h) {
+    if (segmentsToShow > 4 && !settingsManager.settings.displayFormat24h) {
         bool is_pm = present_timeinfo.tm_hour >= 12;
         digitalWrite(PRES_AM_PIN, !is_pm);
         digitalWrite(PRES_PM_PIN, is_pm);
@@ -1021,7 +1013,7 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
         digitalWrite(PRES_AM_PIN, LOW);
         digitalWrite(PRES_PM_PIN, LOW);
     }
-     if (segmentsToShow > 8 && !currentSettings.displayFormat24h) {
+     if (segmentsToShow > 8 && !settingsManager.settings.displayFormat24h) {
         bool is_pm = lastTimeDepartedInfo.tm_hour >= 12;
         digitalWrite(LAST_AM_PIN, !is_pm);
         digitalWrite(LAST_PM_PIN, is_pm);
@@ -1037,7 +1029,7 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
     }
 
     // Reset timezone
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    setenv("TZ", TZ_DATA[settingsManager.settings.presentTimezoneIndex].tzString, 1);
 	tzset();
     #endif
 }

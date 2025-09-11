@@ -3,6 +3,7 @@
 #include "HardwareControl.h"
 #include "DisplayManager.h"
 #include "MqttManager.h"
+#include "SettingsManager.h"
 #include <WiFi.h>
 
 // --- Add these extern declarations for the new state variables ---
@@ -109,7 +110,7 @@ void handleFlashEffect() {
 
 // --- TIME TRAVEL ANIMATION ---
 void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
-    if (hardwareInitialized && currentSettings.timeTravelSoundToggle) {
+    if (hardwareInitialized && settingsManager.settings.timeTravelSoundToggle) {
         playSound(filename);
     }
     nextPhaseAfterSound = nextPhase;
@@ -158,7 +159,7 @@ void handleDisplayAnimation() {
 
     // Detect when the animation phase changes to trigger the sound for the new phase.
     if (currentPhase != lastPhase) {
-        if (currentSettings.timeTravelSoundToggle) {
+        if (settingsManager.settings.timeTravelSoundToggle) {
             switch (currentPhase) {
                 case ANIM_POWER_UP:
                     playSound("engine_rev.mp3");
@@ -201,9 +202,9 @@ void handleDisplayAnimation() {
             break;
 
         case ANIM_ARRIVAL:
-            if (elapsed < currentSettings.timeTravelAnimationDuration) {
+            if (elapsed < settingsManager.settings.timeTravelAnimationDuration) {
                 // The main cinematic animation always uses the "Timeline Skim" effect.
-                animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, false);
+                animateAllRowsTimelineSkim(elapsed, settingsManager.settings.timeTravelAnimationDuration, settingsManager.settings.destinationYear, false);
             } else {
                 currentPhase = ANIM_LANDING;
                 animationStartTime = millis();
@@ -247,10 +248,10 @@ void startStyledAnimation() {
     updateHaStatus("Animating");
 
     // Set the animation style for this run
-    if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
+    if (settingsManager.settings.animationStyle == ANIMATION_RANDOM_ALL) {
         randomAnimationStyle = random(0, 11); // Updated to include the new animation
     } else {
-        randomAnimationStyle = currentSettings.animationStyle;
+        randomAnimationStyle = settingsManager.settings.animationStyle;
     }
 }
 
@@ -269,10 +270,10 @@ void handleStyledAnimation() {
 
     switch (currentStyledPhase) {
         case ANIM_FLICKER:
-            if (elapsed < currentSettings.timeTravelAnimationDuration) {
+            if (elapsed < settingsManager.settings.timeTravelAnimationDuration) {
                 switch (randomAnimationStyle) {
                     case ANIMATION_SEQUENTIAL_FLICKER:
-                        animateSequentialFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateSequentialFlicker(elapsed, settingsManager.settings.timeTravelAnimationDuration);
                         break;
 
                     case ANIMATION_RANDOM_FLICKER:
@@ -296,20 +297,20 @@ void handleStyledAnimation() {
                         break;
 
                     case ANIMATION_COUNTING_UP:
-                        animateLockOnSequence(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateLockOnSequence(elapsed, settingsManager.settings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_TIMELINE_SKIM:
-                        animateUnstableSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
+                        animateUnstableSkim(elapsed, settingsManager.settings.timeTravelAnimationDuration, settingsManager.settings.destinationYear);
                         break;
                     case ANIMATION_WAVE_FLICKER:
                     case ANIMATION_WAVEFORM_COLLAPSE:
-                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateWaveformCollapse(elapsed, settingsManager.settings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_CAPACITOR_CHARGE_UP:
-                        animateCapacitorChargeUp(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateCapacitorChargeUp(elapsed, settingsManager.settings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_DIGITAL_RAIN:
-                        animateDigitalRain(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateDigitalRain(elapsed, settingsManager.settings.timeTravelAnimationDuration);
                         break;
 
                     case ANIMATION_ALL_DISPLAYS_RANDOM:
@@ -388,7 +389,7 @@ void handleGlitchEffect() {
         lastGlitchTime = millis();
 
         // Check for a minor glitch
-        if (currentSettings.glitchEffectFrequency > 0 && random(100) < currentSettings.glitchEffectFrequency) {
+        if (settingsManager.settings.glitchEffectFrequency > 0 && random(100) < settingsManager.settings.glitchEffectFrequency) {
             isGlitching = true;
             glitchStartTime = millis();
         }
@@ -657,7 +658,7 @@ void handleBootSequence() {
         case BOOT_COOL_DOWN:
             if (!stateActionCompleted) {
                 // Manually fade out the audio
-                for (int i = currentSettings.notificationVolume; i >= 0; i--) {
+                for (int i = settingsManager.settings.notificationVolume; i >= 0; i--) {
                     audio.setVolume(i);
                     delay(50);
                 }
@@ -693,7 +694,7 @@ void handleBootSequence() {
                 isMessageOverrideActive = false;
                 bootState = BOOT_INACTIVE;
 
-                uint8_t saved_brightness = currentSettings.brightness;
+                uint8_t saved_brightness = settingsManager.settings.brightness;
 
                 destRow.month.setBrightness(saved_brightness);
                 destRow.day.setBrightness(saved_brightness);

@@ -1,13 +1,3 @@
-/**
- * @file MqttManager.cpp
- * @brief Manages all MQTT communication for Home Assistant integration.
- * @details This module handles the connection to an MQTT broker, publishes device
- * status and sensor data, and subscribes to command topics to allow for remote
-al * control. It is responsible for generating the Home Assistant MQTT Discovery
- * configuration messages, which allow the device to be automatically recognized
- * by Home Assistant.
- */
-
 #include "MqttManager.h"
 #include "EventManager.h"
 #include "AnimationManager.h"
@@ -23,13 +13,13 @@ al * control. It is responsible for generating the Home Assistant MQTT Discovery
 bool haDiscoveryPublished = false;
 
 void setupMqtt() {
-  if (currentSettings.mqttBroker.empty()) {
+  if (settingsManager.settings.mqttBroker.empty()) {
     Serial.println("MQTT_LOG: No broker configured. MQTT setup skipped.");
     return;
   }
-  mqttClient.setServer(currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
+  mqttClient.setServer(settingsManager.settings.mqttBroker.c_str(), settingsManager.settings.mqttPort);
   mqttClient.setCallback(mqttCallback);
-  Serial.printf("MQTT_LOG: Client configured for broker [%s] on port [%d]\n", currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
+  Serial.printf("MQTT_LOG: Client configured for broker [%s] on port [%d]\n", settingsManager.settings.mqttBroker.c_str(), settingsManager.settings.mqttPort);
 }
 
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
@@ -140,7 +130,7 @@ void publishHaDiagnosticAttributes() {
     doc["uptime_seconds"] = millis() / 1000;
     doc["wifi_rssi"] = WiFi.RSSI();
     doc["ip_address"] = WiFi.localIP().toString();
-    doc["animation_style"] = currentSettings.animationStyle;
+    doc["animation_style"] = settingsManager.settings.animationStyle;
     doc["is_mqtt_connected"] = mqttClient.connected();
     
     String attributes_payload;
@@ -444,7 +434,7 @@ void publishHaAutoDiscovery() {
 }
 
 void reconnectMqtt() {
-  if (currentSettings.mqttBroker.empty()) return;
+  if (settingsManager.settings.mqttBroker.empty()) return;
   
   Serial.println("MQTT_LOG: Attempting to connect...");
   delay(100); 
@@ -454,9 +444,9 @@ void reconnectMqtt() {
   String availability_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/status";
 
   bool connectResult = false;
-  if (!currentSettings.mqttUser.empty()) {
-      Serial.printf("MQTT_LOG: Connecting with Client ID: %s and username: %s\n", clientId.c_str(), currentSettings.mqttUser.c_str());
-      connectResult = mqttClient.connect(clientId.c_str(), currentSettings.mqttUser.c_str(), currentSettings.mqttPassword.c_str(), availability_topic.c_str(), 1, true, "offline");
+  if (!settingsManager.settings.mqttUser.empty()) {
+      Serial.printf("MQTT_LOG: Connecting with Client ID: %s and username: %s\n", clientId.c_str(), settingsManager.settings.mqttUser.c_str());
+      connectResult = mqttClient.connect(clientId.c_str(), settingsManager.settings.mqttUser.c_str(), settingsManager.settings.mqttPassword.c_str(), availability_topic.c_str(), 1, true, "offline");
   } else {
       Serial.printf("MQTT_LOG: Connecting with Client ID: %s (no username)\n", clientId.c_str());
       connectResult = mqttClient.connect(clientId.c_str(), availability_topic.c_str(), 1, true, "offline");
@@ -484,11 +474,11 @@ void reconnectMqtt() {
     mqttClient.subscribe(audio_topic.c_str());
 
 
-    for (int i = 0; i < currentSettings.numDataPoints; i++) {
-      if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !currentSettings.dataPoints[i].mqttTopic.empty()) {
-        mqttClient.subscribe(currentSettings.dataPoints[i].mqttTopic.c_str());
+    for (int i = 0; i < settingsManager.settings.numDataPoints; i++) {
+      if (settingsManager.settings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !settingsManager.settings.dataPoints[i].mqttTopic.empty()) {
+        mqttClient.subscribe(settingsManager.settings.dataPoints[i].mqttTopic.c_str());
       }
-      if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_HA) {
+      if (settingsManager.settings.dataPoints[i].dataSourceType == DATA_SOURCE_HA) {
         String base_dp_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/datapoint/" + String(i);
         mqttClient.subscribe((base_dp_topic + "/month/set").c_str());
         mqttClient.subscribe((base_dp_topic + "/day/set").c_str());
@@ -552,7 +542,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (component == "brightness") {
             int brightness = message.toInt();
             if (brightness >= 0 && brightness <= 7) {
-                currentSettings.brightness = brightness;
+                settingsManager.settings.brightness = brightness;
                 settingsChanged = true;
                 broadcastWsStateUpdate("brightness", brightness);
             }
@@ -561,7 +551,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             int dp_index = component.substring(10).toInt();
             if (dp_index >= 0 && dp_index < 5) {
                 if (topicStr.endsWith("marquee/command")) {
-                    currentSettings.dataPoints[dp_index].scrollingText = message.c_str();
+                    settingsManager.settings.dataPoints[dp_index].scrollingText = message.c_str();
                     settingsChanged = true;
                 } else if (topicStr.endsWith("enabled/command")) {
                     settingsChanged = true;
@@ -571,20 +561,20 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (component == "destination_year") {
             int year = message.toInt();
             if (year >= 1000 && year <= 9999) {
-                currentSettings.destinationYear = year;
+                settingsManager.settings.destinationYear = year;
                 settingsChanged = true;
                 broadcastWsStateUpdate("destinationYear", year);
             }
         }
         else if (component == "animation_style") {
-            currentSettings.animationStyle = message.toInt();
+            settingsManager.settings.animationStyle = message.toInt();
             settingsChanged = true;
-            broadcastWsStateUpdate("animationStyleSelect", currentSettings.animationStyle);
+            broadcastWsStateUpdate("animationStyleSelect", settingsManager.settings.animationStyle);
         }
         else if (component == "glitch_freq") {
             int freq = message.toInt();
             if (freq >= 0 && freq <= 100) {
-                currentSettings.glitchEffectFrequency = freq;
+                settingsManager.settings.glitchEffectFrequency = freq;
                 settingsChanged = true;
                 broadcastWsStateUpdate("glitchEffectFrequency", freq);
             }
@@ -592,7 +582,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (component == "malfunction_chance") {
             int chance = message.toInt();
             if (chance >= 1 && chance <= 1000) {
-                currentSettings.malfunctionFrequency = chance;
+                settingsManager.settings.malfunctionFrequency = chance;
                 settingsChanged = true;
                 broadcastWsStateUpdate("malfunctionFrequency", chance);
             }
@@ -600,7 +590,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (component == "volume") {
             int vol = message.toInt();
             if (vol >= 0 && vol <= 21) {
-                currentSettings.notificationVolume = vol;
+                settingsManager.settings.notificationVolume = vol;
                 audio.setVolume(vol);
                 settingsChanged = true;
                 broadcastWsStateUpdate("notificationVolume", vol);
@@ -680,11 +670,11 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 int hour = message.substring(0, colonPos).toInt();
                 int minute = message.substring(colonPos + 1).toInt();
                 if (topicStr.indexOf("sleep_time") != -1) {
-                    currentSettings.departureHour = hour;
-                    currentSettings.departureMinute = minute;
+                    settingsManager.settings.departureHour = hour;
+                    settingsManager.settings.departureMinute = minute;
                 } else {
-                    currentSettings.arrivalHour = hour;
-                    currentSettings.arrivalMinute = minute;
+                    settingsManager.settings.arrivalHour = hour;
+                    settingsManager.settings.arrivalMinute = minute;
                 }
                 settingsChanged = true;
             }
@@ -702,50 +692,50 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             mqttClient.publish((base_topic + "play_sound/state").c_str(), "None", true);
         }
         else if (topicStr == base_topic + "sound_toggle/command") {
-            currentSettings.timeTravelSoundToggle = (message == "ON");
+            settingsManager.settings.timeTravelSoundToggle = (message == "ON");
             settingsChanged = true;
-            broadcastWsStateUpdate("timeTravelSoundToggle", currentSettings.timeTravelSoundToggle);
+            broadcastWsStateUpdate("timeTravelSoundToggle", settingsManager.settings.timeTravelSoundToggle);
         }
         else if (topicStr == base_topic + "weather_mode/command") {
             bool enabled = (message == "ON");
-            currentSettings.weatherModeEnabled = enabled;
+            settingsManager.settings.weatherModeEnabled = enabled;
             if (enabled) {
-                currentSettings.dataLinkEnabled = false;
+                settingsManager.settings.dataLinkEnabled = false;
             }
             settingsChanged = true;
             broadcastWsStateUpdate("weatherModeEnabled", enabled);
             if(enabled) broadcastWsStateUpdate("dataLinkEnabled", false);
         }
         else if (topicStr == base_topic + "weather_city/command") {
-            if (currentSettings.cityName != message.c_str()) {
-                currentSettings.cityName = message.c_str();
-                WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, true};
+            if (settingsManager.settings.cityName != message.c_str()) {
+                settingsManager.settings.cityName = message.c_str();
+                WeatherTaskParams* params = new WeatherTaskParams{settingsManager.settings.cityName, true};
                 xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
                 settingsChanged = true;
             }
         }
         else if (topicStr == base_topic + "weather_refresh/command") {
             if (message == "PRESS") {
-                WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, true};
+                WeatherTaskParams* params = new WeatherTaskParams{settingsManager.settings.cityName, true};
                 xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
             }
         }
         else if (topicStr == base_topic + "24h_format/command") {
-            currentSettings.displayFormat24h = (message == "ON");
+            settingsManager.settings.displayFormat24h = (message == "ON");
             settingsChanged = true;
-            broadcastWsStateUpdate("displayFormat24h", currentSettings.displayFormat24h);
+            broadcastWsStateUpdate("displayFormat24h", settingsManager.settings.displayFormat24h);
         } else if (topicStr == base_topic + "animation_interval/command") {
-            currentSettings.timeTravelAnimationInterval = message.toInt();
+            settingsManager.settings.timeTravelAnimationInterval = message.toInt();
             settingsChanged = true;
-            broadcastWsStateUpdate("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval);
+            broadcastWsStateUpdate("timeTravelAnimationInterval", settingsManager.settings.timeTravelAnimationInterval);
         } else if (topicStr == base_topic + "animation_duration/command") {
-            currentSettings.timeTravelAnimationDuration = message.toInt();
+            settingsManager.settings.timeTravelAnimationDuration = message.toInt();
             settingsChanged = true;
-            broadcastWsStateUpdate("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration);
+            broadcastWsStateUpdate("timeTravelAnimationDuration", settingsManager.settings.timeTravelAnimationDuration);
         } else if (topicStr == base_topic + "datalink_refresh/command") {
-            currentSettings.dataLinkRefreshInterval = message.toInt();
+            settingsManager.settings.dataLinkRefreshInterval = message.toInt();
             settingsChanged = true;
-            broadcastWsStateUpdate("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
+            broadcastWsStateUpdate("dataLinkRefreshInterval", settingsManager.settings.dataLinkRefreshInterval);
         }
         else if (topicStr == base_topic + "marquee_temp_override/command") {
             DynamicJsonDocument doc(256);
@@ -772,7 +762,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             ESP.restart();
         }
         else if (topicStr == base_topic + "save_all_settings/command" && message == "PRESS") {
-            saveSettings();
+            settingsManager.save();
         }
         else if (topicStr == base_topic + "temporal_echo/command") {
             isEchoEffectActive = (message == "ON");
@@ -783,24 +773,24 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         }
         else if (topicStr == base_topic + "profile/command") {
             if (message == "Standard") {
-                currentSettings.brightness = 5;
-                currentSettings.notificationVolume = 15;
-                currentSettings.timeTravelSoundToggle = true;
-                currentSettings.glitchEffectFrequency = 0;
-                currentSettings.malfunctionFrequency = 25;
+                settingsManager.settings.brightness = 5;
+                settingsManager.settings.notificationVolume = 15;
+                settingsManager.settings.timeTravelSoundToggle = true;
+                settingsManager.settings.glitchEffectFrequency = 0;
+                settingsManager.settings.malfunctionFrequency = 25;
             } else if (message == "Cinematic") {
-                currentSettings.animationStyle = ANIMATION_TIMELINE_SKIM;
-                currentSettings.timeTravelAnimationDuration = 8000;
-                currentSettings.glitchEffectFrequency = 10;
+                settingsManager.settings.animationStyle = ANIMATION_TIMELINE_SKIM;
+                settingsManager.settings.timeTravelAnimationDuration = 8000;
+                settingsManager.settings.glitchEffectFrequency = 10;
             } else if (message == "Silent Night") {
-                currentSettings.brightness = 1;
-                currentSettings.notificationVolume = 0;
-                currentSettings.timeTravelSoundToggle = false;
-                currentSettings.glitchEffectFrequency = 0;
+                settingsManager.settings.brightness = 1;
+                settingsManager.settings.notificationVolume = 0;
+                settingsManager.settings.timeTravelSoundToggle = false;
+                settingsManager.settings.glitchEffectFrequency = 0;
             } else if (message == "Unstable") {
-                currentSettings.brightness = 7;
-                currentSettings.glitchEffectFrequency = 75;
-                currentSettings.malfunctionFrequency = 20;
+                settingsManager.settings.brightness = 7;
+                settingsManager.settings.glitchEffectFrequency = 75;
+                settingsManager.settings.malfunctionFrequency = 20;
             }
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;
@@ -815,8 +805,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 else if (message == "Home Assistant Push") newSource = DATA_SOURCE_HA;
                 else newSource = DATA_SOURCE_API;
 
-                if (currentSettings.dataPoints[dp_index].dataSourceType != newSource) {
-                    currentSettings.dataPoints[dp_index].dataSourceType = newSource;
+                if (settingsManager.settings.dataPoints[dp_index].dataSourceType != newSource) {
+                    settingsManager.settings.dataPoints[dp_index].dataSourceType = newSource;
                     mqttReconnectRequired = true;
                     settingsChanged = true;
                 }
@@ -880,24 +870,24 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             sequence[stepIndex].command = SEQ_CMD_END;
         }
         else if (component == "stock_ticker_mode") {
-            currentSettings.stockTickerModeEnabled = (message == "ON");
+            settingsManager.settings.stockTickerModeEnabled = (message == "ON");
             settingsChanged = true;
-            broadcastWsStateUpdate("stockTickerModeEnabled", currentSettings.stockTickerModeEnabled);
+            broadcastWsStateUpdate("stockTickerModeEnabled", settingsManager.settings.stockTickerModeEnabled);
         }
         else if (component == "stock_row_1") {
-            currentSettings.stockRow1_symbol = message.c_str();
+            settingsManager.settings.stockRow1_symbol = message.c_str();
             settingsChanged = true;
         }
         else if (component == "stock_row_2") {
-            currentSettings.stockRow2_symbol = message.c_str();
+            settingsManager.settings.stockRow2_symbol = message.c_str();
             settingsChanged = true;
         }
         else if (component == "stock_row_3") {
-            currentSettings.stockRow3_symbol = message.c_str();
+            settingsManager.settings.stockRow3_symbol = message.c_str();
             settingsChanged = true;
         }
         else if (component == "alpha_vantage_api_key") {
-            currentSettings.alphaVantageApiKey = message.c_str();
+            settingsManager.settings.alphaVantageApiKey = message.c_str();
             settingsChanged = true;
         }
         else if (topicStr == base_topic + "tts/play") {
@@ -935,8 +925,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         }
     }
     else {
-        for (int i = 0; i < currentSettings.numDataPoints; i++) {
-            if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
+        for (int i = 0; i < settingsManager.settings.numDataPoints; i++) {
+            if (settingsManager.settings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && topicStr == settingsManager.settings.dataPoints[i].mqttTopic.c_str()) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     displayPages[i].time = message.c_str();
                     xSemaphoreGive(xDisplayDataMutex);
@@ -958,7 +948,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         }
     }
     if (settingsChanged) {
-        saveSettings();
+        settingsManager.save();
         if (topicStr != base_topic + "profile/command") {
              mqttClient.publish((base_topic + "profile/state").c_str(), "Custom", true);
         }
@@ -975,7 +965,7 @@ void publishAllHaStates() {
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
     char payload[20];
 
-    itoa(currentSettings.destinationYear, payload, 10);
+    itoa(settingsManager.settings.destinationYear, payload, 10);
     mqttClient.publish((base_topic + "/destination_year/state").c_str(), payload, true);
     
     mqttClient.publish((base_topic + "/override/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
@@ -988,21 +978,21 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/marquee/state").c_str(), marqueeOverrideMessage.c_str(), true);
     mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
     
-    itoa(currentSettings.brightness, payload, 10);
+    itoa(settingsManager.settings.brightness, payload, 10);
     mqttClient.publish((base_topic + "/brightness/state").c_str(), payload, true);
     
-    itoa(currentSettings.glitchEffectFrequency, payload, 10);
+    itoa(settingsManager.settings.glitchEffectFrequency, payload, 10);
     mqttClient.publish((base_topic + "/glitch_freq/state").c_str(), payload, true);
 
-    itoa(currentSettings.malfunctionFrequency, payload, 10);
+    itoa(settingsManager.settings.malfunctionFrequency, payload, 10);
     mqttClient.publish((base_topic + "/malfunction_chance/state").c_str(), payload, true);
 
-    itoa(currentSettings.notificationVolume, payload, 10);
+    itoa(settingsManager.settings.notificationVolume, payload, 10);
     mqttClient.publish((base_topic + "/volume/state").c_str(), payload, true);
 
     const char* styles[] = {"Sequential Flicker", "Random Flicker", "All Displays Random", "Counting Up", "Wave Flicker", "Tornado Flicker", "Capacitor Charge-Up", "Digital Rain", "Waveform Collapse", "Timeline Skim"};
-    if (currentSettings.animationStyle >= 0 && currentSettings.animationStyle < 10) {
-        mqttClient.publish((base_topic + "/animation_style/state").c_str(), styles[currentSettings.animationStyle], true);
+    if (settingsManager.settings.animationStyle >= 0 && settingsManager.settings.animationStyle < 10) {
+        mqttClient.publish((base_topic + "/animation_style/state").c_str(), styles[settingsManager.settings.animationStyle], true);
     }
     
     itoa(WiFi.RSSI(), payload, 10);
@@ -1017,9 +1007,9 @@ void publishAllHaStates() {
     publishHaDiagnosticAttributes();
 
     char time_str[6];
-    sprintf(time_str, "%02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
+    sprintf(time_str, "%02d:%02d", settingsManager.settings.departureHour, settingsManager.settings.departureMinute);
     mqttClient.publish((base_topic + "/sleep_time/state").c_str(), time_str, true);
-    sprintf(time_str, "%02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
+    sprintf(time_str, "%02d:%02d", settingsManager.settings.arrivalHour, settingsManager.settings.arrivalMinute);
     mqttClient.publish((base_topic + "/wake_time/state").c_str(), time_str, true);
 
     for(int r=0; r<3; ++r) {
@@ -1031,40 +1021,40 @@ void publishAllHaStates() {
         }
     }
     
-    mqttClient.publish((base_topic + "/sound_toggle/state").c_str(), currentSettings.timeTravelSoundToggle ? "ON" : "OFF", true);
+    mqttClient.publish((base_topic + "/sound_toggle/state").c_str(), settingsManager.settings.timeTravelSoundToggle ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_animating/state").c_str(), isAnimating ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_glitching/state").c_str(), isGlitching ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_malfunctioning/state").c_str(), isMalfunctioning ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_asleep/state").c_str(), isDisplayAsleep ? "ON" : "OFF", true);
     itoa(currentPageIndex + 1, payload, 10);
     mqttClient.publish((base_topic + "/marquee_page/state").c_str(), payload, true);
-    mqttClient.publish((base_topic + "/weather_mode/state").c_str(), currentSettings.weatherModeEnabled ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/weather_city/state").c_str(), currentSettings.cityName.c_str(), true);
+    mqttClient.publish((base_topic + "/weather_mode/state").c_str(), settingsManager.settings.weatherModeEnabled ? "ON" : "OFF", true);
+    mqttClient.publish((base_topic + "/weather_city/state").c_str(), settingsManager.settings.cityName.c_str(), true);
 
-    mqttClient.publish((base_topic + "/24h_format/state").c_str(), currentSettings.displayFormat24h ? "ON" : "OFF", true);
-    itoa(currentSettings.timeTravelAnimationInterval, payload, 10);
+    mqttClient.publish((base_topic + "/24h_format/state").c_str(), settingsManager.settings.displayFormat24h ? "ON" : "OFF", true);
+    itoa(settingsManager.settings.timeTravelAnimationInterval, payload, 10);
     mqttClient.publish((base_topic + "/animation_interval/state").c_str(), payload, true);
-    itoa(currentSettings.timeTravelAnimationDuration, payload, 10);
+    itoa(settingsManager.settings.timeTravelAnimationDuration, payload, 10);
     mqttClient.publish((base_topic + "/animation_duration/state").c_str(), payload, true);
-    itoa(currentSettings.dataLinkRefreshInterval, payload, 10);
+    itoa(settingsManager.settings.dataLinkRefreshInterval, payload, 10);
     mqttClient.publish((base_topic + "/datalink_refresh/state").c_str(), payload, true);
     
     mqttClient.publish((base_topic + "/temporal_echo/state").c_str(), isEchoEffectActive ? "ON" : "OFF", true);
 
     const char* sources[] = {"API", "MQTT", "Home Assistant Push"};
     for(int i=0; i<5; ++i) {
-        int source_index = (int)currentSettings.dataPoints[i].dataSourceType;
+        int source_index = (int)settingsManager.settings.dataPoints[i].dataSourceType;
         if (source_index >= 0 && source_index < 3) {
             String topic = base_topic + "/datapoint_" + String(i) + "_source/state";
             mqttClient.publish(topic.c_str(), sources[source_index], true);
         }
     }
 
-    mqttClient.publish((base_topic + "/stock_ticker_mode/state").c_str(), currentSettings.stockTickerModeEnabled ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/stock_row_1/state").c_str(), currentSettings.stockRow1_symbol.c_str(), true);
-    mqttClient.publish((base_topic + "/stock_row_2/state").c_str(), currentSettings.stockRow2_symbol.c_str(), true);
-    mqttClient.publish((base_topic + "/stock_row_3/state").c_str(), currentSettings.stockRow3_symbol.c_str(), true);
-    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), currentSettings.alphaVantageApiKey.c_str(), true);
+    mqttClient.publish((base_topic + "/stock_ticker_mode/state").c_str(), settingsManager.settings.stockTickerModeEnabled ? "ON" : "OFF", true);
+    mqttClient.publish((base_topic + "/stock_row_1/state").c_str(), settingsManager.settings.stockRow1_symbol.c_str(), true);
+    mqttClient.publish((base_topic + "/stock_row_2/state").c_str(), settingsManager.settings.stockRow2_symbol.c_str(), true);
+    mqttClient.publish((base_topic + "/stock_row_3/state").c_str(), settingsManager.settings.stockRow3_symbol.c_str(), true);
+    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), settingsManager.settings.alphaVantageApiKey.c_str(), true);
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
 
     publishTimeSensors();
@@ -1088,17 +1078,17 @@ void publishTimeSensors() {
 
     struct tm dest_tm;
     localtime_r(&now, &dest_tm);
-    dest_tm.tm_year = currentSettings.destinationYear - 1900;
+    dest_tm.tm_year = settingsManager.settings.destinationYear - 1900;
     time_t dest_time = mktime(&dest_tm);
     strftime(iso_time, sizeof(iso_time), "%Y-%m-%dT%H:%M:%SZ", gmtime(&dest_time));
     mqttClient.publish((base_topic + "/destination_time/state").c_str(), iso_time, true);
 
     struct tm ltd_tm = {0};
-    ltd_tm.tm_year = currentSettings.lastTimeDepartedYear - 1900;
-    ltd_tm.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
-    ltd_tm.tm_mday = currentSettings.lastTimeDepartedDay;
-    ltd_tm.tm_hour = currentSettings.lastTimeDepartedHour;
-    ltd_tm.tm_min = currentSettings.lastTimeDepartedMinute;
+    ltd_tm.tm_year = settingsManager.settings.lastTimeDepartedYear - 1900;
+    ltd_tm.tm_mon = settingsManager.settings.lastTimeDepartedMonth - 1;
+    ltd_tm.tm_mday = settingsManager.settings.lastTimeDepartedDay;
+    ltd_tm.tm_hour = settingsManager.settings.lastTimeDepartedHour;
+    ltd_tm.tm_min = settingsManager.settings.lastTimeDepartedMinute;
     time_t ltd_time = mktime(&ltd_tm);
     strftime(iso_time, sizeof(iso_time), "%Y-%m-%dT%H:%M:%SZ", gmtime(&ltd_time));
     mqttClient.publish((base_topic + "/last_time_departed/state").c_str(), iso_time, true);
@@ -1124,7 +1114,7 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
         audio.setVolume(device_volume);
         Serial.printf("AUDIO_LOG: Set dynamic volume to %d (%d/100)\n", device_volume, volume);
     } else {
-        audio.setVolume(currentSettings.notificationVolume); // Use default volume
+        audio.setVolume(settingsManager.settings.notificationVolume); // Use default volume
     }
 
     strncpy(currentSoundFile, url, MAX_FILENAME_LENGTH - 1);

@@ -4,12 +4,12 @@
 #include <ArduinoJson.h>
 #include <string>
 #include <PubSubClient.h>
-#include "HardwareControl.h"
+#include "SettingsManager.h"
 #include "AnimationManager.h"
 #include "Audio.h"
 
 // --- EXTERN DECLARATIONS for global variables in the main .ino file ---
-extern ClockSettings currentSettings;
+extern SettingsManager settingsManager;
 extern MarqueeData displayPages[5];
 extern MarqueeData lastGoodDisplayPages[5];
 extern WeatherData currentWeatherData;
