@@ -190,15 +190,12 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
     if (updateDest) {
         setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
         tzset();
-        struct tm current_timeinfo;
-        localtime_r(&now_t, &current_timeinfo);
+        struct tm dest_timeinfo;
+        localtime_r(&now_t, &dest_timeinfo);
         
-        struct tm dest_timeinfo = {0};
+        // The struct is now correctly populated with the current date/time in the destination's timezone.
+        // We only need to override the year with the one from settings.
         dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
-        dest_timeinfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
-        dest_timeinfo.tm_mday = currentSettings.lastTimeDepartedDay;
-        dest_timeinfo.tm_hour = currentSettings.departureHour;
-        dest_timeinfo.tm_min = currentSettings.departureMinute;
         
         if (!isRowInManualMode[0]) {
             updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
