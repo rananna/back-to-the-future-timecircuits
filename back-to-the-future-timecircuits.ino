@@ -224,7 +224,7 @@ void audio_info(Audio::msg_t m) {
 void audioTask(void *pvParameters) {
   for (;;) {
     audio.loop();
-    vTaskDelay(2 / portTICK_PERIOD_MS); // Run this task every 2 milliseconds
+    vTaskDelay(10 / portTICK_PERIOD_MS); // Run this task every 2 milliseconds
   }
 }
 
