@@ -323,7 +323,7 @@ void saveSettings() {
     SAVE_STRING_IF_CHANGED("stRow1Sym", currentSettings.stockRow1_symbol);
     SAVE_STRING_IF_CHANGED("stRow2Sym", currentSettings.stockRow2_symbol);
     SAVE_STRING_IF_CHANGED("stRow3Sym", currentSettings.stockRow3_symbol);
-    SAVE_STRING_IF_CHANGED("avApiKey", currentSettings.alphaVantageApiKey);
+    SAVE_STRING_IF_CHANGED("fmpApiKey", currentSettings.financialModelingPrepApiKey);
 
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
@@ -400,7 +400,7 @@ void loadSettings() {
 		currentSettings.stockRow1_symbol = "^GSPC";
 		currentSettings.stockRow2_symbol = "^GSPTSE";
 		currentSettings.stockRow3_symbol = "^IXIC";
-		currentSettings.alphaVantageApiKey = "";
+		currentSettings.financialModelingPrepApiKey = "";
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
 		}
@@ -457,10 +457,8 @@ void loadSettings() {
 		currentSettings.stockRow2_symbol = tempString.c_str();
 		tempString = preferences.getString("stRow3Sym", "^IXIC");
 		currentSettings.stockRow3_symbol = tempString.c_str();
-		tempString = preferences.getString("avApiKey", "");
-		Serial.printf("Loading avApiKey from Preferences: [%s]\n", tempString.c_str());
-		currentSettings.alphaVantageApiKey = tempString.c_str();
-        Serial.printf("Loaded avApiKey into currentSettings: [%s]\n", currentSettings.alphaVantageApiKey.c_str());
+		tempString = preferences.getString("fmpApiKey", "");
+		currentSettings.financialModelingPrepApiKey = tempString.c_str();
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
 			if(preferences.isKey((prefix + "url").c_str())) currentSettings.dataPoints[i].url = preferences.getString((prefix + "url").c_str(), "").c_str();
@@ -670,6 +668,11 @@ void handleDisplay() {
     handlePresetCycling();
     handleSleepSchedule();
 
+    // --- Main Display State Machine ---
+    // This switch statement is the heart of the display logic. It ensures that only one
+    // primary display mode is active at any given time, preventing conflicts. The state
+    // is determined by the `updateDisplayState()` function, which prioritizes certain
+    // states over others (e.g., an override message takes precedence over the clock).
     switch (currentDisplayState) {
         case STATE_MESSAGE_OVERRIDE:
             displayOverrideMessage();
@@ -711,6 +714,10 @@ void handleDisplay() {
 void loop() {
     vTaskDelay(1);
     
+    // --- WiFi State Machine ---
+    // This state machine manages the WiFi connection process in a non-blocking way.
+    // It handles the initial connection attempt, starting the WiFiManager portal if
+    // the connection fails, and managing the device reboot after successful portal configuration.
     switch (wifiState) {
         case WIFI_STATE_CONNECTING:
             if (!logConnectingPrinted) {

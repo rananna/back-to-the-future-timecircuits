@@ -12,7 +12,14 @@
 #include "FS.h"
 #include <LITTLEFS.h>
 
-// This is the one and only DEFINITION of the variable in the whole project.
+/**
+ * @brief A PROGMEM string containing a JSON object of API endpoint examples.
+ * @details This large string is stored in flash memory to save RAM. It provides a list of
+ * pre-configured API examples that the user can select from in the "Data Link" tab of the
+ * web interface. This allows users to quickly populate the URL and other fields for common
+ * data sources like weather, stocks, and cryptocurrency without having to manually look up
+ * the API documentation.
+ */
 const char apiTemplates[] PROGMEM = "{\n"
     "    \"stock_aapl_price\": {\n"
     "        \"name\": \"Stock: Apple Price\",\n"
@@ -362,7 +369,7 @@ void setupWebRoutes() {
     doc["cityName"] = currentSettings.cityName.c_str();
     doc["useMetricUnits"] = currentSettings.useMetricUnits;
     doc["stockTickerModeEnabled"] = currentSettings.stockTickerModeEnabled;
-    doc["alphaVantageApiKey"] = currentSettings.alphaVantageApiKey.c_str();
+    doc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
     doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
     doc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
     doc["stockRow3_symbol"] = currentSettings.stockRow3_symbol.c_str();
@@ -518,9 +525,8 @@ void setupWebRoutes() {
     }
     currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
     currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
-    if (obj.containsKey("alphaVantageApiKey")) {
-        currentSettings.alphaVantageApiKey = obj["alphaVantageApiKey"].as<std::string>();
-        Serial.printf("SERVER_DEBUG: Saving Alpha Vantage Key: %s\n", currentSettings.alphaVantageApiKey.c_str());
+    if (obj.containsKey("financialModelingPrepApiKey")) {
+        currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
     }
     if (obj.containsKey("stockRow1_symbol")) currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
     if (obj.containsKey("stockRow2_symbol")) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
