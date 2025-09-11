@@ -43,7 +43,7 @@ The project uses a custom partition scheme to allocate more space for the filesy
 
 ### Over-The-Air (OTA) Updates
 
-This project supports multiple methods for updating the firmware and filesystem. For detailed, user-focused instructions on how to perform an update, please see the **[🚀 Updating Your Device](USAGE.md#-updating-your-device)** section in the main Usage Guide.
+This project supports multiple methods for updating the firmware and filesystem. For detailed, user-focused instructions on how to perform an update, please see the **[🚀 Updating Guide](UPDATING.md)**.
 
 ***
 

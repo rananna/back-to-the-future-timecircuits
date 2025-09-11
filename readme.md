@@ -56,6 +56,7 @@ This project's documentation is split into several sections to make it easy to f
 | :--- | :--- |
 | **[🚀 Installation Guide](docs/INSTALLATION.md)** | **Start here!** A complete guide for building the clock, including the bill of materials, wiring, and setup. |
 | **[💡 Usage Guide](docs/USAGE.md)** | Learn how to configure and use all the features of the clock via its web interface. |
+| **[🔄 Updating Guide](docs/UPDATING.md)** | Instructions for updating the firmware and web interface files. |
 | **[🏠 Home Assistant Guide](docs/HOME_ASSISTANT.md)** | Unleash the full power of your clock with deep smart home integration, examples, and blueprints. |
 | **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep dive into the project's architecture, code structure, and development details. |
 
