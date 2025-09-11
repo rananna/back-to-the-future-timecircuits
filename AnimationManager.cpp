@@ -241,7 +241,7 @@ void startStyledAnimation() {
 
     // Set the animation style for this run
     if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
-        randomAnimationStyle = random(0, 10);
+        randomAnimationStyle = random(0, 11); // Updated to include the new animation
     } else {
         randomAnimationStyle = currentSettings.animationStyle;
     }
@@ -255,6 +255,11 @@ void handleStyledAnimation() {
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - styledAnimationStartTime;
 
+    // State variables for the "Unstable Flux" (Random Flicker) animation
+    static int glitchRow = -1;
+    static unsigned long lastGlitchTriggerTime = 0;
+
+
     switch (currentStyledPhase) {
         case ANIM_FLICKER:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
@@ -262,18 +267,33 @@ void handleStyledAnimation() {
                     case ANIMATION_SEQUENTIAL_FLICKER:
                         animateSequentialFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
+
                     case ANIMATION_RANDOM_FLICKER:
-                        // "Unstable Flux": Less intense, brief glitches
-                        if (random(100) < 30) animateTornadoFlicker();
-                        else updateNormalClockDisplay();
+                        // "Unstable Flux": Mostly normal, with brief, intermittent glitches on a single row.
+                        if (glitchRow != -1) {
+                            // We are in a glitch state
+                            DisplayRow& rowToGlitch = (glitchRow == 0) ? destRow : ((glitchRow == 1) ? presRow : lastRow);
+                            animateDisplayRowRandomly(rowToGlitch);
+                            if (millis() - lastGlitchTriggerTime > 150) { // Glitch lasts for 150ms
+                                glitchRow = -1; // End the glitch
+                            }
+                        } else {
+                            // Not glitching, show the normal clock
+                            updateNormalClockDisplay();
+                            // Check if it's time to trigger a new glitch
+                            if (millis() - lastGlitchTriggerTime > 800 && random(100) < 20) { // Approx every second, 20% chance
+                                glitchRow = random(3); // Pick a row (0, 1, or 2)
+                                lastGlitchTriggerTime = millis();
+                            }
+                        }
                         break;
+
                     case ANIMATION_COUNTING_UP:
-                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, true);
+                        animateLockOnSequence(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
                     case ANIMATION_TIMELINE_SKIM:
-                        animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, false);
+                        animateUnstableSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
                         break;
-                    // The rest of the styles remain as they are, providing variety.
                     case ANIMATION_WAVE_FLICKER:
                     case ANIMATION_WAVEFORM_COLLAPSE:
                         animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
@@ -284,10 +304,19 @@ void handleStyledAnimation() {
                     case ANIMATION_DIGITAL_RAIN:
                         animateDigitalRain(elapsed, currentSettings.timeTravelAnimationDuration);
                         break;
-                    // These remain the most intense, fully random flickers
+
                     case ANIMATION_ALL_DISPLAYS_RANDOM:
+                        // NEW: "Corrupted Data" effect - stable display with random characters
+                        animateCorruptedData();
+                        break;
+
+                    case ANIMATION_TEMPORAL_DESYNC:
+                        animateTemporalDesync();
+                        break;
+
                     case ANIMATION_TORNADO_FLICKER:
                     default:
+                        // This is now the most intense, full-power flicker effect
                         animateTornadoFlicker();
                         break;
                 }

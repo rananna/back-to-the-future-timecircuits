@@ -319,6 +319,195 @@ void animateTornadoFlicker() {
     animateDisplayRowRandomly(lastRow);
     #endif
 }
+
+/**
+ * @brief Fills all displays with random alphanumeric characters without blinking.
+ * @details This creates a "corrupted data" effect, where the displays are stable
+ * but show rapidly changing, nonsensical information.
+ */
+void animateCorruptedData() {
+    #if ENABLE_HARDWARE
+    const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const int numChars = strlen(chars);
+
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+
+    for (int i = 0; i < 3; i++) {
+        Adafruit_AlphaNum4* segments[] = {&rows[i]->month, &rows[i]->day, &rows[i]->year, &rows[i]->time};
+        for (int s = 0; s < 4; s++) {
+            for (int c = 0; c < 4; c++) {
+                segments[s]->writeDigitAscii(c, chars[random(numChars)]);
+            }
+            segments[s]->writeDisplay();
+            vTaskDelay(pdMS_TO_TICKS(2));
+        }
+    }
+    #endif
+}
+
+void animateLockOnSequence(unsigned long elapsed, int duration) {
+    #if ENABLE_HARDWARE
+    // Define the phases for the lock-on sequence
+    unsigned long yearPhaseDuration = duration * 0.45;
+    unsigned long monthPhaseDuration = duration * 0.35;
+
+    char buffer[5];
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+
+    for (int i = 0; i < 3; ++i) {
+        // --- YEAR LOGIC ---
+        if (elapsed < yearPhaseDuration) {
+            // Phase 1: Year is animating
+            sprintf(buffer, "%04d", random(1885, 2085));
+            printToDisplay(rows[i]->year, buffer);
+            printToDisplay(rows[i]->month, "---", 1);
+            printToDisplay(rows[i]->day, "--", 2);
+        } else {
+            // Year is locked
+            sprintf(buffer, "%04d", currentSettings.destinationYear);
+            printToDisplay(rows[i]->year, buffer);
+        }
+
+        // --- MONTH LOGIC ---
+        if (elapsed >= yearPhaseDuration && elapsed < yearPhaseDuration + monthPhaseDuration) {
+            // Phase 2: Month is animating
+            printToDisplay(rows[i]->month, months[random(0, 12)], 1);
+            printToDisplay(rows[i]->day, "--", 2);
+        } else if (elapsed >= yearPhaseDuration + monthPhaseDuration) {
+            // Month is locked (Note: we don't have dest month, so we use a static value for effect)
+            printToDisplay(rows[i]->month, months[currentSettings.lastTimeDepartedMonth -1], 1);
+        }
+
+        // --- DAY LOGIC ---
+        if (elapsed >= yearPhaseDuration + monthPhaseDuration) {
+            // Phase 3: Day is animating
+            sprintf(buffer, "%02d", random(1, 29));
+            printToDisplay(rows[i]->day, buffer, 2);
+        }
+
+        // Time is always animating to keep the energy up
+        sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
+        printToDisplay(rows[i]->time, buffer);
+
+        // Write all updates to the hardware
+        rows[i]->month.writeDisplay();
+        rows[i]->day.writeDisplay();
+        rows[i]->year.writeDisplay();
+        rows[i]->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
+    }
+    #endif
+}
+
+/**
+ * @brief Blanks all four segments of a single display row.
+ */
+void blankDisplayRow(DisplayRow& row) {
+    #if ENABLE_HARDWARE
+    row.month.clear(); row.day.clear(); row.year.clear(); row.time.clear();
+    row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
+    #endif
+}
+
+void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYear) {
+    #if ENABLE_HARDWARE
+    static int blankingRow = -1;
+    static unsigned long blankingStartTime = 0;
+
+    // Check if a blanking period is over
+    if (blankingRow != -1 && millis() - blankingStartTime > 150) {
+        blankingRow = -1;
+    }
+
+    // Check if we should trigger a new blank
+    if (blankingRow == -1 && random(100) < 5) {
+        blankingRow = random(3);
+        blankingStartTime = millis();
+    }
+
+    // The rest of this is based on animateAllRowsTimelineSkim
+    float progress = (float)elapsed / duration;
+    progress = 1 - pow(1 - progress, 3); // Ease-out curve
+
+    static int startYear = 0;
+    if(elapsed < 100) startYear = random(1, 2100);
+
+    int currentYear = startYear + (destinationYear - startYear) * progress;
+    char yearStr[5];
+    sprintf(yearStr, "%04d", currentYear);
+
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    for (int i=0; i<3; ++i) {
+        if (i == blankingRow) {
+            blankDisplayRow(*rows[i]);
+            continue; // Skip the rest of the drawing for this row
+        }
+
+        printToDisplay(rows[i]->year, yearStr);
+
+        const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+        printToDisplay(rows[i]->month, months[(elapsed / 50) % 12], 1);
+        char buffer[5];
+        sprintf(buffer, "%02d", (elapsed / 30) % 31 + 1);
+        printToDisplay(rows[i]->day, buffer, 2);
+        sprintf(buffer, "%02d%02d", (elapsed / 20) % 24, (elapsed / 10) % 60);
+        printToDisplay(rows[i]->time, buffer);
+
+        rows[i]->year.writeDisplay();
+        rows[i]->month.writeDisplay();
+        rows[i]->day.writeDisplay();
+        rows[i]->time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(4));
+    }
+    #endif
+}
+
+void animateTemporalDesync() {
+    #if ENABLE_HARDWARE
+    // Row 1 (Top): Steady Destination Time
+    // We need to construct a timeinfo struct for the destination time.
+    // We'll use the last departed time for month/day/time as a stable source.
+    struct tm dest_timeinfo = {0};
+    dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+    dest_timeinfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
+    dest_timeinfo.tm_mday = currentSettings.lastTimeDepartedDay;
+    dest_timeinfo.tm_hour = currentSettings.departureHour;
+    dest_timeinfo.tm_min = currentSettings.departureMinute;
+    updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, false);
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    // Row 2 (Middle): Timeline Skim / Randomly animating
+    animateDisplayRowRandomly(presRow);
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    // Row 3 (Bottom): Counting up effect
+    // Borrowing logic from animateCountingUp
+    char buffer[5];
+    time_t startTime = 1445433600; // Approx Oct 21, 2015
+    time_t fastForwardTime = startTime + (millis() * 60); // Each ms represents one minute
+    struct tm timeinfo;
+    gmtime_r(&fastForwardTime, &timeinfo);
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    printToDisplay(lastRow.month, months[timeinfo.tm_mon], 1);
+    sprintf(buffer, "%02d", timeinfo.tm_mday);
+    printToDisplay(lastRow.day, buffer, 2);
+    sprintf(buffer, "%04d", timeinfo.tm_year + 1900);
+    printToDisplay(lastRow.year, buffer);
+    sprintf(buffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
+    printToDisplay(lastRow.time, buffer);
+
+    lastRow.month.writeDisplay();
+    lastRow.day.writeDisplay();
+    lastRow.year.writeDisplay();
+    lastRow.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(2));
+    #endif
+}
+
 void animateRandomRealTimes() {
 #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};

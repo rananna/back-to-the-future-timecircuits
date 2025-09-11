@@ -187,7 +187,7 @@ enum AnimationStyle {
   ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
   ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
   ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
-  ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM, ANIMATION_RANDOM_ALL
+  ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_RANDOM_ALL
 };
 
 // --- START: SEQUENCER DEFINITIONS ---
@@ -239,4 +239,8 @@ void animateRandomRealTimes();
 void applyBrightness();
 void animateSequentialFlicker(unsigned long elapsed, int duration);
 void animateCountingUp(unsigned long elapsed, int duration);
+void animateCorruptedData();
+void animateLockOnSequence(unsigned long elapsed, int duration);
+void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYear);
+void animateTemporalDesync();
 #endif // HARDWARE_CONTROL_H
