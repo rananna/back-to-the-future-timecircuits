@@ -95,6 +95,13 @@ void setupPhysicalDisplay() {
   digitalWrite(I2S_SD_PIN, HIGH);
   #endif
 }
+/**
+ * @brief Updates a full row of 4 displays to show a specific date and time.
+ * @param row A reference to the DisplayRow object to be updated.
+ * @param timeinfo A tm struct containing the month, day, hour, and minute.
+ * @param year The four-digit year to display.
+ * @param showDecimal A boolean flag to control the blinking colon on the time display.
+ */
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
   #if ENABLE_HARDWARE
   char buffer[5];
@@ -170,9 +177,18 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
   #endif
 }
 
+/**
+ * @brief Animates a single display row with a "locking on" effect.
+ * @details The display rapidly flickers between the correct target time and random
+ * "garbage" data, creating a sense of the time circuits homing in on a target.
+ * @param row The DisplayRow to animate.
+ * @param timeinfo The target time information.
+ * @param year The target year.
+ * @param showDecimal Controls the blinking colon for the time.
+ */
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
     #if ENABLE_HARDWARE
-    // 50% chance to show the correct time, 50% chance to show random garbage.
+    // 50% chance to show the correct time, 50% chance to show random "garbage" data.
     if (random(100) < 50) {
         updateDisplayRow(row, timeinfo, year, showDecimal);
     } else {
@@ -211,6 +227,13 @@ void animateDisplayRowRandomly(DisplayRow& row) {
     vTaskDelay(pdMS_TO_TICKS(1)); 
   #endif
 }
+/**
+ * @brief Displays the speedometer reading on the bottom display row.
+ * @details This is used during the time travel animation sequence to show the
+ * DeLorean's speed. It clears the first two segments and shows the speed
+ * right-justified in the "year" segment and "MPH" in the "time" segment.
+ * @param speed The speed to display (0-99).
+ */
 void displaySpeed(int speed) {
   #if ENABLE_HARDWARE
   char speedBuffer[5];
