@@ -715,7 +715,7 @@ void handleBootSequence() {
 
             // Display the "WELCOME" message after a delay
             if (elapsed > 2000) { // Show "WELCOME" after 2 seconds
-                printToDisplay(lastRow.year, "WEL");
+                printToDisplay(lastRow.year, " WEL");
                 printToDisplay(lastRow.time, "COME");
                 lastRow.year.writeDisplay();
                 lastRow.time.writeDisplay();
