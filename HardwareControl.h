@@ -1,6 +1,6 @@
 #ifndef HARDWARE_CONTROL_H
 #define HARDWARE_CONTROL_H
-
+#include "timezone.h"
 #include <Wire.h>
 #include <string>
 #include "Adafruit_LEDBackpack.h"
