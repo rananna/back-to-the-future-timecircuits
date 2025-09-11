@@ -459,11 +459,9 @@ function saveSettings() {
     .then(text => {
         showMessage(text, 'success');
         setSettingsChanged(false);
-        // The animation is now triggered server-side.
-        // We can still do the UI effect if we want.
-        const duration = settings.timeTravelAnimationDuration || 4000;
+        // The animation is now triggered server-side, so we just do a quick UI flash.
         document.body.classList.add('time-travel-active');
-        setTimeout(() => document.body.classList.remove('time-travel-active'), duration);
+        setTimeout(() => document.body.classList.remove('time-travel-active'), 2000);
     })
     .catch(err => {
         console.error("CLIENT_DEBUG: An error occurred during the save/animation process.", err);
