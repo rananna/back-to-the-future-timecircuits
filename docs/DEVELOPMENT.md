@@ -29,11 +29,13 @@ To get started with development, you will need the following:
     * `Adafruit GFX Library`
     * `ArduinoJson`
     * `ESPAsyncWebServer`
-    * AsyncTCP
+    * `AsyncTCP`
     * `WiFiManager`
     * `PubSubClient`
     * `Preferences`
-> **Note on Audio Library:** This project uses a forked version of the `ESP8266Audio` library that has been modified for this project's specific needs. It is included in this repository and does not need to be installed separately.
+    * `ESP32-audioI2S` by schreibfaul1
+> **Note on Audio Library:** The audio library for this project, `ESP32-audioI2S`, can be found on GitHub. Please install it manually by downloading the repository and adding it to your Arduino libraries folder.
+> **➡️ [ESP32-audioI2S Library](https://github.com/schreibfaul1/ESP32-audioI2S)**
 
 ### Partitioning
 
@@ -65,7 +67,7 @@ The core of this project is a fully asynchronous, event-driven architecture, bui
 
 * **Dual I2C Bus:** The HT16K33 display driver chip only allows for 8 unique addresses on a single bus. To control all 12 displays, the project cleverly splits them: 8 displays are on one I2C bus (`I2C_1`), and the remaining 4 are on a second I2C bus (`I2C_2`), avoiding the need for a more complex I2C multiplexer.
 * **State Machine Logic:** The application's state is managed through several `enum` types (e.g., `AnimationPhase`, `MalfunctionPhase`) and handler functions in the main loop (`handleDisplayAnimation`, `handleMalfunction`, etc.). This creates a robust state machine where only one major display mode can be active at a time.
-* **Audio Output:** Audio playback is managed by a dedicated FreeRTOS task to prevent stuttering. It uses the I2S peripheral and the custom-modified audio library included in this project to play MP3 files from the LittleFS filesystem. The `I2S_SD_PIN` is used to enable/disable the external amplifier to save power when no sound is playing.
+* **Audio Output:** Audio playback is managed by a dedicated FreeRTOS task to prevent stuttering. It uses the I2S peripheral and the **ESP32-audioI2S** library to play MP3 files from the LittleFS filesystem. The `I2S_SD_PIN` is used to enable/disable the external amplifier to save power when no sound is playing.
 
 ### Handling SSL/TLS on the ESP32
 

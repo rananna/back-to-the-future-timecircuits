@@ -77,7 +77,9 @@ A 3D printed enclosure is highly recommended for a professional finish.
         * `ESPAsyncWebServer` by ESP32-Community
         * `AsyncTCP` by ESP32-Community
         * `PubSubClient` by Nick O'Leary
-    > **Note on Audio Library:** This project uses a forked version of the `ESP8266Audio` library that has been modified for this project's specific needs. It is included in this repository and does not need to be installed separately.
+        * `ESP32-audioI2S` by schreibfaul1
+    > **Note on Audio Library:** The audio library for this project can be found on GitHub. Please install it manually by downloading the repository and adding it to your Arduino libraries folder.
+    > **➡️ [ESP32-audioI2S Library](https://github.com/schreibfaul1/ESP32-audioI2S)**
 
 4.  **Configure I2C Display Addresses**:
     > ⚠️ **Critical Step:** Each of the 12 display modules must have a unique address on its I2C bus. Solder the address selection jumpers on the back of each board according to the table below.
