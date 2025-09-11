@@ -25,6 +25,7 @@ extern unsigned long bootStateStartTime;
 // Helper function prototypes
 void playReconfiguringSound();
 void resetDisplayToNormal();
+static void comprehensiveAnimationCleanup();
 
 extern int speedometerValue;
 
@@ -381,9 +382,18 @@ void handleStyledAnimation() {
             if (elapsed < 1000) {
                 animateTornadoFlicker();
             } else {
+                // Transition to the cool down phase
+                currentStyledPhase = ANIM_COOL_DOWN;
+                styledAnimationStartTime = millis();
+            }
+            break;
+
+        case ANIM_COOL_DOWN:
+            if (elapsed > 500) {
                 if (audio.isRunning()) {
                     audio.stopSong();
                 }
+                comprehensiveAnimationCleanup();
                 isStyledAnimating = false;
                 currentStyledPhase = ANIM_INACTIVE;
                 updateHaStatus("Idle");
@@ -788,6 +798,41 @@ void resetDisplayToNormal() {
 
     // Force a full redraw of all three rows to the current time
     updateNormalClockDisplay(true, true, true);
+}
+
+/**
+ * @brief Restores the display to a clean state after an animation.
+ * @details This function resets all key state flags (manual mode, overrides)
+ * and restores the default brightness to all display segments. It's a comprehensive
+ * cleanup designed to be called at the end of any animation sequence to ensure
+ * the display returns to normal operation without artifacts or getting stuck
+ * in a previous state. It does NOT force a display redraw.
+ */
+static void comprehensiveAnimationCleanup() {
+    // Reset all override and manual mode flags
+    isMessageOverrideActive = false;
+    isMarqueeOverrideActive = false;
+    for (int r = 0; r < 3; ++r) {
+        isRowInManualMode[r] = false;
+        for (int s = 0; s < 4; ++s) {
+            manualDisplayText[r][s] = "";
+        }
+    }
+
+    // Restore brightness
+    uint8_t saved_brightness = currentSettings.brightness;
+    destRow.month.setBrightness(saved_brightness);
+    destRow.day.setBrightness(saved_brightness);
+    destRow.year.setBrightness(saved_brightness);
+    destRow.time.setBrightness(saved_brightness);
+    presRow.month.setBrightness(saved_brightness);
+    presRow.day.setBrightness(saved_brightness);
+    presRow.year.setBrightness(saved_brightness);
+    presRow.time.setBrightness(saved_brightness);
+    lastRow.month.setBrightness(saved_brightness);
+    lastRow.day.setBrightness(saved_brightness);
+    lastRow.year.setBrightness(saved_brightness);
+    lastRow.time.setBrightness(saved_brightness);
 }
 
 /**
