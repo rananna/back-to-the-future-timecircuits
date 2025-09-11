@@ -108,13 +108,13 @@ void fetchStockDataTask(void* p) {
     else if (rowIndex == 1) symbol_str = currentSettings.stockRow2_symbol;
     else symbol_str = currentSettings.stockRow3_symbol;
 
-    if (symbol_str.empty() || currentSettings.alphaVantageApiKey.empty()) {
+    if (symbol_str.empty() || currentSettings.financialModelingPrepApiKey.empty()) {
         vTaskDelete(NULL);
         return;
     }
 
     String symbol = String(symbol_str.c_str());
-    String apiKey = currentSettings.alphaVantageApiKey.c_str();
+    String apiKey = currentSettings.financialModelingPrepApiKey.c_str();
     String url;
 
     if (symbol.startsWith("^")) {
