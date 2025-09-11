@@ -26,6 +26,7 @@ extern bool ntpSyncRequested;
 extern PubSubClient mqttClient;
 extern bool mqttReconnectRequired;
 extern const char TZ_JSON[] PROGMEM;
+extern const int NUM_TIMEZONE_OPTIONS;
 
 extern std::string lastCityName;
 extern SemaphoreHandle_t xDisplayDataMutex;
