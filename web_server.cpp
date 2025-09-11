@@ -12,7 +12,14 @@
 #include "FS.h"
 #include <LITTLEFS.h>
 
-// This is the one and only DEFINITION of the variable in the whole project.
+/**
+ * @brief A PROGMEM string containing a JSON object of API endpoint examples.
+ * @details This large string is stored in flash memory to save RAM. It provides a list of
+ * pre-configured API examples that the user can select from in the "Data Link" tab of the
+ * web interface. This allows users to quickly populate the URL and other fields for common
+ * data sources like weather, stocks, and cryptocurrency without having to manually look up
+ * the API documentation.
+ */
 const char apiTemplates[] PROGMEM = "{\n"
     "    \"stock_aapl_price\": {\n"
     "        \"name\": \"Stock: Apple Price\",\n"

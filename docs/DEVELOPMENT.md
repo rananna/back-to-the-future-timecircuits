@@ -43,11 +43,7 @@ The project uses a custom partition scheme to allocate more space for the filesy
 
 ### Over-The-Air (OTA) Updates
 
-This project supports two methods for updating the firmware over the network, catering to different needs.
-
-*   **Web UI Method (Recommended for Users)**: The web interface includes a secure endpoint for firmware updates. This allows you to flash new code to the ESP32 without a physical connection. Simply compile the new binary (`.bin` file), navigate to the `/update` endpoint in a browser, and upload the file. This method is password-protected for security.
-
-*   **ArduinoOTA Method (Recommended for Developers)**: For faster development cycles, the project also supports `ArduinoOTA`. This allows you to upload new firmware directly from the Arduino IDE over the network. Once your computer is on the same WiFi network as the device, a network port will appear in the IDE, allowing for one-click uploads.
+This project supports multiple methods for updating the firmware and filesystem. For detailed, user-focused instructions on how to perform an update, please see the **[🚀 Updating Your Device](USAGE.md#-updating-your-device)** section in the main Usage Guide.
 
 ***
 
@@ -89,3 +85,39 @@ We welcome contributions to this project! Here is a simple workflow to get start
 3.  **Code and Commit**: Write your code and commit your changes with a clear and concise message.
 4.  **Push to your Fork**: Push your new branch to your fork: `git push origin feature/my-new-feature`.
 5.  **Create a Pull Request**: Open a pull request from your branch to the main repository's `main` branch. Provide a detailed description of your changes.
+
+***
+
+## 🌐 Frontend Web Interface
+
+The web UI is a single-page application (SPA) served directly from the ESP32's LittleFS filesystem. It's built with vanilla JavaScript and communicates with the ESP32 via both a RESTful API and a persistent WebSocket connection.
+
+### File Structure
+*   **`index.html`**: The main HTML file that defines the structure of the page, including all the tabs and settings groups.
+*   **`style.css`**: Contains all the styling for the web interface, including the different color themes.
+*   **`data_handling.js`**: This script manages all communication with the ESP32. It initializes the WebSocket, handles incoming messages, and contains the functions for fetching data from the REST API endpoints (e.g., `/api/settings/temporal`).
+*   **`main_ui.js`**: This script controls the user interface itself. It's responsible for initializing the UI on page load, populating dropdowns, applying fetched settings to the form fields, and attaching all the event listeners to buttons, sliders, and inputs.
+
+### Communication Flow
+The frontend uses a hybrid communication model for efficiency:
+
+1.  **Initial Load (REST API)**: When the page first loads, `initializeUI()` in `main_ui.js` makes a series of `fetch` requests to the `/api/settings/*` endpoints. This pulls all the current settings from the device in one go.
+2.  **Real-Time Updates (WebSocket)**: After the initial load, `initWebSocket()` in `data_handling.js` establishes a persistent WebSocket connection to the `/ws` endpoint on the ESP32. This connection is used for:
+    *   **ESP32 to UI**: The ESP32 can push real-time state updates to the UI (e.g., confirming a setting was saved, providing progress on a file upload).
+    *   **UI to ESP32**: The UI can send commands to the ESP32 that require a real-time response, such as testing an API key or a stock symbol. The `ws.onmessage` handler in `data_handling.js` listens for these responses and updates the UI accordingly.
+
+### How to Add a New UI Element
+
+If you wanted to add a new setting to the web interface, you would typically follow these steps:
+
+1.  **Add the HTML**: Add the new input field (e.g., a slider, a text box, a checkbox) to the appropriate settings group in `index.html`. Give it a unique `id`.
+2.  **Update `main_ui.js`**:
+    *   In `applySettings()`, add logic to set the value of your new HTML element from the settings object fetched from the ESP32.
+    *   In `attachEventListeners()`, add an event listener (`onchange` or `onclick`) to your new element. This listener should call `setSettingsChanged(true)` to enable the main save button.
+3.  **Update `data_handling.js`**:
+    *   In `saveSettings()`, add a line to read the value from your new HTML element and add it to the `settings` object that gets sent to the ESP32.
+4.  **Update ESP32 Firmware**:
+    *   Add the corresponding new setting to the `ClockSettings` struct in `HardwareControl.h`.
+    *   In `web_server.cpp`, update the `/api/saveSettings` handler to parse the new setting from the incoming JSON and save it.
+    *   Update the appropriate `/api/settings/...` GET endpoint to include your new setting so it can be loaded by the frontend.
+    *   Update `saveSettings()` and `loadSettings()` in the main `.ino` file to persist your new setting to the device's non-volatile storage.

@@ -668,6 +668,11 @@ void handleDisplay() {
     handlePresetCycling();
     handleSleepSchedule();
 
+    // --- Main Display State Machine ---
+    // This switch statement is the heart of the display logic. It ensures that only one
+    // primary display mode is active at any given time, preventing conflicts. The state
+    // is determined by the `updateDisplayState()` function, which prioritizes certain
+    // states over others (e.g., an override message takes precedence over the clock).
     switch (currentDisplayState) {
         case STATE_MESSAGE_OVERRIDE:
             displayOverrideMessage();
@@ -709,6 +714,10 @@ void handleDisplay() {
 void loop() {
     vTaskDelay(1);
     
+    // --- WiFi State Machine ---
+    // This state machine manages the WiFi connection process in a non-blocking way.
+    // It handles the initial connection attempt, starting the WiFiManager portal if
+    // the connection fails, and managing the device reboot after successful portal configuration.
     switch (wifiState) {
         case WIFI_STATE_CONNECTING:
             if (!logConnectingPrinted) {
