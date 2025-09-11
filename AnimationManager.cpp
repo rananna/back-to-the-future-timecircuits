@@ -281,10 +281,10 @@ void handleStyledAnimation() {
 
     switch (currentStyledPhase) {
         case ANIM_FLICKER:
-            if (elapsed < currentSettings.timeTravelAnimationDuration) {
+            if (elapsed < 10000) { // --- FIX: Use a fixed 10-second duration ---
                 switch (randomAnimationStyle) {
                     case ANIMATION_SEQUENTIAL_FLICKER:
-                        animateSequentialFlicker(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateSequentialFlicker(elapsed, 10000);
                         break;
 
                     case ANIMATION_RANDOM_FLICKER:
@@ -308,20 +308,20 @@ void handleStyledAnimation() {
                         break;
 
                     case ANIMATION_COUNTING_UP:
-                        animateLockOnSequence(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateLockOnSequence(elapsed, 10000);
                         break;
                     case ANIMATION_TIMELINE_SKIM:
-                        animateUnstableSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear);
+                        animateUnstableSkim(elapsed, 10000, currentSettings.destinationYear);
                         break;
                     case ANIMATION_WAVE_FLICKER:
                     case ANIMATION_WAVEFORM_COLLAPSE:
-                        animateWaveformCollapse(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateWaveformCollapse(elapsed, 10000);
                         break;
                     case ANIMATION_CAPACITOR_CHARGE_UP:
-                        animateCapacitorChargeUp(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateCapacitorChargeUp(elapsed, 10000);
                         break;
                     case ANIMATION_DIGITAL_RAIN:
-                        animateDigitalRain(elapsed, currentSettings.timeTravelAnimationDuration);
+                        animateDigitalRain(elapsed, 10000);
                         break;
 
                     case ANIMATION_ALL_DISPLAYS_RANDOM:
