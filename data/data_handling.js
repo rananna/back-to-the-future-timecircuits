@@ -324,24 +324,31 @@ function startApiWizard(event) {
  * Saves all the settings to the server.
  */
 function saveSettings() {
-    // --- START: MODIFICATION - Input Validation ---
-    // Helper function to validate a numeric input
+    // Helper functions to safely get values from DOM elements.
+    const getEl = (id) => document.getElementById(id);
+    const getValue = (id, def = '') => { const el = getEl(id); return el ? el.value : def; };
+    const getIntValue = (id, def = 0) => parseInt(getValue(id, String(def)), 10);
+    const getChecked = (id, def = false) => { const el = getEl(id); return el ? el.checked : def; };
+    const getText = (id, def = '0') => { const el = getEl(id); return el ? el.textContent : def; };
+    const getIntFromText = (id, def = 0) => parseInt(getText(id, String(def)), 10);
+
+    // --- START: Input Validation ---
     const validateNumericInput = (id, label, isInteger = true, min = -Infinity, max = Infinity) => {
-        const input = document.getElementById(id);
+        const input = getEl(id);
+        if (!input) return isInteger ? 0 : 0.0; // Return a default if element doesn't exist
         const value = input.value;
         const numValue = isInteger ? parseInt(value, 10) : parseFloat(value);
         
-        if (isNaN(numValue) || value === '' || numValue < min || numValue > max) {
+        if (value.trim() !== '' && (isNaN(numValue) || numValue < min || numValue > max)) {
             showMessage(`${label} must be a valid number between ${min} and ${max}.`, 'error');
             input.classList.add('invalid-input');
             input.focus();
-            return null;
+            return null; // Indicates validation failure
         }
         input.classList.remove('invalid-input');
-        return numValue;
+        return isNaN(numValue) ? (isInteger ? 0 : 0.0) : numValue;
     };
 
-    // Validate all required numeric fields before proceeding
     const settings = {};
     settings.destinationYear = validateNumericInput('destinationYear', 'Destination Year', true, 1000, 9999);
     if (settings.destinationYear === null) return;
@@ -349,56 +356,54 @@ function saveSettings() {
     settings.mqttPort = validateNumericInput('mqttPort', 'MQTT Port', true, 1, 65535);
     if (settings.mqttPort === null) return;
 
-    // Remove any previous invalid highlights
     document.querySelectorAll('.invalid-input').forEach(el => el.classList.remove('invalid-input'));
-    // --- END: MODIFICATION ---
+    // --- END: Input Validation ---
 
     showLoading('saveSettingsBtn', true);
     console.log("CLIENT_DEBUG: 'Engage Time Circuits' button clicked. Starting save process.");
     
     // Time Circuits & Temporal Settings
-    settings.destinationTimezoneIndex = parseInt(document.getElementById('destinationTimezoneSelect').value, 10);
-    settings.presentTimezoneIndex = parseInt(document.getElementById('presentTimezoneSelect').value, 10);
+    settings.destinationTimezoneIndex = getIntValue('destinationTimezoneSelect');
+    settings.presentTimezoneIndex = getIntValue('presentTimezoneSelect');
+    settings.lastTimeDepartedYear = getIntFromText('lastTimeDepartedYear');
+    settings.lastTimeDepartedMonth = getIntFromText('lastTimeDepartedMonth');
+    settings.lastTimeDepartedDay = getIntFromText('lastTimeDepartedDay');
+    settings.lastTimeDepartedHour = getIntFromText('lastTimeDepartedHour');
+    settings.lastTimeDepartedMinute = getIntFromText('lastTimeDepartedMinute');
 
-    settings.lastTimeDepartedYear = parseInt(document.getElementById('lastTimeDepartedYear').textContent, 10);
-    settings.lastTimeDepartedMonth = parseInt(document.getElementById('lastTimeDepartedMonth').textContent, 10);
-    settings.lastTimeDepartedDay = parseInt(document.getElementById('lastTimeDepartedDay').textContent, 10);
-    settings.lastTimeDepartedHour = parseInt(document.getElementById('lastTimeDepartedHour').textContent, 10);
-    settings.lastTimeDepartedMinute = parseInt(document.getElementById('lastTimeDepartedMinute').textContent, 10);
-
-    const [depHour, depMin] = document.getElementById('departureTime').value.split(':');
+    const [depHour, depMin] = getValue('departureTime', '00:00').split(':');
     settings.departureHour = parseInt(depHour, 10);
     settings.departureMinute = parseInt(depMin, 10);
 
-    const [arrHour, arrMin] = document.getElementById('arrivalTime').value.split(':');
+    const [arrHour, arrMin] = getValue('arrivalTime', '00:00').split(':');
     settings.arrivalHour = parseInt(arrHour, 10);
     settings.arrivalMinute = parseInt(arrMin, 10);
 
-    settings.brightness = parseInt(document.getElementById('brightness').value, 10);
-    settings.notificationVolume = parseInt(document.getElementById('notificationVolume').value, 10);
-    settings.timeTravelAnimationDuration = parseInt(document.getElementById('timeTravelAnimationDuration').value, 10);
-    settings.timeTravelAnimationInterval = parseInt(document.getElementById('timeTravelAnimationInterval').value, 10);
-    settings.animationStyle = parseInt(document.getElementById('animationStyleSelect').value, 10);
-    settings.glitchEffectFrequency = parseInt(document.getElementById('glitchEffectFrequency').value, 10);
-    settings.malfunctionFrequency = parseInt(document.getElementById('malfunctionFrequency').value, 10);
-    settings.presetCycleInterval = parseInt(document.getElementById('presetCycleInterval').value, 10);
+    settings.brightness = getIntValue('brightness', 5);
+    settings.notificationVolume = getIntValue('notificationVolume', 15);
+    settings.timeTravelAnimationDuration = getIntValue('timeTravelAnimationDuration', 4000);
+    settings.timeTravelAnimationInterval = getIntValue('timeTravelAnimationInterval', 15);
+    settings.animationStyle = getIntValue('animationStyleSelect', 0);
+    settings.glitchEffectFrequency = getIntValue('glitchEffectFrequency', 0);
+    settings.malfunctionFrequency = getIntValue('malfunctionFrequency', 0);
+    settings.presetCycleInterval = getIntValue('presetCycleInterval', 10);
 
-    settings.timeTravelSoundToggle = document.getElementById('timeTravelSoundToggle').checked;
-    settings.displayFormat24h = document.getElementById('displayFormat24h').checked;
+    settings.timeTravelSoundToggle = getChecked('timeTravelSoundToggle');
+    settings.displayFormat24h = getChecked('displayFormat24h');
 
     // Data Link, Weather & Stock Ticker Settings
-    settings.dataLinkEnabled = document.getElementById('dataLinkEnabled').checked;
-    settings.dataLinkRefreshInterval = parseInt(document.getElementById('dataLinkRefreshInterval').value, 10);
-    settings.mqttBroker = document.getElementById('mqttBroker').value;
-    settings.mqttUser = document.getElementById('mqttUser').value;
-    settings.mqttPassword = document.getElementById('mqttPassword').value;
+    settings.dataLinkEnabled = getChecked('dataLinkEnabled');
+    settings.dataLinkRefreshInterval = getIntValue('dataLinkRefreshInterval', 10);
+    settings.mqttBroker = getValue('mqttBroker');
+    settings.mqttUser = getValue('mqttUser');
+    settings.mqttPassword = getValue('mqttPassword');
 
-    settings.weatherModeEnabled = document.getElementById('weatherModeEnabled').checked;
-    settings.cityName = document.getElementById('cityName').value;
-    settings.useMetricUnits = document.getElementById('useMetricUnits').checked;
+    settings.weatherModeEnabled = getChecked('weatherModeEnabled');
+    settings.cityName = getValue('cityName');
+    settings.useMetricUnits = getChecked('useMetricUnits');
     
-    settings.stockTickerModeEnabled = document.getElementById('stockTickerModeEnabled').checked;
-    settings.alphaVantageApiKey = document.getElementById('alphaVantageApiKey').value;
+    settings.stockTickerModeEnabled = getChecked('stockTickerModeEnabled');
+    settings.alphaVantageApiKey = getValue('alphaVantageApiKey');
 
     if (settings.stockTickerModeEnabled && !settings.alphaVantageApiKey) {
         showMessage('FMP API Key is required for Stock Ticker Mode.', 'error');
@@ -406,86 +411,68 @@ function saveSettings() {
         return;
     }
 
-    settings.stockRow1_symbol = document.getElementById('stockRow1_symbol').value;
-    settings.stockRow2_symbol = document.getElementById('stockRow2_symbol').value;
-    settings.stockRow3_symbol = document.getElementById('stockRow3_symbol').value;
+    settings.stockRow1_symbol = getValue('stockRow1_symbol');
+    settings.stockRow2_symbol = getValue('stockRow2_symbol');
+    settings.stockRow3_symbol = getValue('stockRow3_symbol');
 
-    const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
-    settings.numDataPoints = numDataPoints;
-    settings.dataPoints = [];
-    for (let i = 0; i < numDataPoints; i++) {
-        const point = {};
-        const sourceValue = document.getElementById(`dp_dataSourceType_${i}`).value;
-        if (sourceValue === 'mqtt') {
-            point.dataSourceType = 1;
-        } else if (sourceValue === 'ha') {
-            point.dataSourceType = 2;
-        } else {
-            point.dataSourceType = 0; // api
+    if (settings.dataLinkEnabled) {
+        const numDataPoints = getIntValue('numDataPoints', 0);
+        settings.numDataPoints = numDataPoints;
+        settings.dataPoints = [];
+        for (let i = 0; i < numDataPoints; i++) {
+            const point = {};
+            const sourceValue = getValue(`dp_dataSourceType_${i}`, 'api');
+            point.dataSourceType = sourceValue === 'mqtt' ? 1 : (sourceValue === 'ha' ? 2 : 0);
+            point.displayMode = getIntValue(`dp_displayMode_${i}`, 0);
+            point.url = getValue(`dp_url_${i}`);
+            point.monthPath = getValue(`dp_monthPath_${i}`);
+            point.dayPath = getValue(`dp_dayPath_${i}`);
+            point.yearPath = getValue(`dp_yearPath_${i}`);
+            point.timePath = getValue(`dp_timePath_${i}`);
+            point.prefix = getValue(`dp_prefix_${i}`);
+            point.suffix = getValue(`dp_suffix_${i}`);
+            point.icon = getValue(`dp_icon_${i}`);
+            point.scrollSpeed = getIntValue(`dp_scrollSpeed_${i}`, 150);
+            point.mqttTopic = getValue(`dp_mqttTopic_${i}`);
+            point.yearPrefix = getValue(`dp_yearPrefix_${i}`);
+            point.yearSuffix = getValue(`dp_yearSuffix_${i}`);
+            point.scrollingText = getValue(`dp_scrollingText_${i}`);
+            point.authHeaderKey = getValue(`dp_authHeaderKey_${i}`);
+            point.authHeaderValue = getValue(`dp_authHeaderValue_${i}`);
+            point.apiExampleKey = getValue(`api_example_${i}`);
+            settings.dataPoints.push(point);
         }
-        point.displayMode = parseInt(document.getElementById(`dp_displayMode_${i}`).value, 10);
-        point.url = document.getElementById(`dp_url_${i}`).value;
-        point.monthPath = document.getElementById(`dp_monthPath_${i}`).value;
-        point.dayPath = document.getElementById(`dp_dayPath_${i}`).value;
-        point.yearPath = document.getElementById(`dp_yearPath_${i}`).value;
-        point.timePath = document.getElementById(`dp_timePath_${i}`).value;
-        point.prefix = document.getElementById(`dp_prefix_${i}`).value;
-        point.suffix = document.getElementById(`dp_suffix_${i}`).value;
-        point.icon = document.getElementById(`dp_icon_${i}`).value;
-        point.scrollSpeed = parseInt(document.getElementById(`dp_scrollSpeed_${i}`).value, 10);
-        point.mqttTopic = document.getElementById(`dp_mqttTopic_${i}`).value;
-        point.yearPrefix = document.getElementById(`dp_yearPrefix_${i}`).value;
-        point.yearSuffix = document.getElementById(`dp_yearSuffix_${i}`).value;
-        point.scrollingText = document.getElementById(`dp_scrollingText_${i}`).value;
-        point.authHeaderKey = document.getElementById(`dp_authHeaderKey_${i}`).value;
-        point.authHeaderValue = document.getElementById(`dp_authHeaderValue_${i}`).value;
-        point.apiExampleKey = document.getElementById(`api_example_${i}`).value;
-        settings.dataPoints.push(point);
+    } else {
+        settings.numDataPoints = 0;
+        settings.dataPoints = [];
     }
 
-    // Send the settings to the server
     fetch('/api/saveSettings', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
     })
     .then(res => {
-        if (!res.ok) {
-            console.error(`CLIENT_DEBUG: /api/saveSettings call failed with status: ${res.status}`);
-            throw new Error(`Save failed with status: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`Save failed with status: ${res.status}`);
         return res.text();
     })
     .then(text => {
-        console.log(`CLIENT_DEBUG: /api/saveSettings successful. Response: ${text}`);
         showMessage(text, 'success');
         setSettingsChanged(false);
-
-        // Now, trigger the animation in a separate call
-        console.log("CLIENT_DEBUG: Triggering /api/triggerAnimation...");
         return fetch('/api/triggerAnimation', { method: 'POST' });
     })
     .then(res => {
-        if (!res.ok) {
-            console.error(`CLIENT_DEBUG: /api/triggerAnimation call failed with status: ${res.status}`);
-            throw new Error('Failed to trigger animation');
-        }
-        console.log("CLIENT_DEBUG: /api/triggerAnimation successful.");
-        // Add a class to the body to trigger a flashing animation
-        const duration = settings.timeTravelAnimationDuration;
+        if (!res.ok) throw new Error('Failed to trigger animation');
+        const duration = settings.timeTravelAnimationDuration || 4000;
         document.body.classList.add('time-travel-active');
         setTimeout(() => document.body.classList.remove('time-travel-active'), duration);
     })
     .catch(err => {
         console.error("CLIENT_DEBUG: An error occurred during the save/animation process.", err);
-        showMessage(`Error: ${err.message}`, 'error')
+        showMessage(`Error: ${err.message}`, 'error');
     })
     .finally(() => {
-        console.log("CLIENT_DEBUG: Save process finished.");
-        // Hide the loading indicator on the save button
-        showLoading('saveSettingsBtn', false)
+        showLoading('saveSettingsBtn', false);
     });
 }
 
