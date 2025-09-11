@@ -40,8 +40,8 @@ This project uses two separate I2C buses to manage all 12 displays without addre
 | **Destination PM LED**| `GPIO 14` | | Connects to the anode (+) of the PM LED for the Destination row. |
 | **Present AM LED** | `GPIO 38` | | Connects to the anode (+) of the AM LED for the Present row. |
 | **Present PM LED** | `GPIO 39` | | Connects to the anode (+) of the PM LED for the Present row. |
-| **Last Dept. AM LED** | `GPIO 1` | | Connects to the anode (+) of the Last Departed row LED. |
-| **Last Dept. PM LED** | `GPIO 2` | | Connects to the anode (+) of the Last Departed row LED. |
+| **Last Dept. AM LED** | `GPIO 4` | | Connects to the anode (+) of the Last Departed row LED. |
+| **Last Dept. PM LED** | `GPIO 6` | | Connects to the anode (+) of the Last Departed row LED. |
 | **Power (+5V)** | `5V` | Red | Connects to the VCC/VIN pin of all components. |
 | **Ground (GND)** | `GND` | Black | Connects all GND pins to a common ground rail. |
 
@@ -64,20 +64,20 @@ A 3D printed enclosure is highly recommended for a professional finish.
     * Download and install the [Arduino IDE](https://www.arduino.cc/en/software).
     * Follow [these instructions](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html) to add the ESP32 board manager.
 
-2.  **Understanding the Custom Partition Scheme**:
-    > ⚠️ **Critical Step:** This project uses a custom partition scheme to allocate the necessary space for the application and the filesystem on a 16MB ESP32. By selecting "Custom" in the IDE, you are telling it to use the `partitions_custom.csv` file located in the sketch folder.
+2.  **Understanding the Partition Scheme**:
+    > ⚠️ **Critical Step:** This project requires a specific partition scheme to allocate enough space for the application and the LittleFS filesystem (which stores web assets and sound files). The correct scheme is defined in the `partitions.csv` file included with this project.
 
 3.  **Install Required Libraries**:
     * Open the Library Manager (`Sketch` -> `Include Library` -> `Manage Libraries...`).
     * Search for and install the latest version of each of the following libraries:
         * `Adafruit GFX Library`
         * `Adafruit LED Backpack`
-        * `ESP8266Audio` by Earle F. Philhower
         * `WiFiManager` by tzapu
         * `ArduinoJson` by Benoit Blanchon (v6.x or v7.x)
         * `ESPAsyncWebServer` by ESP32-Community
         * `AsyncTCP` by ESP32-Community
         * `PubSubClient` by Nick O'Leary
+    > **Note on Audio Library:** This project uses a forked version of the `ESP8266Audio` library that has been modified for this project's specific needs. It is included in this repository and does not need to be installed separately.
 
 4.  **Configure I2C Display Addresses**:
     > ⚠️ **Critical Step:** Each of the 12 display modules must have a unique address on its I2C bus. Solder the address selection jumpers on the back of each board according to the table below.
@@ -98,7 +98,8 @@ A 3D printed enclosure is highly recommended for a professional finish.
 | **Last Departed** | Time | **0x73** | Leave Open | **Solder Bridge** | **Solder Bridge** |
 
 5.  **Upload Web Interface & Sound Files to Filesystem**:
-    * Install the **Arduino ESP32 filesystem uploader** tool. For FATFS, use the tool from [here](https://github.com/earlephilhower/arduino-esp32fs-plugin).
+    * This project uses **LittleFS** to store web and sound files. You must install the appropriate filesystem uploader tool for your Arduino IDE version.
+    * For IDE v1.x, install the **ESP32 LittleFS Uploader plugin** from [here](https://github.com/lorol/arduino-esp32littlefs-plugin).
     * Copy your sound files (e.g., `TIME_TRAVEL.mp3`) and web files (`index.html`, etc.) into the `data` folder within your sketch directory.
     * In the Arduino IDE, select `Tools` -> `ESP32 Sketch Data Upload`.
 

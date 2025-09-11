@@ -3,7 +3,7 @@
  * @brief Implements low-level control functions for displays, LEDs, and sound.
  * @details This file contains the concrete implementations for initializing and controlling
  * the hardware components. It directly interfaces with the Adafruit GFX and LED Backpack
- * libraries, as well as the ESP8266Audio library for I2S sound.
+ * libraries, as well as the custom audio library for I2S sound.
  */
 
 #include "HardwareControl.h"

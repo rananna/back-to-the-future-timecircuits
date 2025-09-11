@@ -7,13 +7,14 @@ This document provides a deeper look into the project's architecture, code struc
 The firmware is organized into a modular structure to separate concerns and improve maintainability.
 
 * **`back-to-the-future-timecircuits.ino`**: The main entry point of the application. Contains `setup()` and `loop()` and coordinates all other modules.
-* **`HardwareControl.cpp / .h`**: The hardware abstraction layer. All code for direct interaction with the displays, LEDs, and MP3 player, utilizing the **Adafruit_LEDBackpack** and **Adafruit_GFX** libraries.
+* **`HardwareControl.h`**: The hardware abstraction layer and central data definition file. It defines the core data structures for the project (e.g., `ClockSettings`, `WeatherData`) and all functions for direct interaction with the displays and LEDs.
+* **`HardwareControl.cpp`**: The implementation file for the hardware abstraction layer. It utilizes the **Adafruit_LEDBackpack** and **Adafruit_GFX** libraries.
+* **`EventManager.h`**: A global access header. It uses `extern` declarations to make global variables (like the `currentSettings` object) and system-wide objects (like the `mqttClient`) available to all other modules. This prevents circular dependency issues.
 * **`AnimationManager.cpp / .h`**: Contains the logic for complex, multi-stage animations like the time travel sequence, boot-up, and glitch effects.
 * **`DisplayManager.cpp / .h`**: Responsible for what is shown on the displays during normal operation (standard clock, weather, Data Link marquee).
 * **`DataManager.cpp / .h`**: Handles all networking tasks for fetching and parsing data from external web APIs. Functions within this module are often run in dedicated FreeRTOS tasks to prevent blocking the main loop.
 * **`MqttManager.cpp / .h`**: Manages the MQTT connection and all communication for the Home Assistant integration. It handles publishing states and subscribing to commands.
 * **`web_server.cpp / .h`**: Sets up all the API endpoints and serves the web interface files using an asynchronous web server.
-* **`EventManager.h`**: A central header that defines global state variables, `enum` types, and data structures used across the entire project. This file also declares a shared mutex, `xDisplayDataMutex`, for thread-safe access to global data.
 
 ***
 
@@ -24,15 +25,15 @@ To get started with development, you will need the following:
 * **Arduino IDE or PlatformIO**: The firmware is built for the ESP32 platform.
 * **ESP32 Board Manager**: Add the ESP32 board manager to your IDE.
 * **Libraries**: The following third-party libraries are required:
-    * Adafruit HT16K33 LED Backpack Library
-    * Adafruit GFX Library
-    * ArduinoJson
-    * ESPAsyncWebServer
+    * `Adafruit HT16K33 LED Backpack`
+    * `Adafruit GFX Library`
+    * `ArduinoJson`
+    * `ESPAsyncWebServer`
     * AsyncTCP
-    * WiFiManager
-    * ESP8266Audio
-    * PubSubClient
-    * Preferences
+    * `WiFiManager`
+    * `PubSubClient`
+    * `Preferences`
+> **Note on Audio Library:** This project uses a forked version of the `ESP8266Audio` library that has been modified for this project's specific needs. It is included in this repository and does not need to be installed separately.
 
 ### Partitioning
 
@@ -40,7 +41,11 @@ The project uses a custom partition scheme to allocate more space for the filesy
 
 ### Over-The-Air (OTA) Updates
 
-The web server includes an endpoint for OTA firmware updates, allowing you to flash new code to the ESP32 without a physical connection. Simply compile the new binary (`.bin` file), navigate to the `/update` endpoint in a browser, and upload the file.
+This project supports two methods for updating the firmware over the network, catering to different needs.
+
+*   **Web UI Method (Recommended for Users)**: The web interface includes a secure endpoint for firmware updates. This allows you to flash new code to the ESP32 without a physical connection. Simply compile the new binary (`.bin` file), navigate to the `/update` endpoint in a browser, and upload the file. This method is password-protected for security.
+
+*   **ArduinoOTA Method (Recommended for Developers)**: For faster development cycles, the project also supports `ArduinoOTA`. This allows you to upload new firmware directly from the Arduino IDE over the network. Once your computer is on the same WiFi network as the device, a network port will appear in the IDE, allowing for one-click uploads.
 
 ***
 
@@ -60,7 +65,7 @@ The core of this project is a fully asynchronous, event-driven architecture, bui
 
 * **Dual I2C Bus:** The HT16K33 display driver chip only allows for 8 unique addresses on a single bus. To control all 12 displays, the project cleverly splits them: 8 displays are on one I2C bus (`I2C_1`), and the remaining 4 are on a second I2C bus (`I2C_2`), avoiding the need for a more complex I2C multiplexer.
 * **State Machine Logic:** The application's state is managed through several `enum` types (e.g., `AnimationPhase`, `MalfunctionPhase`) and handler functions in the main loop (`handleDisplayAnimation`, `handleMalfunction`, etc.). This creates a robust state machine where only one major display mode can be active at a time.
-* **Audio Output:** Audio playback is managed by a separate FreeRTOS task, which uses the I2S peripheral and the ESP8266Audio library to play MP3 files from the LittleFS filesystem. The `I2S_SD_PIN` is used to enable/disable the external amplifier to save power when no sound is playing.
+* **Audio Output:** Audio playback is managed by a dedicated FreeRTOS task to prevent stuttering. It uses the I2S peripheral and the custom-modified audio library included in this project to play MP3 files from the LittleFS filesystem. The `I2S_SD_PIN` is used to enable/disable the external amplifier to save power when no sound is playing.
 
 ### Handling SSL/TLS on the ESP32
 
