@@ -532,7 +532,13 @@ void setupWebRoutes() {
     if (obj.containsKey("stockRow2_symbol")) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
     if (obj.containsKey("stockRow3_symbol")) currentSettings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
 
-    currentSettings.numDataPoints = obj["numDataPoints"] | 0;
+    int numPoints = obj["numDataPoints"] | 0;
+    if (numPoints < 0) {
+      numPoints = 0;
+    } else if (numPoints > 5) {
+      numPoints = 5;
+    }
+    currentSettings.numDataPoints = numPoints;
     if (obj.containsKey("dataPoints")) {
         JsonArray dataPoints = obj["dataPoints"];
         for (int i = 0; i < 5; i++) {
