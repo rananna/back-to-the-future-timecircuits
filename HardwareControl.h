@@ -212,7 +212,7 @@ extern TwoWire I2C_1; extern TwoWire I2C_2;
 extern DisplayRow destRow, presRow, lastRow;
 #endif
 
-void setupPhysicalDisplay();
+bool setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal);
 void updateDisplaySegment(Adafruit_AlphaNum4& display, const struct tm& timeinfo, int year, int segment);
 void animateDisplayRowRandomly(DisplayRow& row);

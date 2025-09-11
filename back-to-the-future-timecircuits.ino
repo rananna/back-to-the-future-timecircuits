@@ -85,6 +85,7 @@ DisplayModeState currentDisplayMode = NORMAL_CLOCK; // Current primary mode of t
 // --- AUDIO GLOBALS ---
 Audio audio; // The global audio object from the ESP32-audioI2S library.
 char currentSoundFile[MAX_FILENAME_LENGTH] = ""; // Filename of the audio file currently being played.
+TaskHandle_t audioTaskHandle = NULL; // Handle for the audio task
 
 // --- DEVICE IDENTIFIERS ---
 char MQTT_UNIQUE_ID[19]; // The unique identifier for this device, derived from its MAC address.
@@ -96,6 +97,7 @@ void handleSleepSchedule();
 void handleSequencer();
 bool isMarketOpen();
 bool attemptHardwareInit();
+void onHardwareInitialized();
 void checkDataFetchStatusTask(void* p);
 void startAudioStream(const char* url, bool is_tts);
 void stopAudioStream();
@@ -115,6 +117,9 @@ unsigned long lastDisplayUpdateTime = 0;// Timestamp of the last main display up
 std::string lastCityName = "";        // Caches the last city name used for a weather lookup to avoid redundant geocoding.
 unsigned long bootTimestamp = 0;      // Timestamp (millis) when the setup() function completed.
 bool hardwareInitialized = false;     // Flag indicating whether the physical hardware (displays, etc.) was successfully initialized.
+unsigned long lastHardwareRetryTime = 0; // Timestamp of the last hardware re-initialization attempt.
+const unsigned long HARDWARE_RETRY_INTERVAL = 30000; // Time in ms to wait between hardware init retries (30 seconds).
+
 
 // --- TIMEZONE DATA ---
 // A comprehensive list of timezones supported by the clock.
@@ -553,12 +558,40 @@ void listAllFiles() {
 bool attemptHardwareInit() {
     #if ENABLE_HARDWARE
     Serial.println(F("BOOT_LOG: Attempting to initialize hardware..."));
-    setupPhysicalDisplay();
-    Serial.println(F("BOOT_LOG: Physical display setup... OK"));
-    return true; // Success
+    if (setupPhysicalDisplay()) {
+        Serial.println(F("BOOT_LOG: Physical display setup... OK"));
+        return true; // Success
+    } else {
+        Serial.println(F("BOOT_LOG: Physical display setup... FAILED"));
+        return false; // Failure
+    }
     #else
     Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
     return false; // Hardware is disabled, so it's not "initialized"
+    #endif
+}
+
+void onHardwareInitialized() {
+    #if ENABLE_HARDWARE
+    applyBrightness();
+    Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
+    audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
+    audio.setVolume(currentSettings.notificationVolume);
+    Audio::audio_info_callback = audio_info;
+    Serial.println(F("BOOT_LOG: I2S Audio... OK"));
+
+    if (audioTaskHandle == NULL) {
+        xTaskCreatePinnedToCore(
+            audioTask,
+            "AudioTask",
+            4096,
+            NULL,
+            5,
+            &audioTaskHandle,
+            0
+        );
+        Serial.println(F("BOOT_LOG: Audio task created."));
+    }
     #endif
 }
 
@@ -616,24 +649,7 @@ void setup() {
 
     hardwareInitialized = attemptHardwareInit();
     if (hardwareInitialized) {
-        applyBrightness();
-        Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
-        audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
-        audio.setVolume(currentSettings.notificationVolume);
-        Audio::audio_info_callback = audio_info;
-        Serial.println(F("BOOT_LOG: I2S Audio... OK"));
-        
-        xTaskCreatePinnedToCore(
-            audioTask,          // Task function
-            "AudioTask",        // Name of the task
-            4096,               // FIX: Increased stack size from 2048 to 4096 words
-         
-           NULL,               // Task input parameter
-            5,                  // Priority of the task (high)
-            NULL,               // Task handle
-       
-     0                   // Core where the task should run (Core 0)
-        );
+        onHardwareInitialized();
     }
 
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -880,6 +896,19 @@ void loop() {
                             updateDisplayState();
                             handleDisplay();
                         }
+                    }
+                }
+            } else {
+                // If hardware failed to initialize, retry periodically.
+                if (millis() - lastHardwareRetryTime > HARDWARE_RETRY_INTERVAL) {
+                    lastHardwareRetryTime = millis();
+                    Serial.println(F("RETRY_LOG: Attempting to re-initialize hardware..."));
+                    hardwareInitialized = attemptHardwareInit();
+                    if (hardwareInitialized) {
+                        Serial.println(F("RETRY_LOG: Hardware re-initialization SUCCEEDED."));
+                        onHardwareInitialized();
+                    } else {
+                        Serial.println(F("RETRY_LOG: Hardware re-initialization FAILED."));
                     }
                 }
             }

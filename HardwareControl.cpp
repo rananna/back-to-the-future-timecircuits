@@ -67,23 +67,45 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  * with its correct I2C address and bus. Finally, it configures the AM/PM indicator
  * LED pins and the I2S amplifier shutdown pin as outputs.
  */
-void setupPhysicalDisplay() {
+bool setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
   // Initialize both I2C buses with their respective SDA/SCL pins.
   I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
   I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
+
+  // Set a timeout to prevent indefinite blocking
+  I2C_1.setWireTimeout(25000, true); // 25ms timeout
+  I2C_2.setWireTimeout(25000, true); // 25ms timeout
 
   // Initialize the Adafruit_AlphaNum4 objects.
   destRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
   presRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
   lastRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
 
+  // Helper lambda to check initialization
+  auto init_display = [](Adafruit_AlphaNum4& display, uint8_t addr, TwoWire* i2c_bus, const char* name) {
+    if (!display.begin(addr, i2c_bus)) {
+      Serial.printf("HW_INIT_FAIL: Failed to initialize display %s at I2C addr 0x%X\n", name, addr);
+      return false;
+    }
+    return true;
+  };
+
   // Associate each display module with its I2C address and bus.
-  // Destination and Present rows are on I2C bus 1.
-  destRow.month.begin(0x70, &I2C_1); destRow.day.begin(0x71, &I2C_1); destRow.year.begin(0x72, &I2C_1); destRow.time.begin(0x73, &I2C_1);
-  presRow.month.begin(0x74, &I2C_1); presRow.day.begin(0x75, &I2C_1); presRow.year.begin(0x76, &I2C_1); presRow.time.begin(0x77, &I2C_1);
-  // Last Time Departed row is on I2C bus 2.
-  lastRow.month.begin(0x70, &I2C_2); lastRow.day.begin(0x71, &I2C_2); lastRow.year.begin(0x72, &I2C_2); lastRow.time.begin(0x73, &I2C_2);
+  if (!init_display(destRow.month, 0x70, &I2C_1, "Dest Month")) return false;
+  if (!init_display(destRow.day, 0x71, &I2C_1, "Dest Day")) return false;
+  if (!init_display(destRow.year, 0x72, &I2C_1, "Dest Year")) return false;
+  if (!init_display(destRow.time, 0x73, &I2C_1, "Dest Time")) return false;
+
+  if (!init_display(presRow.month, 0x74, &I2C_1, "Pres Month")) return false;
+  if (!init_display(presRow.day, 0x75, &I2C_1, "Pres Day")) return false;
+  if (!init_display(presRow.year, 0x76, &I2C_1, "Pres Year")) return false;
+  if (!init_display(presRow.time, 0x77, &I2C_1, "Pres Time")) return false;
+
+  if (!init_display(lastRow.month, 0x70, &I2C_2, "Last Month")) return false;
+  if (!init_display(lastRow.day, 0x71, &I2C_2, "Last Day")) return false;
+  if (!init_display(lastRow.year, 0x72, &I2C_2, "Last Year")) return false;
+  if (!init_display(lastRow.time, 0x73, &I2C_2, "Last Time")) return false;
 
   // Set LED indicator pins to output mode.
   pinMode(DEST_AM_PIN, OUTPUT); pinMode(DEST_PM_PIN, OUTPUT);
@@ -93,6 +115,9 @@ void setupPhysicalDisplay() {
   // Set I2S Amplifier Shutdown pin to output mode and enable the amplifier.
   pinMode(I2S_SD_PIN, OUTPUT);
   digitalWrite(I2S_SD_PIN, HIGH);
+  return true; // All initializations succeeded
+  #else
+  return false; // Hardware disabled
   #endif
 }
 /**
