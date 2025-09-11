@@ -354,7 +354,6 @@ void handleStyledAnimation() {
                 }
                 isStyledAnimating = false;
                 currentStyledPhase = ANIM_INACTIVE;
-                updateNormalClockDisplay();
                 updateHaStatus("Idle");
             }
             break;
