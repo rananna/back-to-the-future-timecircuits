@@ -40,6 +40,11 @@ enum BootSequenceState {
 };
 // --- END MODIFICATION ---
 
+#include "freertos/semphr.h"
+
+// Externally declared mutex for controlling animation start
+extern SemaphoreHandle_t xAnimationStartMutex;
+
 // --- Function Declarations for animations and effects ---
 void startTimeTravelAnimation();
 void handleDisplayAnimation();

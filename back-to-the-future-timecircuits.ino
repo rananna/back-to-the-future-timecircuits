@@ -170,6 +170,7 @@ bool isMarqueeOverrideActive = false;
 String marqueeOverrideMessage = "";
 unsigned long marqueeOverrideEndTime = 0;
 SemaphoreHandle_t xDisplayDataMutex;
+SemaphoreHandle_t xAnimationStartMutex;
 
 SequenceStep sequence[20];
 int currentSequenceStep = 0;
@@ -590,6 +591,7 @@ void setup() {
     delay(10);
 
     xDisplayDataMutex = xSemaphoreCreateMutex();
+    xAnimationStartMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
     
     WiFi.mode(WIFI_STA);

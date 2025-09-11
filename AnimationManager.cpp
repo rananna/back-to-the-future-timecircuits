@@ -129,11 +129,27 @@ void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
  * called on each iteration of the main loop.
  */
 void startTimeTravelAnimation() {
-    if (isAnimating) return; // Don't start a new animation if one is already running.
+    // Attempt to take the mutex. If we can't get it, another task is trying
+    // to start an animation, so we should just exit.
+    if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
+        return;
+    }
+
+    // We have the mutex, now we can safely check the animation flag.
+    if (isAnimating) {
+        xSemaphoreGive(xAnimationStartMutex); // Release the mutex before returning.
+        return;
+    }
+
+    // Set the animation flag to prevent other tasks from starting another animation.
     isAnimating = true;
+
+    // The critical section is over, release the mutex.
+    xSemaphoreGive(xAnimationStartMutex);
+
     animationStartTime = millis();
     // Set the initial phase; the state machine will handle the rest.
-    currentPhase = ANIM_POWER_UP; 
+    currentPhase = ANIM_POWER_UP;
     updateHaStatus("Animating");
 
     // The Last Time Departed is now exclusively set via the UI.
@@ -251,9 +267,25 @@ void handleDisplayAnimation() {
  * @brief Initiates the styled animation sequence for scheduled events.
  */
 void startStyledAnimation() {
-    if (isStyledAnimating || isAnimating) return; // Prevent animations from overlapping
-    playSound("/keypad_beeps.mp3");
+    // Attempt to take the mutex. If we can't get it, another task is trying
+    // to start an animation, so we should just exit.
+    if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
+        return;
+    }
+
+    // We have the mutex, now we can safely check the animation flags.
+    if (isStyledAnimating || isAnimating) {
+        xSemaphoreGive(xAnimationStartMutex); // Release the mutex before returning.
+        return;
+    }
+
+    // Set the animation flag to prevent other tasks from starting another animation.
     isStyledAnimating = true;
+
+    // The critical section is over, release the mutex.
+    xSemaphoreGive(xAnimationStartMutex);
+
+    playSound("/keypad_beeps.mp3");
     styledAnimationStartTime = millis();
     currentStyledPhase = ANIM_FLICKER; // Skip power up
     updateHaStatus("Animating");
