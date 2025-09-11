@@ -56,6 +56,7 @@ struct MarqueeData {
 enum AnimationPhase {
   ANIM_INACTIVE,
   ANIM_START,
+  ANIM_WAIT_FOR_KEYPAD_SOUND,
   ANIM_WAIT_FOR_SOUND,
   ANIM_POWER_UP,
   ANIM_FLICKER,
