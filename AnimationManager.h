@@ -59,5 +59,6 @@ void triggerTemporalGlitch();
 void handleTemporalGlitch();
 void triggerFlashEffect(int row, int segment, int duration = 500);
 void handleFlashEffect();
+void broadcastAnimationComplete();
 
 #endif // ANIMATION_MANAGER_H
