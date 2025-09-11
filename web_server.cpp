@@ -22,6 +22,12 @@
 #include "FS.h"
 #include <LITTLEFS.h>
 
+// --- Extern Global Variables ---
+// These are defined in the main .ino file and are made available here.
+extern volatile bool saveSettingsRequested;
+extern String settingsToSaveJson;
+
+
 /**
  * @brief A PROGMEM string containing a JSON object of API endpoint examples.
  * @details This large string is stored in flash memory to save RAM. It provides a list of
@@ -500,175 +506,21 @@ void setupWebRoutes() {
   server.addHandler(refreshWeatherHandler);
 
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    JsonObject obj = json.as<JsonObject>();
+    // This handler is now asynchronous. It just captures the settings and flags
+    // the main loop to perform the save, then immediately responds to the client.
     
-    Serial.println("SERVER_DEBUG: Received request to /api/saveSettings");
-    String receivedJson;
-    serializeJson(obj, receivedJson);
-    Serial.println(receivedJson);
+    // Re-serialize the parsed JSON from the request back into our global string buffer.
+    settingsToSaveJson = ""; // Clear any previous data.
+    serializeJson(json, settingsToSaveJson);
 
-    // --- FIX: Input Validation ---
-    // Helper lambda to validate and set an integer value from JSON
-    auto validateAndSet = [&](const char* key, int& setting, int min, int max) {
-        if (obj.containsKey(key)) {
-            int value = obj[key].as<int>();
-            if (value >= min && value <= max) {
-                setting = value;
-            } else {
-                Serial.printf("VALIDATION_ERROR: %s value %d is out of range (%d-%d).\n", key, value, min, max);
-            }
-        }
-    };
+    // Set the volatile flag to true. The main loop will see this and handle the save.
+    saveSettingsRequested = true;
 
-    // Helper lambda for unsigned char
-    auto validateAndSetUChar = [&](const char* key, uint8_t& setting, uint8_t min, uint8_t max) {
-        if (obj.containsKey(key)) {
-            uint8_t value = obj[key].as<uint8_t>();
-            if (value >= min && value <= max) {
-                setting = value;
-            } else {
-                Serial.printf("VALIDATION_ERROR: %s value %u is out of range (%u-%u).\n", key, value, min, max);
-            }
-        }
-    };
+    // Immediately send a response to the client to unblock the UI.
+    request->send(200, "text/plain", "Settings Save Queued!");
 
-    // --- START: Conditional MQTT Reconnect Logic ---
-    bool needsMqttReconnect = false;
-    std::string oldMqttBroker = currentSettings.mqttBroker;
-    int oldMqttPort = currentSettings.mqttPort;
-    std::string oldMqttUser = currentSettings.mqttUser;
-    std::string oldMqttPass = currentSettings.mqttPassword;
-    int oldNumDataPoints = currentSettings.numDataPoints;
-    DataPoint oldDataPoints[5];
-    for(int i=0; i<5; ++i) {
-        oldDataPoints[i] = currentSettings.dataPoints[i];
-    }
-    // --- END: Conditional MQTT Reconnect Logic ---
-
-    std::string oldCityName = currentSettings.cityName;
-
-    validateAndSet("destinationYear", currentSettings.destinationYear, 0, 9999);
-    validateAndSet("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
-    validateAndSet("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear, 0, 9999);
-    validateAndSet("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth, 1, 12);
-    validateAndSet("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay, 1, 31);
-    validateAndSet("lastTimeDepartedHour", currentSettings.lastTimeDepartedHour, 0, 23);
-    validateAndSet("lastTimeDepartedMinute", currentSettings.lastTimeDepartedMinute, 0, 59);
-    validateAndSet("presetCycleInterval", currentSettings.presetCycleInterval, 0, 1440);
-    validateAndSet("departureHour", currentSettings.departureHour, 0, 23);
-    validateAndSet("departureMinute", currentSettings.departureMinute, 0, 59);
-    validateAndSet("arrivalHour", currentSettings.arrivalHour, 0, 23);
-    validateAndSet("arrivalMinute", currentSettings.arrivalMinute, 0, 59);
-    validateAndSetUChar("brightness", currentSettings.brightness, 0, 15);
-    if (hardwareInitialized) {
-        applyBrightness();
-    }
-    validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
-    validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
-    validateAndSet("animationStyle", currentSettings.animationStyle, 0, 15); // Adjust max based on number of animation styles
-    validateAndSet("glitchEffectFrequency", currentSettings.glitchEffectFrequency, 0, 100);
-    validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
-    if (obj.containsKey("timeTravelSoundToggle")) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
-    validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
-    if (obj.containsKey("displayFormat24h")) currentSettings.displayFormat24h = obj["displayFormat24h"];
-    if (obj.containsKey("dataLinkEnabled")) currentSettings.dataLinkEnabled = obj["dataLinkEnabled"];
-    currentSettings.dataLinkRefreshInterval = obj["dataLinkRefreshInterval"] | currentSettings.dataLinkRefreshInterval;
-    if (obj.containsKey("mqttBroker")) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
-    currentSettings.mqttPort = obj["mqttPort"] | 1883;
-    if (obj.containsKey("mqttUser")) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
-    if (obj.containsKey("mqttPassword")) currentSettings.mqttPassword = obj["mqttPassword"].as<std::string>();
-    currentSettings.weatherModeEnabled = obj["weatherModeEnabled"] | currentSettings.weatherModeEnabled;
-    if (obj.containsKey("cityName")) {
-        std::string newCityName = obj["cityName"].as<std::string>();
-        if (newCityName != oldCityName) {
-            lastCityName = "";
-            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                currentWeatherData.dataValid = false;
-                xSemaphoreGive(xDisplayDataMutex);
-            }
-        }
-        currentSettings.cityName = newCityName;
-    }
-    currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
-    currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
-    if (obj.containsKey("financialModelingPrepApiKey")) {
-        currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
-    }
-    if (obj.containsKey("stockRow1_symbol")) currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
-    if (obj.containsKey("stockRow2_symbol")) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
-    if (obj.containsKey("stockRow3_symbol")) currentSettings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
-
-    int numPoints = obj["numDataPoints"] | 0;
-    if (numPoints < 0) {
-      numPoints = 0;
-    } else if (numPoints > 5) {
-      numPoints = 5;
-    }
-    currentSettings.numDataPoints = numPoints;
-    if (obj.containsKey("dataPoints")) {
-        JsonArray dataPoints = obj["dataPoints"];
-        for (int i = 0; i < 5; i++) {
-            if (i < currentSettings.numDataPoints && i < dataPoints.size()) {
-                JsonObject dp = dataPoints[i];
-                if (dp.containsKey("dataSourceType")) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
-                if (dp.containsKey("url")) currentSettings.dataPoints[i].url = dp["url"].as<std::string>();
-                if (dp.containsKey("monthPath")) currentSettings.dataPoints[i].monthPath = dp["monthPath"].as<std::string>();
-                if (dp.containsKey("dayPath")) currentSettings.dataPoints[i].dayPath = dp["dayPath"].as<std::string>();
-                if (dp.containsKey("yearPath")) currentSettings.dataPoints[i].yearPath = dp["yearPath"].as<std::string>();
-                if (dp.containsKey("timePath")) currentSettings.dataPoints[i].timePath = dp["timePath"].as<std::string>();
-                if (dp.containsKey("prefix")) currentSettings.dataPoints[i].prefix = dp["prefix"].as<std::string>();
-                if (dp.containsKey("suffix")) currentSettings.dataPoints[i].suffix = dp["suffix"].as<std::string>();
-                if (dp.containsKey("icon")) currentSettings.dataPoints[i].icon = dp["icon"].as<std::string>();
-                currentSettings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
-                if (dp.containsKey("mqttTopic")) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
-                if (dp.containsKey("yearPrefix")) currentSettings.dataPoints[i].yearPrefix = dp["yearPrefix"].as<std::string>();
-                if (dp.containsKey("yearSuffix")) currentSettings.dataPoints[i].yearSuffix = dp["yearSuffix"].as<std::string>();
-                if (dp.containsKey("displayMode")) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
-                if (dp.containsKey("scrollingText")) currentSettings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
-                if (dp.containsKey("authHeaderKey")) currentSettings.dataPoints[i].authHeaderKey = dp["authHeaderKey"].as<std::string>();
-                if (dp.containsKey("authHeaderValue")) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
-                if (dp.containsKey("apiExampleKey")) currentSettings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
-            } else {
-                currentSettings.dataPoints[i] = {}; // Clear unused data points
-            }
-        }
-    }
-
-    // --- START: Conditional MQTT Reconnect Logic ---
-    if (oldMqttBroker != currentSettings.mqttBroker ||
-        oldMqttPort != currentSettings.mqttPort ||
-        oldMqttUser != currentSettings.mqttUser ||
-        oldMqttPass != currentSettings.mqttPassword ||
-        oldNumDataPoints != currentSettings.numDataPoints) {
-        needsMqttReconnect = true;
-    } else {
-        for(int i=0; i<5; ++i) {
-            if (oldDataPoints[i].dataSourceType != currentSettings.dataPoints[i].dataSourceType ||
-                oldDataPoints[i].mqttTopic != currentSettings.dataPoints[i].mqttTopic) {
-                needsMqttReconnect = true;
-                break;
-            }
-        }
-    }
-
-    if (needsMqttReconnect) {
-        Serial.println("SERVER_DEBUG: MQTT settings changed. Forcing reconnect.");
-        if (mqttClient.connected()) {
-            mqttClient.disconnect();
-        }
-        mqttReconnectRequired = true;
-    }
-    // --- END: Conditional MQTT Reconnect Logic ---
-
-    saveSettings();
-    delay(100);
-
-    audio.setVolume(currentSettings.notificationVolume);
-
-    startStyledAnimation();
-
-    request->send(200, "text/plain", "Settings Saved!");
- }, 8192); // This last argument is the increased buffer size
+    // The actual saving and animation trigger now happens in the main loop.
+  }, 8192); // The 8192 buffer size is still needed to receive the large JSON payload.
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){
