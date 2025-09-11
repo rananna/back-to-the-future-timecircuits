@@ -310,6 +310,14 @@ void handleStyledAnimation() {
     // State variables for the "Unstable Flux" (Random Flicker) animation
     static int glitchRow = -1;
     static unsigned long lastGlitchTriggerTime = 0;
+    static AnimationPhase lastStyledPhase = ANIM_INACTIVE;
+
+    // If we are entering the first phase of the animation, reset local static variables
+    if (currentStyledPhase != lastStyledPhase && currentStyledPhase == ANIM_FLICKER) {
+        glitchRow = -1;
+        lastGlitchTriggerTime = 0;
+    }
+    lastStyledPhase = currentStyledPhase;
 
 
     switch (currentStyledPhase) {
