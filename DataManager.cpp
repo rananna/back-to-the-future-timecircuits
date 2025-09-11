@@ -1,3 +1,13 @@
+/**
+ * @file DataManager.cpp
+ * @brief Handles fetching and parsing data from external web APIs.
+ * @details This module is responsible for all outbound network requests to services
+ * like Open-Meteo (for weather), Financial Modeling Prep (for stocks), and custom
+ * user-defined APIs for the Data Link feature. It uses FreeRTOS tasks to perform
+ * these network operations asynchronously, preventing the main application loop
+ * from blocking and ensuring the display remains responsive.
+ */
+
 #include "DataManager.h"
 #include "EventManager.h"
 #include "DisplayManager.h"
@@ -27,9 +37,19 @@ String urlEncode(const char* msg) {
 
 // In DataManager.cpp
 
+/**
+ * @brief Safely retrieves a nested value from a JSON object using a dot-and-bracket path.
+ * @details This robust helper function allows for traversing a complex JSON structure
+ * to extract a specific value. It supports nested objects (e.g., "data.current.temp")
+ * and array indices (e.g., "results[0].value"). It makes a copy of the path string
+ * to safely use `strtok_r`, which modifies the string it processes.
+ * @param root The root JsonVariant to start the search from.
+ * @param path A C-string representing the path to the desired value.
+ * @return A JsonVariant containing the found value, or a null JsonVariant if not found.
+ */
 JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     if (!path || path[0] == '\0') {
-        return JsonVariant();
+        return JsonVariant(); // Return null variant if path is invalid.
     }
 
     // Use a stack-allocated buffer to avoid heap fragmentation.
@@ -68,6 +88,16 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     return current;
 }
 
+/**
+ * @brief A FreeRTOS task to fetch stock data for a single symbol.
+ * @details This function runs on a separate task to prevent blocking the main loop.
+ * It constructs the appropriate URL for the Financial Modeling Prep API, makes an
+ * HTTPS GET request, parses the resulting JSON, formats the data, and updates the
+ * global `stockData` array. It uses a mutex to ensure thread-safe access to the
+ * shared data structure.
+ * @param p A void pointer to a FetchDataParams struct, which contains the index
+ * of the stock row to be updated. The task is responsible for deleting this struct.
+ */
 void fetchStockDataTask(void* p) {
     FetchDataParams* params = (FetchDataParams*)p;
     int rowIndex = params->pointIndex;

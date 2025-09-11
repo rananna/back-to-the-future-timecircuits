@@ -1,9 +1,21 @@
+/**
+ * @file DisplayManager.cpp
+ * @brief Manages the content displayed on the time circuits during normal operation.
+ * @details This module is responsible for rendering the standard clock display, as well
+ * as handling the logic for alternative display modes like the stock ticker, weather
+ * forecast, and data-driven marquee. It acts as a high-level controller for what
+ * should be shown, calling the lower-level functions in HardwareControl.cpp to
+ * actually write to the displays.
+ */
+
 #include "DisplayManager.h"
 #include "EventManager.h"
 #include "HardwareControl.h"
 
+// External declaration for the global stock data array.
 extern StockData stockData[3];
 
+// Global arrays to support manual text override via MQTT or API.
 std::string manualDisplayText[3][4];
 bool isRowInManualMode[3] = {false, false, false};
 
@@ -179,6 +191,16 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
     updateNormalClockDisplay();
 }
 
+/**
+ * @brief The primary function for updating the three main time circuit displays.
+ * @details This is one of the most critical functions in the firmware. It's responsible
+ * for calculating the correct times for all three rows (Destination, Present, and
+ * Last Time Departed), handling timezone conversions, and displaying them. It also
+ * manages the logic for overriding a specific row with manually set text.
+ * @param updateDest If true, the destination time row is updated.
+ * @param updatePres If true, the present time row is updated.
+ * @param updateLast If true, the last time departed row is updated.
+ */
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
   if (isDisplayAsleep || isAnimating || isGlitching || isMalfunctioning || !hardwareInitialized) return;
 #if ENABLE_HARDWARE

@@ -1,3 +1,12 @@
+/**
+ * @file web_server.cpp
+ * @brief Implements the asynchronous web server and WebSocket communication.
+ * @details This file sets up all the necessary routes for serving the web interface
+ * (HTML, CSS, JS), provides a RESTful API for getting and setting the clock's
+ * configuration, and manages a WebSocket connection for real-time, bidirectional
+ * communication with the web UI.
+ */
+
 #include "web_server.h"
 #include "api_templates.h"
 #include "DataManager.h"
@@ -205,6 +214,20 @@ void makeApiRequestTask(void* p) {
     vTaskDelete(NULL); // End the task
 }
 
+/**
+ * @brief Handles all incoming WebSocket events.
+ * @details This function is the central callback for the WebSocket server. It handles
+ * new client connections, disconnections, and incoming data messages. For data
+ * messages, it parses the JSON payload to determine the requested action (e.g.,
+ * 'testApi', 'testStock') and then creates a dedicated FreeRTOS task to handle
+ * the request asynchronously.
+ * @param server Pointer to the WebSocket server instance.
+ * @param client Pointer to the client that triggered the event.
+ * @param type The type of WebSocket event that occurred.
+ * @param arg A pointer to additional event-specific arguments.
+ * @param data A pointer to the payload data for data events.
+ * @param len The length of the payload data.
+ */
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
         Serial.printf("WEB_LOG: WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
@@ -287,8 +310,17 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 }
 
 
+/**
+ * @brief Configures and attaches all web server and WebSocket routes.
+ * @details This function is called once from the main `setup()` function. It sets up
+ * the WebSocket event handler and then defines all the routes for the web server.
+ * This includes routes for serving static files (HTML, CSS, JS) from LittleFS and
+ * a series of RESTful API endpoints for interacting with the clock's settings and state.
+ */
 void setupWebRoutes() {
   Serial.println(F("WEB_LOG: Inside setupWebRoutes(). Attaching handlers..."));
+
+  // Attach the WebSocket event handler.
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
 

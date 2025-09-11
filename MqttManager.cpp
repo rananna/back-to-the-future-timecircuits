@@ -1,3 +1,13 @@
+/**
+ * @file MqttManager.cpp
+ * @brief Manages all MQTT communication for Home Assistant integration.
+ * @details This module handles the connection to an MQTT broker, publishes device
+ * status and sensor data, and subscribes to command topics to allow for remote
+al * control. It is responsible for generating the Home Assistant MQTT Discovery
+ * configuration messages, which allow the device to be automatically recognized
+ * by Home Assistant.
+ */
+
 #include "MqttManager.h"
 #include "EventManager.h"
 #include "AnimationManager.h"
@@ -139,8 +149,19 @@ void publishHaDiagnosticAttributes() {
 }
 
 
+/**
+ * @brief Publishes the Home Assistant MQTT Discovery configuration messages.
+ * @details This function constructs and sends a series of JSON messages to specific
+ * MQTT topics. These messages describe the device and its capabilities (sensors,
+ * switches, numbers, etc.) to Home Assistant, allowing it to automatically create
+ * corresponding entities in the UI. This function is typically called only once
+ * upon the first successful connection to the MQTT broker.
+ */
 void publishHaAutoDiscovery() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+
+    // --- Create a reusable "device" JSON object ---
+    // This object is included in every discovery payload to link all entities to a single device in HA.
     StaticJsonDocument<512> device_doc;
     JsonObject device = device_doc.to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
@@ -493,7 +514,18 @@ void reconnectMqtt() {
   }
 }
 
+/**
+ * @brief The callback function that processes all incoming MQTT messages.
+ * @details This function is registered with the PubSubClient library and is called
+ * whenever a message is received on a subscribed topic. It parses the topic to
+ * determine which command is being issued, decodes the payload, and then updates
+ * the appropriate setting or triggers the corresponding action.
+ * @param topic The MQTT topic the message was received on.
+ * @param payload A pointer to the message payload.
+ * @param length The length of the payload.
+ */
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
+    // Create a String from the payload for easier processing.
     String message = "";
     message.reserve(length);
     for (unsigned int i = 0; i < length; i++) {

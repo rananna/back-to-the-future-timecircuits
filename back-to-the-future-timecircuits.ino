@@ -1,3 +1,20 @@
+/**
+ * @file back-to-the-future-timecircuits.ino
+ * @brief Main firmware for the ESP32-based Back to the Future Time Circuits clock.
+ * @details This file contains the primary setup and loop functions for the device. It is
+ * responsible for initializing all subsystems, managing the main application state, and
+ * coordinating the various managers (Display, Animation, Data, etc.).
+ *
+ * Core functionalities managed here include:
+ * - Wi-Fi connection and captive portal management.
+ * - Loading and saving settings to non-volatile storage.
+ * - Initializing hardware (displays, audio).
+ * - The main application loop, which drives the display updates and event handling.
+ * - NTP time synchronization.
+ * - MQTT connection and reconnection logic.
+ * - High-level state machines for display modes and system states.
+ */
+
 #include "esp_log.h"
 #include <WiFi.h>
 #include <WiFiManager.h>
@@ -34,44 +51,46 @@
 #define LED_BUILTIN 2
 #endif
 
-// --- CONFIGURABLE CONSTANTS ---
-const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds
-const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000; // 5 seconds
-const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000; // 1 minute
-const unsigned long NTP_INITIAL_SYNC_DELAY = 2000; // 2 seconds
-const unsigned long DISPLAY_UPDATE_INTERVAL = 250; // Milliseconds between display updates.
+// --- SYSTEM CONSTANTS ---
+const unsigned long WIFI_CONNECT_TIMEOUT = 15000;       // Time in ms to wait for WiFi before starting the captive portal.
+const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000;  // Initial time in ms to wait before first MQTT reconnect attempt.
+const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;     // Maximum time in ms for the exponential backoff for MQTT reconnects.
+const unsigned long NTP_INITIAL_SYNC_DELAY = 2000;      // Delay in ms after connecting to WiFi before the first NTP sync.
+const unsigned long DISPLAY_UPDATE_INTERVAL = 250;      // Milliseconds between display updates for the main clock.
 
-// --- ASYNCHRONOUS WIFI STATE MANAGEMENT ---
+// --- WIFI STATE MANAGEMENT ---
+// Manages the asynchronous, non-blocking WiFi connection process.
 enum WifiState {
-  WIFI_STATE_CONNECTING,
-  WIFI_STATE_START_PORTAL,
-  WIFI_STATE_PORTAL_RUNNING,
-  WIFI_STATE_CONNECTED
+  WIFI_STATE_CONNECTING,      // Actively trying to connect with saved credentials.
+  WIFI_STATE_START_PORTAL,    // Connection failed, preparing to launch the WiFiManager captive portal.
+  WIFI_STATE_PORTAL_RUNNING,  // Captive portal is active and awaiting user configuration.
+  WIFI_STATE_CONNECTED        // WiFi connection is successful.
 };
-WifiState wifiState = WIFI_STATE_CONNECTING;
-unsigned long wifiConnectStartTime = 0;
-TaskHandle_t wifiManagerTaskHandle = NULL;
-// --- ONE-TIME LOGGING FLAGS ---
-bool logConnectingPrinted = false;
-bool logPortalMsgPrinted = false;
-bool logConnectedPrinted = false;
-// --- MQTT EXPONENTIAL BACKOFF ---
-unsigned long nextMqttReconnectAttempt = 0;
-unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
-// --- THEMED BOOT SEQUENCE ---
-BootSequenceState bootState = BOOT_INACTIVE;
-int speedometerValue = 0;
-// --- DISPLAY MODE STATE MACHINE ---
-DisplayModeState currentDisplayMode = NORMAL_CLOCK;
+WifiState wifiState = WIFI_STATE_CONNECTING; // Current state of the WiFi connection.
+unsigned long wifiConnectStartTime = 0;      // Timestamp (millis) when the WiFi connection process began.
+TaskHandle_t wifiManagerTaskHandle = NULL;   // Handle for the FreeRTOS task running the WiFiManager portal.
+bool logConnectingPrinted = false;           // Flag to ensure the "Connecting..." message is logged only once.
+bool logPortalMsgPrinted = false;            // Flag to ensure the "Portal Starting..." message is logged only once.
+bool logConnectedPrinted = false;            // Flag to ensure the "Connected" message is logged only once.
 
-// --- UNIFIED AUDIO GLOBALS ---
-Audio audio;
-char currentSoundFile[MAX_FILENAME_LENGTH] = "";
+// --- MQTT STATE MANAGEMENT ---
+// Handles the exponential backoff strategy for reconnecting to the MQTT broker.
+unsigned long nextMqttReconnectAttempt = 0;  // Timestamp (millis) for the next scheduled reconnect attempt.
+unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL; // Current reconnect interval, increases on failure.
 
+// --- STATE VARIABLES ---
+BootSequenceState bootState = BOOT_INACTIVE; // Current phase of the cinematic boot sequence.
+DisplayModeState currentDisplayMode = NORMAL_CLOCK; // Current primary mode of the display (e.g., clock, weather).
 
-char MQTT_UNIQUE_ID[19];
+// --- AUDIO GLOBALS ---
+Audio audio; // The global audio object from the ESP32-audioI2S library.
+char currentSoundFile[MAX_FILENAME_LENGTH] = ""; // Filename of the audio file currently being played.
+
+// --- DEVICE IDENTIFIERS ---
+char MQTT_UNIQUE_ID[19]; // The unique identifier for this device, derived from its MAC address.
 
 // --- FUNCTION PROTOTYPES ---
+// Forward declarations for functions defined later in this file.
 void handlePresetCycling();
 void handleSleepSchedule();
 void handleSequencer();
@@ -85,17 +104,21 @@ void updateDisplaySegment(int row, int segment, const std::string& text);
 void testDecimalPointFlashing();
 void handleScheduledAnimation();
 
-// --- GLOBAL VARIABLES & CONSTANTS ---
-ClockSettings currentSettings;
-MarqueeData displayPages[5];
-MarqueeData lastGoodDisplayPages[5];
-WeatherData currentWeatherData;
-StockData stockData[3];
-unsigned long lastStockDataFetch = 0;
-unsigned long lastDisplayUpdateTime = 0;
-std::string lastCityName = "";
-unsigned long bootTimestamp = 0;
-bool hardwareInitialized = false;
+// --- GLOBAL DATA STRUCTURES & SETTINGS ---
+ClockSettings currentSettings;        // Holds all user-configurable settings for the clock.
+MarqueeData displayPages[5];          // An array to hold the content for the 5 pages of the Data Link marquee.
+MarqueeData lastGoodDisplayPages[5];  // A backup of the last valid marquee data to prevent displaying corrupted info.
+WeatherData currentWeatherData;       // Holds the most recently fetched weather data.
+StockData stockData[3];               // Holds the most recently fetched data for the three stock tickers.
+unsigned long lastStockDataFetch = 0; // Timestamp of the last successful stock data fetch.
+unsigned long lastDisplayUpdateTime = 0;// Timestamp of the last main display update, used for throttling.
+std::string lastCityName = "";        // Caches the last city name used for a weather lookup to avoid redundant geocoding.
+unsigned long bootTimestamp = 0;      // Timestamp (millis) when the setup() function completed.
+bool hardwareInitialized = false;     // Flag indicating whether the physical hardware (displays, etc.) was successfully initialized.
+
+// --- TIMEZONE DATA ---
+// A comprehensive list of timezones supported by the clock.
+// Each entry includes the POSIX TZ string, a user-friendly display name, the IANA timezone name, and a region for grouping in the UI.
 const TimeZoneEntry TZ_DATA[] = {
 	{ "UTC0", "UTC", "Etc/UTC", "Global" },
 	{ "NST3:30NDT,M3.2.0,M11.1.0", "Newfoundland (St. John's)", "America/St_Johns", "Americas" },
@@ -187,9 +210,11 @@ int currentSequenceStep = 0;
 unsigned long sequenceStepStartTime = 0;
 bool isSequenceActive = false;
 
-// --- NEW DISPLAY STATE MACHINE ---
+// A more detailed state machine for the main display logic. This helps to cleanly
+// separate the logic for each display mode and ensures only one mode is active at a time,
+// preventing conflicts between different features trying to control the display.
 enum DisplayState {
-    STATE_NORMAL_CLOCK,
+    STATE_NORMAL_CLOCK,       // Default state, showing the time.
     STATE_MESSAGE_OVERRIDE,
     STATE_ANIMATING,
     STATE_STOCK_TICKER,
@@ -228,23 +253,32 @@ void audioTask(void *pvParameters) {
   }
 }
 
+/**
+ * @brief Saves the current settings to non-volatile storage (NVS).
+ * @details This function uses the Preferences library to persist the `currentSettings`
+ * object. To minimize unnecessary writes to the flash memory, it checks each setting
+ * against its previously saved value and only writes if the value has actually changed.
+ */
 void saveSettings() {
     Serial.println("--- Saving Settings (Dirty Flag Check) ---");
-    preferences.begin(PREFERENCES_NAMESPACE, false);
+    preferences.begin(PREFERENCES_NAMESPACE, false); // Open preferences in read-write mode.
 
-    // Helper macro to reduce boilerplate
+    // Helper macro to reduce boilerplate code for saving numeric types.
+    // It gets the existing value, compares it to the new value, and puts the new value if different.
     #define SAVE_IF_CHANGED(key, type, value) \
         if (preferences.get##type(key, -1) != value) { \
             preferences.put##type(key, value); \
             Serial.printf("SAVING: %s -> %d\n", #key, value); \
         }
 
+    // Helper macro for saving string types. It handles the case where the key might not exist yet.
     #define SAVE_STRING_IF_CHANGED(key, value) \
         if (!preferences.isKey(key) || preferences.getString(key, "") != value.c_str()) { \
             preferences.putString(key, value.c_str()); \
             Serial.printf("SAVING: %s -> %s\n", #key, value.c_str()); \
         }
 
+    // --- Save each setting using the helper macros ---
     SAVE_IF_CHANGED("destYear", Int, currentSettings.destinationYear);
     SAVE_IF_CHANGED("destTzIndex", Int, currentSettings.destinationTimezoneIndex);
     SAVE_IF_CHANGED("depHour", Int, currentSettings.departureHour);
@@ -345,18 +379,30 @@ void saveSettings() {
 	}
 	preferences.end();
     Serial.println("--- Settings Saved ---");
+
+    // After saving, immediately apply the timezone setting to the system.
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
 }
 
+/**
+ * @brief Loads settings from non-volatile storage (NVS) into the `currentSettings` object.
+ * @details This function reads all configuration data from flash memory using the
+ * Preferences library. If it detects that this is the first boot (i.e., no settings
+ * have been saved yet), it initializes the `currentSettings` object with a set of
+ * sensible defaults and then calls `saveSettings()` to create the initial configuration.
+ */
 void loadSettings() {
     Serial.println("--- Loading Settings ---");
-    preferences.begin(PREFERENCES_NAMESPACE, true);
+    preferences.begin(PREFERENCES_NAMESPACE, true); // Open preferences in read-only mode.
+
+    // Check if a key exists. If not, we assume it's the first boot.
 	bool needsInit = !preferences.isKey("destYear");
     if (needsInit) {
+        // --- INITIALIZE WITH DEFAULT VALUES ---
 		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
 		currentSettings.destinationYear = 1955;
-		currentSettings.destinationTimezoneIndex = 4;
+		currentSettings.destinationTimezoneIndex = 4; // Default to Pacific Time
 		currentSettings.departureHour = 22;
 		currentSettings.departureMinute = 0;
 		currentSettings.arrivalHour = 7;
@@ -524,9 +570,16 @@ void wifiManagerTask(void *pvParameters) {
 }
 
 
+/**
+ * @brief The main setup function, run once at boot.
+ * @details Initializes all essential systems: Serial communication, LittleFS filesystem,
+ * loading settings, creating the display data mutex, setting up Wi-Fi, configuring web
+ * routes, initializing hardware (display and audio), setting the timezone, and starting
+ * the MQTT client and OTA update service.
+ */
 void setup() {
     Serial.begin(115200);
-    delay(1000);
+    delay(1000); // Wait for serial monitor to connect.
 
     Serial.println(F("\n\n--- BOOTING ---"));
     Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
@@ -699,10 +752,22 @@ void handleDisplay() {
 }
 
 
+/**
+ * @brief The main application loop.
+ * @details This function is the heart of the firmware, executed continuously. It uses a
+ * cooperative multitasking approach with `vTaskDelay(1)` to yield to other FreeRTOS tasks.
+ * The loop manages several key state machines:
+ * 1. WiFi Connection: Handles connecting, launching the portal on failure, and reconnecting.
+ * 2. MQTT Client: Manages the MQTT connection and message loop.
+ * 3. NTP Sync: Periodically synchronizes the internal clock with an NTP server.
+ * 4. Display Rendering: Calls the main display handler, which then executes the current
+ *    display mode's logic (clock, weather, animation, etc.).
+ * 5. OTA Updates: Listens for Over-The-Air update requests.
+ */
 void loop() {
-    vTaskDelay(1);
+    vTaskDelay(1); // Yield to other tasks, making the system responsive.
     
-    // --- WiFi State Machine ---
+    // This state machine manages the WiFi connection process in a non-blocking way.
     // This state machine manages the WiFi connection process in a non-blocking way.
     // It handles the initial connection attempt, starting the WiFiManager portal if
     // the connection fails, and managing the device reboot after successful portal configuration.

@@ -120,8 +120,16 @@ void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
 /**
  * @brief Initiates the multi-stage time travel animation sequence.
  */
+/**
+ * @brief Initiates the multi-stage time travel animation sequence.
+ * @details This function acts as the entry point for the main cinematic time travel
+ * animation. It sets the global `isAnimating` flag to true, which prevents other
+ * display modes from interfering, and sets the initial animation phase. The actual
+ * animation is handled by the `handleDisplayAnimation` state machine, which is
+ * called on each iteration of the main loop.
+ */
 void startTimeTravelAnimation() {
-    if (isAnimating) return;
+    if (isAnimating) return; // Don't start a new animation if one is already running.
     isAnimating = true;
     animationStartTime = millis();
     // Set the initial phase; the state machine will handle the rest.
@@ -134,6 +142,13 @@ void startTimeTravelAnimation() {
 
 /**
  * @brief The main state machine for the CINEMATIC time travel animation. Called in the main loop.
+ */
+/**
+ * @brief Manages the state machine for the main cinematic time travel animation.
+ * @details This function is called on every loop iteration while `isAnimating` is true.
+ * It uses a `switch` statement to progress through the different phases of the
+ * animation (e.g., power up, time acceleration, arrival). It handles the timing for
+ * each phase and calls the appropriate low-level animation functions from HardwareControl.cpp.
  */
 void handleDisplayAnimation() {
     if (!isAnimating || !hardwareInitialized) return;
@@ -342,6 +357,12 @@ void handleStyledAnimation() {
 
 /**
  * @brief Handles the "temporal echo" effect after a time jump.
+ */
+/**
+ * @brief Handles the "temporal echo" visual effect after a time jump.
+ * @details For a short period after an animation sequence completes, this function
+ * creates a lingering effect by randomly flickering the "Present Time" display,
+ * suggesting a temporary instability in the timeline.
  */
 void handleTemporalEcho() {
     if (!isEchoEffectActive || !hardwareInitialized) return;
