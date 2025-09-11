@@ -532,8 +532,19 @@ void setupWebRoutes() {
         }
     };
 
+    // --- START: Conditional MQTT Reconnect Logic ---
+    bool needsMqttReconnect = false;
     std::string oldMqttBroker = currentSettings.mqttBroker;
     int oldMqttPort = currentSettings.mqttPort;
+    std::string oldMqttUser = currentSettings.mqttUser;
+    std::string oldMqttPass = currentSettings.mqttPassword;
+    int oldNumDataPoints = currentSettings.numDataPoints;
+    DataPoint oldDataPoints[5];
+    for(int i=0; i<5; ++i) {
+        oldDataPoints[i] = currentSettings.dataPoints[i];
+    }
+    // --- END: Conditional MQTT Reconnect Logic ---
+
     std::string oldCityName = currentSettings.cityName;
 
     validateAndSet("destinationYear", currentSettings.destinationYear, 0, 9999);
@@ -623,12 +634,34 @@ void setupWebRoutes() {
         }
     }
 
-    if (mqttClient.connected()) {
-        mqttClient.disconnect();
+    // --- START: Conditional MQTT Reconnect Logic ---
+    if (oldMqttBroker != currentSettings.mqttBroker ||
+        oldMqttPort != currentSettings.mqttPort ||
+        oldMqttUser != currentSettings.mqttUser ||
+        oldMqttPass != currentSettings.mqttPassword ||
+        oldNumDataPoints != currentSettings.numDataPoints) {
+        needsMqttReconnect = true;
+    } else {
+        for(int i=0; i<5; ++i) {
+            if (oldDataPoints[i].dataSourceType != currentSettings.dataPoints[i].dataSourceType ||
+                oldDataPoints[i].mqttTopic != currentSettings.dataPoints[i].mqttTopic) {
+                needsMqttReconnect = true;
+                break;
+            }
+        }
     }
+
+    if (needsMqttReconnect) {
+        Serial.println("SERVER_DEBUG: MQTT settings changed. Forcing reconnect.");
+        if (mqttClient.connected()) {
+            mqttClient.disconnect();
+        }
+        mqttReconnectRequired = true;
+    }
+    // --- END: Conditional MQTT Reconnect Logic ---
+
     saveSettings();
     delay(100);
-    mqttReconnectRequired = true;
 
     audio.setVolume(currentSettings.notificationVolume);
 
