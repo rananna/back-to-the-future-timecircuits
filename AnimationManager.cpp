@@ -362,21 +362,9 @@ void handleTemporalEcho() {
  * @brief Handles the random glitch and malfunction effects during normal operation.
  */
 void handleGlitchEffect() {
-    if (isAnimating || isDisplayAsleep || isMalfunctioning) return;
+    if (isAnimating || isDisplayAsleep) return;
     if (millis() - lastGlitchTime > 1000) { // Check once per second
         lastGlitchTime = millis();
-
-
-        // Check for a major malfunction
-        if (currentSettings.malfunctionFrequency > 0 && random(currentSettings.malfunctionFrequency) == 0) {
-            isMalfunctioning = true;
-            malfunctionStartTime = millis();
-            currentMalfunctionPhase = MAL_HAYWIRE;
-            updateHaStatus("Malfunctioning");
-            return; // Prioritize malfunction over a simple glitch
-        }
-
-
 
         // Check for a minor glitch
         if (currentSettings.glitchEffectFrequency > 0 && random(100) < currentSettings.glitchEffectFrequency) {
@@ -398,54 +386,6 @@ void restoreDisplayAfterGlitch() {
         }
 #endif
     }
-}
-
-void handleMalfunction() {
-    if (!isMalfunctioning || !hardwareInitialized) return;
-#if ENABLE_HARDWARE
-    unsigned long elapsed = millis() - malfunctionStartTime;
-
-    switch (currentMalfunctionPhase) {
-        case MAL_HAYWIRE:
-            if (elapsed < 3000) {
-                animateTornadoFlicker();
-            } else {
-                currentMalfunctionPhase = MAL_ERROR_MESSAGE;
-                malfunctionStartTime = millis();
-            }
-            break;
-// In AnimationManager.cpp, inside handleMalfunction()
-
-        case MAL_ERROR_MESSAGE:
-            if (elapsed < 3000) {
-                printToDisplay(presRow.month, "ERR", 1);
-                printToDisplay(presRow.day, "", 2);
-                printToDisplay(presRow.year, "FAIL");
-                printToDisplay(presRow.time, "----");
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(5));
-            } else {
-                currentMalfunctionPhase = MAL_REBOOT;
-                malfunctionStartTime = millis();
-            }
-            break;
-        case MAL_REBOOT:
-            if (elapsed < 2000) {
-                blankAllDisplays();
-            } else {
-                isMalfunctioning = false;
-                currentMalfunctionPhase = MAL_INACTIVE;
-                runBootSequence(); // Simulate a reboot by running the boot sequence
-                updateHaStatus("Idle");
-            }
-            break;
-        default:
-            break;
-    }
-#endif
 }
 
 // --- BOOT SEQUENCE ---

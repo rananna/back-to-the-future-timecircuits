@@ -171,9 +171,6 @@ int marqueeScrollPositionYear = 0;
 volatile bool isFetchingData = false;
 int dataPointFetchFailures[5] = {0, 0, 0, 0, 0};
 const int MAX_FETCH_FAILURES = 3;
-bool isMalfunctioning = false;
-unsigned long malfunctionStartTime = 0;
-MalfunctionPhase currentMalfunctionPhase = MAL_INACTIVE;
 volatile int requestsCompleted = 0;
 int currentPageIndex = 0;
 bool isMessageOverrideActive = false;
@@ -194,7 +191,6 @@ bool isSequenceActive = false;
 enum DisplayState {
     STATE_NORMAL_CLOCK,
     STATE_MESSAGE_OVERRIDE,
-    STATE_MALFUNCTION,
     STATE_ANIMATING,
     STATE_STOCK_TICKER,
     STATE_MARQUEE_OVERRIDE,
@@ -279,7 +275,6 @@ void saveSettings() {
     SAVE_IF_CHANGED("animDuration", Int, currentSettings.timeTravelAnimationDuration);
     SAVE_IF_CHANGED("animStyle", Int, currentSettings.animationStyle);
     SAVE_IF_CHANGED("glitchFreq", Int, currentSettings.glitchEffectFrequency);
-    SAVE_IF_CHANGED("malfuncFreq", Int, currentSettings.malfunctionFrequency);
     if (preferences.getBool("dlEnabled", false) != currentSettings.dataLinkEnabled) {
         preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
         Serial.printf("SAVING: dlEnabled -> %s\n", currentSettings.dataLinkEnabled ? "true" : "false");
@@ -382,7 +377,6 @@ void loadSettings() {
 		currentSettings.timeTravelAnimationDuration = 4000;
 		currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
 		currentSettings.glitchEffectFrequency = 0;
-		currentSettings.malfunctionFrequency = 0;
 		currentSettings.dataLinkEnabled = false;
 		currentSettings.dataLinkTargetRow = 2;
 		currentSettings.dataLinkRefreshInterval = 10;
@@ -429,7 +423,6 @@ void loadSettings() {
 		currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration");
 		currentSettings.animationStyle = preferences.getInt("animStyle");
 		currentSettings.glitchEffectFrequency = preferences.getInt("glitchFreq");
-		currentSettings.malfunctionFrequency = preferences.getInt("malfuncFreq");
 		currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
 		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
 		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
@@ -641,8 +634,6 @@ void setup() {
 void updateDisplayState() {
     if (isMessageOverrideActive) {
         currentDisplayState = STATE_MESSAGE_OVERRIDE;
-    } else if (isMalfunctioning) {
-        currentDisplayState = STATE_MALFUNCTION;
     } else if (isAnimating) {
         currentDisplayState = STATE_ANIMATING;
     } else if (isMarqueeOverrideActive) {
@@ -676,9 +667,6 @@ void handleDisplay() {
     switch (currentDisplayState) {
         case STATE_MESSAGE_OVERRIDE:
             displayOverrideMessage();
-            break;
-        case STATE_MALFUNCTION:
-            handleMalfunction();
             break;
         case STATE_ANIMATING:
             handleDisplayAnimation();

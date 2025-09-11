@@ -347,7 +347,6 @@ void setupWebRoutes() {
     doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
     doc["animationStyle"] = currentSettings.animationStyle;
     doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency;
-    doc["malfunctionFrequency"] = currentSettings.malfunctionFrequency;
     doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
     doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
@@ -499,7 +498,6 @@ void setupWebRoutes() {
     currentSettings.timeTravelAnimationInterval = obj["timeTravelAnimationInterval"] | currentSettings.timeTravelAnimationInterval;
     currentSettings.animationStyle = obj["animationStyle"] | currentSettings.animationStyle;
     currentSettings.glitchEffectFrequency = obj["glitchEffectFrequency"] | currentSettings.glitchEffectFrequency;
-    currentSettings.malfunctionFrequency = obj["malfunctionFrequency"] | currentSettings.malfunctionFrequency;
     currentSettings.notificationVolume = obj["notificationVolume"] | currentSettings.notificationVolume;
     currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"] | currentSettings.timeTravelSoundToggle;
     currentSettings.presentTimezoneIndex = obj["presentTimezoneIndex"] | currentSettings.presentTimezoneIndex;
