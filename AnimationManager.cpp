@@ -281,28 +281,34 @@ void handleDisplayAnimation() {
  * @brief Initiates the styled animation sequence for scheduled events.
  */
 void startStyledAnimation() {
+    Serial.println("ANIM_LOG: Attempting to start styled animation.");
     // Attempt to take the mutex. If we can't get it, another task is trying
     // to start an animation, so we should just exit.
     if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
+        Serial.println("ANIM_LOG: Could not acquire animation mutex, another animation is likely starting.");
         return;
     }
+    Serial.println("ANIM_LOG: Animation mutex acquired.");
 
     // We have the mutex, now we can safely check the animation flags.
     if (isStyledAnimating || isAnimating) {
+        Serial.println("ANIM_LOG: Animation already in progress. Releasing mutex.");
         xSemaphoreGive(xAnimationStartMutex); // Release the mutex before returning.
         return;
     }
 
     // Set the animation flag to prevent other tasks from starting another animation.
     isStyledAnimating = true;
+    Serial.println("ANIM_LOG: isStyledAnimating flag set to true.");
 
     // The critical section is over, release the mutex.
     xSemaphoreGive(xAnimationStartMutex);
+    Serial.println("ANIM_LOG: Animation mutex released.");
 
-    playSound("/keypad_beeps.mp3");
     styledAnimationStartTime = millis();
-    currentStyledPhase = ANIM_FLICKER; // Skip power up
+    currentStyledPhase = ANIM_START; // Set initial phase to ANIM_START
     updateHaStatus("Animating");
+    Serial.println("ANIM_LOG: Styled animation state initialized. Phase: ANIM_START");
 
     // Set the animation style for this run
     if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
@@ -325,15 +331,27 @@ void handleStyledAnimation() {
     static unsigned long lastGlitchTriggerTime = 0;
     static AnimationPhase lastStyledPhase = ANIM_INACTIVE;
 
-    // If we are entering the first phase of the animation, reset local static variables
-    if (currentStyledPhase != lastStyledPhase && currentStyledPhase == ANIM_FLICKER) {
-        glitchRow = -1;
-        lastGlitchTriggerTime = 0;
+    // If we are entering a new phase, log it.
+    if (currentStyledPhase != lastStyledPhase) {
+        Serial.printf("ANIM_LOG: Entering styled animation phase: %d\n", currentStyledPhase);
+        // If we are entering the first phase of the animation, reset local static variables
+        if (currentStyledPhase == ANIM_FLICKER) {
+            glitchRow = -1;
+            lastGlitchTriggerTime = 0;
+        }
+        lastStyledPhase = currentStyledPhase;
     }
-    lastStyledPhase = currentStyledPhase;
 
 
     switch (currentStyledPhase) {
+        case ANIM_START:
+            // This new state plays the sound and immediately transitions to the next state.
+            playSound("/keypad_beeps.mp3");
+            Serial.println("ANIM_LOG: Keypad sound requested.");
+            currentStyledPhase = ANIM_FLICKER;
+            styledAnimationStartTime = millis(); // Reset timer for the flicker phase
+            break;
+
         case ANIM_FLICKER:
             if (elapsed < 10000) { // --- FIX: Use a fixed 10-second duration ---
                 switch (randomAnimationStyle) {
@@ -418,6 +436,7 @@ void handleStyledAnimation() {
                 isStyledAnimating = false;
                 currentStyledPhase = ANIM_INACTIVE;
                 updateHaStatus("Idle");
+                Serial.println("ANIM_LOG: Styled animation finished. Broadcasting completion.");
                 broadcastAnimationComplete();
             }
             break;
@@ -425,6 +444,7 @@ void handleStyledAnimation() {
         default:
             isStyledAnimating = false;
             currentStyledPhase = ANIM_INACTIVE;
+            Serial.println("ANIM_LOG: Styled animation entered unknown state. Forcing cleanup.");
             broadcastAnimationComplete();
             break;
     }
