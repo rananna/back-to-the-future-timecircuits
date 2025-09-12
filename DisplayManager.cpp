@@ -208,9 +208,17 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
  * @param updateLast If true, the last time departed row is updated.
  */
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
-  if (isDisplayAsleep || isAnimating || isGlitching || !hardwareInitialized) return;
+  if (isDisplayAsleep || isAnimating || isGlitching || !hardwareInitialized) {
+    if(isAnimating) {
+        Serial.println("DISPLAY_LOG: updateNormalClockDisplay returned early because isAnimating is true.");
+    }
+    return;
+  }
+
 #if ENABLE_HARDWARE
-  if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+  Serial.println("DISPLAY_LOG: Attempting to take display data mutex...");
+  if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    Serial.println("DISPLAY_LOG: Mutex taken.");
     if (timeSynchronized) {
       time_t now_t;
       struct tm dest_timeinfo, present_timeinfo;
@@ -278,6 +286,9 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
       }
     }
     xSemaphoreGive(xDisplayDataMutex);
+    Serial.println("DISPLAY_LOG: Mutex released.");
+  } else {
+    Serial.println("DISPLAY_LOG: FAILED to take display data mutex.");
   }
 #endif
 }
