@@ -284,11 +284,12 @@ void startStyledAnimation() {
     Serial.println("ANIM_LOG: Attempting to start styled animation.");
     // Attempt to take the mutex. If we can't get it, another task is trying
     // to start an animation, so we should just exit.
+    Serial.println("ANIM_LOG: Waiting for animation mutex...");
     if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
-        Serial.println("ANIM_LOG: Could not acquire animation mutex, another animation is likely starting.");
+        Serial.println("ANIM_LOG: Timed out waiting for animation mutex.");
         return;
     }
-    Serial.println("ANIM_LOG: Animation mutex acquired.");
+    Serial.println("ANIM_LOG: Animation mutex acquired successfully.");
 
     // We have the mutex, now we can safely check the animation flags.
     if (isStyledAnimating || isAnimating) {
