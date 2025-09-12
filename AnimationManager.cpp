@@ -145,16 +145,12 @@ void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
 void startTimeTravelAnimation() {
     // Attempt to take the mutex. If we can't get it, another task is trying
     // to start an animation, so we should just exit.
-    Serial.println("ANIM_LOG: Attempting to take animation mutex for Time Travel.");
     if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
-        Serial.println("ANIM_LOG: FAILED to take animation mutex for Time Travel.");
         return;
     }
-    Serial.println("ANIM_LOG: Animation mutex taken for Time Travel.");
 
     // We have the mutex, now we can safely check the animation flag.
     if (isAnimating) {
-        Serial.println("ANIM_LOG: Animation already in progress. Releasing mutex.");
         xSemaphoreGive(xAnimationStartMutex); // Release the mutex before returning.
         return;
     }
@@ -164,7 +160,6 @@ void startTimeTravelAnimation() {
 
     // The critical section is over, release the mutex.
     xSemaphoreGive(xAnimationStartMutex);
-    Serial.println("ANIM_LOG: Animation mutex released for Time Travel.");
 
     animationStartTime = millis();
     // Set the initial phase; the state machine will handle the rest.
@@ -286,35 +281,29 @@ void handleDisplayAnimation() {
  * @brief Initiates the styled animation sequence for scheduled events.
  */
 void startStyledAnimation() {
-    Serial.println("ANIM_LOG: Attempting to start styled animation.");
     // Attempt to take the mutex. If we can't get it, another task is trying
     // to start an animation, so we should just exit.
-    Serial.println("ANIM_LOG: Waiting for animation mutex...");
     if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
-        Serial.println("ANIM_LOG: Timed out waiting for animation mutex.");
+        Serial.println("ANIM_LOG: Styled animation mutex grab FAILED.");
         return;
     }
-    Serial.println("ANIM_LOG: Animation mutex acquired successfully.");
+    Serial.println("ANIM_LOG: Styled animation mutex grab SUCCESS.");
 
     // We have the mutex, now we can safely check the animation flags.
     if (isStyledAnimating || isAnimating) {
-        Serial.println("ANIM_LOG: Animation already in progress. Releasing mutex.");
         xSemaphoreGive(xAnimationStartMutex); // Release the mutex before returning.
         return;
     }
 
     // Set the animation flag to prevent other tasks from starting another animation.
     isStyledAnimating = true;
-    Serial.println("ANIM_LOG: isStyledAnimating flag set to true.");
 
     // The critical section is over, release the mutex.
     xSemaphoreGive(xAnimationStartMutex);
-    Serial.println("ANIM_LOG: Animation mutex released for Styled Animation.");
 
     styledAnimationStartTime = millis();
     currentStyledPhase = ANIM_START; // Set initial phase to ANIM_START
     updateHaStatus("Animating");
-    Serial.println("ANIM_LOG: Styled animation state initialized. Phase: ANIM_START");
 
     // Set the animation style for this run
     if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
@@ -587,7 +576,7 @@ void handleBootSequence() {
             break;
         case BOOT_COLD_START:
             {
-                const char* textToType = "INITIATE PWR";
+                const char* textToType = " INITIATE PWR";
                 int textLen = strlen(textToType);
                 int typingDuration = 5000; // 5 seconds
                 int charDuration = typingDuration / textLen;
@@ -655,7 +644,7 @@ void handleBootSequence() {
                     charsTyped = charsToShow;
                 }
 
-                if (elapsed > typingDuration + 1000) {
+                if (elapsed > typingDuration + 2000) {
                     if (audio.isRunning()) {
                         audio.stopSong();
                     }

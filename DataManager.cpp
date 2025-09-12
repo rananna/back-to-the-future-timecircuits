@@ -141,9 +141,7 @@ void fetchStockDataTask(void* p) {
             }
 
             if (quote) {
-                Serial.println("DATA_LOG: Attempting to take display data mutex in fetchStockDataTask (quote).");
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    Serial.println("DATA_LOG: Mutex taken in fetchStockDataTask (quote).");
                     stockData[rowIndex].symbol = quote["symbol"].as<String>().c_str();
                     
                     float price = quote["price"].as<float>();
@@ -168,21 +166,13 @@ void fetchStockDataTask(void* p) {
 
                     stockData[rowIndex].dataValid = true;
                     xSemaphoreGive(xDisplayDataMutex);
-                    Serial.println("DATA_LOG: Mutex released in fetchStockDataTask (quote).");
-                } else {
-                    Serial.println("DATA_LOG: FAILED to take display data mutex in fetchStockDataTask (quote).");
                 }
             } else {
-                Serial.println("DATA_LOG: Attempting to take display data mutex in fetchStockDataTask (no quote).");
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    Serial.println("DATA_LOG: Mutex taken in fetchStockDataTask (no quote).");
                     stockData[rowIndex].dataValid = false;
                     stockData[rowIndex].price = "NO";
                     stockData[rowIndex].change_percent = "DATA";
                     xSemaphoreGive(xDisplayDataMutex);
-                    Serial.println("DATA_LOG: Mutex released in fetchStockDataTask (no quote).");
-                } else {
-                    Serial.println("DATA_LOG: FAILED to take display data mutex in fetchStockDataTask (no quote).");
                 }
             }
         }
@@ -198,30 +188,20 @@ void fetchWeatherData(WeatherTaskParams* params) {
     delete params;
 
     if (taskCityName.empty()) {
-        Serial.println("DATA_LOG: Attempting to take display data mutex in fetchWeatherData (taskCityName empty).");
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            Serial.println("DATA_LOG: Mutex taken in fetchWeatherData (taskCityName empty).");
             currentWeatherData.dataValid = false;
             xSemaphoreGive(xDisplayDataMutex);
-            Serial.println("DATA_LOG: Mutex released in fetchWeatherData (taskCityName empty).");
-        } else {
-            Serial.println("DATA_LOG: FAILED to take display data mutex in fetchWeatherData (taskCityName empty).");
         }
         return;
     }
 
     bool needsGeocoding = forceGeocode;
     if (!forceGeocode) {
-        Serial.println("DATA_LOG: Attempting to take display data mutex in fetchWeatherData (forceGeocode).");
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            Serial.println("DATA_LOG: Mutex taken in fetchWeatherData (forceGeocode).");
             if (taskCityName != lastCityName) {
                 needsGeocoding = true;
             }
             xSemaphoreGive(xDisplayDataMutex);
-            Serial.println("DATA_LOG: Mutex released in fetchWeatherData (forceGeocode).");
-        } else {
-            Serial.println("DATA_LOG: FAILED to take display data mutex in fetchWeatherData (forceGeocode).");
         }
     }
     
@@ -240,16 +220,11 @@ void fetchWeatherData(WeatherTaskParams* params) {
                     deserializeJson(doc, http.getStream());
                     JsonArray results = doc["results"];
                     if (!results.isNull() && results.size() > 0) {
-                        Serial.println("DATA_LOG: Attempting to take display data mutex in fetchWeatherData (geocode success).");
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                            Serial.println("DATA_LOG: Mutex taken in fetchWeatherData (geocode success).");
                             currentSettings.latitude = doc["results"][0]["latitude"];
                             currentSettings.longitude = doc["results"][0]["longitude"];
                             lastCityName = taskCityName;
                             xSemaphoreGive(xDisplayDataMutex);
-                            Serial.println("DATA_LOG: Mutex released in fetchWeatherData (geocode success).");
-                        } else {
-                            Serial.println("DATA_LOG: FAILED to take display data mutex in fetchWeatherData (geocode success).");
                         }
                         geocodeSuccess = true;
                         http.end();
@@ -263,14 +238,9 @@ void fetchWeatherData(WeatherTaskParams* params) {
 
         if (!geocodeSuccess) {
             showTemporaryMessage("GEO", "", "FAIL", "", 2000);
-            Serial.println("DATA_LOG: Attempting to take display data mutex in fetchWeatherData (geocode fail).");
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                Serial.println("DATA_LOG: Mutex taken in fetchWeatherData (geocode fail).");
                 currentWeatherData.dataValid = false;
                 xSemaphoreGive(xDisplayDataMutex);
-                Serial.println("DATA_LOG: Mutex released in fetchWeatherData (geocode fail).");
-            } else {
-                Serial.println("DATA_LOG: FAILED to take display data mutex in fetchWeatherData (geocode fail).");
             }
             return;
         }
@@ -297,9 +267,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 DynamicJsonDocument doc(4096);
                 DeserializationError error = deserializeJson(doc, payload);
 
-                Serial.println("DATA_LOG: Attempting to take display data mutex in fetchWeatherData (weather data).");
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    Serial.println("DATA_LOG: Mutex taken in fetchWeatherData (weather data).");
                     if (error == DeserializationError::Ok && !doc.containsKey("error")) {
                         currentWeatherData.temperature = doc["current"]["temperature_2m"];
                         currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
@@ -337,9 +305,6 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         currentWeatherData.dataValid = false;
                     }
                     xSemaphoreGive(xDisplayDataMutex);
-                    Serial.println("DATA_LOG: Mutex released in fetchWeatherData (weather data).");
-                } else {
-                    Serial.println("DATA_LOG: FAILED to take display data mutex in fetchWeatherData (weather data).");
                 }
                 http.end();
                 if (weatherSuccess) break;
@@ -350,14 +315,9 @@ void fetchWeatherData(WeatherTaskParams* params) {
     }
     
     if (!weatherSuccess) {
-      Serial.println("DATA_LOG: Attempting to take display data mutex in fetchWeatherData (weather fail).");
       if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.println("DATA_LOG: Mutex taken in fetchWeatherData (weather fail).");
         currentWeatherData.dataValid = false;
         xSemaphoreGive(xDisplayDataMutex);
-        Serial.println("DATA_LOG: Mutex released in fetchWeatherData (weather fail).");
-      } else {
-        Serial.println("DATA_LOG: FAILED to take display data mutex in fetchWeatherData (weather fail).");
       }
       showTemporaryMessage("API", "", "FAIL", "", 2000);
     }
@@ -400,9 +360,7 @@ void fetchApiDataTask(void* p) {
 			DynamicJsonDocument doc(4096);
 			DeserializationError error = deserializeJson(doc, http.getStream());
 			if (error == DeserializationError::Ok) {
-                Serial.println("DATA_LOG: Attempting to take display data mutex in fetchApiDataTask (success).");
 				if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    Serial.println("DATA_LOG: Mutex taken in fetchApiDataTask (success).");
 					JsonVariant monthVar = getJsonVariant(doc.as<JsonVariant>(), point.monthPath.c_str());
 					JsonVariant dayVar = getJsonVariant(doc.as<JsonVariant>(), point.dayPath.c_str());
 					JsonVariant yearVar = getJsonVariant(doc.as<JsonVariant>(), point.yearPath.c_str());
@@ -415,55 +373,32 @@ void fetchApiDataTask(void* p) {
 					lastGoodDisplayPages[index] = displayPages[index];
 					dataPointFetchFailures[index] = 0;
 					xSemaphoreGive(xDisplayDataMutex);
-                    Serial.println("DATA_LOG: Mutex released in fetchApiDataTask (success).");
-				} else {
-                    Serial.println("DATA_LOG: FAILED to take display data mutex in fetchApiDataTask (success).");
                 }
 			} else {
-                Serial.println("DATA_LOG: Attempting to take display data mutex in fetchApiDataTask (deserialization error).");
 				if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    Serial.println("DATA_LOG: Mutex taken in fetchApiDataTask (deserialization error).");
                     dataPointFetchFailures[index]++;
                     xSemaphoreGive(xDisplayDataMutex);
-                    Serial.println("DATA_LOG: Mutex released in fetchApiDataTask (deserialization error).");
-                } else {
-                    Serial.println("DATA_LOG: FAILED to take display data mutex in fetchApiDataTask (deserialization error).");
                 }
 			}
 		} else {
-            Serial.println("DATA_LOG: Attempting to take display data mutex in fetchApiDataTask (http error).");
 			if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                Serial.println("DATA_LOG: Mutex taken in fetchApiDataTask (http error).");
                 dataPointFetchFailures[index]++;
                 xSemaphoreGive(xDisplayDataMutex);
-                Serial.println("DATA_LOG: Mutex released in fetchApiDataTask (http error).");
-            } else {
-                Serial.println("DATA_LOG: FAILED to take display data mutex in fetchApiDataTask (http error).");
             }
 		}
 		http.end();
 	} else {
-        Serial.println("DATA_LOG: Attempting to take display data mutex in fetchApiDataTask (http begin fail).");
 		if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            Serial.println("DATA_LOG: Mutex taken in fetchApiDataTask (http begin fail).");
             dataPointFetchFailures[index]++;
             xSemaphoreGive(xDisplayDataMutex);
-            Serial.println("DATA_LOG: Mutex released in fetchApiDataTask (http begin fail).");
-        } else {
-            Serial.println("DATA_LOG: FAILED to take display data mutex in fetchApiDataTask (http begin fail).");
         }
 	}
 
-    Serial.println("DATA_LOG: Attempting to take display data mutex in fetchApiDataTask (final).");
 	if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.println("DATA_LOG: Mutex taken in fetchApiDataTask (final).");
         if (dataPointFetchFailures[index] > MAX_FETCH_FAILURES) {
             displayPages[index] = lastGoodDisplayPages[index];
         }
         xSemaphoreGive(xDisplayDataMutex);
-        Serial.println("DATA_LOG: Mutex released in fetchApiDataTask (final).");
-    } else {
-        Serial.println("DATA_LOG: FAILED to take display data mutex in fetchApiDataTask (final).");
     }
 	
 	__atomic_add_fetch(&requestsCompleted, 1, __ATOMIC_SEQ_CST);
@@ -474,14 +409,9 @@ void checkDataFetchStatusTask(void* p) {
     int tasksCreated = (int)p;
     while(true) {
         if (__atomic_load_n(&requestsCompleted, __ATOMIC_SEQ_CST) >= tasksCreated) {
-            Serial.println("DATA_LOG: Attempting to take display data mutex in checkDataFetchStatusTask.");
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                Serial.println("DATA_LOG: Mutex taken in checkDataFetchStatusTask.");
                 isFetchingData = false;
                 xSemaphoreGive(xDisplayDataMutex);
-                Serial.println("DATA_LOG: Mutex released in checkDataFetchStatusTask.");
-            } else {
-                Serial.println("DATA_LOG: FAILED to take display data mutex in checkDataFetchStatusTask.");
             }
             vTaskDelete(NULL);
         }
@@ -490,16 +420,12 @@ void checkDataFetchStatusTask(void* p) {
 }
 
 void fetchDataLink() {
-    Serial.println("DATA_LOG: Attempting to take display data mutex in fetchDataLink.");
 	if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) != pdTRUE) {
-        Serial.println("DATA_LOG: FAILED to take display data mutex in fetchDataLink.");
 		return;
 	}
-    Serial.println("DATA_LOG: Mutex taken in fetchDataLink.");
 
 	if (!currentSettings.dataLinkEnabled || isFetchingData) {
 		xSemaphoreGive(xDisplayDataMutex);
-        Serial.println("DATA_LOG: Mutex released in fetchDataLink (dataLink disabled or already fetching).");
 		return;
 	}
 
@@ -508,7 +434,6 @@ void fetchDataLink() {
 		lastDataLinkFetch = now;
 		isFetchingData = true;
 		xSemaphoreGive(xDisplayDataMutex);
-        Serial.println("DATA_LOG: Mutex released in fetchDataLink (starting fetch).");
         
 		requestsCompleted = 0;
         int tasksCreated = 0;
@@ -527,18 +452,12 @@ void fetchDataLink() {
         if (tasksCreated > 0) {
             xTaskCreatePinnedToCore(checkDataFetchStatusTask, "checkDataFetchStatusTask", 2048, (void*)tasksCreated, 1, NULL, 0);
         } else {
-            Serial.println("DATA_LOG: Attempting to take display data mutex in fetchDataLink (no tasks created).");
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                Serial.println("DATA_LOG: Mutex taken in fetchDataLink (no tasks created).");
                 isFetchingData = false;
                 xSemaphoreGive(xDisplayDataMutex);
-                Serial.println("DATA_LOG: Mutex released in fetchDataLink (no tasks created).");
-            } else {
-                Serial.println("DATA_LOG: FAILED to take display data mutex in fetchDataLink (no tasks created).");
             }
         }
 	} else {
 		xSemaphoreGive(xDisplayDataMutex);
-        Serial.println("DATA_LOG: Mutex released in fetchDataLink (not time to fetch).");
 	}
 }

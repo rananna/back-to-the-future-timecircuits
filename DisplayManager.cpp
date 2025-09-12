@@ -59,9 +59,7 @@ const char* getIconForWeatherCode(int code) {
 void displayMarqueeOverride() {
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
-    Serial.println("DISPLAY_LOG: Attempting to take display data mutex in displayMarqueeOverride.");
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.println("DISPLAY_LOG: Mutex taken in displayMarqueeOverride.");
         String textToDisplay = marqueeOverrideMessage;
 
         if (textToDisplay.length() > 13) {
@@ -97,9 +95,6 @@ void displayMarqueeOverride() {
             }
         }
         xSemaphoreGive(xDisplayDataMutex);
-        Serial.println("DISPLAY_LOG: Mutex released in displayMarqueeOverride.");
-    } else {
-        Serial.println("DISPLAY_LOG: FAILED to take display data mutex in displayMarqueeOverride.");
     }
 #endif
 }
@@ -110,9 +105,7 @@ void updateStockTickerDisplay() {
 #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i = 0; i < 3; ++i) {
-        Serial.println("DISPLAY_LOG: Attempting to take display data mutex in updateStockTickerDisplay.");
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            Serial.println("DISPLAY_LOG: Mutex taken in updateStockTickerDisplay.");
             if (stockData[i].dataValid) {
                 String symbol = String(stockData[i].symbol.c_str());
                 if(symbol.startsWith("^")) symbol.remove(0,1);
@@ -147,9 +140,6 @@ void updateStockTickerDisplay() {
                 }
             }
              xSemaphoreGive(xDisplayDataMutex);
-             Serial.println("DISPLAY_LOG: Mutex released in updateStockTickerDisplay.");
-        } else {
-            Serial.println("DISPLAY_LOG: FAILED to take display data mutex in updateStockTickerDisplay.");
         }
         rows[i]->month.writeDisplay();
         rows[i]->day.writeDisplay();
@@ -163,9 +153,7 @@ void updateStockTickerDisplay() {
 void displayOverrideMessage() {
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
-    Serial.println("DISPLAY_LOG: Attempting to take display data mutex in displayOverrideMessage.");
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.println("DISPLAY_LOG: Mutex taken in displayOverrideMessage.");
         printToDisplay(destRow.month, overrideMessageLine1.substring(0, 3).c_str(), 1);
         printToDisplay(destRow.day, overrideMessageLine1.substring(3, 5).c_str(), 2);
         printToDisplay(destRow.year, overrideMessageLine1.substring(5, 9).c_str());
@@ -187,9 +175,6 @@ void displayOverrideMessage() {
         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(2));
         xSemaphoreGive(xDisplayDataMutex);
-        Serial.println("DISPLAY_LOG: Mutex released in displayOverrideMessage.");
-    } else {
-        Serial.println("DISPLAY_LOG: FAILED to take display data mutex in displayOverrideMessage.");
     }
 #endif
 }
@@ -225,22 +210,17 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
   if (isDisplayAsleep || isAnimating || isGlitching || !hardwareInitialized) {
     if(isAnimating) {
-        Serial.println("DISPLAY_LOG: updateNormalClockDisplay returned early because isAnimating is true.");
     }
     return;
   }
 
 #if ENABLE_HARDWARE
-  Serial.println("DISPLAY_LOG: Attempting to take display data mutex...");
   if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    Serial.println("DISPLAY_LOG: Mutex taken.");
     if (timeSynchronized) {
       time_t now_t;
       struct tm dest_timeinfo, present_timeinfo;
 
-      Serial.println("DISPLAY_LOG: Attempting to take time lib mutex.");
       if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.println("DISPLAY_LOG: Time lib mutex taken.");
         time(&now_t);
         // --- Destination Time ---
         setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
@@ -251,9 +231,6 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
         tzset();
         localtime_r(&now_t, &present_timeinfo);
         xSemaphoreGive(xTimeLibMutex);
-        Serial.println("DISPLAY_LOG: Time lib mutex released.");
-      } else {
-        Serial.println("DISPLAY_LOG: FAILED to take time lib mutex.");
       }
 
       if (updateDest) {
@@ -306,9 +283,6 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
       }
     }
     xSemaphoreGive(xDisplayDataMutex);
-    Serial.println("DISPLAY_LOG: Mutex released.");
-  } else {
-    Serial.println("DISPLAY_LOG: FAILED to take display data mutex.");
   }
 #endif
 }
@@ -316,9 +290,7 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 void handleWeatherDisplay() {
 // ... function content remains the same ...
 #if ENABLE_HARDWARE
-    Serial.println("DISPLAY_LOG: Attempting to take display data mutex in handleWeatherDisplay.");
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.println("DISPLAY_LOG: Mutex taken in handleWeatherDisplay.");
         if (!currentWeatherData.dataValid) {
             printToDisplay(lastRow.month, "WEA", 1);
             printToDisplay(lastRow.day, "TH", 2);
@@ -382,14 +354,11 @@ void handleWeatherDisplay() {
             }
         }
         xSemaphoreGive(xDisplayDataMutex);
-        Serial.println("DISPLAY_LOG: Mutex released in handleWeatherDisplay.");
         lastRow.month.writeDisplay();
         lastRow.day.writeDisplay();
         lastRow.year.writeDisplay();
         lastRow.time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(2));
-    } else {
-        Serial.println("DISPLAY_LOG: FAILED to take display data mutex in handleWeatherDisplay.");
     }
 #endif
 }
@@ -413,9 +382,7 @@ void updateMarqueeDisplay() {
         return; // Exit the function to prevent the crash.
     }
 
-    Serial.println("DISPLAY_LOG: Attempting to take display data mutex in updateMarqueeDisplay.");
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.println("DISPLAY_LOG: Mutex taken in updateMarqueeDisplay.");
         if (marqueeState == M_IDLE) {
             // This line is now safe because we already checked numDataPoints.
             currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
@@ -438,7 +405,6 @@ void updateMarqueeDisplay() {
         std::string timeContent = point.prefix + displayPages[currentPageIndex].time + point.suffix;
         
         xSemaphoreGive(xDisplayDataMutex);
-        Serial.println("DISPLAY_LOG: Mutex released in updateMarqueeDisplay.");
 
         String yearCanvas = "   " + String(yearContent.c_str()) + "   ";
         if (yearCanvas.length() <= 4) {
@@ -494,8 +460,6 @@ void updateMarqueeDisplay() {
         targetRow->year.writeDisplay();
         targetRow->time.writeDisplay();
         vTaskDelay(pdMS_TO_TICKS(2));
-    } else {
-        Serial.println("DISPLAY_LOG: FAILED to take display data mutex in updateMarqueeDisplay.");
     }
 #endif
 }

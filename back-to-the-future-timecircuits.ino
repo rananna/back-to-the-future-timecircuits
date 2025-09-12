@@ -356,14 +356,9 @@ void applySettingsFromJson(const JsonObject& obj) {
         std::string newCityName = obj["cityName"].as<std::string>();
         if (newCityName != oldCityName) {
             lastCityName = "";
-            Serial.println("MAIN_LOG: Attempting to take display data mutex in applySettingsFromJson.");
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                Serial.println("MAIN_LOG: Mutex taken in applySettingsFromJson.");
                 currentWeatherData.dataValid = false;
                 xSemaphoreGive(xDisplayDataMutex);
-                Serial.println("MAIN_LOG: Mutex released in applySettingsFromJson.");
-            } else {
-                Serial.println("MAIN_LOG: FAILED to take display data mutex in applySettingsFromJson.");
             }
         }
         currentSettings.cityName = newCityName;
@@ -1037,9 +1032,7 @@ void loop() {
             handleScheduledAnimation();
             static unsigned long lastNtpUpdate = 0;
             if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
-                Serial.println("MAIN_LOG: Attempting to take time lib mutex in loop (NTP).");
                 if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-                    Serial.println("MAIN_LOG: Mutex taken in loop (NTP).");
                     bool syncSuccess = false;
                     int retries = 0;
                     while (!syncSuccess && retries < NUM_NTP_SERVERS) {
@@ -1058,9 +1051,6 @@ void loop() {
                     lastNtpUpdate = millis();
                     ntpSyncRequested = false;
                     xSemaphoreGive(xTimeLibMutex);
-                    Serial.println("MAIN_LOG: Mutex released in loop (NTP).");
-                } else {
-                    Serial.println("MAIN_LOG: FAILED to take time lib mutex in loop (NTP).");
                 }
             }
             static unsigned long lastHaStateUpdate = 0;
@@ -1071,37 +1061,22 @@ void loop() {
             
             if (hardwareInitialized) {
                 if (bootState != BOOT_INACTIVE) {
-                    Serial.println("MAIN_LOG: Attempting to take display data mutex in loop (boot sequence).");
                     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                        Serial.println("MAIN_LOG: Mutex taken in loop (boot sequence).");
                         handleBootSequence();
                         xSemaphoreGive(xDisplayDataMutex);
-                        Serial.println("MAIN_LOG: Mutex released in loop (boot sequence).");
-                    } else {
-                        Serial.println("MAIN_LOG: FAILED to take display data mutex in loop (boot sequence).");
                     }
                 } else {
                     handleFlashEffect();
 
                     if (isAnimating) {
-                        Serial.println("MAIN_LOG: Attempting to take display data mutex in loop (animation).");
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                            Serial.println("MAIN_LOG: Mutex taken in loop (animation).");
                             handleDisplayAnimation();
                             xSemaphoreGive(xDisplayDataMutex);
-                            Serial.println("MAIN_LOG: Mutex released in loop (animation).");
-                        } else {
-                            Serial.println("MAIN_LOG: FAILED to take display data mutex in loop (animation).");
                         }
                     } else if (isStyledAnimating) {
-                        Serial.println("MAIN_LOG: Attempting to take display data mutex in loop (styled animation).");
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                            Serial.println("MAIN_LOG: Mutex taken in loop (styled animation).");
                             handleStyledAnimation();
                             xSemaphoreGive(xDisplayDataMutex);
-                            Serial.println("MAIN_LOG: Mutex released in loop (styled animation).");
-                        } else {
-                            Serial.println("MAIN_LOG: FAILED to take display data mutex in loop (styled animation).");
                         }
                     } else {
                         if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
@@ -1233,9 +1208,7 @@ bool isMarketOpen() {
     if (!timeSynchronized) return false;
 
     bool isOpen = false;
-    Serial.println("MAIN_LOG: Attempting to take time lib mutex in isMarketOpen.");
     if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-        Serial.println("MAIN_LOG: Mutex taken in isMarketOpen.");
         setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
         tzset();
         struct tm timeinfo;
@@ -1250,9 +1223,6 @@ bool isMarketOpen() {
             isOpen = (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
         }
         xSemaphoreGive(xTimeLibMutex);
-        Serial.println("MAIN_LOG: Mutex released in isMarketOpen.");
-    } else {
-        Serial.println("MAIN_LOG: FAILED to take time lib mutex in isMarketOpen.");
     }
     return isOpen;
 }
