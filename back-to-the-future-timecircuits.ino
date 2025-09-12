@@ -180,6 +180,7 @@ unsigned long marqueeOverrideEndTime = 0;
 SemaphoreHandle_t xDisplayDataMutex;
 SemaphoreHandle_t xAnimationStartMutex;
 SemaphoreHandle_t xTimeLibMutex;
+SemaphoreHandle_t xHardwareMutex;
 
 SequenceStep sequence[20];
 int currentSequenceStep = 0;
@@ -224,7 +225,10 @@ void audio_info(Audio::msg_t m) {
  */
 void audioTask(void *pvParameters) {
   for (;;) {
-    audio.loop();
+    if (xSemaphoreTake(xHardwareMutex, portMAX_DELAY) == pdTRUE) {
+      audio.loop();
+      xSemaphoreGive(xHardwareMutex);
+    }
     vTaskDelay(10 / portTICK_PERIOD_MS); // Run this task every 2 milliseconds
   }
 }
@@ -744,12 +748,15 @@ bool attemptHardwareInit() {
 
 void onHardwareInitialized() {
     Serial.println(F("SYSTEM_LOG: Hardware successfully initialized. Running post-init tasks."));
-    applyBrightness();
-    Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
-    audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
-    audio.setVolume(currentSettings.notificationVolume);
-    Audio::audio_info_callback = audio_info;
-    Serial.println(F("BOOT_LOG: I2S Audio... OK"));
+    if (xSemaphoreTake(xHardwareMutex, portMAX_DELAY) == pdTRUE) {
+        applyBrightness();
+        Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
+        audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
+        audio.setVolume(currentSettings.notificationVolume);
+        Audio::audio_info_callback = audio_info;
+        Serial.println(F("BOOT_LOG: I2S Audio... OK"));
+        xSemaphoreGive(xHardwareMutex);
+    }
 
     xTaskCreatePinnedToCore(
         audioTask,          // Task function
@@ -802,6 +809,7 @@ void setup() {
     xDisplayDataMutex = xSemaphoreCreateMutex();
     xAnimationStartMutex = xSemaphoreCreateMutex();
     xTimeLibMutex = xSemaphoreCreateMutex();
+    xHardwareMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
     
     WiFi.mode(WIFI_STA);
@@ -1061,12 +1069,18 @@ void loop() {
             
             if (hardwareInitialized) {
                 if (bootState != BOOT_INACTIVE) {
-                    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                        handleBootSequence();
-                        xSemaphoreGive(xDisplayDataMutex);
+                    if (xSemaphoreTake(xHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                            handleBootSequence();
+                            xSemaphoreGive(xDisplayDataMutex);
+                        }
+                        xSemaphoreGive(xHardwareMutex);
                     }
                 } else {
-                    handleFlashEffect();
+                    if (xSemaphoreTake(xHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        handleFlashEffect();
+                        xSemaphoreGive(xHardwareMutex);
+                    }
 
                     if (isAnimating) {
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
@@ -1183,22 +1197,28 @@ void handleSleepSchedule() {
   if (shouldBeAsleep && !isDisplayAsleep) {
     isDisplayAsleep = true;
     if (hardwareInitialized) {
-        blankAllDisplays();
-        // --- FIX: Turn off all AM/PM LEDs ---
-        digitalWrite(DEST_AM_PIN, LOW);
-        digitalWrite(DEST_PM_PIN, LOW);
-        digitalWrite(PRES_AM_PIN, LOW);
-        digitalWrite(PRES_PM_PIN, LOW);
-        digitalWrite(LAST_AM_PIN, LOW);
-        digitalWrite(LAST_PM_PIN, LOW);
-        playSound("/SLEEP_ON.mp3");
+        if (xSemaphoreTake(xHardwareMutex, portMAX_DELAY) == pdTRUE) {
+            blankAllDisplays();
+            // --- FIX: Turn off all AM/PM LEDs ---
+            digitalWrite(DEST_AM_PIN, LOW);
+            digitalWrite(DEST_PM_PIN, LOW);
+            digitalWrite(PRES_AM_PIN, LOW);
+            digitalWrite(PRES_PM_PIN, LOW);
+            digitalWrite(LAST_AM_PIN, LOW);
+            digitalWrite(LAST_PM_PIN, LOW);
+            playSound("/SLEEP_ON.mp3");
+            xSemaphoreGive(xHardwareMutex);
+        }
     }
     updateHaStatus("Asleep");
   } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
     if (hardwareInitialized) {
-        updateNormalClockDisplay();
-        playSound("/CONFIRM_ON.mp3");
+        if (xSemaphoreTake(xHardwareMutex, portMAX_DELAY) == pdTRUE) {
+            updateNormalClockDisplay();
+            playSound("/CONFIRM_ON.mp3");
+            xSemaphoreGive(xHardwareMutex);
+        }
     }
     updateHaStatus("Idle");
   }
