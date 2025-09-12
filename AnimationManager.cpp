@@ -344,7 +344,7 @@ void handleStyledAnimation() {
     switch (currentStyledPhase) {
         case ANIM_START:
             // This new state plays the sound and immediately transitions to the next state.
-            playSound("/keypad_beeps.mp3");
+            playSound("/electric_sparks.mp3");
             Serial.println("ANIM_LOG: Keypad sound requested.");
             currentStyledPhase = ANIM_WAIT_FOR_KEYPAD_SOUND;
             styledAnimationStartTime = millis(); // Reset timer for the wait phase
