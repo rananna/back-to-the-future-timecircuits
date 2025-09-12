@@ -243,6 +243,7 @@ void animateDisplayRowRandomly(DisplayRow& row) {
     row.month.writeDisplay();
     row.day.writeDisplay();
     row.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1));
   #endif
 }
 /**
@@ -400,6 +401,7 @@ void animateTornadoFlicker() {
     lastRow.month.writeDisplay();
     lastRow.day.writeDisplay();
     lastRow.time.writeDisplay();
+    vTaskDelay(pdMS_TO_TICKS(1));
   #endif
 }
 
@@ -650,6 +652,7 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
         fillRow(presRow, 16);
         fillRow(destRow, charsToShow);
     }
+    vTaskDelay(pdMS_TO_TICKS(1));
     #endif
 }
 
@@ -672,6 +675,7 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
     rainColumn(destRow.day, presRow.day, lastRow.day);
     rainColumn(destRow.year, presRow.year, lastRow.year);
     rainColumn(destRow.time, presRow.time, lastRow.time);
+    vTaskDelay(pdMS_TO_TICKS(1));
     #endif
 }
 
@@ -722,6 +726,7 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
     drawWave(destRow, false);
     drawWave(presRow, true);
     drawWave(lastRow, false);
+    vTaskDelay(pdMS_TO_TICKS(1));
     #endif
 }
 
@@ -1099,6 +1104,7 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
     // Reset timezone
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
+    vTaskDelay(pdMS_TO_TICKS(1));
     #endif
 }
 
