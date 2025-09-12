@@ -441,12 +441,17 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
     time_t now_t;
     struct tm dest_timeinfo;
 
+    Serial.println("HW_CTRL_LOG: Attempting to take time lib mutex in animateLockOnSequence.");
     if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        Serial.println("HW_CTRL_LOG: Mutex taken in animateLockOnSequence.");
         time(&now_t);
         setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
         tzset();
         localtime_r(&now_t, &dest_timeinfo);
         xSemaphoreGive(xTimeLibMutex);
+        Serial.println("HW_CTRL_LOG: Mutex released in animateLockOnSequence.");
+    } else {
+        Serial.println("HW_CTRL_LOG: FAILED to take time lib mutex in animateLockOnSequence.");
     }
 
     char buffer[5];
@@ -498,10 +503,15 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
     }
 
     // Restore the original timezone
+    Serial.println("HW_CTRL_LOG: Attempting to take time lib mutex in animateLockOnSequence (restore).");
     if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        Serial.println("HW_CTRL_LOG: Mutex taken in animateLockOnSequence (restore).");
         setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
         tzset();
         xSemaphoreGive(xTimeLibMutex);
+        Serial.println("HW_CTRL_LOG: Mutex released in animateLockOnSequence (restore).");
+    } else {
+        Serial.println("HW_CTRL_LOG: FAILED to take time lib mutex in animateLockOnSequence (restore).");
     }
     #endif
 }
@@ -576,12 +586,17 @@ void animateTemporalDesync() {
     // Correctly calculate the destination timeinfo
     time_t now_t;
     struct tm dest_timeinfo;
+    Serial.println("HW_CTRL_LOG: Attempting to take time lib mutex in animateTemporalDesync.");
     if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        Serial.println("HW_CTRL_LOG: Mutex taken in animateTemporalDesync.");
         time(&now_t);
         setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
         tzset();
         localtime_r(&now_t, &dest_timeinfo);
         xSemaphoreGive(xTimeLibMutex);
+        Serial.println("HW_CTRL_LOG: Mutex released in animateTemporalDesync.");
+    } else {
+        Serial.println("HW_CTRL_LOG: FAILED to take time lib mutex in animateTemporalDesync.");
     }
 
     // Update the display row with the correct destination info
@@ -589,10 +604,15 @@ void animateTemporalDesync() {
     vTaskDelay(pdMS_TO_TICKS(2));
 
     // Restore the original timezone to not affect other operations
+    Serial.println("HW_CTRL_LOG: Attempting to take time lib mutex in animateTemporalDesync (restore).");
     if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        Serial.println("HW_CTRL_LOG: Mutex taken in animateTemporalDesync (restore).");
         setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
         tzset();
         xSemaphoreGive(xTimeLibMutex);
+        Serial.println("HW_CTRL_LOG: Mutex released in animateTemporalDesync (restore).");
+    } else {
+        Serial.println("HW_CTRL_LOG: FAILED to take time lib mutex in animateTemporalDesync (restore).");
     }
 
     // Row 2 (Middle): Timeline Skim / Randomly animating
@@ -605,9 +625,14 @@ void animateTemporalDesync() {
     time_t startTime = 1445433600; // Approx Oct 21, 2015
     time_t fastForwardTime = startTime + (millis() * 60); // Each ms represents one minute
     struct tm timeinfo;
+    Serial.println("HW_CTRL_LOG: Attempting to take time lib mutex in animateTemporalDesync (fast forward).");
     if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        Serial.println("HW_CTRL_LOG: Mutex taken in animateTemporalDesync (fast forward).");
         gmtime_r(&fastForwardTime, &timeinfo);
         xSemaphoreGive(xTimeLibMutex);
+        Serial.println("HW_CTRL_LOG: Mutex released in animateTemporalDesync (fast forward).");
+    } else {
+        Serial.println("HW_CTRL_LOG: FAILED to take time lib mutex in animateTemporalDesync (fast forward).");
     }
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
@@ -1007,7 +1032,9 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
     // Get current times
     time_t now_t;
     struct tm dest_timeinfo;
+    Serial.println("HW_CTRL_LOG: Attempting to take time lib mutex in animateSequentialFlicker (destination).");
     if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        Serial.println("HW_CTRL_LOG: Mutex taken in animateSequentialFlicker (destination).");
         time(&now_t);
         // --- Destination Time ---
         setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
@@ -1015,16 +1042,24 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
         localtime_r(&now_t, &dest_timeinfo);
         dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
         xSemaphoreGive(xTimeLibMutex);
+        Serial.println("HW_CTRL_LOG: Mutex released in animateSequentialFlicker (destination).");
+    } else {
+        Serial.println("HW_CTRL_LOG: FAILED to take time lib mutex in animateSequentialFlicker (destination).");
     }
 
     // --- Present Time ---
     struct tm present_timeinfo;
     bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
+    Serial.println("HW_CTRL_LOG: Attempting to take time lib mutex in animateSequentialFlicker (present).");
     if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        Serial.println("HW_CTRL_LOG: Mutex taken in animateSequentialFlicker (present).");
         setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
         tzset();
         localtime_r(&now_t, &present_timeinfo);
         xSemaphoreGive(xTimeLibMutex);
+        Serial.println("HW_CTRL_LOG: Mutex released in animateSequentialFlicker (present).");
+    } else {
+        Serial.println("HW_CTRL_LOG: FAILED to take time lib mutex in animateSequentialFlicker (present).");
     }
 
     // --- Last Time Departed ---
@@ -1124,10 +1159,15 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
     }
 
     // Reset timezone
+    Serial.println("HW_CTRL_LOG: Attempting to take time lib mutex in animateSequentialFlicker (restore).");
     if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        Serial.println("HW_CTRL_LOG: Mutex taken in animateSequentialFlicker (restore).");
         setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	    tzset();
         xSemaphoreGive(xTimeLibMutex);
+        Serial.println("HW_CTRL_LOG: Mutex released in animateSequentialFlicker (restore).");
+    } else {
+        Serial.println("HW_CTRL_LOG: FAILED to take time lib mutex in animateSequentialFlicker (restore).");
     }
     vTaskDelay(pdMS_TO_TICKS(1));
     #endif
