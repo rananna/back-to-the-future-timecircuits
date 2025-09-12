@@ -208,7 +208,6 @@ struct SequenceStep {
 #if ENABLE_HARDWARE
 extern TwoWire I2C_1; extern TwoWire I2C_2;
 extern DisplayRow destRow, presRow, lastRow;
-extern SemaphoreHandle_t xHardwareMutex;
 #endif
 
 bool setupPhysicalDisplay();
