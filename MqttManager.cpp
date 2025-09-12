@@ -917,9 +917,14 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     else {
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
             if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
+                Serial.println("MQTT_LOG: Attempting to take display data mutex in mqttCallback (MQTT data source).");
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    Serial.println("MQTT_LOG: Mutex taken in mqttCallback (MQTT data source).");
                     displayPages[i].time = message.c_str();
                     xSemaphoreGive(xDisplayDataMutex);
+                    Serial.println("MQTT_LOG: Mutex released in mqttCallback (MQTT data source).");
+                } else {
+                    Serial.println("MQTT_LOG: FAILED to take display data mutex in mqttCallback (MQTT data source).");
                 }
                 break;
             }
@@ -927,12 +932,17 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         if (topicStr.startsWith(base_topic + "datapoint/")) {
             int dp_index = topicStr.substring(base_topic.length() + 10, topicStr.indexOf('/', base_topic.length() + 10)).toInt();
             if (dp_index >= 0 && dp_index < 5) {
+                Serial.println("MQTT_LOG: Attempting to take display data mutex in mqttCallback (HA data source).");
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    Serial.println("MQTT_LOG: Mutex taken in mqttCallback (HA data source).");
                     if (topicStr.endsWith("/month/set")) displayPages[dp_index].month = message.c_str();
                     else if (topicStr.endsWith("/day/set")) displayPages[dp_index].day = message.c_str();
                     else if (topicStr.endsWith("/year/set")) displayPages[dp_index].year = message.c_str();
                     else if (topicStr.endsWith("/time/set")) displayPages[dp_index].time = message.c_str();
                     xSemaphoreGive(xDisplayDataMutex);
+                    Serial.println("MQTT_LOG: Mutex released in mqttCallback (HA data source).");
+                } else {
+                    Serial.println("MQTT_LOG: FAILED to take display data mutex in mqttCallback (HA data source).");
                 }
             }
         }

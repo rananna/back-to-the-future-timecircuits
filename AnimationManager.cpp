@@ -145,12 +145,16 @@ void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
 void startTimeTravelAnimation() {
     // Attempt to take the mutex. If we can't get it, another task is trying
     // to start an animation, so we should just exit.
+    Serial.println("ANIM_LOG: Attempting to take animation mutex for Time Travel.");
     if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
+        Serial.println("ANIM_LOG: FAILED to take animation mutex for Time Travel.");
         return;
     }
+    Serial.println("ANIM_LOG: Animation mutex taken for Time Travel.");
 
     // We have the mutex, now we can safely check the animation flag.
     if (isAnimating) {
+        Serial.println("ANIM_LOG: Animation already in progress. Releasing mutex.");
         xSemaphoreGive(xAnimationStartMutex); // Release the mutex before returning.
         return;
     }
@@ -160,6 +164,7 @@ void startTimeTravelAnimation() {
 
     // The critical section is over, release the mutex.
     xSemaphoreGive(xAnimationStartMutex);
+    Serial.println("ANIM_LOG: Animation mutex released for Time Travel.");
 
     animationStartTime = millis();
     // Set the initial phase; the state machine will handle the rest.
@@ -304,7 +309,7 @@ void startStyledAnimation() {
 
     // The critical section is over, release the mutex.
     xSemaphoreGive(xAnimationStartMutex);
-    Serial.println("ANIM_LOG: Animation mutex released.");
+    Serial.println("ANIM_LOG: Animation mutex released for Styled Animation.");
 
     styledAnimationStartTime = millis();
     currentStyledPhase = ANIM_START; // Set initial phase to ANIM_START
