@@ -584,8 +584,8 @@ void handleBootSequence() {
             {
                 const char* textToType = "INITIATE PWR";
                 int textLen = strlen(textToType);
-                int totalDuration = 8000; // 8 seconds
-                int charDuration = totalDuration / textLen;
+                int typingDuration = 5000; // 5 seconds
+                int charDuration = typingDuration / textLen;
                 static int charsTyped = 0;
 
                 if (!stateActionCompleted) {
@@ -650,7 +650,7 @@ void handleBootSequence() {
                     charsTyped = charsToShow;
                 }
 
-                if (elapsed > totalDuration) {
+                if (elapsed > typingDuration + 1000) {
                     if (audio.isRunning()) {
                         audio.stopSong();
                     }
@@ -795,7 +795,15 @@ void handleBootSequence() {
         case BOOT_ARRIVAL:
             if (!stateActionCompleted) {
                 playSound("/arrival_chime.mp3");
-
+                stateActionCompleted = true;
+            }
+            if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
+                bootState = BOOT_ARRIVAL_ANIMATION;
+                bootStateStartTime = millis(); // Reset the timer for the animation phase
+            }
+            break;
+        case BOOT_ARRIVAL_ANIMATION:
+            if (!stateActionCompleted) {
                 // --- FIX: Display text immediately without waiting for audio ---
                 blankAllDisplays();
                 printToDisplay(destRow.year, "ARRI");
