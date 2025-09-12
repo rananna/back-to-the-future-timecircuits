@@ -389,6 +389,7 @@ void handleWeatherDisplay() {
 void updateMarqueeDisplay() {
 #if ENABLE_HARDWARE
     DisplayRow* targetRow = &lastRow;
+    String timeCanvas, yearCanvas;
 
     // ✅ FIX: Add this check at the beginning of the function.
     if (currentSettings.numDataPoints == 0) {
@@ -437,7 +438,7 @@ void updateMarqueeDisplay() {
         xSemaphoreGive(xDisplayDataMutex);
 
         if (xSemaphoreTake(xHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            String yearCanvas = "   " + String(yearContent.c_str()) + "   ";
+            yearCanvas = "   " + String(yearContent.c_str()) + "   ";
             if (yearCanvas.length() <= 4) {
                 printToDisplay(targetRow->year, yearCanvas.c_str());
             } else {
@@ -445,7 +446,7 @@ void updateMarqueeDisplay() {
                 printToDisplay(targetRow->year, yearViewport.c_str());
             }
 
-            String timeCanvas = "   " + String(timeContent.c_str()) + "   ";
+            timeCanvas = "   " + String(timeContent.c_str()) + "   ";
             if (timeCanvas.length() <= 4) {
                 printToDisplay(targetRow->time, timeCanvas.c_str());
             } else {
