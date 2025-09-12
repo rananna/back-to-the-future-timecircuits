@@ -1375,11 +1375,11 @@ function previewAnimationStyle(isRandomized = false) {
     let style = document.getElementById('animationStyleSelect').value;
 
     // If we're randomizing, pick a new style and re-call the function.
-    if (style === '22' && !isRandomized) {
+    if (style === '10' && !isRandomized) {
         // Get all options except the last one ("Randomize All")
         const options = document.querySelectorAll('#animationStyleSelect option');
         const randomIndex = Math.floor(Math.random() * (options.length - 1));
-        document.getElementById('animationStyleSelect').value = randomIndex;
+        document.getElementById('animationStyleSelect').value = options[randomIndex].value;
         previewAnimationStyle(true); // Pass flag to prevent infinite loops
         return;
     }
@@ -1524,7 +1524,7 @@ function previewAnimationStyle(isRandomized = false) {
                     headerRows[2].forEach(el => { if(el.classList.contains('year')) el.textContent = year; });
                 }
                 break;
-            case '10': // Glitchy Jump-Cut
+            case '11': // Glitchy Jump-Cut
                 allElements.forEach(el => {
                     if (Math.random() > 0.3) {
                         el.textContent = randomString(el.textContent.length);
@@ -1534,7 +1534,7 @@ function previewAnimationStyle(isRandomized = false) {
                     el.style.transform = `translate(${x}px, ${y}px)`;
                 });
                 break;
-            case '11': // Plasma Warm-Up
+            case '12': // Plasma Warm-Up
                 allElements.forEach(el => {
                     if (!el.dataset.finalColor) el.dataset.finalColor = el.style.color || window.getComputedStyle(el).color;
                     el.classList.add('anim-plasma-warmup');
@@ -1543,7 +1543,7 @@ function previewAnimationStyle(isRandomized = false) {
                     el.style.opacity = 0.4 + warmUpProgress * 0.6;
                 });
                 break;
-            case '12': // Time Warp Streaks
+            case '13': // Time Warp Streaks
                 headerRows.forEach((row, rowIndex) => {
                     row.forEach((el, elIndex) => {
                         el.style.animationDelay = `${(rowIndex * 4 + elIndex) * 0.1}s`;
@@ -1551,7 +1551,7 @@ function previewAnimationStyle(isRandomized = false) {
                     });
                 });
                 break;
-            case '13': // Character Scanline
+            case '14': // Character Scanline
                 headerRows.forEach((row, rowIndex) => {
                     row.forEach(el => {
                         el.style.animationDelay = `${rowIndex * 0.3}s`;
@@ -1559,10 +1559,10 @@ function previewAnimationStyle(isRandomized = false) {
                     });
                 });
                 break;
-            case '14': // Focus In
+            case '15': // Focus In
                 allElements.forEach(el => el.classList.add('anim-focus-in'));
                 break;
-            case '15': // Code Breaker
+            case '16': // Code Breaker
                 allElements.forEach((el, index) => {
                     if (!el.dataset.finalText) el.dataset.finalText = el.textContent;
                     const len = el.dataset.finalText.length;
@@ -1574,7 +1574,7 @@ function previewAnimationStyle(isRandomized = false) {
                     el.textContent = new_text;
                 });
                 break;
-            case '16': // Temporal Paradox
+            case '17': // Temporal Paradox
                 const destRowElements = headerRows[0];
                 const presRowElements = headerRows[1];
                 if (!destRowElements[0].dataset.originalText) {
@@ -1596,7 +1596,7 @@ function previewAnimationStyle(isRandomized = false) {
                     }
                 }
                 break;
-            case '17': // Digit Cascade
+            case '18': // Digit Cascade
                 allElements.forEach((el, index) => {
                     if (!el.dataset.finalText) el.dataset.finalText = el.textContent;
                     const lockInTime = (duration / allElements.length) * (index + 1);
@@ -1609,7 +1609,7 @@ function previewAnimationStyle(isRandomized = false) {
                     }
                 });
                 break;
-            case '18': // Electric Surge
+            case '19': // Electric Surge
                 allElements.forEach((el, index) => {
                     if (!el.dataset.finalText) el.dataset.finalText = el.textContent;
                     el.classList.add('anim-electric-surge');
@@ -1622,7 +1622,7 @@ function previewAnimationStyle(isRandomized = false) {
                     }
                 });
                 break;
-            case '19': // Flip-Disc Display
+            case '20': // Flip-Disc Display
                 allElements.forEach((el, index) => {
                     if (!el.dataset.finalText) {
                         el.dataset.finalText = el.textContent;
@@ -1637,7 +1637,7 @@ function previewAnimationStyle(isRandomized = false) {
                     }
                 });
                 break;
-            case '20': // Interference Pattern
+            case '21': // Interference Pattern
                 allElements.forEach((el, index) => {
                     if (!el.dataset.finalText) el.dataset.finalText = el.textContent;
                     let new_text = '';
@@ -1647,7 +1647,7 @@ function previewAnimationStyle(isRandomized = false) {
                     el.textContent = new_text;
                 });
                 break;
-             case '21': // All Displays Random
+             case '22': // All Displays Random
                 allElements.forEach(el => {
                     if ((elapsed % 500) < 50) { // change every 500ms for 50ms
                          el.textContent = randomString(el.textContent.length);
