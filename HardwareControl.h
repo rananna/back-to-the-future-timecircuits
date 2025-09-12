@@ -2,6 +2,8 @@
 #define HARDWARE_CONTROL_H
 #include "timezone.h"
 #include <Wire.h>
+
+extern char old_dest_str[17], old_pres_str[17], old_last_str[17];
 #include <string>
 #include "Adafruit_LEDBackpack.h"
 #include "Adafruit_GFX.h"
@@ -183,7 +185,11 @@ enum AnimationStyle {
   ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
   ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
   ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
-  ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_RANDOM_ALL
+  ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_RANDOM_ALL,
+  ANIMATION_GLITCHY_JUMP_CUT, ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS,
+  ANIMATION_CHARACTER_SCANLINE, ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER,
+  ANIMATION_TEMPORAL_PARADOX, ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE,
+  ANIMATION_FLIP_DISC_DISPLAY, ANIMATION_INTERFERENCE_PATTERN
 };
 
 // --- START: SEQUENCER DEFINITIONS ---
@@ -241,4 +247,16 @@ void animateCorruptedData();
 void animateLockOnSequence(unsigned long elapsed, int duration);
 void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYear);
 void animateTemporalDesync();
+void animateGlitchyJumpCut(unsigned long elapsed, int duration);
+void animatePlasmaWarmUp(unsigned long elapsed, int duration);
+void animateTimeWarpStreaks(unsigned long elapsed, int duration);
+void animateCharacterScanline(unsigned long elapsed, int duration);
+void animateFocusIn(unsigned long elapsed, int duration);
+void animateCodeBreaker(unsigned long elapsed, int duration);
+void animateTemporalParadox(unsigned long elapsed, int duration);
+void animateDigitCascade(unsigned long elapsed, int duration);
+void animateElectricSurge(unsigned long elapsed, int duration);
+void animateFlipDiscDisplay(unsigned long elapsed, int duration);
+void animateInterferencePattern(unsigned long elapsed, int duration);
+void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str);
 #endif // HARDWARE_CONTROL_H
