@@ -27,6 +27,7 @@ DisplayRow lastRow;
 
 // --- Make global audio objects available ---
 extern bool isPlayingSound;
+extern SemaphoreHandle_t xTimeLibMutex;
 
 #endif
 
@@ -438,11 +439,15 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
 
     // Correctly determine the destination timeinfo
     time_t now_t;
-    time(&now_t);
-    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-    tzset();
     struct tm dest_timeinfo;
-    localtime_r(&now_t, &dest_timeinfo);
+
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        time(&now_t);
+        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now_t, &dest_timeinfo);
+        xSemaphoreGive(xTimeLibMutex);
+    }
 
     char buffer[5];
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
@@ -493,8 +498,11 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
     }
 
     // Restore the original timezone
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+        xSemaphoreGive(xTimeLibMutex);
+    }
     #endif
 }
 
@@ -567,19 +575,25 @@ void animateTemporalDesync() {
     // Row 1 (Top): Steady Destination Time
     // Correctly calculate the destination timeinfo
     time_t now_t;
-    time(&now_t);
-    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-    tzset();
     struct tm dest_timeinfo;
-    localtime_r(&now_t, &dest_timeinfo);
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        time(&now_t);
+        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now_t, &dest_timeinfo);
+        xSemaphoreGive(xTimeLibMutex);
+    }
 
     // Update the display row with the correct destination info
     updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, false);
     vTaskDelay(pdMS_TO_TICKS(2));
 
     // Restore the original timezone to not affect other operations
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+        xSemaphoreGive(xTimeLibMutex);
+    }
 
     // Row 2 (Middle): Timeline Skim / Randomly animating
     animateDisplayRowRandomly(presRow);
@@ -591,7 +605,10 @@ void animateTemporalDesync() {
     time_t startTime = 1445433600; // Approx Oct 21, 2015
     time_t fastForwardTime = startTime + (millis() * 60); // Each ms represents one minute
     struct tm timeinfo;
-    gmtime_r(&fastForwardTime, &timeinfo);
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        gmtime_r(&fastForwardTime, &timeinfo);
+        xSemaphoreGive(xTimeLibMutex);
+    }
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
     printToDisplay(lastRow.month, months[timeinfo.tm_mon], 1);
@@ -989,21 +1006,26 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
 
     // Get current times
     time_t now_t;
-    time(&now_t);
-    
-    // --- Destination Time ---
-    setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-    tzset();
     struct tm dest_timeinfo;
-    localtime_r(&now_t, &dest_timeinfo);
-    dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        time(&now_t);
+        // --- Destination Time ---
+        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now_t, &dest_timeinfo);
+        dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+        xSemaphoreGive(xTimeLibMutex);
+    }
 
     // --- Present Time ---
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
     struct tm present_timeinfo;
-    localtime_r(&now_t, &present_timeinfo);
     bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now_t, &present_timeinfo);
+        xSemaphoreGive(xTimeLibMutex);
+    }
 
     // --- Last Time Departed ---
     struct tm lastTimeDepartedInfo = {0};
@@ -1102,8 +1124,11 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
     }
 
     // Reset timezone
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-	tzset();
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+	    tzset();
+        xSemaphoreGive(xTimeLibMutex);
+    }
     vTaskDelay(pdMS_TO_TICKS(1));
     #endif
 }

@@ -179,6 +179,7 @@ String marqueeOverrideMessage = "";
 unsigned long marqueeOverrideEndTime = 0;
 SemaphoreHandle_t xDisplayDataMutex;
 SemaphoreHandle_t xAnimationStartMutex;
+SemaphoreHandle_t xTimeLibMutex;
 
 SequenceStep sequence[20];
 int currentSequenceStep = 0;
@@ -800,6 +801,7 @@ void setup() {
 
     xDisplayDataMutex = xSemaphoreCreateMutex();
     xAnimationStartMutex = xSemaphoreCreateMutex();
+    xTimeLibMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
     
     WiFi.mode(WIFI_STA);
@@ -1030,23 +1032,26 @@ void loop() {
             handleScheduledAnimation();
             static unsigned long lastNtpUpdate = 0;
             if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
-                bool syncSuccess = false;
-                int retries = 0;
-                while (!syncSuccess && retries < NUM_NTP_SERVERS) {
-                    configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
-                    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                    tzset();
-                    struct tm timeinfo;
-                    if (getLocalTime(&timeinfo, 10000)) {
-                        timeSynchronized = true;
-                        syncSuccess = true;
-                    } else {
-                        currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
-                        retries++;
+                if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+                    bool syncSuccess = false;
+                    int retries = 0;
+                    while (!syncSuccess && retries < NUM_NTP_SERVERS) {
+                        configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
+                        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                        tzset();
+                        struct tm timeinfo;
+                        if (getLocalTime(&timeinfo, 10000)) {
+                            timeSynchronized = true;
+                            syncSuccess = true;
+                        } else {
+                            currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
+                            retries++;
+                        }
                     }
+                    lastNtpUpdate = millis();
+                    ntpSyncRequested = false;
+                    xSemaphoreGive(xTimeLibMutex);
                 }
-                lastNtpUpdate = millis();
-                ntpSyncRequested = false;
             }
             static unsigned long lastHaStateUpdate = 0;
             if (timeSynchronized && millis() - lastHaStateUpdate > 5000) {
@@ -1056,7 +1061,10 @@ void loop() {
             
             if (hardwareInitialized) {
                 if (bootState != BOOT_INACTIVE) {
-                    handleBootSequence();
+                    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                        handleBootSequence();
+                        xSemaphoreGive(xDisplayDataMutex);
+                    }
                 } else {
                     handleFlashEffect();
 
@@ -1198,19 +1206,23 @@ void handleSleepSchedule() {
 
 bool isMarketOpen() {
     if (!timeSynchronized) return false;
-    setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
-    tzset();
-    struct tm timeinfo;
-    getLocalTime(&timeinfo);
-    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-    tzset();
 
-    if (timeinfo.tm_wday < 1 || timeinfo.tm_wday > 5) {
-        return false;
+    bool isOpen = false;
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
+        tzset();
+        struct tm timeinfo;
+        getLocalTime(&timeinfo);
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+
+        if (timeinfo.tm_wday >= 1 && timeinfo.tm_wday <= 5) {
+            int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+            int market_open_minutes = 9 * 60 + 30;
+            int market_close_minutes = 16 * 60;
+            isOpen = (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
+        }
+        xSemaphoreGive(xTimeLibMutex);
     }
-
-    int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-    int market_open_minutes = 9 * 60 + 30;
-    int market_close_minutes = 16 * 60;
-    return (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
+    return isOpen;
 }
