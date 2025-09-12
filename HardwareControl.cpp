@@ -1438,17 +1438,21 @@ void animateFocusIn(unsigned long elapsed, int duration) {
         }
         buffer[16] = '\0';
 
-        char month_buf[4] = "###";
-        char day_buf[3] = "##";
-        char year_buf[5] = "####";
-        char time_buf[5] = "####";
+        char month_buf[4];
+        char day_buf[3];
+        char year_buf[5];
+        char time_buf[5];
 
         strncpy(month_buf, buffer, 3);
+        month_buf[3] = '\0';
         strncpy(day_buf, buffer + 3, 2);
+        day_buf[2] = '\0';
         strncpy(year_buf, buffer + 5, 4);
+        year_buf[4] = '\0';
         strncpy(time_buf, buffer + 9, 4);
+        time_buf[4] = '\0';
 
-        printToDisplay(row.month, month_buf);
+        printToDisplay(row.month, month_buf, 1);
         printToDisplay(row.day, day_buf, 2);
         printToDisplay(row.year, year_buf);
         printToDisplay(row.time, time_buf);
@@ -1483,17 +1487,21 @@ void animateCodeBreaker(unsigned long elapsed, int duration) {
         }
         buffer[16] = '\0';
 
-        char month_buf[4] = "###";
-        char day_buf[3] = "##";
-        char year_buf[5] = "####";
-        char time_buf[5] = "####";
+        char month_buf[4];
+        char day_buf[3];
+        char year_buf[5];
+        char time_buf[5];
 
         strncpy(month_buf, buffer, 3);
+        month_buf[3] = '\0';
         strncpy(day_buf, buffer + 3, 2);
+        day_buf[2] = '\0';
         strncpy(year_buf, buffer + 5, 4);
+        year_buf[4] = '\0';
         strncpy(time_buf, buffer + 9, 4);
+        time_buf[4] = '\0';
 
-        printToDisplay(row.month, month_buf);
+        printToDisplay(row.month, month_buf, 1);
         printToDisplay(row.day, day_buf, 2);
         printToDisplay(row.year, year_buf);
         printToDisplay(row.time, time_buf);
