@@ -57,7 +57,6 @@ DisplayRow lastRow;
 
 // --- Make global audio objects available ---
 extern bool isPlayingSound;
-extern SemaphoreHandle_t xTimeLibMutex;
 extern BootSequenceState bootState;
 
 #endif
