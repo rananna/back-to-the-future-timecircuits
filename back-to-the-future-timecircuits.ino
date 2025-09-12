@@ -180,6 +180,7 @@ unsigned long marqueeOverrideEndTime = 0;
 SemaphoreHandle_t xDisplayDataMutex;
 SemaphoreHandle_t xAnimationStartMutex;
 SemaphoreHandle_t xTimeLibMutex;
+SemaphoreHandle_t xDisplayHardwareMutex;
 
 SequenceStep sequence[20];
 int currentSequenceStep = 0;
@@ -802,6 +803,7 @@ void setup() {
     xDisplayDataMutex = xSemaphoreCreateMutex();
     xAnimationStartMutex = xSemaphoreCreateMutex();
     xTimeLibMutex = xSemaphoreCreateMutex();
+    xDisplayHardwareMutex = xSemaphoreCreateMutex();
     Serial.println(F("BOOT_LOG: Mutex created... OK"));
     
     WiFi.mode(WIFI_STA);
