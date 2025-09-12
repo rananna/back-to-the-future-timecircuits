@@ -12,8 +12,6 @@
 #include "EventManager.h"
 #include "HardwareControl.h"
 
-extern SemaphoreHandle_t xTimeLibMutex;
-
 // External declaration for the global stock data array.
 extern StockData stockData[3];
 
