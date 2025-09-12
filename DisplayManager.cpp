@@ -436,8 +436,10 @@ void updateMarqueeDisplay() {
         
         xSemaphoreGive(xDisplayDataMutex);
 
+        String yearCanvas = "   " + String(yearContent.c_str()) + "   ";
+        String timeCanvas = "   " + String(timeContent.c_str()) + "   ";
+
         if (xSemaphoreTake(xHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            String yearCanvas = "   " + String(yearContent.c_str()) + "   ";
             if (yearCanvas.length() <= 4) {
                 printToDisplay(targetRow->year, yearCanvas.c_str());
             } else {
@@ -445,7 +447,6 @@ void updateMarqueeDisplay() {
                 printToDisplay(targetRow->year, yearViewport.c_str());
             }
 
-            String timeCanvas = "   " + String(timeContent.c_str()) + "   ";
             if (timeCanvas.length() <= 4) {
                 printToDisplay(targetRow->time, timeCanvas.c_str());
             } else {
