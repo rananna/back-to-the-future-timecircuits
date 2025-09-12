@@ -11,6 +11,7 @@
 extern bool isStyledAnimating;
 extern unsigned long styledAnimationStartTime;
 extern AnimationPhase currentStyledPhase;
+char old_dest_str[17], old_pres_str[17], old_last_str[17];
 
 static BootSequenceState nextStateAfterSound = BOOT_INACTIVE;
 static AnimationPhase nextPhaseAfterSound = ANIM_INACTIVE;
@@ -301,13 +302,15 @@ void startStyledAnimation() {
     // The critical section is over, release the mutex.
     xSemaphoreGive(xAnimationStartMutex);
 
+    getFormattedTimeStrings(old_dest_str, old_pres_str, old_last_str);
+
     styledAnimationStartTime = millis();
     currentStyledPhase = ANIM_START; // Set initial phase to ANIM_START
     updateHaStatus("Animating");
 
     // Set the animation style for this run
     if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
-        randomAnimationStyle = random(0, 11); // Updated to include the new animation
+        randomAnimationStyle = random(0, ANIMATION_RANDOM_ALL);
     } else {
         randomAnimationStyle = currentSettings.animationStyle;
     }
@@ -408,6 +411,50 @@ void handleStyledAnimation() {
 
                     case ANIMATION_TEMPORAL_DESYNC:
                         animateTemporalDesync();
+                        break;
+
+                    case ANIMATION_GLITCHY_JUMP_CUT:
+                        animateGlitchyJumpCut(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_PLASMA_WARM_UP:
+                        animatePlasmaWarmUp(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_TIME_WARP_STREAKS:
+                        animateTimeWarpStreaks(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_CHARACTER_SCANLINE:
+                        animateCharacterScanline(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_FOCUS_IN:
+                        animateFocusIn(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_CODE_BREAKER:
+                        animateCodeBreaker(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_TEMPORAL_PARADOX:
+                        animateTemporalParadox(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_DIGIT_CASCADE:
+                        animateDigitCascade(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_ELECTRIC_SURGE:
+                        animateElectricSurge(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_FLIP_DISC_DISPLAY:
+                        animateFlipDiscDisplay(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_INTERFERENCE_PATTERN:
+                        animateInterferencePattern(elapsed, 10000);
                         break;
 
                     case ANIMATION_TORNADO_FLICKER:

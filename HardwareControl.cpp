@@ -12,6 +12,35 @@
 #include "LittleFS.h"
 #include "AnimationManager.h"
 
+void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str) {
+    struct tm dest_timeinfo, present_timeinfo, last_time_departed_info;
+    time_t now_t;
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        time(&now_t);
+        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now_t, &dest_timeinfo);
+        dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now_t, &present_timeinfo);
+
+        xSemaphoreGive(xTimeLibMutex);
+    }
+    last_time_departed_info.tm_year = currentSettings.lastTimeDepartedYear - 1900;
+    last_time_departed_info.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
+    last_time_departed_info.tm_mday = currentSettings.lastTimeDepartedDay;
+    last_time_departed_info.tm_hour = currentSettings.lastTimeDepartedHour;
+    last_time_departed_info.tm_min = currentSettings.lastTimeDepartedMinute;
+
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    snprintf(dest_str, 17, "%3s%02d%04d%02d%02d", months[dest_timeinfo.tm_mon], dest_timeinfo.tm_mday, currentSettings.destinationYear, dest_timeinfo.tm_hour, dest_timeinfo.tm_min);
+    snprintf(pres_str, 17, "%3s%02d%04d%02d%02d", months[present_timeinfo.tm_mon], present_timeinfo.tm_mday, present_timeinfo.tm_year + 1900, present_timeinfo.tm_hour, present_timeinfo.tm_min);
+    snprintf(last_str, 17, "%3s%02d%04d%02d%02d", months[last_time_departed_info.tm_mon], last_time_departed_info.tm_mday, currentSettings.lastTimeDepartedYear, last_time_departed_info.tm_hour, last_time_departed_info.tm_min);
+}
+
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
 /** @brief The I2C bus instance for the Destination and Present time rows. */
@@ -1237,4 +1266,480 @@ void animateCountingUp(unsigned long elapsed, int duration) {
         }
         if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateCountingUp"); }
     #endif
+}
+
+void animateGlitchyJumpCut(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+
+    if (progress < 0.9) {
+        for (int i = 0; i < 3; ++i) {
+            if (random(100) < 70) { // 70% chance to show random data
+                animateDisplayRowRandomly(*rows[i]);
+            } else { // 30% chance to show the correct time
+                updateNormalClockDisplay(i == 0, i == 1, i == 2);
+            }
+
+            // Simulate a "jump" by glitching a single segment
+            if (random(100) < 25) { // 25% chance to jump
+                int segmentToGlitch = random(4);
+                Adafruit_AlphaNum4* segment;
+                switch(segmentToGlitch) {
+                    case 0: segment = &rows[i]->month; break;
+                    case 1: segment = &rows[i]->day; break;
+                    case 2: segment = &rows[i]->year; break;
+                    case 3: segment = &rows[i]->time; break;
+                }
+                segment->clear();
+                // Write a random character to a random position
+                const char* chars = "1234567890";
+                segment->writeDigitAscii(random(4), chars[random(strlen(chars))]);
+                segment->writeDisplay();
+            }
+        }
+    } else {
+        updateNormalClockDisplay(true, true, true);
+    }
+  #endif
+}
+
+void animatePlasmaWarmUp(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    // Start dim and gradually increase brightness
+    uint8_t targetBrightness = progress * currentSettings.brightness;
+    uint8_t currentBrightness;
+
+    // Flicker the brightness to simulate a glow
+    if (random(100) < 50) {
+        currentBrightness = targetBrightness * 0.8;
+    } else {
+        currentBrightness = targetBrightness;
+    }
+
+    if (currentBrightness > currentSettings.brightness) {
+        currentBrightness = currentSettings.brightness;
+    }
+
+    destRow.month.setBrightness(currentBrightness);
+    destRow.day.setBrightness(currentBrightness);
+    destRow.year.setBrightness(currentBrightness);
+    destRow.time.setBrightness(currentBrightness);
+    presRow.month.setBrightness(currentBrightness);
+    presRow.day.setBrightness(currentBrightness);
+    presRow.year.setBrightness(currentBrightness);
+    presRow.time.setBrightness(currentBrightness);
+    lastRow.month.setBrightness(currentBrightness);
+    lastRow.day.setBrightness(currentBrightness);
+    lastRow.year.setBrightness(currentBrightness);
+    lastRow.time.setBrightness(currentBrightness);
+
+    // Flicker with random characters
+    if (progress < 0.9) { // Flicker for the first 90% of the animation
+        animateTornadoFlicker();
+    } else {
+        // For the last 10%, show the correct time
+        updateNormalClockDisplay(true, true, true);
+    }
+
+  #endif
+}
+
+void animateTimeWarpStreaks(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    char final_dest[17], final_pres[17], final_last[17];
+    getFormattedTimeStrings(final_dest, final_pres, final_last);
+
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    int slideInPos = 16 * progress;
+
+    auto streakRow = [&](DisplayRow& row, const char* final_str) {
+        char display_str[17] = "                "; // 16 spaces
+        int start_pos = 16 - slideInPos;
+        if (start_pos < 0) start_pos = 0;
+
+        for (int i = 0; i < slideInPos; ++i) {
+            display_str[start_pos + i] = final_str[i];
+        }
+
+        printToDisplay(row.month, String(display_str).substring(0, 3).c_str());
+        printToDisplay(row.day, String(display_str).substring(3, 5).c_str(), 2);
+        printToDisplay(row.year, String(display_str).substring(5, 9).c_str());
+        printToDisplay(row.time, String(display_str).substring(9, 13).c_str());
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    streakRow(destRow, final_dest);
+    streakRow(presRow, final_pres);
+    streakRow(lastRow, final_last);
+
+  #endif
+}
+
+void animateCharacterScanline(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    char dest_str[17], pres_str[17], last_str[17];
+    getFormattedTimeStrings(dest_str, pres_str, last_str);
+
+    int charsToShow = progress * 16;
+
+    auto scanlineRow = [&](DisplayRow& row, const char* final_str, int count) {
+        char month_buf[4] = "   ";
+        char day_buf[3] = "  ";
+        char year_buf[5] = "    ";
+        char time_buf[5] = "    ";
+
+        if (count > 0) strncpy(month_buf, final_str, min(count, 3));
+        if (count > 3) strncpy(day_buf, final_str + 3, min(count - 3, 2));
+        if (count > 5) strncpy(year_buf, final_str + 5, min(count - 5, 4));
+        if (count > 9) strncpy(time_buf, final_str + 9, min(count - 9, 4));
+
+        printToDisplay(row.month, month_buf);
+        printToDisplay(row.day, day_buf, 2);
+        printToDisplay(row.year, year_buf);
+        printToDisplay(row.time, time_buf);
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    scanlineRow(destRow, dest_str, charsToShow);
+    scanlineRow(presRow, pres_str, charsToShow);
+    scanlineRow(lastRow, last_str, charsToShow);
+  #endif
+}
+
+void animateFocusIn(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    char dest_str[17], pres_str[17], last_str[17];
+    getFormattedTimeStrings(dest_str, pres_str, last_str);
+
+    int charsToFocus = progress * 16;
+
+    auto focusRow = [&](DisplayRow& row, const char* final_str, int count) {
+        char buffer[17];
+        for (int i = 0; i < 16; ++i) {
+            if (i < count) {
+                buffer[i] = final_str[i];
+            } else {
+                const char* chars = "!@#$%^&*()";
+                buffer[i] = chars[random(strlen(chars))];
+            }
+        }
+        buffer[16] = '\0';
+
+        char month_buf[4] = "###";
+        char day_buf[3] = "##";
+        char year_buf[5] = "####";
+        char time_buf[5] = "####";
+
+        strncpy(month_buf, buffer, 3);
+        strncpy(day_buf, buffer + 3, 2);
+        strncpy(year_buf, buffer + 5, 4);
+        strncpy(time_buf, buffer + 9, 4);
+
+        printToDisplay(row.month, month_buf);
+        printToDisplay(row.day, day_buf, 2);
+        printToDisplay(row.year, year_buf);
+        printToDisplay(row.time, time_buf);
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    focusRow(destRow, dest_str, charsToFocus);
+    focusRow(presRow, pres_str, charsToFocus);
+    focusRow(lastRow, last_str, charsToFocus);
+  #endif
+}
+
+void animateCodeBreaker(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    char dest_str[17], pres_str[17], last_str[17];
+    getFormattedTimeStrings(dest_str, pres_str, last_str);
+
+    int charsToLock = progress * 16;
+
+    auto codeBreakerRow = [&](DisplayRow& row, const char* final_str, int count) {
+        char buffer[17];
+        for (int i = 0; i < 16; ++i) {
+            if (i < count) {
+                buffer[i] = final_str[i];
+            } else {
+                const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                buffer[i] = chars[random(strlen(chars))];
+            }
+        }
+        buffer[16] = '\0';
+
+        char month_buf[4] = "###";
+        char day_buf[3] = "##";
+        char year_buf[5] = "####";
+        char time_buf[5] = "####";
+
+        strncpy(month_buf, buffer, 3);
+        strncpy(day_buf, buffer + 3, 2);
+        strncpy(year_buf, buffer + 5, 4);
+        strncpy(time_buf, buffer + 9, 4);
+
+        printToDisplay(row.month, month_buf);
+        printToDisplay(row.day, day_buf, 2);
+        printToDisplay(row.year, year_buf);
+        printToDisplay(row.time, time_buf);
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    codeBreakerRow(destRow, dest_str, charsToLock);
+    codeBreakerRow(presRow, pres_str, charsToLock);
+    codeBreakerRow(lastRow, last_str, charsToLock);
+  #endif
+}
+
+void animateTemporalParadox(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    char dest_str[17], pres_str[17], last_str[17];
+    getFormattedTimeStrings(dest_str, pres_str, last_str);
+
+    int swap_point = 16 * progress;
+
+    char dest_buffer[17], pres_buffer[17];
+
+    for (int i = 0; i < 16; i++) {
+        if (i < swap_point) {
+            dest_buffer[i] = pres_str[i];
+            pres_buffer[i] = dest_str[i];
+        } else {
+            dest_buffer[i] = dest_str[i];
+            pres_buffer[i] = pres_str[i];
+        }
+    }
+
+    dest_buffer[16] = '\0';
+    pres_buffer[16] = '\0';
+
+    printToDisplay(destRow.month, String(dest_buffer).substring(0, 3).c_str());
+    printToDisplay(destRow.day, String(dest_buffer).substring(3, 5).c_str(), 2);
+    printToDisplay(destRow.year, String(dest_buffer).substring(5, 9).c_str());
+    printToDisplay(destRow.time, String(dest_buffer).substring(9, 13).c_str());
+    destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+
+    printToDisplay(presRow.month, String(pres_buffer).substring(0, 3).c_str());
+    printToDisplay(presRow.day, String(pres_buffer).substring(3, 5).c_str(), 2);
+    printToDisplay(presRow.year, String(pres_buffer).substring(5, 9).c_str());
+    printToDisplay(presRow.time, String(pres_buffer).substring(9, 13).c_str());
+    presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+
+    updateNormalClockDisplay(false, false, true);
+  #endif
+}
+
+void animateDigitCascade(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    char dest_str[17], pres_str[17], last_str[17];
+    getFormattedTimeStrings(dest_str, pres_str, last_str);
+
+    int segmentsToLock = progress * 12; // 3 rows * 4 segments
+
+    auto cascadeRow = [&](DisplayRow& row, const char* final_str, int start_index) {
+        char month_buf[4], day_buf[3], year_buf[5], time_buf[5];
+
+        // Month
+        if (segmentsToLock > start_index) {
+            strncpy(month_buf, final_str, 3);
+            month_buf[3] = '\0';
+        } else {
+            // Rapidly cycle through random chars
+            for (int i = 0; i < 3; i++) {
+                month_buf[i] = random(256);
+            }
+            month_buf[3] = '\0';
+        }
+
+        // Day
+        if (segmentsToLock > start_index + 1) {
+            strncpy(day_buf, final_str + 3, 2);
+            day_buf[2] = '\0';
+        } else {
+            sprintf(day_buf, "%02d", random(0, 99));
+        }
+
+        // Year
+        if (segmentsToLock > start_index + 2) {
+            strncpy(year_buf, final_str + 5, 4);
+            year_buf[4] = '\0';
+        } else {
+            sprintf(year_buf, "%04d", random(0, 9999));
+        }
+
+        // Time
+        if (segmentsToLock > start_index + 3) {
+            strncpy(time_buf, final_str + 9, 4);
+            time_buf[4] = '\0';
+        } else {
+            sprintf(time_buf, "%04d", random(0, 9999));
+        }
+
+        // Simulate falling from above by clearing and re-printing
+        row.month.clear();
+        row.day.clear();
+        row.year.clear();
+        row.time.clear();
+
+        printToDisplay(row.month, month_buf);
+        printToDisplay(row.day, day_buf, 2);
+        printToDisplay(row.year, year_buf);
+        printToDisplay(row.time, time_buf);
+
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    cascadeRow(destRow, dest_str, 0);
+    cascadeRow(presRow, pres_str, 4);
+    cascadeRow(lastRow, last_str, 8);
+  #endif
+}
+
+void animateElectricSurge(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    char dest_str[17], pres_str[17], last_str[17];
+    getFormattedTimeStrings(dest_str, pres_str, last_str);
+
+    int surgePosition = progress * 16;
+
+    auto surgeRow = [&](DisplayRow& row, const char* final_str, const char* initial_str) {
+        char buffer[17];
+        for (int i = 0; i < 16; ++i) {
+            if (i < surgePosition) {
+                buffer[i] = final_str[i];
+            } else if (i == surgePosition) {
+                const char* chars = "1234567890";
+                buffer[i] = chars[random(strlen(chars))];
+            } else {
+                buffer[i] = initial_str[i];
+            }
+        }
+        buffer[16] = '\0';
+
+        char month_buf[4], day_buf[3], year_buf[5], time_buf[5];
+
+        strncpy(month_buf, buffer, 3); month_buf[3] = '\0';
+        strncpy(day_buf, buffer + 3, 2); day_buf[2] = '\0';
+        strncpy(year_buf, buffer + 5, 4); year_buf[4] = '\0';
+        strncpy(time_buf, buffer + 9, 4); time_buf[4] = '\0';
+
+        printToDisplay(row.month, month_buf);
+        printToDisplay(row.day, day_buf, 2);
+        printToDisplay(row.year, year_buf);
+        printToDisplay(row.time, time_buf);
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    surgeRow(destRow, dest_str, old_dest_str);
+    surgeRow(presRow, pres_str, old_pres_str);
+    surgeRow(lastRow, last_str, old_last_str);
+  #endif
+}
+
+void animateFlipDiscDisplay(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    char dest_str[17], pres_str[17], last_str[17];
+    getFormattedTimeStrings(dest_str, pres_str, last_str);
+
+    int segmentsToFlip = progress * 12;
+
+    auto flipDiscRow = [&](DisplayRow& row, const char* final_str, int start_index) {
+        char month_buf[4] = "   ", day_buf[3] = "  ", year_buf[5] = "    ", time_buf[5] = "    ";
+
+        if (segmentsToFlip > start_index) {
+            strncpy(month_buf, final_str, 3);
+            month_buf[3] = '\0';
+        }
+        if (segmentsToFlip > start_index + 1) {
+            strncpy(day_buf, final_str + 3, 2);
+            day_buf[2] = '\0';
+        }
+        if (segmentsToFlip > start_index + 2) {
+            strncpy(year_buf, final_str + 5, 4);
+            year_buf[4] = '\0';
+        }
+        if (segmentsToFlip > start_index + 3) {
+            strncpy(time_buf, final_str + 9, 4);
+            time_buf[4] = '\0';
+        }
+
+        printToDisplay(row.month, month_buf);
+        printToDisplay(row.day, day_buf, 2);
+        printToDisplay(row.year, year_buf);
+        printToDisplay(row.time, time_buf);
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    flipDiscRow(destRow, dest_str, 0);
+    flipDiscRow(presRow, pres_str, 4);
+    flipDiscRow(lastRow, last_str, 8);
+  #endif
+}
+
+void animateInterferencePattern(unsigned long elapsed, int duration) {
+  #if ENABLE_HARDWARE
+    float progress = (float)elapsed / duration;
+    if (progress > 1.0) progress = 1.0;
+
+    char dest_str[17], pres_str[17], last_str[17];
+    getFormattedTimeStrings(dest_str, pres_str, last_str);
+
+    auto interferenceRow = [&](DisplayRow& row, const char* final_str) {
+        char buffer[17];
+        for (int i = 0; i < 16; ++i) {
+            if (random(100) < progress * 100) {
+                buffer[i] = final_str[i];
+            } else {
+                const char* chars = "1234567890!@#$%^&*()_+-=[]{}|;':,./<>?";
+                buffer[i] = chars[random(strlen(chars))];
+            }
+        }
+        buffer[16] = '\0';
+
+        char month_buf[4], day_buf[3], year_buf[5], time_buf[5];
+
+        strncpy(month_buf, buffer, 3); month_buf[3] = '\0';
+        strncpy(day_buf, buffer + 3, 2); day_buf[2] = '\0';
+        strncpy(year_buf, buffer + 5, 4); year_buf[4] = '\0';
+        strncpy(time_buf, buffer + 9, 4); time_buf[4] = '\0';
+
+        printToDisplay(row.month, month_buf);
+        printToDisplay(row.day, day_buf, 2);
+        printToDisplay(row.year, year_buf);
+        printToDisplay(row.time, time_buf);
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+    };
+
+    interferenceRow(destRow, dest_str);
+    interferenceRow(presRow, pres_str);
+    interferenceRow(lastRow, last_str);
+  #endif
 }

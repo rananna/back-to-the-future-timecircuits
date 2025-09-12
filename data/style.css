@@ -1569,3 +1569,120 @@ body.time-travel-active {
     align-items: center;
     gap: 8px;
 }
+
+@keyframes plasma-glow {
+    0% {
+        text-shadow: 0 0 5px #00f, 0 0 10px #00f, 0 0 15px #f0f;
+        opacity: 0.6;
+    }
+    50% {
+        text-shadow: 0 0 10px #00f, 0 0 20px #f0f, 0 0 30px #f0f;
+        opacity: 0.8;
+    }
+    100% {
+        text-shadow: 0 0 5px #00f, 0 0 10px #00f, 0 0 15px #f0f;
+        opacity: 0.6;
+    }
+}
+
+.anim-plasma-warmup {
+    animation: plasma-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes streak-in {
+    from {
+        transform: translateX(-150%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.anim-streak-in {
+    animation: streak-in 0.5s ease-out forwards;
+}
+
+@keyframes scanline {
+    from {
+        clip-path: inset(0 0 100% 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+.anim-scanline {
+    animation: scanline 1s ease-in-out forwards;
+}
+
+@keyframes focus-in {
+    from {
+        filter: blur(5px);
+        opacity: 0.5;
+    }
+    to {
+        filter: blur(0);
+        opacity: 1;
+    }
+}
+
+.anim-focus-in {
+    animation: focus-in 1s ease-in-out forwards;
+}
+
+@keyframes cascade {
+    from {
+        transform: translateY(-200%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.anim-cascade {
+    animation: cascade 0.5s ease-out forwards;
+}
+
+@keyframes electric-surge {
+    from {
+        left: -100%;
+    }
+    to {
+        left: 100%;
+    }
+}
+
+.anim-electric-surge {
+    position: relative;
+    overflow: hidden;
+}
+
+.anim-electric-surge::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to right, transparent, #0ff, transparent);
+    animation: electric-surge 1s linear forwards;
+}
+
+@keyframes flip-disc {
+    0% {
+        transform: perspective(400px) rotateX(0deg);
+    }
+    100% {
+        transform: perspective(400px) rotateX(360deg);
+    }
+}
+
+.anim-flip-disc {
+    display: inline-block;
+    animation: flip-disc 1s ease-in-out;
+    transform-style: preserve-3d;
+}

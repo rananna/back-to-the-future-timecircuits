@@ -1404,7 +1404,13 @@ function previewAnimationStyle() {
             allElements.forEach(el => {
                 el.className = el.className.split(' ')[0];
                 el.style.opacity = 1;
-                el.style.transform = 'none';
+                el.style.transform = 'none'; // Reset transform
+                el.style.animationDelay = '';
+                el.classList.remove('anim-streak-in');
+                el.classList.remove('anim-plasma-warmup');
+                el.classList.remove('anim-scanline');
+                el.classList.remove('anim-focus-in');
+                delete el.dataset.finalColor;
             });
             updateHeaderClocks(new Date());
             return;
@@ -1487,10 +1493,211 @@ function previewAnimationStyle() {
             case '7': // Digital Rain
                  allElements.forEach(el => el.textContent = randomString(el.textContent.length));
                  break;
+            case '11': // Glitchy Jump-Cut
+                allElements.forEach(el => {
+                    if (Math.random() > 0.3) {
+                        el.textContent = randomString(el.textContent.length);
+                    }
+                    const x = (Math.random() - 0.5) * 5;
+                    const y = (Math.random() - 0.5) * 5;
+                    el.style.transform = `translate(${x}px, ${y}px)`;
+                });
+                break;
+            case '12': // Plasma Warm-Up
+                allElements.forEach(el => {
+                    if (!el.dataset.finalColor) {
+                        el.dataset.finalColor = el.style.color || window.getComputedStyle(el).color;
+                    }
+                    el.classList.add('anim-plasma-warmup');
+                    el.style.color = '#8a2be2'; // Start with a blue-violet color
+                    const warmUpProgress = Math.min(progress, 1);
+                    el.style.opacity = 0.4 + warmUpProgress * 0.6;
+
+                    if (progress >= 1) {
+                        el.style.color = el.dataset.finalColor;
+                        el.classList.remove('anim-plasma-warmup');
+                        delete el.dataset.finalColor;
+                    }
+                });
+                break;
+            case '13': // Time Warp Streaks
+                headerRows.forEach((row, rowIndex) => {
+                    row.forEach((el, elIndex) => {
+                        el.style.animationDelay = `${(rowIndex * 4 + elIndex) * 0.1}s`;
+                        el.classList.add('anim-streak-in');
+                    });
+                });
+                break;
+            case '14': // Character Scanline
+                headerRows.forEach((row, rowIndex) => {
+                    row.forEach(el => {
+                        el.style.animationDelay = `${rowIndex * 0.3}s`;
+                        el.classList.add('anim-scanline');
+                    });
+                });
+                break;
+            case '15': // Focus In
+                allElements.forEach(el => {
+                    el.classList.add('anim-focus-in');
+                });
+                break;
+            case '16': // Code Breaker
+                allElements.forEach((el, index) => {
+                    if (!el.dataset.finalText) {
+                        el.dataset.finalText = el.textContent;
+                    }
+                    const final_text = el.dataset.finalText;
+                    const len = final_text.length;
+                    let new_text = '';
+                    for (let i = 0; i < len; i++) {
+                        const lockInTime = (duration / len) * (i + 1);
+                        if (elapsed < lockInTime) {
+                            new_text += randomChar();
+                        } else {
+                            new_text += final_text[i];
+                        }
+                    }
+                    el.textContent = new_text;
+
+                    if (progress >= 1) {
+                        el.textContent = final_text;
+                        delete el.dataset.finalText;
+                    }
+                });
+                break;
+            case '21': // Interference Pattern
+                allElements.forEach((el, index) => {
+                    if (!el.dataset.finalText) {
+                        el.dataset.finalText = el.textContent;
+                    }
+                    const final_text = el.dataset.finalText;
+                    const len = final_text.length;
+                    let new_text = '';
+                    for (let i = 0; i < len; i++) {
+                        if (Math.random() > progress) {
+                            new_text += randomChar();
+                        } else {
+                            new_text += final_text[i];
+                        }
+                    }
+                    el.textContent = new_text;
+
+                    if (progress >= 1) {
+                        el.textContent = final_text;
+                        delete el.dataset.finalText;
+                    }
+                });
+                break;
+            case '17': // Temporal Paradox
+                const destRowElements = headerRows[0];
+                const presRowElements = headerRows[1];
+
+                if (!destRowElements[0].dataset.originalText) {
+                    destRowElements.forEach((el, i) => {
+                        el.dataset.originalText = el.textContent;
+                        presRowElements[i].dataset.originalText = presRowElements[i].textContent;
+                    });
+                }
+
+                const swapPoint = Math.floor(progress * destRowElements.length);
+
+                for (let i = 0; i < destRowElements.length; i++) {
+                    const destEl = destRowElements[i];
+                    const presEl = presRowElements[i];
+
+                    if (i < swapPoint) {
+                        destEl.textContent = presEl.dataset.originalText;
+                        presEl.textContent = destEl.dataset.originalText;
+                    } else {
+                        destEl.textContent = destEl.dataset.originalText;
+                        presEl.textContent = presEl.dataset.originalText;
+                    }
+                }
+
+                if (progress >= 1) {
+                    destRowElements.forEach((el, i) => {
+                        el.textContent = el.dataset.originalText;
+                        presRowElements[i].textContent = presRowElements[i].dataset.originalText;
+                        delete el.dataset.originalText;
+                        delete presRowElements[i].dataset.originalText;
+                    });
+                }
+                break;
+            case '18': // Digit Cascade
+                allElements.forEach((el, index) => {
+                    if (!el.dataset.finalText) {
+                        el.dataset.finalText = el.textContent;
+                    }
+                    const final_text = el.dataset.finalText;
+                    const len = final_text.length;
+
+                    const lockInTime = (duration / allElements.length) * (index + 1);
+
+                    if (elapsed < lockInTime) {
+                        el.textContent = randomString(len, "0123456789");
+                        el.classList.add('anim-cascade');
+                    } else {
+                        el.textContent = final_text;
+                        el.classList.remove('anim-cascade');
+                    }
+
+                    if (progress >= 1) {
+                        el.textContent = final_text;
+                        delete el.dataset.finalText;
+                    }
+                });
+                break;
+            case '19': // Electric Surge
+                allElements.forEach((el, index) => {
+                    if (!el.dataset.finalText) {
+                        el.dataset.finalText = el.textContent;
+                    }
+                    el.classList.add('anim-electric-surge');
+
+                    const final_text = el.dataset.finalText;
+                    const len = final_text.length;
+                    const surgePosition = progress * 2 - 0.5; // From -0.5 to 1.5
+                    const elPosition = index / allElements.length;
+
+                    if (surgePosition > elPosition && surgePosition < elPosition + (1 / allElements.length)) {
+                        el.textContent = randomString(len);
+                    } else {
+                        el.textContent = final_text;
+                    }
+
+                    if (progress >= 1) {
+                        el.textContent = final_text;
+                        delete el.dataset.finalText;
+                        el.classList.remove('anim-electric-surge');
+                    }
+                });
+                break;
+            case '20': // Flip-Disc Display
+                allElements.forEach((el, index) => {
+                    if (!el.dataset.finalText) {
+                        el.dataset.finalText = el.textContent;
+                        const final_text = el.dataset.finalText;
+                        const len = final_text.length;
+                        el.innerHTML = '';
+                        for (let i = 0; i < len; i++) {
+                            const span = document.createElement('span');
+                            span.textContent = final_text[i];
+                            span.className = 'anim-flip-disc';
+                            span.style.animationDelay = `${(index * len + i) * 0.05}s`;
+                            el.appendChild(span);
+                        }
+                    }
+
+                    if (progress >= 1) {
+                        el.textContent = el.dataset.finalText;
+                        delete el.dataset.finalText;
+                    }
+                });
+                break;
         }
     };
 
-    animationPreviewInterval = setInterval(runPreview, 250);
+    animationPreviewInterval = setInterval(runPreview, 100);
 }
 
 /**
