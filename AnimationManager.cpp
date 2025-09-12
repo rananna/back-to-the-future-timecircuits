@@ -356,6 +356,9 @@ void handleStyledAnimation() {
             if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
                 currentStyledPhase = ANIM_FLICKER;
                 styledAnimationStartTime = millis(); // Reset timer for the flicker phase
+            } else {
+                // Yield to other tasks to prevent blocking the scheduler
+                vTaskDelay(pdMS_TO_TICKS(10));
             }
             break;
 
