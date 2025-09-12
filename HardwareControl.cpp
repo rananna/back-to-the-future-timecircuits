@@ -31,6 +31,10 @@ extern SemaphoreHandle_t xTimeLibMutex;
 
 #endif
 
+// This flag ensures that the I2C buses are only initialized once,
+// even if setupPhysicalDisplay() is called multiple times on retry attempts.
+static bool i2c_initialized = false;
+
 // --- HELPER FUNCTION ---
 /**
  * @brief Writes a string to a 4-character alphanumeric display with justification.
@@ -71,9 +75,12 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
 bool setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
   if (xSemaphoreTake(xHardwareMutex, portMAX_DELAY) == pdTRUE) {
-    // Initialize both I2C buses with their respective SDA/SCL pins.
-    I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
-    I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
+    // Initialize both I2C buses, but only if they haven't been started already.
+    if (!i2c_initialized) {
+      I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
+      I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
+      i2c_initialized = true;
+    }
 
     // Set a timeout to prevent indefinite blocking
     I2C_1.setTimeout(250); // 250ms timeout
