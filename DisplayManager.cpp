@@ -12,6 +12,8 @@
 #include "EventManager.h"
 #include "HardwareControl.h"
 
+extern SemaphoreHandle_t xTimeLibMutex;
+
 // External declaration for the global stock data array.
 extern StockData stockData[3];
 
@@ -211,19 +213,23 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
   if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
     if (timeSynchronized) {
       time_t now_t;
-      time(&now_t);
+      struct tm dest_timeinfo, present_timeinfo;
 
-      // --- Destination Time ---
+      if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        time(&now_t);
+        // --- Destination Time ---
+        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now_t, &dest_timeinfo);
+        // --- Present Time ---
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now_t, &present_timeinfo);
+        xSemaphoreGive(xTimeLibMutex);
+      }
+
       if (updateDest) {
-          setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-          tzset();
-          struct tm dest_timeinfo;
-          localtime_r(&now_t, &dest_timeinfo);
-
-          // The struct is now correctly populated with the current date/time in the destination's timezone.
-          // We only need to override the year with the one from settings.
           dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
-
           if (!isRowInManualMode[0]) {
               updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
           } else {
@@ -236,14 +242,8 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
           vTaskDelay(pdMS_TO_TICKS(2));
       }
 
-      // --- Present Time ---
       if (updatePres) {
           bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
-          setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-          tzset();
-          struct tm present_timeinfo;
-          localtime_r(&now_t, &present_timeinfo);
-
           if(!isRowInManualMode[1]) {
               updateDisplayRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent);
           } else {
@@ -276,10 +276,6 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
           lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
           vTaskDelay(pdMS_TO_TICKS(2));
       }
-
-      // --- IMPORTANT: Reset Timezone to Present for other functions ---
-      setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-      tzset();
     }
     xSemaphoreGive(xDisplayDataMutex);
   }

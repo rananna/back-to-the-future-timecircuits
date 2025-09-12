@@ -474,7 +474,7 @@ void handleStyledAnimation() {
  * suggesting a temporary instability in the timeline.
  */
 void handleTemporalEcho() {
-    if (!isEchoEffectActive || !hardwareInitialized) return;
+    if (!isEchoEffectActive || isAnimating || isStyledAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     if (millis() - echoEffectStartTime > 60000) { // Effect lasts for 1 minute
         isEchoEffectActive = false;
@@ -492,7 +492,7 @@ void handleTemporalEcho() {
  * @brief Handles the random glitch and malfunction effects during normal operation.
  */
 void handleGlitchEffect() {
-    if (isAnimating || isDisplayAsleep) return;
+    if (isAnimating || isStyledAnimating || isDisplayAsleep) return;
     if (millis() - lastGlitchTime > 1000) { // Check once per second
         lastGlitchTime = millis();
 
