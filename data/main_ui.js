@@ -1371,8 +1371,19 @@ function duplicateDataPoint(event) {
 /**
  * Previews an animation style in the header clocks.
  */
-function previewAnimationStyle() {
-    const style = document.getElementById('animationStyleSelect').value;
+function previewAnimationStyle(isRandomized = false) {
+    let style = document.getElementById('animationStyleSelect').value;
+
+    // If we're randomizing, pick a new style and re-call the function.
+    if (style === '22' && !isRandomized) {
+        // Get all options except the last one ("Randomize All")
+        const options = document.querySelectorAll('#animationStyleSelect option');
+        const randomIndex = Math.floor(Math.random() * (options.length - 1));
+        document.getElementById('animationStyleSelect').value = randomIndex;
+        previewAnimationStyle(true); // Pass flag to prevent infinite loops
+        return;
+    }
+
     const headerRows = [
         document.querySelectorAll('#header-dest .circuit-content span'),
         document.querySelectorAll('#header-pres .circuit-content span'),
@@ -1385,10 +1396,17 @@ function previewAnimationStyle() {
         clearInterval(animationPreviewInterval);
         animationPreviewInterval = null;
     }
+
     allElements.forEach(el => {
+        // Reset all animations and styles
         el.className = el.className.split(' ')[0];
         el.style.opacity = 1;
         el.style.transform = 'none';
+        el.style.animationDelay = '';
+        el.classList.remove('anim-streak-in', 'anim-plasma-warmup', 'anim-scanline', 'anim-focus-in', 'anim-cascade', 'anim-electric-surge');
+        if (el.dataset.finalText) delete el.dataset.finalText;
+        if (el.dataset.finalColor) delete el.dataset.finalColor;
+        if (el.dataset.originalText) delete el.dataset.originalText;
     });
     
     let startTime = Date.now();
@@ -1404,13 +1422,12 @@ function previewAnimationStyle() {
             allElements.forEach(el => {
                 el.className = el.className.split(' ')[0];
                 el.style.opacity = 1;
-                el.style.transform = 'none'; // Reset transform
+                el.style.transform = 'none';
                 el.style.animationDelay = '';
-                el.classList.remove('anim-streak-in');
-                el.classList.remove('anim-plasma-warmup');
-                el.classList.remove('anim-scanline');
-                el.classList.remove('anim-focus-in');
-                delete el.dataset.finalColor;
+                el.classList.remove('anim-streak-in', 'anim-plasma-warmup', 'anim-scanline', 'anim-focus-in', 'anim-cascade', 'anim-electric-surge');
+                if (el.dataset.finalText) delete el.dataset.finalText;
+                if (el.dataset.finalColor) delete el.dataset.finalColor;
+                if (el.dataset.originalText) delete el.dataset.originalText;
             });
             updateHeaderClocks(new Date());
             return;
@@ -1418,40 +1435,40 @@ function previewAnimationStyle() {
 
         const progress = elapsed / duration;
 
-        // Animate based on the selected style
+        // Animate based on the corrected style
         switch (style) {
-            case '0': 
-            case '1': 
-            case '2':
-            case '5': // Tornado Flicker is also random
+            case '0': // Sequential Flicker
+                const flickerIndex = Math.floor((elapsed / 100) % allElements.length);
+                allElements.forEach((el, index) => {
+                    el.textContent = (index === flickerIndex) ? randomString(el.textContent.length) : el.dataset.finalText || el.textContent;
+                    if (!el.dataset.finalText) el.dataset.finalText = el.textContent;
+                });
+                break;
+            case '1': // Random Flicker
                  allElements.forEach(el => {
                     if (Math.random() > 0.1) {
                         el.textContent = randomString(el.textContent.length);
                     }
                 });
                 break;
-            case '3': // Counting Up
-            case '9': { // Timeline Skim
-                const startYear = (style === '3') ? new Date().getFullYear() : 1885;
-                const endYear = (style === '3') ? startYear + 100 : (parseInt(document.getElementById('destinationYear').value, 10) || 2015);
-                
+            case '2': // Counting Up
+            case '8': { // Timeline Skim
+                const startYear = (style === '2') ? new Date().getFullYear() - 10 : 1885;
+                const endYear = (style === '2') ? startYear + 100 : (parseInt(document.getElementById('destinationYear').value, 10) || 2015);
                 const totalYears = endYear - startYear;
                 const yearsToAdd = totalYears * (1 - Math.pow(1 - progress, 3)); // Ease-out
-                
-                // Simulate a fast-forward in time by adding a large number of days
                 const startDate = new Date(startYear, 0, 1);
-                const daysToAdd = yearsToAdd * 365.25; // Approximate
-                
+                const daysToAdd = yearsToAdd * 365.25;
                 const currentDate = new Date(startDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000 + elapsed * 10000);
 
-                const year = currentDate.getFullYear();
+                const year = String(Math.floor(currentDate.getFullYear())).padStart(4, '0');
                 const month = months[currentDate.getMonth()];
                 const day = String(currentDate.getDate()).padStart(2, '0');
                 const hour = String(currentDate.getHours()).padStart(2, '0');
                 const minute = String(currentDate.getMinutes()).padStart(2, '0');
                 
                 ['header-dest', 'header-pres', 'header-last'].forEach(prefix => {
-                    document.getElementById(`${prefix}-year`).textContent = String(year).padStart(4, '0');
+                    document.getElementById(`${prefix}-year`).textContent = year;
                     document.getElementById(`${prefix}-month`).textContent = month;
                     document.getElementById(`${prefix}-day`).textContent = day;
                     document.getElementById(`${prefix}-hour`).textContent = hour;
@@ -1459,25 +1476,25 @@ function previewAnimationStyle() {
                 });
                 break;
             }
-            case '4': // Wave Flicker is the same as Waveform Collapse in the C++
-            case '8': // Waveform Collapse
+            case '3': // Wave Flicker
+            case '7': { // Waveform Collapse
                 const wavePatterns = ["-___-", "_--_-", "__-__"];
                 const waveIndex = Math.floor((elapsed / 200) % 3);
                 const scrollOffset = Math.floor((elapsed / 100) % 5);
-                
                 headerRows.forEach((row, rowIndex) => {
                     let basePattern = wavePatterns[waveIndex];
-                    if (rowIndex === 1) { 
-                        basePattern = basePattern.split('').map(c => (c === '-') ? '_' : '-').join('');
-                    }
+                    if (rowIndex === 1) basePattern = basePattern.split('').map(c => (c === '-') ? '_' : '-').join('');
                     let scrolledPattern = basePattern.slice(scrollOffset) + basePattern.slice(0, scrollOffset);
-                    
                     row.forEach(el => {
                         el.textContent = scrolledPattern.repeat(Math.ceil(el.textContent.length / 5)).substring(0, el.textContent.length);
                     });
                 });
                 break;
-            case '6': // Capacitor Charge-Up
+            }
+            case '4': // Tornado Flicker
+                allElements.forEach(el => el.textContent = randomString(el.textContent.length));
+                break;
+            case '5': // Capacitor Charge-Up
                 headerRows.forEach((row, rowIndex) => {
                     const phaseProgress = progress * 3 - rowIndex;
                     if (phaseProgress >= 0) {
@@ -1490,10 +1507,24 @@ function previewAnimationStyle() {
                     }
                 });
                 break;
-            case '7': // Digital Rain
-                 allElements.forEach(el => el.textContent = randomString(el.textContent.length));
+            case '6': // Digital Rain
+                 allElements.forEach(el => {
+                     if (Math.random() > 0.5) {
+                        el.textContent = randomString(el.textContent.length);
+                     }
+                 });
                  break;
-            case '11': // Glitchy Jump-Cut
+            case '9': // Temporal Desync
+                const desyncOffset = Math.sin(progress * Math.PI * 4) * 10; //-10 to 10
+                const desyncDate = new Date(Date.now() + desyncOffset * 365 * 24 * 60 * 60 * 1000);
+                const year = String(desyncDate.getFullYear()).padStart(4, '0');
+                if (Math.random() > 0.5) {
+                    headerRows[0].forEach(el => { if(el.classList.contains('year')) el.textContent = year; });
+                } else {
+                    headerRows[2].forEach(el => { if(el.classList.contains('year')) el.textContent = year; });
+                }
+                break;
+            case '10': // Glitchy Jump-Cut
                 allElements.forEach(el => {
                     if (Math.random() > 0.3) {
                         el.textContent = randomString(el.textContent.length);
@@ -1503,24 +1534,16 @@ function previewAnimationStyle() {
                     el.style.transform = `translate(${x}px, ${y}px)`;
                 });
                 break;
-            case '12': // Plasma Warm-Up
+            case '11': // Plasma Warm-Up
                 allElements.forEach(el => {
-                    if (!el.dataset.finalColor) {
-                        el.dataset.finalColor = el.style.color || window.getComputedStyle(el).color;
-                    }
+                    if (!el.dataset.finalColor) el.dataset.finalColor = el.style.color || window.getComputedStyle(el).color;
                     el.classList.add('anim-plasma-warmup');
-                    el.style.color = '#8a2be2'; // Start with a blue-violet color
+                    el.style.color = '#8a2be2';
                     const warmUpProgress = Math.min(progress, 1);
                     el.style.opacity = 0.4 + warmUpProgress * 0.6;
-
-                    if (progress >= 1) {
-                        el.style.color = el.dataset.finalColor;
-                        el.classList.remove('anim-plasma-warmup');
-                        delete el.dataset.finalColor;
-                    }
                 });
                 break;
-            case '13': // Time Warp Streaks
+            case '12': // Time Warp Streaks
                 headerRows.forEach((row, rowIndex) => {
                     row.forEach((el, elIndex) => {
                         el.style.animationDelay = `${(rowIndex * 4 + elIndex) * 0.1}s`;
@@ -1528,7 +1551,7 @@ function previewAnimationStyle() {
                     });
                 });
                 break;
-            case '14': // Character Scanline
+            case '13': // Character Scanline
                 headerRows.forEach((row, rowIndex) => {
                     row.forEach(el => {
                         el.style.animationDelay = `${rowIndex * 0.3}s`;
@@ -1536,75 +1559,34 @@ function previewAnimationStyle() {
                     });
                 });
                 break;
-            case '15': // Focus In
-                allElements.forEach(el => {
-                    el.classList.add('anim-focus-in');
-                });
+            case '14': // Focus In
+                allElements.forEach(el => el.classList.add('anim-focus-in'));
                 break;
-            case '16': // Code Breaker
+            case '15': // Code Breaker
                 allElements.forEach((el, index) => {
-                    if (!el.dataset.finalText) {
-                        el.dataset.finalText = el.textContent;
-                    }
-                    const final_text = el.dataset.finalText;
-                    const len = final_text.length;
+                    if (!el.dataset.finalText) el.dataset.finalText = el.textContent;
+                    const len = el.dataset.finalText.length;
                     let new_text = '';
                     for (let i = 0; i < len; i++) {
                         const lockInTime = (duration / len) * (i + 1);
-                        if (elapsed < lockInTime) {
-                            new_text += randomChar();
-                        } else {
-                            new_text += final_text[i];
-                        }
+                        new_text += (elapsed < lockInTime) ? randomChar() : el.dataset.finalText[i];
                     }
                     el.textContent = new_text;
-
-                    if (progress >= 1) {
-                        el.textContent = final_text;
-                        delete el.dataset.finalText;
-                    }
                 });
                 break;
-            case '21': // Interference Pattern
-                allElements.forEach((el, index) => {
-                    if (!el.dataset.finalText) {
-                        el.dataset.finalText = el.textContent;
-                    }
-                    const final_text = el.dataset.finalText;
-                    const len = final_text.length;
-                    let new_text = '';
-                    for (let i = 0; i < len; i++) {
-                        if (Math.random() > progress) {
-                            new_text += randomChar();
-                        } else {
-                            new_text += final_text[i];
-                        }
-                    }
-                    el.textContent = new_text;
-
-                    if (progress >= 1) {
-                        el.textContent = final_text;
-                        delete el.dataset.finalText;
-                    }
-                });
-                break;
-            case '17': // Temporal Paradox
+            case '16': // Temporal Paradox
                 const destRowElements = headerRows[0];
                 const presRowElements = headerRows[1];
-
                 if (!destRowElements[0].dataset.originalText) {
                     destRowElements.forEach((el, i) => {
                         el.dataset.originalText = el.textContent;
                         presRowElements[i].dataset.originalText = presRowElements[i].textContent;
                     });
                 }
-
                 const swapPoint = Math.floor(progress * destRowElements.length);
-
                 for (let i = 0; i < destRowElements.length; i++) {
                     const destEl = destRowElements[i];
                     const presEl = presRowElements[i];
-
                     if (i < swapPoint) {
                         destEl.textContent = presEl.dataset.originalText;
                         presEl.textContent = destEl.dataset.originalText;
@@ -1613,91 +1595,68 @@ function previewAnimationStyle() {
                         presEl.textContent = presEl.dataset.originalText;
                     }
                 }
-
-                if (progress >= 1) {
-                    destRowElements.forEach((el, i) => {
-                        el.textContent = el.dataset.originalText;
-                        presRowElements[i].textContent = presRowElements[i].dataset.originalText;
-                        delete el.dataset.originalText;
-                        delete presRowElements[i].dataset.originalText;
-                    });
-                }
                 break;
-            case '18': // Digit Cascade
+            case '17': // Digit Cascade
                 allElements.forEach((el, index) => {
-                    if (!el.dataset.finalText) {
-                        el.dataset.finalText = el.textContent;
-                    }
-                    const final_text = el.dataset.finalText;
-                    const len = final_text.length;
-
+                    if (!el.dataset.finalText) el.dataset.finalText = el.textContent;
                     const lockInTime = (duration / allElements.length) * (index + 1);
-
                     if (elapsed < lockInTime) {
-                        el.textContent = randomString(len, "0123456789");
+                        el.textContent = randomString(el.textContent.length, "0123456789");
                         el.classList.add('anim-cascade');
                     } else {
-                        el.textContent = final_text;
+                        el.textContent = el.dataset.finalText;
                         el.classList.remove('anim-cascade');
                     }
-
-                    if (progress >= 1) {
-                        el.textContent = final_text;
-                        delete el.dataset.finalText;
-                    }
                 });
                 break;
-            case '19': // Electric Surge
+            case '18': // Electric Surge
                 allElements.forEach((el, index) => {
-                    if (!el.dataset.finalText) {
-                        el.dataset.finalText = el.textContent;
-                    }
+                    if (!el.dataset.finalText) el.dataset.finalText = el.textContent;
                     el.classList.add('anim-electric-surge');
-
-                    const final_text = el.dataset.finalText;
-                    const len = final_text.length;
-                    const surgePosition = progress * 2 - 0.5; // From -0.5 to 1.5
+                    const surgePosition = progress * 1.2 - 0.1;
                     const elPosition = index / allElements.length;
-
-                    if (surgePosition > elPosition && surgePosition < elPosition + (1 / allElements.length)) {
-                        el.textContent = randomString(len);
+                    if (surgePosition > elPosition && surgePosition < elPosition + 0.1) {
+                        el.textContent = randomString(el.textContent.length);
                     } else {
-                        el.textContent = final_text;
-                    }
-
-                    if (progress >= 1) {
-                        el.textContent = final_text;
-                        delete el.dataset.finalText;
-                        el.classList.remove('anim-electric-surge');
+                        el.textContent = el.dataset.finalText;
                     }
                 });
                 break;
-            case '20': // Flip-Disc Display
+            case '19': // Flip-Disc Display
                 allElements.forEach((el, index) => {
                     if (!el.dataset.finalText) {
                         el.dataset.finalText = el.textContent;
-                        const final_text = el.dataset.finalText;
-                        const len = final_text.length;
                         el.innerHTML = '';
-                        for (let i = 0; i < len; i++) {
+                        for (let i = 0; i < el.dataset.finalText.length; i++) {
                             const span = document.createElement('span');
-                            span.textContent = final_text[i];
+                            span.textContent = el.dataset.finalText[i];
                             span.className = 'anim-flip-disc';
-                            span.style.animationDelay = `${(index * len + i) * 0.05}s`;
+                            span.style.animationDelay = `${(index * el.dataset.finalText.length + i) * 0.05}s`;
                             el.appendChild(span);
                         }
                     }
-
-                    if (progress >= 1) {
-                        el.textContent = el.dataset.finalText;
-                        delete el.dataset.finalText;
+                });
+                break;
+            case '20': // Interference Pattern
+                allElements.forEach((el, index) => {
+                    if (!el.dataset.finalText) el.dataset.finalText = el.textContent;
+                    let new_text = '';
+                    for (let i = 0; i < el.dataset.finalText.length; i++) {
+                        new_text += (Math.random() > progress) ? randomChar() : el.dataset.finalText[i];
+                    }
+                    el.textContent = new_text;
+                });
+                break;
+             case '21': // All Displays Random
+                allElements.forEach(el => {
+                    if ((elapsed % 500) < 50) { // change every 500ms for 50ms
+                         el.textContent = randomString(el.textContent.length);
                     }
                 });
                 break;
         }
     };
-
-    animationPreviewInterval = setInterval(runPreview, 100);
+    animationPreviewInterval = setInterval(runPreview, 50);
 }
 
 /**
