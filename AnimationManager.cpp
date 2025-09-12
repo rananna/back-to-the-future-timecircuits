@@ -580,30 +580,82 @@ void handleBootSequence() {
             }
             break;
         case BOOT_COLD_START:
-            if (!stateActionCompleted) {
-                blankAllDisplays();
-                printToDisplay(destRow.day, "TM", 2);
-                printToDisplay(destRow.year, "CIRC");
-                printToDisplay(destRow.time, "UITS");
-                destRow.day.writeDisplay();
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
-                stateActionCompleted = true;
-            }
-            if (elapsed > 1000 && !typingStarted) {
-                printToDisplay(presRow.month, " IN", 1);
-                printToDisplay(presRow.day, "IT", 2);
-                printToDisplay(presRow.year, "IATE");
-                printToDisplay(presRow.time, " PWR");
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
-                typingStarted = true;
-            }
-            if (elapsed > BOOT_COLD_START_DURATION) {
-                bootState = BOOT_FLUX_CAPACITOR_IGNITION;
-                bootStateStartTime = millis();
+            {
+                const char* textToType = "INITIATE PWR";
+                int textLen = strlen(textToType);
+                int totalDuration = 8000; // 8 seconds
+                int charDuration = totalDuration / textLen;
+                static int charsTyped = 0;
+
+                if (!stateActionCompleted) {
+                    playSound("/keypad_beeps.mp3");
+                    blankAllDisplays();
+                    printToDisplay(destRow.day, "TM", 2);
+                    printToDisplay(destRow.year, "CIRC");
+                    printToDisplay(destRow.time, "UITS");
+                    destRow.day.writeDisplay();
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                    stateActionCompleted = true;
+                    charsTyped = 0;
+                }
+
+                int charsToShow = elapsed / charDuration;
+                if (charsToShow > textLen) {
+                    charsToShow = textLen;
+                }
+
+                if (charsToShow > charsTyped) {
+                    const char* p_month = " IN";
+                    const char* p_day = "IT";
+                    const char* p_year = "IATE";
+                    const char* p_time = " PWR";
+
+                    char monthStr[4];
+                    char dayStr[3];
+                    char yearStr[5];
+                    char timeStr[5];
+
+                    int len_m = strlen(p_month);
+                    int len_d = strlen(p_day);
+                    int len_y = strlen(p_year);
+                    int len_t = strlen(p_time);
+
+                    int chars_m = (charsToShow > len_m) ? len_m : charsToShow;
+                    strncpy(monthStr, p_month, chars_m);
+                    monthStr[chars_m] = '\0';
+
+                    int chars_d = (charsToShow > len_m + len_d) ? len_d : ((charsToShow > len_m) ? charsToShow - len_m : 0);
+                    strncpy(dayStr, p_day, chars_d);
+                    dayStr[chars_d] = '\0';
+
+                    int chars_y = (charsToShow > len_m + len_d + len_y) ? len_y : ((charsToShow > len_m + len_d) ? charsToShow - (len_m + len_d) : 0);
+                    strncpy(yearStr, p_year, chars_y);
+                    yearStr[chars_y] = '\0';
+
+                    int chars_t = (charsToShow > len_m + len_d + len_y + len_t) ? len_t : ((charsToShow > len_m + len_d + len_y) ? charsToShow - (len_m + len_d + len_y) : 0);
+                    strncpy(timeStr, p_time, chars_t);
+                    timeStr[chars_t] = '\0';
+
+                    printToDisplay(presRow.month, monthStr, 1);
+                    printToDisplay(presRow.day, dayStr, 2);
+                    printToDisplay(presRow.year, yearStr, 0);
+                    printToDisplay(presRow.time, timeStr, 1);
+
+                    presRow.month.writeDisplay();
+                    presRow.day.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
+                    charsTyped = charsToShow;
+                }
+
+                if (elapsed > totalDuration) {
+                    if (audio.isRunning()) {
+                        audio.stopSong();
+                    }
+                    bootState = BOOT_FLUX_CAPACITOR_IGNITION;
+                    bootStateStartTime = millis();
+                }
             }
             break;
 
