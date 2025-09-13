@@ -100,6 +100,19 @@ function initWebSocket() {
                 } else {
                     el.value = msg.value;
                 }
+                // --- FIX: Add logic to disable the weather toggle ---
+                if (msg.key === 'weatherModeEnabled') {
+                    el.disabled = !msg.value;
+                    const weatherGroup = document.getElementById('weatherModeGroup');
+                    if (weatherGroup) {
+                        if (!msg.value) {
+                            // Also visually disable the parent group to give feedback
+                            weatherGroup.classList.add('disabled');
+                        } else {
+                            weatherGroup.classList.remove('disabled');
+                        }
+                    }
+                }
                 // Trigger an event to update any associated UI elements (like value spans)
                 el.dispatchEvent(new Event('input'));
                 el.dispatchEvent(new Event('change'));
