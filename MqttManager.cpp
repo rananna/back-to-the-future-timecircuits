@@ -576,14 +576,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             settingsChanged = true;
             broadcastWsStateUpdate("animationStyleSelect", currentSettings.animationStyle);
         }
-        else if (component == "glitch_freq") {
-            int freq = message.toInt();
-            if (freq >= 0 && freq <= 100) {
-                currentSettings.glitchEffectFrequency = freq;
-                settingsChanged = true;
-                broadcastWsStateUpdate("glitchEffectFrequency", freq);
-            }
-        }
         else if (component == "volume") {
             int vol = message.toInt();
             if (vol >= 0 && vol <= 21) {
@@ -637,8 +629,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             }
         }
         else if (topicStr == base_topic + "trigger_effect/command") {
-            if (message == "Trigger Glitch") triggerTemporalGlitch();
-            else if (message == "Run Boot Sequence") runBootSequence();
+            if (message == "Run Boot Sequence") runBootSequence();
             mqttClient.publish((base_topic + "trigger_effect/state").c_str(), "None", true);
         }
         else if (topicStr == base_topic + "flash_command/command") {
@@ -778,9 +769,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 currentSettings.notificationVolume = 0;
                 currentSettings.timeTravelSoundToggle = false;
                 currentSettings.glitchEffectFrequency = 0;
-            } else if (message == "Unstable") {
-                currentSettings.brightness = 7;
-                currentSettings.glitchEffectFrequency = 75;
             }
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;
@@ -971,9 +959,6 @@ void publishAllHaStates() {
     itoa(currentSettings.brightness, payload, 10);
     mqttClient.publish((base_topic + "/brightness/state").c_str(), payload, true);
     
-    itoa(currentSettings.glitchEffectFrequency, payload, 10);
-    mqttClient.publish((base_topic + "/glitch_freq/state").c_str(), payload, true);
-
     itoa(currentSettings.notificationVolume, payload, 10);
     mqttClient.publish((base_topic + "/volume/state").c_str(), payload, true);
 
@@ -1010,7 +995,6 @@ void publishAllHaStates() {
     
     mqttClient.publish((base_topic + "/sound_toggle/state").c_str(), currentSettings.timeTravelSoundToggle ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_animating/state").c_str(), isAnimating ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/is_glitching/state").c_str(), isGlitching ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/is_asleep/state").c_str(), isDisplayAsleep ? "ON" : "OFF", true);
     itoa(currentPageIndex + 1, payload, 10);
     mqttClient.publish((base_topic + "/marquee_page/state").c_str(), payload, true);

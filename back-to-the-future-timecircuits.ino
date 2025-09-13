@@ -149,9 +149,6 @@ String settingsToSaveJson;
 
 bool isDisplayAsleep = false;
 unsigned long bootStateStartTime = 0;
-unsigned long lastGlitchTime = 0;
-bool isGlitching = false;
-unsigned long glitchStartTime = 0;
 unsigned long lastPresetCycleTime = 0;
 unsigned long lastScheduledAnimationTime = 0;
 bool isEchoEffectActive = false;
@@ -341,7 +338,6 @@ void applySettingsFromJson(const JsonObject& obj) {
     validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
     validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
     validateAndSet("animationStyle", currentSettings.animationStyle, 0, 22);
-    validateAndSet("glitchEffectFrequency", currentSettings.glitchEffectFrequency, 0, 100);
     validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
     if (obj.containsKey("timeTravelSoundToggle")) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
     validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
@@ -485,7 +481,6 @@ void saveSettings() {
     SAVE_IF_CHANGED("animInterval", Int, currentSettings.timeTravelAnimationInterval);
     SAVE_IF_CHANGED("animDuration", Int, currentSettings.timeTravelAnimationDuration);
     SAVE_IF_CHANGED("animStyle", Int, currentSettings.animationStyle);
-    SAVE_IF_CHANGED("glitchFreq", Int, currentSettings.glitchEffectFrequency);
     if (preferences.getBool("dlEnabled", false) != currentSettings.dataLinkEnabled) {
         preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
         Serial.printf("SAVING: dlEnabled -> %s\n", currentSettings.dataLinkEnabled ? "true" : "false");
@@ -599,7 +594,6 @@ void loadSettings() {
 		currentSettings.timeTravelAnimationInterval = 15;
 		currentSettings.timeTravelAnimationDuration = 4000;
 		currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
-		currentSettings.glitchEffectFrequency = 0;
 		currentSettings.dataLinkEnabled = false;
 		currentSettings.dataLinkTargetRow = 2;
 		currentSettings.dataLinkRefreshInterval = 10;
@@ -645,7 +639,6 @@ void loadSettings() {
 		currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval");
 		currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration");
 		currentSettings.animationStyle = preferences.getInt("animStyle");
-		currentSettings.glitchEffectFrequency = preferences.getInt("glitchFreq");
 		currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
 		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
 		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
@@ -892,9 +885,7 @@ void updateDisplayState() {
 // --- NEW DISPLAY HANDLER FUNCTION ---
 void handleDisplay() {
     // These effects can run concurrently with the main display modes
-    restoreDisplayAfterGlitch();
     handleTemporalEcho();
-    handleGlitchEffect();
     handleSequencer();
     handlePresetCycling();
     handleSleepSchedule();

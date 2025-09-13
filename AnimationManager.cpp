@@ -530,36 +530,6 @@ void handleTemporalEcho() {
 #endif
 }
 
-/**
- * @brief Handles the random glitch and malfunction effects during normal operation.
- */
-void handleGlitchEffect() {
-    if (isAnimating || isStyledAnimating || isDisplayAsleep) return;
-    if (millis() - lastGlitchTime > 1000) { // Check once per second
-        lastGlitchTime = millis();
-
-        // Check for a minor glitch
-        if (currentSettings.glitchEffectFrequency > 0 && random(100) < currentSettings.glitchEffectFrequency) {
-            isGlitching = true;
-            glitchStartTime = millis();
-        }
-
-    }
-}
-/**
- * @brief Restores the display to its normal state after a brief glitch effect has completed.
- */
-void restoreDisplayAfterGlitch() {
-    if (isGlitching && (millis() - glitchStartTime > 200)) { // Glitch duration
-        isGlitching = false;
-#if ENABLE_HARDWARE
-        if (hardwareInitialized) {
-            updateNormalClockDisplay();
-        }
-#endif
-    }
-}
-
 // --- BOOT SEQUENCE ---
 
 /**
@@ -995,65 +965,4 @@ static void comprehensiveAnimationCleanup() {
     lastRow.day.setBrightness(saved_brightness);
     lastRow.year.setBrightness(saved_brightness);
     lastRow.time.setBrightness(saved_brightness);
-}
-
-/**
- * @brief Triggers the "temporal glitch" effect when time is first synchronized.
- */
-/**
- * @brief Triggers the start of the temporal glitch effect.
- * @details This function simply sets the global state flags to initiate
- * the glitch effect, which is then handled by handleTemporalGlitch()
- * in the main loop.
- */
-void triggerTemporalGlitch() {
-    // Only start a new glitch if one is not already active.
-    if (!isGlitching) {
-        isGlitching = true;
-        glitchStartTime = millis();
-    }
-}
-
-/**
- * @brief Handles the visual part of the temporal glitch effect.
- * @details This function creates a controlled flicker on the "Present Time"
- * display for a set duration. It limits the rate of I2C updates to prevent
- * bus flooding and ensures the display is properly restored when the
- * effect is complete.
- */
-void handleTemporalGlitch() {
-    if (!isGlitching || !hardwareInitialized) {
-        return;
-    }
-
-#if ENABLE_HARDWARE
-    unsigned long elapsed = millis() - glitchStartTime;
-
-    // The total duration of the glitch effect.
-    const int GLITCH_DURATION_MS = 1500;
-
-    if (elapsed < GLITCH_DURATION_MS) {
-        // To prevent I2C bus flooding, only update the display periodically.
-        static unsigned long lastFlickerTime = 0;
-        if (millis() - lastFlickerTime > 100) { // Flicker every 100ms.
-            lastFlickerTime = millis();
-
-            // Alternate between showing random characters and the correct time
-            // for a more realistic "glitching" effect.
-            if (random(100) < 50) {
-                animateDisplayRowRandomly(presRow);
-                
-            } else {
-                // Briefly show the correct time.
-                updateNormalClockDisplay(false, true, false);
-            }
-        }
-    } else {
-        // The glitch effect is over.
-        isGlitching = false;
-
-        // Explicitly restore all displays to their normal state.
-        resetDisplayToNormal();
-    }
-#endif
 }

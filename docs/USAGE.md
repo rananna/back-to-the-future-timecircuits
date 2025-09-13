@@ -43,7 +43,6 @@ The web interface is organized into several tabs for easy configuration.
 * **Interactive Animation Preview**: When you select an animation style from the dropdown, you will now see a live, client-side preview of that animation, allowing you to see what it looks like without having to save your settings and trigger the full sequence on the hardware.
 * **Animation Playlists**: Instead of the clock playing the same scheduled animation every time, you can now create a "playlist" of your favorite animation styles. When the "Use Playlist" option is enabled, the clock will cycle through your selected animations for the scheduled events, adding variety and preventing the effects from becoming repetitive.
 * **Dynamic Quote Management**: For the "Quote Ticker" animation, you can now add, edit, and delete your own custom quotes, allowing you to personalize the clock with your favorite lines from the movies or your own custom messages.
-* **Effects**: Control the "instability" of your time circuits by setting the frequency of random visual glitches and the chance of a major malfunction sequence.
 * **Sound**: Adjust the volume of the sound effects and toggle them on or off.
 
 ### Data Link Tab
