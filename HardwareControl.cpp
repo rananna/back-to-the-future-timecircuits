@@ -74,7 +74,13 @@ static bool i2c_initialized = false;
  */
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification) {
   display.clear();
-  int len = strlen(text);
+
+  // --- FIX: Safely handle strings to prevent overflow and ensure truncation ---
+  char buffer[5];
+  strncpy(buffer, text, 4); // Copy at most 4 characters
+  buffer[4] = '\0';         // Ensure null-termination
+
+  int len = strlen(buffer);
   int startPos = 0;
 
   // Calculate the starting position based on justification.
@@ -83,11 +89,12 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
   } else if (justification == 2) { // Center Justify
     startPos = (4 - len) / 2;
   }
+  // justification 0 (or default) is left-justify, where startPos is already 0.
 
   // Write characters to the display buffer.
   for (int i = 0; i < 4; i++) {
     if (i >= startPos && i < (startPos + len)) {
-      display.writeDigitAscii(i, text[i - startPos]);
+      display.writeDigitAscii(i, buffer[i - startPos]);
     } else {
       display.writeDigitAscii(i, ' '); // Pad with spaces.
     }
@@ -472,17 +479,28 @@ void animateCorruptedData() {
         const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         const int numChars = strlen(chars);
 
+        auto rand_str = [&](char* buf, int len) {
+            for(int i=0; i<len; ++i) {
+                buf[i] = chars[random(numChars)];
+            }
+            buf[len] = '\0';
+        };
+
+        char m_buf[4], d_buf[3], y_buf[5], t_buf[5];
         DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
 
         for (int i = 0; i < 3; i++) {
-            Adafruit_AlphaNum4* segments[] = {&rows[i]->month, &rows[i]->day, &rows[i]->year, &rows[i]->time};
-            for (int s = 0; s < 4; s++) {
-                for (int c = 0; c < 4; c++) {
-                    segments[s]->writeDigitAscii(c, chars[random(numChars)]);
-                }
-                segments[s]->writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(2));
-            }
+            // --- FIX: Generate random strings of the correct length and use printToDisplay for proper justification ---
+            rand_str(m_buf, 3); printToDisplay(rows[i]->month, m_buf, 1);
+            rand_str(d_buf, 2); printToDisplay(rows[i]->day, d_buf, 2);
+            rand_str(y_buf, 4); printToDisplay(rows[i]->year, y_buf);
+            rand_str(t_buf, 4); printToDisplay(rows[i]->time, t_buf);
+
+            rows[i]->month.writeDisplay();
+            rows[i]->day.writeDisplay();
+            rows[i]->year.writeDisplay();
+            rows[i]->time.writeDisplay();
+            vTaskDelay(pdMS_TO_TICKS(2));
         }
         if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateCorruptedData"); }
     #endif
@@ -720,10 +738,21 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
         auto fillRow = [&](DisplayRow& row, int numChars) {
             char buffer[17] = "################";
             if (numChars < 16) buffer[numChars] = '\0';
-            printToDisplay(row.month, String(buffer).substring(0, 4).c_str());
-            printToDisplay(row.day, String(buffer).substring(4, 8).c_str());
-            printToDisplay(row.year, String(buffer).substring(8, 12).c_str());
-            printToDisplay(row.time, String(buffer).substring(12, 16).c_str());
+            String s_buffer(buffer);
+
+            // --- FIX: Use correct substring lengths and justification for each segment ---
+            // Month: 3 chars, right-justified
+            printToDisplay(row.month, s_buffer.substring(0, 3).c_str(), 1);
+
+            // Day: 2 chars, center-justified
+            printToDisplay(row.day, s_buffer.substring(3, 5).c_str(), 2);
+
+            // Year: 4 chars, left-justified (default)
+            printToDisplay(row.year, s_buffer.substring(5, 9).c_str());
+
+            // Time: 4 chars, left-justified (default)
+            printToDisplay(row.time, s_buffer.substring(9, 13).c_str());
+
             row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
         };
 
@@ -746,22 +775,41 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
         if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateDigitalRain"); }
         const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        auto rainColumn = [&](Adafruit_AlphaNum4& d, Adafruit_AlphaNum4& p, Adafruit_AlphaNum4& l) {
-            char d_c[5], p_c[5], l_c[5];
-            for(int i=0; i<4; ++i) {
-                d_c[i] = chars[random(strlen(chars))];
-                p_c[i] = chars[random(strlen(chars))];
-                l_c[i] = chars[random(strlen(chars))];
+        const int numChars = strlen(chars);
+
+        auto rand_str = [&](char* buf, int len) {
+            for(int i=0; i<len; ++i) {
+                buf[i] = chars[random(numChars)];
             }
-            d_c[4] = p_c[4] = l_c[4] = '\0';
-            printToDisplay(d, d_c); d.writeDisplay();
-            printToDisplay(p, p_c); p.writeDisplay();
-            printToDisplay(l, l_c); l.writeDisplay();
+            buf[len] = '\0';
         };
-        rainColumn(destRow.month, presRow.month, lastRow.month);
-        rainColumn(destRow.day, presRow.day, lastRow.day);
-        rainColumn(destRow.year, presRow.year, lastRow.year);
-        rainColumn(destRow.time, presRow.time, lastRow.time);
+
+        char m_buf[4], d_buf[3], y_buf[5], t_buf[5];
+
+        // --- FIX: Generate random strings of the correct length for each segment and apply proper justification ---
+        // Dest row
+        rand_str(m_buf, 3); printToDisplay(destRow.month, m_buf, 1);
+        rand_str(d_buf, 2); printToDisplay(destRow.day, d_buf, 2);
+        rand_str(y_buf, 4); printToDisplay(destRow.year, y_buf);
+        rand_str(t_buf, 4); printToDisplay(destRow.time, t_buf);
+        destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
+
+        // Pres row
+        rand_str(m_buf, 3); printToDisplay(presRow.month, m_buf, 1);
+        rand_str(d_buf, 2); printToDisplay(presRow.day, d_buf, 2);
+        rand_str(y_buf, 4); printToDisplay(presRow.year, y_buf);
+        rand_str(t_buf, 4); printToDisplay(presRow.time, t_buf);
+        presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
+
+        // Last row
+        rand_str(m_buf, 3); printToDisplay(lastRow.month, m_buf, 1);
+        rand_str(d_buf, 2); printToDisplay(lastRow.day, d_buf, 2);
+        rand_str(y_buf, 4); printToDisplay(lastRow.year, y_buf);
+        rand_str(t_buf, 4); printToDisplay(lastRow.time, t_buf);
+        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+
         vTaskDelay(pdMS_TO_TICKS(1));
         if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateDigitalRain"); }
     #endif
@@ -927,86 +975,59 @@ void playSound(const char* filepath) {
 void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor) {
   #if ENABLE_HARDWARE
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by typeTextOnDisplay"); }
-    Adafruit_AlphaNum4* displays[] = {&row.month, &row.day, &row.year, &row.time};
-
-    // Clear the entire row first
-    for (int i = 0; i < 4; i++) {
-        displays[i]->clear();
-        displays[i]->writeDisplay();
-    }
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     int len = strlen(text);
-    const int total_visual_width = 13;
-    int shift_offset = 2; // Shift the whole animation 1 character to the right
+    // The total visual width of a row is 13 characters (3 for month, 2 for day, 4 for year, 4 for time)
+    if (len > 13) len = 13;
 
-    for (int i = 0; i < len; i++) {
-        int virtual_pos = i + shift_offset;
-        if (virtual_pos >= total_visual_width) continue;
+    // This buffer will hold the text to be displayed at each step of the animation
+    char currentText[14];
 
-        int displayIndex, digitIndex;
-        if (virtual_pos < 3) { // month, 3 chars
-            displayIndex = 0;
-            digitIndex = virtual_pos;
-        } else if (virtual_pos < 5) { // day, 2 chars
-            displayIndex = 1;
-            digitIndex = (virtual_pos - 3) + 1; // Center on the physical 4-char display
-        } else if (virtual_pos < 9) { // year, 4 chars
-            displayIndex = 2;
-            digitIndex = virtual_pos - 5;
-        } else { // time, 4 chars
-            displayIndex = 3;
-            digitIndex = virtual_pos - 9;
+    for (int i = 1; i <= len; i++) {
+        // Build the substring for the current step (from 1 to len)
+        strncpy(currentText, text, i);
+        currentText[i] = '\0';
+
+        // --- Break down the current text into segments ---
+        char monthBuf[4] = "";
+        char dayBuf[3] = "";
+        char yearBuf[5] = "";
+        char timeBuf[5] = "";
+
+        // Copy the relevant part of the substring for the month
+        strncpy(monthBuf, currentText, 3);
+        monthBuf[3] = '\0'; // Ensure null termination
+
+        // Copy for the day, only if the current text is long enough
+        if (i > 3) {
+            strncpy(dayBuf, currentText + 3, 2);
+            dayBuf[2] = '\0';
+        }
+        // Copy for the year
+        if (i > 5) {
+            strncpy(yearBuf, currentText + 5, 4);
+            yearBuf[4] = '\0';
+        }
+        // Copy for the time
+        if (i > 9) {
+            strncpy(timeBuf, currentText + 9, 4);
+            timeBuf[4] = '\0';
         }
 
-        displays[displayIndex]->writeDigitAscii(digitIndex, text[i]);
+        // --- Print segments with correct justification using the reliable helper function ---
+        printToDisplay(row.month, monthBuf, 1); // 1 = Right justify
+        printToDisplay(row.day, dayBuf, 2);     // 2 = Center justify
+        printToDisplay(row.year, yearBuf, 0);   // 0 = Left justify (default)
+        printToDisplay(row.time, timeBuf, 0);   // 0 = Left justify (default)
 
-        if (withCursor && (i + 1 < len)) {
-            int next_virtual_pos = (i + 1) + shift_offset;
-            if (next_virtual_pos < total_visual_width) {
-                int nextDisplayIndex, nextDigitIndex;
-                if (next_virtual_pos < 3) {
-                    nextDisplayIndex = 0;
-                    nextDigitIndex = next_virtual_pos;
-                } else if (next_virtual_pos < 5) {
-                    nextDisplayIndex = 1;
-                    nextDigitIndex = (next_virtual_pos - 3) + 1;
-                } else if (next_virtual_pos < 9) {
-                    nextDisplayIndex = 2;
-                    nextDigitIndex = next_virtual_pos - 5;
-                } else {
-                    nextDisplayIndex = 3;
-                    nextDigitIndex = next_virtual_pos - 9;
-                }
-                displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, '_');
-                displays[nextDisplayIndex]->writeDisplay();
-            }
-        }
+        // Write all segments to the hardware displays
+        row.month.writeDisplay();
+        row.day.writeDisplay();
+        row.year.writeDisplay();
+        row.time.writeDisplay();
 
-        displays[displayIndex]->writeDisplay();
+        // Delay to create the typing effect
         vTaskDelay(pdMS_TO_TICKS(typeDelay));
-
-        if (withCursor && (i + 1 < len)) {
-            int next_virtual_pos = (i + 1) + shift_offset;
-            if (next_virtual_pos < total_visual_width) {
-                int nextDisplayIndex, nextDigitIndex;
-                if (next_virtual_pos < 3) {
-                    nextDisplayIndex = 0;
-                    nextDigitIndex = next_virtual_pos;
-                } else if (next_virtual_pos < 5) {
-                    nextDisplayIndex = 1;
-                    nextDigitIndex = (next_virtual_pos - 3) + 1;
-                } else if (next_virtual_pos < 9) {
-                    nextDisplayIndex = 2;
-                    nextDigitIndex = next_virtual_pos - 5;
-                } else {
-                    nextDisplayIndex = 3;
-                    nextDigitIndex = next_virtual_pos - 9;
-                }
-                displays[nextDisplayIndex]->writeDigitAscii(nextDigitIndex, ' ');
-                displays[nextDisplayIndex]->writeDisplay();
-            }
-        }
     }
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by typeTextOnDisplay"); }
   #endif
@@ -1349,11 +1370,8 @@ void animatePlasmaWarmUp(unsigned long elapsed, int duration) {
   #endif
 }
 
-void animateTimeWarpStreaks(unsigned long elapsed, int duration) {
+void animateTimeWarpStreaks(unsigned long elapsed, int duration, const char* final_dest, const char* final_pres, const char* final_last) {
   #if ENABLE_HARDWARE
-    char final_dest[17], final_pres[17], final_last[17];
-    getFormattedTimeStrings(final_dest, final_pres, final_last);
-
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1368,7 +1386,7 @@ void animateTimeWarpStreaks(unsigned long elapsed, int duration) {
             display_str[start_pos + i] = final_str[i];
         }
 
-        printToDisplay(row.month, String(display_str).substring(0, 3).c_str());
+        printToDisplay(row.month, String(display_str).substring(0, 3).c_str(), 1);
         printToDisplay(row.day, String(display_str).substring(3, 5).c_str(), 2);
         printToDisplay(row.year, String(display_str).substring(5, 9).c_str());
         printToDisplay(row.time, String(display_str).substring(9, 13).c_str());
@@ -1382,13 +1400,10 @@ void animateTimeWarpStreaks(unsigned long elapsed, int duration) {
   #endif
 }
 
-void animateCharacterScanline(unsigned long elapsed, int duration) {
+void animateCharacterScanline(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
-
-    char dest_str[17], pres_str[17], last_str[17];
-    getFormattedTimeStrings(dest_str, pres_str, last_str);
 
     int charsToShow = progress * 16;
 
@@ -1403,7 +1418,7 @@ void animateCharacterScanline(unsigned long elapsed, int duration) {
         if (count > 5) strncpy(year_buf, final_str + 5, min(count - 5, 4));
         if (count > 9) strncpy(time_buf, final_str + 9, min(count - 9, 4));
 
-        printToDisplay(row.month, month_buf);
+        printToDisplay(row.month, month_buf, 1);
         printToDisplay(row.day, day_buf, 2);
         printToDisplay(row.year, year_buf);
         printToDisplay(row.time, time_buf);
@@ -1416,13 +1431,10 @@ void animateCharacterScanline(unsigned long elapsed, int duration) {
   #endif
 }
 
-void animateFocusIn(unsigned long elapsed, int duration) {
+void animateFocusIn(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
-
-    char dest_str[17], pres_str[17], last_str[17];
-    getFormattedTimeStrings(dest_str, pres_str, last_str);
 
     int charsToFocus = progress * 16;
 
@@ -1465,13 +1477,10 @@ void animateFocusIn(unsigned long elapsed, int duration) {
   #endif
 }
 
-void animateCodeBreaker(unsigned long elapsed, int duration) {
+void animateCodeBreaker(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
-
-    char dest_str[17], pres_str[17], last_str[17];
-    getFormattedTimeStrings(dest_str, pres_str, last_str);
 
     int charsToLock = progress * 16;
 
@@ -1514,13 +1523,10 @@ void animateCodeBreaker(unsigned long elapsed, int duration) {
   #endif
 }
 
-void animateTemporalParadox(unsigned long elapsed, int duration) {
+void animateTemporalParadox(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
-
-    char dest_str[17], pres_str[17], last_str[17];
-    getFormattedTimeStrings(dest_str, pres_str, last_str);
 
     int swap_point = 16 * progress;
 
@@ -1539,13 +1545,13 @@ void animateTemporalParadox(unsigned long elapsed, int duration) {
     dest_buffer[16] = '\0';
     pres_buffer[16] = '\0';
 
-    printToDisplay(destRow.month, String(dest_buffer).substring(0, 3).c_str());
+    printToDisplay(destRow.month, String(dest_buffer).substring(0, 3).c_str(), 1);
     printToDisplay(destRow.day, String(dest_buffer).substring(3, 5).c_str(), 2);
     printToDisplay(destRow.year, String(dest_buffer).substring(5, 9).c_str());
     printToDisplay(destRow.time, String(dest_buffer).substring(9, 13).c_str());
     destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
 
-    printToDisplay(presRow.month, String(pres_buffer).substring(0, 3).c_str());
+    printToDisplay(presRow.month, String(pres_buffer).substring(0, 3).c_str(), 1);
     printToDisplay(presRow.day, String(pres_buffer).substring(3, 5).c_str(), 2);
     printToDisplay(presRow.year, String(pres_buffer).substring(5, 9).c_str());
     printToDisplay(presRow.time, String(pres_buffer).substring(9, 13).c_str());
@@ -1555,13 +1561,10 @@ void animateTemporalParadox(unsigned long elapsed, int duration) {
   #endif
 }
 
-void animateDigitCascade(unsigned long elapsed, int duration) {
+void animateDigitCascade(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
-
-    char dest_str[17], pres_str[17], last_str[17];
-    getFormattedTimeStrings(dest_str, pres_str, last_str);
 
     int segmentsToLock = progress * 12; // 3 rows * 4 segments
 
@@ -1610,7 +1613,7 @@ void animateDigitCascade(unsigned long elapsed, int duration) {
         row.year.clear();
         row.time.clear();
 
-        printToDisplay(row.month, month_buf);
+        printToDisplay(row.month, month_buf, 1);
         printToDisplay(row.day, day_buf, 2);
         printToDisplay(row.year, year_buf);
         printToDisplay(row.time, time_buf);
@@ -1624,13 +1627,10 @@ void animateDigitCascade(unsigned long elapsed, int duration) {
   #endif
 }
 
-void animateElectricSurge(unsigned long elapsed, int duration) {
+void animateElectricSurge(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
-
-    char dest_str[17], pres_str[17], last_str[17];
-    getFormattedTimeStrings(dest_str, pres_str, last_str);
 
     int surgePosition = progress * 16;
 
@@ -1655,7 +1655,7 @@ void animateElectricSurge(unsigned long elapsed, int duration) {
         strncpy(year_buf, buffer + 5, 4); year_buf[4] = '\0';
         strncpy(time_buf, buffer + 9, 4); time_buf[4] = '\0';
 
-        printToDisplay(row.month, month_buf);
+        printToDisplay(row.month, month_buf, 1);
         printToDisplay(row.day, day_buf, 2);
         printToDisplay(row.year, year_buf);
         printToDisplay(row.time, time_buf);
@@ -1668,13 +1668,10 @@ void animateElectricSurge(unsigned long elapsed, int duration) {
   #endif
 }
 
-void animateFlipDiscDisplay(unsigned long elapsed, int duration) {
+void animateFlipDiscDisplay(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
-
-    char dest_str[17], pres_str[17], last_str[17];
-    getFormattedTimeStrings(dest_str, pres_str, last_str);
 
     int segmentsToFlip = progress * 12;
 
@@ -1698,7 +1695,7 @@ void animateFlipDiscDisplay(unsigned long elapsed, int duration) {
             time_buf[4] = '\0';
         }
 
-        printToDisplay(row.month, month_buf);
+        printToDisplay(row.month, month_buf, 1);
         printToDisplay(row.day, day_buf, 2);
         printToDisplay(row.year, year_buf);
         printToDisplay(row.time, time_buf);
@@ -1711,13 +1708,10 @@ void animateFlipDiscDisplay(unsigned long elapsed, int duration) {
   #endif
 }
 
-void animateInterferencePattern(unsigned long elapsed, int duration) {
+void animateInterferencePattern(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
-
-    char dest_str[17], pres_str[17], last_str[17];
-    getFormattedTimeStrings(dest_str, pres_str, last_str);
 
     auto interferenceRow = [&](DisplayRow& row, const char* final_str) {
         char buffer[17];
@@ -1738,7 +1732,7 @@ void animateInterferencePattern(unsigned long elapsed, int duration) {
         strncpy(year_buf, buffer + 5, 4); year_buf[4] = '\0';
         strncpy(time_buf, buffer + 9, 4); time_buf[4] = '\0';
 
-        printToDisplay(row.month, month_buf);
+        printToDisplay(row.month, month_buf, 1);
         printToDisplay(row.day, day_buf, 2);
         printToDisplay(row.year, year_buf);
         printToDisplay(row.time, time_buf);

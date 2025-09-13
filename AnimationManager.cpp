@@ -328,6 +328,8 @@ void handleStyledAnimation() {
     static int glitchRow = -1;
     static unsigned long lastGlitchTriggerTime = 0;
     static AnimationPhase lastStyledPhase = ANIM_INACTIVE;
+    // --- FIX: Buffers to hold the formatted time strings for one animation cycle ---
+    static char dest_str[17], pres_str[17], last_str[17];
 
     // If we are entering a new phase, log it.
     if (currentStyledPhase != lastStyledPhase) {
@@ -336,6 +338,8 @@ void handleStyledAnimation() {
         if (currentStyledPhase == ANIM_FLICKER) {
             glitchRow = -1;
             lastGlitchTriggerTime = 0;
+            // --- FIX: Get the time strings once at the start of the animation ---
+            getFormattedTimeStrings(dest_str, pres_str, last_str);
         }
         lastStyledPhase = currentStyledPhase;
     }
@@ -422,39 +426,39 @@ void handleStyledAnimation() {
                         break;
 
                     case ANIMATION_TIME_WARP_STREAKS:
-                        animateTimeWarpStreaks(elapsed, 10000);
+                        animateTimeWarpStreaks(elapsed, 10000, dest_str, pres_str, last_str);
                         break;
 
                     case ANIMATION_CHARACTER_SCANLINE:
-                        animateCharacterScanline(elapsed, 10000);
+                        animateCharacterScanline(elapsed, 10000, dest_str, pres_str, last_str);
                         break;
 
                     case ANIMATION_FOCUS_IN:
-                        animateFocusIn(elapsed, 10000);
+                        animateFocusIn(elapsed, 10000, dest_str, pres_str, last_str);
                         break;
 
                     case ANIMATION_CODE_BREAKER:
-                        animateCodeBreaker(elapsed, 10000);
+                        animateCodeBreaker(elapsed, 10000, dest_str, pres_str, last_str);
                         break;
 
                     case ANIMATION_TEMPORAL_PARADOX:
-                        animateTemporalParadox(elapsed, 10000);
+                        animateTemporalParadox(elapsed, 10000, dest_str, pres_str, last_str);
                         break;
 
                     case ANIMATION_DIGIT_CASCADE:
-                        animateDigitCascade(elapsed, 10000);
+                        animateDigitCascade(elapsed, 10000, dest_str, pres_str, last_str);
                         break;
 
                     case ANIMATION_ELECTRIC_SURGE:
-                        animateElectricSurge(elapsed, 10000);
+                        animateElectricSurge(elapsed, 10000, dest_str, pres_str, last_str);
                         break;
 
                     case ANIMATION_FLIP_DISC_DISPLAY:
-                        animateFlipDiscDisplay(elapsed, 10000);
+                        animateFlipDiscDisplay(elapsed, 10000, dest_str, pres_str, last_str);
                         break;
 
                     case ANIMATION_INTERFERENCE_PATTERN:
-                        animateInterferencePattern(elapsed, 10000);
+                        animateInterferencePattern(elapsed, 10000, dest_str, pres_str, last_str);
                         break;
 
                     case ANIMATION_TORNADO_FLICKER:
