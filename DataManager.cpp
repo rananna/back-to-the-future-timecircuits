@@ -277,16 +277,12 @@ void fetchWeatherData(WeatherTaskParams* params) {
         client.setInsecure();
         String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
         String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
-        String weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentSettings.latitude, 4) + 
-                     "&longitude=" + String(currentSettings.longitude, 4) + 
-                     "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
-                     "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max" + 
-                     "&hourly=temperature_2m,weather_code" +
-                     "&forecast_days=2" +
-                     "&forecast_hours=24" +
-                     "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
+        char weatherUrl[512];
+        snprintf(weatherUrl, sizeof(weatherUrl),
+             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max&hourly=temperature_2m,weather_code&forecast_days=2&forecast_hours=24&temperature_unit=%s&wind_speed_unit=%s&timezone=auto",
+             currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
         if (http.begin(client, weatherUrl)) {
-            Log_printf(LOG_LEVEL_DEBUG, "Weather URL: %s", weatherUrl.c_str());
+            Log_printf(LOG_LEVEL_DEBUG, "Weather URL: %s", weatherUrl);
             int httpCode = http.GET();
             Log_printf(LOG_LEVEL_DEBUG, "Weather API HTTP Code: %d", httpCode);
             if (httpCode == HTTP_CODE_OK) {
