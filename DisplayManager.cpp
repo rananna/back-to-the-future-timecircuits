@@ -13,7 +13,6 @@
 #include "DataManager.h"
 #include "EventManager.h"
 #include "HardwareControl.h"
-#include "web_server.h"
 
 // A struct to hold the state of a scrolling text segment.
 struct ScrollState {
