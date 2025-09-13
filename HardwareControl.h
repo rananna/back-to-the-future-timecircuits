@@ -127,7 +127,6 @@ struct ClockSettings {
   int timeTravelAnimationInterval;
   int timeTravelAnimationDuration;
   int animationStyle;
-  int glitchEffectFrequency;
   bool dataLinkEnabled;
   int dataLinkTargetRow;
   int dataLinkRefreshInterval;

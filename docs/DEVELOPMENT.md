@@ -10,7 +10,7 @@ The firmware is organized into a modular structure to separate concerns and impr
 * **`HardwareControl.h`**: The hardware abstraction layer and central data definition file. It defines the core data structures for the project (e.g., `ClockSettings`, `WeatherData`) and all functions for direct interaction with the displays and LEDs.
 * **`HardwareControl.cpp`**: The implementation file for the hardware abstraction layer. It utilizes the **Adafruit_LEDBackpack** and **Adafruit_GFX** libraries.
 * **`EventManager.h`**: A global access header. It uses `extern` declarations to make global variables (like the `currentSettings` object) and system-wide objects (like the `mqttClient`) available to all other modules. This prevents circular dependency issues.
-* **`AnimationManager.cpp / .h`**: Contains the logic for complex, multi-stage animations like the time travel sequence, boot-up, and glitch effects.
+* **`AnimationManager.cpp / .h`**: Contains the logic for complex, multi-stage animations like the time travel sequence and boot-up.
 * **`DisplayManager.cpp / .h`**: Responsible for what is shown on the displays during normal operation (standard clock, weather, Data Link marquee).
 * **`DataManager.cpp / .h`**: Handles all networking tasks for fetching and parsing data from external web APIs. Functions within this module are often run in dedicated FreeRTOS tasks to prevent blocking the main loop.
 * **`MqttManager.cpp / .h`**: Manages the MQTT connection and all communication for the Home Assistant integration. It handles publishing states and subscribing to commands.
