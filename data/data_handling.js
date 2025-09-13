@@ -72,6 +72,13 @@ function initWebSocket() {
                     }
                  }
             }
+        } else if (msg.action === 'presetUpdate') {
+            const presetSelect = document.getElementById('presetDateSelect');
+            if (presetSelect) {
+                presetSelect.value = msg.value;
+                presetSelect.dispatchEvent(new Event('change'));
+                showMessage(`Preset cycled to: ${msg.name}`, 'info');
+            }
         } else if (msg.action === 'stateUpdate') {
             const el = document.getElementById(msg.key);
             if (el) {

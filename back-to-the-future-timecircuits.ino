@@ -1213,6 +1213,9 @@ std::vector<Preset> getFullPresetList() {
  * update cycle.
  */
 void handlePresetCycling() {
+    if (lastPresetCycleTime == 0 && bootState == BOOT_INACTIVE) {
+        lastPresetCycleTime = millis();
+    }
     // Return if cycling is disabled, an animation is playing, or the display is asleep
     if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
         return;
@@ -1256,6 +1259,7 @@ void handlePresetCycling() {
 
         // The display will be updated automatically on the next loop iteration.
         // No need to call saveSettings() here, as this isn't a persistent change.
+        broadcastPresetUpdate(nextPreset.name, nextPreset.year, nextPreset.month, nextPreset.day, nextPreset.hour, nextPreset.minute);
     }
 }
 

@@ -146,6 +146,20 @@ void broadcastWsStateUpdate(const char* key, int value) {
     broadcastWsStateUpdate(key, doc.as<JsonVariant>());
 }
 
+void broadcastPresetUpdate(const std::string& name, int year, int month, int day, int hour, int minute) {
+    if (ws.count() > 0) {
+        DynamicJsonDocument doc(256);
+        doc["action"] = "presetUpdate";
+        doc["name"] = name.c_str();
+        char value[20];
+        sprintf(value, "%d-%02d-%02d-%02d-%02d", year, month, day, hour, minute);
+        doc["value"] = value;
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
+    }
+}
+
 /**
  * @brief Overloaded function to broadcast a boolean state update via WebSocket.
  */
