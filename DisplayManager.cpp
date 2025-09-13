@@ -10,6 +10,7 @@
 
 #include "DebugLog.h"
 #include "DisplayManager.h"
+#include "DataManager.h"
 #include "EventManager.h"
 #include "HardwareControl.h"
 
@@ -379,13 +380,22 @@ void handleWeatherDisplay() {
     bool shouldWriteToDisplay = false;
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        static bool initialFetchTriggered = false;
+
         if (!currentWeatherData.dataValid) {
             printToDisplay(lastRow.month, "WEA", 1);
             printToDisplay(lastRow.day, "TH", 2);
             printToDisplay(lastRow.year, "ER");
             printToDisplay(lastRow.time, "----");
             shouldWriteToDisplay = true;
+
+            if (!initialFetchTriggered) {
+                Log_printf(LOG_LEVEL_INFO, "Weather data is invalid, triggering initial fetch.");
+                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, NULL, 1, NULL);
+                initialFetchTriggered = true;
+            }
         } else {
+            initialFetchTriggered = false; // Reset flag once data is valid
             static WeatherDisplayState weatherState = WD_START_PAGE;
             static int weatherPage = 0;
             static String weatherScrollText;
@@ -398,6 +408,7 @@ void handleWeatherDisplay() {
                 weatherState = WD_START_PAGE;
                 weatherPage = 0;
                 weatherDataUpdated = false;
+                initialFetchTriggered = false; // Also reset here
                 if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                     // Clear the row before displaying new data
                     printToDisplay(lastRow.month, "   ", 0);

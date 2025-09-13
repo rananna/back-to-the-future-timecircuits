@@ -319,7 +319,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         // This lambda checks if a key exists before trying to access it.
                         // If any key is missing, it sets allDataPresent to false.
                         bool allDataPresent = true;
-                        auto getJsonValue = [&](const JsonVariant& parent, const char* key) {
+                        auto getJsonValue = [&](const JsonVariant& parent, const char* key) -> JsonVariant {
                             if (parent.isNull() || !parent.containsKey(key)) {
                                 allDataPresent = false;
                                 Log_printf(LOG_LEVEL_WARN, "Weather JSON missing key: %s", key);
@@ -328,7 +328,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
                             return parent[key];
                         };
 
-                        auto getJsonValueFromArray = [&](const JsonVariant& parent, int index) {
+                        auto getJsonValueFromArray = [&](const JsonVariant& parent, int index) -> JsonVariant {
                             if (parent.isNull() || parent.size() <= index) {
                                 allDataPresent = false;
                                 Log_printf(LOG_LEVEL_WARN, "Weather JSON array access out of bounds at index %d", index);
@@ -362,41 +362,42 @@ void fetchWeatherData(WeatherTaskParams* params) {
                             currentWeatherData.errorReason = "Incomplete weather data received.";
                         } else {
                             JsonArray hourly_time = doc["hourly"]["time"];
-                        JsonArray hourly_temp = doc["hourly"]["temperature_2m"];
-                        JsonArray hourly_code = doc["hourly"]["weather_code"];
+                            JsonArray hourly_temp = doc["hourly"]["temperature_2m"];
+                            JsonArray hourly_code = doc["hourly"]["weather_code"];
 
-                        // Get current hour
-                        struct tm timeinfo;
-                        getLocalTime(&timeinfo);
-                        int currentHour = timeinfo.tm_hour;
+                            // Get current hour
+                            struct tm timeinfo;
+                            getLocalTime(&timeinfo);
+                            int currentHour = timeinfo.tm_hour;
 
-                        int start_index = -1;
-                        for (int i = 0; i < hourly_time.size(); i++) {
-                            const char* t = hourly_time[i];
-                            // t is "YYYY-MM-DDTHH:MM"
-                            if (strlen(t) >= 13) { // Basic sanity check
-                                int hour = atoi(t + 11);
-                                if (hour == currentHour) {
-                                    start_index = i;
-                                    break;
+                            int start_index = -1;
+                            for (int i = 0; i < hourly_time.size(); i++) {
+                                const char* t = hourly_time[i];
+                                // t is "YYYY-MM-DDTHH:MM"
+                                if (strlen(t) >= 13) { // Basic sanity check
+                                    int hour = atoi(t + 11);
+                                    if (hour == currentHour) {
+                                        start_index = i;
+                                        break;
+                                    }
                                 }
                             }
-                        }
 
-                        if (start_index != -1) {
-                            // We want to display the forecast for the next 3 hours.
-                            for (int j = 0; j < 3; j++) {
-                                int forecast_index = start_index + j + 1;
-                                if (forecast_index < hourly_temp.size() && forecast_index < hourly_code.size()) {
-                                    currentWeatherData.hourlyTemp[j] = hourly_temp[forecast_index];
-                                    currentWeatherData.hourlyCode[j] = hourly_code[forecast_index];
+                            if (start_index != -1) {
+                                // We want to display the forecast for the next 3 hours.
+                                for (int j = 0; j < 3; j++) {
+                                    int forecast_index = start_index + j + 1;
+                                    if (forecast_index < hourly_temp.size() && forecast_index < hourly_code.size()) {
+                                        currentWeatherData.hourlyTemp[j] = hourly_temp[forecast_index];
+                                        currentWeatherData.hourlyCode[j] = hourly_code[forecast_index];
+                                    }
                                 }
                             }
+
+                            currentWeatherData.dataValid = true;
+                            weatherSuccess = true;
+                            weatherDataUpdated = true; // Signal to the display manager
                         }
-                        
-                        currentWeatherData.dataValid = true;
-                        weatherSuccess = true;
-                        weatherDataUpdated = true; // Signal to the display manager
                     } else {
                         Log_printf(LOG_LEVEL_WARN, "Failed to parse weather JSON or API returned an error. E: %s", error.c_str());
                         currentWeatherData.dataValid = false;
