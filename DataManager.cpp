@@ -15,6 +15,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <time.h>
 
 extern StockData stockData[3];
 
@@ -279,7 +280,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
         String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
         char weatherUrl[512];
         snprintf(weatherUrl, sizeof(weatherUrl),
-             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max&hourly=temperature_2m,weather_code&forecast_days=2&forecast_hours=6&temperature_unit=%s&wind_speed_unit=%s&timezone=auto",
+             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max&hourly=temperature_2m,weather_code&forecast_days=2&temperature_unit=%s&wind_speed_unit=%s&timezone=auto",
              currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
         if (http.begin(client, weatherUrl)) {
             Log_printf(LOG_LEVEL_DEBUG, "Weather URL: %s", weatherUrl);
@@ -309,17 +310,36 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         currentWeatherData.tomorrowLow = doc["daily"]["temperature_2m_min"][1];
                         currentWeatherData.tomorrowWeatherCode = doc["daily"]["weather_code"][1];
 
+                        JsonArray hourly_time = doc["hourly"]["time"];
                         JsonArray hourly_temp = doc["hourly"]["temperature_2m"];
                         JsonArray hourly_code = doc["hourly"]["weather_code"];
 
-                        // With forecast_hours, the API returns hourly data starting from the current hour.
-                        // hourly_temp[0] is the current hour, hourly_temp[1] is the next hour, and so on.
-                        // We want to display the forecast for the next 3 hours.
-                        for (int j = 0; j < 3; j++) {
-                            // We access index j + 1 to get the forecast for hours +1, +2, and +3 from now.
-                            if (j + 1 < hourly_temp.size()) {
-                                currentWeatherData.hourlyTemp[j] = hourly_temp[j + 1];
-                                currentWeatherData.hourlyCode[j] = hourly_code[j + 1];
+                        // Get current hour
+                        struct tm timeinfo;
+                        getLocalTime(&timeinfo);
+                        int currentHour = timeinfo.tm_hour;
+
+                        int start_index = -1;
+                        for (int i = 0; i < hourly_time.size(); i++) {
+                            const char* t = hourly_time[i];
+                            // t is "YYYY-MM-DDTHH:MM"
+                            if (strlen(t) >= 13) { // Basic sanity check
+                                int hour = atoi(t + 11);
+                                if (hour == currentHour) {
+                                    start_index = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (start_index != -1) {
+                            // We want to display the forecast for the next 3 hours.
+                            for (int j = 0; j < 3; j++) {
+                                int forecast_index = start_index + j + 1;
+                                if (forecast_index < hourly_temp.size() && forecast_index < hourly_code.size()) {
+                                    currentWeatherData.hourlyTemp[j] = hourly_temp[forecast_index];
+                                    currentWeatherData.hourlyCode[j] = hourly_code[forecast_index];
+                                }
                             }
                         }
                         
