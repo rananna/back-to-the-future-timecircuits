@@ -585,37 +585,6 @@ action:
 ```
 </details>
 
-<details>
-<summary><strong>27. "Temporal Instability" Mode Script</strong></summary>
-
-*A script to make the display chaotic for a short period, perfect for showing off the effects.*
-
-```yaml
-alias: "BTTF - Temporal Instability Mode"
-sequence:
-  - service: number.set_value
-    target:
-      entity_id: number.bttf_timecircuits_01_glitch_instability
-    data:
-      value: 80
-  - service: number.set_value
-    target:
-      entity_id: number.bttf_timecircuits_01_malfunction_chance
-    data:
-      value: 10
-  - delay: "00:01:00"
-  - service: number.set_value
-    target:
-      entity_id: number.bttf_timecircuits_01_glitch_instability
-    data:
-      value: 0
-  - service: number.set_value
-    target:
-      entity_id: number.bttf_timecircuits_01_malfunction_chance
-    data:
-      value: 25
-```
-</details>
 
 <details>
 <summary><strong>28. Calendar-Driven Destination Time</strong></summary>

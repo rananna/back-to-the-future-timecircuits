@@ -387,7 +387,6 @@ function saveSettings() {
     settings.timeTravelAnimationDuration = getIntValue('timeTravelAnimationDuration', 4000);
     settings.timeTravelAnimationInterval = getIntValue('timeTravelAnimationInterval', 15);
     settings.animationStyle = getIntValue('animationStyleSelect', 0);
-    settings.glitchEffectFrequency = getIntValue('glitchEffectFrequency', 0);
     settings.malfunctionFrequency = getIntValue('malfunctionFrequency', 0);
     settings.presetCycleInterval = getIntValue('presetCycleInterval', 10);
 

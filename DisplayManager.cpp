@@ -105,7 +105,7 @@ void displayMarqueeOverride() {
 
 void updateStockTickerDisplay() {
     // ... function content remains the same ...
-    if (isDisplayAsleep || isAnimating || isGlitching || !hardwareInitialized) return;
+    if (isDisplayAsleep || isAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     for (int i = 0; i < 3; ++i) {
@@ -218,7 +218,7 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
  * @param updateLast If true, the last time departed row is updated.
  */
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
-  if (isDisplayAsleep || isAnimating || isGlitching || !hardwareInitialized) {
+  if (isDisplayAsleep || isAnimating || !hardwareInitialized) {
     if(isAnimating) {
     }
     return;
