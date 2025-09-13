@@ -8,6 +8,7 @@
  * actually write to the displays.
  */
 
+#include "DebugLog.h"
 #include "DisplayManager.h"
 #include "EventManager.h"
 #include "HardwareControl.h"

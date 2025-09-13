@@ -15,7 +15,7 @@
  * - High-level state machines for display modes and system states.
  */
 
-#include "esp_log.h"
+#include "DebugLog.h"
 #include <WiFi.h>
 #include <WiFiManager.h>
 #include <ArduinoJson.h>
@@ -202,7 +202,7 @@ DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
 // --- Callback function to handle audio events ---
 void audio_info(Audio::msg_t m) {
     if (m.e == Audio::evt_eof) {
-        Serial.printf("AUDIO_LOG: Finished playing sound: %s\n", currentSoundFile);
+        Log_printf(LOG_LEVEL_INFO, "Finished playing sound: %s", currentSoundFile);
         currentSoundFile[0] = '\0'; // Clear the filename
         // Update Home Assistant that audio is idle
         if (mqttClient.connected()) {
@@ -240,15 +240,14 @@ void applySettingsFromJson(const JsonObject& obj); // Forward declaration
 void handleBackgroundSave() {
     saveSettingsRequested = false; // Reset the flag immediately.
 
-    Serial.println("--- Background Save Started ---");
+    Log_printf(LOG_LEVEL_INFO, "--- Background Save Started ---");
 
     // Create a JSON document to parse the buffered string.
     DynamicJsonDocument doc(8192);
     DeserializationError error = deserializeJson(doc, settingsToSaveJson);
 
     if (error) {
-        Serial.print(F("handleBackgroundSave: deserializeJson() failed: "));
-        Serial.println(error.c_str());
+        Log_printf(LOG_LEVEL_ERROR, "handleBackgroundSave: deserializeJson() failed: %s", error.c_str());
         settingsToSaveJson = ""; // Clear the invalid JSON.
         return;
     }
@@ -269,7 +268,7 @@ void handleBackgroundSave() {
 
     // Clear the buffer to free up memory.
     settingsToSaveJson = "";
-    Serial.println("--- Background Save Finished ---");
+    Log_printf(LOG_LEVEL_INFO, "--- Background Save Finished ---");
 }
 
 
@@ -281,7 +280,7 @@ void handleBackgroundSave() {
  * @param obj A const reference to the JsonObject containing the new settings.
  */
 void applySettingsFromJson(const JsonObject& obj) {
-    Serial.println("SERVER_DEBUG: Applying settings from JSON object.");
+    Log_printf(LOG_LEVEL_DEBUG, "Applying settings from JSON object.");
 
     // --- Input Validation Lambdas ---
     auto validateAndSet = [&](const char* key, int& setting, int min, int max) {
@@ -290,7 +289,7 @@ void applySettingsFromJson(const JsonObject& obj) {
             if (value >= min && value <= max) {
                 setting = value;
             } else {
-                Serial.printf("VALIDATION_ERROR: %s value %d is out of range (%d-%d).\n", key, value, min, max);
+                Log_printf(LOG_LEVEL_WARN, "Validation failed for %s: value %d is out of range (%d-%d).", key, value, min, max);
             }
         }
     };
@@ -300,7 +299,7 @@ void applySettingsFromJson(const JsonObject& obj) {
             if (value >= min && value <= max) {
                 setting = value;
             } else {
-                Serial.printf("VALIDATION_ERROR: %s value %u is out of range (%u-%u).\n", key, value, min, max);
+                Log_printf(LOG_LEVEL_WARN, "Validation failed for %s: value %u is out of range (%u-%u).", key, value, min, max);
             }
         }
     };
@@ -417,7 +416,7 @@ void applySettingsFromJson(const JsonObject& obj) {
         }
     }
     if (needsMqttReconnect) {
-        Serial.println("SERVER_DEBUG: MQTT settings changed. Forcing reconnect.");
+        Log_printf(LOG_LEVEL_INFO, "MQTT settings changed. Forcing reconnect.");
         if (mqttClient.connected()) {
             mqttClient.disconnect();
         }
@@ -433,7 +432,7 @@ void applySettingsFromJson(const JsonObject& obj) {
  * against its previously saved value and only writes if the value has actually changed.
  */
 void saveSettings() {
-    Serial.println("--- Saving Settings (Dirty Flag Check) ---");
+    Log_printf(LOG_LEVEL_INFO, "--- Saving Settings (Dirty Flag Check) ---");
     preferences.begin(PREFERENCES_NAMESPACE, false); // Open preferences in read-write mode.
 
     // Helper macro to reduce boilerplate code for saving numeric types.
@@ -441,14 +440,14 @@ void saveSettings() {
     #define SAVE_IF_CHANGED(key, type, value) \
         if (preferences.get##type(key, -1) != value) { \
             preferences.put##type(key, value); \
-            Serial.printf("SAVING: %s -> %d\n", #key, value); \
+            Log_printf(LOG_LEVEL_DEBUG, "SAVING: %s -> %d", #key, value); \
         }
 
     // Helper macro for saving string types. It handles the case where the key might not exist yet.
     #define SAVE_STRING_IF_CHANGED(key, value) \
         if (!preferences.isKey(key) || preferences.getString(key, "") != value.c_str()) { \
             preferences.putString(key, value.c_str()); \
-            Serial.printf("SAVING: %s -> %s\n", #key, value.c_str()); \
+            Log_printf(LOG_LEVEL_DEBUG, "SAVING: %s -> %s", #key, value.c_str()); \
         }
 
     // --- Save each setting using the helper macros ---
@@ -467,14 +466,14 @@ void saveSettings() {
     SAVE_IF_CHANGED("volume", UChar, currentSettings.notificationVolume);
     if (preferences.getBool("soundToggle", true) != currentSettings.timeTravelSoundToggle) {
         preferences.putBool("soundToggle", currentSettings.timeTravelSoundToggle);
-        Serial.printf("SAVING: soundToggle -> %s\n", currentSettings.timeTravelSoundToggle ? "true" : "false");
+        Log_printf(LOG_LEVEL_DEBUG, "SAVING: soundToggle -> %s", currentSettings.timeTravelSoundToggle ? "true" : "false");
     }
 
     SAVE_IF_CHANGED("presTzIndex", Int, currentSettings.presentTimezoneIndex);
     SAVE_IF_CHANGED("presetCycle", Int, currentSettings.presetCycleInterval);
     if (preferences.getBool("format24h", false) != currentSettings.displayFormat24h) {
         preferences.putBool("format24h", currentSettings.displayFormat24h);
-        Serial.printf("SAVING: format24h -> %s\n", currentSettings.displayFormat24h ? "true" : "false");
+        Log_printf(LOG_LEVEL_DEBUG, "SAVING: format24h -> %s", currentSettings.displayFormat24h ? "true" : "false");
     }
     
     SAVE_IF_CHANGED("theme", Int, currentSettings.theme);
@@ -483,7 +482,7 @@ void saveSettings() {
     SAVE_IF_CHANGED("animStyle", Int, currentSettings.animationStyle);
     if (preferences.getBool("dlEnabled", false) != currentSettings.dataLinkEnabled) {
         preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
-        Serial.printf("SAVING: dlEnabled -> %s\n", currentSettings.dataLinkEnabled ? "true" : "false");
+        Log_printf(LOG_LEVEL_DEBUG, "SAVING: dlEnabled -> %s", currentSettings.dataLinkEnabled ? "true" : "false");
     }
 
     SAVE_IF_CHANGED("dlTargetRow", Int, currentSettings.dataLinkTargetRow);
@@ -496,29 +495,29 @@ void saveSettings() {
     SAVE_STRING_IF_CHANGED("mqttPass", currentSettings.mqttPassword);
     if (preferences.getBool("weatherMode", false) != currentSettings.weatherModeEnabled) {
         preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
-        Serial.printf("SAVING: weatherMode -> %s\n", currentSettings.weatherModeEnabled ? "true" : "false");
+        Log_printf(LOG_LEVEL_DEBUG, "SAVING: weatherMode -> %s", currentSettings.weatherModeEnabled ? "true" : "false");
     }
 
     SAVE_STRING_IF_CHANGED("cityName", currentSettings.cityName);
     if (preferences.getBool("useMetric", false) != currentSettings.useMetricUnits) {
         preferences.putBool("useMetric", currentSettings.useMetricUnits);
-        Serial.printf("SAVING: useMetric -> %s\n", currentSettings.useMetricUnits ? "true" : "false");
+        Log_printf(LOG_LEVEL_DEBUG, "SAVING: useMetric -> %s", currentSettings.useMetricUnits ? "true" : "false");
     }
     
     // Note: Comparing floats can be tricky due to precision.
     // A small tolerance might be needed for production code, but this is fine for this use case.
     if (preferences.getFloat("latitude", 0.0) != currentSettings.latitude) {
         preferences.putFloat("latitude", currentSettings.latitude);
-        Serial.printf("SAVING: latitude -> %f\n", currentSettings.latitude);
+        Log_printf(LOG_LEVEL_DEBUG, "SAVING: latitude -> %f", currentSettings.latitude);
     }
     if (preferences.getFloat("longitude", 0.0) != currentSettings.longitude) {
         preferences.putFloat("longitude", currentSettings.longitude);
-        Serial.printf("SAVING: longitude -> %f\n", currentSettings.longitude);
+        Log_printf(LOG_LEVEL_DEBUG, "SAVING: longitude -> %f", currentSettings.longitude);
     }
     
     if (preferences.getBool("stModeEnabled", false) != currentSettings.stockTickerModeEnabled) {
         preferences.putBool("stModeEnabled", currentSettings.stockTickerModeEnabled);
-        Serial.printf("SAVING: stModeEnabled -> %s\n", currentSettings.stockTickerModeEnabled ? "true" : "false");
+        Log_printf(LOG_LEVEL_DEBUG, "SAVING: stModeEnabled -> %s", currentSettings.stockTickerModeEnabled ? "true" : "false");
     }
 
     SAVE_STRING_IF_CHANGED("stRow1Sym", currentSettings.stockRow1_symbol);
@@ -550,7 +549,7 @@ void saveSettings() {
 		SAVE_STRING_IF_CHANGED((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey);
 	}
 	preferences.end();
-    Serial.println("--- Settings Saved ---");
+    Log_printf(LOG_LEVEL_INFO, "--- Settings Saved ---");
 
     // After saving, immediately apply the timezone setting to the system.
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -565,14 +564,14 @@ void saveSettings() {
  * sensible defaults and then calls `saveSettings()` to create the initial configuration.
  */
 void loadSettings() {
-    Serial.println("--- Loading Settings ---");
+    Log_printf(LOG_LEVEL_INFO, "--- Loading Settings ---");
     preferences.begin(PREFERENCES_NAMESPACE, true); // Open preferences in read-only mode.
 
     // Check if a key exists. If not, we assume it's the first boot.
 	bool needsInit = !preferences.isKey("destYear");
     if (needsInit) {
         // --- INITIALIZE WITH DEFAULT VALUES ---
-		ESP_LOGI("SETTINGS", "No settings found. Initializing with defaults.");
+		Log_printf(LOG_LEVEL_INFO, "No settings found. Initializing with defaults.");
 		currentSettings.destinationYear = 1955;
 		currentSettings.destinationTimezoneIndex = 4; // Default to Pacific Time
 		currentSettings.departureHour = 22;
@@ -617,7 +616,7 @@ void loadSettings() {
 		}
 		saveSettings();
 	} else {
-		ESP_LOGI("SETTINGS", "Loading settings from NVS.");
+		Log_printf(LOG_LEVEL_INFO, "Loading settings from NVS.");
 		currentSettings.destinationYear = preferences.getInt("destYear");
 		currentSettings.destinationTimezoneIndex = preferences.getInt("destTzIndex");
 		currentSettings.departureHour = preferences.getInt("depHour");
@@ -645,12 +644,12 @@ void loadSettings() {
 		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
         String brokerStr = preferences.getString("mqttBroker", "");
         currentSettings.mqttBroker = brokerStr.c_str();
-		Serial.printf("SETTINGS_LOG: Loaded MQTT Broker: [%s]\n", currentSettings.mqttBroker.c_str());
+		Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT Broker: [%s]", currentSettings.mqttBroker.c_str());
 		currentSettings.mqttPort = preferences.getInt("mqttPort", 1883);
-		Serial.printf("SETTINGS_LOG: Loaded MQTT Port: [%d]\n", currentSettings.mqttPort);
+		Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT Port: [%d]", currentSettings.mqttPort);
         String userStr = preferences.getString("mqttUser", "");
         currentSettings.mqttUser = userStr.c_str();
-		Serial.printf("SETTINGS_LOG: Loaded MQTT User: [%s]\n", currentSettings.mqttUser.c_str());
+		Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT User: [%s]", currentSettings.mqttUser.c_str());
         String passStr = preferences.getString("mqttPass", "");
         currentSettings.mqttPassword = passStr.c_str();
 		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
@@ -693,7 +692,7 @@ void loadSettings() {
 		}
 	}
 	preferences.end();
-	Serial.println("--- Settings Loaded ---");
+	Log_printf(LOG_LEVEL_INFO, "--- Settings Loaded ---");
 	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.presentTimezoneIndex = 0;
 	}
@@ -705,45 +704,42 @@ void loadSettings() {
 }
 
 void listAllFiles() {
-	Serial.println(F("\n--- Listing all files in LittleFS ---"));
+	Log_printf(LOG_LEVEL_INFO, "--- Listing all files in LittleFS ---");
 	File root = LittleFS.open("/");
 	File file = root.openNextFile();
 	while (file) {
-		Serial.print(F("  FILE: "));
-		Serial.print(file.name());
-		Serial.print(F("\tSIZE: "));
-		Serial.println(file.size());
+		Log_printf(LOG_LEVEL_INFO, "  FILE: %s\tSIZE: %d", file.name(), file.size());
 		file.close();
 		file = root.openNextFile();
 	}
-	Serial.println(F("--- End of file list ---\n"));
+	Log_printf(LOG_LEVEL_INFO, "--- End of file list ---");
 	root.close();
 }
 
 bool attemptHardwareInit() {
     #if ENABLE_HARDWARE
-    Serial.println(F("BOOT_LOG: Attempting to initialize hardware..."));
+    Log_printf(LOG_LEVEL_INFO, "Attempting to initialize hardware...");
     if (setupPhysicalDisplay()) {
-        Serial.println(F("BOOT_LOG: Physical display setup... OK"));
+        Log_printf(LOG_LEVEL_INFO, "Physical display setup... OK");
         return true; // Success
     } else {
-        Serial.println(F("BOOT_LOG: Physical display setup... FAILED"));
+        Log_printf(LOG_LEVEL_ERROR, "Physical display setup... FAILED");
         return false; // Failure
     }
     #else
-    Serial.println(F("BOOT_LOG: Hardware is disabled (ENABLE_HARDWARE = 0)"));
+    Log_printf(LOG_LEVEL_WARN, "Hardware is disabled (ENABLE_HARDWARE = 0)");
     return true; // Keep original logic: if disabled, it's "not failed"
     #endif
 }
 
 void onHardwareInitialized() {
-    Serial.println(F("SYSTEM_LOG: Hardware successfully initialized. Running post-init tasks."));
+    Log_printf(LOG_LEVEL_INFO, "Hardware successfully initialized. Running post-init tasks.");
     applyBrightness();
-    Serial.println(F("BOOT_LOG: Initializing I2S Audio..."));
+    Log_printf(LOG_LEVEL_INFO, "Initializing I2S Audio...");
     audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
     audio.setVolume(currentSettings.notificationVolume);
     Audio::audio_info_callback = audio_info;
-    Serial.println(F("BOOT_LOG: I2S Audio... OK"));
+    Log_printf(LOG_LEVEL_INFO, "I2S Audio... OK");
 
     xTaskCreatePinnedToCore(
         audioTask,          // Task function
@@ -775,29 +771,26 @@ void setup() {
     Serial.begin(115200);
     delay(1000); // Wait for serial monitor to connect.
 
-    Serial.println(F("\n\n--- BOOTING ---"));
-    Serial.println(F("BOOT_LOG: Initializing Serial... OK"));
-    delay(10);
+    xSerialMutex = xSemaphoreCreateMutex(); // For thread-safe logging
+    Log_printf(LOG_LEVEL_INFO, "--- BOOTING ---");
+    Log_printf(LOG_LEVEL_INFO, "Initializing Serial... OK");
 
     if (!LittleFS.begin(true, "/spiffs")) {
-        ESP_LOGE("FS", "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
-        Serial.println(F("BOOT_LOG: LittleFS mount... FAILED!"));
+        Log_printf(LOG_LEVEL_ERROR, "CRITICAL ERROR: LittleFS Mount Failed. Restarting in 10 seconds.");
         delay(10000);
         ESP.restart();
     }
-    Serial.println(F("BOOT_LOG: LittleFS mount... OK"));
-    delay(10);
+    Log_printf(LOG_LEVEL_INFO, "LittleFS mount... OK");
 
-    Serial.println(F("BOOT_LOG: Loading settings..."));
+    Log_printf(LOG_LEVEL_INFO, "Loading settings...");
     loadSettings();
-    Serial.println(F("BOOT_LOG: Settings loaded... OK"));
-    delay(10);
+    Log_printf(LOG_LEVEL_INFO, "Settings loaded... OK");
 
     xDisplayDataMutex = xSemaphoreCreateMutex();
     xAnimationStartMutex = xSemaphoreCreateMutex();
     xTimeLibMutex = xSemaphoreCreateMutex();
     xDisplayHardwareMutex = xSemaphoreCreateMutex();
-    Serial.println(F("BOOT_LOG: Mutex created... OK"));
+    Log_printf(LOG_LEVEL_INFO, "Mutexes created... OK");
     
     WiFi.mode(WIFI_STA);
     uint8_t mac[6];
@@ -806,10 +799,10 @@ void setup() {
     WiFi.begin();
     wifiConnectStartTime = millis();
     wifiState = WIFI_STATE_CONNECTING;
-    Serial.println("BOOT_LOG: Non-blocking WiFi connection initiated...");
-    Serial.println(F("WEB_LOG: Setting up web routes..."));
+    Log_printf(LOG_LEVEL_INFO, "Non-blocking WiFi connection initiated...");
+    Log_printf(LOG_LEVEL_INFO, "Setting up web routes...");
     setupWebRoutes();
-    Serial.println(F("WEB_LOG: Web routes configured."));
+    Log_printf(LOG_LEVEL_INFO, "Web routes configured.");
 
     hardwareInitialized = attemptHardwareInit();
     if (hardwareInitialized) {
@@ -818,12 +811,11 @@ void setup() {
 
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
     tzset();
-    Serial.println(F("BOOT_LOG: Timezone configured."));
+    Log_printf(LOG_LEVEL_INFO, "Timezone configured.");
 
     setupMqtt();
-    Serial.println(F("BOOT_LOG: MQTT setup initiated."));
-    ESP_LOGI("Memory", "Free heap after setup: %u bytes", ESP.getFreeHeap());
-    Serial.printf("BOOT_LOG: Free heap: %u bytes\n", ESP.getFreeHeap());
+    Log_printf(LOG_LEVEL_INFO, "MQTT setup initiated.");
+    Log_printf(LOG_LEVEL_INFO, "Free heap after setup: %u bytes", ESP.getFreeHeap());
 
     ArduinoOTA.setHostname("bttf-time-circuits");
     ArduinoOTA.setPassword("1.21gigawatts");
@@ -834,21 +826,22 @@ void setup() {
         } else {
             type = "filesystem";
         }
-        Serial.println("Start updating " + type);
+        Log_printf(LOG_LEVEL_INFO, "OTA Update Start: %s", type.c_str());
     });
     ArduinoOTA.onEnd([]() {
-        Serial.println("\nEnd");
+        Log_printf(LOG_LEVEL_INFO, "OTA Update End");
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+        Log_printf(LOG_LEVEL_DEBUG, "OTA Progress: %u%%", (progress / (total / 100)));
     });
     ArduinoOTA.onError([](ota_error_t error) {
-        Serial.printf("Error[%u]: ", error);
-        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-        else if (error == OTA_END_ERROR) Serial.println("End Failed");
+        const char* error_str = "Unknown";
+        if (error == OTA_AUTH_ERROR) error_str = "Auth Failed";
+        else if (error == OTA_BEGIN_ERROR) error_str = "Begin Failed";
+        else if (error == OTA_CONNECT_ERROR) error_str = "Connect Failed";
+        else if (error == OTA_RECEIVE_ERROR) error_str = "Receive Failed";
+        else if (error == OTA_END_ERROR) error_str = "End Failed";
+        Log_printf(LOG_LEVEL_ERROR, "OTA Error[%u]: %s", error, error_str);
     });
     ArduinoOTA.begin();
 
@@ -859,7 +852,7 @@ void setup() {
         }
     }
 
-    Serial.println(F("--- BOOT COMPLETE ---"));
+    Log_printf(LOG_LEVEL_INFO, "--- BOOT COMPLETE ---");
     bootTimestamp = millis();
 }
 
@@ -959,7 +952,7 @@ void loop() {
     switch (wifiState) {
         case WIFI_STATE_CONNECTING:
             if (!logConnectingPrinted) {
-                Serial.println("WIFI_LOG: State is WIFI_STATE_CONNECTING.");
+                Log_printf(LOG_LEVEL_INFO, "WiFi State: CONNECTING");
                 logConnectingPrinted = true;
             }
             if (WiFi.status() == WL_CONNECTED) {
@@ -970,7 +963,7 @@ void loop() {
             break;
         case WIFI_STATE_START_PORTAL:
             if (!logPortalMsgPrinted) {
-                Serial.println("WIFI_LOG: State is WIFI_STATE_START_PORTAL. Starting WiFiManager.");
+                Log_printf(LOG_LEVEL_INFO, "WiFi State: START_PORTAL. Starting WiFiManager.");
                 logPortalMsgPrinted = true;
             }
             xTaskCreate(wifiManagerTask, "WiFiManager", 4096, &wifiManager, 1, &wifiManagerTaskHandle);
@@ -978,7 +971,7 @@ void loop() {
             break;
         case WIFI_STATE_PORTAL_RUNNING:
              if (WiFi.status() == WL_CONNECTED) {
-                Serial.println("WIFI_LOG: WiFi connected via portal. Rebooting...");
+                Log_printf(LOG_LEVEL_INFO, "WiFi connected via portal. Rebooting...");
                 if(wifiManagerTaskHandle != NULL) {
                     vTaskDelete(wifiManagerTaskHandle);
                     wifiManagerTaskHandle = NULL;
@@ -990,10 +983,10 @@ void loop() {
             break;
         case WIFI_STATE_CONNECTED:
             if (!logConnectedPrinted) {
-                ESP_LOGI("WiFi", "IP: %s", WiFi.localIP().toString().c_str());
+                Log_printf(LOG_LEVEL_INFO, "WiFi State: CONNECTED. IP: %s", WiFi.localIP().toString().c_str());
                 // Start the web server now that we are connected
                 server.begin();
-                ESP_LOGI("Web", "HTTP server started on successful connection.");
+                Log_printf(LOG_LEVEL_INFO, "HTTP server started on successful connection.");
 
                 logConnectedPrinted = true;
                 if (MDNS.begin("timecircuits")) {
@@ -1083,14 +1076,14 @@ void loop() {
                 // Hardware failed to initialize, retry periodically
                 unsigned long now = millis();
                 if (now - lastHardwareInitAttempt > HARDWARE_INIT_RETRY_INTERVAL) {
-                    Serial.println("LOOP_LOG: Retrying hardware initialization...");
+                    Log_printf(LOG_LEVEL_WARN, "Retrying hardware initialization...");
                     lastHardwareInitAttempt = now;
                     hardwareInitialized = attemptHardwareInit();
                     if (hardwareInitialized) {
-                        Serial.println("LOOP_LOG: Hardware initialized successfully on retry.");
+                        Log_printf(LOG_LEVEL_INFO, "Hardware initialized successfully on retry.");
                         onHardwareInitialized();
                     } else {
-                        Serial.println("LOOP_LOG: Hardware initialization retry failed.");
+                        Log_printf(LOG_LEVEL_WARN, "Hardware initialization retry failed.");
                     }
                 }
             }

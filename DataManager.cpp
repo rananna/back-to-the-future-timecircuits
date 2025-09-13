@@ -8,6 +8,7 @@
  * from blocking and ensuring the display remains responsive.
  */
 
+#include "DebugLog.h"
 #include "DataManager.h"
 #include "EventManager.h"
 #include "DisplayManager.h"
@@ -56,7 +57,7 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
     // This is safer for long-running embedded systems.
     const size_t max_path_len = 256; // A reasonable limit for JSON paths.
     if (strlen(path) >= max_path_len) {
-        Serial.println("ERROR: JSON path is too long!");
+        Log_printf(LOG_LEVEL_ERROR, "JSON path is too long!");
         return JsonVariant();
     }
     char path_copy[max_path_len];
@@ -103,6 +104,8 @@ void fetchStockDataTask(void* p) {
     int rowIndex = params->pointIndex;
     delete params;
 
+    Log_printf(LOG_LEVEL_INFO, "Fetching stock data for row %d", rowIndex);
+
     std::string symbol_str;
     if (rowIndex == 0) symbol_str = currentSettings.stockRow1_symbol;
     else if (rowIndex == 1) symbol_str = currentSettings.stockRow2_symbol;
@@ -129,6 +132,8 @@ void fetchStockDataTask(void* p) {
 
     if (http.begin(client, url)) {
         int httpCode = http.GET();
+        Log_printf(LOG_LEVEL_DEBUG, "Stock API URL: %s", url.c_str());
+        Log_printf(LOG_LEVEL_DEBUG, "Stock API HTTP Code: %d", httpCode);
         if (httpCode == HTTP_CODE_OK) {
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, http.getStream());
@@ -165,9 +170,11 @@ void fetchStockDataTask(void* p) {
                     }
 
                     stockData[rowIndex].dataValid = true;
+                    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed stock data for %s", symbol_str.c_str());
                     xSemaphoreGive(xDisplayDataMutex);
                 }
             } else {
+                Log_printf(LOG_LEVEL_WARN, "Could not parse stock JSON for %s", symbol_str.c_str());
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     stockData[rowIndex].dataValid = false;
                     stockData[rowIndex].price = "NO";
@@ -175,8 +182,12 @@ void fetchStockDataTask(void* p) {
                     xSemaphoreGive(xDisplayDataMutex);
                 }
             }
+        } else {
+            Log_printf(LOG_LEVEL_WARN, "Stock API request failed with HTTP code %d", httpCode);
         }
         http.end();
+    } else {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for stock API.");
     }
     vTaskDelete(NULL);
 }
@@ -186,6 +197,8 @@ void fetchWeatherData(WeatherTaskParams* params) {
     std::string taskCityName = params->cityName;
     bool forceGeocode = params->forceGeocode;
     delete params;
+
+    Log_printf(LOG_LEVEL_INFO, "Fetching weather data for city: %s (force geocode: %s)", taskCityName.c_str(), forceGeocode ? "true" : "false");
 
     if (taskCityName.empty()) {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
@@ -206,6 +219,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
     }
     
     if (needsGeocoding) {
+        Log_printf(LOG_LEVEL_INFO, "Geocoding required for city: %s", taskCityName.c_str());
         bool geocodeSuccess = false;
         for (int i = 0; i < 3; i++) {
             showTemporaryMessage("GEO", "", "SRCH", "", 1000);
@@ -214,7 +228,9 @@ void fetchWeatherData(WeatherTaskParams* params) {
             client.setInsecure();
             String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(taskCityName.c_str());
             if (http.begin(client, geocodeUrl)) {
+                Log_printf(LOG_LEVEL_DEBUG, "Geocode URL: %s", geocodeUrl.c_str());
                 int httpCode = http.GET();
+                Log_printf(LOG_LEVEL_DEBUG, "Geocode HTTP Code: %d", httpCode);
                 if (httpCode == HTTP_CODE_OK) {
                     DynamicJsonDocument doc(1024);
                     deserializeJson(doc, http.getStream());
@@ -227,16 +243,22 @@ void fetchWeatherData(WeatherTaskParams* params) {
                             xSemaphoreGive(xDisplayDataMutex);
                         }
                         geocodeSuccess = true;
+                        Log_printf(LOG_LEVEL_INFO, "Geocode success for %s. Lat: %f, Lon: %f", taskCityName.c_str(), currentSettings.latitude, currentSettings.longitude);
                         http.end();
                         break;
                     }
+                } else {
+                    Log_printf(LOG_LEVEL_WARN, "Geocode request failed with HTTP code %d", httpCode);
                 }
                 http.end();
+            } else {
+                Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for geocoding.");
             }
             delay(1000);
         }
 
         if (!geocodeSuccess) {
+            Log_printf(LOG_LEVEL_ERROR, "Geocoding failed for %s after multiple retries.", taskCityName.c_str());
             showTemporaryMessage("GEO", "", "FAIL", "", 2000);
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 currentWeatherData.dataValid = false;
@@ -261,7 +283,9 @@ void fetchWeatherData(WeatherTaskParams* params) {
                      "&forecast_days=2" +
                      "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
         if (http.begin(client, weatherUrl)) {
+            Log_printf(LOG_LEVEL_DEBUG, "Weather URL: %s", weatherUrl.c_str());
             int httpCode = http.GET();
+            Log_printf(LOG_LEVEL_DEBUG, "Weather API HTTP Code: %d", httpCode);
             if (httpCode == HTTP_CODE_OK) {
                 String payload = http.getString();
                 DynamicJsonDocument doc(4096);
@@ -269,6 +293,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
 
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (error == DeserializationError::Ok && !doc.containsKey("error")) {
+                        Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed weather JSON");
                         currentWeatherData.temperature = doc["current"]["temperature_2m"];
                         currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
                         currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
@@ -302,24 +327,30 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         currentWeatherData.dataValid = true;
                         weatherSuccess = true;
                     } else {
+                        Log_printf(LOG_LEVEL_WARN, "Failed to parse weather JSON or API returned an error. E: %s", error.c_str());
                         currentWeatherData.dataValid = false;
                     }
                     xSemaphoreGive(xDisplayDataMutex);
                 }
                 http.end();
                 if (weatherSuccess) break;
+            } else {
+                Log_printf(LOG_LEVEL_WARN, "Weather API request failed with HTTP code %d", httpCode);
             }
             http.end();
+        } else {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for weather API.");
         }
         delay(1000);
     }
     
     if (!weatherSuccess) {
-      if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        currentWeatherData.dataValid = false;
-        xSemaphoreGive(xDisplayDataMutex);
-      }
-      showTemporaryMessage("API", "", "FAIL", "", 2000);
+        Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed for %s after multiple retries.", taskCityName.c_str());
+        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+            currentWeatherData.dataValid = false;
+            xSemaphoreGive(xDisplayDataMutex);
+        }
+        showTemporaryMessage("API", "", "FAIL", "", 2000);
     }
 }
 
@@ -340,6 +371,8 @@ void fetchApiDataTask(void* p) {
 	int index = params->pointIndex;
 	delete params;
 
+    Log_printf(LOG_LEVEL_INFO, "Fetching API data for data point %d", index);
+
 	if (index < 0 || index >= currentSettings.numDataPoints) {
 		vTaskDelete(NULL);
 		return;
@@ -355,12 +388,15 @@ void fetchApiDataTask(void* p) {
 			http.addHeader(point.authHeaderKey.c_str(), point.authHeaderValue.c_str());
 		}
 
+		Log_printf(LOG_LEVEL_DEBUG, "API URL for data point %d: %s", index, point.url.c_str());
 		int httpCode = http.GET();
+		Log_printf(LOG_LEVEL_DEBUG, "API HTTP Code for data point %d: %d", index, httpCode);
 		if (httpCode == HTTP_CODE_OK) {
 			DynamicJsonDocument doc(4096);
 			DeserializationError error = deserializeJson(doc, http.getStream());
 			if (error == DeserializationError::Ok) {
 				if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+					Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed API JSON for data point %d", index);
 					JsonVariant monthVar = getJsonVariant(doc.as<JsonVariant>(), point.monthPath.c_str());
 					JsonVariant dayVar = getJsonVariant(doc.as<JsonVariant>(), point.dayPath.c_str());
 					JsonVariant yearVar = getJsonVariant(doc.as<JsonVariant>(), point.yearPath.c_str());
@@ -375,12 +411,14 @@ void fetchApiDataTask(void* p) {
 					xSemaphoreGive(xDisplayDataMutex);
                 }
 			} else {
+                Log_printf(LOG_LEVEL_WARN, "Failed to parse API JSON for data point %d. Error: %s", index, error.c_str());
 				if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     dataPointFetchFailures[index]++;
                     xSemaphoreGive(xDisplayDataMutex);
                 }
 			}
 		} else {
+            Log_printf(LOG_LEVEL_WARN, "API request for data point %d failed with HTTP code %d", index, httpCode);
 			if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 dataPointFetchFailures[index]++;
                 xSemaphoreGive(xDisplayDataMutex);
@@ -388,6 +426,7 @@ void fetchApiDataTask(void* p) {
 		}
 		http.end();
 	} else {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for data point %d", index);
 		if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             dataPointFetchFailures[index]++;
             xSemaphoreGive(xDisplayDataMutex);
@@ -407,8 +446,11 @@ void fetchApiDataTask(void* p) {
 
 void checkDataFetchStatusTask(void* p) {
     int tasksCreated = (int)p;
+    Log_printf(LOG_LEVEL_DEBUG, "Data fetch status checker task started, waiting for %d tasks.", tasksCreated);
     while(true) {
-        if (__atomic_load_n(&requestsCompleted, __ATOMIC_SEQ_CST) >= tasksCreated) {
+        int completed = __atomic_load_n(&requestsCompleted, __ATOMIC_SEQ_CST);
+        if (completed >= tasksCreated) {
+            Log_printf(LOG_LEVEL_INFO, "All %d data fetch tasks completed.", completed);
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 isFetchingData = false;
                 xSemaphoreGive(xDisplayDataMutex);
@@ -433,6 +475,7 @@ void fetchDataLink() {
 	if (now - lastDataLinkFetch > (unsigned long)currentSettings.dataLinkRefreshInterval * 60000) {
 		lastDataLinkFetch = now;
 		isFetchingData = true;
+        Log_printf(LOG_LEVEL_INFO, "Starting data link fetch for %d data points.", currentSettings.numDataPoints);
 		xSemaphoreGive(xDisplayDataMutex);
         
 		requestsCompleted = 0;
@@ -445,13 +488,16 @@ void fetchDataLink() {
 					tasksCreated++;
 				}
 				else {
+                    Log_printf(LOG_LEVEL_ERROR, "Failed to create fetchApiDataTask for data point %d", i);
 					delete params;
 				}
 			}
 		}
         if (tasksCreated > 0) {
+            Log_printf(LOG_LEVEL_DEBUG, "Created %d data fetch tasks. Starting status checker.", tasksCreated);
             xTaskCreatePinnedToCore(checkDataFetchStatusTask, "checkDataFetchStatusTask", 2048, (void*)tasksCreated, 1, NULL, 0);
         } else {
+            Log_printf(LOG_LEVEL_INFO, "No API data points to fetch.");
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 isFetchingData = false;
                 xSemaphoreGive(xDisplayDataMutex);

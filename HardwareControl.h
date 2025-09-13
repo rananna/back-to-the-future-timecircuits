@@ -217,7 +217,13 @@ extern TwoWire I2C_1; extern TwoWire I2C_2;
 extern DisplayRow destRow, presRow, lastRow;
 extern SemaphoreHandle_t xDisplayHardwareMutex;
 extern SemaphoreHandle_t xTimeLibMutex;
+extern SemaphoreHandle_t xSerialMutex; // Mutex for thread-safe Serial printing
 #endif
+
+// --- FUNCTION PROTOTYPES ---
+
+// Thread-safe print function for debugging
+void safe_printf(const char *format, ...);
 
 bool setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal);
