@@ -75,8 +75,21 @@ function initWebSocket() {
         } else if (msg.action === 'presetUpdate') {
             const presetSelect = document.getElementById('presetDateSelect');
             if (presetSelect) {
-                presetSelect.value = msg.value;
-                presetSelect.dispatchEvent(new Event('change'));
+                let optionFound = false;
+                for (let i = 0; i < presetSelect.options.length; i++) {
+                    if (presetSelect.options[i].value === msg.value) {
+                        presetSelect.selectedIndex = i;
+                        optionFound = true;
+                        break;
+                    }
+                }
+
+                if (optionFound) {
+                    presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                } else {
+                    console.error(`Preset value from server not found in dropdown: ${msg.value}`);
+                }
+
                 showMessage(`Preset cycled to: ${msg.name}`, 'info');
             }
         } else if (msg.action === 'stateUpdate') {
