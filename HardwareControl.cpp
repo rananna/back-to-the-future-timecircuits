@@ -657,58 +657,44 @@ void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYea
 void animateTemporalDesync() {
     #if ENABLE_HARDWARE
         if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateTemporalDesync"); }
-        // Row 1 (Top): Steady Destination Time
-        // Correctly calculate the destination timeinfo
-        time_t now_t;
-        struct tm dest_timeinfo;
-        if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-            time(&now_t);
-            setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-            tzset();
-            localtime_r(&now_t, &dest_timeinfo);
-            xSemaphoreGive(xTimeLibMutex);
-        }
 
-        // Update the display row with the correct destination info
-        updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, false);
-        vTaskDelay(pdMS_TO_TICKS(2));
+        // Helper lambda to update a row with a time skimming effect
+        auto updateRowWithSkimmingTime = [&](DisplayRow& row, time_t baseTime, long timeMultiplier) {
+            char buffer[5];
+            time_t fastForwardTime = baseTime + (millis() * timeMultiplier);
+            struct tm timeinfo;
+            if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+                gmtime_r(&fastForwardTime, &timeinfo);
+                xSemaphoreGive(xTimeLibMutex);
+            }
+            const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
-        // Restore the original timezone to not affect other operations
-        if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-            setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-            tzset();
-            xSemaphoreGive(xTimeLibMutex);
-        }
+            printToDisplay(row.month, months[timeinfo.tm_mon], 1);
+            sprintf(buffer, "%02d", timeinfo.tm_mday);
+            printToDisplay(row.day, buffer, 2);
+            sprintf(buffer, "%04d", timeinfo.tm_year + 1900);
+            printToDisplay(row.year, buffer);
+            sprintf(buffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
+            printToDisplay(row.time, buffer);
 
-        // Row 2 (Middle): Timeline Skim / Randomly animating
-        animateDisplayRowRandomly(presRow);
-        vTaskDelay(pdMS_TO_TICKS(2));
+            row.month.writeDisplay();
+            row.day.writeDisplay();
+            row.year.writeDisplay();
+            row.time.writeDisplay();
+            vTaskDelay(pdMS_TO_TICKS(1));
+        };
 
-        // Row 3 (Bottom): Counting up effect
-        // Borrowing logic from animateCountingUp
-        char buffer[5];
-        time_t startTime = 1445433600; // Approx Oct 21, 2015
-        time_t fastForwardTime = startTime + (millis() * 60); // Each ms represents one minute
-        struct tm timeinfo;
-        if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-            gmtime_r(&fastForwardTime, &timeinfo);
-            xSemaphoreGive(xTimeLibMutex);
-        }
-        const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+        time_t baseTime = 1445433600; // Approx Oct 21, 2015
 
-        printToDisplay(lastRow.month, months[timeinfo.tm_mon], 1);
-        sprintf(buffer, "%02d", timeinfo.tm_mday);
-        printToDisplay(lastRow.day, buffer, 2);
-        sprintf(buffer, "%04d", timeinfo.tm_year + 1900);
-        printToDisplay(lastRow.year, buffer);
-        sprintf(buffer, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
-        printToDisplay(lastRow.time, buffer);
+        // Row 1 (Top): Skimming forward very fast
+        updateRowWithSkimmingTime(destRow, baseTime, 120); // 2 minutes per ms
 
-        lastRow.month.writeDisplay();
-        lastRow.day.writeDisplay();
-        lastRow.year.writeDisplay();
-        lastRow.time.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
+        // Row 2 (Middle): Skimming forward at a medium pace
+        updateRowWithSkimmingTime(presRow, baseTime, 30); // 30 seconds per ms
+
+        // Row 3 (Bottom): Skimming backwards
+        updateRowWithSkimmingTime(lastRow, baseTime, -60); // 1 minute backwards per ms
+
         if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateTemporalDesync"); }
     #endif
 }
@@ -774,46 +760,95 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     #endif
 }
 
+// --- State for the Digital Rain Animation ---
+#define MAX_RAINDROPS 25
+struct Raindrop {
+    int column; // 0-12, for each character position
+    float y;    // Vertical position (0.0-2.99 for rows)
+    float speed;
+    bool active;
+};
+static Raindrop raindrops[MAX_RAINDROPS];
+static bool rain_initialized = false;
+
 void animateDigitalRain(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
         if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateDigitalRain"); }
+
+        if (!rain_initialized) {
+            for (int i = 0; i < MAX_RAINDROPS; i++) {
+                raindrops[i].active = false;
+            }
+            rain_initialized = true;
+        }
+
+        // Clear all display buffers before drawing the new frame
+        destRow.month.clear(); destRow.day.clear(); destRow.year.clear(); destRow.time.clear();
+        presRow.month.clear(); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
+        lastRow.month.clear(); lastRow.day.clear(); lastRow.year.clear(); lastRow.time.clear();
+
         const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         const int numChars = strlen(chars);
 
-        auto rand_str = [&](char* buf, int len) {
-            for(int i=0; i<len; ++i) {
-                buf[i] = chars[random(numChars)];
+        // Update positions and draw active raindrops
+        for (int i = 0; i < MAX_RAINDROPS; i++) {
+            if (raindrops[i].active) {
+                raindrops[i].y += raindrops[i].speed;
+
+                if (raindrops[i].y >= 3.0) {
+                    raindrops[i].active = false;
+                } else {
+                    int row_idx = (int)raindrops[i].y;
+                    int col_idx = raindrops[i].column;
+
+                    // Helper lambda to draw a character at a specific row and logical column
+                    auto draw_char_at = [&](int r, int c, char ch) {
+                        if (r < 0 || r > 2) return;
+                        DisplayRow* p_row = (r == 0) ? &destRow : (r == 1) ? &presRow : &lastRow;
+
+                        if (c < 3) { // Month segment (3 chars, right-justified on a 4-char display)
+                            p_row->month.writeDigitAscii(c + 1, ch);
+                        } else if (c < 5) { // Day segment (2 chars, center-justified)
+                            p_row->day.writeDigitAscii(c - 3 + 1, ch);
+                        } else if (c < 9) { // Year segment (4 chars, left-justified)
+                            p_row->year.writeDigitAscii(c - 5, ch);
+                        } else if (c < 13) { // Time segment (4 chars, left-justified)
+                            p_row->time.writeDigitAscii(c - 9, ch);
+                        }
+                    };
+
+                    // Draw the lead character
+                    draw_char_at(row_idx, col_idx, chars[random(numChars)]);
+
+                    // Draw a tail character one step behind
+                    int tail_row_idx = row_idx - 1;
+                    if (tail_row_idx >= 0) {
+                        draw_char_at(tail_row_idx, col_idx, '.'); // Use a dot for a dimmer tail effect
+                    }
+                }
             }
-            buf[len] = '\0';
-        };
+        }
 
-        char m_buf[4], d_buf[3], y_buf[5], t_buf[5];
+        // Spawn new raindrops periodically
+        if (random(100) < 45) { // 45% chance to spawn a new one each frame
+            for (int i = 0; i < MAX_RAINDROPS; i++) {
+                if (!raindrops[i].active) {
+                    raindrops[i].active = true;
+                    raindrops[i].column = random(13); // Logical columns 0-12
+                    raindrops[i].y = 0.0f;
+                    raindrops[i].speed = (random(8, 20)) / 100.0f; // Random speed for variation
+                    break;
+                }
+            }
+        }
 
-        // --- FIX: Generate random strings of the correct length for each segment and apply proper justification ---
-        // Dest row
-        rand_str(m_buf, 3); printToDisplay(destRow.month, m_buf, 1);
-        rand_str(d_buf, 2); printToDisplay(destRow.day, d_buf, 2);
-        rand_str(y_buf, 4); printToDisplay(destRow.year, y_buf);
-        rand_str(t_buf, 4); printToDisplay(destRow.time, t_buf);
+        // Write all 12 display buffers to the hardware
         destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
-
-        // Pres row
-        rand_str(m_buf, 3); printToDisplay(presRow.month, m_buf, 1);
-        rand_str(d_buf, 2); printToDisplay(presRow.day, d_buf, 2);
-        rand_str(y_buf, 4); printToDisplay(presRow.year, y_buf);
-        rand_str(t_buf, 4); printToDisplay(presRow.time, t_buf);
         presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
-
-        // Last row
-        rand_str(m_buf, 3); printToDisplay(lastRow.month, m_buf, 1);
-        rand_str(d_buf, 2); printToDisplay(lastRow.day, d_buf, 2);
-        rand_str(y_buf, 4); printToDisplay(lastRow.year, y_buf);
-        rand_str(t_buf, 4); printToDisplay(lastRow.time, t_buf);
         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
 
-        vTaskDelay(pdMS_TO_TICKS(1));
+        vTaskDelay(pdMS_TO_TICKS(40)); // Control animation speed to ~25 FPS
+
         if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateDigitalRain"); }
     #endif
 }
@@ -830,8 +865,8 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
             "  ---   ---  ",
             " ---     --- "
         };
-        // Cycle through the 6 patterns over the animation's duration
-        int waveIndex = (elapsed * 6 / duration) % 6;
+        // Cycle through the 6 patterns over the animation's duration. Increased speed by 10x.
+        int waveIndex = (elapsed * 60 / duration) % 6;
         const char* pattern = waves[waveIndex];
 
         auto drawWave = [&](DisplayRow& row, bool inverse) {
@@ -1296,34 +1331,40 @@ void animateGlitchyJumpCut(unsigned long elapsed, int duration) {
 
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
 
+    // The main glitch effect runs for the first 90% of the duration.
     if (progress < 0.9) {
         for (int i = 0; i < 3; ++i) {
-            if (random(100) < 70) { // 70% chance to show random data
-                animateDisplayRowRandomly(*rows[i]);
-            } else { // 30% chance to show the correct time
-                updateNormalClockDisplay(i == 0, i == 1, i == 2);
-            }
+            // More chaotic: always show random data, don't fall back to stable clock.
+            animateDisplayRowRandomly(*rows[i]);
 
-            // Simulate a "jump" by glitching a single segment
-            if (random(100) < 25) { // 25% chance to jump
+            // Increased chance of a "jump cut" on a single segment to make it more frantic.
+            if (random(100) < 50) { // Was 25
                 int segmentToGlitch = random(4);
                 Adafruit_AlphaNum4* segment;
                 switch(segmentToGlitch) {
                     case 0: segment = &rows[i]->month; break;
                     case 1: segment = &rows[i]->day; break;
                     case 2: segment = &rows[i]->year; break;
-                    case 3: segment = &rows[i]->time; break;
+                    default: segment = &rows[i]->time; break;
                 }
-                segment->clear();
-                // Write a random character to a random position
-                const char* chars = "1234567890";
-                segment->writeDigitAscii(random(4), chars[random(strlen(chars))]);
+
+                // The glitch can either be a blank or a full flash
+                if (random(100) < 50) {
+                    segment->clear();
+                } else {
+                    for(int j=0; j<8; ++j) {
+                        segment->displaybuffer[j] = 0xFFFF;
+                    }
+                }
                 segment->writeDisplay();
             }
         }
     } else {
+        // Settle on the correct time at the very end.
         updateNormalClockDisplay(true, true, true);
     }
+    // Add a small delay to control the frame rate of the glitches.
+    vTaskDelay(pdMS_TO_TICKS(20));
   #endif
 }
 
@@ -1332,42 +1373,42 @@ void animatePlasmaWarmUp(unsigned long elapsed, int duration) {
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
-    // Start dim and gradually increase brightness
-    uint8_t targetBrightness = progress * currentSettings.brightness;
-    uint8_t currentBrightness;
+    // The main animation runs for 90% of the duration
+    if (progress < 0.9) {
+        // 1. Brightness warm-up
+        uint8_t targetBrightness = progress * 1.1 * currentSettings.brightness;
+        if (targetBrightness > currentSettings.brightness) targetBrightness = currentSettings.brightness;
+        uint8_t currentBrightness = random(100) < 40 ? targetBrightness * 0.6 : targetBrightness;
 
-    // Flicker the brightness to simulate a glow
-    if (random(100) < 50) {
-        currentBrightness = targetBrightness * 0.8;
+        // 2. Plasma field effect
+        const char* plasmaChars = "-*~ ";
+        int numPlasmaChars = strlen(plasmaChars);
+        DisplayRow* all_rows[] = {&destRow, &presRow, &lastRow};
+
+        for(auto& row : all_rows) {
+            row->month.setBrightness(currentBrightness);
+            row->day.setBrightness(currentBrightness);
+            row->year.setBrightness(currentBrightness);
+            row->time.setBrightness(currentBrightness);
+
+            Adafruit_AlphaNum4* segments[] = {&row->month, &row->day, &row->year, &row->time};
+            for (auto& segment : segments) {
+                segment->clear();
+                for (int c = 0; c < 4; c++) {
+                    // Chance of a character appearing increases with progress
+                    if (random(100) < progress * 110) {
+                        segment->writeDigitAscii(c, plasmaChars[random(numPlasmaChars)]);
+                    }
+                }
+                segment->writeDisplay();
+            }
+        }
     } else {
-        currentBrightness = targetBrightness;
-    }
-
-    if (currentBrightness > currentSettings.brightness) {
-        currentBrightness = currentSettings.brightness;
-    }
-
-    destRow.month.setBrightness(currentBrightness);
-    destRow.day.setBrightness(currentBrightness);
-    destRow.year.setBrightness(currentBrightness);
-    destRow.time.setBrightness(currentBrightness);
-    presRow.month.setBrightness(currentBrightness);
-    presRow.day.setBrightness(currentBrightness);
-    presRow.year.setBrightness(currentBrightness);
-    presRow.time.setBrightness(currentBrightness);
-    lastRow.month.setBrightness(currentBrightness);
-    lastRow.day.setBrightness(currentBrightness);
-    lastRow.year.setBrightness(currentBrightness);
-    lastRow.time.setBrightness(currentBrightness);
-
-    // Flicker with random characters
-    if (progress < 0.9) { // Flicker for the first 90% of the animation
-        animateTornadoFlicker();
-    } else {
-        // For the last 10%, show the correct time
+        // Settle on the correct time for the last 10%
         updateNormalClockDisplay(true, true, true);
+        applyBrightness(); // Restore full brightness
     }
-
+    vTaskDelay(pdMS_TO_TICKS(30));
   #endif
 }
 
@@ -1526,39 +1567,36 @@ void animateCodeBreaker(unsigned long elapsed, int duration, const char* dest_st
 
 void animateTemporalParadox(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
-    float progress = (float)elapsed / duration;
-    if (progress > 1.0) progress = 1.0;
+    // The animation will flicker between the two states every 200ms
+    bool show_swapped = (elapsed / 200) % 2 == 0;
 
-    int swap_point = 16 * progress;
+    const char* top_row_str = show_swapped ? pres_str : dest_str;
+    const char* middle_row_str = show_swapped ? dest_str : pres_str;
 
-    char dest_buffer[17], pres_buffer[17];
+    // Helper to print a 13-char string to a row.
+    auto print_row = [&](DisplayRow& row, const char* str) {
+        char segment_buf[5];
+        strncpy(segment_buf, str + 0, 3); segment_buf[3] = '\0';
+        printToDisplay(row.month, segment_buf, 1);
+        strncpy(segment_buf, str + 3, 2); segment_buf[2] = '\0';
+        printToDisplay(row.day, segment_buf, 2);
+        strncpy(segment_buf, str + 5, 4); segment_buf[4] = '\0';
+        printToDisplay(row.year, segment_buf, 0);
+        strncpy(segment_buf, str + 9, 4); segment_buf[4] = '\0';
+        printToDisplay(row.time, segment_buf, 0);
+        row.month.writeDisplay();
+        row.day.writeDisplay();
+        row.year.writeDisplay();
+        row.time.writeDisplay();
+    };
 
-    for (int i = 0; i < 16; i++) {
-        if (i < swap_point) {
-            dest_buffer[i] = pres_str[i];
-            pres_buffer[i] = dest_str[i];
-        } else {
-            dest_buffer[i] = dest_str[i];
-            pres_buffer[i] = pres_str[i];
-        }
-    }
+    print_row(destRow, top_row_str);
+    print_row(presRow, middle_row_str);
 
-    dest_buffer[16] = '\0';
-    pres_buffer[16] = '\0';
+    // Glitch the last row to add to the unstable feeling
+    animateDisplayRowRandomly(lastRow);
 
-    printToDisplay(destRow.month, String(dest_buffer).substring(0, 3).c_str(), 1);
-    printToDisplay(destRow.day, String(dest_buffer).substring(3, 5).c_str(), 2);
-    printToDisplay(destRow.year, String(dest_buffer).substring(5, 9).c_str());
-    printToDisplay(destRow.time, String(dest_buffer).substring(9, 13).c_str());
-    destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-
-    printToDisplay(presRow.month, String(pres_buffer).substring(0, 3).c_str(), 1);
-    printToDisplay(presRow.day, String(pres_buffer).substring(3, 5).c_str(), 2);
-    printToDisplay(presRow.year, String(pres_buffer).substring(5, 9).c_str());
-    printToDisplay(presRow.time, String(pres_buffer).substring(9, 13).c_str());
-    presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-
-    updateNormalClockDisplay(false, false, true);
+    vTaskDelay(pdMS_TO_TICKS(50));
   #endif
 }
 
@@ -1674,27 +1712,33 @@ void animateFlipDiscDisplay(unsigned long elapsed, int duration, const char* des
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
-    int segmentsToFlip = progress * 12;
+    int chars_to_show = progress * 13; // Total characters across one row is 13
 
-    auto flipDiscRow = [&](DisplayRow& row, const char* final_str, int start_index) {
-        char month_buf[4] = "   ", day_buf[3] = "  ", year_buf[5] = "    ", time_buf[5] = "    ";
+    auto flipRow = [&](DisplayRow& row, const char* final_str) {
+        char current_str[14];
+        const char* flip_chars = "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        int flip_chars_len = strlen(flip_chars);
 
-        if (segmentsToFlip > start_index) {
-            strncpy(month_buf, final_str, 3);
-            month_buf[3] = '\0';
+        for (int i = 0; i < 13; i++) {
+            if (i < chars_to_show) {
+                // This character is "locked in"
+                current_str[i] = final_str[i];
+            } else if (i == chars_to_show) {
+                // This is the character currently "flipping"
+                current_str[i] = flip_chars[random(flip_chars_len)];
+            } else {
+                // This character hasn't started flipping yet
+                current_str[i] = ' ';
+            }
         }
-        if (segmentsToFlip > start_index + 1) {
-            strncpy(day_buf, final_str + 3, 2);
-            day_buf[2] = '\0';
-        }
-        if (segmentsToFlip > start_index + 2) {
-            strncpy(year_buf, final_str + 5, 4);
-            year_buf[4] = '\0';
-        }
-        if (segmentsToFlip > start_index + 3) {
-            strncpy(time_buf, final_str + 9, 4);
-            time_buf[4] = '\0';
-        }
+        current_str[13] = '\0';
+
+        char month_buf[4], day_buf[3], year_buf[5], time_buf[5];
+
+        strncpy(month_buf, current_str, 3); month_buf[3] = '\0';
+        strncpy(day_buf, current_str + 3, 2); day_buf[2] = '\0';
+        strncpy(year_buf, current_str + 5, 4); year_buf[4] = '\0';
+        strncpy(time_buf, current_str + 9, 4); time_buf[4] = '\0';
 
         printToDisplay(row.month, month_buf, 1);
         printToDisplay(row.day, day_buf, 2);
@@ -1703,9 +1747,9 @@ void animateFlipDiscDisplay(unsigned long elapsed, int duration, const char* des
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
     };
 
-    flipDiscRow(destRow, dest_str, 0);
-    flipDiscRow(presRow, pres_str, 4);
-    flipDiscRow(lastRow, last_str, 8);
+    flipRow(destRow, dest_str);
+    flipRow(presRow, pres_str);
+    flipRow(lastRow, last_str);
   #endif
 }
 

@@ -310,7 +310,20 @@ void startStyledAnimation() {
 
     // Set the animation style for this run
     if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
-        randomAnimationStyle = random(0, ANIMATION_RANDOM_ALL);
+        const int validAnimationStyles[] = {
+            ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
+            ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
+            ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
+            ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC,
+            ANIMATION_GLITCHY_JUMP_CUT, ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS,
+            ANIMATION_CHARACTER_SCANLINE, ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER,
+            ANIMATION_TEMPORAL_PARADOX, ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE,
+            ANIMATION_FLIP_DISC_DISPLAY, ANIMATION_INTERFERENCE_PATTERN,
+            ANIMATION_ALL_DISPLAYS_RANDOM
+        };
+        int numStyles = sizeof(validAnimationStyles) / sizeof(validAnimationStyles[0]);
+        int randomIndex = random(0, numStyles);
+        randomAnimationStyle = validAnimationStyles[randomIndex];
     } else {
         randomAnimationStyle = currentSettings.animationStyle;
     }
@@ -377,14 +390,14 @@ void handleStyledAnimation() {
                             // We are in a glitch state
                             DisplayRow& rowToGlitch = (glitchRow == 0) ? destRow : ((glitchRow == 1) ? presRow : lastRow);
                             animateDisplayRowRandomly(rowToGlitch);
-                            if (millis() - lastGlitchTriggerTime > 150) { // Glitch lasts for 150ms
+                            if (millis() - lastGlitchTriggerTime > 200) { // Glitch lasts for 200ms
                                 glitchRow = -1; // End the glitch
                             }
                         } else {
                             // Not glitching, show the normal clock
                             updateNormalClockDisplay();
                             // Check if it's time to trigger a new glitch
-                            if (millis() - lastGlitchTriggerTime > 800 && random(100) < 20) { // Approx every second, 20% chance
+                            if (millis() - lastGlitchTriggerTime > 100 && random(100) < 75) {
                                 glitchRow = random(3); // Pick a row (0, 1, or 2)
                                 lastGlitchTriggerTime = millis();
                             }
