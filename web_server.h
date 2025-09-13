@@ -46,6 +46,7 @@ extern void startTimeTravelAnimation();
 void fetchWeatherDataTask(void* p);
 
 void setupWebRoutes();
+void broadcastPresetUpdate(const std::string& name, int year, int month, int day, int hour, int minute);
 void broadcastWsStateUpdate(const char* key, const JsonVariant& value);
 void broadcastWsStateUpdate(const char* key, int value);
 void broadcastWsStateUpdate(const char* key, bool value);
