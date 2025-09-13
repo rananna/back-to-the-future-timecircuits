@@ -45,6 +45,42 @@
 #include "MqttManager.h"
 #include "timezone.h"
 
+#include <vector>
+
+// --- PRESET DEFINITIONS ---
+// A structure to hold the details of a single preset time.
+struct Preset {
+    std::string name;
+    int year;
+    int month;
+    int day;
+    int hour;
+    int minute;
+
+    // Helper to check for equality, useful for finding the current preset
+    bool operator==(const ClockSettings& settings) const {
+        return year == settings.lastTimeDepartedYear &&
+               month == settings.lastTimeDepartedMonth &&
+               day == settings.lastTimeDepartedDay &&
+               hour == settings.lastTimeDepartedHour &&
+               minute == settings.lastTimeDepartedMinute;
+    }
+};
+
+// A constant vector containing all the presets from the movies.
+const std::vector<Preset> moviePresets = {
+    {"Einstein's Test (1985)", 1985, 10, 26, 1, 20},
+    {"Marty's First Jump (1985)", 1985, 10, 26, 1, 35},
+    {"Arrival in Past (1955)", 1955, 11, 5, 6, 0},
+    {"Lightning Strike (1955)", 1955, 11, 12, 22, 4},
+    {"Future Arrival (2015)", 2015, 10, 21, 16, 29},
+    {"Old Biff Gives Almanac (1955)", 1955, 11, 12, 18, 38},
+    {"Doc's Arrival in Old West (1885)", 1885, 1, 1, 0, 0},
+    {"Marty's Arrival in Old West (1885)", 1885, 9, 2, 8, 0},
+    {"Train Push to Future (1885)", 1885, 9, 7, 9, 0}
+};
+
+
 // Audio Library Includes
 #include "Audio.h"
 
@@ -1132,10 +1168,94 @@ void handleSequencer() {
     }
 }
 
+#include <cstdio> // For sscanf
+
+/**
+ * @brief Constructs a complete list of presets, combining movie presets and custom ones.
+ * @details This function first copies the hardcoded `moviePresets` vector. It then reads
+ * the `customPresets` JSON string from NVS, parses it, and appends each valid
+ * custom preset to the list.
+ * @return A std::vector<Preset> containing all available presets.
+ */
+std::vector<Preset> getFullPresetList() {
+    std::vector<Preset> allPresets = moviePresets; // Start with the movie presets
+
+    preferences.begin(PREFERENCES_NAMESPACE, true); // Read-only
+    String presetsJson = preferences.getString("customPresets", "[]");
+    preferences.end();
+
+    DynamicJsonDocument doc(2048);
+    DeserializationError error = deserializeJson(doc, presetsJson);
+
+    if (!error) {
+        JsonArray customPresets = doc.as<JsonArray>();
+        for (JsonObject presetObj : customPresets) {
+            std::string value = presetObj["value"].as<std::string>();
+            int year, month, day, hour, minute;
+            // Use sscanf to safely parse the date-time string
+            if (sscanf(value.c_str(), "%d-%d-%d-%d-%d", &year, &month, &day, &hour, &minute) == 5) {
+                allPresets.push_back({presetObj["name"].as<std::string>(), year, month, day, hour, minute});
+            }
+        }
+    } else {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to parse custom presets JSON: %s", error.c_str());
+    }
+    return allPresets;
+}
+
+/**
+ * @brief Handles the automatic cycling of the "Last Time Departed" display through presets.
+ * @details This function is called from the main loop. If preset cycling is enabled, it checks
+ * if the configured interval has passed. If so, it fetches the full list of presets,
+ * finds the current "Last Time Departed" in that list, and advances to the next preset,
+ * wrapping around to the beginning if necessary. The `currentSettings` are then updated
+ * with the new preset's date and time, which will be reflected on the display in the next
+ * update cycle.
+ */
 void handlePresetCycling() {
-    if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep) return;
+    // Return if cycling is disabled, an animation is playing, or the display is asleep
+    if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
+        return;
+    }
+
+    // Check if the interval (in minutes) has elapsed
     if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
-        lastPresetCycleTime = millis();
+        lastPresetCycleTime = millis(); // Reset the timer
+
+        Log_printf(LOG_LEVEL_INFO, "Preset cycle triggered.");
+
+        // Get the combined list of movie and custom presets
+        std::vector<Preset> allPresets = getFullPresetList();
+        if (allPresets.empty()) {
+            Log_printf(LOG_LEVEL_WARN, "No presets available to cycle.");
+            return; // No presets to cycle
+        }
+
+        // Find the index of the current "Last Time Departed" in the list
+        int currentIndex = -1;
+        for (size_t i = 0; i < allPresets.size(); ++i) {
+            if (allPresets[i] == currentSettings) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        // Determine the index of the next preset, wrapping around if needed
+        // If the current preset isn't found, start from the first one.
+        int nextIndex = (currentIndex == -1) ? 0 : (currentIndex + 1) % allPresets.size();
+
+        const Preset& nextPreset = allPresets[nextIndex];
+        Log_printf(LOG_LEVEL_INFO, "Cycling to next preset: %s", nextPreset.name.c_str());
+
+        // Update the global settings with the new "Last Time Departed"
+        currentSettings.lastTimeDepartedYear = nextPreset.year;
+        currentSettings.lastTimeDepartedMonth = nextPreset.month;
+        currentSettings.lastTimeDepartedDay = nextPreset.day;
+        currentSettings.lastTimeDepartedHour = nextPreset.hour;
+        currentSettings.lastTimeDepartedMinute = nextPreset.minute;
+
+        // The display will be updated automatically on the next loop iteration.
+        // No need to call saveSettings() here, as this isn't a persistent change.
     }
 }
 
