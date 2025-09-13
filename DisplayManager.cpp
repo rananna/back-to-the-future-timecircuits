@@ -386,23 +386,17 @@ void handleWeatherDisplay() {
         static bool initialFetchTimedOut = false;
 
         if (initialFetchTimedOut) {
-            // After the first timeout, just keep showing the normal clock.
             xSemaphoreGive(xDisplayDataMutex);
-            updateNormalClockDisplay(true, true, false);
+            updateNormalClockDisplay(false, false, true);
             return;
         }
 
         if (!currentWeatherData.dataValid) {
             if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 10000) {
                 Log_printf(LOG_LEVEL_WARN, "Initial weather fetch timed out after 10 seconds.");
-                initialFetchTimedOut = true; // Set the flag to prevent repeated fetches
-
-                // --- FIX: Revert to the normal clock display ---
-                currentSettings.weatherModeEnabled = false;
-                broadcastWsStateUpdate("weatherModeEnabled", false);
-
+                initialFetchTimedOut = true;
                 xSemaphoreGive(xDisplayDataMutex);
-                updateNormalClockDisplay(true, true, false); // Update all three rows
+                updateNormalClockDisplay(false, false, true);
                 return;
             }
 
