@@ -283,15 +283,17 @@ void fetchWeatherData(WeatherTaskParams* params) {
                      "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max" + 
                      "&hourly=temperature_2m,weather_code" +
                      "&forecast_days=2" +
+                     "&forecast_hours=24" +
                      "&temperature_unit=" + tempUnit + "&wind_speed_unit=" + speedUnit;
         if (http.begin(client, weatherUrl)) {
             Log_printf(LOG_LEVEL_DEBUG, "Weather URL: %s", weatherUrl.c_str());
             int httpCode = http.GET();
             Log_printf(LOG_LEVEL_DEBUG, "Weather API HTTP Code: %d", httpCode);
             if (httpCode == HTTP_CODE_OK) {
-                String payload = http.getString();
                 DynamicJsonDocument doc(4096);
-                DeserializationError error = deserializeJson(doc, payload);
+                // By deserializing directly from the stream, we avoid allocating
+                // a large string for the payload, which saves a lot of memory.
+                DeserializationError error = deserializeJson(doc, http.getStream());
 
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (error == DeserializationError::Ok && !doc.containsKey("error")) {
@@ -311,18 +313,17 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         currentWeatherData.tomorrowLow = doc["daily"]["temperature_2m_min"][1];
                         currentWeatherData.tomorrowWeatherCode = doc["daily"]["weather_code"][1];
 
-                        time_t now;
-                        time(&now);
-                        struct tm timeinfo;
-                        localtime_r(&now, &timeinfo);
-                        int currentHour = timeinfo.tm_hour;
                         JsonArray hourly_temp = doc["hourly"]["temperature_2m"];
                         JsonArray hourly_code = doc["hourly"]["weather_code"];
+
+                        // With forecast_hours, the API returns hourly data starting from the current hour.
+                        // hourly_temp[0] is the current hour, hourly_temp[1] is the next hour, and so on.
+                        // We want to display the forecast for the next 3 hours.
                         for (int j = 0; j < 3; j++) {
-                            int forecastHour = currentHour + j + 1;
-                            if (forecastHour < 24) {
-                                currentWeatherData.hourlyTemp[j] = hourly_temp[forecastHour];
-                                currentWeatherData.hourlyCode[j] = hourly_code[forecastHour];
+                            // We access index j + 1 to get the forecast for hours +1, +2, and +3 from now.
+                            if (j + 1 < hourly_temp.size()) {
+                                currentWeatherData.hourlyTemp[j] = hourly_temp[j + 1];
+                                currentWeatherData.hourlyCode[j] = hourly_code[j + 1];
                             }
                         }
                         
