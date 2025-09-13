@@ -23,16 +23,6 @@ al * control. It is responsible for generating the Home Assistant MQTT Discovery
 
 bool haDiscoveryPublished = false;
 
-void setupMqtt() {
-  if (currentSettings.mqttBroker.empty()) {
-    Serial.println("MQTT_LOG: No broker configured. MQTT setup skipped.");
-    return;
-  }
-  mqttClient.setServer(currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
-  mqttClient.setCallback(mqttCallback);
-  Serial.printf("MQTT_LOG: Client configured for broker [%s] on port [%d]\n", currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
-}
-
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
     String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
     String topic = String(MQTT_BASE_TOPIC) + "/" + component + "/" + object_id + "/config";
@@ -762,16 +752,13 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 currentSettings.brightness = 5;
                 currentSettings.notificationVolume = 15;
                 currentSettings.timeTravelSoundToggle = true;
-                currentSettings.glitchEffectFrequency = 0;
             } else if (message == "Cinematic") {
                 currentSettings.animationStyle = ANIMATION_TIMELINE_SKIM;
                 currentSettings.timeTravelAnimationDuration = 8000;
-                currentSettings.glitchEffectFrequency = 10;
             } else if (message == "Silent Night") {
                 currentSettings.brightness = 1;
                 currentSettings.notificationVolume = 0;
                 currentSettings.timeTravelSoundToggle = false;
-                currentSettings.glitchEffectFrequency = 0;
             }
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;

@@ -385,7 +385,6 @@ void setupWebRoutes() {
     doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
     doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
     doc["animationStyle"] = currentSettings.animationStyle;
-    doc["glitchEffectFrequency"] = currentSettings.glitchEffectFrequency;
     doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
     doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
