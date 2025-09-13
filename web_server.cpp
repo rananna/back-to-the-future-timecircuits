@@ -7,6 +7,7 @@
  * communication with the web UI.
  */
 #include "timezone.h"
+#include "DebugLog.h"
 #include "web_server.h"
 #include "api_templates.h"
 #include "DataManager.h"
@@ -237,9 +238,9 @@ void makeApiRequestTask(void* p) {
  */
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-        Serial.printf("WEB_LOG: WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+        Log_printf(LOG_LEVEL_INFO, "WebSocket client #%u connected from %s", client->id(), client->remoteIP().toString().c_str());
     } else if (type == WS_EVT_DISCONNECT) {
-        Serial.printf("WEB_LOG: WebSocket client #%u disconnected\n", client->id());
+        Log_printf(LOG_LEVEL_INFO, "WebSocket client #%u disconnected", client->id());
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
@@ -248,14 +249,13 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
             DeserializationError error = deserializeJson(doc, data, len);
 
             if (error) {
-                Serial.print(F("WEB_LOG: deserializeJson() failed: "));
-                Serial.println(error.c_str());
+                Log_printf(LOG_LEVEL_ERROR, "deserializeJson() failed: %s", error.c_str());
                 return;
             }
 
             String action = doc["action"];
              if (action == "testStock") {
-                Serial.println("SERVER_DEBUG: 'testStock' action received.");
+                Log_printf(LOG_LEVEL_DEBUG, "'testStock' action received.");
                  if (!timeSynchronized) {
                     String responseString;
                     DynamicJsonDocument responseJson(256);
@@ -276,18 +276,18 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 } else {
                     url = "https://financialmodelingprep.com/api/v3/quote/" + symbol + "?apikey=" + apiKey;
                 }
-                Serial.printf("SERVER_DEBUG: Stock URL created: %s\n", url.c_str());
+                Log_printf(LOG_LEVEL_DEBUG, "Stock URL created: %s", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex};
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
                     delete params;
-                    Serial.println("SERVER_DEBUG: ERROR - Failed to create stock test task!");
+                    Log_printf(LOG_LEVEL_ERROR, "Failed to create stock test task!");
                 } else {
-                    Serial.println("SERVER_DEBUG: Stock test task created successfully.");
+                    Log_printf(LOG_LEVEL_DEBUG, "Stock test task created successfully.");
                 }
             } else if (action == "testApi") {
-                Serial.println("SERVER_DEBUG: 'testApi' action received.");
+                Log_printf(LOG_LEVEL_DEBUG, "'testApi' action received.");
                 if (!timeSynchronized) {
                     String responseString;
                     DynamicJsonDocument responseJson(256);
@@ -302,14 +302,14 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String url = doc["data"]["url"];
                 String authKey = doc["data"]["authKey"];
                 String authValue = doc["data"]["authValue"];
-                 Serial.printf("SERVER_DEBUG: API Test URL: %s\n", url.c_str());
+                 Log_printf(LOG_LEVEL_DEBUG, "API Test URL: %s", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id(), "apiResult", 0};
 
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
                     delete params;
-                     Serial.println("SERVER_DEBUG: ERROR - Failed to create API test task!");
+                     Log_printf(LOG_LEVEL_ERROR, "Failed to create API test task!");
                 }
             }
         }
@@ -325,30 +325,30 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
  * a series of RESTful API endpoints for interacting with the clock's settings and state.
  */
 void setupWebRoutes() {
-  Serial.println(F("WEB_LOG: Inside setupWebRoutes(). Attaching handlers..."));
+  Log_printf(LOG_LEVEL_INFO, "Inside setupWebRoutes(). Attaching handlers...");
 
   // Attach the WebSocket event handler.
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Serial.println(F("WEB_LOG: Client requested /index.html"));
+    Log_printf(LOG_LEVEL_DEBUG, "Client requested /index.html");
     request->send(LittleFS, "/index.html", "text/html"); 
   });
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Serial.println(F("WEB_LOG: Client requested /style.css"));
+    Log_printf(LOG_LEVEL_DEBUG, "Client requested /style.css");
     request->send(LittleFS, "/style.css", "text/css"); 
   });
   server.on("/data_handling.js", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Serial.println(F("WEB_LOG: Client requested /data_handling.js"));
+    Log_printf(LOG_LEVEL_DEBUG, "Client requested /data_handling.js");
     request->send(LittleFS, "/data_handling.js", "application/javascript"); 
   });
   server.on("/main_ui.js", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Serial.println(F("WEB_LOG: Client requested /main_ui.js"));
+    Log_printf(LOG_LEVEL_DEBUG, "Client requested /main_ui.js");
     request->send(LittleFS, "/main_ui.js", "application/javascript"); 
   });
   server.on("/api/isReady", HTTP_GET, [](AsyncWebServerRequest *request){ 
-    Serial.println(F("WEB_LOG: Client requested /api/isReady"));
+    Log_printf(LOG_LEVEL_DEBUG, "Client requested /api/isReady");
     request->send(200, "text/plain", "READY"); 
   });
   
@@ -644,7 +644,7 @@ void setupWebRoutes() {
   });
 
   server.onNotFound([](AsyncWebServerRequest *request){
-    Serial.printf("WEB_LOG: 404 Not Found: %s\n", request->url().c_str());
+    Log_printf(LOG_LEVEL_WARN, "404 Not Found: %s", request->url().c_str());
     request->send(404, "text/plain", "Not found");
   });
 

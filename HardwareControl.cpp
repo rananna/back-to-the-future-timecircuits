@@ -6,6 +6,7 @@
  * libraries, as well as the custom audio library for I2S sound.
  */
 
+#include "DebugLog.h"
 #include "HardwareControl.h"
 #include "EventManager.h" 
 #include "DisplayManager.h"
@@ -58,6 +59,9 @@ DisplayRow lastRow;
 // --- Make global audio objects available ---
 extern bool isPlayingSound;
 extern BootSequenceState bootState;
+
+// Definition for the serial printing mutex.
+SemaphoreHandle_t xSerialMutex;
 
 #endif
 
@@ -129,22 +133,22 @@ bool setupPhysicalDisplay() {
     lastRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
 
     // --- Destination Row ---
-    if (!destRow.month.begin(0x70, &I2C_1)) { Serial.println(F("ERROR: Dest Row Month display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
-    if (!destRow.day.begin(0x71, &I2C_1)) { Serial.println(F("ERROR: Dest Row Day display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
-    if (!destRow.year.begin(0x72, &I2C_1)) { Serial.println(F("ERROR: Dest Row Year display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
-    if (!destRow.time.begin(0x73, &I2C_1)) { Serial.println(F("ERROR: Dest Row Time display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
+    if (!destRow.month.begin(0x70, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Dest Row Month display failed to init."); return false; }
+    if (!destRow.day.begin(0x71, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Dest Row Day display failed to init."); return false; }
+    if (!destRow.year.begin(0x72, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Dest Row Year display failed to init."); return false; }
+    if (!destRow.time.begin(0x73, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Dest Row Time display failed to init."); return false; }
 
     // --- Present Row ---
-    if (!presRow.month.begin(0x74, &I2C_1)) { Serial.println(F("ERROR: Pres Row Month display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
-    if (!presRow.day.begin(0x75, &I2C_1)) { Serial.println(F("ERROR: Pres Row Day display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
-    if (!presRow.year.begin(0x76, &I2C_1)) { Serial.println(F("ERROR: Pres Row Year display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
-    if (!presRow.time.begin(0x77, &I2C_1)) { Serial.println(F("ERROR: Pres Row Time display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
+    if (!presRow.month.begin(0x74, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Pres Row Month display failed to init."); return false; }
+    if (!presRow.day.begin(0x75, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Pres Row Day display failed to init."); return false; }
+    if (!presRow.year.begin(0x76, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Pres Row Year display failed to init."); return false; }
+    if (!presRow.time.begin(0x77, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Pres Row Time display failed to init."); return false; }
 
     // --- Last Time Departed Row ---
-    if (!lastRow.month.begin(0x70, &I2C_2)) { Serial.println(F("ERROR: LTD Row Month display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
-    if (!lastRow.day.begin(0x71, &I2C_2)) { Serial.println(F("ERROR: LTD Row Day display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
-    if (!lastRow.year.begin(0x72, &I2C_2)) { Serial.println(F("ERROR: LTD Row Year display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
-    if (!lastRow.time.begin(0x73, &I2C_2)) { Serial.println(F("ERROR: LTD Row Time display failed to init.")); if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); } return false; }
+    if (!lastRow.month.begin(0x70, &I2C_2)) { Log_printf(LOG_LEVEL_ERROR, "LTD Row Month display failed to init."); return false; }
+    if (!lastRow.day.begin(0x71, &I2C_2)) { Log_printf(LOG_LEVEL_ERROR, "LTD Row Day display failed to init."); return false; }
+    if (!lastRow.year.begin(0x72, &I2C_2)) { Log_printf(LOG_LEVEL_ERROR, "LTD Row Year display failed to init."); return false; }
+    if (!lastRow.time.begin(0x73, &I2C_2)) { Log_printf(LOG_LEVEL_ERROR, "LTD Row Time display failed to init."); return false; }
 
     // Set LED indicator pins to output mode.
     pinMode(DEST_AM_PIN, OUTPUT); pinMode(DEST_PM_PIN, OUTPUT);
@@ -155,7 +159,6 @@ bool setupPhysicalDisplay() {
     pinMode(I2S_SD_PIN, OUTPUT);
     digitalWrite(I2S_SD_PIN, HIGH);
 
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by setupPhysicalDisplay"); }
     return true; // All displays initialized successfully
   #else
     return true; // If hardware is disabled, we consider it "initialized" successfully.
@@ -929,7 +932,6 @@ void display88MphSpeed(float speed) {
 
 void playSound(const char* filepath) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by playSound"); }
         char fullPath[MAX_FILENAME_LENGTH];
 
         // Ensure the path starts with a single '/'
@@ -941,16 +943,16 @@ void playSound(const char* filepath) {
         // Ensure null-termination in case of overflow
         fullPath[MAX_FILENAME_LENGTH - 1] = '\0';
 
-        Serial.printf("AUDIO_LOG: Request to play sound: %s\n", fullPath);
+        Log_printf(LOG_LEVEL_INFO, "Request to play sound: %s", fullPath);
 
         if (audio.isRunning()) {
+            Log_printf(LOG_LEVEL_DEBUG, "Audio is already running. Stopping current sound.");
             audio.stopSong();
             vTaskDelay(pdMS_TO_TICKS(10));
         }
 
         if (!LittleFS.exists(fullPath)) {
-            Serial.printf("AUDIO_LOG: File not found: %s\n", fullPath);
-            if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by playSound"); }
+            Log_printf(LOG_LEVEL_WARN, "Audio file not found: %s", fullPath);
             return;
         }
 
@@ -963,13 +965,12 @@ void playSound(const char* filepath) {
         currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
 
         if (audio.connecttoFS(LittleFS, fullPath)) {
-            Serial.printf("AUDIO_LOG: Started playing: %s\n", fullPath);
+            Log_printf(LOG_LEVEL_INFO, "Started playing: %s", fullPath);
         } else {
-            Serial.printf("AUDIO_LOG: Failed to connect to file: %s\n", fullPath);
+            Log_printf(LOG_LEVEL_ERROR, "Failed to connect to audio file: %s", fullPath);
             currentSoundFile[0] = '\0';
             digitalWrite(I2S_SD_PIN, LOW);
         }
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by playSound"); }
     #endif
 }
 void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor) {
@@ -1743,4 +1744,34 @@ void animateInterferencePattern(unsigned long elapsed, int duration, const char*
     interferenceRow(presRow, pres_str);
     interferenceRow(lastRow, last_str);
   #endif
+}
+
+/**
+ * @brief A thread-safe wrapper for Serial.printf.
+ * @details This function acquires a mutex before printing to the serial port,
+ * ensuring that log messages from different FreeRTOS tasks are not interleaved
+ * and garbled. It supports standard printf format strings.
+ * @param format The format string.
+ * @param ... The variable arguments for the format string.
+ */
+void safe_printf(const char *format, ...) {
+    // Check if the mutex has been initialized
+    if (xSerialMutex == NULL) {
+        // Fallback to regular printf if mutex is not available
+        // This might happen if logging is called before the scheduler has started
+        Serial.printf(format, ...);
+        return;
+    }
+
+    if (xSemaphoreTake(xSerialMutex, portMAX_DELAY) == pdTRUE) {
+        va_list args;
+        va_start(args, format);
+        Serial.printf(format, args);
+        va_end(args);
+        xSemaphoreGive(xSerialMutex);
+    } else {
+        // As a fallback, if we fail to take the mutex (which shouldn't happen with portMAX_DELAY),
+        // print an error directly. This could indicate a deadlock.
+        Serial.println("FATAL: Could not take serial mutex!");
+    }
 }

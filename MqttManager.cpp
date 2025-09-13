@@ -8,6 +8,7 @@ al * control. It is responsible for generating the Home Assistant MQTT Discovery
  * by Home Assistant.
  */
 
+#include "DebugLog.h"
 #include "MqttManager.h"
 #include "EventManager.h"
 #include "AnimationManager.h"
@@ -441,7 +442,7 @@ void publishHaAutoDiscovery() {
 void reconnectMqtt() {
   if (currentSettings.mqttBroker.empty()) return;
   
-  Serial.println("MQTT_LOG: Attempting to connect...");
+  Log_printf(LOG_LEVEL_INFO, "Attempting to connect to MQTT broker: %s...", currentSettings.mqttBroker.c_str());
   delay(100); 
 
   String clientId = "BTTF-Clock-";
@@ -450,15 +451,15 @@ void reconnectMqtt() {
 
   bool connectResult = false;
   if (!currentSettings.mqttUser.empty()) {
-      Serial.printf("MQTT_LOG: Connecting with Client ID: %s and username: %s\n", clientId.c_str(), currentSettings.mqttUser.c_str());
+      Log_printf(LOG_LEVEL_DEBUG, "Connecting with Client ID: %s and username: %s", clientId.c_str(), currentSettings.mqttUser.c_str());
       connectResult = mqttClient.connect(clientId.c_str(), currentSettings.mqttUser.c_str(), currentSettings.mqttPassword.c_str(), availability_topic.c_str(), 1, true, "offline");
   } else {
-      Serial.printf("MQTT_LOG: Connecting with Client ID: %s (no username)\n", clientId.c_str());
+      Log_printf(LOG_LEVEL_DEBUG, "Connecting with Client ID: %s (no username)", clientId.c_str());
       connectResult = mqttClient.connect(clientId.c_str(), availability_topic.c_str(), 1, true, "offline");
   }
 
   if (connectResult) {
-    Serial.println("MQTT_LOG: SUCCESS! MQTT client connected.");
+    Log_printf(LOG_LEVEL_INFO, "SUCCESS! MQTT client connected.");
     delay(100); 
     
     mqttClient.publish(availability_topic.c_str(), "online", true);
@@ -472,6 +473,7 @@ void reconnectMqtt() {
     publishAllHaStates();
     String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
     mqttClient.subscribe(command_topic.c_str());
+    Log_printf(LOG_LEVEL_DEBUG, "Subscribed to wildcard command topic: %s", command_topic.c_str());
     
     String audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/tts/play";
     mqttClient.subscribe(audio_topic.c_str());
@@ -489,22 +491,23 @@ void reconnectMqtt() {
         mqttClient.subscribe((base_dp_topic + "/day/set").c_str());
         mqttClient.subscribe((base_dp_topic + "/year/set").c_str());
         mqttClient.subscribe((base_dp_topic + "/time/set").c_str());
+        Log_printf(LOG_LEVEL_DEBUG, "Subscribed to HA push topics for data point %d", i);
       }
     }
   } else {
-    Serial.printf("MQTT_LOG: FAILED! rc=%d. ", mqttClient.state());
+    const char* error_str = "Unknown";
     switch (mqttClient.state()) {
-      case -4: Serial.println("Connection timeout."); break;
-      case -3: Serial.println("Connection lost."); break;
-      case -2: Serial.println("Connect failed."); break;
-      case -1: Serial.println("Disconnected."); break;
-      case 1: Serial.println("Bad protocol version."); break;
-      case 2: Serial.println("Client ID rejected."); break;
-      case 3: Serial.println("Server unavailable."); break;
-      case 4: Serial.println("Bad username or password."); break;
-      case 5: Serial.println("Not authorized."); break;
-      default: Serial.println("Unknown error."); break;
+      case -4: error_str = "Connection timeout."; break;
+      case -3: error_str = "Connection lost."; break;
+      case -2: error_str = "Connect failed."; break;
+      case -1: error_str = "Disconnected."; break;
+      case 1:  error_str = "Bad protocol version."; break;
+      case 2:  error_str = "Client ID rejected."; break;
+      case 3:  error_str = "Server unavailable."; break;
+      case 4:  error_str = "Bad username or password."; break;
+      case 5:  error_str = "Not authorized."; break;
     }
+    Log_printf(LOG_LEVEL_ERROR, "MQTT connection FAILED! rc=%d (%s)", mqttClient.state(), error_str);
     delay(100); 
   }
 }
@@ -1065,15 +1068,15 @@ void publishTimeSensors() {
 }
 
 void startAudioStream(const char* url, bool is_tts, int volume) {
-    Serial.printf("AUDIO_LOG: Request to start audio stream from URL: %s\n", url);
+    Log_printf(LOG_LEVEL_INFO, "Request to start audio stream from URL: %s", url);
     if (!hardwareInitialized) {
-        Serial.println("AUDIO_LOG: Hardware not initialized, cannot play audio.");
+        Log_printf(LOG_LEVEL_WARN, "Hardware not initialized, cannot play audio.");
         return;
     }
 
     if (audio.isRunning()) {
         audio.stopSong();
-        Serial.println("AUDIO_LOG: Stopped existing audio to play new stream.");
+        Log_printf(LOG_LEVEL_DEBUG, "Stopped existing audio to play new stream.");
     }
     
     digitalWrite(I2S_SD_PIN, HIGH);
@@ -1082,7 +1085,7 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
         // Map 0-100 volume from HA to the device's 0-21 scale
         int device_volume = round(volume / 100.0 * 21.0);
         audio.setVolume(device_volume);
-        Serial.printf("AUDIO_LOG: Set dynamic volume to %d (%d/100)\n", device_volume, volume);
+        Log_printf(LOG_LEVEL_DEBUG, "Set dynamic volume to %d (%d/100)", device_volume, volume);
     } else {
         audio.setVolume(currentSettings.notificationVolume); // Use default volume
     }
@@ -1091,25 +1094,35 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
     currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
     
     if (audio.connecttohost(url)) {
-        Serial.printf("AUDIO_LOG: Successfully connected to host for streaming: %s\n", url);
+        Log_printf(LOG_LEVEL_INFO, "Successfully connected to host for streaming: %s", url);
         if (mqttClient.connected()) {
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
         }
     } else {
-        Serial.printf("AUDIO_LOG: Failed to connect to host for streaming: %s\n", url);
+        Log_printf(LOG_LEVEL_ERROR, "Failed to connect to host for streaming: %s", url);
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
     }
 }
 
 void stopAudioStream() {
-    Serial.println("AUDIO_LOG: Request to stop audio stream.");
+    Log_printf(LOG_LEVEL_INFO, "Request to stop audio stream.");
     if (audio.isRunning()) {
         audio.stopSong();
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
-        Serial.println("AUDIO_LOG: Audio stream stopped successfully.");
+        Log_printf(LOG_LEVEL_INFO, "Audio stream stopped successfully.");
     } else {
-        Serial.println("AUDIO_LOG: No audio stream was running.");
+        Log_printf(LOG_LEVEL_DEBUG, "No audio stream was running.");
     }
+}
+
+void setupMqtt() {
+  if (currentSettings.mqttBroker.empty()) {
+    Log_printf(LOG_LEVEL_INFO, "No broker configured. MQTT setup skipped.");
+    return;
+  }
+  mqttClient.setServer(currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
+  mqttClient.setCallback(mqttCallback);
+  Log_printf(LOG_LEVEL_INFO, "Client configured for broker [%s] on port [%d]", currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
 }
