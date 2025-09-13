@@ -840,6 +840,12 @@ void setup() {
     uint8_t mac[6];
     WiFi.macAddress(mac);
     sprintf(MQTT_UNIQUE_ID, "BTTF_TC_%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+    // Manually configure DNS servers to fix potential network issues
+    IPAddress primaryDNS(8, 8, 8, 8);
+    IPAddress secondaryDNS(8, 8, 4, 4);
+    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, primaryDNS, secondaryDNS);
+
     WiFi.begin();
     wifiConnectStartTime = millis();
     wifiState = WIFI_STATE_CONNECTING;
