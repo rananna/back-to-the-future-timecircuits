@@ -227,29 +227,21 @@ void audioTask(void *pvParameters) {
   }
 }
 
-/**
-void applySettingsFromJson(const JsonObject& obj); // Forward declaration
+// Forward declaration for the function that applies settings from a JSON object.
+void applySettingsFromJson(const JsonObject& obj);
 
-/**
- * @brief Handles the asynchronous saving of settings requested from the web UI.
- * @details This function is called from the main loop when the `saveSettingsRequested`
- * flag is true. It parses the buffered JSON string, applies the new settings,
- * saves them to persistent storage, triggers the confirmation animation, and
- * handles any necessary service reconnections (like MQTT).
- */
-void handleBackgroundSave() {
-    saveSettingsRequested = false; // Reset the flag immediately.
-
-    Log_printf(LOG_LEVEL_INFO, "--- Background Save Started ---");
-
-    // Create a JSON document to parse the buffered string.
+// This helper function now contains the memory-intensive JSON parsing.
+// It returns true on success and false on failure.
+bool applyAndSaveSettings() {
     DynamicJsonDocument doc(8192);
     DeserializationError error = deserializeJson(doc, settingsToSaveJson);
 
+    // Clear the large JSON string from memory as soon as it has been parsed.
+    settingsToSaveJson = "";
+
     if (error) {
-        Log_printf(LOG_LEVEL_ERROR, "handleBackgroundSave: deserializeJson() failed: %s", error.c_str());
-        settingsToSaveJson = ""; // Clear the invalid JSON.
-        return;
+        Log_printf(LOG_LEVEL_ERROR, "applyAndSaveSettings: deserializeJson() failed: %s", error.c_str());
+        return false;
     }
 
     JsonObject obj = doc.as<JsonObject>();
@@ -263,11 +255,27 @@ void handleBackgroundSave() {
     // Set the volume (might have changed).
     audio.setVolume(currentSettings.notificationVolume);
 
-    // Trigger the physical confirmation animation.
-    startStyledAnimation();
+    return true;
+}
 
-    // Clear the buffer to free up memory.
-    settingsToSaveJson = "";
+/**
+ * @brief Handles the asynchronous saving of settings requested from the web UI.
+ * @details This function is called from the main loop when the `saveSettingsRequested`
+ * flag is true. It calls a helper function to perform the memory-intensive parsing
+ * and saving, and once that is complete and the memory has been freed, it triggers
+ * the confirmation animation.
+ */
+void handleBackgroundSave() {
+    saveSettingsRequested = false; // Reset the flag immediately.
+    Log_printf(LOG_LEVEL_INFO, "--- Background Save Started ---");
+
+    // The 8KB DynamicJsonDocument is allocated and freed entirely inside this function call.
+    if (applyAndSaveSettings()) {
+        // By the time we are here, the large memory buffer is gone.
+        // Now it's safe to start the memory-intensive confirmation animation.
+        startStyledAnimation();
+    }
+
     Log_printf(LOG_LEVEL_INFO, "--- Background Save Finished ---");
 }
 
