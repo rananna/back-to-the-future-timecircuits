@@ -13,6 +13,46 @@
 #include "EventManager.h"
 #include "HardwareControl.h"
 
+// A struct to hold the state of a scrolling text segment.
+struct ScrollState {
+    int position = 0;
+    unsigned long lastScrollTime = 0;
+};
+
+// An array to hold the scroll state for each of the 4 segments of the weather display row.
+static ScrollState weatherScrollStates[4];
+
+/**
+ * @brief Manages the scrolling of a string within a fixed-width viewport.
+ * @param fullText The complete string to be scrolled.
+ * @param width The width of the display segment (viewport).
+ * @param state A reference to the ScrollState object for this segment.
+ * @param scrollSpeed The delay in milliseconds between scroll steps.
+ * @return A substring of the fullText representing the current viewport.
+ */
+String getScrolledViewport(const String& fullText, int width, ScrollState& state, unsigned long scrollSpeed) {
+    if (fullText.length() <= width) {
+        // If the text fits, reset the scroll position for the next long text and return.
+        state.position = 0;
+        return fullText;
+    }
+
+    // Pad the text with spaces for a smoother looping effect.
+    String paddedText = "  " + fullText + "  ";
+
+    // Update the scroll position based on the scroll speed.
+    if (millis() - state.lastScrollTime > scrollSpeed) {
+        state.lastScrollTime = millis();
+        state.position++;
+        // If we've scrolled past the end, loop back to the beginning.
+        if (state.position > paddedText.length() - width) {
+            state.position = 0;
+        }
+    }
+
+    return paddedText.substring(state.position, state.position + width);
+}
+
 // External declaration for the global stock data array.
 extern StockData stockData[3];
 
@@ -307,7 +347,6 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 }
 
 void handleWeatherDisplay() {
-// ... function content remains the same ...
 #if ENABLE_HARDWARE
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (!currentWeatherData.dataValid) {
@@ -318,15 +357,22 @@ void handleWeatherDisplay() {
         } else {
             static int weatherPage = 0;
             static unsigned long lastPageChange = 0;
-            char buffer[6];
+            char buffer[10]; // Increased buffer size for safety
+            unsigned long scrollSpeed = 350;
+
+            // Every 4 seconds, advance to the next page and reset scroll positions
             if (millis() - lastPageChange > 4000) {
                 weatherPage = (weatherPage + 1) % 4;
                 lastPageChange = millis();
+                for (int i = 0; i < 4; i++) {
+                    weatherScrollStates[i].position = 0;
+                    weatherScrollStates[i].lastScrollTime = millis();
+                }
             }
             
             const char* icon = getIconForWeatherCode(currentWeatherData.weatherCode);
             switch(weatherPage) {
-                case 0:
+                case 0: // Current weather - No scrolling needed here
                     printToDisplay(lastRow.month, "NOW", 1);
                     printToDisplay(lastRow.day, icon, 2);
                     dtostrf(currentWeatherData.temperature, 4, 1, buffer);
@@ -335,8 +381,8 @@ void handleWeatherDisplay() {
                     digitalWrite(LAST_AM_PIN, LOW);
                     digitalWrite(LAST_PM_PIN, LOW);
                     break;
-                case 1:
-                    printToDisplay(lastRow.month, "TMRW", 1);
+                case 1: // Tomorrow's forecast - Scroll "TMRW"
+                    printToDisplay(lastRow.month, getScrolledViewport("TMRW", 3, weatherScrollStates[0], scrollSpeed).c_str(), 1);
                     printToDisplay(lastRow.day, getIconForWeatherCode(currentWeatherData.tomorrowWeatherCode), 2);
                     dtostrf(currentWeatherData.tomorrowHigh, 4, 0, buffer);
                     printToDisplay(lastRow.year, buffer);
@@ -345,28 +391,33 @@ void handleWeatherDisplay() {
                     digitalWrite(LAST_AM_PIN, HIGH);
                     digitalWrite(LAST_PM_PIN, LOW);
                     break;
-                case 2:
-                    printToDisplay(lastRow.month, "WIND", 1);
-                    dtostrf(currentWeatherData.maxWindSpeed, 2, 0, buffer);
-                    strcat(buffer, "M");
-                    printToDisplay(lastRow.day, buffer, 2);
+                case 2: // Wind and Rain - Scroll "WIND" and wind speed
+                    printToDisplay(lastRow.month, getScrolledViewport("WIND", 3, weatherScrollStates[0], scrollSpeed).c_str(), 1);
+
+                    // Format wind speed with unit and scroll it in the 2-char day display
+                    sprintf(buffer, "%d%s", (int)currentWeatherData.maxWindSpeed, currentSettings.useMetricUnits ? "K" : "M");
+                    printToDisplay(lastRow.day, getScrolledViewport(buffer, 2, weatherScrollStates[1], scrollSpeed).c_str(), 2);
+
                     printToDisplay(lastRow.year, "RAIN");
                     sprintf(buffer, "%d%%", currentWeatherData.precipitationProbability);
                     printToDisplay(lastRow.time, buffer);
                     digitalWrite(LAST_AM_PIN, LOW);
                     digitalWrite(LAST_PM_PIN, HIGH);
                     break;
-                case 3:
+                case 3: // Sunrise and Sunset - Scroll "RISE/SET"
                     struct tm timeinfo;
                     char timeStr[5];
                     printToDisplay(lastRow.month, "SUN", 1);
+
                     localtime_r(&currentWeatherData.sunrise, &timeinfo);
                     sprintf(timeStr, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
-                    printToDisplay(lastRow.day, timeStr, 2);
+                    printToDisplay(lastRow.day, timeStr, 2); // Sunrise time in day slot
+
                     localtime_r(&currentWeatherData.sunset, &timeinfo);
                     sprintf(timeStr, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
-                    printToDisplay(lastRow.year, timeStr);
-                    printToDisplay(lastRow.time, "RISE/SET");
+                    printToDisplay(lastRow.year, timeStr); // Sunset time in year slot
+
+                    printToDisplay(lastRow.time, getScrolledViewport("RISE/SET", 4, weatherScrollStates[3], scrollSpeed).c_str());
                     digitalWrite(LAST_AM_PIN, HIGH);
                     digitalWrite(LAST_PM_PIN, HIGH);
                     break;

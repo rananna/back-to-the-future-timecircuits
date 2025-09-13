@@ -308,6 +308,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 // By deserializing directly from the stream, we avoid allocating
                 // a large string for the payload, which saves a lot of memory.
                 DeserializationError error = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+                http.end(); // End the connection ASAP to free up memory
 
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (error == DeserializationError::Ok && !doc.containsKey("error")) {
@@ -369,12 +370,12 @@ void fetchWeatherData(WeatherTaskParams* params) {
                     }
                     xSemaphoreGive(xDisplayDataMutex);
                 }
-                http.end();
+
                 if (weatherSuccess) break;
             } else {
                 Log_printf(LOG_LEVEL_WARN, "Weather API request failed with HTTP code %d", httpCode);
+                http.end(); // Also end connection here on failure
             }
-            http.end();
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for weather API.");
         }
