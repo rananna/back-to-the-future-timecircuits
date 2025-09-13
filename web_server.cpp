@@ -497,7 +497,12 @@ void setupWebRoutes() {
         serializeJson(doc, jsonString);
         request->send(200, "application/json", jsonString);
     } else {
-        request->send(503, "application/json", "{\"error\":\"Weather data not available\"}");
+        StaticJsonDocument<128> errorDoc;
+        errorDoc["error"] = true;
+        errorDoc["reason"] = currentWeatherData.errorReason.c_str();
+        String jsonString;
+        serializeJson(errorDoc, jsonString);
+        request->send(503, "application/json", jsonString);
     }
   });
   

@@ -203,6 +203,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
     if (taskCityName.empty()) {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
+            currentWeatherData.errorReason = "City name is empty.";
             xSemaphoreGive(xDisplayDataMutex);
         }
         return;
@@ -226,7 +227,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
             HTTPClient http;
             WiFiClientSecure client;
             client.setInsecure();
-            String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(taskCityName.c_str());
+            String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(taskCityName.c_str()) + "&count=1&language=en&format=json";
             if (http.begin(client, geocodeUrl)) {
                 Log_printf(LOG_LEVEL_DEBUG, "Geocode URL: %s", geocodeUrl.c_str());
                 int httpCode = http.GET();
@@ -262,6 +263,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
             showTemporaryMessage("GEO", "", "FAIL", "", 2000);
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 currentWeatherData.dataValid = false;
+                currentWeatherData.errorReason = "Geocoding failed. Check city name.";
                 xSemaphoreGive(xDisplayDataMutex);
             }
             return;
@@ -329,6 +331,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
                     } else {
                         Log_printf(LOG_LEVEL_WARN, "Failed to parse weather JSON or API returned an error. E: %s", error.c_str());
                         currentWeatherData.dataValid = false;
+                        currentWeatherData.errorReason = "Weather API response parsing failed.";
                     }
                     xSemaphoreGive(xDisplayDataMutex);
                 }
@@ -348,6 +351,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
         Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed for %s after multiple retries.", taskCityName.c_str());
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
+            currentWeatherData.errorReason = "Weather API request failed.";
             xSemaphoreGive(xDisplayDataMutex);
         }
         showTemporaryMessage("API", "", "FAIL", "", 2000);

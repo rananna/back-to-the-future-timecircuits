@@ -173,6 +173,7 @@ struct WeatherData {
   time_t sunrise;
   time_t sunset;
   bool dataValid = false;
+  std::string errorReason;
 };
 
 struct DisplayRow {
