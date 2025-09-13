@@ -250,14 +250,14 @@ void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYea
 void animateTemporalDesync();
 void animateGlitchyJumpCut(unsigned long elapsed, int duration);
 void animatePlasmaWarmUp(unsigned long elapsed, int duration);
-void animateTimeWarpStreaks(unsigned long elapsed, int duration);
-void animateCharacterScanline(unsigned long elapsed, int duration);
-void animateFocusIn(unsigned long elapsed, int duration);
-void animateCodeBreaker(unsigned long elapsed, int duration);
-void animateTemporalParadox(unsigned long elapsed, int duration);
-void animateDigitCascade(unsigned long elapsed, int duration);
-void animateElectricSurge(unsigned long elapsed, int duration);
-void animateFlipDiscDisplay(unsigned long elapsed, int duration);
-void animateInterferencePattern(unsigned long elapsed, int duration);
+void animateTimeWarpStreaks(unsigned long elapsed, int duration, const char* final_dest, const char* final_pres, const char* final_last);
+void animateCharacterScanline(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
+void animateFocusIn(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
+void animateCodeBreaker(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
+void animateTemporalParadox(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
+void animateDigitCascade(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
+void animateElectricSurge(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
+void animateFlipDiscDisplay(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
+void animateInterferencePattern(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
 void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str);
 #endif // HARDWARE_CONTROL_H
