@@ -1278,7 +1278,7 @@ function showLoading(buttonId, isLoading) {
         button.innerHTML = '<span class="loading-spinner"></span> Saving...';
         button.disabled = true;
     } else {
-        button.textContent = button.dataset.originalText || 'Save';
+        button.textContent = button.dataset.originalText || 'Save & Engage Time Circuits';
         button.disabled = false;
     }
 }
