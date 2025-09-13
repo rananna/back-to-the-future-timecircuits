@@ -79,6 +79,26 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
 #endif
 }
 
+const char* getWeatherDescriptionForCode(int code) {
+    switch (code) {
+        case 0: return "CLEAR SKY";
+        case 1: return "MAINLY CLEAR";
+        case 2: return "PARTLY CLOUDY";
+        case 3: return "OVERCAST";
+        case 45: case 48: return "FOG";
+        case 51: case 53: case 55: return "DRIZZLE";
+        case 61: case 63: case 65: return "RAIN";
+        case 66: case 67: return "FREEZING RAIN";
+        case 71: case 73: case 75: return "SNOW";
+        case 77: return "SNOW GRAINS";
+        case 80: case 81: case 82: return "RAIN SHOWERS";
+        case 85: case 86: return "SNOW SHOWERS";
+        case 95: return "THUNDERSTORM";
+        case 96: case 99: return "T-STORM W/ HAIL";
+        default: return "UNKNOWN";
+    }
+}
+
 const char* getIconForWeatherCode(int code) {
     // ... function content remains the same ...
     switch (code) {
@@ -346,91 +366,119 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 #endif
 }
 
+enum WeatherDisplayState {
+    WD_START_PAGE,
+    WD_SCROLLING,
+    WD_PAUSING
+};
+
 void handleWeatherDisplay() {
 #if ENABLE_HARDWARE
+    String viewport;
+    bool shouldWriteToDisplay = false;
+
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (!currentWeatherData.dataValid) {
             printToDisplay(lastRow.month, "WEA", 1);
             printToDisplay(lastRow.day, "TH", 2);
             printToDisplay(lastRow.year, "ER");
             printToDisplay(lastRow.time, "----");
+            shouldWriteToDisplay = true;
         } else {
+            static WeatherDisplayState weatherState = WD_START_PAGE;
             static int weatherPage = 0;
-            static unsigned long lastPageChange = 0;
-            char buffer[10]; // Increased buffer size for safety
-            unsigned long scrollSpeed = 350;
+            static String weatherScrollText;
+            static int weatherScrollPosition = 0;
+            static unsigned long lastWeatherUpdate = 0;
+            const unsigned long scrollSpeed = 250;
+            const unsigned long pauseDuration = 1000;
 
-            // Every 4 seconds, advance to the next page and reset scroll positions
-            if (millis() - lastPageChange > 4000) {
-                weatherPage = (weatherPage + 1) % 4;
-                lastPageChange = millis();
-                for (int i = 0; i < 4; i++) {
-                    weatherScrollStates[i].position = 0;
-                    weatherScrollStates[i].lastScrollTime = millis();
+            switch (weatherState) {
+                case WD_START_PAGE: {
+                    char buffer[20];
+                    switch (weatherPage) {
+                        case 0: { // Current Weather
+                            dtostrf(currentWeatherData.temperature, 4, 1, buffer);
+                            const char* desc = getWeatherDescriptionForCode(currentWeatherData.weatherCode);
+                            String unit = currentSettings.useMetricUnits ? "C" : "F";
+                            weatherScrollText = "CURRENTLY: " + String(buffer) + unit + ", " + desc;
+                            break;
+                        }
+                        case 1: { // Tomorrow's Forecast
+                            char high_buf[8], low_buf[8];
+                            dtostrf(currentWeatherData.tomorrowHigh, 1, 0, high_buf);
+                            dtostrf(currentWeatherData.tomorrowLow, 1, 0, low_buf);
+                            const char* desc = getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode);
+                            String unit = currentSettings.useMetricUnits ? "C" : "F";
+                            weatherScrollText = "TOMORROW: HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit + ", " + desc;
+                            break;
+                        }
+                        case 2: { // Wind & Rain
+                            String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
+                            weatherScrollText = "WIND: " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
+                                              ", PRECIP: " + String(currentWeatherData.precipitationProbability) + "%";
+                            break;
+                        }
+                        case 3: { // Sunrise & Sunset
+                            struct tm timeinfo;
+                            char timeStr[9]; // "12:00AM" + null
+                            localtime_r(&currentWeatherData.sunrise, &timeinfo);
+                            strftime(timeStr, sizeof(timeStr), "%l:%M %p", &timeinfo);
+                            String sunriseStr = timeStr;
+                            sunriseStr.trim();
+                            localtime_r(&currentWeatherData.sunset, &timeinfo);
+                            strftime(timeStr, sizeof(timeStr), "%l:%M %p", &timeinfo);
+                            String sunsetStr = timeStr;
+                            sunsetStr.trim();
+                            weatherScrollText = "SUNRISE: " + sunriseStr + ", SUNSET: " + sunsetStr;
+                            break;
+                        }
+                    }
+                    weatherScrollText = "   " + weatherScrollText + "   ";
+                    weatherScrollPosition = 0;
+                    weatherState = WD_SCROLLING;
+                    lastWeatherUpdate = millis();
                 }
-            }
-            
-            const char* icon = getIconForWeatherCode(currentWeatherData.weatherCode);
-            switch(weatherPage) {
-                case 0: // Current weather - No scrolling needed here
-                    printToDisplay(lastRow.month, "NOW", 1);
-                    printToDisplay(lastRow.day, icon, 2);
-                    dtostrf(currentWeatherData.temperature, 4, 1, buffer);
-                    printToDisplay(lastRow.year, buffer);
-                    printToDisplay(lastRow.time, currentSettings.useMetricUnits ? "CEL" : "DEG");
-                    digitalWrite(LAST_AM_PIN, LOW);
-                    digitalWrite(LAST_PM_PIN, LOW);
+
+                case WD_SCROLLING: {
+                    if (millis() - lastWeatherUpdate > scrollSpeed) {
+                        lastWeatherUpdate = millis();
+                        viewport = weatherScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
+                        printToDisplay(lastRow.month, viewport.substring(0, 3).c_str(), 0);
+                        printToDisplay(lastRow.day, viewport.substring(3, 5).c_str(), 0);
+                        printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
+                        printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
+                        shouldWriteToDisplay = true;
+
+                        weatherScrollPosition++;
+                        if (weatherScrollPosition >= weatherScrollText.length() - 13) {
+                            weatherState = WD_PAUSING;
+                            lastWeatherUpdate = millis();
+                        }
+                    }
                     break;
-                case 1: // Tomorrow's forecast - Scroll "TMRW"
-                    printToDisplay(lastRow.month, getScrolledViewport("TMRW", 3, weatherScrollStates[0], scrollSpeed).c_str(), 1);
-                    printToDisplay(lastRow.day, getIconForWeatherCode(currentWeatherData.tomorrowWeatherCode), 2);
-                    dtostrf(currentWeatherData.tomorrowHigh, 4, 0, buffer);
-                    printToDisplay(lastRow.year, buffer);
-                    dtostrf(currentWeatherData.tomorrowLow, 4, 0, buffer);
-                    printToDisplay(lastRow.time, buffer);
-                    digitalWrite(LAST_AM_PIN, HIGH);
-                    digitalWrite(LAST_PM_PIN, LOW);
+                }
+
+                case WD_PAUSING: {
+                    if (millis() - lastWeatherUpdate > pauseDuration) {
+                        weatherPage = (weatherPage + 1) % 4;
+                        weatherState = WD_START_PAGE;
+                    }
                     break;
-                case 2: // Wind and Rain - Scroll "WIND" and wind speed
-                    printToDisplay(lastRow.month, getScrolledViewport("WIND", 3, weatherScrollStates[0], scrollSpeed).c_str(), 1);
-
-                    // Format wind speed with unit and scroll it in the 2-char day display
-                    sprintf(buffer, "%d%s", (int)currentWeatherData.maxWindSpeed, currentSettings.useMetricUnits ? "K" : "M");
-                    printToDisplay(lastRow.day, getScrolledViewport(buffer, 2, weatherScrollStates[1], scrollSpeed).c_str(), 2);
-
-                    printToDisplay(lastRow.year, "RAIN");
-                    sprintf(buffer, "%d%%", currentWeatherData.precipitationProbability);
-                    printToDisplay(lastRow.time, buffer);
-                    digitalWrite(LAST_AM_PIN, LOW);
-                    digitalWrite(LAST_PM_PIN, HIGH);
-                    break;
-                case 3: // Sunrise and Sunset - Scroll "RISE/SET"
-                    struct tm timeinfo;
-                    char timeStr[5];
-                    printToDisplay(lastRow.month, "SUN", 1);
-
-                    localtime_r(&currentWeatherData.sunrise, &timeinfo);
-                    sprintf(timeStr, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
-                    printToDisplay(lastRow.day, timeStr, 2); // Sunrise time in day slot
-
-                    localtime_r(&currentWeatherData.sunset, &timeinfo);
-                    sprintf(timeStr, "%02d%02d", timeinfo.tm_hour, timeinfo.tm_min);
-                    printToDisplay(lastRow.year, timeStr); // Sunset time in year slot
-
-                    printToDisplay(lastRow.time, getScrolledViewport("RISE/SET", 4, weatherScrollStates[3], scrollSpeed).c_str());
-                    digitalWrite(LAST_AM_PIN, HIGH);
-                    digitalWrite(LAST_PM_PIN, HIGH);
-                    break;
+                }
             }
         }
         xSemaphoreGive(xDisplayDataMutex);
-        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            lastRow.month.writeDisplay();
-            lastRow.day.writeDisplay();
-            lastRow.year.writeDisplay();
-            lastRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
-            xSemaphoreGive(xDisplayHardwareMutex);
+
+        if (shouldWriteToDisplay) {
+            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                lastRow.month.writeDisplay();
+                lastRow.day.writeDisplay();
+                lastRow.year.writeDisplay();
+                lastRow.time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
+                xSemaphoreGive(xDisplayHardwareMutex);
+            }
         }
     }
 #endif
