@@ -57,6 +57,7 @@ String getScrolledViewport(const String& fullText, int width, ScrollState& state
 extern StockData stockData[3];
 
 // Global arrays to support manual text override via MQTT or API.
+bool weatherDataUpdated = false;
 std::string manualDisplayText[3][4];
 bool isRowInManualMode[3] = {false, false, false};
 
@@ -393,6 +394,25 @@ void handleWeatherDisplay() {
             const unsigned long scrollSpeed = 250;
             const unsigned long pauseDuration = 1000;
 
+            if (weatherDataUpdated) {
+                weatherState = WD_START_PAGE;
+                weatherPage = 0;
+                weatherDataUpdated = false;
+                if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                    // Clear the row before displaying new data
+                    printToDisplay(lastRow.month, "   ", 0);
+                    printToDisplay(lastRow.day, "  ", 0);
+                    printToDisplay(lastRow.year, "    ", 0);
+                    printToDisplay(lastRow.time, "    ", 0);
+                    lastRow.month.writeDisplay();
+                    lastRow.day.writeDisplay();
+                    lastRow.year.writeDisplay();
+                    lastRow.time.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
+                    xSemaphoreGive(xDisplayHardwareMutex);
+                }
+            }
+
             switch (weatherState) {
                 case WD_START_PAGE: {
                     char buffer[20];
@@ -444,8 +464,13 @@ void handleWeatherDisplay() {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
                         viewport = weatherScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
-                        printToDisplay(lastRow.month, viewport.substring(0, 3).c_str(), 0);
-                        printToDisplay(lastRow.day, viewport.substring(3, 5).c_str(), 0);
+
+                        // Per user feedback, shift month and day one character to the right.
+                        String monthStr = " " + viewport.substring(0, 2);
+                        String dayStr = " " + viewport.substring(3, 4);
+
+                        printToDisplay(lastRow.month, monthStr.c_str(), 1);
+                        printToDisplay(lastRow.day, dayStr.c_str(), 2);
                         printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
                         printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
                         shouldWriteToDisplay = true;
