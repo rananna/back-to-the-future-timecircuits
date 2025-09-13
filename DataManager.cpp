@@ -14,6 +14,7 @@
 #include "DisplayManager.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+extern bool weatherDataUpdated;
 #include <WiFiClientSecure.h>
 #include <time.h>
 
@@ -313,22 +314,54 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (error == DeserializationError::Ok && !doc.containsKey("error")) {
                         Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed weather JSON");
-                        currentWeatherData.temperature = doc["current"]["temperature_2m"];
-                        currentWeatherData.apparentTemperature = doc["current"]["apparent_temperature"];
-                        currentWeatherData.windSpeed = doc["current"]["wind_speed_10m"];
-                        currentWeatherData.humidity = doc["current"]["relative_humidity_2m"];
-                        currentWeatherData.weatherCode = doc["current"]["weather_code"];
-                        currentWeatherData.dailyHigh = doc["daily"]["temperature_2m_max"][0];
-                        currentWeatherData.dailyLow = doc["daily"]["temperature_2m_min"][0];
-                        currentWeatherData.sunrise = doc["daily"]["sunrise"][0];
-                        currentWeatherData.sunset = doc["daily"]["sunset"][0];
-                        currentWeatherData.precipitationProbability = doc["daily"]["precipitation_probability_max"][0];
-                        currentWeatherData.maxWindSpeed = doc["daily"]["wind_speed_10m_max"][0];
-                        currentWeatherData.tomorrowHigh = doc["daily"]["temperature_2m_max"][1];
-                        currentWeatherData.tomorrowLow = doc["daily"]["temperature_2m_min"][1];
-                        currentWeatherData.tomorrowWeatherCode = doc["daily"]["weather_code"][1];
 
-                        JsonArray hourly_time = doc["hourly"]["time"];
+                        // --- SAFE DATA EXTRACTION ---
+                        // This lambda checks if a key exists before trying to access it.
+                        // If any key is missing, it sets allDataPresent to false.
+                        bool allDataPresent = true;
+                        auto getJsonValue = [&](const JsonVariant& parent, const char* key) {
+                            if (parent.isNull() || !parent.containsKey(key)) {
+                                allDataPresent = false;
+                                Log_printf(LOG_LEVEL_WARN, "Weather JSON missing key: %s", key);
+                                return JsonVariant(); // Return null variant
+                            }
+                            return parent[key];
+                        };
+
+                        auto getJsonValueFromArray = [&](const JsonVariant& parent, int index) {
+                            if (parent.isNull() || parent.size() <= index) {
+                                allDataPresent = false;
+                                Log_printf(LOG_LEVEL_WARN, "Weather JSON array access out of bounds at index %d", index);
+                                return JsonVariant(); // Return null variant
+                            }
+                            return parent[index];
+                        };
+
+                        JsonObject current = doc["current"];
+                        JsonObject daily = doc["daily"];
+
+                        currentWeatherData.temperature = getJsonValue(current, "temperature_2m");
+                        currentWeatherData.apparentTemperature = getJsonValue(current, "apparent_temperature");
+                        currentWeatherData.windSpeed = getJsonValue(current, "wind_speed_10m");
+                        currentWeatherData.humidity = getJsonValue(current, "relative_humidity_2m");
+                        currentWeatherData.weatherCode = getJsonValue(current, "weather_code");
+
+                        currentWeatherData.dailyHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 0);
+                        currentWeatherData.dailyLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 0);
+                        currentWeatherData.sunrise = getJsonValueFromArray(getJsonValue(daily, "sunrise"), 0);
+                        currentWeatherData.sunset = getJsonValueFromArray(getJsonValue(daily, "sunset"), 0);
+                        currentWeatherData.precipitationProbability = getJsonValueFromArray(getJsonValue(daily, "precipitation_probability_max"), 0);
+                        currentWeatherData.maxWindSpeed = getJsonValueFromArray(getJsonValue(daily, "wind_speed_10m_max"), 0);
+
+                        currentWeatherData.tomorrowHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 1);
+                        currentWeatherData.tomorrowLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 1);
+                        currentWeatherData.tomorrowWeatherCode = getJsonValueFromArray(getJsonValue(daily, "weather_code"), 1);
+
+                        if (!allDataPresent) {
+                            currentWeatherData.dataValid = false;
+                            currentWeatherData.errorReason = "Incomplete weather data received.";
+                        } else {
+                            JsonArray hourly_time = doc["hourly"]["time"];
                         JsonArray hourly_temp = doc["hourly"]["temperature_2m"];
                         JsonArray hourly_code = doc["hourly"]["weather_code"];
 
@@ -363,6 +396,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         
                         currentWeatherData.dataValid = true;
                         weatherSuccess = true;
+                        weatherDataUpdated = true; // Signal to the display manager
                     } else {
                         Log_printf(LOG_LEVEL_WARN, "Failed to parse weather JSON or API returned an error. E: %s", error.c_str());
                         currentWeatherData.dataValid = false;

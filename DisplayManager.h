@@ -3,6 +3,7 @@
 
 #include <string>
 
+extern bool weatherDataUpdated;
 extern bool isRowInManualMode[3];
 extern std::string manualDisplayText[3][4];
 
