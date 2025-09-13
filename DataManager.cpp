@@ -229,8 +229,10 @@ void fetchWeatherData(WeatherTaskParams* params) {
             HTTPClient http;
             WiFiClientSecure client;
             client.setInsecure();
-            String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(taskCityName.c_str()) + "&count=1&language=en&format=json";
-            if (http.begin(client, geocodeUrl)) {
+      const char* geocodeHost = "geocoding-api.open-meteo.com";
+            String geocodePath = "/v1/search?name=" + urlEncode(taskCityName.c_str()) + "&count=1&language=en&format=json";
+            String geocodeUrl = String("https://") + geocodeHost + geocodePath;
+            if (http.begin(client, geocodeHost, 443, geocodePath.c_str())) {
                 Log_printf(LOG_LEVEL_DEBUG, "Geocode URL: %s", geocodeUrl.c_str());
                 int httpCode = http.GET();
                 Log_printf(LOG_LEVEL_DEBUG, "Geocode HTTP Code: %d", httpCode);
