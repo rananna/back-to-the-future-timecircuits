@@ -288,27 +288,11 @@ void fetchWeatherData(WeatherTaskParams* params) {
             int httpCode = http.GET();
             Log_printf(LOG_LEVEL_DEBUG, "Weather API HTTP Code: %d", httpCode);
             if (httpCode == HTTP_CODE_OK) {
-                DynamicJsonDocument filter(2048);
-                filter["current"]["temperature_2m"] = true;
-                filter["current"]["apparent_temperature"] = true;
-                filter["current"]["wind_speed_10m"] = true;
-                filter["current"]["relative_humidity_2m"] = true;
-                filter["current"]["weather_code"] = true;
-                filter["daily"]["temperature_2m_max"] = true;
-                filter["daily"]["temperature_2m_min"] = true;
-                filter["daily"]["sunrise"] = true;
-                filter["daily"]["sunset"] = true;
-                filter["daily"]["precipitation_probability_max"] = true;
-                filter["daily"]["wind_speed_10m_max"] = true;
-                filter["daily"]["weather_code"] = true;
-                filter["hourly"]["time"] = true;
-                filter["hourly"]["temperature_2m"] = true;
-                filter["hourly"]["weather_code"] = true;
-
                 DynamicJsonDocument doc(4096);
                 // By deserializing directly from the stream, we avoid allocating
                 // a large string for the payload, which saves a lot of memory.
-                DeserializationError error = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+                // Temporarily disabling filter to diagnose parsing issue.
+                DeserializationError error = deserializeJson(doc, http.getStream());
                 http.end(); // End the connection ASAP to free up memory
 
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
