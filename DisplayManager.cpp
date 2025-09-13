@@ -386,7 +386,7 @@ void handleWeatherDisplay() {
 
         if (initialFetchTimedOut) {
             xSemaphoreGive(xDisplayDataMutex);
-            updateNormalClockDisplay(false, false, true);
+            updateNormalClockDisplay(true, true, true);
             return;
         }
 
@@ -395,7 +395,7 @@ void handleWeatherDisplay() {
                 Log_printf(LOG_LEVEL_WARN, "Initial weather fetch timed out after 10 seconds.");
                 initialFetchTimedOut = true;
                 xSemaphoreGive(xDisplayDataMutex);
-                updateNormalClockDisplay(false, false, true);
+                updateNormalClockDisplay(true, true, true);
                 return;
             }
 
