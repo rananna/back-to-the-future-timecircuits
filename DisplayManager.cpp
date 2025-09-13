@@ -381,8 +381,24 @@ void handleWeatherDisplay() {
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         static bool initialFetchTriggered = false;
+        static unsigned long initialFetchStartTime = 0;
+        static bool initialFetchTimedOut = false;
+
+        if (initialFetchTimedOut) {
+            xSemaphoreGive(xDisplayDataMutex);
+            updateNormalClockDisplay(false, false, true);
+            return;
+        }
 
         if (!currentWeatherData.dataValid) {
+            if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 10000) {
+                Log_printf(LOG_LEVEL_WARN, "Initial weather fetch timed out after 10 seconds.");
+                initialFetchTimedOut = true;
+                xSemaphoreGive(xDisplayDataMutex);
+                updateNormalClockDisplay(false, false, true);
+                return;
+            }
+
             printToDisplay(lastRow.month, "WEA", 1);
             printToDisplay(lastRow.day, "TH", 2);
             printToDisplay(lastRow.year, "ER");
@@ -393,9 +409,12 @@ void handleWeatherDisplay() {
                 Log_printf(LOG_LEVEL_INFO, "Weather data is invalid, triggering initial fetch.");
                 xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, NULL, 1, NULL);
                 initialFetchTriggered = true;
+                initialFetchStartTime = millis();
             }
         } else {
-            initialFetchTriggered = false; // Reset flag once data is valid
+            initialFetchTriggered = false;
+            initialFetchStartTime = 0;
+            initialFetchTimedOut = false;
             static WeatherDisplayState weatherState = WD_START_PAGE;
             static int weatherPage = 0;
             static String weatherScrollText;
@@ -408,7 +427,9 @@ void handleWeatherDisplay() {
                 weatherState = WD_START_PAGE;
                 weatherPage = 0;
                 weatherDataUpdated = false;
-                initialFetchTriggered = false; // Also reset here
+                initialFetchTriggered = false;
+                initialFetchStartTime = 0;
+                initialFetchTimedOut = false;
                 if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                     // Clear the row before displaying new data
                     printToDisplay(lastRow.month, "   ", 0);
