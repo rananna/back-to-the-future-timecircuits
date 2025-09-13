@@ -1755,23 +1755,22 @@ void animateInterferencePattern(unsigned long elapsed, int duration, const char*
  * @param ... The variable arguments for the format string.
  */
 void safe_printf(const char *format, ...) {
-    // Check if the mutex has been initialized
+    va_list args;
+    va_start(args, format);
+
     if (xSerialMutex == NULL) {
-        // Fallback to regular printf if mutex is not available
-        // This might happen if logging is called before the scheduler has started
-        Serial.printf(format, ...);
-        return;
+        // Fallback to vprintf if mutex is not available (e.g., before scheduler starts).
+        Serial.vprintf(format, args);
+    } else {
+        if (xSemaphoreTake(xSerialMutex, portMAX_DELAY) == pdTRUE) {
+            Serial.vprintf(format, args);
+            xSemaphoreGive(xSerialMutex);
+        } else {
+            // If we fail to take the mutex, print an error, then the message without protection.
+            Serial.println("FATAL: Could not take serial mutex!");
+            Serial.vprintf(format, args);
+        }
     }
 
-    if (xSemaphoreTake(xSerialMutex, portMAX_DELAY) == pdTRUE) {
-        va_list args;
-        va_start(args, format);
-        Serial.printf(format, args);
-        va_end(args);
-        xSemaphoreGive(xSerialMutex);
-    } else {
-        // As a fallback, if we fail to take the mutex (which shouldn't happen with portMAX_DELAY),
-        // print an error directly. This could indicate a deadlock.
-        Serial.println("FATAL: Could not take serial mutex!");
-    }
+    va_end(args); // Ensure va_end is always called once.
 }
