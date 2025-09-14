@@ -49,8 +49,31 @@ The web interface is organized into several tabs for easy configuration.
 This is where you configure the display rows to show live, real-time data. You can enable either the Live Weather Display, the Data Link Marquee, or the Stock Ticker Mode.
 
 #### Live Weather Display
-* Transforms the display rows into a multi-page weather station.
-* Simply enter a city name, and the clock will automatically fetch and display current conditions, temperature, wind speed, and more.
+This mode transforms the "Last Time Departed" display row into a comprehensive, multi-page weather station. To activate it, simply enable the "Live Weather Display" toggle and enter a city name. The clock will automatically use the free [Open-Meteo API](https://open-meteo.com/) to find the city's coordinates and fetch the latest weather data. An internet connection is required, and the data automatically refreshes every 5 minutes.
+
+While fetching data, the display will show `WEA TH ER ----`. Once loaded, it will cycle through the following 5 pages of information, with each page scrolling across the display:
+
+1.  **Current Conditions**
+    *   Displays the current temperature, feels-like temperature, and a description of the weather (e.g., "Partly Cloudy").
+    *   *Example: `CURRENTLY 72.5F, PARTLY CLOUDY`*
+
+2.  **Tomorrow's Forecast**
+    *   Shows the predicted high and low temperatures for the following day, along with a description of the expected conditions.
+    *   *Example: `TOMORROW HIGH 80F, LOW 65F, CLEAR SKY`*
+
+3.  **Wind & Precipitation**
+    *   Details the maximum wind speed for the day and the probability of precipitation.
+    *   *Example: `WIND 15 MPH, PRECIPITATION 20%`*
+
+4.  **Sunrise & Sunset**
+    *   Shows the local sunrise and sunset times.
+    *   *Example: `SUNRISE 630 AM, SUNSET 845 PM`*
+
+5.  **Hourly Forecast**
+    *   Provides a look at the next 3 hours, showing the temperature and expected conditions for each hour.
+    *   *Example: `NEXT 3 HRS 71F CLEAR SKY, 70F CLEAR SKY, 69F PARTLY CLOUDY`*
+
+> 💡 **Metric vs. Imperial:** The units used (Celsius/Fahrenheit, KPH/MPH) are automatically determined by the "Use Metric Units" setting in the **System** tab.
 
 #### Data Link Marquee
 This is a fully configurable marquee for displaying data from the internet.
