@@ -398,13 +398,6 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 #endif
 }
 
-enum WeatherDisplayState {
-    WD_START_PAGE,
-    WD_SCROLLING,
-    WD_PAUSING,
-    WD_ERROR
-};
-
 void handleWeatherDisplay() {
 #if ENABLE_HARDWARE
     String viewport;
