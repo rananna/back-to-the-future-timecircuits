@@ -504,7 +504,7 @@ void handleWeatherDisplay() {
                             break;
                         }
                     }
-                    weatherScrollText = "   " + weatherScrollText + "   ";
+                    weatherScrollText = "             " + weatherScrollText;
                     weatherScrollPosition = 0;
                     weatherState = WD_SCROLLING;
                     lastWeatherUpdate = millis();
@@ -513,7 +513,8 @@ void handleWeatherDisplay() {
                 case WD_SCROLLING: {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
-                        viewport = weatherScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
+                        String tempScrollText = weatherScrollText + "             ";
+                        viewport = tempScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
 
                         String monthStr = viewport.substring(0, 3);
                         String dayStr = viewport.substring(3, 5);
@@ -525,7 +526,7 @@ void handleWeatherDisplay() {
                         shouldWriteToDisplay = true;
 
                         weatherScrollPosition++;
-                        if (weatherScrollPosition >= weatherScrollText.length() - 13) {
+                        if (weatherScrollPosition > weatherScrollText.length()) {
                             weatherState = WD_PAUSING;
                             lastWeatherUpdate = millis();
                         }
