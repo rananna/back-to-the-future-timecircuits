@@ -34,19 +34,52 @@ Once connected, you can access the web UI by navigating to the device's IP addre
 The web interface is organized into several tabs for easy configuration.
 
 ### Time Circuits Tab
-* **Destination Time & Year**: Set the target year for the "Destination Time" display.
-* **Last Time Departed & Presets**: Select from a list of famous dates from the movies, or add, update, and delete your own custom presets.
+
+This tab is the heart of the time-setting functionality for your display.
+
+#### Destination Time & Year
+*   **Time Zone**: Select the time zone for your destination time. This is useful if you want the destination time to be in a different zone from your present time.
+*   **YEAR**: Enter the four-digit year you want the DeLorean to travel to. This is the primary input for the "Destination Time" display.
+
+#### Last Time Departed & Presets
+
+This section controls the "Last Time Departed" display and allows you to manage a list of your favorite time-jump destinations.
+
+*   **Famous & Custom Time Jumps**: This dropdown contains all the iconic dates from the *Back to the Future* movies, plus any custom presets you've saved.
+    *   Selecting a preset from this list will immediately update the "Last Time Departed" display.
+    *   If you select a **custom** preset, its details will populate the form below, allowing you to edit or delete it.
+
+*   **Managing Custom Presets**: You can create your own list of favorite dates.
+    *   **To Add a Preset**: Leave the dropdown on "-- Select a Famous Date --". Fill in the "Preset Name," "Date," and "Time" fields, and click **Add to Presets**.
+    *   **To Update a Preset**: Select your custom preset from the dropdown. The form will fill with its current details. Make your changes and click **Update Preset**.
+    *   **To Delete a Preset**: Select your custom preset from the dropdown and click **Delete Selected Preset**.
+
+*   **Cycle Presets**: To have the clock automatically rotate the "Last Time Departed" display through all available presets (both movie and custom), set the slider to the desired interval in minutes. Setting it to **0** disables this feature.
 
 ### Temporal Controls Tab
-* **Departure/Arrival (Sleep) Times**: Configure a daily schedule to automatically turn the displays off and on to save power.
-* **Display & Animation**: Adjust the display brightness, select from a wide range of animation styles, and control the duration and frequency of automatic animations.
-* **Interactive Animation Preview**: When you select an animation style from the dropdown, you will now see a live, client-side preview of that animation, allowing you to see what it looks like without having to save your settings and trigger the full sequence on the hardware.
-* **Animation Playlists**: Instead of the clock playing the same scheduled animation every time, you can now create a "playlist" of your favorite animation styles. When the "Use Playlist" option is enabled, the clock will cycle through your selected animations for the scheduled events, adding variety and preventing the effects from becoming repetitive.
-* **Dynamic Quote Management**: For the "Quote Ticker" animation, you can now add, edit, and delete your own custom quotes, allowing you to personalize the clock with your favorite lines from the movies or your own custom messages.
-* **Sound**: Adjust the volume of the sound effects and toggle them on or off.
+
+This tab controls the clock's automatic behaviors, visual effects, and sound.
+
+#### Sleep Schedule
+This feature is for energy saving, not for simulating time travel. It allows you to set a daily schedule to automatically turn the displays off and on.
+*   **Departure Time**: The time the displays will turn **off**. When this happens, the clock will play `SLEEP_ON.mp3`.
+*   **Arrival Time**: The time the displays will turn back **on**. When this happens, the clock will play `CONFIRM_ON.mp3`.
+
+#### Display & Animation
+*   **Display Brightness**: Adjust the brightness of all the LED displays.
+*   **24 Hour Format**: Toggle the present time display between 12-hour (with AM/PM) and 24-hour format.
+*   **Animation Style**: Select the visual effect that plays during the cinematic save sequence or scheduled animations.
+*   **Preview Button**: Click this to see a live, client-side preview of the selected animation style in the header clocks. This lets you test out animations without having to save your settings.
+*   **Animation Every (min, 0=Off)**: Set an interval in minutes for the clock to automatically play the full time travel sequence. Set to 0 to disable.
+
+#### Sound
+*   **Volume**: Adjust the volume of all sound effects.
+*   **Time Travel Sound FX**: Toggle the main cinematic sound effects on or off.
 
 ### Data Link Tab
-This is where you configure the display rows to show live, real-time data. You can enable either the Live Weather Display, the Data Link Marquee, or the Stock Ticker Mode.
+This is where you configure the display rows to show live, real-time data from the internet or your smart home. The tab is split into three modes, and **only one can be active at a time**. Enabling one will disable the others.
+
+---
 
 #### Live Weather Display
 This mode transforms the "Last Time Departed" display row into a comprehensive, multi-page weather station. To activate it, simply enable the "Live Weather Display" toggle and enter a city name. The clock will automatically use the free [Open-Meteo API](https://open-meteo.com/) to find the city's coordinates and fetch the latest weather data. An internet connection is required, and the data automatically refreshes every 5 minutes.
@@ -73,23 +106,97 @@ While fetching data, the display will show `WEA TH ER ----`. Once loaded, it wil
     *   Provides a look at the next 3 hours, showing the temperature and expected conditions for each hour.
     *   *Example: `NEXT 3 HRS 71F CLEAR SKY, 70F CLEAR SKY, 69F PARTLY CLOUDY`*
 
-> 💡 **Metric vs. Imperial:** The units used (Celsius/Fahrenheit, KPH/MPH) are automatically determined by the "Use Metric Units" setting in the **System** tab.
+> 💡 **Metric vs. Imperial:** The units used (Celsius/Fahrenheit, KPH/MPH) are automatically determined by the "Use Metric Units" setting in this section.
 
-#### Data Link Marquee
-This is a fully configurable marquee for displaying data from the internet.
-* **Data Sources**: Configure up to 5 data points. Each can get its data from a Web API, MQTT Broker, or a Home Assistant Push.
-* **API Wizard**: An easy-to-use tool that fetches data from a URL and lets you visually map JSON values to the displays without writing any code.
+---
 
 #### Stock Ticker Mode
 This mode transforms the three display rows into a real-time stock and index ticker.
-* **Configuration**: You must enter a free **Financial Modeling Prep (FMP) API Key** for this to function.
-* **Symbols**: Enter up to three stock or index symbols (e.g., `AAPL`, `GOOGL`, `^GSPC` for the S&P 500) to display.
+*   **Configuration**: You must enter a free **Financial Modeling Prep (FMP) API Key** for this to function.
+*   **Symbols**: Enter up to three stock or index symbols (e.g., `AAPL`, `GOOGL`, `^GSPC` for the S&P 500) to display on the three rows.
 
-### System Tab
-* **Device Status**: Displays real-time information about the device, including WiFi Signal Strength, free memory, and uptime.
-* **Time Synchronization**: Shows whether the device's clock is synchronized with an NTP server. You can manually trigger a sync by clicking **Calibrate Present Time**.
-* **UI Theme**: Change the color scheme of the web interface.
-* **Device Actions**: Trigger a "Great Scott!" easter egg or reset all settings to their factory defaults.
+---
+
+#### Data Link Marquee
+This is a fully configurable marquee for displaying custom data from almost any source. It works by cycling through up to 5 "Data Points" on the "Last Time Departed" display row.
+
+##### Global Settings
+*   **MQTT Broker Settings**: If you plan to use MQTT or Home Assistant Push as a data source for any data point, you must configure your MQTT broker address, port, and credentials here.
+*   **Refresh All Data Every (min)**: Sets a global interval for how often the clock will re-fetch data for all API-based data points.
+
+##### Configuring Data Points
+You can configure up to 5 independent data points. Each one has its own set of options:
+
+*   **Data Source**:
+    *   **Web API (HTTP)**: Fetch data from any public or private API endpoint.
+    *   **MQTT Broker**: Subscribe to an MQTT topic and display the message payload.
+    *   **Home Assistant Push**: A special mode for use with the Home Assistant integration, allowing HA to push data directly to a specific display segment.
+
+*   **Display Mode**:
+    *   **Four Column Data**: This mode mimics the standard time circuits display, allowing you to map incoming data to the `MONTH`, `DAY`, `YEAR`, and `TIME` segments. This is ideal for structured data.
+    *   **Scrolling Text**: This mode displays a single, continuous line of text that scrolls across the entire display row. This is best for long strings or simple messages.
+
+*   **API Wizard ("Analyze API" Button)**: This is the easiest way to configure an API data point.
+    1.  Enter the URL for your API endpoint.
+    2.  Click **Analyze API**. The clock will fetch the data and display the resulting JSON structure below.
+    3.  Click on a form field you want to populate (e.g., the `YEAR` input). The field will be highlighted.
+    4.  Click on a value from the JSON results. The tool will automatically generate the correct path (e.g., `results[0].user.name`) and map it to the highlighted field.
+
+*   **Formatting Fields**:
+    *   **Prefix/Suffix**: Add static text before or after the values in the `YEAR` and `TIME` fields (or the main `Scrolling Text` field).
+    *   **Icon**: In "Four Column Data" mode, you can replace the `DAY` segment with a pre-defined icon (e.g., Sun, Cloud, Heart). This is useful for at-a-glance information.
+
+*   **Scroll Speed**: Controls how fast the text scrolls in the `YEAR` and `TIME` fields (if the text is too long) or the main `Scrolling Text` field.
+
+### Network & System Tab
+This tab provides information about the device's status and allows you to perform system-level actions.
+
+*   **Present Time**: Configure the time zone for the "Present Time" display and manually trigger a synchronization with an NTP time server.
+*   **System Status**: Displays real-time information about the device, including WiFi Signal Strength, free memory, and uptime.
+*   **Firmware & UI Updates**: These forms allow you to update the device's software over-the-air (OTA).
+    *   **Firmware Update (OTA)**: Upload a new firmware (`.bin`) file to update the main controller software.
+    *   **UI File Update**: Upload new web interface files (`.html`, `.css`, `.js`) to update the look or functionality of this web UI.
+*   **UI Theme**: Change the color scheme of the web interface.
+*   **Device Actions**:
+    *   **Great Scott!**: Trigger a fun easter egg sound effect.
+    *   **Reset All Settings**: Reset all configuration options on all tabs to their factory defaults. **Use with caution!**
+
+***
+
+## Advanced Control via MQTT & API
+
+Beyond the web interface, many of the clock's features can be controlled programmatically via MQTT or direct API calls, making it highly extensible and easy to integrate into a smart home environment. For a complete list of all available MQTT topics and API endpoints, see the [Home Assistant Guide](HOME_ASSISTANT.md).
+
+### The Sequencer
+
+The Sequencer is a powerful feature that allows you to create custom, scripted animations. You can define a series of steps that will be executed in order, allowing you to build complex visual and audio displays.
+
+**How to Use It:**
+The Sequencer is controlled by sending a single string to the following MQTT topic:
+`bttf-time-circuits/[DEVICE_ID]/run_sequence/command`
+
+The string must be a series of commands separated by semicolons.
+
+**Command Syntax:**
+`command(arg1,arg2,...);command2(arg1);...`
+
+**Available Commands:**
+
+*   `text(target, value)`: Displays a string on a specific segment of the display.
+    *   `target`: The display segment to write to. Examples: `dest_year`, `pres_day`, `last_time`.
+    *   `value`: The text to display.
+*   `flash(target, duration)`: Makes a specific display segment flash for a duration.
+    *   `target`: The display segment to flash.
+    *   `duration`: The duration of the flash effect in milliseconds.
+*   `sound(filename)`: Plays a sound effect from the device's memory.
+    *   `filename`: The name of the sound file (e.g., `arrival_chime`, `flux_capacitor_power_on`). Do not include the `.mp3` extension.
+*   `wait(duration)`: Pauses the sequence for a specific amount of time.
+    *   `duration`: The time to wait in milliseconds.
+
+**Example Sequence:**
+The following string would display "HELLO" on the destination year, wait half a second, play a beep, and then display "WORLD" on the present year.
+
+`text(dest_year,HELLO);wait(500);sound(sys_beep);text(pres_year,WORLD)`
 
 ***
 
