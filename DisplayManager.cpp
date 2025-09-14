@@ -14,6 +14,26 @@
 #include "EventManager.h"
 #include "HardwareControl.h"
 
+// Forward declaration for the timeout handler in the main .ino file
+void handleWeatherTimeout();
+
+// File-scoped state variables for the initial weather fetch process
+static bool initialFetchTriggered = false;
+static unsigned long initialFetchStartTime = 0;
+static bool initialFetchTimedOut = false;
+
+/**
+ * @brief Resets the state flags used for the initial weather data fetch.
+ * @details This function is called to clear any timeout or error states,
+ * allowing a fresh attempt to fetch weather data.
+ */
+void resetWeatherFetchState() {
+    Log_printf(LOG_LEVEL_INFO, "Resetting weather fetch timeout state.");
+    initialFetchTimedOut = false;
+    initialFetchTriggered = false;
+    initialFetchStartTime = 0;
+}
+
 // A struct to hold the state of a scrolling text segment.
 struct ScrollState {
     int position = 0;
@@ -380,10 +400,6 @@ void handleWeatherDisplay() {
     bool shouldWriteToDisplay = false;
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        static bool initialFetchTriggered = false;
-        static unsigned long initialFetchStartTime = 0;
-        static bool initialFetchTimedOut = false;
-
         if (initialFetchTimedOut) {
             xSemaphoreGive(xDisplayDataMutex);
             updateNormalClockDisplay(true, true, true);
@@ -391,11 +407,12 @@ void handleWeatherDisplay() {
         }
 
         if (!currentWeatherData.dataValid) {
-            if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 10000) {
-                Log_printf(LOG_LEVEL_WARN, "Initial weather fetch timed out after 10 seconds.");
-                initialFetchTimedOut = true;
+            // If the fetch has been triggered and 30 seconds have passed, call the main timeout handler
+            if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
+                handleWeatherTimeout();
+                // We don't need to do anything else; the handler will change the state.
+                // We just need to release the mutex and return.
                 xSemaphoreGive(xDisplayDataMutex);
-                updateNormalClockDisplay(true, true, true);
                 return;
             }
 
@@ -412,6 +429,7 @@ void handleWeatherDisplay() {
                 initialFetchStartTime = millis();
             }
         } else {
+            // If we have valid data, make sure our state flags are reset for the next time we need them.
             initialFetchTriggered = false;
             initialFetchStartTime = 0;
             initialFetchTimedOut = false;
