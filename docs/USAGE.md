@@ -68,7 +68,7 @@ This feature is for energy saving, not for simulating time travel. It allows you
 #### Display & Animation
 *   **Display Brightness**: Adjust the brightness of all the LED displays.
 *   **24 Hour Format**: Toggle the present time display between 12-hour (with AM/PM) and 24-hour format.
-*   **Animation Style**: Select the visual effect that plays during the cinematic save sequence or scheduled animations.
+*   **Animation Style**: Select from over 20 unique visual effects for the time travel sequence.
 *   **Preview Button**: Click this to see a live, client-side preview of the selected animation style in the header clocks. This lets you test out animations without having to save your settings.
 *   **Animation Every (min, 0=Off)**: Set an interval in minutes for the clock to automatically play the full time travel sequence. Set to 0 to disable.
 
@@ -113,6 +113,7 @@ While fetching data, the display will show `WEA TH ER ----`. Once loaded, it wil
 #### Stock Ticker Mode
 This mode transforms the three display rows into a real-time stock and index ticker.
 *   **Configuration**: You must enter a free **Financial Modeling Prep (FMP) API Key** for this to function.
+    > ⚠️ **Important Note:** The stock data is sourced from [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs). You will need to register for a free API key from their website.
 *   **Symbols**: Enter up to three stock or index symbols (e.g., `AAPL`, `GOOGL`, `^GSPC` for the S&P 500) to display on the three rows.
 
 ---
@@ -136,13 +137,17 @@ You can configure up to 5 independent data points. Each one has its own set of o
     *   **Four Column Data**: This mode mimics the standard time circuits display, allowing you to map incoming data to the `MONTH`, `DAY`, `YEAR`, and `TIME` segments. This is ideal for structured data.
     *   **Scrolling Text**: This mode displays a single, continuous line of text that scrolls across the entire display row. This is best for long strings or simple messages.
 
-*   **API Wizard ("Analyze API" Button)**: This is the easiest way to configure an API data point.
-    1.  Enter the URL for your API endpoint.
-    2.  Click **Analyze API**. The clock will fetch the data and display the resulting JSON structure below.
-    3.  Click on a form field you want to populate (e.g., the `YEAR` input). The field will be highlighted.
-    4.  Click on a value from the JSON results. The tool will automatically generate the correct path (e.g., `results[0].user.name`) and map it to the highlighted field.
+*   **API Wizard & Advanced Settings**: This section provides tools for connecting to nearly any web API.
+    *   **API Examples**: This dropdown contains pre-configured URLs for common public APIs (e.g., weather, crypto prices) to help you get started quickly.
+    *   **API URL**: The full URL of the API endpoint you want to fetch data from.
+    *   **Auth Header Key / Value**: These optional fields allow you to connect to APIs that require authentication. Enter the header name (e.g., `X-API-Key`) and your secret key or token.
+    *   **Analyze API (Button)**: This is the easiest way to configure an API data point.
+        1.  Enter the URL for your API endpoint (and auth headers, if needed).
+        2.  Click **Analyze API**. The clock will fetch the data and display the resulting JSON structure below.
+        3.  Click on a form field you want to populate (e.g., the `YEAR` input). The field will be highlighted.
+        4.  Click on a value from the JSON results. The tool will automatically generate the correct JSON path (e.g., `results[0].user.name`) and map it to the highlighted field.
 
-*   **Formatting Fields**:
+*   **Formatting & Display**:
     *   **Prefix/Suffix**: Add static text before or after the values in the `YEAR` and `TIME` fields (or the main `Scrolling Text` field).
     *   **Icon**: In "Four Column Data" mode, you can replace the `DAY` segment with a pre-defined icon (e.g., Sun, Cloud, Heart). This is useful for at-a-glance information.
 
@@ -156,7 +161,13 @@ This tab provides information about the device's status and allows you to perfor
 *   **Firmware & UI Updates**: These forms allow you to update the device's software over-the-air (OTA).
     *   **Firmware Update (OTA)**: Upload a new firmware (`.bin`) file to update the main controller software.
     *   **UI File Update**: Upload new web interface files (`.html`, `.css`, `.js`) to update the look or functionality of this web UI.
-*   **UI Theme**: Change the color scheme of the web interface.
+*   **UI Theme**: Change the color scheme of this web interface. This setting is cosmetic and does not affect the physical display. Available themes include:
+    *   **Time Circuits**: The classic green and yellow.
+    *   **OUTATIME**: A red and orange "warning" theme.
+    *   **88 MPH**: A cool blue and cyan theme.
+    *   **Plutonium Glow**: A radioactive green and yellow.
+    *   **Mr. Fusion**: An orange and white theme.
+    *   **Clock Tower**: A vintage brown and beige theme.
 *   **Device Actions**:
     *   **Great Scott!**: Trigger a fun easter egg sound effect.
     *   **Reset All Settings**: Reset all configuration options on all tabs to their factory defaults. **Use with caution!**
