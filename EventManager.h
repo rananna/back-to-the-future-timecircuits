@@ -33,6 +33,7 @@ extern unsigned long lastMarqueeStateChange;
 extern int marqueeScrollPosition;
 extern int marqueeScrollPositionYear;
 extern volatile bool isFetchingData;
+extern volatile bool isFetchingWeather;
 extern int dataPointFetchFailures[5];
 extern const int MAX_FETCH_FAILURES;
 extern volatile int requestsCompleted;

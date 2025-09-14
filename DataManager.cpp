@@ -535,12 +535,14 @@ void fetchWeatherData(WeatherTaskParams* params) {
 void fetchWeatherDataTask(void* p) {
     WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
     fetchWeatherData(params);
+    isFetchingWeather = false;
     vTaskDelete(NULL);
 }
 
 void forceFetchWeatherDataTask(void* p) {
     WeatherTaskParams* params = (WeatherTaskParams*)p;
     fetchWeatherData(params);
+    isFetchingWeather = false;
     vTaskDelete(NULL);
 }
 

@@ -17,10 +17,13 @@
 // Forward declaration for the timeout handler in the main .ino file
 void handleWeatherTimeout();
 
-// File-scoped state variables for the initial weather fetch process
+// File-scoped state variables for the weather fetch process
 static bool initialFetchTriggered = false;
 static unsigned long initialFetchStartTime = 0;
 static bool initialFetchTimedOut = false;
+static unsigned long lastWeatherFetchTime = 0;
+const unsigned long WEATHER_REFRESH_INTERVAL = 300000; // 5 minutes
+const int WEATHER_TASK_STACK_SIZE = 8192;
 
 /**
  * @brief Resets the state flags used for the initial weather data fetch.
@@ -422,17 +425,33 @@ void handleWeatherDisplay() {
             printToDisplay(lastRow.time, "----");
             shouldWriteToDisplay = true;
 
-            if (!initialFetchTriggered) {
+            if (!initialFetchTriggered && !isFetchingWeather) {
                 Log_printf(LOG_LEVEL_INFO, "Weather data is invalid, triggering initial fetch.");
-                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, NULL, 1, NULL);
+                isFetchingWeather = true;
+                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, NULL);
                 initialFetchTriggered = true;
                 initialFetchStartTime = millis();
+                lastWeatherFetchTime = 0;
             }
         } else {
             // If we have valid data, make sure our state flags are reset for the next time we need them.
             initialFetchTriggered = false;
             initialFetchStartTime = 0;
             initialFetchTimedOut = false;
+
+            // Start the periodic refresh timer after the first successful fetch
+            if (lastWeatherFetchTime == 0) {
+                lastWeatherFetchTime = millis();
+            }
+
+            // Check if it's time to refresh the weather data
+            if ((millis() - lastWeatherFetchTime > WEATHER_REFRESH_INTERVAL) && !isFetchingWeather) {
+                Log_printf(LOG_LEVEL_INFO, "Periodic weather refresh triggered (5-minute interval).");
+                lastWeatherFetchTime = millis(); // Reset the timer immediately
+                isFetchingWeather = true; // Set the flag to prevent concurrent fetches
+                // Create a new task to fetch weather data in the background
+                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, NULL);
+            }
             static WeatherDisplayState weatherState = WD_START_PAGE;
             static int weatherPage = 0;
             static String weatherScrollText;
