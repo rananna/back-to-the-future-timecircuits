@@ -403,35 +403,37 @@ void handleWeatherDisplay() {
     bool shouldWriteToDisplay = false;
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        if (initialFetchTimedOut) {
-            xSemaphoreGive(xDisplayDataMutex);
-            updateNormalClockDisplay(true, true, true);
-            return;
-        }
-
         if (!currentWeatherData.dataValid) {
-            // If the fetch has been triggered and 30 seconds have passed, call the main timeout handler
-            if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
-                handleWeatherTimeout();
-                // We don't need to do anything else; the handler will change the state.
-                // We just need to release the mutex and return.
-                xSemaphoreGive(xDisplayDataMutex);
-                return;
-            }
+            // If there's an error, display it. Otherwise, show a loading message.
+            if (!currentWeatherData.errorCode.empty()) {
+                String errorCodeStr = currentWeatherData.errorCode.c_str();
+                String errorReasonStr = currentWeatherData.errorReason.c_str();
 
-            printToDisplay(lastRow.month, "WEA", 1);
-            printToDisplay(lastRow.day, "TH", 2);
-            printToDisplay(lastRow.year, "ER");
-            printToDisplay(lastRow.time, "----");
+                // Display a static error code on the first 4 characters
+                printToDisplay(lastRow.month, errorCodeStr.substring(0, 3).c_str(), 1);
+                printToDisplay(lastRow.day, " ", 2);
+
+                // Scroll the detailed error reason on the last 8 characters
+                String fullText = "FAIL " + errorReasonStr;
+                viewport = getScrolledViewport(fullText, 8, weatherScrollStates[0], 250);
+                printToDisplay(lastRow.year, viewport.substring(0, 4).c_str(), 0);
+                printToDisplay(lastRow.time, viewport.substring(4, 8).c_str(), 0);
+
+            } else {
+                // Not an error, just loading...
+                printToDisplay(lastRow.month, "FET", 1);
+                printToDisplay(lastRow.day, "CH", 2);
+                printToDisplay(lastRow.year, "ING");
+                printToDisplay(lastRow.time, "....");
+            }
             shouldWriteToDisplay = true;
 
-            if (!initialFetchTriggered && !isFetchingWeather) {
-                Log_printf(LOG_LEVEL_INFO, "Weather data is invalid, triggering initial fetch.");
-                isFetchingWeather = true;
+            // Trigger a fetch if one isn't already running.
+            if (!isFetchingWeather) {
+                Log_printf(LOG_LEVEL_INFO, "Weather data is invalid or stale, triggering fetch.");
+                isFetchingWeather = true; // Set flag to prevent re-triggering
                 xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, NULL);
-                initialFetchTriggered = true;
-                initialFetchStartTime = millis();
-                lastWeatherFetchTime = 0;
+                lastWeatherFetchTime = millis(); // Reset timer to prevent immediate re-fetch
             }
         } else {
             // If we have valid data, make sure our state flags are reset for the next time we need them.

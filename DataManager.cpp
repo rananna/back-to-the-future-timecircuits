@@ -272,6 +272,7 @@ static bool fetchCurrentAndDailyData() {
                     currentWeatherData.tomorrowWeatherCode = getJsonValueFromArray(getJsonValue(daily, "weather_code"), 1);
 
                     if (!allDataPresent) {
+                        currentWeatherData.errorCode = "JSON";
                         currentWeatherData.errorReason = "Incomplete current/daily weather data.";
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
@@ -282,6 +283,7 @@ static bool fetchCurrentAndDailyData() {
 
                 } else {
                     Log_printf(LOG_LEVEL_WARN, "Failed to parse Current/Daily weather JSON. E: %s", error.c_str());
+                    currentWeatherData.errorCode = "JSON";
                     currentWeatherData.errorReason = "Current/Daily API parsing failed.";
                     xSemaphoreGive(xDisplayDataMutex);
                 }
@@ -326,6 +328,7 @@ static bool fetchHourlyData() {
 
                     JsonObject hourly = doc["hourly"];
                     if (hourly.isNull()) {
+                        currentWeatherData.errorCode = "JSON";
                         currentWeatherData.errorReason = "Hourly data object is missing.";
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
@@ -336,6 +339,7 @@ static bool fetchHourlyData() {
                     JsonArray codeArray = hourly["weather_code"];
 
                     if (timeArray.isNull() || tempArray.isNull() || codeArray.isNull()) {
+                        currentWeatherData.errorCode = "JSON";
                         currentWeatherData.errorReason = "Incomplete hourly data arrays.";
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
@@ -345,6 +349,7 @@ static bool fetchHourlyData() {
                     struct tm timeinfo;
                     if (!getLocalTime(&timeinfo, 5000)) { // 5-second timeout
                         Log_printf(LOG_LEVEL_ERROR, "Failed to get local time for hourly forecast.");
+                        currentWeatherData.errorCode = "TIME";
                         currentWeatherData.errorReason = "Could not get local time.";
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
@@ -393,6 +398,7 @@ static bool fetchHourlyData() {
 
                 } else {
                     Log_printf(LOG_LEVEL_WARN, "Failed to parse Hourly weather JSON. E: %s", error.c_str());
+                    currentWeatherData.errorCode = "JSON";
                     currentWeatherData.errorReason = "Hourly API parsing failed.";
                     xSemaphoreGive(xDisplayDataMutex);
                 }
@@ -418,6 +424,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
     if (taskCityName.empty()) {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
+            currentWeatherData.errorCode = "CITY";
             currentWeatherData.errorReason = "City name is empty.";
             xSemaphoreGive(xDisplayDataMutex);
         }
@@ -480,6 +487,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
             showTemporaryMessage("GEO", "", "FAIL", "", 2000);
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 currentWeatherData.dataValid = false;
+                currentWeatherData.errorCode = "GEO";
                 currentWeatherData.errorReason = "Geocoding failed. Check city name.";
                 xSemaphoreGive(xDisplayDataMutex);
             }
@@ -525,6 +533,10 @@ void fetchWeatherData(WeatherTaskParams* params) {
         Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed for %s.", taskCityName.c_str());
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
+            // Only set the API error code if a more specific one (like JSON) wasn't already set.
+            if (currentWeatherData.errorCode.empty()) {
+                currentWeatherData.errorCode = "API";
+            }
             currentWeatherData.errorReason = "Weather API request failed.";
             xSemaphoreGive(xDisplayDataMutex);
         }
