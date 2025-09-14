@@ -25,6 +25,13 @@ static unsigned long lastWeatherFetchTime = 0;
 const unsigned long WEATHER_REFRESH_INTERVAL = 300000; // 5 minutes
 const int WEATHER_TASK_STACK_SIZE = 8192;
 
+// File-scoped state variables for the weather display state machine
+static WeatherDisplayState weatherState = WD_START_PAGE;
+static int weatherPage = 0;
+static String weatherScrollText;
+static int weatherScrollPosition = 0;
+static unsigned long lastWeatherUpdate = 0;
+
 /**
  * @brief Resets the state flags used for the initial weather data fetch.
  * @details This function is called to clear any timeout or error states,
@@ -394,7 +401,8 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 enum WeatherDisplayState {
     WD_START_PAGE,
     WD_SCROLLING,
-    WD_PAUSING
+    WD_PAUSING,
+    WD_ERROR
 };
 
 void handleWeatherDisplay() {
@@ -409,21 +417,33 @@ void handleWeatherDisplay() {
             return;
         }
 
+        const unsigned long scrollSpeed = 250;
+        const unsigned long pauseDuration = 1000;
+        const unsigned long errorRetryDelay = 10000; // 10 seconds
+
         if (!currentWeatherData.dataValid) {
+            // If there's a specific error reason, switch to the error state.
+            if (!currentWeatherData.errorReason.empty() && weatherState != WD_ERROR) {
+                weatherState = WD_ERROR;
+                weatherScrollText = "WEATHER ERROR: " + String(currentWeatherData.errorReason.c_str());
+                weatherScrollText = "             " + weatherScrollText;
+                weatherScrollPosition = 0;
+                lastWeatherUpdate = millis(); // Start the timer for the error display
+            }
             // If the fetch has been triggered and 30 seconds have passed, call the main timeout handler
-            if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
+            else if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
                 handleWeatherTimeout();
-                // We don't need to do anything else; the handler will change the state.
-                // We just need to release the mutex and return.
                 xSemaphoreGive(xDisplayDataMutex);
                 return;
             }
-
-            printToDisplay(lastRow.month, "WEA", 1);
-            printToDisplay(lastRow.day, "TH", 2);
-            printToDisplay(lastRow.year, "ER");
-            printToDisplay(lastRow.time, "----");
-            shouldWriteToDisplay = true;
+            // Otherwise, show the initial "Loading..." state
+            else {
+                printToDisplay(lastRow.month, "WEA", 1);
+                printToDisplay(lastRow.day, "TH", 2);
+                printToDisplay(lastRow.year, "ER");
+                printToDisplay(lastRow.time, "----");
+                shouldWriteToDisplay = true;
+            }
 
             if (!initialFetchTriggered && !isFetchingWeather) {
                 Log_printf(LOG_LEVEL_INFO, "Weather data is invalid, triggering initial fetch.");
@@ -431,7 +451,7 @@ void handleWeatherDisplay() {
                 xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, NULL);
                 initialFetchTriggered = true;
                 initialFetchStartTime = millis();
-                lastWeatherFetchTime = 0;
+                lastWeatherFetchTime = 0; // Reset this so it gets set upon successful fetch
             }
         } else {
             // If we have valid data, make sure our state flags are reset for the next time we need them.
@@ -452,13 +472,6 @@ void handleWeatherDisplay() {
                 // Create a new task to fetch weather data in the background
                 xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, NULL);
             }
-            static WeatherDisplayState weatherState = WD_START_PAGE;
-            static int weatherPage = 0;
-            static String weatherScrollText;
-            static int weatherScrollPosition = 0;
-            static unsigned long lastWeatherUpdate = 0;
-            const unsigned long scrollSpeed = 250;
-            const unsigned long pauseDuration = 1000;
 
             if (weatherDataUpdated) {
                 weatherState = WD_START_PAGE;
@@ -470,6 +483,30 @@ void handleWeatherDisplay() {
             }
 
             switch (weatherState) {
+                case WD_ERROR: {
+                    if (millis() - lastWeatherUpdate > scrollSpeed) {
+                        lastWeatherUpdate = millis();
+                        String tempScrollText = weatherScrollText + "             ";
+                        viewport = tempScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
+
+                        printToDisplay(lastRow.month, viewport.substring(0, 3).c_str(), 1);
+                        printToDisplay(lastRow.day, viewport.substring(3, 5).c_str(), 2);
+                        printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
+                        printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
+                        shouldWriteToDisplay = true;
+
+                        weatherScrollPosition++;
+                        // When the full message has scrolled, pause, then reset to try again.
+                        if (weatherScrollPosition > weatherScrollText.length()) {
+                            if (millis() - lastWeatherUpdate > errorRetryDelay) {
+                                currentWeatherData.errorReason = ""; // Clear reason
+                                weatherState = WD_START_PAGE;
+                                initialFetchTriggered = false; // Allow a new fetch
+                            }
+                        }
+                    }
+                    break;
+                }
                 case WD_START_PAGE: {
                     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                         // Clear the row before displaying new data
