@@ -315,6 +315,21 @@ void handleBackgroundSave() {
     Log_printf(LOG_LEVEL_INFO, "--- Background Save Finished ---");
 }
 
+/**
+ * @brief Handles the complete logic for a weather fetch timeout.
+ * @details This function is called by the DisplayManager when the initial weather
+ * fetch fails to complete within the timeout period. It logs the event, disables
+ * weather mode, saves the setting, broadcasts the change to the UI via MQTT,
+ * and resets the internal fetch state to allow for future attempts.
+ */
+void handleWeatherTimeout() {
+    Log_printf(LOG_LEVEL_WARN, "Weather fetch timed out. Disabling weather mode.");
+    currentSettings.weatherModeEnabled = false;
+    saveSettings();
+    broadcastSettingsUpdate();
+    resetWeatherFetchState();
+}
+
 
 /**
  * @brief Parses a JSON object and applies its values to the global `currentSettings` struct.
@@ -360,6 +375,7 @@ void applySettingsFromJson(const JsonObject& obj) {
         oldDataPoints[i] = currentSettings.dataPoints[i];
     }
     std::string oldCityName = currentSettings.cityName;
+    bool oldWeatherModeEnabled = currentSettings.weatherModeEnabled;
 
     // --- Apply All Settings from JSON ---
     validateAndSet("destinationYear", currentSettings.destinationYear, 0, 9999);
@@ -465,6 +481,11 @@ void applySettingsFromJson(const JsonObject& obj) {
             mqttClient.disconnect();
         }
         mqttReconnectRequired = true;
+    }
+
+    // If weather mode was just turned off, reset the fetch state
+    if (oldWeatherModeEnabled && !currentSettings.weatherModeEnabled) {
+        resetWeatherFetchState();
     }
 }
 

@@ -17,5 +17,6 @@ void updateStockTickerDisplay();
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration);
 const char* getIconForWeatherCode(int code);
 void updateDisplaySegment(int row, int segment, const std::string& text);
+void resetWeatherFetchState();
 
 #endif // DISPLAY_MANAGER_H
