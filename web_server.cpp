@@ -485,6 +485,8 @@ void setupWebRoutes() {
         doc["weatherCode"] = currentWeatherData.weatherCode;
         doc["dailyHigh"] = currentWeatherData.dailyHigh;
         doc["dailyLow"] = currentWeatherData.dailyLow;
+        doc["latitude"] = currentWeatherData.latitude;
+        doc["longitude"] = currentWeatherData.longitude;
         
         JsonArray hourly = doc.createNestedArray("hourly");
         for (int i = 0; i < 3; i++) {

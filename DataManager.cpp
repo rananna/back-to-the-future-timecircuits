@@ -408,10 +408,25 @@ static bool fetchHourlyData() {
     return false;
 }
 
+#include <algorithm>
+#include <cctype>
+
+// Function to trim leading and trailing whitespace from a std::string
+void trim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
 void fetchWeatherData(WeatherTaskParams* params) {
     std::string taskCityName = params->cityName;
     bool forceGeocode = params->forceGeocode;
     delete params;
+
+    trim(taskCityName);
 
     Log_printf(LOG_LEVEL_INFO, "Fetching weather data for city: %s (force geocode: %s)", taskCityName.c_str(), forceGeocode ? "true" : "false");
 
@@ -455,6 +470,8 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                             currentSettings.latitude = doc["results"][0]["latitude"];
                             currentSettings.longitude = doc["results"][0]["longitude"];
+                            currentWeatherData.latitude = currentSettings.latitude;
+                            currentWeatherData.longitude = currentSettings.longitude;
                             lastCityName = taskCityName;
                             xSemaphoreGive(xDisplayDataMutex);
                         }
