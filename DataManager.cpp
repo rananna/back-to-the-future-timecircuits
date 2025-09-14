@@ -487,9 +487,32 @@ void fetchWeatherData(WeatherTaskParams* params) {
         }
     }
 
-    // Now, call the two new functions to fetch the weather data.
-    bool currentDailySuccess = fetchCurrentAndDailyData();
-    bool hourlySuccess = fetchHourlyData();
+    // Now, call the two new functions to fetch the weather data, with retry logic.
+    bool currentDailySuccess = false;
+    bool hourlySuccess = false;
+    int attempt = 0;
+    const int maxAttempts = 4;
+
+    while (attempt < maxAttempts && (!currentDailySuccess || !hourlySuccess)) {
+        attempt++;
+        Log_printf(LOG_LEVEL_INFO, "Weather fetch attempt %d of %d...", attempt, maxAttempts);
+
+        // Only try to fetch data that hasn't been successfully fetched yet.
+        if (!currentDailySuccess) {
+            currentDailySuccess = fetchCurrentAndDailyData();
+        }
+        if (!hourlySuccess) {
+            hourlySuccess = fetchHourlyData();
+        }
+
+        if (currentDailySuccess && hourlySuccess) {
+            Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data on attempt %d.", attempt);
+            break;
+        } else if (attempt < maxAttempts) {
+            Log_printf(LOG_LEVEL_WARN, "Partial or full weather fetch failed on attempt %d. Retrying in 2 seconds...", attempt);
+            vTaskDelay(pdMS_TO_TICKS(2000));
+        }
+    }
 
     if (currentDailySuccess && hourlySuccess) {
         Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data for %s.", taskCityName.c_str());
