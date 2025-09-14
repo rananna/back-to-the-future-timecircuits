@@ -219,10 +219,12 @@ static bool fetchCurrentAndDailyData() {
         Log_printf(LOG_LEVEL_DEBUG, "Current/Daily Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
+
             String payload = http.getString();
             http.end(); // End connection immediately
             DynamicJsonDocument doc(8192);
             DeserializationError error = deserializeJson(doc, payload);
+
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 if (error == DeserializationError::Ok && !doc.containsKey("error")) {
@@ -312,6 +314,7 @@ static bool fetchHourlyData() {
         Log_printf(LOG_LEVEL_DEBUG, "Hourly Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
+
             String payload = http.getString();
             http.end(); // End connection immediately
             DynamicJsonDocument doc(8192);
@@ -347,8 +350,10 @@ static bool fetchHourlyData() {
                         return false;
                     }
 
+
                     char currentTimeStr[17]; // "YYYY-MM-DDTHH:00" + null
                     strftime(currentTimeStr, sizeof(currentTimeStr), "%Y-%m-%dT%H:00", &timeinfo);
+
 
                     int startIndex = -1;
                     for (int i = 0; i < timeArray.size(); i++) {
@@ -366,7 +371,9 @@ static bool fetchHourlyData() {
                                 currentWeatherData.hourlyCode[j] = codeArray[forecastIndex];
                             } else {
                                 // Not enough forecast data, fill with a placeholder if needed
+
                                 currentWeatherData.hourlyTemp[j] = -999;
+
                                 currentWeatherData.hourlyCode[j] = -1;
                             }
                         }
