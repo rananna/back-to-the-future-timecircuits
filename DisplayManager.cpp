@@ -471,7 +471,7 @@ void handleWeatherDisplay() {
                             dtostrf(currentWeatherData.temperature, 4, 1, buffer);
                             const char* desc = getWeatherDescriptionForCode(currentWeatherData.weatherCode);
                             String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "CURRENTLY: " + String(buffer) + unit + ", " + desc;
+                            weatherScrollText = "CURRENTLY " + String(buffer) + unit + ", " + desc;
                             break;
                         }
                         case 1: { // Tomorrow's Forecast
@@ -480,18 +480,18 @@ void handleWeatherDisplay() {
                             dtostrf(currentWeatherData.tomorrowLow, 1, 0, low_buf);
                             const char* desc = getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode);
                             String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "TOMORROW: HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit + ", " + desc;
+                            weatherScrollText = "TOMORROW HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit + ", " + desc;
                             break;
                         }
                         case 2: { // Wind & Rain
                             String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
-                            weatherScrollText = "WIND: " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
-                                              ", PRECIPITATION: " + String(currentWeatherData.precipitationProbability) + "%";
+                            weatherScrollText = "WIND " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
+                                              ", PRECIPITATION " + String(currentWeatherData.precipitationProbability) + "%";
                             break;
                         }
                         case 3: { // Sunrise & Sunset
                             struct tm timeinfo;
-                            char timeStr[9]; // "12:00AM" + null
+                            char timeStr[9]; // "1200AM" + null
                             localtime_r(&currentWeatherData.sunrise, &timeinfo);
                             strftime(timeStr, sizeof(timeStr), "%l%M %p", &timeinfo);
                             String sunriseStr = timeStr;
@@ -500,7 +500,23 @@ void handleWeatherDisplay() {
                             strftime(timeStr, sizeof(timeStr), "%l%M %p", &timeinfo);
                             String sunsetStr = timeStr;
                             sunsetStr.trim();
-                            weatherScrollText = "SUNRISE: " + sunriseStr + ", SUNSET: " + sunsetStr;
+                            weatherScrollText = "SUNRISE " + sunriseStr + ", SUNSET " + sunsetStr;
+                            break;
+                        }
+                        case 4: { // Hourly Forecast
+                            String unit = currentSettings.useMetricUnits ? "C" : "F";
+                            weatherScrollText = "NEXT 3 HRS ";
+                            for (int i = 0; i < 3; ++i) {
+                                if (currentWeatherData.hourlyCode[i] != -1) {
+                                    char temp_buf[8];
+                                    dtostrf(currentWeatherData.hourlyTemp[i], 1, 0, temp_buf);
+                                    const char* desc = getWeatherDescriptionForCode(currentWeatherData.hourlyCode[i]);
+                                    weatherScrollText += String(temp_buf) + unit + " " + desc;
+                                    if (i < 2) {
+                                        weatherScrollText += ", ";
+                                    }
+                                }
+                            }
                             break;
                         }
                     }
@@ -536,7 +552,7 @@ void handleWeatherDisplay() {
 
                 case WD_PAUSING: {
                     if (millis() - lastWeatherUpdate > pauseDuration) {
-                        weatherPage = (weatherPage + 1) % 4;
+                        weatherPage = (weatherPage + 1) % 5;
                         weatherState = WD_START_PAGE;
                     }
                     break;
