@@ -219,13 +219,8 @@ static bool fetchCurrentAndDailyData() {
         Log_printf(LOG_LEVEL_DEBUG, "Current/Daily Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            // --- DEBUG: Read payload to string and print it ---
             String payload = http.getString();
-            http.end();
-            Log_printf(LOG_LEVEL_DEBUG, "--- RAW Weather Payload (Current/Daily) ---");
-            Log_printf(LOG_LEVEL_DEBUG, "%s", payload.c_str());
-            Log_printf(LOG_LEVEL_DEBUG, "--- END RAW Payload ---");
-
+            http.end(); // End connection immediately
             DynamicJsonDocument doc(8192);
             DeserializationError error = deserializeJson(doc, payload);
 
@@ -317,13 +312,8 @@ static bool fetchHourlyData() {
         Log_printf(LOG_LEVEL_DEBUG, "Hourly Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            // --- DEBUG: Read payload to string and print it ---
             String payload = http.getString();
-            http.end();
-            Log_printf(LOG_LEVEL_DEBUG, "--- RAW Weather Payload (Hourly) ---");
-            Log_printf(LOG_LEVEL_DEBUG, "%s", payload.c_str());
-            Log_printf(LOG_LEVEL_DEBUG, "--- END RAW Payload ---");
-
+            http.end(); // End connection immediately
             DynamicJsonDocument doc(8192);
             DeserializationError error = deserializeJson(doc, payload);
 
