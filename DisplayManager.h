@@ -3,6 +3,13 @@
 
 #include <string>
 
+enum WeatherDisplayState {
+    WD_START_PAGE,
+    WD_SCROLLING,
+    WD_PAUSING,
+    WD_ERROR
+};
+
 extern bool weatherDataUpdated;
 extern bool isRowInManualMode[3];
 extern std::string manualDisplayText[3][4];
