@@ -568,6 +568,13 @@ void handleWeatherDisplay() {
                             }
                             break;
                         }
+                        case 5: { // Lat/Lon
+                            char lat_buf[10], lon_buf[10];
+                            dtostrf(currentSettings.latitude, 4, 4, lat_buf);
+                            dtostrf(currentSettings.longitude, 4, 4, lon_buf);
+                            weatherScrollText = "LAT " + String(lat_buf) + " LON " + String(lon_buf);
+                            break;
+                        }
                     }
                     weatherScrollText = "             " + weatherScrollText;
                     weatherScrollPosition = 0;
@@ -601,7 +608,7 @@ void handleWeatherDisplay() {
 
                 case WD_PAUSING: {
                     if (millis() - lastWeatherUpdate > pauseDuration) {
-                        weatherPage = (weatherPage + 1) % 5;
+                        weatherPage = (weatherPage + 1) % 6; // MODIFIED: Increased page count
                         weatherState = WD_START_PAGE;
                     }
                     break;
