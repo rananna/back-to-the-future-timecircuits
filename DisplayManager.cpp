@@ -497,9 +497,8 @@ void handleWeatherDisplay() {
                         lastWeatherUpdate = millis();
                         viewport = weatherScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
 
-                        // Per user feedback, shift month and day one character to the right.
-                        String monthStr = " " + viewport.substring(0, 2);
-                        String dayStr = " " + viewport.substring(3, 4);
+                        String monthStr = viewport.substring(0, 3);
+                        String dayStr = viewport.substring(3, 5);
 
                         printToDisplay(lastRow.month, monthStr.c_str(), 1);
                         printToDisplay(lastRow.day, dayStr.c_str(), 2);
