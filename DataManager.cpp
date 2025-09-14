@@ -272,7 +272,7 @@ static bool fetchCurrentAndDailyData() {
                     currentWeatherData.tomorrowWeatherCode = getJsonValueFromArray(getJsonValue(daily, "weather_code"), 1);
 
                     if (!allDataPresent) {
-                        currentWeatherData.errorReason = "Incomplete current/daily weather data.";
+                        currentWeatherData.errorReason = "INCOMPLETE WEATHER DATA";
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
                     }
@@ -282,7 +282,7 @@ static bool fetchCurrentAndDailyData() {
 
                 } else {
                     Log_printf(LOG_LEVEL_WARN, "Failed to parse Current/Daily weather JSON. E: %s", error.c_str());
-                    currentWeatherData.errorReason = "Current/Daily API parsing failed.";
+                    currentWeatherData.errorReason = "WEATHER API PARSING FAILED";
                     xSemaphoreGive(xDisplayDataMutex);
                 }
             }
@@ -326,7 +326,7 @@ static bool fetchHourlyData() {
 
                     JsonObject hourly = doc["hourly"];
                     if (hourly.isNull()) {
-                        currentWeatherData.errorReason = "Hourly data object is missing.";
+                        currentWeatherData.errorReason = "HOURLY DATA OBJECT MISSING";
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
                     }
@@ -336,7 +336,7 @@ static bool fetchHourlyData() {
                     JsonArray codeArray = hourly["weather_code"];
 
                     if (timeArray.isNull() || tempArray.isNull() || codeArray.isNull()) {
-                        currentWeatherData.errorReason = "Incomplete hourly data arrays.";
+                        currentWeatherData.errorReason = "INCOMPLETE HOURLY DATA";
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
                     }
@@ -345,7 +345,7 @@ static bool fetchHourlyData() {
                     struct tm timeinfo;
                     if (!getLocalTime(&timeinfo, 5000)) { // 5-second timeout
                         Log_printf(LOG_LEVEL_ERROR, "Failed to get local time for hourly forecast.");
-                        currentWeatherData.errorReason = "Could not get local time.";
+                        currentWeatherData.errorReason = "ERROR GETTING LOCAL TIME";
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
                     }
@@ -393,7 +393,7 @@ static bool fetchHourlyData() {
 
                 } else {
                     Log_printf(LOG_LEVEL_WARN, "Failed to parse Hourly weather JSON. E: %s", error.c_str());
-                    currentWeatherData.errorReason = "Hourly API parsing failed.";
+                    currentWeatherData.errorReason = "HOURLY API PARSING FAILED";
                     xSemaphoreGive(xDisplayDataMutex);
                 }
             }
@@ -418,7 +418,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
     if (taskCityName.empty()) {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
-            currentWeatherData.errorReason = "City name is empty.";
+            currentWeatherData.errorReason = "CITY NAME IS EMPTY";
             xSemaphoreGive(xDisplayDataMutex);
         }
         return;
@@ -477,10 +477,9 @@ void fetchWeatherData(WeatherTaskParams* params) {
 
         if (!geocodeSuccess) {
             Log_printf(LOG_LEVEL_ERROR, "Geocoding failed for %s after multiple retries.", taskCityName.c_str());
-            showTemporaryMessage("GEO", "", "FAIL", "", 2000);
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 currentWeatherData.dataValid = false;
-                currentWeatherData.errorReason = "Geocoding failed. Check city name.";
+                currentWeatherData.errorReason = "GEOCODING FAILED - CHECK CITY NAME";
                 xSemaphoreGive(xDisplayDataMutex);
             }
             return;
@@ -525,10 +524,16 @@ void fetchWeatherData(WeatherTaskParams* params) {
         Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed for %s.", taskCityName.c_str());
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
-            currentWeatherData.errorReason = "Weather API request failed.";
+            // Combine the reasons from the failed fetches if available
+            if (!currentDailySuccess && !currentWeatherData.errorReason.empty()) {
+                // Keep the reason from fetchCurrentAndDailyData
+            } else if (!hourlySuccess && !currentWeatherData.errorReason.empty()) {
+                // Keep the reason from fetchHourlyData
+            } else {
+                currentWeatherData.errorReason = "WEATHER API FAILED - CHECK WI-FI";
+            }
             xSemaphoreGive(xDisplayDataMutex);
         }
-        showTemporaryMessage("API", "", "FAIL", "", 2000);
     }
 }
 

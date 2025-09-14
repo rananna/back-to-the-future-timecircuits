@@ -324,10 +324,12 @@ void handleBackgroundSave() {
  * and resets the internal fetch state to allow for future attempts.
  */
 void handleWeatherTimeout() {
-    Log_printf(LOG_LEVEL_WARN, "Weather fetch timed out. Disabling weather mode.");
-    currentSettings.weatherModeEnabled = false;
-    saveSettings();
-    broadcastSettingsUpdate();
+    Log_printf(LOG_LEVEL_WARN, "Weather fetch timed out. Setting error state.");
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        currentWeatherData.dataValid = false;
+        currentWeatherData.errorReason = "FETCH TIMEOUT";
+        xSemaphoreGive(xDisplayDataMutex);
+    }
     resetWeatherFetchState();
 }
 
