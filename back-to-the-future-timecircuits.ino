@@ -199,6 +199,7 @@ unsigned long lastMarqueeStateChange = 0;
 int marqueeScrollPosition = 0;
 int marqueeScrollPositionYear = 0;
 volatile bool isFetchingData = false;
+volatile bool isFetchingWeather = false;
 int dataPointFetchFailures[5] = {0, 0, 0, 0, 0};
 const int MAX_FETCH_FAILURES = 3;
 volatile int requestsCompleted = 0;
