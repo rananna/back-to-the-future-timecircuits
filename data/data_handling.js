@@ -595,6 +595,8 @@ function fetchWeatherData() {
                 document.getElementById('weatherHumidity').textContent = `${data.humidity}%`;
                 document.getElementById('weatherWind').textContent = `${data.windSpeed.toFixed(1)}${speedUnit}`;
                 document.getElementById('weatherHighLow').textContent = `${data.dailyHigh.toFixed(0)}° / ${data.dailyLow.toFixed(0)}°`;
+                document.getElementById('weatherLatitude').textContent = data.latitude.toFixed(4);
+                document.getElementById('weatherLongitude').textContent = data.longitude.toFixed(4);
 
                 const city = document.getElementById('cityName').value;
                 preview.textContent = `Live data for ${city}: ${data.temperature.toFixed(1)}${tempUnit}`;

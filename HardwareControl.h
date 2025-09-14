@@ -172,6 +172,8 @@ struct WeatherData {
   float maxWindSpeed;
   time_t sunrise;
   time_t sunset;
+  float latitude;
+  float longitude;
   bool dataValid = false;
   std::string errorReason;
 };
