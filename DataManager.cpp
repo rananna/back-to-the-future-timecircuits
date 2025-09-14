@@ -219,9 +219,12 @@ static bool fetchCurrentAndDailyData() {
         Log_printf(LOG_LEVEL_DEBUG, "Current/Daily Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            DynamicJsonDocument doc(4096); // Smaller JSON doc
-            DeserializationError error = deserializeJson(doc, http.getStream());
-            http.end();
+
+            String payload = http.getString();
+            http.end(); // End connection immediately
+            DynamicJsonDocument doc(8192);
+            DeserializationError error = deserializeJson(doc, payload);
+
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 if (error == DeserializationError::Ok && !doc.containsKey("error")) {
@@ -273,7 +276,7 @@ static bool fetchCurrentAndDailyData() {
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
                     }
-                    
+
                     xSemaphoreGive(xDisplayDataMutex);
                     return true;
 
@@ -311,9 +314,11 @@ static bool fetchHourlyData() {
         Log_printf(LOG_LEVEL_DEBUG, "Hourly Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            DynamicJsonDocument doc(4096); // Smaller JSON doc
-            DeserializationError error = deserializeJson(doc, http.getStream());
-            http.end();
+
+            String payload = http.getString();
+            http.end(); // End connection immediately
+            DynamicJsonDocument doc(8192);
+            DeserializationError error = deserializeJson(doc, payload);
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 if (error == DeserializationError::Ok && !doc.containsKey("error")) {
@@ -344,10 +349,12 @@ static bool fetchHourlyData() {
                         xSemaphoreGive(xDisplayDataMutex);
                         return false;
                     }
-                    
+
+
                     char currentTimeStr[17]; // "YYYY-MM-DDTHH:00" + null
                     strftime(currentTimeStr, sizeof(currentTimeStr), "%Y-%m-%dT%H:00", &timeinfo);
-                    
+
+
                     int startIndex = -1;
                     for (int i = 0; i < timeArray.size(); i++) {
                         if (strcmp(timeArray[i], currentTimeStr) == 0) {
@@ -364,7 +371,9 @@ static bool fetchHourlyData() {
                                 currentWeatherData.hourlyCode[j] = codeArray[forecastIndex];
                             } else {
                                 // Not enough forecast data, fill with a placeholder if needed
-                                currentWeatherData.hourlyTemp[j] = -999; 
+
+                                currentWeatherData.hourlyTemp[j] = -999;
+
                                 currentWeatherData.hourlyCode[j] = -1;
                             }
                         }
@@ -378,7 +387,7 @@ static bool fetchHourlyData() {
                             }
                         }
                     }
-                    
+
                     xSemaphoreGive(xDisplayDataMutex);
                     return true;
 
