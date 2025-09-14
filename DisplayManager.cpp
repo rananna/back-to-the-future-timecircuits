@@ -430,23 +430,23 @@ void handleWeatherDisplay() {
                 initialFetchTriggered = false;
                 initialFetchStartTime = 0;
                 initialFetchTimedOut = false;
-                if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                    // Clear the row before displaying new data
-                    printToDisplay(lastRow.month, "   ", 0);
-                    printToDisplay(lastRow.day, "  ", 0);
-                    printToDisplay(lastRow.year, "    ", 0);
-                    printToDisplay(lastRow.time, "    ", 0);
-                    lastRow.month.writeDisplay();
-                    lastRow.day.writeDisplay();
-                    lastRow.year.writeDisplay();
-                    lastRow.time.writeDisplay();
-                    vTaskDelay(pdMS_TO_TICKS(2));
-                    xSemaphoreGive(xDisplayHardwareMutex);
-                }
             }
 
             switch (weatherState) {
                 case WD_START_PAGE: {
+                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        // Clear the row before displaying new data
+                        printToDisplay(lastRow.month, "   ", 0);
+                        printToDisplay(lastRow.day, "  ", 0);
+                        printToDisplay(lastRow.year, "    ", 0);
+                        printToDisplay(lastRow.time, "    ", 0);
+                        lastRow.month.writeDisplay();
+                        lastRow.day.writeDisplay();
+                        lastRow.year.writeDisplay();
+                        lastRow.time.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
+                        xSemaphoreGive(xDisplayHardwareMutex);
+                    }
                     char buffer[20];
                     switch (weatherPage) {
                         case 0: { // Current Weather
@@ -468,18 +468,18 @@ void handleWeatherDisplay() {
                         case 2: { // Wind & Rain
                             String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
                             weatherScrollText = "WIND: " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
-                                              ", PRECIP: " + String(currentWeatherData.precipitationProbability) + "%";
+                                              ", PRECIPITATION: " + String(currentWeatherData.precipitationProbability) + "%";
                             break;
                         }
                         case 3: { // Sunrise & Sunset
                             struct tm timeinfo;
                             char timeStr[9]; // "12:00AM" + null
                             localtime_r(&currentWeatherData.sunrise, &timeinfo);
-                            strftime(timeStr, sizeof(timeStr), "%l:%M %p", &timeinfo);
+                            strftime(timeStr, sizeof(timeStr), "%l%M %p", &timeinfo);
                             String sunriseStr = timeStr;
                             sunriseStr.trim();
                             localtime_r(&currentWeatherData.sunset, &timeinfo);
-                            strftime(timeStr, sizeof(timeStr), "%l:%M %p", &timeinfo);
+                            strftime(timeStr, sizeof(timeStr), "%l%M %p", &timeinfo);
                             String sunsetStr = timeStr;
                             sunsetStr.trim();
                             weatherScrollText = "SUNRISE: " + sunriseStr + ", SUNSET: " + sunsetStr;
