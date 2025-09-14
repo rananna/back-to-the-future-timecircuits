@@ -67,36 +67,58 @@ graph TD
 Entities are grouped by function to make them easy to find.
 
 #### **Monitoring & Sensors**
-* **`sensor.time_circuits_display_status`**: The primary sensor reporting the clock's state (`Idle`, `Animating`, `Asleep`) with detailed diagnostic attributes.
-* **`sensor.time_circuits_display_destination_time`**: A `timestamp` sensor for the top display row.
-* **`sensor.time_circuits_display_present_time`**: A `timestamp` sensor for the middle display row.
-* **`sensor.time_circuits_display_last_time_departed`**: A `timestamp` sensor for the bottom display row.
-* **`binary_sensor.time_circuits_display_is_animating`**: `On` when an animation is playing.
-* **`binary_sensor.time_circuits_display_is_asleep`**: `On` when the clock is in sleep mode.
+*   **`sensor.time_circuits_display_status`**: The primary sensor reporting the clock's state (`Idle`, `Animating`, `Asleep`).
+    > **💡 Pro Tip:** This sensor has useful diagnostic attributes like `wifi_rssi`, `free_heap`, and `uptime_seconds` that you can view by clicking on the entity in Home Assistant.
+*   **`sensor.time_circuits_display_audio_stream_status`**: Shows the state of the audio player (`IDLE` or `PLAYING`). Useful for automations involving TTS or radio streams.
+*   **`sensor.time_circuits_display_destination_time`**: A `timestamp` sensor for the top display row.
+*   **`sensor.time_circuits_display_present_time`**: A `timestamp` sensor for the middle display row.
+*   **`sensor.time_circuits_display_last_time_departed`**: A `timestamp` sensor for the bottom display row.
+*   **`binary_sensor.time_circuits_display_is_animating`**: `On` when an animation is playing.
+*   **`binary_sensor.time_circuits_display_is_asleep`**: `On` when the clock is in sleep mode.
 
 #### **Core Controls**
-* **`number.time_circuits_display_destination_year`**: Sets the destination year.
-* **`select.time_circuits_display_last_departed_preset`**: Choose from movie-based or your custom presets.
-* **`number.time_circuits_display_brightness`**: Controls the display brightness (0-7).
-* **`number.time_circuits_display_volume`**: Adjusts the sound effect volume (0-30).
-* **`switch.time_circuits_display_24h_format`**: Toggles 24-hour time format.
-* **`select.time_circuits_display_profile`**: Select a profile (`Standard`, `Cinematic`, `Unstable`) to apply a bundle of settings at once.
+*   **`number.time_circuits_display_destination_year`**: Sets the destination year.
+*   **`select.time_circuits_display_last_departed_preset`**: Choose from movie-based or your custom presets.
+*   **`number.time_circuits_display_brightness`**: Controls the display brightness (0-7).
+*   **`number.time_circuits_display_volume`**: Adjusts the sound effect volume (0-30).
+*   **`switch.time_circuits_display_24h_format`**: Toggles 24-hour time format.
+*   **`select.time_circuits_display_profile`**: A powerful feature that applies a pre-configured bundle of settings at once. Profiles include `Standard`, `Cinematic`, `Silent Night`, and `Unstable`.
 
 #### **Animation & Effects**
-* **`button.time_circuits_display_trigger_animation`**: Starts the full time travel sequence.
-* **`select.time_circuits_display_animation_style`**: Choose from 10 different animation styles.
-* **`number.time_circuits_display_animation_interval`**: How often to auto-play the animation (in minutes, 0=off).
-* **`number.time_circuits_display_animation_duration`**: Sets the length of the time travel effect (in milliseconds).
+*   **`button.time_circuits_display_trigger_animation`**: Starts the full time travel sequence.
+*   **`select.time_circuits_display_animation_style`**: Choose from a curated list of 10 popular animation styles. For the full list of 20+ styles, please use the web interface.
+*   **`number.time_circuits_display_animation_interval`**: How often to auto-play the animation (in minutes, 0=off).
+*   **`number.time_circuits_display_animation_duration`**: Sets the length of the time travel effect (in milliseconds).
+*   **`switch.time_circuits_display_temporal_echo`**: A fun, experimental feature that creates a "ghosting" effect on the displays.
 
 #### **Marquee & DataLink**
-* **`text.time_circuits_display_marquee_temp_override`**: Sends a temporary scrolling message. Use plain text or JSON for a timed message: `{"text": "ALERT", "duration": 60}`.
-* **`select.time_circuits_display_datapoint_0_source`**: Sets the data source for marquee slot 1 (and 4 others).
-* **`switch.time_circuits_display_stock_ticker_mode`**: Activates the 3-row stock ticker display.
+*   **`text.time_circuits_display_marquee_temp_override`**: Sends a temporary scrolling message. Use plain text or JSON for a timed message: `{"text": "ALERT", "duration": 60}`.
+*   **`number.time_circuits_display_datalink_refresh`**: Sets the refresh interval for all API-based DataLink points.
+*   **`select.time_circuits_display_datapoint_0_source`**: Sets the data source for marquee slot 1 (and 4 others).
+
+#### **Stock Ticker Mode**
+*   **`switch.time_circuits_display_stock_ticker_mode`**: Activates the 3-row stock ticker display.
+*   **`text.time_circuits_display_stock_row_1`**: Sets the symbol for the top display row (e.g., `AAPL`).
+*   **`text.time_circuits_display_stock_row_2`**: Sets the symbol for the middle display row (e.g., `^GSPC`).
+*   **`text.time_circuits_display_stock_row_3`**: Sets the symbol for the bottom display row.
+*   **`text.time_circuits_display_alpha_vantage_api_key`**: Sets the API key for the stock data provider.
+    > ⚠️ **Important Note:** The stock data is sourced from **Financial Modeling Prep (FMP)**, not Alpha Vantage. Please register for a free API key at the [FMP website](https://site.financialmodelingprep.com/developer/docs).
 
 #### **System & Actions**
-* **`button.time_circuits_display_reboot_device`**: Restarts the ESP32.
-* **`button.time_circuits_display_force_ntp_sync`**: Manually syncs the clock with time servers.
-* **`text.time_circuits_display_run_sequence`**: The advanced script runner for custom alerts. See the deep dive below.
+*   **`button.time_circuits_display_reboot_device`**: Restarts the ESP32.
+*   **`button.time_circuits_display_force_ntp_sync`**: Manually syncs the clock with time servers.
+*   **`button.time_circuits_display_save_all_settings`**: Manually triggers a save of all current settings to the device's memory.
+*   **`button.time_circuits_display_factory_reset`**: **Use with caution!** Resets all settings to their original factory defaults.
+*   **`text.time_circuits_display_run_sequence`**: The advanced script runner for custom alerts. See the deep dive below.
+
+### **Device Triggers**
+The integration also creates several "device triggers" in Home Assistant, which are perfect for starting automations based on the clock's activity.
+
+*   **Animation Started**: Fires when any time travel animation begins.
+*   **Animation Completed**: Fires when an animation finishes.
+*   **Sleep Mode Entered**: Fires when the clock enters its scheduled sleep mode.
+*   **Sleep Mode Exited**: Fires when the clock wakes up.
+*   **Preset Changed**: Fires when the "Last Time Departed" display cycles to a new preset.
 
 ***
 
@@ -161,6 +183,22 @@ To make the most powerful features easy to use, this project includes several Ho
     * **Destination Year:** `1955`
     * **Result:** Every night at 10:04 PM, the clock will automatically set its destination to 1955 and play the full, cinematic time travel animation, complete with sound effects.
 
+### **4. TTS Notifier Blueprint**
+> **Purpose:** To use the clock as a powerful, themed notification device for your smart home, playing audio announcements from Home Assistant's Text-to-Speech (TTS) services.
+
+Recent improvements have made this feature even more dynamic and integrated.
+
+*   **Dynamic Volume Control**: Each TTS announcement can have its own volume level, set directly in your Home Assistant automation. This allows for context-aware alerts:
+    *   A critical security warning can be set to **100% volume**.
+    *   A routine announcement, like "The laundry is finished," can be set to a quieter **40% volume**.
+*   **Visual Notification Mode**: To make announcements feel more polished, the clock now enters a special "Notification Mode":
+    1.  **Intro**: When a TTS message is triggered, the display will show "INCOMING MESSAGE" for a moment to get your attention.
+    2.  **Custom Message**: Your optional custom text (e.g., a speaker icon `🔊`) is then displayed.
+    3.  **Audio Playback**: The audio message plays at your specified volume.
+    4.  **Outro**: Once finished, the clock automatically returns to its normal display.
+
+This creates a seamless and professional notification experience, turning your clock into a true smart home information hub.
+
 ***
 
 ## **Advanced Usage & Guides**
@@ -218,23 +256,6 @@ Trigger the time travel sequence with a voice command to Google Assistant or Ale
 3.  **Create a Routine:**
     * **In the Google Home App:** Create a new routine. For the starter, use a voice command like "Activate the time circuits." For the action, choose "Try adding your own" and enter "Activate Time Circuits."
     * **In the Alexa App:** Create a new routine. For "When this happens," choose "Voice" and enter a phrase like "Great Scott." For the action, choose "Smart Home" and select the "Activate Time Circuits" script.
-
-### **Advanced Text-to-Speech (TTS) Notifications**
-The Time Circuits clock can function as a powerful, themed notification device for your smart home using the **TTS Notifier Blueprint**. Recent improvements have made this feature even more dynamic and integrated.
-
-#### **Dynamic Volume Control**
-Each TTS announcement can now have its own volume level, set directly in your Home Assistant automation. This allows for context-aware alerts:
-* A critical security warning can be set to **100% volume**.
-* A routine announcement, like "The laundry is finished," can be set to a quieter **40% volume**.
-
-#### **Visual Notification Mode**
-To make announcements feel more polished, the clock now enters a special "Notification Mode":
-1.  **Intro**: When a TTS message is triggered, the display will show "INCOMING MESSAGE" for a moment to get your attention.
-2.  **Custom Message**: Your optional custom text (e.g., a speaker icon `🔊`) is then displayed.
-3.  **Audio Playback**: The audio message plays at your specified volume.
-4.  **Outro**: Once finished, the clock automatically returns to its normal display.
-
-This creates a seamless and professional notification experience, turning your clock into a true smart home information hub.
 ### **Advanced Templating Examples**
 The "Dynamic Data Display" blueprint can be made even more powerful with templates. Here are some examples for the `Display Text` field:
 

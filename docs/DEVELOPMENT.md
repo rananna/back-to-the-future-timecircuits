@@ -117,7 +117,8 @@ If you wanted to add a new setting to the web interface, you would typically fol
 3.  **Update `data_handling.js`**:
     *   In `saveSettings()`, add a line to read the value from your new HTML element and add it to the `settings` object that gets sent to the ESP32.
 4.  **Update ESP32 Firmware**:
-    *   Add the corresponding new setting to the `ClockSettings` struct in `HardwareControl.h`.
+    *   Add the corresponding new setting to the `ClockSettings` struct in `HardwareControl.h`. For example, `int theme;`.
+    *   If you are adding a complex data field (like for the Data Link), you may need to update the `DataPoint` struct. This struct includes fields for `url`, `authHeaderKey`, `authHeaderValue`, `httpMethod`, `requestBody`, and JSON paths.
     *   In `web_server.cpp`, update the `/api/saveSettings` handler to parse the new setting from the incoming JSON and save it.
     *   Update the appropriate `/api/settings/...` GET endpoint to include your new setting so it can be loaded by the frontend.
     *   Update `saveSettings()` and `loadSettings()` in the main `.ino` file to persist your new setting to the device's non-volatile storage.
