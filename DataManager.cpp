@@ -234,8 +234,10 @@ static bool fetchWeatherDataFromApi() {
         if (httpCode == HTTP_CODE_OK) {
             WiFiClient& stream = http.getStream();
 
-            // Use a StaticJsonDocument to allocate on the stack, preventing heap fragmentation.
-            StaticJsonDocument<12288> doc;
+            // The large JSON response can cause a stack overflow if we use a StaticJsonDocument.
+            // Since this task is a one-off, using the heap with DynamicJsonDocument is safe
+            // and prevents the stack overflow. The size is increased to 16k for safety.
+            DynamicJsonDocument doc(16384);
             DeserializationError error = deserializeJson(doc, stream);
             http.end(); // End the connection after parsing the stream
 
