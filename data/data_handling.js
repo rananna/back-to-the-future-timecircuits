@@ -12,6 +12,7 @@ let dataPointStatus = {}; // Stores the success/error status of each data point
 let ws; // The WebSocket object for real-time communication
 let weatherInterval; // The interval ID for fetching weather data periodically
 let isLoading = true; // Flag to indicate if the initial data is still loading
+let correctedCityName = ''; // Stores the validated city name from the geocoding API
 
 /**
  * Initializes the WebSocket connection to the server.
@@ -504,34 +505,73 @@ function fetchTime() {
 }
 
 /**
- * Triggers a refresh of the weather data.
+ * Validates a city name using the geocoding API, then triggers a weather data refresh.
  */
 function refreshWeatherData() {
-    // Show a fetching indicator
-    const preview = document.getElementById('weatherPreview');
-    preview.textContent = 'Fetching...';
+    const cityInput = document.getElementById('cityName');
+    const city = cityInput.value.trim();
 
-    // Get the city name from the input
-    const city = document.getElementById('cityName').value;
-    if (!city) {
-        showMessage('Please enter a city name.', 'error');
-        preview.textContent = 'Enter a city';
+    if (!city || city.length < 2) {
+        showMessage('Please enter a city name (at least 2 characters).', 'error');
         return;
     }
 
-    // Send the refresh request to the server
+    const preview = document.getElementById('weatherPreview');
+    preview.textContent = 'Verifying city...';
+    const loadingSpinner = document.querySelector('#weatherDisplay .loading-spinner-container');
+    loadingSpinner.style.display = 'block';
+
+    fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.results && data.results.length > 0) {
+                const location = data.results[0];
+                let nameParts = [location.name];
+                if (location.admin1) nameParts.push(location.admin1);
+                if (location.country) nameParts.push(location.country);
+
+                const bestMatch = nameParts.join(', ');
+                correctedCityName = bestMatch; // Store validated name globally
+                cityInput.value = bestMatch; // Update the input field
+                if (!isLoading) setSettingsChanged(true); // Enable the save button
+
+                showMessage(`City found: ${bestMatch}. Fetching weather...`, 'success');
+                triggerWeatherRefresh(bestMatch);
+            } else {
+                correctedCityName = '';
+                preview.textContent = 'City not found.';
+                loadingSpinner.style.display = 'none';
+                showMessage('City not found. Please check the name and try again.', 'error');
+            }
+        })
+        .catch(err => {
+            console.error("CLIENT_DEBUG: Geocoding API error:", err);
+            correctedCityName = '';
+            preview.textContent = 'Could not verify city.';
+            loadingSpinner.style.display = 'none';
+            showMessage('Error verifying city name. Check connection.', 'error');
+        });
+}
+
+/**
+ * Sends the validated city name to the server to trigger a weather data refresh.
+ * @param {string} validatedCity The validated and formatted city name from the geocoding API.
+ */
+function triggerWeatherRefresh(validatedCity) {
+    const preview = document.getElementById('weatherPreview');
+    preview.textContent = 'Fetching...';
+
     fetch('/api/weather/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cityName: city })
+        body: JSON.stringify({ cityName: validatedCity })
     })
     .then(res => {
         if (res.ok) {
             showMessage('Weather refresh triggered. Please wait a moment.', 'info');
-            // Fetch the new weather data after a delay
             setTimeout(fetchWeatherData, 3000);
         } else {
-            throw new Error('Failed to trigger refresh.');
+            return res.text().then(text => { throw new Error(text || 'Failed to trigger refresh.') });
         }
     })
     .catch(err => {
@@ -598,8 +638,12 @@ function fetchWeatherData() {
                 document.getElementById('weatherLatitude').textContent = data.latitude.toFixed(4);
                 document.getElementById('weatherLongitude').textContent = data.longitude.toFixed(4);
 
-                const city = document.getElementById('cityName').value;
-                preview.textContent = `Live data for ${city}: ${data.temperature.toFixed(1)}${tempUnit}`;
+                // Use the corrected city name if available, otherwise use the value from the input
+                const displayCity = correctedCityName || document.getElementById('cityName').value;
+                if (correctedCityName) {
+                    document.getElementById('cityName').value = correctedCityName;
+                }
+                preview.textContent = `Live data for ${displayCity}: ${data.temperature.toFixed(1)}${tempUnit}`;
 
                 // Build the hourly forecast display
                 const hourlyContainer = document.getElementById('hourlyForecastContainer');

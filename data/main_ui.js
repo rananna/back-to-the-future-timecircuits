@@ -411,7 +411,10 @@ function attachEventListeners() {
             document.getElementById('stockTickerModeEnabled').checked = false;
             document.getElementById('stockTickerSettingsContainer').style.display = 'none';
             document.getElementById('weatherModeGroup').classList.remove('disabled');
-            fetchWeatherData();
+            // Instead of just fetching, trigger a refresh which includes geocoding validation
+            if (document.getElementById('cityName').value) {
+                refreshWeatherData();
+            }
         }
         if (!isLoading) setSettingsChanged(true);
     };
