@@ -685,14 +685,18 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (topicStr == base_topic + "weather_city/command") {
             if (currentSettings.cityName != message.c_str()) {
                 currentSettings.cityName = message.c_str();
-                WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, true};
+                WeatherTaskParams* params = new WeatherTaskParams;
+                params->cityName = currentSettings.cityName;
+                params->forceGeocode = true;
                 xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
                 settingsChanged = true;
             }
         }
         else if (topicStr == base_topic + "weather_refresh/command") {
             if (message == "PRESS") {
-                WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, true};
+                WeatherTaskParams* params = new WeatherTaskParams;
+                params->cityName = currentSettings.cityName;
+                params->forceGeocode = true;
                 xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
             }
         }

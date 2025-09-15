@@ -122,9 +122,6 @@ const char apiTemplates[] PROGMEM = "{\n"
 
 AsyncWebSocket ws("/ws");
 
-// Declare the new function that will be defined in the .ino file
-void forceFetchWeatherDataTask(void* p);
-
 void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
     if (ws.count() > 0) {
         DynamicJsonDocument doc(256);
@@ -512,7 +509,9 @@ void setupWebRoutes() {
     JsonObject obj = json.as<JsonObject>();
     if (obj.containsKey("cityName")) {
         std::string city = obj["cityName"].as<std::string>();
-        WeatherTaskParams* params = new WeatherTaskParams{city, true};
+        WeatherTaskParams* params = new WeatherTaskParams;
+        params->cityName = city;
+        params->forceGeocode = true;
         if (xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL) == pdPASS) {
             request->send(202, "text/plain", "Weather refresh triggered for new city.");
         } else {
