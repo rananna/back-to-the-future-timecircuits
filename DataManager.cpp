@@ -138,7 +138,7 @@ void fetchStockDataTask(void* p) {
         Log_printf(LOG_LEVEL_DEBUG, "Stock API URL: %s", url.c_str());
         Log_printf(LOG_LEVEL_DEBUG, "Stock API HTTP Code: %d", httpCode);
         if (httpCode == HTTP_CODE_OK) {
-            DynamicJsonDocument doc(1024);
+            JsonDocument doc;
             deserializeJson(doc, http.getStream());
             
             JsonObject quote;
@@ -163,7 +163,7 @@ void fetchStockDataTask(void* p) {
                     }
                     stockData[rowIndex].price = priceBuffer;
 
-                    if (quote.containsKey("changesPercentage")) {
+                    if (!quote["changesPercentage"].isNull()) {
                         float changeFloat = quote["changesPercentage"].as<float>();
                         char changeBuffer[10];
                         dtostrf(changeFloat, 1, 2, changeBuffer);
@@ -237,17 +237,17 @@ static bool fetchWeatherDataFromApi() {
             // The large JSON response can cause a stack overflow if we use a StaticJsonDocument.
             // Since this task is a one-off, using the heap with DynamicJsonDocument is safe
             // and prevents the stack overflow. The size is increased to 24k for safety, as per code review.
-            DynamicJsonDocument doc(24576);
+            JsonDocument doc;
             DeserializationError error = deserializeJson(doc, stream);
             http.end(); // End the connection after parsing the stream
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                if (error == DeserializationError::Ok && !doc.containsKey("error")) {
+                if (error == DeserializationError::Ok && doc["error"].isNull()) {
                     Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
 
                     bool allDataPresent = true;
                     auto getJsonValue = [&](const JsonVariant& parent, const char* key) -> JsonVariant {
-                        if (parent.isNull() || !parent.containsKey(key)) {
+                        if (parent.isNull() || parent[key].isNull()) {
                             allDataPresent = false;
                             Log_printf(LOG_LEVEL_WARN, "Weather JSON missing key: %s", key);
                             return JsonVariant();
@@ -433,7 +433,7 @@ static void fetchWeatherData(const WeatherTaskParams& params) {
                 int httpCode = http.GET();
                 Log_printf(LOG_LEVEL_DEBUG, "Geocode HTTP Code: %d", httpCode);
                 if (httpCode == HTTP_CODE_OK) {
-                    DynamicJsonDocument doc(1024);
+                    JsonDocument doc;
                     deserializeJson(doc, http.getStream());
                     JsonArray results = doc["results"];
                     if (!results.isNull() && results.size() > 0) {
@@ -616,7 +616,7 @@ void fetchApiDataTask(void* p) {
 		int httpCode = http.GET();
 		Log_printf(LOG_LEVEL_DEBUG, "API HTTP Code for data point %d: %d", index, httpCode);
 		if (httpCode == HTTP_CODE_OK) {
-			DynamicJsonDocument doc(4096);
+			JsonDocument doc;
 			DeserializationError error = deserializeJson(doc, http.getStream());
 			if (error == DeserializationError::Ok) {
 				if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {

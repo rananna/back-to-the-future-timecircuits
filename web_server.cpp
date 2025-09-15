@@ -124,7 +124,7 @@ AsyncWebSocket ws("/ws");
 
 void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
     if (ws.count() > 0) {
-        DynamicJsonDocument doc(256);
+        JsonDocument doc;
         doc["action"] = "stateUpdate";
         doc["key"] = key;
         doc["value"] = value;
@@ -138,14 +138,14 @@ void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
  * @brief Overloaded function to broadcast an integer state update via WebSocket.
  */
 void broadcastWsStateUpdate(const char* key, int value) {
-    StaticJsonDocument<32> doc;
+    JsonDocument doc;
     doc.set(value);
     broadcastWsStateUpdate(key, doc.as<JsonVariant>());
 }
 
 void broadcastPresetUpdate(const std::string& name, int year, int month, int day, int hour, int minute) {
     if (ws.count() > 0) {
-        DynamicJsonDocument doc(256);
+        JsonDocument doc;
         doc["action"] = "presetUpdate";
         doc["name"] = name.c_str();
         char value[20];
@@ -161,7 +161,7 @@ void broadcastPresetUpdate(const std::string& name, int year, int month, int day
  * @brief Overloaded function to broadcast a boolean state update via WebSocket.
  */
 void broadcastWsStateUpdate(const char* key, bool value) {
-    StaticJsonDocument<32> doc;
+    JsonDocument doc;
     doc.set(value);
     broadcastWsStateUpdate(key, doc.as<JsonVariant>());
 }
@@ -189,13 +189,13 @@ void makeApiRequestTask(void* p) {
         
         int httpCode = http.GET();
         String responseString;
-        DynamicJsonDocument responseJson(4096);
+        JsonDocument responseJson;
         responseJson["action"] = action;
         responseJson["rowIndex"] = rowIndex;
 
         if (httpCode > 0) {
             if (httpCode == HTTP_CODE_OK) {
-                DynamicJsonDocument payloadDoc(4096);
+                JsonDocument payloadDoc;
                 DeserializationError error = deserializeJson(payloadDoc, http.getStream());
 
                 if (error == DeserializationError::Ok) {
@@ -220,7 +220,7 @@ void makeApiRequestTask(void* p) {
     } else {
         // --- START: MODIFICATION - Handle http.begin() failure ---
         String responseString;
-        DynamicJsonDocument responseJson(256);
+        JsonDocument responseJson;
         responseJson["action"] = action;
         responseJson["rowIndex"] = rowIndex;
         responseJson["status"] = "error";
@@ -256,7 +256,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
             
-            DynamicJsonDocument doc(1024);
+            JsonDocument doc;
             DeserializationError error = deserializeJson(doc, data, len);
 
             if (error) {
@@ -269,7 +269,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 Log_printf(LOG_LEVEL_DEBUG, "'testStock' action received.");
                  if (!timeSynchronized) {
                     String responseString;
-                    DynamicJsonDocument responseJson(256);
+                    JsonDocument responseJson;
                     responseJson["action"] = "stockTestResult";
                     responseJson["status"] = "error";
                     responseJson["payload"] = "Time not sync'd. Go to System->Sync Time.";
@@ -301,7 +301,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 Log_printf(LOG_LEVEL_DEBUG, "'testApi' action received.");
                 if (!timeSynchronized) {
                     String responseString;
-                    DynamicJsonDocument responseJson(256);
+                    JsonDocument responseJson;
                     responseJson["action"] = "apiResult";
                     responseJson["status"] = "error";
                     responseJson["payload"] = "Time not sync'd. Go to System->Sync Time.";
@@ -371,7 +371,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/settings/timecircuits", HTTP_GET, [](AsyncWebServerRequest *request) {
-    StaticJsonDocument<256> doc;
+    JsonDocument doc;
     doc["destinationYear"] = currentSettings.destinationYear;
     doc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;
     doc["lastTimeDepartedYear"] = currentSettings.lastTimeDepartedYear;
@@ -386,7 +386,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/settings/temporal", HTTP_GET, [](AsyncWebServerRequest *request) {
-    StaticJsonDocument<384> doc;
+    JsonDocument doc;
     doc["departureHour"] = currentSettings.departureHour;
     doc["departureMinute"] = currentSettings.departureMinute;
     doc["arrivalHour"] = currentSettings.arrivalHour;
@@ -405,7 +405,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc;
     doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
     doc["dataLinkRefreshInterval"] = currentSettings.dataLinkRefreshInterval;
     doc["numDataPoints"] = currentSettings.numDataPoints;
@@ -422,9 +422,9 @@ void setupWebRoutes() {
     doc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
     doc["stockRow3_symbol"] = currentSettings.stockRow3_symbol.c_str();
 
-    JsonArray dataPoints = doc.createNestedArray("dataPoints");
+    JsonArray dataPoints = doc["dataPoints"].to<JsonArray>();
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
-        JsonObject dp = dataPoints.createNestedObject();
+        JsonObject dp = dataPoints.add<JsonObject>();
         dp["url"] = currentSettings.dataPoints[i].url.c_str();
         dp["monthPath"] = currentSettings.dataPoints[i].monthPath.c_str();
         dp["dayPath"] = currentSettings.dataPoints[i].dayPath.c_str();
@@ -464,7 +464,7 @@ void setupWebRoutes() {
   server.on("/api/time", HTTP_GET, [](AsyncWebServerRequest *request) {
     time_t now;
     time(&now);
-    StaticJsonDocument<128> doc;
+    JsonDocument doc;
     doc["unixTime"] = now;
     doc["timeSynchronized"] = timeSynchronized;
     String jsonString;
@@ -474,7 +474,7 @@ void setupWebRoutes() {
 
   server.on("/api/weather", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (currentWeatherData.dataValid) {
-        StaticJsonDocument<512> doc;
+        JsonDocument doc;
         doc["temperature"] = currentWeatherData.temperature;
         doc["apparentTemperature"] = currentWeatherData.apparentTemperature;
         doc["windSpeed"] = currentWeatherData.windSpeed;
@@ -485,9 +485,9 @@ void setupWebRoutes() {
         doc["latitude"] = currentWeatherData.latitude;
         doc["longitude"] = currentWeatherData.longitude;
         
-        JsonArray hourly = doc.createNestedArray("hourly");
+        JsonArray hourly = doc["hourly"].to<JsonArray>();
         for (int i = 0; i < 3; i++) {
-            JsonObject hour = hourly.createNestedObject();
+            JsonObject hour = hourly.add<JsonObject>();
             hour["temp"] = currentWeatherData.hourlyTemp[i];
             hour["code"] = currentWeatherData.hourlyCode[i];
         }
@@ -496,7 +496,7 @@ void setupWebRoutes() {
         serializeJson(doc, jsonString);
         request->send(200, "application/json", jsonString);
     } else {
-        StaticJsonDocument<128> errorDoc;
+        JsonDocument errorDoc;
         errorDoc["error"] = true;
         errorDoc["reason"] = currentWeatherData.errorReason.c_str();
         String jsonString;
@@ -507,7 +507,7 @@ void setupWebRoutes() {
   
   AsyncCallbackJsonWebHandler* refreshWeatherHandler = new AsyncCallbackJsonWebHandler("/api/weather/refresh", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
-    if (obj.containsKey("cityName")) {
+    if (!obj["cityName"].isNull()) {
         std::string city = obj["cityName"].as<std::string>();
         WeatherTaskParams* params = new WeatherTaskParams;
         params->cityName = city;
@@ -539,7 +539,8 @@ void setupWebRoutes() {
     request->send(200, "text/plain", "Settings Save Queued!");
 
     // The actual saving and animation trigger now happens in the main loop.
-  }, 8192); // The 8192 buffer size is still needed to receive the large JSON payload.
+  });
+  saveSettingsHandler->setMaxContentLength(8192); // The 8192 buffer size is still needed to receive the large JSON payload.
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -550,7 +551,7 @@ void setupWebRoutes() {
   server.on("/api/addPreset", HTTP_POST, [](AsyncWebServerRequest *request){
     preferences.begin(PREFERENCES_NAMESPACE, false);
     String presetsJson = preferences.getString("customPresets", "[]");
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, presetsJson);
     if (error) {
         request->send(500, "text/plain", "Failed to parse presets");
@@ -558,7 +559,7 @@ void setupWebRoutes() {
         return;
     }
     JsonArray presets = doc.as<JsonArray>();
-    JsonObject newPreset = presets.createNestedObject();
+    JsonObject newPreset = presets.add<JsonObject>();
     newPreset["name"] = request->getParam("name", true)->value();
     newPreset["value"] = request->getParam("value", true)->value();
 
@@ -574,7 +575,7 @@ void setupWebRoutes() {
     String newName = request->getParam("newName", true)->value();
     String value = request->getParam("value", true)->value();
     String presetsJson = preferences.getString("customPresets", "[]");
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc;
     deserializeJson(doc, presetsJson);
     JsonArray presets = doc.as<JsonArray>();
     for (JsonObject preset : presets) {
@@ -594,7 +595,7 @@ void setupWebRoutes() {
     preferences.begin(PREFERENCES_NAMESPACE, false);
     String name = request->getParam("name", true)->value();
     String presetsJson = preferences.getString("customPresets", "[]");
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc;
     deserializeJson(doc, presetsJson);
     JsonArray presets = doc.as<JsonArray>();
     for (int i = 0; i < presets.size(); i++) {
@@ -653,7 +654,7 @@ void setupWebRoutes() {
   });
   
   server.on("/api/system/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    StaticJsonDocument<256> doc;
+    JsonDocument doc;
     doc["freeHeap"] = ESP.getFreeHeap();
     doc["rssi"] = WiFi.RSSI();
     doc["uptime"] = millis() / 1000;
@@ -713,7 +714,7 @@ void setupWebRoutes() {
                  filename.endsWith(".js") ||
                  filename.endsWith(".mp3");
         if (!isAllowed) {
-            DynamicJsonDocument doc(256);
+            JsonDocument doc;
             doc["action"] = "uploadError";
             doc["type"] = "ui";
             doc["message"] = "Invalid file. Only UI files are allowed.";
@@ -725,7 +726,7 @@ void setupWebRoutes() {
 
         if (!index) {
             if (LittleFS.totalBytes() - LittleFS.usedBytes() < request->contentLength()) {
-                DynamicJsonDocument doc(256);
+                JsonDocument doc;
                 doc["action"] = "uploadError";
                 doc["type"] = "ui";
                 doc["message"] = "Not enough space on the device.";
@@ -741,7 +742,7 @@ void setupWebRoutes() {
         }
         if (final) {
             request->_tempFile.close();
-            DynamicJsonDocument doc(256);
+            JsonDocument doc;
             doc["action"] = "uploadProgress";
             doc["type"] = "ui";
             doc["filename"] = filename;
@@ -750,7 +751,7 @@ void setupWebRoutes() {
             serializeJson(doc, jsonString);
             ws.textAll(jsonString);
         } else {
-            DynamicJsonDocument doc(256);
+            JsonDocument doc;
             doc["action"] = "uploadProgress";
             doc["type"] = "ui";
             doc["filename"] = filename;
