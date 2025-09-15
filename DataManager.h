@@ -8,6 +8,7 @@
 
 // Use a queue to send parameters to the persistent weather task
 struct WeatherTaskParams {
+    std::string cityName;
     bool forceGeocode;
 };
 
@@ -17,6 +18,7 @@ extern SemaphoreHandle_t xWeatherSemaphore;
 void createWeatherTask();
 void triggerWeatherFetch(bool forceGeocode = false);
 void fetchWeatherDataTask(void* p); // Persistent task
+void forceFetchWeatherDataTask(void* p); // One-off task
 
 // Unchanged functions
 void fetchDataLink();

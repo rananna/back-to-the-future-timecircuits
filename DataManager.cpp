@@ -381,7 +381,7 @@ void trim(std::string &s) {
 }
 
 static void fetchWeatherData(const WeatherTaskParams& params) {
-    std::string taskCityName = currentSettings.cityName;
+    std::string taskCityName = params.cityName;
     bool forceGeocode = params.forceGeocode;
 
     trim(taskCityName);
@@ -528,6 +528,23 @@ void fetchWeatherDataTask(void* p) {
     }
 }
 
+void forceFetchWeatherDataTask(void* p) {
+    if (isFetchingWeather) {
+        Log_printf(LOG_LEVEL_WARN, "Weather fetch already in progress. Ignoring force fetch.");
+        delete (WeatherTaskParams*)p;
+        vTaskDelete(NULL);
+        return;
+    }
+    isFetchingWeather = true;
+
+    WeatherTaskParams* params = (WeatherTaskParams*)p;
+    fetchWeatherData(*params);
+    delete params;
+
+    isFetchingWeather = false;
+    vTaskDelete(NULL);
+}
+
 void createWeatherTask() {
     xWeatherQueue = xQueueCreate(1, sizeof(WeatherTaskParams));
     xWeatherSemaphore = xSemaphoreCreateBinary();
@@ -555,7 +572,7 @@ void triggerWeatherFetch(bool forceGeocode) {
         return;
     }
     Log_printf(LOG_LEVEL_INFO, "Triggering weather fetch (force geocode: %s)", forceGeocode ? "true" : "false");
-    WeatherTaskParams params = {forceGeocode};
+    WeatherTaskParams params = {currentSettings.cityName, forceGeocode};
     if (xQueueSend(xWeatherQueue, &params, pdMS_TO_TICKS(100)) != pdPASS) {
         Log_printf(LOG_LEVEL_ERROR, "Failed to send to weather queue.");
     } else {
