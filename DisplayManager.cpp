@@ -400,6 +400,11 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 
 void handleWeatherDisplay() {
 #if ENABLE_HARDWARE
+    // When the weather display is active, we must explicitly turn off the AM/PM LEDs for the last row,
+    // as the weather display logic doesn't use the `updateDisplayRow` function which normally handles this.
+    digitalWrite(LAST_AM_PIN, LOW);
+    digitalWrite(LAST_PM_PIN, LOW);
+
     String viewport;
     bool shouldWriteToDisplay = false;
 
@@ -534,21 +539,33 @@ void handleWeatherDisplay() {
                         }
                         case 2: { // Wind & Rain
                             String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
-                            weatherScrollText = "WIND " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
+                            // Clarified "WIND" to "MAX WIND" to reflect the data being for the daily maximum.
+                            weatherScrollText = "MAX WIND " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
                                               ", PRECIPITATION " + String(currentWeatherData.precipitationProbability) + "%";
                             break;
                         }
                         case 3: { // Sunrise & Sunset
                             struct tm timeinfo;
-                            char timeStr[9]; // "1200AM" + null
+                            char timeBuffer[8]; // Holds "HMMAM" or "HHMMAM" + null
+
+                            // Manually format sunrise time to avoid locale issues with %p
                             localtime_r(&currentWeatherData.sunrise, &timeinfo);
-                            strftime(timeStr, sizeof(timeStr), "%l%M %p", &timeinfo);
-                            String sunriseStr = timeStr;
-                            sunriseStr.trim();
+                            int sunriseHour = timeinfo.tm_hour;
+                            const char* sunriseAmpm = (sunriseHour >= 12) ? "PM" : "AM";
+                            if (sunriseHour > 12) sunriseHour -= 12;
+                            if (sunriseHour == 0) sunriseHour = 12;
+                            sprintf(timeBuffer, "%d%02d%s", sunriseHour, timeinfo.tm_min, sunriseAmpm);
+                            String sunriseStr(timeBuffer);
+
+                            // Manually format sunset time
                             localtime_r(&currentWeatherData.sunset, &timeinfo);
-                            strftime(timeStr, sizeof(timeStr), "%l%M %p", &timeinfo);
-                            String sunsetStr = timeStr;
-                            sunsetStr.trim();
+                            int sunsetHour = timeinfo.tm_hour;
+                            const char* sunsetAmpm = (sunsetHour >= 12) ? "PM" : "AM";
+                            if (sunsetHour > 12) sunsetHour -= 12;
+                            if (sunsetHour == 0) sunsetHour = 12;
+                            sprintf(timeBuffer, "%d%02d%s", sunsetHour, timeinfo.tm_min, sunsetAmpm);
+                            String sunsetStr(timeBuffer);
+
                             weatherScrollText = "SUNRISE " + sunriseStr + ", SUNSET " + sunsetStr;
                             break;
                         }
@@ -568,11 +585,11 @@ void handleWeatherDisplay() {
                             }
                             break;
                         }
-                        case 5: { // Lat/Lon
-                            char lat_buf[10], lon_buf[10];
-                            dtostrf(currentSettings.latitude, 4, 4, lat_buf);
-                            dtostrf(currentSettings.longitude, 4, 4, lon_buf);
-                            weatherScrollText = "LAT " + String(lat_buf) + " LON " + String(lon_buf);
+                        case 5: { // Feels Like & Humidity
+                            char feels_like_buf[8];
+                            dtostrf(currentWeatherData.apparentTemperature, 1, 0, feels_like_buf);
+                            String unit = currentSettings.useMetricUnits ? "C" : "F";
+                            weatherScrollText = "FEELS LIKE " + String(feels_like_buf) + unit + ", HUMIDITY " + String(currentWeatherData.humidity) + "%";
                             break;
                         }
                     }
