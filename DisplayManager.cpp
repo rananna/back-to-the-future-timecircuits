@@ -20,6 +20,7 @@ void handleWeatherTimeout();
 // File-scoped state variables for the weather fetch process
 static bool initialFetchTriggered = false;
 static unsigned long initialFetchStartTime = 0;
+static TaskHandle_t weatherTaskHandle = NULL;
 static bool initialFetchTimedOut = false;
 static unsigned long lastWeatherFetchTime = 0;
 const unsigned long WEATHER_REFRESH_INTERVAL = 300000; // 5 minutes
@@ -430,6 +431,12 @@ void handleWeatherDisplay() {
             }
             // If the fetch has been triggered and 30 seconds have passed, call the main timeout handler
             else if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
+                Log_printf(LOG_LEVEL_WARN, "Weather fetch task timed out. Deleting task.");
+                if (weatherTaskHandle != NULL) {
+                    vTaskDelete(weatherTaskHandle);
+                    weatherTaskHandle = NULL;
+                }
+                isFetchingWeather = false; // Reset the flag here since the task was killed
                 handleWeatherTimeout();
                 xSemaphoreGive(xDisplayDataMutex);
                 return;
@@ -446,7 +453,10 @@ void handleWeatherDisplay() {
             if (!initialFetchTriggered && !isFetchingWeather) {
                 Log_printf(LOG_LEVEL_INFO, "Weather data is invalid, triggering initial fetch.");
                 isFetchingWeather = true;
-                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, NULL);
+                if (weatherTaskHandle != NULL) { // Defensive delete of any old handle
+                    vTaskDelete(weatherTaskHandle);
+                }
+                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, &weatherTaskHandle);
                 initialFetchTriggered = true;
                 initialFetchStartTime = millis();
                 lastWeatherFetchTime = 0; // Reset this so it gets set upon successful fetch
@@ -467,8 +477,14 @@ void handleWeatherDisplay() {
                 Log_printf(LOG_LEVEL_INFO, "Periodic weather refresh triggered (5-minute interval).");
                 lastWeatherFetchTime = millis(); // Reset the timer immediately
                 isFetchingWeather = true; // Set the flag to prevent concurrent fetches
+                // Reuse the timeout mechanism for this fetch as well
+                initialFetchTriggered = true;
+                initialFetchStartTime = millis();
+                if (weatherTaskHandle != NULL) { // Defensive delete of any old handle
+                    vTaskDelete(weatherTaskHandle);
+                }
                 // Create a new task to fetch weather data in the background
-                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, NULL);
+                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, &weatherTaskHandle);
             }
 
             if (weatherDataUpdated) {
@@ -478,6 +494,10 @@ void handleWeatherDisplay() {
                 initialFetchTriggered = false;
                 initialFetchStartTime = 0;
                 initialFetchTimedOut = false;
+                // The task has completed and will delete itself. Nullify our handle to it so we don't try to use it.
+                if (weatherTaskHandle != NULL) {
+                    weatherTaskHandle = NULL;
+                }
             }
 
             switch (weatherState) {

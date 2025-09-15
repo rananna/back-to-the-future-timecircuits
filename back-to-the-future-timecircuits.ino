@@ -318,18 +318,29 @@ void handleBackgroundSave() {
 
 /**
  * @brief Handles the complete logic for a weather fetch timeout.
- * @details This function is called by the DisplayManager when the initial weather
- * fetch fails to complete within the timeout period. It logs the event, disables
- * weather mode, saves the setting, broadcasts the change to the UI via MQTT,
- * and resets the internal fetch state to allow for future attempts.
+ * @details This function is called by the DisplayManager when a weather data
+ * fetch fails to complete within the timeout period. It logs the event, sets a
+ * displayable error message, disables weather mode to prevent retries, saves this
+ * change to NVS, broadcasts the change to the UI via MQTT, and resets the
+ * internal fetch state machine.
  */
 void handleWeatherTimeout() {
-    Log_printf(LOG_LEVEL_WARN, "Weather fetch timed out. Setting error state.");
+    Log_printf(LOG_LEVEL_WARN, "Weather fetch timed out. Disabling weather mode.");
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         currentWeatherData.dataValid = false;
         currentWeatherData.errorReason = "FETCH TIMEOUT";
         xSemaphoreGive(xDisplayDataMutex);
     }
+
+    // Disable weather mode to prevent getting stuck in a timeout loop
+    currentSettings.weatherModeEnabled = false;
+    saveSettings(); // Persist the change
+
+    // Broadcast the change to the web UI via MQTT
+    if (mqttClient.connected()) {
+        mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/weatherModeEnabled/state").c_str(), "false", true);
+    }
+
     resetWeatherFetchState();
 }
 
