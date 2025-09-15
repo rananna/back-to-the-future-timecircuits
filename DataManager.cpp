@@ -195,40 +195,48 @@ void fetchStockDataTask(void* p) {
 }
 
 
-// Forward declarations for our new separated fetch functions
-static bool fetchCurrentAndDailyData();
-static bool fetchHourlyData();
+// Forward declaration for the new unified weather fetch function
+static bool fetchWeatherDataFromApi();
 
-// This function will be responsible for fetching the current and daily weather data.
-static bool fetchCurrentAndDailyData() {
+// This new function is responsible for fetching all weather data (current, daily, and hourly) in a single API call.
+static bool fetchWeatherDataFromApi() {
     HTTPClient http;
     WiFiClientSecure client;
     client.setInsecure();
 
     String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
     String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
-    char weatherUrl[512];
 
+    // This new URL is optimized to fetch everything at once.
+    // 'current' now includes all immediately needed data points.
+    // 'hourly' is limited to 12 hours to save memory, as we only need the next 3.
+    // 'daily' remains as it was, fetching for today and tomorrow.
+    char weatherUrl[512];
     snprintf(weatherUrl, sizeof(weatherUrl),
-             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max&forecast_days=2&temperature_unit=%s&wind_speed_unit=%s&timezone=auto",
+             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
+             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m"
+             "&hourly=temperature_2m,weather_code"
+             "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
+             "&forecast_days=2&forecast_hours=12&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime",
              currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
 
     if (http.begin(client, weatherUrl)) {
-        Log_printf(LOG_LEVEL_DEBUG, "Current/Daily Weather URL: %s", weatherUrl);
+        Log_printf(LOG_LEVEL_DEBUG, "Unified Weather URL: %s", weatherUrl);
         int httpCode = http.GET();
-        Log_printf(LOG_LEVEL_DEBUG, "Current/Daily Weather API HTTP Code: %d", httpCode);
+        Log_printf(LOG_LEVEL_DEBUG, "Unified Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-
             String payload = http.getString();
-            http.end(); // End connection immediately
-            DynamicJsonDocument doc(8192);
-            DeserializationError error = deserializeJson(doc, payload);
+            http.end();
 
+            // Increased buffer size slightly to accommodate the unified response, but it should be smaller
+            // than the two previous responses combined due to fetching fewer hourly data points.
+            DynamicJsonDocument doc(12288);
+            DeserializationError error = deserializeJson(doc, payload);
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 if (error == DeserializationError::Ok && !doc.containsKey("error")) {
-                    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Current/Daily weather JSON");
+                    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
 
                     bool allDataPresent = true;
                     auto getJsonValue = [&](const JsonVariant& parent, const char* key) -> JsonVariant {
@@ -241,7 +249,7 @@ static bool fetchCurrentAndDailyData() {
                     };
 
                     auto getJsonValueFromArray = [&](const JsonVariant& parent, int index) -> JsonVariant {
-                        if (parent.isNull() || parent.size() <= index) {
+                        if (parent.isNull() || !parent.is<JsonArray>() || parent.size() <= index) {
                             allDataPresent = false;
                             Log_printf(LOG_LEVEL_WARN, "Weather JSON array access out of bounds at index %d", index);
                             return JsonVariant();
@@ -251,25 +259,83 @@ static bool fetchCurrentAndDailyData() {
 
                     JsonObject current = doc["current"];
                     JsonObject daily = doc["daily"];
+                    JsonObject hourly = doc["hourly"];
 
+                    // --- Current Weather Data ---
                     currentWeatherData.temperature = getJsonValue(current, "temperature_2m");
                     currentWeatherData.apparentTemperature = getJsonValue(current, "apparent_temperature");
                     currentWeatherData.windSpeed = getJsonValue(current, "wind_speed_10m");
                     currentWeatherData.humidity = getJsonValue(current, "relative_humidity_2m");
                     currentWeatherData.weatherCode = getJsonValue(current, "weather_code");
-                    // is_day is not stored in currentWeatherData struct, but we requested it.
-                    // This is fine, we can add it later if needed.
+                    // Note: 'is_day', 'precipitation', and 'wind_direction_10m' are fetched but not stored in the struct.
+                    // This is fine and they can be added later if needed without another API change.
 
+                    // --- Daily Weather Data ---
                     currentWeatherData.dailyHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 0);
                     currentWeatherData.dailyLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 0);
                     currentWeatherData.sunrise = getJsonValueFromArray(getJsonValue(daily, "sunrise"), 0);
                     currentWeatherData.sunset = getJsonValueFromArray(getJsonValue(daily, "sunset"), 0);
                     currentWeatherData.precipitationProbability = getJsonValueFromArray(getJsonValue(daily, "precipitation_probability_max"), 0);
                     currentWeatherData.maxWindSpeed = getJsonValueFromArray(getJsonValue(daily, "wind_speed_10m_max"), 0);
-
                     currentWeatherData.tomorrowHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 1);
                     currentWeatherData.tomorrowLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 1);
                     currentWeatherData.tomorrowWeatherCode = getJsonValueFromArray(getJsonValue(daily, "weather_code"), 1);
+
+                    // --- Hourly Weather Data ---
+                    JsonArray hourly_temp = getJsonValue(hourly, "temperature_2m").as<JsonArray>();
+                    JsonArray hourly_code = getJsonValue(hourly, "weather_code").as<JsonArray>();
+
+                    // Find the current hour in the hourly forecast to get the next 3 hours
+                    // This is much more robust than the previous implementation.
+                    time_t now;
+                    time(&now);
+                    int startIndex = -1;
+                    JsonArray timeArray = hourly["time"];
+
+                    if (!timeArray.isNull()) {
+                        for (int i = 0; i < timeArray.size(); i++) {
+                            time_t forecastTime = timeArray[i].as<time_t>();
+                            if (forecastTime >= now) {
+                                startIndex = i;
+                                break;
+                            }
+                        }
+                    } else {
+                        allDataPresent = false;
+                        Log_printf(LOG_LEVEL_WARN, "Weather JSON missing hourly.time array");
+                    }
+
+
+                    if (startIndex != -1) {
+                        for (int j = 0; j < 3; j++) {
+                            int forecastIndex = startIndex + j + 1; // +1 to get the forecast for the *next* hour
+                            if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
+                                currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
+                                currentWeatherData.hourlyCode[j] = hourly_code[forecastIndex];
+                            } else {
+                                currentWeatherData.hourlyTemp[j] = -999; // Placeholder for missing data
+                                currentWeatherData.hourlyCode[j] = -1;
+                            }
+                        }
+                    } else {
+                        Log_printf(LOG_LEVEL_WARN, "Could not find current hour in hourly forecast data. Hourly forecast may be inaccurate.");
+                        bool fallbackSuccess = true;
+                        for (int j = 0; j < 3; j++) {
+                            int forecastIndex = j + 1;
+                            if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
+                                currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
+                                currentWeatherData.hourlyCode[j] = hourly_code[forecastIndex];
+                            } else {
+                                currentWeatherData.hourlyTemp[j] = -999;
+                                currentWeatherData.hourlyCode[j] = -1;
+                                fallbackSuccess = false;
+                            }
+                        }
+                        if (!fallbackSuccess) {
+                            allDataPresent = false;
+                            Log_printf(LOG_LEVEL_WARN, "Hourly forecast fallback also failed to retrieve complete data.");
+                        }
+                    }
 
                     if (!allDataPresent) {
                         currentWeatherData.errorReason = "INCOMPLETE WEATHER DATA";
@@ -281,129 +347,17 @@ static bool fetchCurrentAndDailyData() {
                     return true;
 
                 } else {
-                    Log_printf(LOG_LEVEL_WARN, "Failed to parse Current/Daily weather JSON. E: %s", error.c_str());
+                    Log_printf(LOG_LEVEL_WARN, "Failed to parse Unified Weather JSON. E: %s", error.c_str());
                     currentWeatherData.errorReason = "WEATHER API PARSING FAILED";
                     xSemaphoreGive(xDisplayDataMutex);
                 }
             }
         } else {
-            Log_printf(LOG_LEVEL_WARN, "Current/Daily weather API request failed with HTTP code %d", httpCode);
+            Log_printf(LOG_LEVEL_WARN, "Unified Weather API request failed with HTTP code %d", httpCode);
             http.end();
         }
     } else {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for Current/Daily weather API.");
-    }
-
-    return false;
-}
-
-// This function will be responsible for fetching the hourly forecast data.
-static bool fetchHourlyData() {
-    HTTPClient http;
-    WiFiClientSecure client;
-    client.setInsecure();
-
-    String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
-    char weatherUrl[384];
-    snprintf(weatherUrl, sizeof(weatherUrl),
-             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&hourly=temperature_2m,weather_code&forecast_days=2&timezone=auto&temperature_unit=%s",
-             currentSettings.latitude, currentSettings.longitude, tempUnit.c_str());
-
-    if (http.begin(client, weatherUrl)) {
-        Log_printf(LOG_LEVEL_DEBUG, "Hourly Weather URL: %s", weatherUrl);
-        int httpCode = http.GET();
-        Log_printf(LOG_LEVEL_DEBUG, "Hourly Weather API HTTP Code: %d", httpCode);
-
-        if (httpCode == HTTP_CODE_OK) {
-
-            String payload = http.getString();
-            http.end(); // End connection immediately
-            DynamicJsonDocument doc(8192);
-            DeserializationError error = deserializeJson(doc, payload);
-
-            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                if (error == DeserializationError::Ok && !doc.containsKey("error")) {
-                    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Hourly weather JSON");
-
-                    JsonObject hourly = doc["hourly"];
-                    if (hourly.isNull()) {
-                        currentWeatherData.errorReason = "HOURLY DATA OBJECT MISSING";
-                        xSemaphoreGive(xDisplayDataMutex);
-                        return false;
-                    }
-
-                    JsonArray timeArray = hourly["time"];
-                    JsonArray tempArray = hourly["temperature_2m"];
-                    JsonArray codeArray = hourly["weather_code"];
-
-                    if (timeArray.isNull() || tempArray.isNull() || codeArray.isNull()) {
-                        currentWeatherData.errorReason = "INCOMPLETE HOURLY DATA";
-                        xSemaphoreGive(xDisplayDataMutex);
-                        return false;
-                    }
-
-                    // Get current time to find the starting index for the forecast
-                    struct tm timeinfo;
-                    if (!getLocalTime(&timeinfo, 5000)) { // 5-second timeout
-                        Log_printf(LOG_LEVEL_ERROR, "Failed to get local time for hourly forecast.");
-                        currentWeatherData.errorReason = "ERROR GETTING LOCAL TIME";
-                        xSemaphoreGive(xDisplayDataMutex);
-                        return false;
-                    }
-
-
-                    char currentTimeStr[17]; // "YYYY-MM-DDTHH:00" + null
-                    strftime(currentTimeStr, sizeof(currentTimeStr), "%Y-%m-%dT%H:00", &timeinfo);
-
-
-                    int startIndex = -1;
-                    for (int i = 0; i < timeArray.size(); i++) {
-                        if (strcmp(timeArray[i], currentTimeStr) == 0) {
-                            startIndex = i;
-                            break;
-                        }
-                    }
-
-                    if (startIndex != -1) {
-                        for (int j = 0; j < 3; j++) {
-                            int forecastIndex = startIndex + j + 1;
-                            if (forecastIndex < tempArray.size() && forecastIndex < codeArray.size()) {
-                                currentWeatherData.hourlyTemp[j] = tempArray[forecastIndex];
-                                currentWeatherData.hourlyCode[j] = codeArray[forecastIndex];
-                            } else {
-                                // Not enough forecast data, fill with a placeholder if needed
-
-                                currentWeatherData.hourlyTemp[j] = -999;
-
-                                currentWeatherData.hourlyCode[j] = -1;
-                            }
-                        }
-                    } else {
-                        Log_printf(LOG_LEVEL_WARN, "Could not find current hour in hourly forecast data.");
-                        // We can still try to fill the data from the start of the array as a fallback
-                        for (int j = 0; j < 3; j++) {
-                             if (j < tempArray.size() && j < codeArray.size()) {
-                                currentWeatherData.hourlyTemp[j] = tempArray[j];
-                                currentWeatherData.hourlyCode[j] = codeArray[j];
-                            }
-                        }
-                    }
-
-                    xSemaphoreGive(xDisplayDataMutex);
-                    return true;
-
-                } else {
-                    Log_printf(LOG_LEVEL_WARN, "Failed to parse Hourly weather JSON. E: %s", error.c_str());
-                    currentWeatherData.errorReason = "HOURLY API PARSING FAILED";
-                    xSemaphoreGive(xDisplayDataMutex);
-                }
-            }
-        } else {
-            Log_printf(LOG_LEVEL_WARN, "Hourly weather API request failed with HTTP code %d", httpCode);
-            http.end();
-        }
-    } else {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for Hourly weather API.");
+        Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for Unified Weather API.");
     }
 
     return false;
@@ -502,34 +456,26 @@ void fetchWeatherData(WeatherTaskParams* params) {
         }
     }
 
-    // Now, call the two new functions to fetch the weather data, with retry logic.
-    bool currentDailySuccess = false;
-    bool hourlySuccess = false;
+    // Now, call the new unified function to fetch all weather data, with retry logic.
+    bool success = false;
     int attempt = 0;
     const int maxAttempts = 4;
 
-    while (attempt < maxAttempts && (!currentDailySuccess || !hourlySuccess)) {
+    while (attempt < maxAttempts && !success) {
         attempt++;
         Log_printf(LOG_LEVEL_INFO, "Weather fetch attempt %d of %d...", attempt, maxAttempts);
+        success = fetchWeatherDataFromApi();
 
-        // Only try to fetch data that hasn't been successfully fetched yet.
-        if (!currentDailySuccess) {
-            currentDailySuccess = fetchCurrentAndDailyData();
-        }
-        if (!hourlySuccess) {
-            hourlySuccess = fetchHourlyData();
-        }
-
-        if (currentDailySuccess && hourlySuccess) {
+        if (success) {
             Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data on attempt %d.", attempt);
             break;
         } else if (attempt < maxAttempts) {
-            Log_printf(LOG_LEVEL_WARN, "Partial or full weather fetch failed on attempt %d. Retrying in 2 seconds...", attempt);
+            Log_printf(LOG_LEVEL_WARN, "Weather fetch failed on attempt %d. Retrying in 2 seconds...", attempt);
             vTaskDelay(pdMS_TO_TICKS(2000));
         }
     }
 
-    if (currentDailySuccess && hourlySuccess) {
+    if (success) {
         Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data for %s.", taskCityName.c_str());
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = true;
@@ -540,13 +486,9 @@ void fetchWeatherData(WeatherTaskParams* params) {
         Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed for %s.", taskCityName.c_str());
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
-            // Combine the reasons from the failed fetches if available
-            if (!currentDailySuccess && !currentWeatherData.errorReason.empty()) {
-                // Keep the reason from fetchCurrentAndDailyData
-            } else if (!hourlySuccess && !currentWeatherData.errorReason.empty()) {
-                // Keep the reason from fetchHourlyData
-            } else {
-                currentWeatherData.errorReason = "WEATHER API FAILED - CHECK WI-FI";
+            // The specific error reason should already be set by fetchWeatherDataFromApi
+            if (currentWeatherData.errorReason.empty()) {
+                 currentWeatherData.errorReason = "WEATHER API FAILED - CHECK WI-FI";
             }
             xSemaphoreGive(xDisplayDataMutex);
         }
