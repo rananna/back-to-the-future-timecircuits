@@ -383,6 +383,15 @@ void fetchWeatherData(WeatherTaskParams* params) {
 
     trim(taskCityName);
 
+    // If the city name contains a comma, truncate it to only include the part before the comma.
+    // This handles user input like "Kingston, Ontario" and makes the geocoding API more reliable,
+    // as the API sometimes fails to find results for queries containing commas.
+    size_t comma_pos = taskCityName.find(',');
+    if (comma_pos != std::string::npos) {
+        taskCityName = taskCityName.substr(0, comma_pos);
+        trim(taskCityName); // Trim again in case of "kingston , ontario"
+    }
+
     Log_printf(LOG_LEVEL_INFO, "Fetching weather data for city: %s (force geocode: %s)", taskCityName.c_str(), forceGeocode ? "true" : "false");
 
     if (taskCityName.empty()) {
