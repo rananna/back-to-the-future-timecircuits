@@ -12,6 +12,7 @@
 #include "DataManager.h"
 #include "EventManager.h"
 #include "DisplayManager.h"
+#include "MqttManager.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 extern bool weatherDataUpdated;
@@ -458,11 +459,18 @@ static void fetchWeatherData(const WeatherTaskParams& params) {
         }
 
         if (!geocodeSuccess) {
-            Log_printf(LOG_LEVEL_ERROR, "Geocoding failed for %s after multiple retries.", taskCityName.c_str());
+            Log_printf(LOG_LEVEL_ERROR, "Geocoding failed for %s after multiple retries. Disabling weather mode.", taskCityName.c_str());
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 currentWeatherData.dataValid = false;
-                currentWeatherData.errorReason = "GEOCODING FAILED - CHECK CITY NAME";
+                currentWeatherData.errorReason = "GEOCODING FAILED";
+                currentSettings.weatherModeEnabled = false;
                 xSemaphoreGive(xDisplayDataMutex);
+            }
+
+            // Save the setting and notify the UI
+            saveSettings();
+            if (mqttClient.connected()) {
+                mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/weatherModeEnabled/state").c_str(), "false", true);
             }
             return;
         }
