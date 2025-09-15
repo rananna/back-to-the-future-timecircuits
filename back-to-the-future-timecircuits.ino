@@ -870,6 +870,10 @@ void setup() {
     xTimeLibMutex = xSemaphoreCreateMutex();
     xDisplayHardwareMutex = xSemaphoreCreateMutex();
     Log_printf(LOG_LEVEL_INFO, "Mutexes created... OK");
+
+    Log_printf(LOG_LEVEL_INFO, "Creating persistent weather task...");
+    createWeatherTask();
+    Log_printf(LOG_LEVEL_INFO, "Weather task created... OK");
     
     WiFi.mode(WIFI_STA);
     uint8_t mac[6];

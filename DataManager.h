@@ -3,16 +3,23 @@
 
 #include <ArduinoJson.h>
 #include <string>
+#include <freertos/semphr.h>
+#include <freertos/queue.h>
 
+// Use a queue to send parameters to the persistent weather task
 struct WeatherTaskParams {
-    std::string cityName;
     bool forceGeocode;
 };
 
+extern QueueHandle_t xWeatherQueue;
+extern SemaphoreHandle_t xWeatherSemaphore;
+
+void createWeatherTask();
+void triggerWeatherFetch(bool forceGeocode = false);
+void fetchWeatherDataTask(void* p); // Persistent task
+
+// Unchanged functions
 void fetchDataLink();
-void fetchWeatherData(struct WeatherTaskParams* params);
-void fetchWeatherDataTask(void* p);
-void forceFetchWeatherDataTask(void* p);
 void fetchStockDataTask(void* p);
 String urlEncode(const char* msg);
 JsonVariant getJsonVariant(JsonVariant root, const char* path);

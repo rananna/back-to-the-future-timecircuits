@@ -20,7 +20,6 @@ void handleWeatherTimeout();
 // File-scoped state variables for the weather fetch process
 static bool initialFetchTriggered = false;
 static unsigned long initialFetchStartTime = 0;
-static TaskHandle_t weatherTaskHandle = NULL;
 static bool initialFetchTimedOut = false;
 static unsigned long lastWeatherFetchTime = 0;
 const unsigned long WEATHER_REFRESH_INTERVAL = 300000; // 5 minutes
@@ -29,7 +28,7 @@ const int WEATHER_TASK_STACK_SIZE = 8192;
 // File-scoped state variables for the weather display state machine
 static WeatherDisplayState weatherState = WD_START_PAGE;
 static int weatherPage = 0;
-static String weatherScrollText;
+static char weatherScrollText[256]; // MODIFIED: Use a static char array
 static int weatherScrollPosition = 0;
 static unsigned long lastWeatherUpdate = 0;
 
@@ -424,19 +423,14 @@ void handleWeatherDisplay() {
             // If there's a specific error reason, switch to the error state.
             if (!currentWeatherData.errorReason.empty() && weatherState != WD_ERROR) {
                 weatherState = WD_ERROR;
-                weatherScrollText = "WEATHER ERROR: " + String(currentWeatherData.errorReason.c_str());
-                weatherScrollText = "             " + weatherScrollText;
+                snprintf(weatherScrollText, sizeof(weatherScrollText), "             WEATHER ERROR: %s", currentWeatherData.errorReason.c_str());
                 weatherScrollPosition = 0;
                 lastWeatherUpdate = millis(); // Start the timer for the error display
             }
             // If the fetch has been triggered and 30 seconds have passed, call the main timeout handler
             else if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
-                Log_printf(LOG_LEVEL_WARN, "Weather fetch task timed out. Deleting task.");
-                if (weatherTaskHandle != NULL) {
-                    vTaskDelete(weatherTaskHandle);
-                    weatherTaskHandle = NULL;
-                }
-                isFetchingWeather = false; // Reset the flag here since the task was killed
+                Log_printf(LOG_LEVEL_WARN, "Weather fetch task timed out.");
+                isFetchingWeather = false; // Reset the flag
                 handleWeatherTimeout();
                 xSemaphoreGive(xDisplayDataMutex);
                 return;
@@ -452,11 +446,7 @@ void handleWeatherDisplay() {
 
             if (!initialFetchTriggered && !isFetchingWeather) {
                 Log_printf(LOG_LEVEL_INFO, "Weather data is invalid, triggering initial fetch.");
-                isFetchingWeather = true;
-                if (weatherTaskHandle != NULL) { // Defensive delete of any old handle
-                    vTaskDelete(weatherTaskHandle);
-                }
-                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, &weatherTaskHandle);
+                triggerWeatherFetch();
                 initialFetchTriggered = true;
                 initialFetchStartTime = millis();
                 lastWeatherFetchTime = 0; // Reset this so it gets set upon successful fetch
@@ -476,15 +466,10 @@ void handleWeatherDisplay() {
             if ((millis() - lastWeatherFetchTime > WEATHER_REFRESH_INTERVAL) && !isFetchingWeather) {
                 Log_printf(LOG_LEVEL_INFO, "Periodic weather refresh triggered (5-minute interval).");
                 lastWeatherFetchTime = millis(); // Reset the timer immediately
-                isFetchingWeather = true; // Set the flag to prevent concurrent fetches
                 // Reuse the timeout mechanism for this fetch as well
                 initialFetchTriggered = true;
                 initialFetchStartTime = millis();
-                if (weatherTaskHandle != NULL) { // Defensive delete of any old handle
-                    vTaskDelete(weatherTaskHandle);
-                }
-                // Create a new task to fetch weather data in the background
-                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, &weatherTaskHandle);
+                triggerWeatherFetch();
             }
 
             if (weatherDataUpdated) {
@@ -494,28 +479,36 @@ void handleWeatherDisplay() {
                 initialFetchTriggered = false;
                 initialFetchStartTime = 0;
                 initialFetchTimedOut = false;
-                // The task has completed and will delete itself. Nullify our handle to it so we don't try to use it.
-                if (weatherTaskHandle != NULL) {
-                    weatherTaskHandle = NULL;
-                }
+                // The persistent task is now managed in DataManager, no need to touch the handle here.
             }
 
             switch (weatherState) {
                 case WD_ERROR: {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
-                        String tempScrollText = weatherScrollText + "             ";
-                        viewport = tempScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
 
-                        printToDisplay(lastRow.month, viewport.substring(0, 3).c_str(), 1);
-                        printToDisplay(lastRow.day, viewport.substring(3, 5).c_str(), 2);
-                        printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
-                        printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
+                        char tempScrollText[256 + 14];
+                        snprintf(tempScrollText, sizeof(tempScrollText), "%s             ", weatherScrollText);
+
+                        char monthStr[4], dayStr[3], yearStr[5], timeStr[5];
+                        strncpy(monthStr, tempScrollText + weatherScrollPosition, 3);
+                        monthStr[3] = '\0';
+                        strncpy(dayStr, tempScrollText + weatherScrollPosition + 3, 2);
+                        dayStr[2] = '\0';
+                        strncpy(yearStr, tempScrollText + weatherScrollPosition + 5, 4);
+                        yearStr[4] = '\0';
+                        strncpy(timeStr, tempScrollText + weatherScrollPosition + 9, 4);
+                        timeStr[4] = '\0';
+
+                        printToDisplay(lastRow.month, monthStr, 1);
+                        printToDisplay(lastRow.day, dayStr, 2);
+                        printToDisplay(lastRow.year, yearStr, 0);
+                        printToDisplay(lastRow.time, timeStr, 0);
                         shouldWriteToDisplay = true;
 
                         weatherScrollPosition++;
                         // When the full message has scrolled, pause, then reset to try again.
-                        if (weatherScrollPosition > weatherScrollText.length()) {
+                        if (weatherScrollPosition > strlen(weatherScrollText)) {
                             if (millis() - lastWeatherUpdate > errorRetryDelay) {
                                 currentWeatherData.errorReason = ""; // Clear reason
                                 weatherState = WD_START_PAGE;
@@ -544,8 +537,8 @@ void handleWeatherDisplay() {
                         case 0: { // Current Weather
                             dtostrf(currentWeatherData.temperature, 4, 1, buffer);
                             const char* desc = getWeatherDescriptionForCode(currentWeatherData.weatherCode);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "CURRENTLY " + String(buffer) + unit + ", " + desc;
+                            const char* unit = currentSettings.useMetricUnits ? "C" : "F";
+                            snprintf(weatherScrollText, sizeof(weatherScrollText), "CURRENTLY %s%s, %s", buffer, unit, desc);
                             break;
                         }
                         case 1: { // Tomorrow's Forecast
@@ -553,20 +546,21 @@ void handleWeatherDisplay() {
                             dtostrf(currentWeatherData.tomorrowHigh, 1, 0, high_buf);
                             dtostrf(currentWeatherData.tomorrowLow, 1, 0, low_buf);
                             const char* desc = getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "TOMORROW HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit + ", " + desc;
+                            const char* unit = currentSettings.useMetricUnits ? "C" : "F";
+                            snprintf(weatherScrollText, sizeof(weatherScrollText), "TOMORROW HIGH %s%s, LOW %s%s, %s", high_buf, unit, low_buf, unit, desc);
                             break;
                         }
                         case 2: { // Wind & Rain
-                            String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
-                            weatherScrollText = "WIND " + String((int)currentWeatherData.windSpeed) + " " + windUnit +
-                                              ", MAX " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
-                                              ", PRECIP " + String(currentWeatherData.precipitationProbability) + "%";
+                            const char* windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
+                            snprintf(weatherScrollText, sizeof(weatherScrollText), "WIND %d %s, MAX %d %s, PRECIP %d%%",
+                                     (int)currentWeatherData.windSpeed, windUnit,
+                                     (int)currentWeatherData.maxWindSpeed, windUnit,
+                                     currentWeatherData.precipitationProbability);
                             break;
                         }
                         case 3: { // Sunrise & Sunset
                             struct tm timeinfo;
-                            char timeBuffer[8]; // Holds "HMMAM" or "HHMMAM" + null
+                            char sunriseStr[8], sunsetStr[8];
 
                             // Manually format sunrise time to avoid locale issues with %p
                             localtime_r(&currentWeatherData.sunrise, &timeinfo);
@@ -574,8 +568,7 @@ void handleWeatherDisplay() {
                             const char* sunriseAmpm = (sunriseHour >= 12) ? "PM" : "AM";
                             if (sunriseHour > 12) sunriseHour -= 12;
                             if (sunriseHour == 0) sunriseHour = 12;
-                            sprintf(timeBuffer, "%d%02d%s", sunriseHour, timeinfo.tm_min, sunriseAmpm);
-                            String sunriseStr(timeBuffer);
+                            snprintf(sunriseStr, sizeof(sunriseStr), "%d%02d%s", sunriseHour, timeinfo.tm_min, sunriseAmpm);
 
                             // Manually format sunset time
                             localtime_r(&currentWeatherData.sunset, &timeinfo);
@@ -583,23 +576,23 @@ void handleWeatherDisplay() {
                             const char* sunsetAmpm = (sunsetHour >= 12) ? "PM" : "AM";
                             if (sunsetHour > 12) sunsetHour -= 12;
                             if (sunsetHour == 0) sunsetHour = 12;
-                            sprintf(timeBuffer, "%d%02d%s", sunsetHour, timeinfo.tm_min, sunsetAmpm);
-                            String sunsetStr(timeBuffer);
+                            snprintf(sunsetStr, sizeof(sunsetStr), "%d%02d%s", sunsetHour, timeinfo.tm_min, sunsetAmpm);
 
-                            weatherScrollText = "SUNRISE " + sunriseStr + ", SUNSET " + sunsetStr;
+                            snprintf(weatherScrollText, sizeof(weatherScrollText), "SUNRISE %s, SUNSET %s", sunriseStr, sunsetStr);
                             break;
                         }
                         case 4: { // Hourly Forecast
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "NEXT 3 HRS ";
+                            const char* unit = currentSettings.useMetricUnits ? "C" : "F";
+                            char* p = weatherScrollText;
+                            p += snprintf(p, sizeof(weatherScrollText), "NEXT 3 HRS ");
                             for (int i = 0; i < 3; ++i) {
                                 if (currentWeatherData.hourlyCode[i] != -1) {
                                     char temp_buf[8];
                                     dtostrf(currentWeatherData.hourlyTemp[i], 1, 0, temp_buf);
                                     const char* desc = getWeatherDescriptionForCode(currentWeatherData.hourlyCode[i]);
-                                    weatherScrollText += String(temp_buf) + unit + " " + desc;
+                                    p += snprintf(p, sizeof(weatherScrollText) - (p - weatherScrollText), "%s%s %s", temp_buf, unit, desc);
                                     if (i < 2) {
-                                        weatherScrollText += ", ";
+                                        p += snprintf(p, sizeof(weatherScrollText) - (p - weatherScrollText), ", ");
                                     }
                                 }
                             }
@@ -608,20 +601,25 @@ void handleWeatherDisplay() {
                         case 5: { // Feels Like & Humidity
                             char feels_like_buf[8];
                             dtostrf(currentWeatherData.apparentTemperature, 1, 0, feels_like_buf);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "FEELS LIKE " + String(feels_like_buf) + unit + ", HUMIDITY " + String(currentWeatherData.humidity) + "%";
+                            const char* unit = currentSettings.useMetricUnits ? "C" : "F";
+                            snprintf(weatherScrollText, sizeof(weatherScrollText), "FEELS LIKE %s%s, HUMIDITY %d%%", feels_like_buf, unit, currentWeatherData.humidity);
                             break;
                         }
                         case 6: { // Today's High/Low
                             char high_buf[8], low_buf[8];
                             dtostrf(currentWeatherData.dailyHigh, 1, 0, high_buf);
                             dtostrf(currentWeatherData.dailyLow, 1, 0, low_buf);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "TODAY HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit;
+                            const char* unit = currentSettings.useMetricUnits ? "C" : "F";
+                            snprintf(weatherScrollText, sizeof(weatherScrollText), "TODAY HIGH %s%s, LOW %s%s", high_buf, unit, low_buf, unit);
                             break;
                         }
                     }
-                    weatherScrollText = "             " + weatherScrollText;
+                    // Prepend spaces for scrolling effect. We need to shift the existing string.
+                    char temp[256];
+                    snprintf(temp, sizeof(temp), "             %s", weatherScrollText);
+                    strncpy(weatherScrollText, temp, sizeof(weatherScrollText) - 1);
+                    weatherScrollText[sizeof(weatherScrollText) - 1] = '\0';
+
                     weatherScrollPosition = 0;
                     weatherState = WD_SCROLLING;
                     lastWeatherUpdate = millis();
@@ -630,20 +628,28 @@ void handleWeatherDisplay() {
                 case WD_SCROLLING: {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
-                        String tempScrollText = weatherScrollText + "             ";
-                        viewport = tempScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
 
-                        String monthStr = viewport.substring(0, 3);
-                        String dayStr = viewport.substring(3, 5);
+                        char tempScrollText[256 + 14];
+                        snprintf(tempScrollText, sizeof(tempScrollText), "%s             ", weatherScrollText);
 
-                        printToDisplay(lastRow.month, monthStr.c_str(), 1);
-                        printToDisplay(lastRow.day, dayStr.c_str(), 2);
-                        printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
-                        printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
+                        char monthStr[4], dayStr[3], yearStr[5], timeStr[5];
+                        strncpy(monthStr, tempScrollText + weatherScrollPosition, 3);
+                        monthStr[3] = '\0';
+                        strncpy(dayStr, tempScrollText + weatherScrollPosition + 3, 2);
+                        dayStr[2] = '\0';
+                        strncpy(yearStr, tempScrollText + weatherScrollPosition + 5, 4);
+                        yearStr[4] = '\0';
+                        strncpy(timeStr, tempScrollText + weatherScrollPosition + 9, 4);
+                        timeStr[4] = '\0';
+
+                        printToDisplay(lastRow.month, monthStr, 1);
+                        printToDisplay(lastRow.day, dayStr, 2);
+                        printToDisplay(lastRow.year, yearStr, 0);
+                        printToDisplay(lastRow.time, timeStr, 0);
                         shouldWriteToDisplay = true;
 
                         weatherScrollPosition++;
-                        if (weatherScrollPosition > weatherScrollText.length()) {
+                        if (weatherScrollPosition > strlen(weatherScrollText)) {
                             weatherState = WD_PAUSING;
                             lastWeatherUpdate = millis();
                         }
@@ -679,7 +685,7 @@ void handleWeatherDisplay() {
 void updateMarqueeDisplay() {
 #if ENABLE_HARDWARE
     DisplayRow* targetRow = &lastRow;
-    String timeCanvas, yearCanvas;
+    char timeCanvas[256], yearCanvas[256];
 
     // ✅ FIX: Add this check at the beginning of the function.
     if (currentSettings.numDataPoints == 0) {
@@ -728,20 +734,24 @@ void updateMarqueeDisplay() {
         xSemaphoreGive(xDisplayDataMutex);
 
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            yearCanvas = "   " + String(yearContent.c_str()) + "   ";
-            if (yearCanvas.length() <= 4) {
-                printToDisplay(targetRow->year, yearCanvas.c_str());
+            snprintf(yearCanvas, sizeof(yearCanvas), "   %s   ", yearContent.c_str());
+            if (strlen(yearCanvas) <= 4) {
+                printToDisplay(targetRow->year, yearCanvas);
             } else {
-                String yearViewport = yearCanvas.substring(marqueeScrollPositionYear, marqueeScrollPositionYear + 4);
-                printToDisplay(targetRow->year, yearViewport.c_str());
+                char yearViewport[5];
+                strncpy(yearViewport, yearCanvas + marqueeScrollPositionYear, 4);
+                yearViewport[4] = '\0';
+                printToDisplay(targetRow->year, yearViewport);
             }
 
-            timeCanvas = "   " + String(timeContent.c_str()) + "   ";
-            if (timeCanvas.length() <= 4) {
-                printToDisplay(targetRow->time, timeCanvas.c_str());
+            snprintf(timeCanvas, sizeof(timeCanvas), "   %s   ", timeContent.c_str());
+            if (strlen(timeCanvas) <= 4) {
+                printToDisplay(targetRow->time, timeCanvas);
             } else {
-                String viewport = timeCanvas.substring(marqueeScrollPosition, marqueeScrollPosition + 4);
-                printToDisplay(targetRow->time, viewport.c_str());
+                char viewport[5];
+                strncpy(viewport, timeCanvas + marqueeScrollPosition, 4);
+                viewport[4] = '\0';
+                printToDisplay(targetRow->time, viewport);
             }
             xSemaphoreGive(xDisplayHardwareMutex);
         }
@@ -756,18 +766,18 @@ void updateMarqueeDisplay() {
             bool timeDone = false;
             bool yearDone = false;
 
-            if (timeCanvas.length() > 4) {
+            if (strlen(timeCanvas) > 4) {
                 marqueeScrollPosition++;
-                if (marqueeScrollPosition > timeCanvas.length() - 4) {
+                if (marqueeScrollPosition > strlen(timeCanvas) - 4) {
                     timeDone = true;
                 }
             } else {
                 timeDone = true;
             }
 
-            if (yearCanvas.length() > 4) {
+            if (strlen(yearCanvas) > 4) {
                 marqueeScrollPositionYear++;
-                if (marqueeScrollPositionYear > yearCanvas.length() - 4) {
+                if (marqueeScrollPositionYear > strlen(yearCanvas) - 4) {
                     yearDone = true;
                 }
             } else {

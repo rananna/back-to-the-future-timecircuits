@@ -198,6 +198,11 @@ void fetchStockDataTask(void* p) {
 // Forward declaration for the new unified weather fetch function
 static bool fetchWeatherDataFromApi();
 
+// Define the globals for the weather task
+QueueHandle_t xWeatherQueue;
+SemaphoreHandle_t xWeatherSemaphore;
+static TaskHandle_t weatherTaskHandle = NULL; // Keep task handle file-scoped
+
 // This new function is responsible for fetching all weather data (current, daily, and hourly) in a single API call.
 static bool fetchWeatherDataFromApi() {
     HTTPClient http;
@@ -226,13 +231,12 @@ static bool fetchWeatherDataFromApi() {
         Log_printf(LOG_LEVEL_DEBUG, "Unified Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            String payload = http.getString();
-            http.end();
+            WiFiClient& stream = http.getStream();
 
-            // Increased buffer size slightly to accommodate the unified response, but it should be smaller
-            // than the two previous responses combined due to fetching fewer hourly data points.
-            DynamicJsonDocument doc(12288);
-            DeserializationError error = deserializeJson(doc, payload);
+            // Use a StaticJsonDocument to allocate on the stack, preventing heap fragmentation.
+            StaticJsonDocument<12288> doc;
+            DeserializationError error = deserializeJson(doc, stream);
+            http.end(); // End the connection after parsing the stream
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 if (error == DeserializationError::Ok && !doc.containsKey("error")) {
@@ -376,10 +380,9 @@ void trim(std::string &s) {
     }).base(), s.end());
 }
 
-void fetchWeatherData(WeatherTaskParams* params) {
-    std::string taskCityName = params->cityName;
-    bool forceGeocode = params->forceGeocode;
-    delete params;
+static void fetchWeatherData(const WeatherTaskParams& params) {
+    std::string taskCityName = currentSettings.cityName;
+    bool forceGeocode = params.forceGeocode;
 
     trim(taskCityName);
 
@@ -505,17 +508,59 @@ void fetchWeatherData(WeatherTaskParams* params) {
 }
 
 void fetchWeatherDataTask(void* p) {
-    WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
-    fetchWeatherData(params);
-    isFetchingWeather = false;
-    vTaskDelete(NULL);
+    for (;;) {
+        // Wait for a signal to start fetching
+        if (xSemaphoreTake(xWeatherSemaphore, portMAX_DELAY) == pdTRUE) {
+            Log_printf(LOG_LEVEL_INFO, "Weather task woken up.");
+            isFetchingWeather = true;
+
+            WeatherTaskParams params;
+            // Wait for parameters to be sent via the queue
+            if (xQueueReceive(xWeatherQueue, &params, pdMS_TO_TICKS(1000))) {
+                 fetchWeatherData(params);
+            } else {
+                 Log_printf(LOG_LEVEL_WARN, "Weather task did not receive params from queue.");
+            }
+
+            isFetchingWeather = false;
+            Log_printf(LOG_LEVEL_INFO, "Weather task going back to sleep.");
+        }
+    }
 }
 
-void forceFetchWeatherDataTask(void* p) {
-    WeatherTaskParams* params = (WeatherTaskParams*)p;
-    fetchWeatherData(params);
-    isFetchingWeather = false;
-    vTaskDelete(NULL);
+void createWeatherTask() {
+    xWeatherQueue = xQueueCreate(1, sizeof(WeatherTaskParams));
+    xWeatherSemaphore = xSemaphoreCreateBinary();
+
+    if (xWeatherQueue == NULL || xWeatherSemaphore == NULL) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to create weather queue or semaphore.");
+        return;
+    }
+
+    xTaskCreatePinnedToCore(
+        fetchWeatherDataTask,
+        "WeatherFetchTask",
+        8192, // Increased stack size for networking and JSON
+        NULL,
+        1,
+        &weatherTaskHandle,
+        0
+    );
+    Log_printf(LOG_LEVEL_INFO, "Persistent weather fetch task created.");
+}
+
+void triggerWeatherFetch(bool forceGeocode) {
+    if (isFetchingWeather) {
+        Log_printf(LOG_LEVEL_WARN, "Weather fetch already in progress. Ignoring trigger.");
+        return;
+    }
+    Log_printf(LOG_LEVEL_INFO, "Triggering weather fetch (force geocode: %s)", forceGeocode ? "true" : "false");
+    WeatherTaskParams params = {forceGeocode};
+    if (xQueueSend(xWeatherQueue, &params, pdMS_TO_TICKS(100)) != pdPASS) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to send to weather queue.");
+    } else {
+        xSemaphoreGive(xWeatherSemaphore);
+    }
 }
 
 void fetchApiDataTask(void* p) {
