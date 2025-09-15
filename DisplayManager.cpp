@@ -539,9 +539,9 @@ void handleWeatherDisplay() {
                         }
                         case 2: { // Wind & Rain
                             String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
-                            // Clarified "WIND" to "MAX WIND" to reflect the data being for the daily maximum.
-                            weatherScrollText = "MAX WIND " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
-                                              ", PRECIPITATION " + String(currentWeatherData.precipitationProbability) + "%";
+                            weatherScrollText = "WIND " + String((int)currentWeatherData.windSpeed) + " " + windUnit +
+                                              ", MAX " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
+                                              ", PRECIP " + String(currentWeatherData.precipitationProbability) + "%";
                             break;
                         }
                         case 3: { // Sunrise & Sunset
@@ -592,6 +592,14 @@ void handleWeatherDisplay() {
                             weatherScrollText = "FEELS LIKE " + String(feels_like_buf) + unit + ", HUMIDITY " + String(currentWeatherData.humidity) + "%";
                             break;
                         }
+                        case 6: { // Today's High/Low
+                            char high_buf[8], low_buf[8];
+                            dtostrf(currentWeatherData.dailyHigh, 1, 0, high_buf);
+                            dtostrf(currentWeatherData.dailyLow, 1, 0, low_buf);
+                            String unit = currentSettings.useMetricUnits ? "C" : "F";
+                            weatherScrollText = "TODAY HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit;
+                            break;
+                        }
                     }
                     weatherScrollText = "             " + weatherScrollText;
                     weatherScrollPosition = 0;
@@ -625,7 +633,7 @@ void handleWeatherDisplay() {
 
                 case WD_PAUSING: {
                     if (millis() - lastWeatherUpdate > pauseDuration) {
-                        weatherPage = (weatherPage + 1) % 6; // MODIFIED: Increased page count
+                        weatherPage = (weatherPage + 1) % 7; // MODIFIED: Increased page count
                         weatherState = WD_START_PAGE;
                     }
                     break;
