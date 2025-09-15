@@ -303,10 +303,11 @@ static bool fetchHourlyData() {
     WiFiClientSecure client;
     client.setInsecure();
 
-    char weatherUrl[256];
+    String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
+    char weatherUrl[384];
     snprintf(weatherUrl, sizeof(weatherUrl),
-             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&hourly=temperature_2m,weather_code&forecast_days=2&timezone=auto",
-             currentSettings.latitude, currentSettings.longitude);
+             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&hourly=temperature_2m,weather_code&forecast_days=2&timezone=auto&temperature_unit=%s",
+             currentSettings.latitude, currentSettings.longitude, tempUnit.c_str());
 
     if (http.begin(client, weatherUrl)) {
         Log_printf(LOG_LEVEL_DEBUG, "Hourly Weather URL: %s", weatherUrl);
