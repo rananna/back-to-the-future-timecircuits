@@ -236,8 +236,8 @@ static bool fetchWeatherDataFromApi() {
 
             // The large JSON response can cause a stack overflow if we use a StaticJsonDocument.
             // Since this task is a one-off, using the heap with DynamicJsonDocument is safe
-            // and prevents the stack overflow. The size is increased to 20k for safety, as per code review.
-            DynamicJsonDocument doc(20480);
+            // and prevents the stack overflow. The size is increased to 24k for safety, as per code review.
+            DynamicJsonDocument doc(24576);
             DeserializationError error = deserializeJson(doc, stream);
             http.end(); // End the connection after parsing the stream
 
