@@ -688,7 +688,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 WeatherTaskParams* params = new WeatherTaskParams;
                 params->cityName = currentSettings.cityName;
                 params->forceGeocode = true;
-                xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
+                xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 16384, params, 1, NULL, 0);
                 settingsChanged = true;
             }
         }
@@ -697,7 +697,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 WeatherTaskParams* params = new WeatherTaskParams;
                 params->cityName = currentSettings.cityName;
                 params->forceGeocode = true;
-                xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
+                xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 16384, params, 1, NULL, 0);
             }
         }
         else if (topicStr == base_topic + "24h_format/command") {

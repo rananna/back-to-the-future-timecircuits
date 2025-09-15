@@ -512,7 +512,7 @@ void setupWebRoutes() {
         WeatherTaskParams* params = new WeatherTaskParams;
         params->cityName = city;
         params->forceGeocode = true;
-        if (xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL) == pdPASS) {
+        if (xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 16384, params, 1, NULL) == pdPASS) {
             request->send(202, "text/plain", "Weather refresh triggered for new city.");
         } else {
             delete params;

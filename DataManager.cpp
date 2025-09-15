@@ -565,7 +565,7 @@ void createWeatherTask() {
     xTaskCreatePinnedToCore(
         fetchWeatherDataTask,
         "WeatherFetchTask",
-        8192, // Increased stack size for networking and JSON
+        16384, // Increased stack size for networking and the large JSON document
         NULL,
         1,
         &weatherTaskHandle,
