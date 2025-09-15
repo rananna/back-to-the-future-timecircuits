@@ -533,6 +533,7 @@ function refreshWeatherData() {
                 const bestMatch = nameParts.join(', ');
                 correctedCityName = bestMatch; // Store validated name globally
                 cityInput.value = bestMatch; // Update the input field
+                if (!isLoading) setSettingsChanged(true); // Enable the save button
 
                 showMessage(`City found: ${bestMatch}. Fetching weather...`, 'success');
                 triggerWeatherRefresh(bestMatch);
