@@ -430,11 +430,15 @@ void fetchWeatherData(WeatherTaskParams* params) {
     if (needsGeocoding) {
         Log_printf(LOG_LEVEL_INFO, "Geocoding required for city: %s", taskCityName.c_str());
         bool geocodeSuccess = false;
+
+        // By creating the client and HTTP objects outside the loop, we prevent
+        // memory fragmentation and allocation errors on repeated attempts.
+        HTTPClient http;
+        WiFiClientSecure client;
+        client.setInsecure();
+
         for (int i = 0; i < 3; i++) {
             showTemporaryMessage("GEO", "", "SRCH", "", 1000);
-            HTTPClient http;
-            WiFiClientSecure client;
-            client.setInsecure();
             String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(taskCityName.c_str()) + "&count=1&language=en&format=json";
             if (http.begin(client, geocodeUrl)) {
                 Log_printf(LOG_LEVEL_DEBUG, "Geocode URL: %s", geocodeUrl.c_str());
@@ -442,9 +446,12 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 Log_printf(LOG_LEVEL_DEBUG, "Geocode HTTP Code: %d", httpCode);
                 if (httpCode == HTTP_CODE_OK) {
                     JsonDocument doc;
+                    // Use http.getStream() for efficiency with larger payloads.
                     if (http.getStreamPtr()) {
                         deserializeJson(doc, http.getStream());
                     }
+                    http.end(); // End the connection immediately after getting the stream
+
                     JsonArray results = doc["results"];
                     if (!results.isNull() && results.size() > 0) {
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
@@ -457,17 +464,21 @@ void fetchWeatherData(WeatherTaskParams* params) {
                         }
                         geocodeSuccess = true;
                         Log_printf(LOG_LEVEL_INFO, "Geocode success for %s. Lat: %f, Lon: %f", taskCityName.c_str(), currentSettings.latitude, currentSettings.longitude);
-                        http.end();
-                        break;
+                        break; // Exit the loop on success
+                    } else {
+                        Log_printf(LOG_LEVEL_WARN, "Geocode response did not contain results.");
                     }
                 } else {
                     Log_printf(LOG_LEVEL_WARN, "Geocode request failed with HTTP code %d", httpCode);
+                    http.end(); // Important to end the connection on failure too
                 }
-                http.end();
             } else {
                 Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for geocoding.");
             }
-            delay(1000);
+            // If we've failed, wait a moment before retrying.
+            if (!geocodeSuccess) {
+                vTaskDelay(pdMS_TO_TICKS(1000));
+            }
         }
 
         if (!geocodeSuccess) {
