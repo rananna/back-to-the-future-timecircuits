@@ -508,6 +508,18 @@ function fetchTime() {
 }
 
 /**
+ * Creates a descriptive string for a location object.
+ * @param {object} location The location object from the geocoding API.
+ * @returns {string} A descriptive location name.
+ */
+function getDescriptiveLocationName(location) {
+    let nameParts = [location.name];
+    if (location.admin1) nameParts.push(location.admin1);
+    if (location.country) nameParts.push(location.country);
+    return nameParts.join(', ');
+}
+
+/**
  * Validates a city name using the geocoding API, then triggers a weather data refresh.
  */
 function refreshWeatherData() {
@@ -531,7 +543,7 @@ function refreshWeatherData() {
             if (data && data.results && data.results.length > 0) {
                 if (data.results.length === 1) {
                     const location = data.results[0];
-                    const bestMatch = location.name;
+                    const bestMatch = getDescriptiveLocationName(location);
                     correctedCityName = bestMatch; // Store validated name globally
                     cityInput.value = correctedCityName;
 
@@ -976,7 +988,7 @@ function handleLocationSelection(event) {
     const modal = document.getElementById('locationChoiceModal');
 
     // Use the chosen location's name
-    const bestMatch = location.name;
+    const bestMatch = getDescriptiveLocationName(location);
     correctedCityName = bestMatch;
     cityInput.value = correctedCityName;
 
