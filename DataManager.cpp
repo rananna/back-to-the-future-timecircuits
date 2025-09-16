@@ -229,17 +229,15 @@ static bool fetchWeatherDataFromApi() {
         Log_printf(LOG_LEVEL_DEBUG, "Unified Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            String payload = http.getString();
-            http.end();
-
-            // Increased buffer size slightly to accommodate the unified response, but it should be smaller
-            // than the two previous responses combined due to fetching fewer hourly data points.
+            // By using http.getStream(), we avoid allocating a large String for the payload.
+            // ArduinoJson will parse the JSON directly from the network stream, which is much more memory-efficient.
             JsonDocument doc;
-            if (!payload.isEmpty()) {
-                DeserializationError error = deserializeJson(doc, payload);
+            DeserializationError error = deserializeJson(doc, http.getStream());
+            http.end(); // End the connection as soon as we're done with the stream.
 
+            if (error == DeserializationError::Ok) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    if (error == DeserializationError::Ok && doc["error"].isNull()) {
+                    if (doc["error"].isNull()) {
                         Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
 
                         bool allDataPresent = true;
@@ -354,10 +352,18 @@ static bool fetchWeatherDataFromApi() {
                         return true;
 
                     } else {
-                        Log_printf(LOG_LEVEL_WARN, "Failed to parse Unified Weather JSON. E: %s", error.c_str());
-                        currentWeatherData.errorReason = "WEATHER API PARSING FAILED";
+                        // This case is for API-level errors returned in a valid JSON body (e.g., "invalid API key").
+                        Log_printf(LOG_LEVEL_WARN, "Unified Weather API returned an error: %s", doc["reason"].as<const char*>());
+                        currentWeatherData.errorReason = "WEATHER API ERROR";
                         xSemaphoreGive(xDisplayDataMutex);
                     }
+                }
+            } else {
+                // This case is for JSON parsing errors (e.g., incomplete download, invalid format).
+                Log_printf(LOG_LEVEL_WARN, "Failed to parse Unified Weather JSON. E: %s", error.c_str());
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    currentWeatherData.errorReason = "WEATHER PARSING FAILED";
+                    xSemaphoreGive(xDisplayDataMutex);
                 }
             }
         } else {

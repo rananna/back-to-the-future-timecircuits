@@ -555,69 +555,97 @@ void handleWeatherDisplay() {
                     String tempWeatherString;
                     switch (weatherPage) {
                         case 0: { // Current Weather
-                            dtostrf(currentWeatherData.temperature, 4, 1, buffer);
-                            const char* desc = getWeatherDescriptionForCode(currentWeatherData.weatherCode);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            tempWeatherString = "CURRENTLY " + String(buffer) + unit + ", " + desc;
+                            if (currentWeatherData.temperature.isNull() || currentWeatherData.weatherCode.isNull()) {
+                                tempWeatherString = "CURRENTLY DATA UNAVAILABLE";
+                            } else {
+                                dtostrf(currentWeatherData.temperature.as<float>(), 4, 1, buffer);
+                                const char* desc = getWeatherDescriptionForCode(currentWeatherData.weatherCode.as<int>());
+                                String unit = currentSettings.useMetricUnits ? "C" : "F";
+                                tempWeatherString = "CURRENTLY " + String(buffer) + unit + ", " + desc;
+                            }
                             break;
                         }
                         case 1: { // Tomorrow's Forecast
-                            char high_buf[8], low_buf[8];
-                            dtostrf(currentWeatherData.tomorrowHigh, 1, 0, high_buf);
-                            dtostrf(currentWeatherData.tomorrowLow, 1, 0, low_buf);
-                            const char* desc = getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            tempWeatherString = "TOMORROW HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit + ", " + desc;
+                            if (currentWeatherData.tomorrowHigh.isNull() || currentWeatherData.tomorrowLow.isNull() || currentWeatherData.tomorrowWeatherCode.isNull()) {
+                                tempWeatherString = "TOMORROW DATA UNAVAILABLE";
+                            } else {
+                                char high_buf[8], low_buf[8];
+                                dtostrf(currentWeatherData.tomorrowHigh.as<float>(), 1, 0, high_buf);
+                                dtostrf(currentWeatherData.tomorrowLow.as<float>(), 1, 0, low_buf);
+                                const char* desc = getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode.as<int>());
+                                String unit = currentSettings.useMetricUnits ? "C" : "F";
+                                tempWeatherString = "TOMORROW HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit + ", " + desc;
+                            }
                             break;
                         }
                         case 2: { // Wind & Rain
-                            String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
-                            tempWeatherString = "WIND " + String((int)currentWeatherData.windSpeed) + " " + windUnit +
-                                              ", MAX " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
-                                              ", PRECIP " + String(currentWeatherData.precipitationProbability) + "%";
+                            if (currentWeatherData.windSpeed.isNull() || currentWeatherData.maxWindSpeed.isNull() || currentWeatherData.precipitationProbability.isNull()) {
+                                tempWeatherString = "WIND/RAIN DATA UNAVAILABLE";
+                            } else {
+                                String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
+                                tempWeatherString = "WIND " + String(currentWeatherData.windSpeed.as<int>()) + " " + windUnit +
+                                                  ", MAX " + String(currentWeatherData.maxWindSpeed.as<int>()) + " " + windUnit +
+                                                  ", PRECIP " + String(currentWeatherData.precipitationProbability.as<int>()) + "%";
+                            }
                             break;
                         }
                         case 3: { // Sunrise & Sunset
-                            struct tm timeinfo;
-                            char timeBuffer[8];
-
-                            // Format sunrise time
-                            localtime_r(&currentWeatherData.sunrise, &timeinfo);
-                            int sunriseHour = timeinfo.tm_hour;
-                            if (!currentSettings.displayFormat24h) {
-                                const char* sunriseAmpm = (sunriseHour >= 12) ? "PM" : "AM";
-                                if (sunriseHour > 12) sunriseHour -= 12;
-                                if (sunriseHour == 0) sunriseHour = 12;
-                                sprintf(timeBuffer, "%d%02d%s", sunriseHour, timeinfo.tm_min, sunriseAmpm);
+                            if (currentWeatherData.sunrise.isNull() || currentWeatherData.sunset.isNull()) {
+                                tempWeatherString = "SUNRISE/SET DATA UNAVAILABLE";
                             } else {
-                                sprintf(timeBuffer, "%02d%02d", sunriseHour, timeinfo.tm_min);
-                            }
-                            String sunriseStr(timeBuffer);
+                                struct tm timeinfo;
+                                char timeBuffer[8];
+                                time_t sunriseTime = currentWeatherData.sunrise.as<time_t>();
+                                time_t sunsetTime = currentWeatherData.sunset.as<time_t>();
 
-                            // Format sunset time
-                            localtime_r(&currentWeatherData.sunset, &timeinfo);
-                            int sunsetHour = timeinfo.tm_hour;
-                            if (!currentSettings.displayFormat24h) {
-                                const char* sunsetAmpm = (sunsetHour >= 12) ? "PM" : "AM";
-                                if (sunsetHour > 12) sunsetHour -= 12;
-                                if (sunsetHour == 0) sunsetHour = 12;
-                                sprintf(timeBuffer, "%d%02d%s", sunsetHour, timeinfo.tm_min, sunsetAmpm);
-                            } else {
-                                sprintf(timeBuffer, "%02d%02d", sunsetHour, timeinfo.tm_min);
-                            }
-                            String sunsetStr(timeBuffer);
+                                // Format sunrise time
+                                localtime_r(&sunriseTime, &timeinfo);
+                                int sunriseHour = timeinfo.tm_hour;
+                                if (!currentSettings.displayFormat24h) {
+                                    const char* sunriseAmpm = (sunriseHour >= 12) ? "PM" : "AM";
+                                    if (sunriseHour > 12) sunriseHour -= 12;
+                                    if (sunriseHour == 0) sunriseHour = 12;
+                                    sprintf(timeBuffer, "%d%02d%s", sunriseHour, timeinfo.tm_min, sunriseAmpm);
+                                } else {
+                                    sprintf(timeBuffer, "%02d%02d", sunriseHour, timeinfo.tm_min);
+                                }
+                                String sunriseStr(timeBuffer);
 
-                            tempWeatherString = "SUNRISE " + sunriseStr + ", SUNSET " + sunsetStr;
+                                // Format sunset time
+                                localtime_r(&sunsetTime, &timeinfo);
+                                int sunsetHour = timeinfo.tm_hour;
+                                if (!currentSettings.displayFormat24h) {
+                                    const char* sunsetAmpm = (sunsetHour >= 12) ? "PM" : "AM";
+                                    if (sunsetHour > 12) sunsetHour -= 12;
+                                    if (sunsetHour == 0) sunsetHour = 12;
+                                    sprintf(timeBuffer, "%d%02d%s", sunsetHour, timeinfo.tm_min, sunsetAmpm);
+                                } else {
+                                    sprintf(timeBuffer, "%02d%02d", sunsetHour, timeinfo.tm_min);
+                                }
+                                String sunsetStr(timeBuffer);
+
+                                tempWeatherString = "SUNRISE " + sunriseStr + ", SUNSET " + sunsetStr;
+                            }
                             break;
                         }
                         case 4: { // Hourly Forecast
                             String unit = currentSettings.useMetricUnits ? "C" : "F";
                             tempWeatherString = "NEXT 3 HRS ";
-                            for (int i = 0; i < 3; ++i) {
-                                if (currentWeatherData.hourlyCode[i] != -1) {
+                            bool hourlyDataOk = true;
+                            for(int i=0; i<3; ++i) {
+                                if(currentWeatherData.hourlyCode[i].isNull() || currentWeatherData.hourlyTemp[i].isNull() || currentWeatherData.hourlyCode[i] == -1) {
+                                    hourlyDataOk = false;
+                                    break;
+                                }
+                            }
+
+                            if (!hourlyDataOk) {
+                                tempWeatherString = "HOURLY DATA UNAVAILABLE";
+                            } else {
+                                for (int i = 0; i < 3; ++i) {
                                     char temp_buf[8];
-                                    dtostrf(currentWeatherData.hourlyTemp[i], 1, 0, temp_buf);
-                                    const char* desc = getWeatherDescriptionForCode(currentWeatherData.hourlyCode[i]);
+                                    dtostrf(currentWeatherData.hourlyTemp[i].as<float>(), 1, 0, temp_buf);
+                                    const char* desc = getWeatherDescriptionForCode(currentWeatherData.hourlyCode[i].as<int>());
                                     tempWeatherString += String(temp_buf) + unit + " " + desc;
                                     if (i < 2) {
                                         tempWeatherString += ", ";
@@ -627,18 +655,26 @@ void handleWeatherDisplay() {
                             break;
                         }
                         case 5: { // Feels Like & Humidity
-                            char feels_like_buf[8];
-                            dtostrf(currentWeatherData.apparentTemperature, 1, 0, feels_like_buf);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            tempWeatherString = "FEELS LIKE " + String(feels_like_buf) + unit + ", HUMIDITY " + String(currentWeatherData.humidity) + "%";
+                            if (currentWeatherData.apparentTemperature.isNull() || currentWeatherData.humidity.isNull()) {
+                                tempWeatherString = "FEELS LIKE DATA UNAVAILABLE";
+                            } else {
+                                char feels_like_buf[8];
+                                dtostrf(currentWeatherData.apparentTemperature.as<float>(), 1, 0, feels_like_buf);
+                                String unit = currentSettings.useMetricUnits ? "C" : "F";
+                                tempWeatherString = "FEELS LIKE " + String(feels_like_buf) + unit + ", HUMIDITY " + String(currentWeatherData.humidity.as<int>()) + "%";
+                            }
                             break;
                         }
                         case 6: { // Today's High/Low
-                            char high_buf[8], low_buf[8];
-                            dtostrf(currentWeatherData.dailyHigh, 1, 0, high_buf);
-                            dtostrf(currentWeatherData.dailyLow, 1, 0, low_buf);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            tempWeatherString = "TODAY HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit;
+                            if (currentWeatherData.dailyHigh.isNull() || currentWeatherData.dailyLow.isNull()) {
+                                tempWeatherString = "HIGH/LOW DATA UNAVAILABLE";
+                            } else {
+                                char high_buf[8], low_buf[8];
+                                dtostrf(currentWeatherData.dailyHigh.as<float>(), 1, 0, high_buf);
+                                dtostrf(currentWeatherData.dailyLow.as<float>(), 1, 0, low_buf);
+                                String unit = currentSettings.useMetricUnits ? "C" : "F";
+                                tempWeatherString = "TODAY HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit;
+                            }
                             break;
                         }
                     }
