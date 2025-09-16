@@ -84,10 +84,10 @@ This is where you configure the display rows to show live, real-time data from t
 #### Live Weather Display
 This mode transforms the "Last Time Departed" display row into a comprehensive, multi-page weather station. To activate it, simply enable the "Live Weather Display" toggle and enter a city name. The clock will automatically use the free [Open-Meteo API](https://open-meteo.com/) to find the city's coordinates and fetch the latest weather data. An internet connection is required, and the data automatically refreshes every 5 minutes.
 
-While fetching data, the display will show `WEA TH ER ----`. Once loaded, it will cycle through the following 5 pages of information, with each page scrolling across the display:
+While fetching data, the display will show `WEA TH ER ----`. Once loaded, it will cycle through the following 7 pages of information, with each page scrolling across the display:
 
 1.  **Current Conditions**
-    *   Displays the current temperature, feels-like temperature, and a description of the weather (e.g., "Partly Cloudy").
+    *   Displays the current temperature and a description of the weather (e.g., "Partly Cloudy").
     *   *Example: `CURRENTLY 72.5F, PARTLY CLOUDY`*
 
 2.  **Tomorrow's Forecast**
@@ -95,16 +95,24 @@ While fetching data, the display will show `WEA TH ER ----`. Once loaded, it wil
     *   *Example: `TOMORROW HIGH 80F, LOW 65F, CLEAR SKY`*
 
 3.  **Wind & Precipitation**
-    *   Details the maximum wind speed for the day and the probability of precipitation.
-    *   *Example: `WIND 15 MPH, PRECIPITATION 20%`*
+    *   Details the current wind speed, maximum wind gust for the day, and the probability of precipitation.
+    *   *Example: `WIND 10 MPH, MAX 25 MPH, PRECIP 20%`*
 
 4.  **Sunrise & Sunset**
-    *   Shows the local sunrise and sunset times.
-    *   *Example: `SUNRISE 630 AM, SUNSET 845 PM`*
+    *   Shows the local sunrise and sunset times, automatically formatted for 12/24 hour time.
+    *   *Example: `SUNRISE 630AM, SUNSET 845PM`*
 
 5.  **Hourly Forecast**
     *   Provides a look at the next 3 hours, showing the temperature and expected conditions for each hour.
-    *   *Example: `NEXT 3 HRS 71F CLEAR SKY, 70F CLEAR SKY, 69F PARTLY CLOUDY`*
+    *   *Example: `NEXT 3 HRS 71F CLEAR, 70F CLOUDY, 69F RAIN`*
+
+6.  **Feels Like & Humidity**
+    *   Displays the apparent ("feels like") temperature and the current relative humidity.
+    *   *Example: `FEELS LIKE 78F, HUMIDITY 55%`*
+
+7.  **Today's High & Low**
+    *   Shows the forecasted high and low temperatures for the current day.
+    *   *Example: `TODAY HIGH 82F, LOW 61F`*
 
 > 💡 **Metric vs. Imperial:** The units used (Celsius/Fahrenheit, KPH/MPH) are automatically determined by the "Use Metric Units" setting in this section.
 
