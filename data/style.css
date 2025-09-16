@@ -1686,3 +1686,48 @@ body.time-travel-active {
     animation: flip-disc 1s ease-in-out;
     transform-style: preserve-3d;
 }
+
+/* Styles for the Location Choice Modal */
+#locationChoiceModal .modal-content {
+    background-color: #222;
+    color: #eee;
+    border: 2px solid var(--accent-color, #ffc400);
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #fff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+#locationList {
+    list-style-type: none;
+    padding: 0;
+    margin: 20px 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#locationList li {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+#locationList li:hover {
+    background-color: var(--button-hover-bg, #009900);
+    color: #fff;
+}
+
+#locationList li:last-child {
+    border-bottom: none;
+}

@@ -521,19 +521,26 @@ function refreshWeatherData() {
     const loadingSpinner = document.querySelector('#weatherDisplay .loading-spinner-container');
     loadingSpinner.style.display = 'block';
 
-    fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`)
+    fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=10&language=en&format=json`)
         .then(response => response.json())
         .then(data => {
+            const loadingSpinner = document.querySelector('#weatherDisplay .loading-spinner-container');
             if (data && data.results && data.results.length > 0) {
-                const location = data.results[0];
-                const bestMatch = location.name;
-                correctedCityName = bestMatch; // Store validated name globally
-                cityInput.value = correctedCityName;
+                if (data.results.length === 1) {
+                    const location = data.results[0];
+                    const bestMatch = location.name;
+                    correctedCityName = bestMatch; // Store validated name globally
+                    cityInput.value = correctedCityName;
 
-                if (!isLoading) setSettingsChanged(true); // Enable the save button
+                    if (!isLoading) setSettingsChanged(true); // Enable the save button
 
-                showMessage(`City found: ${bestMatch}. Fetching weather...`, 'success');
-                triggerWeatherRefresh(bestMatch);
+                    showMessage(`City found: ${bestMatch}. Fetching weather...`, 'success');
+                    triggerWeatherRefresh(bestMatch);
+                } else {
+                    // Multiple results, show modal
+                    loadingSpinner.style.display = 'none';
+                    showLocationModal(data.results);
+                }
             } else {
                 correctedCityName = '';
                 preview.textContent = 'City not found.';
@@ -545,6 +552,7 @@ function refreshWeatherData() {
             console.error("CLIENT_DEBUG: Geocoding API error:", err);
             correctedCityName = '';
             preview.textContent = 'Could not verify city.';
+            const loadingSpinner = document.querySelector('#weatherDisplay .loading-spinner-container');
             loadingSpinner.style.display = 'none';
             showMessage('Error verifying city name. Check connection.', 'error');
         });
@@ -899,6 +907,77 @@ function handleFirmwareUpload(event) {
     };
 
     xhr.send(formData);
+}
+
+/**
+ * Shows a modal with a list of locations for the user to choose from.
+ * @param {Array} locations An array of location objects from the geocoding API.
+ */
+function showLocationModal(locations) {
+    const modal = document.getElementById('locationChoiceModal');
+    const list = document.getElementById('locationList');
+    const closeButton = modal.querySelector('.close-button');
+
+    // Clear previous results
+    list.innerHTML = '';
+
+    // Populate the list with new results
+    locations.forEach(location => {
+        const li = document.createElement('li');
+        // Construct a descriptive name, including admin regions if they exist
+        let displayName = `${location.name}, ${location.country}`;
+        const adminParts = [location.admin1, location.admin2, location.admin3, location.admin4].filter(Boolean);
+        if (adminParts.length > 0) {
+            displayName += ` (${adminParts.join(', ')})`;
+        }
+        li.textContent = displayName;
+        // Store the full location object in a data attribute
+        li.dataset.location = JSON.stringify(location);
+        li.addEventListener('click', handleLocationSelection);
+        list.appendChild(li);
+    });
+
+    // Function to close the modal
+    const closeModal = () => {
+        modal.style.display = 'none';
+    };
+
+    // Show the modal
+    modal.style.display = 'block';
+
+    // Add event listeners to close the modal
+    closeButton.onclick = closeModal;
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            closeModal();
+        }
+    };
+}
+
+/**
+ * Handles the user's selection from the location choice modal.
+ * @param {Event} event The click event from the list item.
+ */
+function handleLocationSelection(event) {
+    const li = event.currentTarget;
+    const location = JSON.parse(li.dataset.location);
+    const cityInput = document.getElementById('cityName');
+    const modal = document.getElementById('locationChoiceModal');
+
+    // Use the chosen location's name
+    const bestMatch = location.name;
+    correctedCityName = bestMatch;
+    cityInput.value = correctedCityName;
+
+    if (!isLoading) setSettingsChanged(true);
+
+    showMessage(`Selected: ${bestMatch}. Fetching weather...`, 'success');
+
+    // Hide the modal
+    modal.style.display = 'none';
+
+    // Trigger the weather refresh with the selected city name
+    triggerWeatherRefresh(bestMatch);
 }
 
 /**
