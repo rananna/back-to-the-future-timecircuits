@@ -12,6 +12,8 @@
 #include "DisplayManager.h"
 #include "LittleFS.h"
 #include "AnimationManager.h"
+#include "driver/periph_ctrl.h"
+#include "driver/i2c.h"
 
 void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str) {
     struct tm dest_timeinfo, present_timeinfo, last_time_departed_info;
@@ -115,6 +117,10 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  */
 bool setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
+    // First, reset the I2C buses to clear any potential lock-ups from a previous run.
+    resetI2CBus(0); // For I2C_1, which is on bus 0
+    resetI2CBus(1); // For I2C_2, which is on bus 1
+
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by setupPhysicalDisplay"); }
     // Configure I2C buses without starting them. Let the Adafruit library call begin().
     if (!i2c_initialized) {
@@ -1823,4 +1829,34 @@ void safe_printf(const char *format, ...) {
     }
 
     va_end(args); // Ensure va_end is always called once.
+}
+
+/**
+ * @brief Resets an I2C bus that may have locked up.
+ * @details This function uses low-level ESP-IDF calls to reset the I2C peripheral,
+ * which can clear a bus that has become stuck (e.g., a slave device holding SDA low).
+ * It resets the transmit and receive FIFOs and then resets the entire peripheral module.
+ * @param i2c_num The I2C port number (I2C_NUM_0 or I2C_NUM_1) to reset.
+ */
+void resetI2CBus(int i2c_num) {
+    if (i2c_num < 0 || i2c_num >= I2C_NUM_MAX) {
+        Log_printf(LOG_LEVEL_ERROR, "Invalid I2C port number for reset: %d", i2c_num);
+        return;
+    }
+
+    Log_printf(LOG_LEVEL_INFO, "Resetting I2C bus #%d...", i2c_num);
+
+    // Reset TX and RX FIFOs
+    i2c_reset_tx_fifo((i2c_port_t)i2c_num);
+    i2c_reset_rx_fifo((i2c_port_t)i2c_num);
+
+    // Reset the peripheral module
+    if (i2c_num == I2C_NUM_0) {
+        periph_module_reset(PERIPH_I2C0_MODULE);
+        I2C_1.reset();
+    } else if (i2c_num == I2C_NUM_1) {
+        periph_module_reset(PERIPH_I2C1_MODULE);
+        I2C_2.reset();
+    }
+    Log_printf(LOG_LEVEL_INFO, "I2C bus #%d reset.", i2c_num);
 }
