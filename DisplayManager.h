@@ -14,6 +14,15 @@ extern bool weatherDataUpdated;
 extern bool isRowInManualMode[3];
 extern std::string manualDisplayText[3][4];
 
+// Dirty flags and buffers for scrolling text
+extern bool isMarqueeBufferDirty;
+extern bool isWeatherBufferDirty;
+extern bool isMarqueeOverrideBufferDirty;
+
+extern std::string marqueeBuffer;
+extern std::string weatherBuffer;
+extern std::string marqueeOverrideBuffer;
+
 // MODIFIED: Function now accepts flags to control which rows are updated
 void updateNormalClockDisplay(bool updateDest = true, bool updatePres = true, bool updateLast = true);
 void updateMarqueeDisplay();

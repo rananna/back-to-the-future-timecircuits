@@ -480,6 +480,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = true;
             weatherDataUpdated = true; // Signal to the display manager
+            isWeatherBufferDirty = true;
             xSemaphoreGive(xDisplayDataMutex);
         }
     } else {
@@ -551,6 +552,7 @@ void fetchApiDataTask(void* p) {
 					if (!timeVar.isNull()) displayPages[index].time = timeVar.as<String>().c_str();
 					lastGoodDisplayPages[index] = displayPages[index];
 					dataPointFetchFailures[index] = 0;
+                    isMarqueeBufferDirty = true; // Mark the buffer as dirty
 					xSemaphoreGive(xDisplayDataMutex);
                 }
 			} else {

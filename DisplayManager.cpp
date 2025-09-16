@@ -12,6 +12,16 @@
 #include "DisplayManager.h"
 #include "DataManager.h"
 #include "EventManager.h"
+#include <string>
+
+// Define and initialize the dirty flags and buffers for scrolling text
+bool isMarqueeBufferDirty = true;
+bool isWeatherBufferDirty = true;
+bool isMarqueeOverrideBufferDirty = true;
+
+std::string marqueeBuffer;
+std::string weatherBuffer;
+std::string marqueeOverrideBuffer;
 #include "HardwareControl.h"
 
 // Forward declaration for the timeout handler in the main .ino file
@@ -29,7 +39,6 @@ const int WEATHER_TASK_STACK_SIZE = 8192;
 // File-scoped state variables for the weather display state machine
 static WeatherDisplayState weatherState = WD_START_PAGE;
 static int weatherPage = 0;
-static String weatherScrollText;
 static int weatherScrollPosition = 0;
 static unsigned long lastWeatherUpdate = 0;
 
@@ -155,24 +164,29 @@ void displayMarqueeOverride() {
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        String textToDisplay = marqueeOverrideMessage;
+        static int marqueeOverrideScrollPosition = 0;
+        static unsigned long lastScrollTime = 0;
 
-        if (textToDisplay.length() > 13) {
-            textToDisplay = "  " + textToDisplay + "  ";
+        // If the data has changed, rebuild the buffer
+        if (isMarqueeOverrideBufferDirty) {
+            marqueeOverrideBuffer = "  " + marqueeOverrideMessage + "  ";
+            marqueeOverrideScrollPosition = 0;
+            isMarqueeOverrideBufferDirty = false;
         }
 
-        static unsigned long lastScrollTime = 0;
-        static int scrollPosition = 0;
-
-        if (millis() - lastScrollTime > currentSettings.dataPoints[currentPageIndex].scrollSpeed) {
+        // Animation logic using the buffer
+        if (millis() - lastScrollTime > 150) { // Using a fixed scroll speed for now
             lastScrollTime = millis();
 
-            String viewport = textToDisplay.substring(scrollPosition, scrollPosition + 13);
+            // No need to check length here, substring handles it.
+            std::string viewport_str = marqueeOverrideBuffer.substr(marqueeOverrideScrollPosition, 13);
+            const char* viewport = viewport_str.c_str();
+
             if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                printToDisplay(lastRow.month, viewport.substring(0, 3).c_str(), 0);
-                printToDisplay(lastRow.day, viewport.substring(3, 5).c_str(), 0);
-                printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
-                printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
+                printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 0);
+                printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 0);
+                printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
+                printToDisplay(lastRow.time, std::string(viewport).substr(9, 13).c_str(), 0);
 
                 lastRow.month.writeDisplay();
                 lastRow.day.writeDisplay();
@@ -182,13 +196,12 @@ void displayMarqueeOverride() {
                 xSemaphoreGive(xDisplayHardwareMutex);
             }
 
-            if (textToDisplay.length() > 13) {
-                scrollPosition++;
-                if (scrollPosition > textToDisplay.length() - 13) {
-                    scrollPosition = 0;
+            // Update scroll position
+            if (marqueeOverrideBuffer.length() > 13) {
+                marqueeOverrideScrollPosition++;
+                if (marqueeOverrideScrollPosition > marqueeOverrideBuffer.length() - 13) {
+                    marqueeOverrideScrollPosition = 0;
                 }
-            } else {
-                scrollPosition = 0;
             }
         }
         xSemaphoreGive(xDisplayDataMutex);
@@ -424,8 +437,7 @@ void handleWeatherDisplay() {
             // If there's a specific error reason, switch to the error state.
             if (!currentWeatherData.errorReason.empty() && weatherState != WD_ERROR) {
                 weatherState = WD_ERROR;
-                weatherScrollText = "WEATHER ERROR: " + String(currentWeatherData.errorReason.c_str());
-                weatherScrollText = "             " + weatherScrollText;
+                weatherBuffer = "             WEATHER ERROR: " + currentWeatherData.errorReason;
                 weatherScrollPosition = 0;
                 lastWeatherUpdate = millis(); // Start the timer for the error display
             }
@@ -487,14 +499,14 @@ void handleWeatherDisplay() {
                 xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, &weatherTaskHandle);
             }
 
-            if (weatherDataUpdated) {
+            if (weatherDataUpdated || isWeatherBufferDirty) {
                 weatherState = WD_START_PAGE;
                 weatherPage = 0;
                 weatherDataUpdated = false;
+                isWeatherBufferDirty = false;
                 initialFetchTriggered = false;
                 initialFetchStartTime = 0;
                 initialFetchTimedOut = false;
-                // The task has completed and will delete itself. Nullify our handle to it so we don't try to use it.
                 if (weatherTaskHandle != NULL) {
                     weatherTaskHandle = NULL;
                 }
@@ -504,18 +516,18 @@ void handleWeatherDisplay() {
                 case WD_ERROR: {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
-                        String tempScrollText = weatherScrollText + "             ";
-                        viewport = tempScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
+                        std::string tempScrollText = weatherBuffer + "             ";
+                        std::string viewport_str = tempScrollText.substr(weatherScrollPosition, 13);
+                        const char* viewport = viewport_str.c_str();
 
-                        printToDisplay(lastRow.month, viewport.substring(0, 3).c_str(), 1);
-                        printToDisplay(lastRow.day, viewport.substring(3, 5).c_str(), 2);
-                        printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
-                        printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
+                        printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 1);
+                        printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 2);
+                        printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
+                        printToDisplay(lastRow.time, std::string(viewport).substr(9, 13).c_str(), 0);
                         shouldWriteToDisplay = true;
 
                         weatherScrollPosition++;
-                        // When the full message has scrolled, pause, then reset to try again.
-                        if (weatherScrollPosition > weatherScrollText.length()) {
+                        if (weatherScrollPosition > weatherBuffer.length()) {
                             if (millis() - lastWeatherUpdate > errorRetryDelay) {
                                 currentWeatherData.errorReason = ""; // Clear reason
                                 weatherState = WD_START_PAGE;
@@ -527,7 +539,6 @@ void handleWeatherDisplay() {
                 }
                 case WD_START_PAGE: {
                     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                        // Clear the row before displaying new data
                         printToDisplay(lastRow.month, "   ", 0);
                         printToDisplay(lastRow.day, "  ", 0);
                         printToDisplay(lastRow.year, "    ", 0);
@@ -540,12 +551,13 @@ void handleWeatherDisplay() {
                         xSemaphoreGive(xDisplayHardwareMutex);
                     }
                     char buffer[20];
+                    String tempWeatherString;
                     switch (weatherPage) {
                         case 0: { // Current Weather
                             dtostrf(currentWeatherData.temperature, 4, 1, buffer);
                             const char* desc = getWeatherDescriptionForCode(currentWeatherData.weatherCode);
                             String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "CURRENTLY " + String(buffer) + unit + ", " + desc;
+                            tempWeatherString = "CURRENTLY " + String(buffer) + unit + ", " + desc;
                             break;
                         }
                         case 1: { // Tomorrow's Forecast
@@ -554,21 +566,19 @@ void handleWeatherDisplay() {
                             dtostrf(currentWeatherData.tomorrowLow, 1, 0, low_buf);
                             const char* desc = getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode);
                             String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "TOMORROW HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit + ", " + desc;
+                            tempWeatherString = "TOMORROW HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit + ", " + desc;
                             break;
                         }
                         case 2: { // Wind & Rain
                             String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
-                            weatherScrollText = "WIND " + String((int)currentWeatherData.windSpeed) + " " + windUnit +
+                            tempWeatherString = "WIND " + String((int)currentWeatherData.windSpeed) + " " + windUnit +
                                               ", MAX " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
                                               ", PRECIP " + String(currentWeatherData.precipitationProbability) + "%";
                             break;
                         }
                         case 3: { // Sunrise & Sunset
                             struct tm timeinfo;
-                            char timeBuffer[8]; // Holds "HMMAM" or "HHMMAM" + null
-
-                            // Manually format sunrise time to avoid locale issues with %p
+                            char timeBuffer[8];
                             localtime_r(&currentWeatherData.sunrise, &timeinfo);
                             int sunriseHour = timeinfo.tm_hour;
                             const char* sunriseAmpm = (sunriseHour >= 12) ? "PM" : "AM";
@@ -576,8 +586,6 @@ void handleWeatherDisplay() {
                             if (sunriseHour == 0) sunriseHour = 12;
                             sprintf(timeBuffer, "%d%02d%s", sunriseHour, timeinfo.tm_min, sunriseAmpm);
                             String sunriseStr(timeBuffer);
-
-                            // Manually format sunset time
                             localtime_r(&currentWeatherData.sunset, &timeinfo);
                             int sunsetHour = timeinfo.tm_hour;
                             const char* sunsetAmpm = (sunsetHour >= 12) ? "PM" : "AM";
@@ -585,21 +593,20 @@ void handleWeatherDisplay() {
                             if (sunsetHour == 0) sunsetHour = 12;
                             sprintf(timeBuffer, "%d%02d%s", sunsetHour, timeinfo.tm_min, sunsetAmpm);
                             String sunsetStr(timeBuffer);
-
-                            weatherScrollText = "SUNRISE " + sunriseStr + ", SUNSET " + sunsetStr;
+                            tempWeatherString = "SUNRISE " + sunriseStr + ", SUNSET " + sunsetStr;
                             break;
                         }
                         case 4: { // Hourly Forecast
                             String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "NEXT 3 HRS ";
+                            tempWeatherString = "NEXT 3 HRS ";
                             for (int i = 0; i < 3; ++i) {
                                 if (currentWeatherData.hourlyCode[i] != -1) {
                                     char temp_buf[8];
                                     dtostrf(currentWeatherData.hourlyTemp[i], 1, 0, temp_buf);
                                     const char* desc = getWeatherDescriptionForCode(currentWeatherData.hourlyCode[i]);
-                                    weatherScrollText += String(temp_buf) + unit + " " + desc;
+                                    tempWeatherString += String(temp_buf) + unit + " " + desc;
                                     if (i < 2) {
-                                        weatherScrollText += ", ";
+                                        tempWeatherString += ", ";
                                     }
                                 }
                             }
@@ -609,7 +616,7 @@ void handleWeatherDisplay() {
                             char feels_like_buf[8];
                             dtostrf(currentWeatherData.apparentTemperature, 1, 0, feels_like_buf);
                             String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "FEELS LIKE " + String(feels_like_buf) + unit + ", HUMIDITY " + String(currentWeatherData.humidity) + "%";
+                            tempWeatherString = "FEELS LIKE " + String(feels_like_buf) + unit + ", HUMIDITY " + String(currentWeatherData.humidity) + "%";
                             break;
                         }
                         case 6: { // Today's High/Low
@@ -617,11 +624,11 @@ void handleWeatherDisplay() {
                             dtostrf(currentWeatherData.dailyHigh, 1, 0, high_buf);
                             dtostrf(currentWeatherData.dailyLow, 1, 0, low_buf);
                             String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            weatherScrollText = "TODAY HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit;
+                            tempWeatherString = "TODAY HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit;
                             break;
                         }
                     }
-                    weatherScrollText = "             " + weatherScrollText;
+                    weatherBuffer = "             " + std::string(tempWeatherString.c_str());
                     weatherScrollPosition = 0;
                     weatherState = WD_SCROLLING;
                     lastWeatherUpdate = millis();
@@ -630,20 +637,18 @@ void handleWeatherDisplay() {
                 case WD_SCROLLING: {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
-                        String tempScrollText = weatherScrollText + "             ";
-                        viewport = tempScrollText.substring(weatherScrollPosition, weatherScrollPosition + 13);
+                        std::string tempScrollText = weatherBuffer + "             ";
+                        std::string viewport_str = tempScrollText.substr(weatherScrollPosition, 13);
+                        const char* viewport = viewport_str.c_str();
 
-                        String monthStr = viewport.substring(0, 3);
-                        String dayStr = viewport.substring(3, 5);
-
-                        printToDisplay(lastRow.month, monthStr.c_str(), 1);
-                        printToDisplay(lastRow.day, dayStr.c_str(), 2);
-                        printToDisplay(lastRow.year, viewport.substring(5, 9).c_str(), 0);
-                        printToDisplay(lastRow.time, viewport.substring(9, 13).c_str(), 0);
+                        printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 1);
+                        printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 2);
+                        printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
+                        printToDisplay(lastRow.time, std::string(viewport).substr(9, 13).c_str(), 0);
                         shouldWriteToDisplay = true;
 
                         weatherScrollPosition++;
-                        if (weatherScrollPosition > weatherScrollText.length()) {
+                        if (weatherScrollPosition > weatherBuffer.length()) {
                             weatherState = WD_PAUSING;
                             lastWeatherUpdate = millis();
                         }
@@ -679,12 +684,11 @@ void handleWeatherDisplay() {
 void updateMarqueeDisplay() {
 #if ENABLE_HARDWARE
     DisplayRow* targetRow = &lastRow;
-    String timeCanvas, yearCanvas;
+    static int marqueeScrollPosition = 0;
+    static int marqueeScrollPositionYear = 0;
 
-    // ✅ FIX: Add this check at the beginning of the function.
     if (currentSettings.numDataPoints == 0) {
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            // If there's nothing to display, just show a blank or default state.
             printToDisplay(targetRow->month, "NO");
             printToDisplay(targetRow->day, "DATA", 2);
             printToDisplay(targetRow->year, "POINTS");
@@ -696,21 +700,29 @@ void updateMarqueeDisplay() {
             vTaskDelay(pdMS_TO_TICKS(2));
             xSemaphoreGive(xDisplayHardwareMutex);
         }
-        return; // Exit the function to prevent the crash.
+        return;
     }
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (marqueeState == M_IDLE) {
-            // This line is now safe because we already checked numDataPoints.
             currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
             marqueeScrollPosition = 0;
             marqueeScrollPositionYear = 0;
+            isMarqueeBufferDirty = true; // Force a rebuild for the new page
             marqueeState = M_PAUSED;
             lastMarqueeStateChange = millis();
         }
 
-        // ... the rest of the function remains the same ...
         DataPoint point = currentSettings.dataPoints[currentPageIndex];
+        static std::string yearBuffer, timeBuffer;
+
+        if (isMarqueeBufferDirty) {
+            std::string yearContent = point.yearPrefix + displayPages[currentPageIndex].year + point.yearSuffix;
+            std::string timeContent = point.prefix + displayPages[currentPageIndex].time + point.suffix;
+            yearBuffer = "   " + yearContent + "   ";
+            timeBuffer = "   " + timeContent + "   ";
+            isMarqueeBufferDirty = false;
+        }
 
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
             printToDisplay(targetRow->month, displayPages[currentPageIndex].month.c_str());
@@ -719,30 +731,13 @@ void updateMarqueeDisplay() {
             } else {
                 printToDisplay(targetRow->day, displayPages[currentPageIndex].day.c_str(), 2);
             }
-            xSemaphoreGive(xDisplayHardwareMutex);
-        }
 
-        std::string yearContent = point.yearPrefix + displayPages[currentPageIndex].year + point.yearSuffix;
-        std::string timeContent = point.prefix + displayPages[currentPageIndex].time + point.suffix;
-        
-        xSemaphoreGive(xDisplayDataMutex);
+            std::string yearViewport = yearBuffer.substr(marqueeScrollPositionYear, 4);
+            printToDisplay(targetRow->year, yearViewport.c_str());
 
-        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            yearCanvas = "   " + String(yearContent.c_str()) + "   ";
-            if (yearCanvas.length() <= 4) {
-                printToDisplay(targetRow->year, yearCanvas.c_str());
-            } else {
-                String yearViewport = yearCanvas.substring(marqueeScrollPositionYear, marqueeScrollPositionYear + 4);
-                printToDisplay(targetRow->year, yearViewport.c_str());
-            }
+            std::string timeViewport = timeBuffer.substr(marqueeScrollPosition, 4);
+            printToDisplay(targetRow->time, timeViewport.c_str());
 
-            timeCanvas = "   " + String(timeContent.c_str()) + "   ";
-            if (timeCanvas.length() <= 4) {
-                printToDisplay(targetRow->time, timeCanvas.c_str());
-            } else {
-                String viewport = timeCanvas.substring(marqueeScrollPosition, marqueeScrollPosition + 4);
-                printToDisplay(targetRow->time, viewport.c_str());
-            }
             xSemaphoreGive(xDisplayHardwareMutex);
         }
 
@@ -756,18 +751,18 @@ void updateMarqueeDisplay() {
             bool timeDone = false;
             bool yearDone = false;
 
-            if (timeCanvas.length() > 4) {
+            if (timeBuffer.length() > 4) {
                 marqueeScrollPosition++;
-                if (marqueeScrollPosition > timeCanvas.length() - 4) {
+                if (marqueeScrollPosition > timeBuffer.length() - 4) {
                     timeDone = true;
                 }
             } else {
                 timeDone = true;
             }
 
-            if (yearCanvas.length() > 4) {
+            if (yearBuffer.length() > 4) {
                 marqueeScrollPositionYear++;
-                if (marqueeScrollPositionYear > yearCanvas.length() - 4) {
+                if (marqueeScrollPositionYear > yearBuffer.length() - 4) {
                     yearDone = true;
                 }
             } else {
@@ -778,6 +773,7 @@ void updateMarqueeDisplay() {
                 marqueeState = M_IDLE;
             }
         }
+
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
             targetRow->month.writeDisplay();
             targetRow->day.writeDisplay();
@@ -786,6 +782,7 @@ void updateMarqueeDisplay() {
             vTaskDelay(pdMS_TO_TICKS(2));
             xSemaphoreGive(xDisplayHardwareMutex);
         }
+        xSemaphoreGive(xDisplayDataMutex);
     }
 #endif
 }
