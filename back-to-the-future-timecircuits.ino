@@ -270,7 +270,7 @@ void applySettingsFromJson(const JsonObject& obj);
 // This helper function now contains the memory-intensive JSON parsing.
 // It returns true on success and false on failure.
 bool applyAndSaveSettings() {
-    DynamicJsonDocument doc(8192);
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, settingsToSaveJson);
 
     // Clear the large JSON string from memory as soon as it has been parsed.
@@ -357,7 +357,7 @@ void applySettingsFromJson(const JsonObject& obj) {
 
     // --- Input Validation Lambdas ---
     auto validateAndSet = [&](const char* key, int& setting, int min, int max) {
-        if (obj.containsKey(key)) {
+        if (!obj[key].isNull()) {
             int value = obj[key].as<int>();
             if (value >= min && value <= max) {
                 setting = value;
@@ -367,7 +367,7 @@ void applySettingsFromJson(const JsonObject& obj) {
         }
     };
     auto validateAndSetUChar = [&](const char* key, uint8_t& setting, uint8_t min, uint8_t max) {
-        if (obj.containsKey(key)) {
+        if (!obj[key].isNull()) {
             uint8_t value = obj[key].as<uint8_t>();
             if (value >= min && value <= max) {
                 setting = value;
@@ -412,17 +412,17 @@ void applySettingsFromJson(const JsonObject& obj) {
     validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
     validateAndSet("animationStyle", currentSettings.animationStyle, 0, 22);
     validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
-    if (obj.containsKey("timeTravelSoundToggle")) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
+    if (!obj["timeTravelSoundToggle"].isNull()) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
     validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
-    if (obj.containsKey("displayFormat24h")) currentSettings.displayFormat24h = obj["displayFormat24h"];
-    if (obj.containsKey("dataLinkEnabled")) currentSettings.dataLinkEnabled = obj["dataLinkEnabled"];
+    if (!obj["displayFormat24h"].isNull()) currentSettings.displayFormat24h = obj["displayFormat24h"];
+    if (!obj["dataLinkEnabled"].isNull()) currentSettings.dataLinkEnabled = obj["dataLinkEnabled"];
     currentSettings.dataLinkRefreshInterval = obj["dataLinkRefreshInterval"] | currentSettings.dataLinkRefreshInterval;
-    if (obj.containsKey("mqttBroker")) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
+    if (!obj["mqttBroker"].isNull()) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
     currentSettings.mqttPort = obj["mqttPort"] | 1883;
-    if (obj.containsKey("mqttUser")) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
-    if (obj.containsKey("mqttPassword")) currentSettings.mqttPassword = obj["mqttPassword"].as<std::string>();
+    if (!obj["mqttUser"].isNull()) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
+    if (!obj["mqttPassword"].isNull()) currentSettings.mqttPassword = obj["mqttPassword"].as<std::string>();
     currentSettings.weatherModeEnabled = obj["weatherModeEnabled"] | currentSettings.weatherModeEnabled;
-    if (obj.containsKey("cityName")) {
+    if (!obj["cityName"].isNull()) {
         std::string newCityName = obj["cityName"].as<std::string>();
         if (newCityName != oldCityName) {
             lastCityName = "";
@@ -435,38 +435,38 @@ void applySettingsFromJson(const JsonObject& obj) {
     }
     currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
     currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
-    if (obj.containsKey("financialModelingPrepApiKey")) {
+    if (!obj["financialModelingPrepApiKey"].isNull()) {
         currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
     }
-    if (obj.containsKey("stockRow1_symbol")) currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
-    if (obj.containsKey("stockRow2_symbol")) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
-    if (obj.containsKey("stockRow3_symbol")) currentSettings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
+    if (!obj["stockRow1_symbol"].isNull()) currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
+    if (!obj["stockRow2_symbol"].isNull()) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
+    if (!obj["stockRow3_symbol"].isNull()) currentSettings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
 
     int numPoints = obj["numDataPoints"] | 0;
     currentSettings.numDataPoints = (numPoints < 0) ? 0 : (numPoints > 5 ? 5 : numPoints);
-    if (obj.containsKey("dataPoints")) {
+    if (!obj["dataPoints"].isNull()) {
         JsonArray dataPoints = obj["dataPoints"];
         for (int i = 0; i < 5; i++) {
             if (i < currentSettings.numDataPoints && i < dataPoints.size()) {
                 JsonObject dp = dataPoints[i];
-                if (dp.containsKey("dataSourceType")) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
-                if (dp.containsKey("url")) currentSettings.dataPoints[i].url = dp["url"].as<std::string>();
-                if (dp.containsKey("monthPath")) currentSettings.dataPoints[i].monthPath = dp["monthPath"].as<std::string>();
-                if (dp.containsKey("dayPath")) currentSettings.dataPoints[i].dayPath = dp["dayPath"].as<std::string>();
-                if (dp.containsKey("yearPath")) currentSettings.dataPoints[i].yearPath = dp["yearPath"].as<std::string>();
-                if (dp.containsKey("timePath")) currentSettings.dataPoints[i].timePath = dp["timePath"].as<std::string>();
-                if (dp.containsKey("prefix")) currentSettings.dataPoints[i].prefix = dp["prefix"].as<std::string>();
-                if (dp.containsKey("suffix")) currentSettings.dataPoints[i].suffix = dp["suffix"].as<std::string>();
-                if (dp.containsKey("icon")) currentSettings.dataPoints[i].icon = dp["icon"].as<std::string>();
+                if (!dp["dataSourceType"].isNull()) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
+                if (!dp["url"].isNull()) currentSettings.dataPoints[i].url = dp["url"].as<std::string>();
+                if (!dp["monthPath"].isNull()) currentSettings.dataPoints[i].monthPath = dp["monthPath"].as<std::string>();
+                if (!dp["dayPath"].isNull()) currentSettings.dataPoints[i].dayPath = dp["dayPath"].as<std::string>();
+                if (!dp["yearPath"].isNull()) currentSettings.dataPoints[i].yearPath = dp["yearPath"].as<std::string>();
+                if (!dp["timePath"].isNull()) currentSettings.dataPoints[i].timePath = dp["timePath"].as<std::string>();
+                if (!dp["prefix"].isNull()) currentSettings.dataPoints[i].prefix = dp["prefix"].as<std::string>();
+                if (!dp["suffix"].isNull()) currentSettings.dataPoints[i].suffix = dp["suffix"].as<std::string>();
+                if (!dp["icon"].isNull()) currentSettings.dataPoints[i].icon = dp["icon"].as<std::string>();
                 currentSettings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
-                if (dp.containsKey("mqttTopic")) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
-                if (dp.containsKey("yearPrefix")) currentSettings.dataPoints[i].yearPrefix = dp["yearPrefix"].as<std::string>();
-                if (dp.containsKey("yearSuffix")) currentSettings.dataPoints[i].yearSuffix = dp["yearSuffix"].as<std::string>();
-                if (dp.containsKey("displayMode")) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
-                if (dp.containsKey("scrollingText")) currentSettings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
-                if (dp.containsKey("authHeaderKey")) currentSettings.dataPoints[i].authHeaderKey = dp["authHeaderKey"].as<std::string>();
-                if (dp.containsKey("authHeaderValue")) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
-                if (dp.containsKey("apiExampleKey")) currentSettings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
+                if (!dp["mqttTopic"].isNull()) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
+                if (!dp["yearPrefix"].isNull()) currentSettings.dataPoints[i].yearPrefix = dp["yearPrefix"].as<std::string>();
+                if (!dp["yearSuffix"].isNull()) currentSettings.dataPoints[i].yearSuffix = dp["yearSuffix"].as<std::string>();
+                if (!dp["displayMode"].isNull()) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
+                if (!dp["scrollingText"].isNull()) currentSettings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
+                if (!dp["authHeaderKey"].isNull()) currentSettings.dataPoints[i].authHeaderKey = dp["authHeaderKey"].as<std::string>();
+                if (!dp["authHeaderValue"].isNull()) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
+                if (!dp["apiExampleKey"].isNull()) currentSettings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
             } else {
                 currentSettings.dataPoints[i] = {}; // Clear unused data points
             }
@@ -1231,7 +1231,7 @@ std::vector<Preset> getFullPresetList() {
     String presetsJson = preferences.getString("customPresets", "[]");
     preferences.end();
 
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, presetsJson);
 
     if (!error) {
