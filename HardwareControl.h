@@ -269,4 +269,5 @@ void animateElectricSurge(unsigned long elapsed, int duration, const char* dest_
 void animateFlipDiscDisplay(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
 void animateInterferencePattern(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str);
 void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str);
+void resetI2CBus(int i2c_num);
 #endif // HARDWARE_CONTROL_H
