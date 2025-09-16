@@ -239,15 +239,15 @@ static bool fetchWeatherDataFromApi() {
             // be several kilobytes. This dramatically reduces heap fragmentation and
             // prevents crashes related to memory exhaustion. The size of the filter
             // document itself is small and allocated on the stack.
-            StaticJsonDocument<1024> filter;
+            JsonDocument filter;
             filter["error"] = true;
-            JsonObject current_filter = filter.createNestedObject("current");
+            JsonObject current_filter = filter["current"].to<JsonObject>();
             current_filter["temperature_2m"] = true;
             current_filter["relative_humidity_2m"] = true;
             current_filter["apparent_temperature"] = true;
             current_filter["weather_code"] = true;
             current_filter["wind_speed_10m"] = true;
-            JsonObject daily_filter = filter.createNestedObject("daily");
+            JsonObject daily_filter = filter["daily"].to<JsonObject>();
             daily_filter["temperature_2m_max"] = true;
             daily_filter["temperature_2m_min"] = true;
             daily_filter["weather_code"] = true;
@@ -255,7 +255,7 @@ static bool fetchWeatherDataFromApi() {
             daily_filter["sunset"] = true;
             daily_filter["precipitation_probability_max"] = true;
             daily_filter["wind_speed_10m_max"] = true;
-            JsonObject hourly_filter = filter.createNestedObject("hourly");
+            JsonObject hourly_filter = filter["hourly"].to<JsonObject>();
             hourly_filter["time"] = true;
             hourly_filter["temperature_2m"] = true;
             hourly_filter["weather_code"] = true;
