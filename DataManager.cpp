@@ -12,6 +12,7 @@
 #include "DataManager.h"
 #include "EventManager.h"
 #include "DisplayManager.h"
+#include "web_server.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 extern bool weatherDataUpdated;
@@ -482,6 +483,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
             weatherDataUpdated = true; // Signal to the display manager
             isWeatherBufferDirty = true;
             xSemaphoreGive(xDisplayDataMutex);
+            broadcastWeatherUpdate(); // Push the new data to the UI
         }
     } else {
         Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed for %s.", taskCityName.c_str());
