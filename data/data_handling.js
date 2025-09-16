@@ -114,6 +114,9 @@ function initWebSocket() {
                  button.textContent = 'Fetch';
              }
             updateStockPreview(msg.status, msg.payload, msg.rowIndex);
+        } else if (msg.action === 'weatherUpdate') {
+            console.log("CLIENT_DEBUG: Received weatherUpdate:", msg.data);
+            updateWeatherUI(msg.data);
         } else if (msg.action === 'uploadProgress') {
             const progressBar = document.getElementById(`${msg.type}-progress-bar`);
             const statusMessage = document.getElementById(`${msg.type}-status-message`);
@@ -604,6 +607,59 @@ function getWeatherIcon(code) {
 /**
  * Fetches the current weather data from the server.
  */
+function updateWeatherUI(data) {
+    const weatherDisplay = document.getElementById('weatherDisplay');
+    const preview = document.getElementById('weatherPreview');
+
+    // Get the units based on the user's preference
+    const isMetric = document.getElementById('useMetricUnits').checked;
+    const tempUnit = isMetric ? '°C' : '°F';
+    const speedUnit = isMetric ? ' km/h' : ' mph';
+
+    // Update the weather display with the fetched data
+    weatherDisplay.style.display = 'grid';
+    document.getElementById('weatherTemp').textContent = `${data.temperature.toFixed(1)}${tempUnit}`;
+    document.getElementById('weatherFeelsLike').textContent = `${data.apparentTemperature.toFixed(1)}${tempUnit}`;
+    document.getElementById('weatherHumidity').textContent = `${data.humidity}%`;
+    document.getElementById('weatherWind').textContent = `${data.windSpeed.toFixed(1)}${speedUnit}`;
+    document.getElementById('weatherHighLow').textContent = `${data.dailyHigh.toFixed(0)}° / ${data.dailyLow.toFixed(0)}°`;
+    document.getElementById('weatherLatitude').textContent = data.latitude.toFixed(4);
+    document.getElementById('weatherLongitude').textContent = data.longitude.toFixed(4);
+
+    // Use the corrected city name if available, otherwise use the value from the input
+    const displayCity = correctedCityName || document.getElementById('cityName').value;
+    preview.textContent = `Live data for ${displayCity}: ${data.temperature.toFixed(1)}${tempUnit}`;
+
+    // Build the hourly forecast display
+    const hourlyContainer = document.getElementById('hourlyForecastContainer');
+    hourlyContainer.innerHTML = '';
+    const now = new Date();
+    let currentHour = now.getHours();
+
+    data.hourly.forEach((hour, index) => {
+        let forecastHour = (currentHour + index + 1) % 24;
+        let ampm = forecastHour >= 12 ? 'PM' : 'AM';
+        let displayHour = forecastHour % 12;
+        if (displayHour === 0) displayHour = 12;
+
+        const item = document.createElement('div');
+        item.className = 'hourly-item';
+        item.innerHTML = `
+            <div class="hourly-time">${displayHour} ${ampm}</div>
+            <div class="hourly-icon">${getWeatherIcon(hour.code)}</div>
+            <div class="hourly-temp">${hour.temp.toFixed(0)}°</div>
+        `;
+        hourlyContainer.appendChild(item);
+    });
+
+    // Hide the loading spinner
+    const loadingSpinner = weatherDisplay.querySelector('.loading-spinner-container');
+    loadingSpinner.style.display = 'none';
+}
+
+/**
+ * Fetches the current weather data from the server.
+ */
 function fetchWeatherData() {
     // If weather mode is not enabled, hide the weather display
     if (!document.getElementById('weatherModeEnabled').checked) {
@@ -612,69 +668,24 @@ function fetchWeatherData() {
     }
 
     // Show a loading spinner
-    const weatherDisplay = document.getElementById('weatherDisplay');
-    const loadingSpinner = weatherDisplay.querySelector('.loading-spinner-container');
-    const preview = document.getElementById('weatherPreview');
+    const loadingSpinner = document.getElementById('weatherDisplay').querySelector('.loading-spinner-container');
     loadingSpinner.style.display = 'block';
 
     // Fetch the weather data
     fetch('/api/weather')
         .then(res => {
             if (res.ok) {
-                return res.json().then(data => ({...data, ok: true}));
+                return res.json();
             }
             // If the response is not ok, parse the error JSON and pass it along
-            return res.json().then(errorData => Promise.reject({ ...errorData, ok: false }));
+            return res.json().then(errorData => Promise.reject(errorData));
         })
         .then(data => {
-            if (data.ok) {
-                // Get the units based on the user's preference
-                const isMetric = document.getElementById('useMetricUnits').checked;
-                const tempUnit = isMetric ? '°C' : '°F';
-                const speedUnit = isMetric ? ' km/h' : ' mph';
-
-                // Update the weather display with the fetched data
-                weatherDisplay.style.display = 'grid';
-                document.getElementById('weatherTemp').textContent = `${data.temperature.toFixed(1)}${tempUnit}`;
-                document.getElementById('weatherFeelsLike').textContent = `${data.apparentTemperature.toFixed(1)}${tempUnit}`;
-                document.getElementById('weatherHumidity').textContent = `${data.humidity}%`;
-                document.getElementById('weatherWind').textContent = `${data.windSpeed.toFixed(1)}${speedUnit}`;
-                document.getElementById('weatherHighLow').textContent = `${data.dailyHigh.toFixed(0)}° / ${data.dailyLow.toFixed(0)}°`;
-                document.getElementById('weatherLatitude').textContent = data.latitude.toFixed(4);
-                document.getElementById('weatherLongitude').textContent = data.longitude.toFixed(4);
-
-                // Use the corrected city name if available, otherwise use the value from the input
-                const displayCity = correctedCityName || document.getElementById('cityName').value;
-
-                preview.textContent = `Live data for ${displayCity}: ${data.temperature.toFixed(1)}${tempUnit}`;
-
-                // Build the hourly forecast display
-                const hourlyContainer = document.getElementById('hourlyForecastContainer');
-                hourlyContainer.innerHTML = '';
-                const now = new Date();
-                let currentHour = now.getHours();
-
-                data.hourly.forEach((hour, index) => {
-                    let forecastHour = (currentHour + index + 1) % 24;
-                    let ampm = forecastHour >= 12 ? 'PM' : 'AM';
-                    let displayHour = forecastHour % 12;
-                    if (displayHour === 0) displayHour = 12;
-
-                    const item = document.createElement('div');
-                    item.className = 'hourly-item';
-                    item.innerHTML = `
-                        <div class="hourly-time">${displayHour} ${ampm}</div>
-                        <div class="hourly-icon">${getWeatherIcon(hour.code)}</div>
-                        <div class="hourly-temp">${hour.temp.toFixed(0)}°</div>
-                    `;
-                    hourlyContainer.appendChild(item);
-                });
-            } else {
-                // This block is now reachable if res.ok was false
-                throw data;
-            }
+            updateWeatherUI(data);
         })
         .catch(error => {
+            const weatherDisplay = document.getElementById('weatherDisplay');
+            const preview = document.getElementById('weatherPreview');
             console.warn("CLIENT_DEBUG: Could not fetch weather data:", error);
             weatherDisplay.style.display = 'grid';
             ['weatherTemp', 'weatherFeelsLike', 'weatherHumidity', 'weatherWind', 'weatherHighLow'].forEach(id => {
@@ -684,8 +695,7 @@ function fetchWeatherData() {
 
             // Use the reason from the parsed error object, or a default message
             preview.textContent = error.reason || 'Data not available. Check city name.';
-        })
-        .finally(() => {
+
             // Hide the loading spinner
             loadingSpinner.style.display = 'none';
         });

@@ -138,6 +138,47 @@ void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
 }
 
 /**
+ * @brief Broadcasts the latest weather data to all connected WebSocket clients.
+ * @details This function is called whenever new weather data is successfully fetched.
+ * It serializes the `currentWeatherData` struct into a JSON object and sends it
+ * to the UI to update the weather display in real-time without needing a page refresh.
+ */
+void broadcastWeatherUpdate() {
+    // Only proceed if there are active clients and the weather data is valid
+    if (ws.count() > 0 && currentWeatherData.dataValid) {
+        JsonDocument doc;
+        doc["action"] = "weatherUpdate";
+
+        // Create a nested 'data' object to hold the weather information.
+        // This keeps the message structure consistent with other actions.
+        JsonObject data = doc.createNestedObject("data");
+        data["temperature"] = currentWeatherData.temperature;
+        data["apparentTemperature"] = currentWeatherData.apparentTemperature;
+        data["windSpeed"] = currentWeatherData.windSpeed;
+        data["humidity"] = currentWeatherData.humidity;
+        data["weatherCode"] = currentWeatherData.weatherCode;
+        data["dailyHigh"] = currentWeatherData.dailyHigh;
+        data["dailyLow"] = currentWeatherData.dailyLow;
+        data["latitude"] = currentWeatherData.latitude;
+        data["longitude"] = currentWeatherData.longitude;
+
+        // Create a nested array for the 3-hour forecast
+        JsonArray hourly = data.createNestedArray("hourly");
+        for (int i = 0; i < 3; i++) {
+            JsonObject hour = hourly.createNestedObject();
+            hour["temp"] = currentWeatherData.hourlyTemp[i];
+            hour["code"] = currentWeatherData.hourlyCode[i];
+        }
+
+        // Serialize the JSON document to a string and send it to all clients
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
+        Log_printf(LOG_LEVEL_INFO, "Broadcasted weather update to %d clients.", ws.count());
+    }
+}
+
+/**
  * @brief Overloaded function to broadcast an integer state update via WebSocket.
  */
 void broadcastWsStateUpdate(const char* key, int value) {
