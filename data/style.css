@@ -1292,6 +1292,15 @@ body.time-travel-active {
     text-shadow: 0 0 5px var(--shadow-color);
 }
 
+.weather-icon {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--highlight-text-color);
+    text-shadow: 0 0 5px var(--shadow-color);
+    margin-right: 10px;
+}
+
 .loading-spinner-container {
     position: absolute;
     top: 0;
