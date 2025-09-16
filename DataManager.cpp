@@ -232,20 +232,45 @@ static bool fetchWeatherDataFromApi() {
         Log_printf(LOG_LEVEL_DEBUG, "Unified Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            // In ArduinoJson v7, JsonDocument automatically uses heap allocation (malloc)
-            // and manages its own capacity, so we no longer need to specify a size.
-            // The library will allocate memory as needed to parse the document.
+            // Create a filter to only parse the data we need from the Open-Meteo API.
+            // This is a critical optimization for memory-constrained devices. By specifying
+            // exactly which fields we are interested in, we prevent ArduinoJson from
+            // allocating memory for the entire (potentially large) document, which can
+            // be several kilobytes. This dramatically reduces heap fragmentation and
+            // prevents crashes related to memory exhaustion. The size of the filter
+            // document itself is small and allocated on the stack.
+            StaticJsonDocument<1024> filter;
+            filter["error"] = true;
+            JsonObject current_filter = filter.createNestedObject("current");
+            current_filter["temperature_2m"] = true;
+            current_filter["relative_humidity_2m"] = true;
+            current_filter["apparent_temperature"] = true;
+            current_filter["weather_code"] = true;
+            current_filter["wind_speed_10m"] = true;
+            JsonObject daily_filter = filter.createNestedObject("daily");
+            daily_filter["temperature_2m_max"] = true;
+            daily_filter["temperature_2m_min"] = true;
+            daily_filter["weather_code"] = true;
+            daily_filter["sunrise"] = true;
+            daily_filter["sunset"] = true;
+            daily_filter["precipitation_probability_max"] = true;
+            daily_filter["wind_speed_10m_max"] = true;
+            JsonObject hourly_filter = filter.createNestedObject("hourly");
+            hourly_filter["time"] = true;
+            hourly_filter["temperature_2m"] = true;
+            hourly_filter["weather_code"] = true;
+
             JsonDocument doc;
 
-            // By deserializing directly from the stream, we avoid allocating a large String
-            // for the payload, which saves a significant amount of heap memory and prevents
-            // fragmentation. This is a much more robust way to handle large JSON responses.
-            DeserializationError error = deserializeJson(doc, http.getStream());
+            // By deserializing directly from the stream with the filter, we avoid
+            // allocating a large String for the payload and only parse what we need,
+            // which saves a significant amount of heap memory and prevents fragmentation.
+            DeserializationError error = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
             http.end(); // End the connection after we are done with the stream.
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 if (error == DeserializationError::Ok && doc["error"].isNull()) {
-                    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
+                    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed filtered Unified Weather JSON");
 
                     bool allDataPresent = true;
                     auto getJsonValue = [&](const JsonVariant& parent, const char* key) -> JsonVariant {
