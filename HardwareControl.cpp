@@ -12,7 +12,6 @@
 #include "DisplayManager.h"
 #include "LittleFS.h"
 #include "AnimationManager.h"
-#include "driver/periph_ctrl.h"
 #include "driver/i2c.h"
 
 void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str) {
@@ -1847,10 +1846,8 @@ void resetI2CBus(int i2c_num) {
     // Reset the peripheral module
     if (i2c_num == I2C_NUM_0) {
         periph_module_reset(PERIPH_I2C0_MODULE);
-        I2C_1.reset();
     } else if (i2c_num == I2C_NUM_1) {
         periph_module_reset(PERIPH_I2C1_MODULE);
-        I2C_2.reset();
     }
     Log_printf(LOG_LEVEL_INFO, "I2C bus #%d reset.", i2c_num);
 }

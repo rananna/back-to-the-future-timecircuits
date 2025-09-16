@@ -151,7 +151,7 @@ void broadcastWeatherUpdate() {
 
         // Create a nested 'data' object to hold the weather information.
         // This keeps the message structure consistent with other actions.
-        JsonObject data = doc.createNestedObject("data");
+        JsonObject data = doc["data"].to<JsonObject>();
         data["temperature"] = currentWeatherData.temperature;
         data["apparentTemperature"] = currentWeatherData.apparentTemperature;
         data["windSpeed"] = currentWeatherData.windSpeed;
@@ -163,9 +163,9 @@ void broadcastWeatherUpdate() {
         data["longitude"] = currentWeatherData.longitude;
 
         // Create a nested array for the 3-hour forecast
-        JsonArray hourly = data.createNestedArray("hourly");
+        JsonArray hourly = data["hourly"].to<JsonArray>();
         for (int i = 0; i < 3; i++) {
-            JsonObject hour = hourly.createNestedObject();
+            JsonObject hour = hourly.add<JsonObject>();
             hour["temp"] = currentWeatherData.hourlyTemp[i];
             hour["code"] = currentWeatherData.hourlyCode[i];
         }
