@@ -237,9 +237,9 @@ static bool fetchWeatherDataFromApi() {
             Log_printf(LOG_LEVEL_DEBUG, "Raw Weather JSON: %s", payload.c_str());
 
             // The large JSON response can cause a stack overflow if we use a StaticJsonDocument.
-            // Since this task is a one-off, using the heap with DynamicJsonDocument is safe
+            // Since this task is a one-off, using the heap with JsonDocument is safe
             // and prevents the stack overflow. The size is increased to 24k for safety, as per code review.
-            DynamicJsonDocument doc(24576);
+            JsonDocument doc(24576);
             DeserializationError error = deserializeJson(doc, payload);
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
