@@ -232,14 +232,15 @@ static bool fetchWeatherDataFromApi() {
         Log_printf(LOG_LEVEL_DEBUG, "Unified Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            WiFiClient& stream = http.getStream();
+            String payload = http.getString();
+            http.end(); // End connection now that we have the payload
+            Log_printf(LOG_LEVEL_DEBUG, "Raw Weather JSON: %s", payload.c_str());
 
             // The large JSON response can cause a stack overflow if we use a StaticJsonDocument.
             // Since this task is a one-off, using the heap with DynamicJsonDocument is safe
             // and prevents the stack overflow. The size is increased to 24k for safety, as per code review.
-            JsonDocument doc;
-            DeserializationError error = deserializeJson(doc, stream);
-            http.end(); // End the connection after parsing the stream
+            DynamicJsonDocument doc(24576);
+            DeserializationError error = deserializeJson(doc, payload);
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 if (error == DeserializationError::Ok && doc["error"].isNull()) {
