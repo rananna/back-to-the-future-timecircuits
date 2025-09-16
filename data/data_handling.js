@@ -618,6 +618,7 @@ function updateWeatherUI(data) {
 
     // Update the weather display with the fetched data
     weatherDisplay.style.display = 'grid';
+    document.getElementById('weatherIcon').textContent = getWeatherIcon(data.weatherCode);
     document.getElementById('weatherTemp').textContent = `${data.temperature.toFixed(1)}${tempUnit}`;
     document.getElementById('weatherFeelsLike').textContent = `${data.apparentTemperature.toFixed(1)}${tempUnit}`;
     document.getElementById('weatherHumidity').textContent = `${data.humidity}%`;
