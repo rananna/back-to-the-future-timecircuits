@@ -241,24 +241,26 @@ static bool fetchWeatherDataFromApi() {
             // document itself is small and allocated on the stack.
             JsonDocument filter;
             filter["error"] = true;
-            JsonObject current_filter = filter["current"].to<JsonObject>();
-            current_filter["temperature_2m"] = true;
-            current_filter["relative_humidity_2m"] = true;
-            current_filter["apparent_temperature"] = true;
-            current_filter["weather_code"] = true;
-            current_filter["wind_speed_10m"] = true;
-            JsonObject daily_filter = filter["daily"].to<JsonObject>();
-            daily_filter["temperature_2m_max"] = true;
-            daily_filter["temperature_2m_min"] = true;
-            daily_filter["weather_code"] = true;
-            daily_filter["sunrise"] = true;
-            daily_filter["sunset"] = true;
-            daily_filter["precipitation_probability_max"] = true;
-            daily_filter["wind_speed_10m_max"] = true;
-            JsonObject hourly_filter = filter["hourly"].to<JsonObject>();
-            hourly_filter["time"] = true;
-            hourly_filter["temperature_2m"] = true;
-            hourly_filter["weather_code"] = true;
+            // Current weather data filter
+            filter["current"]["temperature_2m"] = true;
+            filter["current"]["relative_humidity_2m"] = true;
+            filter["current"]["apparent_temperature"] = true;
+            filter["current"]["weather_code"] = true;
+            filter["current"]["wind_speed_10m"] = true;
+
+            // Daily weather data filter
+            filter["daily"]["temperature_2m_max"] = true;
+            filter["daily"]["temperature_2m_min"] = true;
+            filter["daily"]["weather_code"] = true;
+            filter["daily"]["sunrise"] = true;
+            filter["daily"]["sunset"] = true;
+            filter["daily"]["precipitation_probability_max"] = true;
+            filter["daily"]["wind_speed_10m_max"] = true;
+
+            // Hourly weather data filter
+            filter["hourly"]["time"] = true;
+            filter["hourly"]["temperature_2m"] = true;
+            filter["hourly"]["weather_code"] = true;
 
             JsonDocument doc;
 
