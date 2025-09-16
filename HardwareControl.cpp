@@ -116,10 +116,16 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
 bool setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by setupPhysicalDisplay"); }
-    // Initialize both I2C buses, but only if they haven't been started already.
+    // Configure I2C buses without starting them. Let the Adafruit library call begin().
     if (!i2c_initialized) {
-      I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
-      I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
+      // Set the pins and clock speed for the first I2C bus.
+      I2C_1.setPins(I2C_SDA_1, I2C_SCL_1);
+      I2C_1.setClock(50000);
+
+      // Set the pins and clock speed for the second I2C bus.
+      I2C_2.setPins(I2C_SDA_2, I2C_SCL_2);
+      I2C_2.setClock(50000);
+
       i2c_initialized = true;
     }
 
