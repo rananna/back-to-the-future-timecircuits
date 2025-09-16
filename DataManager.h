@@ -7,6 +7,8 @@
 struct WeatherTaskParams {
     std::string cityName;
     bool forceGeocode;
+    float latitude;
+    float longitude;
 };
 
 void fetchDataLink();

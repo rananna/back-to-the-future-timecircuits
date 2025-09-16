@@ -387,23 +387,38 @@ void trim(std::string &s) {
 void fetchWeatherData(WeatherTaskParams* params) {
     std::string taskCityName = params->cityName;
     bool forceGeocode = params->forceGeocode;
+    float latitude = params->latitude;
+    float longitude = params->longitude;
     delete params;
 
     trim(taskCityName);
 
-    Log_printf(LOG_LEVEL_INFO, "Fetching weather data for city: %s (force geocode: %s)", taskCityName.c_str(), forceGeocode ? "true" : "false");
+    // Determine if we are fetching by coordinates or by city name
+    bool fetchByCoords = (latitude != 0.0 && longitude != 0.0);
 
-    if (taskCityName.empty()) {
+    if (fetchByCoords) {
+        Log_printf(LOG_LEVEL_INFO, "Fetching weather data by coordinates. Lat: %f, Lon: %f", latitude, longitude);
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            currentWeatherData.dataValid = false;
-            currentWeatherData.errorReason = "CITY NAME IS EMPTY";
+            currentSettings.latitude = latitude;
+            currentSettings.longitude = longitude;
             xSemaphoreGive(xDisplayDataMutex);
         }
-        return;
+    } else {
+        Log_printf(LOG_LEVEL_INFO, "Fetching weather data for city: %s (force geocode: %s)", taskCityName.c_str(), forceGeocode ? "true" : "false");
+        if (taskCityName.empty()) {
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                currentWeatherData.dataValid = false;
+                currentWeatherData.errorReason = "CITY NAME IS EMPTY";
+                xSemaphoreGive(xDisplayDataMutex);
+            }
+            return;
+        }
     }
 
-    bool needsGeocoding = forceGeocode;
-    if (!forceGeocode) {
+    // --- Geocoding Logic ---
+    // This block is now skipped if we are fetching by coordinates.
+    bool needsGeocoding = forceGeocode && !fetchByCoords;
+    if (!forceGeocode && !fetchByCoords) {
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             if (taskCityName != lastCityName) {
                 needsGeocoding = true;
@@ -508,7 +523,10 @@ void fetchWeatherData(WeatherTaskParams* params) {
 }
 
 void fetchWeatherDataTask(void* p) {
-    WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
+    // This task is for routine, non-forced updates.
+    // It will use the city name stored in settings and will not force geocoding unless the city name has changed.
+    // The latitude and longitude are set to 0 as they are not used for this type of update.
+    WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false, 0, 0};
     fetchWeatherData(params);
     isFetchingWeather = false;
     vTaskDelete(NULL);

@@ -551,17 +551,42 @@ void setupWebRoutes() {
   
   AsyncCallbackJsonWebHandler* refreshWeatherHandler = new AsyncCallbackJsonWebHandler("/api/weather/refresh", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
-    if (!obj["cityName"].isNull()) {
+    WeatherTaskParams* params = nullptr;
+
+    // Check if latitude and longitude are provided for a direct weather fetch
+    if (obj.containsKey("latitude") && obj.containsKey("longitude")) {
+        float lat = obj["latitude"].as<float>();
+        float lon = obj["longitude"].as<float>();
+        // We pass an empty city name and set forceGeocode to false, but add lat/lon.
+        // The fetchWeatherData function will be modified to use these coordinates directly.
+        params = new WeatherTaskParams{"", false, lat, lon};
+        Log_printf(LOG_LEVEL_INFO, "Weather refresh triggered by coordinates. Lat: %f, Lon: %f", lat, lon);
+
+        if (xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL) == pdPASS) {
+            request->send(202, "text/plain", "Weather refresh triggered by coordinates.");
+        } else {
+            delete params;
+            request->send(500, "text/plain", "Failed to create weather task.");
+        }
+
+    }
+    // Fallback to the old method if only cityName is provided
+    else if (obj.containsKey("cityName")) {
         std::string city = obj["cityName"].as<std::string>();
-        WeatherTaskParams* params = new WeatherTaskParams{city, true};
+        // Here, we force geocoding because the client is just passing a name.
+        params = new WeatherTaskParams{city, true, 0, 0};
+        Log_printf(LOG_LEVEL_INFO, "Weather refresh triggered by city name: %s", city.c_str());
+
         if (xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL) == pdPASS) {
             request->send(202, "text/plain", "Weather refresh triggered for new city.");
         } else {
             delete params;
             request->send(500, "text/plain", "Failed to create weather task.");
         }
+
     } else {
-        request->send(400, "text/plain", "Bad Request: Missing cityName");
+        // If neither city name nor coordinates are provided, it's a bad request.
+        request->send(400, "text/plain", "Bad Request: Missing cityName or coordinates.");
     }
   });
   server.addHandler(refreshWeatherHandler);

@@ -545,12 +545,12 @@ function refreshWeatherData() {
                     const location = data.results[0];
                     const bestMatch = getDescriptiveLocationName(location);
                     correctedCityName = bestMatch; // Store validated name globally
-                    cityInput.value = correctedCityName;
+                    // cityInput.value = correctedCityName; // BUGFIX: Do not overwrite user's input
 
                     if (!isLoading) setSettingsChanged(true); // Enable the save button
 
                     showMessage(`City found: ${bestMatch}. Fetching weather...`, 'success');
-                    triggerWeatherRefresh(bestMatch);
+                    triggerWeatherRefresh(bestMatch, location.latitude, location.longitude);
                 } else {
                     // Multiple results, show modal
                     loadingSpinner.style.display = 'none';
@@ -577,14 +577,21 @@ function refreshWeatherData() {
  * Sends the validated city name to the server to trigger a weather data refresh.
  * @param {string} validatedCity The validated and formatted city name from the geocoding API.
  */
-function triggerWeatherRefresh(validatedCity) {
+function triggerWeatherRefresh(validatedCity, latitude = null, longitude = null) {
     const preview = document.getElementById('weatherPreview');
     preview.textContent = 'Fetching...';
+
+    let payload = {};
+    if (latitude !== null && longitude !== null) {
+        payload = { latitude, longitude };
+    } else {
+        payload = { cityName: validatedCity };
+    }
 
     fetch('/api/weather/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cityName: validatedCity })
+        body: JSON.stringify(payload)
     })
     .then(res => {
         if (res.ok) {
@@ -990,7 +997,7 @@ function handleLocationSelection(event) {
     // Use the chosen location's name
     const bestMatch = getDescriptiveLocationName(location);
     correctedCityName = bestMatch;
-    cityInput.value = correctedCityName;
+    // cityInput.value = correctedCityName; // BUGFIX: Do not overwrite user's input
 
     if (!isLoading) setSettingsChanged(true);
 
@@ -999,8 +1006,8 @@ function handleLocationSelection(event) {
     // Hide the modal
     modal.style.display = 'none';
 
-    // Trigger the weather refresh with the selected city name
-    triggerWeatherRefresh(bestMatch);
+    // Trigger the weather refresh with the selected location's coordinates
+    triggerWeatherRefresh(bestMatch, location.latitude, location.longitude);
 }
 
 /**
