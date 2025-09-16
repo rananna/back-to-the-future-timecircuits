@@ -526,12 +526,9 @@ function refreshWeatherData() {
         .then(data => {
             if (data && data.results && data.results.length > 0) {
                 const location = data.results[0];
-                let nameParts = [location.name];
-                if (location.admin1) nameParts.push(location.admin1);
-                if (location.country) nameParts.push(location.country);
-
-                const bestMatch = nameParts.join(', ');
+                const bestMatch = location.name;
                 correctedCityName = bestMatch; // Store validated name globally
+                cityInput.value = correctedCityName;
 
                 if (!isLoading) setSettingsChanged(true); // Enable the save button
 
