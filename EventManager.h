@@ -41,8 +41,6 @@ extern PubSubClient mqttClient;
 extern bool timeSynchronized;
 extern int currentPageIndex;
 extern char currentSoundFile[MAX_FILENAME_LENGTH];
-extern void saveSettings();
-extern char MQTT_UNIQUE_ID[19];
 
 
 extern bool isMessageOverrideActive;

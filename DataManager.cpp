@@ -12,7 +12,6 @@
 #include "DataManager.h"
 #include "EventManager.h"
 #include "DisplayManager.h"
-#include "MqttManager.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 extern bool weatherDataUpdated;
@@ -138,7 +137,7 @@ void fetchStockDataTask(void* p) {
         Log_printf(LOG_LEVEL_DEBUG, "Stock API URL: %s", url.c_str());
         Log_printf(LOG_LEVEL_DEBUG, "Stock API HTTP Code: %d", httpCode);
         if (httpCode == HTTP_CODE_OK) {
-            JsonDocument doc;
+            DynamicJsonDocument doc(1024);
             deserializeJson(doc, http.getStream());
             
             JsonObject quote;
@@ -163,7 +162,7 @@ void fetchStockDataTask(void* p) {
                     }
                     stockData[rowIndex].price = priceBuffer;
 
-                    if (!quote["changesPercentage"].isNull()) {
+                    if (quote.containsKey("changesPercentage")) {
                         float changeFloat = quote["changesPercentage"].as<float>();
                         char changeBuffer[10];
                         dtostrf(changeFloat, 1, 2, changeBuffer);
@@ -199,11 +198,6 @@ void fetchStockDataTask(void* p) {
 // Forward declaration for the new unified weather fetch function
 static bool fetchWeatherDataFromApi();
 
-// Define the globals for the weather task
-QueueHandle_t xWeatherQueue;
-SemaphoreHandle_t xWeatherSemaphore;
-static TaskHandle_t weatherTaskHandle = NULL; // Keep task handle file-scoped
-
 // This new function is responsible for fetching all weather data (current, daily, and hourly) in a single API call.
 static bool fetchWeatherDataFromApi() {
     HTTPClient http;
@@ -232,51 +226,21 @@ static bool fetchWeatherDataFromApi() {
         Log_printf(LOG_LEVEL_DEBUG, "Unified Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            // Create a filter to only parse the data we need from the Open-Meteo API.
-            // This is a critical optimization for memory-constrained devices. By specifying
-            // exactly which fields we are interested in, we prevent ArduinoJson from
-            // allocating memory for the entire (potentially large) document, which can
-            // be several kilobytes. This dramatically reduces heap fragmentation and
-            // prevents crashes related to memory exhaustion. The size of the filter
-            // document itself is small and allocated on the stack.
-            JsonDocument filter;
-            filter["error"] = true;
-            // Current weather data filter
-            filter["current"]["temperature_2m"] = true;
-            filter["current"]["relative_humidity_2m"] = true;
-            filter["current"]["apparent_temperature"] = true;
-            filter["current"]["weather_code"] = true;
-            filter["current"]["wind_speed_10m"] = true;
+            String payload = http.getString();
+            http.end();
 
-            // Daily weather data filter
-            filter["daily"]["temperature_2m_max"] = true;
-            filter["daily"]["temperature_2m_min"] = true;
-            filter["daily"]["weather_code"] = true;
-            filter["daily"]["sunrise"] = true;
-            filter["daily"]["sunset"] = true;
-            filter["daily"]["precipitation_probability_max"] = true;
-            filter["daily"]["wind_speed_10m_max"] = true;
-
-            // Hourly weather data filter
-            filter["hourly"]["time"] = true;
-            filter["hourly"]["temperature_2m"] = true;
-            filter["hourly"]["weather_code"] = true;
-
-            JsonDocument doc;
-
-            // By deserializing directly from the stream with the filter, we avoid
-            // allocating a large String for the payload and only parse what we need,
-            // which saves a significant amount of heap memory and prevents fragmentation.
-            DeserializationError error = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
-            http.end(); // End the connection after we are done with the stream.
+            // Increased buffer size slightly to accommodate the unified response, but it should be smaller
+            // than the two previous responses combined due to fetching fewer hourly data points.
+            DynamicJsonDocument doc(12288);
+            DeserializationError error = deserializeJson(doc, payload);
 
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                if (error == DeserializationError::Ok && doc["error"].isNull()) {
-                    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed filtered Unified Weather JSON");
+                if (error == DeserializationError::Ok && !doc.containsKey("error")) {
+                    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
 
                     bool allDataPresent = true;
                     auto getJsonValue = [&](const JsonVariant& parent, const char* key) -> JsonVariant {
-                        if (parent.isNull() || parent[key].isNull()) {
+                        if (parent.isNull() || !parent.containsKey(key)) {
                             allDataPresent = false;
                             Log_printf(LOG_LEVEL_WARN, "Weather JSON missing key: %s", key);
                             return JsonVariant();
@@ -412,20 +376,12 @@ void trim(std::string &s) {
     }).base(), s.end());
 }
 
-static void fetchWeatherData(const WeatherTaskParams& params) {
-    std::string taskCityName = params.cityName;
-    bool forceGeocode = params.forceGeocode;
+void fetchWeatherData(WeatherTaskParams* params) {
+    std::string taskCityName = params->cityName;
+    bool forceGeocode = params->forceGeocode;
+    delete params;
 
     trim(taskCityName);
-
-    // If the city name contains a comma, truncate it to only include the part before the comma.
-    // This handles user input like "Kingston, Ontario" and makes the geocoding API more reliable,
-    // as the API sometimes fails to find results for queries containing commas.
-    size_t comma_pos = taskCityName.find(',');
-    if (comma_pos != std::string::npos) {
-        taskCityName = taskCityName.substr(0, comma_pos);
-        trim(taskCityName); // Trim again in case of "kingston , ontario"
-    }
 
     Log_printf(LOG_LEVEL_INFO, "Fetching weather data for city: %s (force geocode: %s)", taskCityName.c_str(), forceGeocode ? "true" : "false");
 
@@ -462,7 +418,7 @@ static void fetchWeatherData(const WeatherTaskParams& params) {
                 int httpCode = http.GET();
                 Log_printf(LOG_LEVEL_DEBUG, "Geocode HTTP Code: %d", httpCode);
                 if (httpCode == HTTP_CODE_OK) {
-                    JsonDocument doc;
+                    DynamicJsonDocument doc(1024);
                     deserializeJson(doc, http.getStream());
                     JsonArray results = doc["results"];
                     if (!results.isNull() && results.size() > 0) {
@@ -490,18 +446,11 @@ static void fetchWeatherData(const WeatherTaskParams& params) {
         }
 
         if (!geocodeSuccess) {
-            Log_printf(LOG_LEVEL_ERROR, "Geocoding failed for %s after multiple retries. Disabling weather mode.", taskCityName.c_str());
+            Log_printf(LOG_LEVEL_ERROR, "Geocoding failed for %s after multiple retries.", taskCityName.c_str());
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 currentWeatherData.dataValid = false;
-                currentWeatherData.errorReason = "GEOCODING FAILED";
-                currentSettings.weatherModeEnabled = false;
+                currentWeatherData.errorReason = "GEOCODING FAILED - CHECK CITY NAME";
                 xSemaphoreGive(xDisplayDataMutex);
-            }
-
-            // Save the setting and notify the UI
-            saveSettings();
-            if (mqttClient.connected()) {
-                mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/weatherModeEnabled/state").c_str(), "false", true);
             }
             return;
         }
@@ -547,76 +496,17 @@ static void fetchWeatherData(const WeatherTaskParams& params) {
 }
 
 void fetchWeatherDataTask(void* p) {
-    for (;;) {
-        // Wait for a signal to start fetching
-        if (xSemaphoreTake(xWeatherSemaphore, portMAX_DELAY) == pdTRUE) {
-            Log_printf(LOG_LEVEL_INFO, "Weather task woken up.");
-            isFetchingWeather = true;
-
-            WeatherTaskParams params;
-            // Wait for parameters to be sent via the queue
-            if (xQueueReceive(xWeatherQueue, &params, pdMS_TO_TICKS(1000))) {
-                 fetchWeatherData(params);
-            } else {
-                 Log_printf(LOG_LEVEL_WARN, "Weather task did not receive params from queue.");
-            }
-
-            isFetchingWeather = false;
-            Log_printf(LOG_LEVEL_INFO, "Weather task going back to sleep.");
-        }
-    }
-}
-
-void forceFetchWeatherDataTask(void* p) {
-    if (isFetchingWeather) {
-        Log_printf(LOG_LEVEL_WARN, "Weather fetch already in progress. Ignoring force fetch.");
-        delete (WeatherTaskParams*)p;
-        vTaskDelete(NULL);
-        return;
-    }
-    isFetchingWeather = true;
-
-    WeatherTaskParams* params = (WeatherTaskParams*)p;
-    fetchWeatherData(*params);
-    delete params;
-
+    WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false};
+    fetchWeatherData(params);
     isFetchingWeather = false;
     vTaskDelete(NULL);
 }
 
-void createWeatherTask() {
-    xWeatherQueue = xQueueCreate(1, sizeof(WeatherTaskParams));
-    xWeatherSemaphore = xSemaphoreCreateBinary();
-
-    if (xWeatherQueue == NULL || xWeatherSemaphore == NULL) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to create weather queue or semaphore.");
-        return;
-    }
-
-    xTaskCreatePinnedToCore(
-        fetchWeatherDataTask,
-        "WeatherFetchTask",
-        16384, // Increased stack size for networking and the large JSON document
-        NULL,
-        1,
-        &weatherTaskHandle,
-        0
-    );
-    Log_printf(LOG_LEVEL_INFO, "Persistent weather fetch task created.");
-}
-
-void triggerWeatherFetch(bool forceGeocode) {
-    if (isFetchingWeather) {
-        Log_printf(LOG_LEVEL_WARN, "Weather fetch already in progress. Ignoring trigger.");
-        return;
-    }
-    Log_printf(LOG_LEVEL_INFO, "Triggering weather fetch (force geocode: %s)", forceGeocode ? "true" : "false");
-    WeatherTaskParams params = {currentSettings.cityName, forceGeocode};
-    if (xQueueSend(xWeatherQueue, &params, pdMS_TO_TICKS(100)) != pdPASS) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to send to weather queue.");
-    } else {
-        xSemaphoreGive(xWeatherSemaphore);
-    }
+void forceFetchWeatherDataTask(void* p) {
+    WeatherTaskParams* params = (WeatherTaskParams*)p;
+    fetchWeatherData(params);
+    isFetchingWeather = false;
+    vTaskDelete(NULL);
 }
 
 void fetchApiDataTask(void* p) {
@@ -645,7 +535,7 @@ void fetchApiDataTask(void* p) {
 		int httpCode = http.GET();
 		Log_printf(LOG_LEVEL_DEBUG, "API HTTP Code for data point %d: %d", index, httpCode);
 		if (httpCode == HTTP_CODE_OK) {
-			JsonDocument doc;
+			DynamicJsonDocument doc(4096);
 			DeserializationError error = deserializeJson(doc, http.getStream());
 			if (error == DeserializationError::Ok) {
 				if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
