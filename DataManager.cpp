@@ -132,7 +132,6 @@ void fetchStockDataTask(void* p) {
     HTTPClient http;
     WiFiClientSecure client;
     client.setInsecure();
-    client.setBufferSizes(512, 512);
 
     if (http.begin(client, url)) {
         int httpCode = http.GET();
@@ -207,7 +206,6 @@ static bool fetchWeatherDataFromApi() {
     HTTPClient http;
     WiFiClientSecure client;
     client.setInsecure();
-    client.setBufferSizes(512, 512);
 
     String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
     String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
@@ -422,7 +420,6 @@ void fetchWeatherData(WeatherTaskParams* params) {
             HTTPClient http;
             WiFiClientSecure client;
             client.setInsecure();
-            client.setBufferSizes(512, 512);
             String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(taskCityName.c_str()) + "&count=1&language=en&format=json";
             if (http.begin(client, geocodeUrl)) {
                 Log_printf(LOG_LEVEL_DEBUG, "Geocode URL: %s", geocodeUrl.c_str());
@@ -540,7 +537,6 @@ void fetchApiDataTask(void* p) {
 	HTTPClient http;
 	WiFiClientSecure client;
 	client.setInsecure();
-    client.setBufferSizes(512, 512);
 
 	if (http.begin(client, point.url.c_str())) {
 		if (!point.authHeaderKey.empty() && !point.authHeaderValue.empty()) {
