@@ -725,6 +725,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 isMarqueeOverrideActive = true;
                 marqueeOverrideEndTime = 0;
             }
+            isMarqueeOverrideBufferDirty = true;
             stateChanged = true;
         }
         else if (topicStr == base_topic + "reboot_device/command" && message == "PRESS") {
