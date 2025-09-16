@@ -1826,28 +1826,26 @@ void safe_printf(const char *format, ...) {
 
 /**
  * @brief Resets an I2C bus that may have locked up.
- * @details This function uses low-level ESP-IDF calls to reset the I2C peripheral,
- * which can clear a bus that has become stuck (e.g., a slave device holding SDA low).
- * It resets the transmit and receive FIFOs and then resets the entire peripheral module.
- * @param i2c_num The I2C port number (I2C_NUM_0 or I2C_NUM_1) to reset.
+ * @details This function de-initializes the I2C peripheral. It is called before
+ * attempting to initialize the displays to clear any bus lock-ups from a previous
+ * run. The subsequent call to `I2C_X.begin()` will re-initialize it.
+ * @param i2c_num The I2C port number (0 or 1) to reset.
  */
 void resetI2CBus(int i2c_num) {
+    #if ENABLE_HARDWARE
     if (i2c_num < 0 || i2c_num >= I2C_NUM_MAX) {
         Log_printf(LOG_LEVEL_ERROR, "Invalid I2C port number for reset: %d", i2c_num);
         return;
     }
 
-    Log_printf(LOG_LEVEL_INFO, "Resetting I2C bus #%d...", i2c_num);
+    Log_printf(LOG_LEVEL_INFO, "De-initializing I2C bus #%d to clear potential lock-ups...", i2c_num);
 
-    // Reset TX and RX FIFOs
-    i2c_reset_tx_fifo((i2c_port_t)i2c_num);
-    i2c_reset_rx_fifo((i2c_port_t)i2c_num);
-
-    // Reset the peripheral module
-    if (i2c_num == I2C_NUM_0) {
-        periph_module_reset(PERIPH_I2C0_MODULE);
-    } else if (i2c_num == I2C_NUM_1) {
-        periph_module_reset(PERIPH_I2C1_MODULE);
+    if (i2c_num == 0) {
+        I2C_1.end();
+    } else if (i2c_num == 1) {
+        I2C_2.end();
     }
-    Log_printf(LOG_LEVEL_INFO, "I2C bus #%d reset.", i2c_num);
+    // A small delay to allow the bus to settle after de-initialization.
+    vTaskDelay(pdMS_TO_TICKS(10));
+    #endif
 }
