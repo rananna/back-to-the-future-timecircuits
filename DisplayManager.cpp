@@ -580,20 +580,33 @@ void handleWeatherDisplay() {
                         case 3: { // Sunrise & Sunset
                             struct tm timeinfo;
                             char timeBuffer[8];
+
+                            // Format sunrise time
                             localtime_r(&currentWeatherData.sunrise, &timeinfo);
                             int sunriseHour = timeinfo.tm_hour;
-                            const char* sunriseAmpm = (sunriseHour >= 12) ? "PM" : "AM";
-                            if (sunriseHour > 12) sunriseHour -= 12;
-                            if (sunriseHour == 0) sunriseHour = 12;
-                            sprintf(timeBuffer, "%d%02d%s", sunriseHour, timeinfo.tm_min, sunriseAmpm);
+                            if (!currentSettings.displayFormat24h) {
+                                const char* sunriseAmpm = (sunriseHour >= 12) ? "PM" : "AM";
+                                if (sunriseHour > 12) sunriseHour -= 12;
+                                if (sunriseHour == 0) sunriseHour = 12;
+                                sprintf(timeBuffer, "%d%02d%s", sunriseHour, timeinfo.tm_min, sunriseAmpm);
+                            } else {
+                                sprintf(timeBuffer, "%02d%02d", sunriseHour, timeinfo.tm_min);
+                            }
                             String sunriseStr(timeBuffer);
+
+                            // Format sunset time
                             localtime_r(&currentWeatherData.sunset, &timeinfo);
                             int sunsetHour = timeinfo.tm_hour;
-                            const char* sunsetAmpm = (sunsetHour >= 12) ? "PM" : "AM";
-                            if (sunsetHour > 12) sunsetHour -= 12;
-                            if (sunsetHour == 0) sunsetHour = 12;
-                            sprintf(timeBuffer, "%d%02d%s", sunsetHour, timeinfo.tm_min, sunsetAmpm);
+                            if (!currentSettings.displayFormat24h) {
+                                const char* sunsetAmpm = (sunsetHour >= 12) ? "PM" : "AM";
+                                if (sunsetHour > 12) sunsetHour -= 12;
+                                if (sunsetHour == 0) sunsetHour = 12;
+                                sprintf(timeBuffer, "%d%02d%s", sunsetHour, timeinfo.tm_min, sunsetAmpm);
+                            } else {
+                                sprintf(timeBuffer, "%02d%02d", sunsetHour, timeinfo.tm_min);
+                            }
                             String sunsetStr(timeBuffer);
+
                             tempWeatherString = "SUNRISE " + sunriseStr + ", SUNSET " + sunsetStr;
                             break;
                         }
