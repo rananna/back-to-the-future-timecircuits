@@ -532,7 +532,7 @@ function refreshWeatherData() {
 
                 const bestMatch = nameParts.join(', ');
                 correctedCityName = bestMatch; // Store validated name globally
-                cityInput.value = bestMatch; // Update the input field
+
                 if (!isLoading) setSettingsChanged(true); // Enable the save button
 
                 showMessage(`City found: ${bestMatch}. Fetching weather...`, 'success');
@@ -640,9 +640,7 @@ function fetchWeatherData() {
 
                 // Use the corrected city name if available, otherwise use the value from the input
                 const displayCity = correctedCityName || document.getElementById('cityName').value;
-                if (correctedCityName) {
-                    document.getElementById('cityName').value = correctedCityName;
-                }
+
                 preview.textContent = `Live data for ${displayCity}: ${data.temperature.toFixed(1)}${tempUnit}`;
 
                 // Build the hourly forecast display
