@@ -169,7 +169,8 @@ void displayMarqueeOverride() {
 
         // If the data has changed, rebuild the buffer
         if (isMarqueeOverrideBufferDirty) {
-            marqueeOverrideBuffer = "  " + marqueeOverrideMessage + "  ";
+            String tempBuffer = "  " + marqueeOverrideMessage + "  ";
+            marqueeOverrideBuffer = tempBuffer.c_str();
             marqueeOverrideScrollPosition = 0;
             isMarqueeOverrideBufferDirty = false;
         }
