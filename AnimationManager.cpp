@@ -39,7 +39,7 @@ extern DisplayRow destRow, presRow, lastRow;
 
 void broadcastAnimationComplete() {
     if (ws.count() > 0) {
-        DynamicJsonDocument doc(64);
+        JsonDocument doc;
         doc["action"] = "animationComplete";
         String jsonString;
         serializeJson(doc, jsonString);

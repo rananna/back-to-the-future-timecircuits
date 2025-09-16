@@ -35,15 +35,15 @@ void publishHaPresetSelector() {
     if (!mqttClient.connected()) return;
 
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     String topic;
     String payload;
 
-    JsonObject device = doc.createNestedObject("device");
+    JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
 
-    JsonArray availability = doc.createNestedArray("availability");
-    JsonObject availability_topic = availability.createNestedObject();
+    JsonArray availability = doc["availability"].to<JsonArray>();
+    JsonObject availability_topic = availability.add<JsonObject>();
     availability_topic["topic"] = device_base_topic + "/status";
     availability_topic["payload_available"] = "online";
     availability_topic["payload_not_available"] = "offline";
@@ -56,7 +56,7 @@ void publishHaPresetSelector() {
     doc["icon"] = "mdi:history";
     doc["entity_category"] = "config";
 
-    JsonArray options = doc.createNestedArray("options");
+    JsonArray options = doc["options"].to<JsonArray>();
     options.add("Einstein's Test (1985)");
     options.add("Marty's First Jump (1985)");
     options.add("Arrival in Past (1955)");
@@ -66,7 +66,7 @@ void publishHaPresetSelector() {
     prefs.begin(PREFERENCES_NAMESPACE, true);
     String presetsJson = prefs.getString("customPresets", "[]");
     prefs.end();
-    DynamicJsonDocument presetsDoc(2048);
+    JsonDocument presetsDoc;
     if (deserializeJson(presetsDoc, presetsJson) == DeserializationError::Ok) {
         for (JsonObject preset : presetsDoc.as<JsonArray>()) {
             options.add(preset["name"].as<String>());
@@ -81,11 +81,11 @@ void publishHaPresetSelector() {
 
 void publishDeviceTriggers() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     String topic;
     String payload;
 
-    JsonObject device = doc.createNestedObject("device");
+    JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
 
     doc["automation_type"] = "trigger";
@@ -120,7 +120,7 @@ void publishDeviceTriggers() {
 void publishHaDiagnosticAttributes() {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    DynamicJsonDocument doc(512);
+    JsonDocument doc;
 
     doc["free_heap"] = ESP.getFreeHeap();
     doc["uptime_seconds"] = millis() / 1000;
@@ -148,7 +148,7 @@ void publishHaAutoDiscovery() {
 
     // --- Create a reusable "device" JSON object ---
     // This object is included in every discovery payload to link all entities to a single device in HA.
-    StaticJsonDocument<512> device_doc;
+    JsonDocument device_doc;
     JsonObject device = device_doc.to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
     device["name"] = "Time Circuits Display";
@@ -156,14 +156,14 @@ void publishHaAutoDiscovery() {
     device["manufacturer"] = "Doc Brown Industries";
     device["sw_version"] = "2.0";
 
-    StaticJsonDocument<256> availability_doc;
+    JsonDocument availability_doc;
     JsonArray availability = availability_doc.to<JsonArray>();
-    JsonObject availability_topic = availability.createNestedObject();
+    JsonObject availability_topic = availability.add<JsonObject>();
     availability_topic["topic"] = device_base_topic + "/status";
     availability_topic["payload_available"] = "online";
     availability_topic["payload_not_available"] = "offline";
 
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc;
     String topic;
     String payload;
     
@@ -315,7 +315,7 @@ void publishHaAutoDiscovery() {
     doc["object_id"] = String(MQTT_UNIQUE_ID) + "_profile";
     doc["command_topic"] = device_base_topic + "/profile/command";
     doc["state_topic"] = device_base_topic + "/profile/state";
-    JsonArray profiles = doc.createNestedArray("options");
+    JsonArray profiles = doc["options"].to<JsonArray>();
     profiles.add("Standard");
     profiles.add("Cinematic");
     profiles.add("Silent Night");
@@ -337,7 +337,7 @@ void publishHaAutoDiscovery() {
         doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        JsonArray sources = doc.createNestedArray("options");
+        JsonArray sources = doc["options"].to<JsonArray>();
         sources.add("API");
         sources.add("MQTT");
         sources.add("Home Assistant Push");
@@ -714,7 +714,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             broadcastWsStateUpdate("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
         }
         else if (topicStr == base_topic + "marquee_temp_override/command") {
-            DynamicJsonDocument doc(256);
+            JsonDocument doc;
             if (deserializeJson(doc, message) == DeserializationError::Ok) {
                 marqueeOverrideMessage = doc["text"].as<String>();
                 unsigned long duration = doc["duration"] | 0;
@@ -859,7 +859,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             settingsChanged = true;
         }
         else if (topicStr == base_topic + "tts/play") {
-            DynamicJsonDocument doc(256);
+            JsonDocument doc;
             DeserializationError error = deserializeJson(doc, message);
 
             if (error == DeserializationError::Ok) {
