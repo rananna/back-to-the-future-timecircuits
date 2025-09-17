@@ -119,7 +119,7 @@ static bool fetchWeatherDataFromApi() {
 
     // Set smaller buffer sizes for the secure client to reduce heap usage.
     // This is crucial for preventing memory allocation failures on memory-constrained devices.
-    client.setBufferSizes(512, 512);
+    // client.setBufferSizes(512, 512);
 
     // Downgrade to HTTP 1.0 to disable chunked encoding, which allows for direct streaming
     // into the JSON parser without needing an intermediate buffer or special handling.
@@ -160,7 +160,7 @@ static bool fetchWeatherDataFromApi() {
 
             // 2. Use a JsonDocument on the stack.
             // The document's capacity will grow as needed.
-            JsonDocument doc;
+            StaticJsonDocument<3072> doc;
 
             // 3. Deserialize directly from the HTTP stream with the filter.
             DeserializationError error = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));

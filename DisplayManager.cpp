@@ -529,19 +529,25 @@ void handleWeatherDisplay() {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
 
-                        // Safely create the scrolling viewport
-                        char tempScrollText[sizeof(weatherBuffer) + 14];
-                        snprintf(tempScrollText, sizeof(tempScrollText), "%s             ", weatherBuffer);
-
-                        // Ensure we don't read past the buffer
-                        if(weatherScrollPosition > strlen(weatherBuffer)) {
-                             if (millis() - lastWeatherUpdate > errorRetryDelay) {
+                        // If we've scrolled past the end of the error message
+                        if (weatherScrollPosition > strlen(weatherBuffer)) {
+                            // After a delay, clear the error and try fetching data again
+                            if (millis() - lastWeatherUpdate > errorRetryDelay) {
                                 currentWeatherData.errorReason = ""; // Clear reason
                                 weatherState = WD_START_PAGE;
                                 initialFetchTriggered = false; // Allow a new fetch
                             }
                         } else {
-                            strncpy(viewport, tempScrollText + weatherScrollPosition, 13);
+                            // Manually construct the viewport without a large temporary buffer
+                            int text_len = strlen(weatherBuffer);
+                            for (int i = 0; i < 13; i++) {
+                                int source_idx = weatherScrollPosition + i;
+                                if (source_idx < text_len) {
+                                    viewport[i] = weatherBuffer[source_idx];
+                                } else {
+                                    viewport[i] = ' '; // Pad with spaces
+                                }
+                            }
                             viewport[13] = '\0';
 
                             // Safely extract segments
@@ -562,93 +568,94 @@ void handleWeatherDisplay() {
                     break;
                 }
                 case WD_START_PAGE: {
-                    // Clear display before showing new text
-                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                        printToDisplay(lastRow.month, "   ", 0); printToDisplay(lastRow.day, "  ", 0);
-                        printToDisplay(lastRow.year, "    ", 0); printToDisplay(lastRow.time, "    ", 0);
-                        lastRow.month.writeDisplay(); lastRow.day.writeDisplay();
-                        lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-                        vTaskDelay(pdMS_TO_TICKS(2));
-                        xSemaphoreGive(xDisplayHardwareMutex);
-                    }
-
-                    // Build the weather string safely in the char buffer
-                    char temp_buf[20];
-                    const char* unit = currentSettings.useMetricUnits ? "C" : "F";
-                    const char* windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
-                    char high_buf[8], low_buf[8];
-
-                    snprintf(weatherBuffer, sizeof(weatherBuffer), "             "); // Start with padding
-
-                    switch (weatherPage) {
-                        case 0: // Current Weather
-                            dtostrf(currentWeatherData.temperature, 4, 1, temp_buf);
-                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "CURRENTLY %s%s, %s", temp_buf, unit, getWeatherDescriptionForCode(currentWeatherData.weatherCode));
-                            break;
-                        case 1: // Tomorrow's Forecast
-                            dtostrf(currentWeatherData.tomorrowHigh, 1, 0, high_buf);
-                            dtostrf(currentWeatherData.tomorrowLow, 1, 0, low_buf);
-                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "TOMORROW HIGH %s%s, LOW %s%s, %s", high_buf, unit, low_buf, unit, getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode));
-                            break;
-                        case 2: // Wind & Rain
-                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "WIND %d %s, MAX %d %s, PRECIP %d%%", (int)currentWeatherData.windSpeed, windUnit, (int)currentWeatherData.maxWindSpeed, windUnit, currentWeatherData.precipitationProbability);
-                            break;
-                        case 3: { // Sunrise & Sunset
-                            struct tm timeinfo; char timeStr[8];
-                        case 3: { // Sunrise & Sunset
-                            struct tm timeinfo; char timeStr[8];
-                            time_t sunrise = currentWeatherData.sunrise;
-                            time_t sunset = currentWeatherData.sunset;
-
-                            // Temporarily set the timezone to the one provided by the weather API
-                            if (!currentWeatherData.timezone.empty()) {
-                                setenv("TZ", currentWeatherData.timezone.c_str(), 1);
-                                tzset();
-                            }
-
-                            // Format sunrise
-                            localtime_r(&sunrise, &timeinfo);
-                            strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
-                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "SUNRISE %s, SUNSET ", timeStr);
-
-                            // Format sunset
-                            localtime_r(&sunset, &timeinfo);
-                            strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
-                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s", timeStr);
-
-                            // Restore the original timezone for the main clock display
-                            setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                            tzset();
-                            break;
+                    // This entire case needs to be in its own scope to prevent "crosses initialization" errors.
+                    {
+                        // Clear display before showing new text
+                        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                            printToDisplay(lastRow.month, "   ", 0); printToDisplay(lastRow.day, "  ", 0);
+                            printToDisplay(lastRow.year, "    ", 0); printToDisplay(lastRow.time, "    ", 0);
+                            lastRow.month.writeDisplay(); lastRow.day.writeDisplay();
+                            lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+                            vTaskDelay(pdMS_TO_TICKS(2));
+                            xSemaphoreGive(xDisplayHardwareMutex);
                         }
-                        case 4: { // Hourly Forecast
-                            strncat(weatherBuffer, "NEXT 3 HRS ", sizeof(weatherBuffer) - strlen(weatherBuffer) - 1);
-                            bool hourlyDataOk = true;
-                            for(int i=0; i<3; ++i) if(currentWeatherData.hourlyCode[i] == -1) hourlyDataOk = false;
 
-                            if (!hourlyDataOk) {
-                                strncat(weatherBuffer, "HOURLY DATA UNAVAILABLE", sizeof(weatherBuffer) - strlen(weatherBuffer) - 1);
-                            } else {
-                                for (int i = 0; i < 3; ++i) {
-                                    dtostrf(currentWeatherData.hourlyTemp[i], 1, 0, temp_buf);
-                                    snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s%s %s%s", temp_buf, unit, getWeatherDescriptionForCode(currentWeatherData.hourlyCode[i]), (i < 2 ? ", " : ""));
+                        // Build the weather string safely in the char buffer
+                        char temp_buf[20];
+                        const char* unit = currentSettings.useMetricUnits ? "C" : "F";
+                        const char* windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
+                        char high_buf[8], low_buf[8];
+
+                        snprintf(weatherBuffer, sizeof(weatherBuffer), "             "); // Start with padding
+
+                        switch (weatherPage) {
+                            case 0: // Current Weather
+                                dtostrf(currentWeatherData.temperature, 4, 1, temp_buf);
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "CURRENTLY %s%s, %s", temp_buf, unit, getWeatherDescriptionForCode(currentWeatherData.weatherCode));
+                                break;
+                            case 1: // Tomorrow's Forecast
+                                dtostrf(currentWeatherData.tomorrowHigh, 1, 0, high_buf);
+                                dtostrf(currentWeatherData.tomorrowLow, 1, 0, low_buf);
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "TOMORROW HIGH %s%s, LOW %s%s, %s", high_buf, unit, low_buf, unit, getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode));
+                                break;
+                            case 2: // Wind & Rain
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "WIND %d %s, MAX %d %s, PRECIP %d%%", (int)currentWeatherData.windSpeed, windUnit, (int)currentWeatherData.maxWindSpeed, windUnit, currentWeatherData.precipitationProbability);
+                                break;
+                            case 3: { // Sunrise & Sunset
+                                struct tm timeinfo; char timeStr[8];
+                                time_t sunrise = currentWeatherData.sunrise;
+                                time_t sunset = currentWeatherData.sunset;
+
+                                // Temporarily set the timezone to the one provided by the weather API
+                                if (!currentWeatherData.timezone.empty()) {
+                                    setenv("TZ", currentWeatherData.timezone.c_str(), 1);
+                                    tzset();
                                 }
+
+                                // Format sunrise
+                                localtime_r(&sunrise, &timeinfo);
+                                strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "SUNRISE %s, SUNSET ", timeStr);
+
+                                // Format sunset
+                                localtime_r(&sunset, &timeinfo);
+                                strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s", timeStr);
+
+                                // Restore the original timezone for the main clock display
+                                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                                tzset();
+                                break;
                             }
-                            break;
+                            case 4: { // Hourly Forecast
+                                strncat(weatherBuffer, "NEXT 3 HRS ", sizeof(weatherBuffer) - strlen(weatherBuffer) - 1);
+                                bool hourlyDataOk = true;
+                                for(int i=0; i<3; ++i) if(currentWeatherData.hourlyCode[i] == -1) hourlyDataOk = false;
+
+                                if (!hourlyDataOk) {
+                                    strncat(weatherBuffer, "HOURLY DATA UNAVAILABLE", sizeof(weatherBuffer) - strlen(weatherBuffer) - 1);
+                                } else {
+                                    for (int i = 0; i < 3; ++i) {
+                                        dtostrf(currentWeatherData.hourlyTemp[i], 1, 0, temp_buf);
+                                        snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s%s %s%s", temp_buf, unit, getWeatherDescriptionForCode(currentWeatherData.hourlyCode[i]), (i < 2 ? ", " : ""));
+                                    }
+                                }
+                                break;
+                            }
+                            case 5: // Feels Like & Humidity
+                                dtostrf(currentWeatherData.apparentTemperature, 1, 0, temp_buf);
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "FEELS LIKE %s%s, HUMIDITY %d%%", temp_buf, unit, currentWeatherData.humidity);
+                                break;
+                            case 6: // Today's High/Low
+                                dtostrf(currentWeatherData.dailyHigh, 1, 0, high_buf);
+                                dtostrf(currentWeatherData.dailyLow, 1, 0, low_buf);
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "TODAY HIGH %s%s, LOW %s%s", high_buf, unit, low_buf, unit);
+                                break;
                         }
-                        case 5: // Feels Like & Humidity
-                            dtostrf(currentWeatherData.apparentTemperature, 1, 0, temp_buf);
-                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "FEELS LIKE %s%s, HUMIDITY %d%%", temp_buf, unit, currentWeatherData.humidity);
-                            break;
-                        case 6: // Today's High/Low
-                            dtostrf(currentWeatherData.dailyHigh, 1, 0, high_buf);
-                            dtostrf(currentWeatherData.dailyLow, 1, 0, low_buf);
-                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "TODAY HIGH %s%s, LOW %s%s", high_buf, unit, low_buf, unit);
-                            break;
+                        weatherScrollPosition = 0;
+                        weatherState = WD_SCROLLING;
+                        lastWeatherUpdate = millis();
                     }
-                    weatherScrollPosition = 0;
-                    weatherState = WD_SCROLLING;
-                    lastWeatherUpdate = millis();
                     break; // End of WD_START_PAGE
                 }
 
@@ -656,15 +663,22 @@ void handleWeatherDisplay() {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
 
-                        char tempScrollText[sizeof(weatherBuffer) + 14];
-                        snprintf(tempScrollText, sizeof(tempScrollText), "%s             ", weatherBuffer);
-
-                        if(weatherScrollPosition > strlen(weatherBuffer)) {
+                        // Check if we have scrolled past the end of the text
+                        if (weatherScrollPosition > strlen(weatherBuffer)) {
                             Log_printf(LOG_LEVEL_DEBUG, "Scrolling finished, transitioning to WD_PAUSING state");
                             weatherState = WD_PAUSING;
                             lastWeatherUpdate = millis();
                         } else {
-                            strncpy(viewport, tempScrollText + weatherScrollPosition, 13);
+                            // Manually construct the viewport without a large temporary buffer
+                            int text_len = strlen(weatherBuffer);
+                            for (int i = 0; i < 13; i++) {
+                                int source_idx = weatherScrollPosition + i;
+                                if (source_idx < text_len) {
+                                    viewport[i] = weatherBuffer[source_idx];
+                                } else {
+                                    viewport[i] = ' '; // Pad with spaces
+                                }
+                            }
                             viewport[13] = '\0';
 
                             strncpy(segment_month, viewport, 3); segment_month[3] = '\0';
