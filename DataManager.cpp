@@ -8,6 +8,8 @@
  * from blocking and ensuring the display remains responsive.
  */
 
+#include <esp_tls.h>
+#include "secrets.h"
 #include "DebugLog.h"
 #include "DataManager.h"
 #include "EventManager.h"
@@ -95,46 +97,151 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
 
 
 
-// Forward declaration for the new unified weather fetch function
-static bool fetchWeatherDataFromApi();
+// A simple Stream implementation for esp_tls
+class TlsStream : public Stream {
+private:
+    esp_tls_t *tls;
+
+public:
+    TlsStream(esp_tls_t *tls_handle) : tls(tls_handle) {}
+
+    virtual int available() {
+        return esp_tls_get_bytes_avail(tls);
+    }
+
+    virtual int read() {
+        unsigned char c;
+        int ret = esp_tls_conn_read(tls, &c, 1);
+        if (ret > 0) {
+            return c;
+        }
+        return -1;
+    }
+
+    virtual int peek() {
+        // Not implemented
+        return -1;
+    }
+
+    virtual void flush() {
+        // Not implemented
+    }
+};
+
+// Forward declaration for the cleanup function
+static void cleanupWeatherConnection();
+
+// Static TLS connection handle
+static esp_tls_t *tls = NULL;
+
+// Root CA certificate for api.open-meteo.com (Let's Encrypt R11)
+static const char *open_meteo_com_root_ca = \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIIFBjCCAu6gAwIBAgIRAIp9PhPWLzDvI4a9KQdrNPgwDQYJKoZIhvcNAQELBQAw\n" \
+"TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh\n" \
+"cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMjQwMzEzMDAwMDAw\n" \
+"WhcNMjcwMzEyMjM1OTU5WjAzMQswCQYDVQQGEwJVUzEWMBQGA1UEChMNTGV0J3Mg\n" \
+"RW5jcnlwdDEMMAoGA1UEAxMDUjExMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB\n" \
+"CgKCAQEAuoe8XBsAOcvKCs3UZxD5ATylTqVhyybKUvsVAbe5KPUoHu0nsyQYOWcJ\n" \
+"DAjs4DqwO3cOvfPlOVRBDE6uQdaZdN5R2+97/1i9qLcT9t4x1fJyyXJqC4N0lZxG\n" \
+"AGQUmfOx2SLZzaiSqhwmej/+71gFewiVgdtxD4774zEJuwm+UE1fj5F2PVqdnoPy\n" \
+"6cRms+EGZkNIGIBloDcYmpuEMpexsr3E+BUAnSeI++JjF5ZsmydnS8TbKF5pwnnw\n" \
+"SVzgJFDhxLyhBax7QG0AtMJBP6dYuC/FXJuluwme8f7rsIU5/agK70XEeOtlKsLP\n" \
+"Xzze41xNG/cLJyuqC0J3U095ah2H2QIDAQABo4H4MIH1MA4GA1UdDwEB/wQEAwIB\n" \
+"hjAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwEwEgYDVR0TAQH/BAgwBgEB\n" \
+"/wIBADAdBgNVHQ4EFgQUxc9GpOr0w8B6bJXELbBeki8m47kwHwYDVR0jBBgwFoAU\n" \
+"ebRZ5nu25eQBc4AIiMgaWPbpm24wMgYIKwYBBQUHAQEEJjAkMCIGCCsGAQUFBzAC\n" \
+"hhZodHRwOi8veDEuaS5sZW5jci5vcmcvMBMGA1UdIAQMMAowCAYGZ4EMAQIBMCcG\n" \
+"A1UdHwQgMB4wHKAaoBiGFmh0dHA6Ly94MS5jLmxlbmNyLm9yZy8wDQYJKoZIhvcN\n" \
+"AQELBQADggIBAE7iiV0KAxyQOND1H/lxXPjDj7I3iHpvsCUf7b632IYGjukJhM1y\n" \
+"v4Hz/MrPU0jtvfZpQtSlET41yBOykh0FX+ou1Nj4ScOt9ZmWnO8m2OG0JAtIIE38\n" \
+"01S0qcYhyOE2G/93ZCkXufBL713qzXnQv5C/viOykNpKqUgxdKlEC+Hi9i2DcaR1\n" \
+"e9KUwQUZRhy5j/PEdEglKg3l9dtD4tuTm7kZtB8v32oOjzHTYw+7KdzdZiw/sBtn\n" \
+"UfhBPORNuay4pJxmY/WrhSMdzFO2q3Gu3MUBcdo27goYKjL9CTF8j/Zz55yctUoV\n" \
+"aneCWs/ajUX+HypkBTA+c8LGDLnWO2NKq0YD/pnARkAnYGPfUDoHR9gVSp/qRx+Z\n" \
+"WghiDLZsMwhN1zjtSC0uBWiugF3vTNzYIEFfaPG7Ws3jDrAMMYebQ95JQ+HIBD/R\n" \
+"PBuHRTBpqKlyDnkSHDHYPiNX3adPoPAcgdF3H2/W0rmoswMWgTlLn1Wu0mrks7/q\n" \
+"pdWfS6PJ1jty80r2VKsM/Dj3YIDfbjXKdaFU5C+8bhfJGqU3taKauuz0wHVGT3eo\n" \
+"6FlWkWYtbt4pgdamlwVeZEW+LM7qZEJEsMNPrfC03APKmZsJgpWCDWOKZvkZcvjV\n" \
+"uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA\n" \
+"-----END CERTIFICATE-----\n";
 
 // This new function is responsible for fetching all weather data (current, daily, and hourly) in a single API call.
 static bool fetchWeatherDataFromApi() {
-    HTTPClient http;
-    WiFiClientSecure client;
-    client.setInsecure();
-    client.setTimeout(10000); // 10-second timeout
+    for (int i = 0; i < 2; i++) { // Retry loop
+        if (!tls) {
+            esp_tls_cfg_t cfg = {};
+            cfg.cacert_buf = (const unsigned char *)open_meteo_com_root_ca;
+            cfg.cacert_bytes = strlen(open_meteo_com_root_ca) + 1;
+            cfg.timeout_ms = 10000;
 
-    String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
-    String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
+            tls = esp_tls_conn_new_sync("api.open-meteo.com", 443, &cfg);
 
-    char weatherUrl[512];
-    snprintf(weatherUrl, sizeof(weatherUrl),
-             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
-             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
-             "&hourly=temperature_2m,weather_code"
-             "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
-             "&forecast_days=2&forecast_hours=12&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime",
-             currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
+            if (!tls) {
+                Log_printf(LOG_LEVEL_ERROR, "Failed to create TLS connection. Attempt %d", i + 1);
+                continue;
+            }
+            Log_printf(LOG_LEVEL_DEBUG, "TLS connection established.");
+        }
 
-    // Set smaller buffer sizes for the secure client to reduce heap usage.
-    // This is crucial for preventing memory allocation failures on memory-constrained devices.
-    // client.setBufferSizes(512, 512);
+        String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
+        String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
+        char request[512];
+        snprintf(request, sizeof(request),
+                 "GET /v1/forecast?latitude=%.4f&longitude=%.4f"
+                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
+                 "&hourly=temperature_2m,weather_code"
+                 "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
+                 "&forecast_days=2&forecast_hours=12&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime"
+                 " HTTP/1.1\r\n"
+                 "Host: api.open-meteo.com\r\n"
+                 "Connection: keep-alive\r\n"
+                 "\r\n",
+                 currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
 
-    // Downgrade to HTTP 1.0 to disable chunked encoding, which allows for direct streaming
-    // into the JSON parser without needing an intermediate buffer or special handling.
-    // This is the recommended approach from the ArduinoJson library documentation.
-    http.useHTTP10(true);
-    if (http.begin(client, weatherUrl)) {
-        Log_printf(LOG_LEVEL_DEBUG, "Unified Weather URL: %s", weatherUrl);
-        int httpCode = http.GET();
-        Log_printf(LOG_LEVEL_DEBUG, "Unified Weather API HTTP Code: %d", httpCode);
+        size_t written;
+        if (esp_tls_conn_write(tls, request, strlen(request), &written) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed. Cleaning up and retrying...");
+            cleanupWeatherConnection();
+            continue;
+        }
 
-        if (httpCode == HTTP_CODE_OK) {
-            // --- Robust Streaming Implementation ---
+        char linebuf[256];
+        int http_status = 0;
+        bool headers_done = false;
 
-            // 1. Create a filter to only parse the data we need.
-            // This massively reduces memory usage.
+        while (true) {
+            int ret = esp_tls_conn_read(tls, (unsigned char *)linebuf, sizeof(linebuf) - 1);
+            if (ret < 0) {
+                Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_read failed: -0x%x", -ret);
+                cleanupWeatherConnection();
+                goto retry;
+            }
+            if (ret == 0) {
+                Log_printf(LOG_LEVEL_WARN, "Connection closed by server.");
+                cleanupWeatherConnection();
+                goto retry;
+            }
+
+            linebuf[ret] = 0;
+            if (http_status == 0) {
+                sscanf(linebuf, "HTTP/1.1 %d", &http_status);
+            }
+
+            if (strstr(linebuf, "\r\n\r\n")) {
+                headers_done = true;
+                break;
+            }
+        }
+
+        if (http_status != 200) {
+            Log_printf(LOG_LEVEL_WARN, "HTTP request failed with code %d", http_status);
+            // We don't cleanup here, as the connection might be reusable.
+            return false;
+        }
+
+        if (headers_done) {
+            TlsStream stream(tls);
             JsonDocument filter;
             filter["timezone"] = true;
             JsonObject current_filter = filter["current"].to<JsonObject>();
@@ -158,17 +265,12 @@ static bool fetchWeatherDataFromApi() {
             daily_filter["precipitation_probability_max"] = true;
             daily_filter["wind_speed_10m_max"] = true;
 
-            // 2. Use a JsonDocument on the heap.
-            // The document's capacity will grow as needed.
             JsonDocument doc;
-
-            // 3. Deserialize directly from the HTTP stream with the filter.
-            DeserializationError error = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
-            
-            http.end(); // End the connection now that we are done with the stream.
+            DeserializationError error = deserializeJson(doc, stream, DeserializationOption::Filter(filter));
 
             if (error == DeserializationError::Ok) {
-                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                // Same JSON processing logic as before...
+                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (doc["error"].isNull()) {
                         Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
 
@@ -206,8 +308,6 @@ static bool fetchWeatherDataFromApi() {
                         currentWeatherData.windSpeed = getJsonValue(current, "wind_speed_10m");
                         currentWeatherData.humidity = getJsonValue(current, "relative_humidity_2m");
                         currentWeatherData.weatherCode = getJsonValue(current, "weather_code");
-                        // Note: 'is_day', 'precipitation', and 'wind_direction_10m' are fetched but not stored in the struct.
-                        // This is fine and they can be added later if needed without another API change.
 
                         // --- Daily Weather Data ---
                         currentWeatherData.dailyHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 0);
@@ -224,10 +324,8 @@ static bool fetchWeatherDataFromApi() {
                         JsonArray hourly_temp = getJsonValue(hourly, "temperature_2m").as<JsonArray>();
                         JsonArray hourly_code = getJsonValue(hourly, "weather_code").as<JsonArray>();
 
-                        // Find the current hour in the hourly forecast to get the next 3 hours
-                        // This is much more robust than the previous implementation.
                         time_t now = getJsonValue(current, "time").as<time_t>();
-                        if (now == 0) { // Check if time was successfully parsed
+                        if (now == 0) {
                             allDataPresent = false;
                             Log_printf(LOG_LEVEL_WARN, "Weather JSON missing current.time");
                         }
@@ -247,15 +345,14 @@ static bool fetchWeatherDataFromApi() {
                             Log_printf(LOG_LEVEL_WARN, "Weather JSON missing hourly.time array");
                         }
 
-
                         if (startIndex != -1) {
                             for (int j = 0; j < 3; j++) {
-                                int forecastIndex = startIndex + j + 1; // +1 to get the forecast for the *next* hour
+                                int forecastIndex = startIndex + j + 1;
                                 if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
                                     currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
                                     currentWeatherData.hourlyCode[j] = hourly_code[forecastIndex];
                                 } else {
-                                    currentWeatherData.hourlyTemp[j] = -999; // Placeholder for missing data
+                                    currentWeatherData.hourlyTemp[j] = -999;
                                     currentWeatherData.hourlyCode[j] = -1;
                                 }
                             }
@@ -289,29 +386,32 @@ static bool fetchWeatherDataFromApi() {
                         return true;
 
                     } else {
-                        // This case is for API-level errors returned in a valid JSON body (e.g., "invalid API key").
                         Log_printf(LOG_LEVEL_WARN, "Unified Weather API returned an error: %s", doc["reason"].as<const char*>());
                         currentWeatherData.errorReason = "WEATHER API ERROR";
                         xSemaphoreGive(xDisplayDataMutex);
                     }
                 }
             } else {
-                // This case is for JSON parsing errors (e.g., incomplete download, invalid format).
                 Log_printf(LOG_LEVEL_WARN, "Failed to parse Unified Weather JSON. E: %s", error.c_str());
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     currentWeatherData.errorReason = "WEATHER PARSING FAILED";
                     xSemaphoreGive(xDisplayDataMutex);
                 }
             }
-        } else {
-            Log_printf(LOG_LEVEL_WARN, "Unified Weather API request failed with HTTP code %d", httpCode);
-            http.end();
         }
-    } else {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for Unified Weather API.");
+
+        retry:;
     }
 
     return false;
+}
+
+static void cleanupWeatherConnection() {
+    if (tls) {
+        esp_tls_conn_delete(tls);
+        tls = NULL;
+        Log_printf(LOG_LEVEL_DEBUG, "TLS connection cleaned up.");
+    }
 }
 
 #include <algorithm>

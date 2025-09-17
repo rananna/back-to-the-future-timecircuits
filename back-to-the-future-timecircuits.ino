@@ -502,6 +502,7 @@ void applySettingsFromJson(const JsonObject& obj) {
 
     // If weather mode was just turned off, reset the fetch state
     if (oldWeatherModeEnabled && !currentSettings.weatherModeEnabled) {
+        cleanupWeatherConnection();
         resetWeatherFetchState();
     }
 }
