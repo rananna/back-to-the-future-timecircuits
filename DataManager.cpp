@@ -418,7 +418,7 @@ static bool fetchWeatherDataFromApi() {
     return false;
 }
 
-void cleanupWeatherConnection() {
+static void cleanupWeatherConnection() {
     if (tls) {
         esp_tls_conn_destroy(tls);
         tls = NULL;
