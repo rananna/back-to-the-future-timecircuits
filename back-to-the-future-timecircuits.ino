@@ -431,6 +431,12 @@ void applySettingsFromJson(const JsonObject& obj) {
         }
         currentSettings.cityName = newCityName;
     }
+    if (!obj["latitude"].isNull()) {
+        currentSettings.latitude = obj["latitude"].as<float>();
+    }
+    if (!obj["longitude"].isNull()) {
+        currentSettings.longitude = obj["longitude"].as<float>();
+    }
     currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
     currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
     if (!obj["financialModelingPrepApiKey"].isNull()) {

@@ -460,6 +460,8 @@ void setupWebRoutes() {
     doc["weatherModeEnabled"] = currentSettings.weatherModeEnabled;
     doc["cityName"] = currentSettings.cityName.c_str();
     doc["useMetricUnits"] = currentSettings.useMetricUnits;
+    doc["latitude"] = currentSettings.latitude;
+    doc["longitude"] = currentSettings.longitude;
     doc["stockTickerModeEnabled"] = currentSettings.stockTickerModeEnabled;
     doc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
     doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();

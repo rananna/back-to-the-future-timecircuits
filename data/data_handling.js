@@ -426,6 +426,8 @@ function saveSettings() {
 
     settings.weatherModeEnabled = getChecked('weatherModeEnabled');
     settings.cityName = getValue('cityName');
+    settings.latitude = parseFloat(getValue('weatherLatitude', '0.0'));
+    settings.longitude = parseFloat(getValue('weatherLongitude', '0.0'));
     settings.useMetricUnits = getChecked('useMetricUnits');
     
     settings.stockTickerModeEnabled = getChecked('stockTickerModeEnabled');
@@ -524,6 +526,7 @@ function getDescriptiveLocationName(location) {
  */
 function refreshWeatherData() {
     const cityInput = document.getElementById('cityName');
+    const refreshButton = document.getElementById('refreshWeatherBtn');
     const city = cityInput.value.trim();
 
     if (!city || city.length < 2) {
@@ -533,33 +536,25 @@ function refreshWeatherData() {
 
     const preview = document.getElementById('weatherPreview');
     preview.textContent = 'Verifying city...';
-    const loadingSpinner = document.querySelector('#weatherDisplay .loading-spinner-container');
+    const loadingSpinner = document.querySelector('#weatherSettingsContainer .loading-spinner-container');
+
+    // UX Improvement: Disable inputs and show spinner
+    cityInput.disabled = true;
+    refreshButton.disabled = true;
     loadingSpinner.style.display = 'block';
 
     fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=10&language=en&format=json`)
         .then(response => response.json())
         .then(data => {
-            const loadingSpinner = document.querySelector('#weatherDisplay .loading-spinner-container');
             if (data && data.results && data.results.length > 0) {
                 if (data.results.length === 1) {
-                    const location = data.results[0];
-                    const bestMatch = getDescriptiveLocationName(location);
-                    correctedCityName = bestMatch; // Store validated name globally
-                    // cityInput.value = correctedCityName; // BUGFIX: Do not overwrite user's input
-
-                    if (!isLoading) setSettingsChanged(true); // Enable the save button
-
-                    showMessage(`City found: ${bestMatch}. Fetching weather...`, 'success');
-                    triggerWeatherRefresh(bestMatch, location.latitude, location.longitude);
+                    handleLocationSelection({ currentTarget: { dataset: { location: JSON.stringify(data.results[0]) } } }, true);
                 } else {
-                    // Multiple results, show modal
-                    loadingSpinner.style.display = 'none';
                     showLocationModal(data.results);
                 }
             } else {
                 correctedCityName = '';
                 preview.textContent = 'City not found.';
-                loadingSpinner.style.display = 'none';
                 showMessage('City not found. Please check the name and try again.', 'error');
             }
         })
@@ -567,11 +562,16 @@ function refreshWeatherData() {
             console.error("CLIENT_DEBUG: Geocoding API error:", err);
             correctedCityName = '';
             preview.textContent = 'Could not verify city.';
-            const loadingSpinner = document.querySelector('#weatherDisplay .loading-spinner-container');
+            showMessage('Error verifying city name. Check connection or browser console.', 'error');
+        })
+        .finally(() => {
+            // UX Improvement: Re-enable inputs and hide spinner
+            cityInput.disabled = false;
+            refreshButton.disabled = false;
             loadingSpinner.style.display = 'none';
-            showMessage('Error verifying city name. Check connection.', 'error');
         });
 }
+
 
 /**
  * Sends the validated city name to the server to trigger a weather data refresh.
@@ -580,6 +580,8 @@ function refreshWeatherData() {
 function triggerWeatherRefresh(validatedCity, latitude = null, longitude = null) {
     const preview = document.getElementById('weatherPreview');
     preview.textContent = 'Fetching...';
+    document.getElementById('weatherLatitude').value = latitude;
+    document.getElementById('weatherLongitude').value = longitude;
 
     let payload = {};
     if (latitude !== null && longitude !== null) {
@@ -627,96 +629,110 @@ function getWeatherIcon(code) {
  * Fetches the current weather data from the server.
  */
 function updateWeatherUI(data) {
-    const weatherDisplay = document.getElementById('weatherDisplay');
-    const preview = document.getElementById('weatherPreview');
-
-    // Get the units based on the user's preference
     const isMetric = document.getElementById('useMetricUnits').checked;
     const tempUnit = isMetric ? '°C' : '°F';
     const speedUnit = isMetric ? ' km/h' : ' mph';
 
-    // Update the weather display with the fetched data
-    weatherDisplay.style.display = 'grid';
-    document.getElementById('weatherIcon').textContent = getWeatherIcon(data.weatherCode);
-    document.getElementById('weatherTemp').textContent = `${data.temperature.toFixed(1)}${tempUnit}`;
-    document.getElementById('weatherFeelsLike').textContent = `${data.apparentTemperature.toFixed(1)}${tempUnit}`;
-    document.getElementById('weatherHumidity').textContent = `${data.humidity}%`;
-    document.getElementById('weatherWind').textContent = `${data.windSpeed.toFixed(1)}${speedUnit}`;
-    document.getElementById('weatherHighLow').textContent = `${data.dailyHigh.toFixed(0)}° / ${data.dailyLow.toFixed(0)}°`;
-    document.getElementById('weatherLatitude').textContent = data.latitude.toFixed(4);
-    document.getElementById('weatherLongitude').textContent = data.longitude.toFixed(4);
+    const setContent = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    };
 
-    // Use the corrected city name if available, otherwise use the value from the input
+    const formatTime = (unixTimestamp) => {
+        if (!unixTimestamp) return '--:--';
+        const date = new Date(unixTimestamp * 1000);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    // Update main display
+    setContent('weatherIcon', getWeatherIcon(data.weatherCode));
+    setContent('weatherTemp', `${data.temperature.toFixed(1)}${tempUnit}`);
+    setContent('weatherFeelsLike', `${data.apparentTemperature.toFixed(1)}${tempUnit}`);
+    setContent('weatherHumidity', `${data.humidity}%`);
+    setContent('weatherWind', `${data.windSpeed.toFixed(1)}${speedUnit}`);
+    setContent('weatherCode', data.weatherCode);
+    setContent('weatherHighLow', `${data.dailyHigh.toFixed(0)}° / ${data.dailyLow.toFixed(0)}°`);
+    setContent('weatherSunriseSunset', `${formatTime(data.sunrise)} / ${formatTime(data.sunset)}`);
+    setContent('weatherPrecipChance', `${data.precipitationProbability}%`);
+    setContent('weatherMaxWind', `${data.maxWindSpeed.toFixed(1)}${speedUnit}`);
+    setContent('weatherTomorrowHighLow', `${data.tomorrowHigh.toFixed(0)}° / ${data.tomorrowLow.toFixed(0)}°`);
+    setContent('weatherTomorrowCode', getWeatherIcon(data.tomorrowWeatherCode));
+    setContent('weatherLatitudeDisplay', data.latitude.toFixed(4));
+    setContent('weatherLongitudeDisplay', data.longitude.toFixed(4));
+
+    // Update preview text
     const displayCity = correctedCityName || document.getElementById('cityName').value;
-    preview.textContent = `Live data for ${displayCity}: ${data.temperature.toFixed(1)}${tempUnit}`;
+    document.getElementById('weatherPreview').textContent = `Live data for ${displayCity}: ${data.temperature.toFixed(1)}${tempUnit}`;
+
+    // Update hidden inputs for saving
+    document.getElementById('weatherLatitude').value = data.latitude;
+    document.getElementById('weatherLongitude').value = data.longitude;
+
+    // Update API URL
+    const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${data.latitude.toFixed(4)}&longitude=${data.longitude.toFixed(4)}&current=...&daily=...&hourly=...`;
+    document.getElementById('weatherApiUrl').value = apiUrl;
 
     // Build the hourly forecast display
     const hourlyContainer = document.getElementById('hourlyForecastContainer');
     hourlyContainer.innerHTML = '';
-    const now = new Date();
-    let currentHour = now.getHours();
+    if (data.hourly) {
+        const now = new Date();
+        let currentHour = now.getHours();
+        data.hourly.forEach((hour, index) => {
+            let forecastHour = (currentHour + index + 1) % 24;
+            let ampm = forecastHour >= 12 ? 'PM' : 'AM';
+            let displayHour = forecastHour % 12;
+            if (displayHour === 0) displayHour = 12;
 
-    data.hourly.forEach((hour, index) => {
-        let forecastHour = (currentHour + index + 1) % 24;
-        let ampm = forecastHour >= 12 ? 'PM' : 'AM';
-        let displayHour = forecastHour % 12;
-        if (displayHour === 0) displayHour = 12;
+            const item = document.createElement('div');
+            item.className = 'hourly-item';
+            item.innerHTML = `
+                <div class="hourly-time">${displayHour} ${ampm}</div>
+                <div class="hourly-icon">${getWeatherIcon(hour.code)}</div>
+                <div class="hourly-temp">${hour.temp.toFixed(0)}°</div>
+            `;
+            hourlyContainer.appendChild(item);
+        });
+    }
 
-        const item = document.createElement('div');
-        item.className = 'hourly-item';
-        item.innerHTML = `
-            <div class="hourly-time">${displayHour} ${ampm}</div>
-            <div class="hourly-icon">${getWeatherIcon(hour.code)}</div>
-            <div class="hourly-temp">${hour.temp.toFixed(0)}°</div>
-        `;
-        hourlyContainer.appendChild(item);
-    });
-
-    // Hide the loading spinner
-    const loadingSpinner = weatherDisplay.querySelector('.loading-spinner-container');
-    loadingSpinner.style.display = 'none';
+    document.querySelector('#weatherDisplay .loading-spinner-container').style.display = 'none';
 }
+
 
 /**
  * Fetches the current weather data from the server.
  */
 function fetchWeatherData() {
-    // If weather mode is not enabled, hide the weather display
     if (!document.getElementById('weatherModeEnabled').checked) {
         document.getElementById('weatherDisplay').style.display = 'none';
         return;
     }
 
-    // Show a loading spinner
     const loadingSpinner = document.getElementById('weatherDisplay').querySelector('.loading-spinner-container');
     loadingSpinner.style.display = 'block';
 
-    // Fetch the weather data
     fetch('/api/weather')
         .then(res => {
-            if (res.ok) {
-                return res.json();
-            }
-            // If the response is not ok, parse the error JSON and pass it along
+            if (res.ok) return res.json();
             return res.json().then(errorData => Promise.reject(errorData));
         })
         .then(data => {
             updateWeatherUI(data);
         })
         .catch(error => {
-            const weatherDisplay = document.getElementById('weatherDisplay');
-            const preview = document.getElementById('weatherPreview');
             console.warn("CLIENT_DEBUG: Could not fetch weather data:", error);
-            weatherDisplay.style.display = 'grid';
-            ['weatherTemp', 'weatherFeelsLike', 'weatherHumidity', 'weatherWind', 'weatherHighLow'].forEach(id => {
-                document.getElementById(id).textContent = '--';
-            });
-            document.getElementById('hourlyForecastContainer').innerHTML = ''; // Clear hourly on error
-
-            // Use the reason from the parsed error object, or a default message
+            const preview = document.getElementById('weatherPreview');
             preview.textContent = error.reason || 'Data not available. Check city name.';
 
-            // Hide the loading spinner
+            // Clear all weather fields on error
+            const weatherFields = ['weatherIcon', 'weatherTemp', 'weatherFeelsLike', 'weatherHumidity', 'weatherWind', 'weatherCode', 'weatherHighLow', 'weatherSunriseSunset', 'weatherPrecipChance', 'weatherMaxWind', 'weatherTomorrowHighLow', 'weatherTomorrowCode', 'weatherLatitudeDisplay', 'weatherLongitudeDisplay'];
+            weatherFields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '--';
+            });
+            document.getElementById('hourlyForecastContainer').innerHTML = '';
+            document.getElementById('weatherApiUrl').value = '';
+
             loadingSpinner.style.display = 'none';
         });
 }
