@@ -2,6 +2,7 @@
 let settingsChanged = false; // Tracks if any settings have been changed by the user
 let timezoneOptions = []; // Stores the available timezone options fetched from the server
 let isDataLinkLoaded = false; // Flag to check if the Data Link settings have been loaded
+let isManualRefresh = false; // Flag to track if a manual weather refresh is in progress
 let anyInputInvalid = false; // Flag to track if there are any invalid inputs in the forms
 let analyzedDataCache = {}; // Caches the JSON data analyzed from API responses
 let apiExamples = {}; // Stores the API example templates fetched from the server
@@ -711,7 +712,6 @@ function updateWeatherUI(data) {
     setContent('weatherFeelsLike', `${data.apparentTemperature.toFixed(1)}${tempUnit}`);
     setContent('weatherHumidity', `${data.humidity}%`);
     setContent('weatherWind', `${data.windSpeed.toFixed(1)}${speedUnit}`);
-    setContent('weatherCode', data.weatherCode);
     setContent('weatherHighLow', `${data.dailyHigh.toFixed(0)}° / ${data.dailyLow.toFixed(0)}°`);
     setContent('weatherSunriseSunset', `${formatTime(data.sunrise)} / ${formatTime(data.sunset)}`);
     setContent('weatherPrecipChance', `${data.precipitationProbability}%`);
