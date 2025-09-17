@@ -649,7 +649,7 @@ function triggerWeatherRefresh(latitude, longitude) {
     if (latitude !== null && longitude !== null) {
         payload = { latitude, longitude };
     } else {
-        payload = { cityName: validatedCity };
+        payload = { cityName: correctedCityName };
     }
 
     fetch('/api/weather/refresh', {
@@ -718,20 +718,16 @@ function updateWeatherUI(data) {
     setContent('weatherMaxWind', `${data.maxWindSpeed.toFixed(1)}${speedUnit}`);
     setContent('weatherTomorrowHighLow', `${data.tomorrowHigh.toFixed(0)}° / ${data.tomorrowLow.toFixed(0)}°`);
     setContent('weatherTomorrowCode', getWeatherIcon(data.tomorrowWeatherCode));
-    setContent('weatherLatitudeDisplay', data.latitude.toFixed(4));
-    setContent('weatherLongitudeDisplay', data.longitude.toFixed(4));
 
     // Update preview text
     const displayCity = correctedCityName || document.getElementById('cityName').value;
     document.getElementById('weatherPreview').textContent = `Live data for ${displayCity}: ${data.temperature.toFixed(1)}${tempUnit}`;
 
-    // Update hidden inputs for saving
-    document.getElementById('weatherLatitude').value = data.latitude;
-    document.getElementById('weatherLongitude').value = data.longitude;
-
-    // Update API URL
-    const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${data.latitude.toFixed(4)}&longitude=${data.longitude.toFixed(4)}&current=...&daily=...&hourly=...`;
-    document.getElementById('weatherApiUrl').value = apiUrl;
+    // Update hidden inputs for saving, only if the new data is valid
+    if (data.latitude !== 0 && data.longitude !== 0) {
+        document.getElementById('weatherLatitude').value = data.latitude;
+        document.getElementById('weatherLongitude').value = data.longitude;
+    }
 
     // Build the hourly forecast display
     const hourlyContainer = document.getElementById('hourlyForecastContainer');
@@ -1079,6 +1075,7 @@ function handleLocationSelection(event) {
     // Use the chosen location's name
     const bestMatch = getDescriptiveLocationName(location);
     correctedCityName = bestMatch;
+    cityInput.value = bestMatch; // Update the input field
 
     // Populate the latitude and longitude fields
     document.getElementById('weatherLatitude').value = location.latitude.toFixed(4);
