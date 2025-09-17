@@ -415,6 +415,9 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 
 void handleWeatherDisplay() {
 #if ENABLE_HARDWARE
+    // In weather mode, the top two rows show normal clock information
+    updateNormalClockDisplay(true, true, false);
+
     // When the weather display is active, we must explicitly turn off the AM/PM LEDs for the last row,
     // as the weather display logic doesn't use the `updateDisplayRow` function which normally handles this.
     digitalWrite(LAST_AM_PIN, LOW);
