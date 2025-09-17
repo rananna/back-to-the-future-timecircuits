@@ -82,7 +82,14 @@ This is where you configure the display rows to show live, real-time data from t
 ---
 
 #### Live Weather Display
-This mode transforms the "Last Time Departed" display row into a comprehensive, multi-page weather station. To activate it, simply enable the "Live Weather Display" toggle and enter a city name. The clock will automatically use the free [Open-Meteo API](https://open-meteo.com/) to find the city's coordinates and fetch the latest weather data. An internet connection is required, and the data automatically refreshes every 5 minutes.
+This mode transforms the "Last Time Departed" display row into a comprehensive, multi-page weather station. An internet connection is required, and the data automatically refreshes periodically.
+
+**Configuration Steps:**
+1.  **Enable Weather Mode**: Toggle on "Enable Live Weather".
+2.  **Enter City Name**: Type the name of a city you want weather data for (e.g., `Hill Valley`).
+3.  **Lookup Coordinates**: Click the **Lookup** button. The clock will use a free geocoding service to find the latitude and longitude for the city. These coordinates will appear in the read-only fields below the button. If the city name is ambiguous, a pop-up will ask you to choose the correct location.
+4.  **Fetch Weather**: Once the coordinates are found, the clock will automatically use them to fetch the latest weather data from the free [Open-Meteo API](https://open-meteo.com/).
+5.  **Refresh Data**: You can click the **Refresh** button at any time to manually trigger a new weather data fetch using the saved coordinates.
 
 While fetching data, the display will show `WEA TH ER ----`. Once loaded, it will cycle through the following 7 pages of information, with each page scrolling across the display:
 

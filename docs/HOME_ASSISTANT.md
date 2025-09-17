@@ -105,43 +105,11 @@ Entities are grouped by function to make them easy to find.
     > ⚠️ **Important Note:** The stock data is sourced from **Financial Modeling Prep (FMP)**, not Alpha Vantage. Please register for a free API key at the [FMP website](https://site.financialmodelingprep.com/developer/docs).
 
 #### **Live Weather Mode**
-The clock's weather display can also be controlled from Home Assistant. This allows you to toggle the weather display, change the city, and force a refresh directly from your dashboard or automations.
+The clock's weather display can also be controlled from Home Assistant. This allows you to toggle the weather display, change the city, and force a refresh directly from your dashboard or automations. The following entities are automatically discovered when you connect the clock to your MQTT broker:
 
-> ⚠️ **Manual Configuration Required**
-> Unlike most other entities, the weather controls are **not** auto-discovered by Home Assistant. You will need to manually add the following YAML code to your `configuration.yaml` file to create the entities. Make sure to replace `bttf_timecircuits_01` with your clock's unique ID if you have changed it.
-
-<details>
-<summary><strong>Click to view YAML for Manual Weather Entities</strong></summary>
-<pre><code lang="yaml">
-mqtt:
-  switch:
-    - name: "Time Circuits Weather Mode"
-      unique_id: "bttf_timecircuits_01_weather_mode"
-      command_topic: "bttf-clock/bttf_timecircuits_01/weather_mode/command"
-      state_topic: "bttf-clock/bttf_timecircuits_01/weather_mode/state"
-      payload_on: "ON"
-      payload_off: "OFF"
-      icon: "mdi:weather-cloudy"
-
-  text:
-    - name: "Time Circuits Weather City"
-      unique_id: "bttf_timecircuits_01_weather_city"
-      command_topic: "bttf-clock/bttf_timecircuits_01/weather_city/command"
-      state_topic: "bttf-clock/bttf_timecircuits_01/weather_city/state"
-      icon: "mdi:city"
-
-  button:
-    - name: "Time Circuits Weather Refresh"
-      unique_id: "bttf_timecircuits_01_weather_refresh"
-      command_topic: "bttf-clock/bttf_timecircuits_01/weather_refresh/command"
-      payload_press: "PRESS"
-      icon: "mdi:refresh"
-</code></pre>
-</details>
-
-*   **`switch.time_circuits_weather_mode`**: Toggles the live weather display on or off.
-*   **`text.time_circuits_weather_city`**: Sets the city for which to retrieve weather data.
-*   **`button.time_circuits_weather_refresh`**: Forces an immediate refresh of the weather data.
+*   **`switch.time_circuits_display_weather_mode`** (Friendly name: `Live Weather Mode`): Toggles the live weather display on or off.
+*   **`text.time_circuits_display_weather_city`** (Friendly name: `Weather City`): Sets the city for which to retrieve weather data. After setting a new city, you may need to press the refresh button to see the change.
+*   **`button.time_circuits_display_refresh_weather_data`** (Friendly name: `Refresh Weather Data`): Forces an immediate refresh of the weather data for the currently configured city. This is only active after a city has been successfully looked up from the web interface at least once.
 
 #### **System & Actions**
 *   **`button.time_circuits_display_reboot_device`**: Restarts the ESP32.
