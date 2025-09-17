@@ -457,28 +457,33 @@ void fetchWeatherData(WeatherTaskParams* params) {
                 int httpCode = http.GET();
                 Log_printf(LOG_LEVEL_DEBUG, "Geocode HTTP Code: %d", httpCode);
                 if (httpCode == HTTP_CODE_OK) {
-                    JsonDocument doc;
-                    // Use http.getStream() for efficiency with larger payloads.
-                    if (http.getStreamPtr()) {
-                        deserializeJson(doc, http.getStream());
-                    }
-                    http.end(); // End the connection immediately after getting the stream
+                    String payload = http.getString();
+                    http.end(); // End the connection as soon as we have the payload
 
-                    JsonArray results = doc["results"];
-                    if (!results.isNull() && results.size() > 0) {
-                        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                            currentSettings.latitude = doc["results"][0]["latitude"];
-                            currentSettings.longitude = doc["results"][0]["longitude"];
-                            currentWeatherData.latitude = currentSettings.latitude;
-                            currentWeatherData.longitude = currentSettings.longitude;
-                            lastCityName = taskCityName;
-                            xSemaphoreGive(xDisplayDataMutex);
+                    // Use a smaller buffer for geocoding, as the response is much smaller.
+                    const int JSON_CAPACITY = 1024;
+                    DynamicJsonDocument doc(JSON_CAPACITY);
+                    DeserializationError error = deserializeJson(doc, payload);
+
+                    if (error == DeserializationError::Ok) {
+                        JsonArray results = doc["results"];
+                        if (!results.isNull() && results.size() > 0) {
+                            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                                currentSettings.latitude = doc["results"][0]["latitude"];
+                                currentSettings.longitude = doc["results"][0]["longitude"];
+                                currentWeatherData.latitude = currentSettings.latitude;
+                                currentWeatherData.longitude = currentSettings.longitude;
+                                lastCityName = taskCityName;
+                                xSemaphoreGive(xDisplayDataMutex);
+                            }
+                            geocodeSuccess = true;
+                            Log_printf(LOG_LEVEL_INFO, "Geocode success for %s. Lat: %f, Lon: %f", taskCityName.c_str(), currentSettings.latitude, currentSettings.longitude);
+                            break; // Exit the loop on success
+                        } else {
+                            Log_printf(LOG_LEVEL_WARN, "Geocode response did not contain results.");
                         }
-                        geocodeSuccess = true;
-                        Log_printf(LOG_LEVEL_INFO, "Geocode success for %s. Lat: %f, Lon: %f", taskCityName.c_str(), currentSettings.latitude, currentSettings.longitude);
-                        break; // Exit the loop on success
                     } else {
-                        Log_printf(LOG_LEVEL_WARN, "Geocode response did not contain results.");
+                        Log_printf(LOG_LEVEL_WARN, "Failed to parse geocode JSON. E: %s", error.c_str());
                     }
                 } else {
                     Log_printf(LOG_LEVEL_WARN, "Geocode request failed with HTTP code %d", httpCode);
