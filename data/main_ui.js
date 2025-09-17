@@ -135,6 +135,7 @@ async function initializeUI() {
         weatherInterval = setInterval(fetchWeatherData, 300000); // Fetch weather every 5 minutes
         fetchSystemStatus();
         setInterval(fetchSystemStatus, 5000); // Fetch system status every 5 seconds
+        setInterval(updateStockStatus, 60000); // Update stock status every minute
         // Attach all the event listeners to the UI elements
         attachEventListeners();
         // Dynamically create the UI uploader
@@ -297,10 +298,8 @@ async function applyDataLinkSettings(datalink) {
     document.getElementById('cityName').value = datalink.cityName || '';
     document.getElementById('useMetricUnits').checked = datalink.useMetricUnits;
 
-    document.getElementById('alphaVantageApiKey').value = datalink.financialModelingPrepApiKey || '';
-    document.getElementById('stockRow1_symbol').value = datalink.stockRow1_symbol || '';
-    document.getElementById('stockRow2_symbol').value = datalink.stockRow2_symbol || '';
-    document.getElementById('stockRow3_symbol').value = datalink.stockRow3_symbol || '';
+    document.getElementById('financialModelingPrepApiKey').value = datalink.financialModelingPrepApiKey || '';
+    document.getElementById('stockRefreshInterval').value = datalink.stockRefreshInterval || 2;
     
     document.getElementById('dataLinkRefreshInterval').value = datalink.dataLinkRefreshInterval;
     document.getElementById('dataLinkRefreshIntervalValue').textContent = datalink.dataLinkRefreshInterval;
@@ -454,17 +453,15 @@ function attachEventListeners() {
             document.getElementById('weatherModeEnabled').checked = false;
             document.getElementById('weatherSettingsContainer').style.display = 'none';
             document.getElementById('stockTickerGroup').classList.remove('disabled');
+            loadStockAssets();
         }
         if (!isLoading) setSettingsChanged(true);
     };
 
     // Use event delegation for the stock fetch buttons. This ensures the click event
     // is handled even if the buttons are added to the DOM after the initial page load.
-    document.getElementById('stockTickerSettingsContainer').addEventListener('click', function(event) {
-        if (event.target && event.target.classList.contains('fetch-stock-btn')) {
-            fetchStockQuote(event);
-        }
-    });
+    document.getElementById('addAssetBtn').onclick = addStockAsset;
+    document.getElementById('addAssetInput').addEventListener('input', handleSymbolAutocomplete);
 
     // Number of data points slider
     document.getElementById('notificationVolume').addEventListener('input', (e) => {
@@ -529,6 +526,134 @@ function attachEventListeners() {
 
     // Firmware upload form
     document.getElementById('firmware-upload-form').onsubmit = handleFirmwareUpload;
+
+    const assetList = document.getElementById('stockAssetList');
+    let draggedItem = null;
+
+    assetList.addEventListener('dragstart', (e) => {
+        draggedItem = e.target;
+        setTimeout(() => {
+            e.target.style.opacity = '0.5';
+        }, 0);
+    });
+
+    assetList.addEventListener('dragend', (e) => {
+        setTimeout(() => {
+            e.target.style.opacity = '1';
+            draggedItem = null;
+        }, 0);
+
+        const symbols = [...assetList.querySelectorAll('.asset-item')].map(item => item.dataset.symbol);
+        fetch('/api/stocks/reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(symbols)
+        });
+    });
+
+    assetList.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(assetList, e.clientY);
+        const dragging = document.querySelector('.dragging');
+        if (afterElement == null) {
+            assetList.appendChild(draggedItem);
+        } else {
+            assetList.insertBefore(draggedItem, afterElement);
+        }
+    });
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.asset-item:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+async function updateStockStatus() {
+    if (!document.getElementById('stockTickerModeEnabled').checked) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/stocks/status');
+        if (!response.ok) {
+            throw new Error('Failed to fetch stock status');
+        }
+        const status = await response.json();
+
+        document.getElementById('stockApiUsage').textContent = `API Calls Today: ${status.api_usage}`;
+
+        status.assets.forEach(asset => {
+            const assetDiv = document.querySelector(`.asset-item[data-symbol="${asset.symbol}"]`);
+            if (assetDiv) {
+                const priceEl = assetDiv.querySelector('.asset-price');
+                const changeEl = assetDiv.querySelector('.asset-change');
+
+                if (asset.data_valid) {
+                    priceEl.textContent = `$${asset.price.toFixed(2)}`;
+                    changeEl.textContent = `${asset.change_percent.toFixed(2)}%`;
+                    changeEl.className = 'asset-change ' + (asset.change_percent >= 0 ? 'positive' : 'negative');
+                } else {
+                    priceEl.textContent = '--';
+                    changeEl.textContent = '--';
+                    changeEl.className = 'asset-change';
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error updating stock status:', error);
+    }
+}
+
+async function handleSymbolAutocomplete(e) {
+    const query = e.target.value;
+    const container = document.getElementById('symbolAutocompleteContainer');
+    if (query.length < 1) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/stocks/search?q=${query}`);
+        if (!response.ok) {
+            throw new Error('Symbol search failed');
+        }
+        const results = await response.json();
+        renderAutocompleteResults(results);
+    } catch (error) {
+        console.error('Error during symbol autocomplete:', error);
+    }
+}
+
+function renderAutocompleteResults(results) {
+    const container = document.getElementById('symbolAutocompleteContainer');
+    container.innerHTML = '';
+    if (results.length > 0) {
+        container.style.display = 'block';
+        results.forEach(result => {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'autocomplete-item';
+            resultDiv.textContent = `${result.symbol} - ${result.name}`;
+            resultDiv.onclick = () => {
+                document.getElementById('addAssetInput').value = result.symbol;
+                container.innerHTML = '';
+                container.style.display = 'none';
+            };
+            container.appendChild(resultDiv);
+        });
+    } else {
+        container.style.display = 'none';
+    }
 }
 
 /**
@@ -639,6 +764,10 @@ function openTab(evt, tabName) {
     document.querySelectorAll('.tab-link').forEach(tl => tl.classList.remove('active'));
     document.getElementById(tabName).style.display = "block";
     evt.currentTarget.classList.add('active');
+
+    if (tabName === 'DataLink' && document.getElementById('stockTickerModeEnabled').checked) {
+        loadStockAssets();
+    }
 }
 
 /**
@@ -1731,6 +1860,105 @@ function fetchSystemStatus() {
  * @param {HTMLButtonElement} button The button to modify.
  * @param {boolean} isLoading Whether to show the loading spinner.
  */
+async function loadStockAssets() {
+    try {
+        const response = await fetch('/api/stocks');
+        if (!response.ok) {
+            throw new Error('Failed to fetch stock assets');
+        }
+        const assets = await response.json();
+        renderStockAssets(assets);
+    } catch (error) {
+        console.error('Error loading stock assets:', error);
+        showMessage('Could not load stock assets.', 'error');
+    }
+}
+
+function renderStockAssets(assets) {
+    const container = document.getElementById('stockAssetList');
+    container.innerHTML = ''; // Clear existing list
+
+    if (assets.length === 0) {
+        container.innerHTML = '<p>No assets are being tracked.</p>';
+        return;
+    }
+
+    assets.forEach(asset => {
+        const assetDiv = document.createElement('div');
+        assetDiv.className = 'asset-item';
+        assetDiv.dataset.symbol = asset.symbol;
+        assetDiv.setAttribute('draggable', 'true');
+
+        const changeClass = asset.change_percent >= 0 ? 'positive' : 'negative';
+        const price = asset.data_valid ? `$${asset.price.toFixed(2)}` : '--';
+        const change = asset.data_valid ? `${asset.change_percent.toFixed(2)}%` : '--';
+
+        assetDiv.innerHTML = `
+            <span class="asset-symbol">${asset.symbol}</span>
+            <span class="asset-name">${asset.name || ''}</span>
+            <span class="asset-price">${price}</span>
+            <span class="asset-change ${changeClass}">${change}</span>
+            <button class="remove-asset-btn" data-symbol="${asset.symbol}">×</button>
+        `;
+        container.appendChild(assetDiv);
+    });
+
+    // Add event listeners to the new remove buttons
+    document.querySelectorAll('.remove-asset-btn').forEach(btn => {
+        btn.onclick = removeStockAsset;
+    });
+}
+
+async function addStockAsset() {
+    const input = document.getElementById('addAssetInput');
+    const symbol = input.value.trim().toUpperCase();
+    if (!symbol) return;
+
+    try {
+        const response = await fetch('/api/stocks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            input.value = '';
+            showMessage(`Asset ${symbol} added.`, 'success');
+            await loadStockAssets();
+        } else {
+            throw new Error(result.message || 'Failed to add asset.');
+        }
+    } catch (error) {
+        console.error('Error adding asset:', error);
+        showMessage(`Error: ${error.message}`, 'error');
+    }
+}
+
+async function removeStockAsset(event) {
+    const symbol = event.target.dataset.symbol;
+    if (!confirm(`Are you sure you want to remove ${symbol}?`)) return;
+
+    try {
+        const response = await fetch('/api/stocks/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            showMessage(`Asset ${symbol} removed.`, 'success');
+            await loadStockAssets();
+        } else {
+            throw new Error(result.message || 'Failed to remove asset.');
+        }
+    } catch (error) {
+        console.error('Error removing asset:', error);
+        showMessage(`Error: ${error.message}`, 'error');
+    }
+}
+
 function setButtonLoading(button, isLoading) {
     if (isLoading) {
         button.dataset.originalText = button.innerHTML;

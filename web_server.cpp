@@ -9,6 +9,7 @@
 #include "timezone.h"
 #include "DebugLog.h"
 #include "web_server.h"
+#include "StockManager.h"
 #include "api_templates.h"
 #include "DataManager.h"
 #include "timezone.h"
@@ -436,6 +437,90 @@ void setupWebRoutes() {
     request->send(200, "application/json", jsonString);
   });
 
+  AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    JsonObject obj = json.as<JsonObject>();
+    if (obj.containsKey("symbol")) {
+        String symbol = obj["symbol"];
+        if (stockManager.addAsset(symbol)) {
+            request->send(200, "application/json", "{\"status\":\"success\"}");
+        } else {
+            request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Asset already exists or invalid.\"}");
+        }
+    } else {
+        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol.\"}");
+    }
+  });
+  server.addHandler(addStockHandler);
+
+  AsyncCallbackJsonWebHandler* deleteStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks/delete", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    JsonObject obj = json.as<JsonObject>();
+    if (obj.containsKey("symbol")) {
+        String symbol = obj["symbol"];
+        if (stockManager.removeAsset(symbol)) {
+            request->send(200, "application/json", "{\"status\":\"success\"}");
+        } else {
+            request->send(404, "application/json", "{\"status\":\"error\", \"message\":\"Asset not found.\"}");
+        }
+    } else {
+        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol.\"}");
+    }
+  });
+  server.addHandler(deleteStockHandler);
+
+  AsyncCallbackJsonWebHandler* reorderStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks/reorder", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    JsonArray arr = json.as<JsonArray>();
+    std::vector<String> symbols;
+    for (JsonVariant v : arr) {
+        symbols.push_back(v.as<String>());
+    }
+    stockManager.reorderAssets(symbols);
+    request->send(200, "application/json", "{\"status\":\"success\"}");
+  });
+  server.addHandler(reorderStockHandler);
+
+  server.on("/api/stocks/search", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (request->hasParam("q")) {
+        String query = request->getParam("q")->value();
+        // Placeholder for symbol search. In a real implementation, this would
+        // call an external API and return a list of matching symbols.
+        String jsonResponse = "[{\"symbol\":\"" + query + "\",\"name\":\"" + query + " Inc.\"}]";
+        request->send(200, "application/json", jsonResponse);
+    } else {
+        request->send(400, "text/plain", "Missing query parameter 'q'");
+    }
+  });
+
+  server.on("/api/stocks/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+    JsonDocument doc;
+    doc["api_usage"] = stockManager.getApiUsage();
+    JsonArray assets = doc["assets"].to<JsonArray>();
+    for (const auto& asset : stockManager.getAssets()) {
+        JsonObject assetObj = assets.add<JsonObject>();
+        assetObj["symbol"] = asset.symbol;
+        assetObj["price"] = asset.price;
+        assetObj["change_percent"] = asset.change_percent;
+        assetObj["data_valid"] = asset.data_valid;
+    }
+    String jsonString;
+    serializeJson(doc, jsonString);
+    request->send(200, "application/json", jsonString);
+  });
+
+  AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    JsonObject obj = json.as<JsonObject>();
+    if (obj.containsKey("symbol")) {
+        String symbol = obj["symbol"];
+        if (stockManager.addAsset(symbol)) {
+            request->send(200, "application/json", "{\"status\":\"success\"}");
+        } else {
+            request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Asset already exists or invalid.\"}");
+        }
+    } else {
+        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol.\"}");
+    }
+  });
+  server.addHandler(addStockHandler);
+
   server.on("/api/settings/temporal", HTTP_GET, [](AsyncWebServerRequest *request) {
     JsonDocument doc;
     doc["departureHour"] = currentSettings.departureHour;
@@ -724,6 +809,22 @@ void setupWebRoutes() {
     doc["freeHeap"] = ESP.getFreeHeap();
     doc["rssi"] = WiFi.RSSI();
     doc["uptime"] = millis() / 1000;
+    String jsonString;
+    serializeJson(doc, jsonString);
+    request->send(200, "application/json", jsonString);
+  });
+
+  server.on("/api/stocks", HTTP_GET, [](AsyncWebServerRequest *request) {
+    JsonDocument doc;
+    JsonArray assets = doc.to<JsonArray>();
+    for (const auto& asset : stockManager.getAssets()) {
+        JsonObject assetObj = assets.add<JsonObject>();
+        assetObj["symbol"] = asset.symbol;
+        assetObj["name"] = asset.name;
+        assetObj["price"] = asset.price;
+        assetObj["change_percent"] = asset.change_percent;
+        assetObj["data_valid"] = asset.data_valid;
+    }
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);

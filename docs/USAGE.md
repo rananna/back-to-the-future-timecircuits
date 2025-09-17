@@ -126,14 +126,20 @@ While fetching data, the display will show `WEA TH ER ----`. Once loaded, it wil
 ---
 
 #### Stock Ticker Mode
-This mode transforms the three display rows into a real-time stock and index ticker, providing a near-real-time view of market activity. Here’s a detailed look at how it works.
+This mode transforms the bottom display row into a scrolling, multi-page financial ticker. It supports stocks, indices, and cryptocurrencies, allowing you to track your portfolio at a glance.
 
 ##### 1. Configuration & Activation
 First, you need to enable and configure the mode in the "Data Link" tab of the web interface.
 
 *   **Enable the Mode**: Toggle on "Stock Ticker Mode".
-*   **API Key**: You must provide a valid API key from the **Financial Modeling Prep** service. Without this key, the device cannot fetch any data.
-*   **Stock Symbols**: Enter up to three stock or index symbols (e.g., `AAPL` for Apple Inc. or `^GSPC` for the S&P 500) to be displayed on the three rows.
+*   **API Key**: You must provide a valid API key from the **Financial Modeling Prep** service. Without this key, the device cannot fetch any data. A free tier is available and is sufficient for this feature.
+*   **Refresh Interval**: Set how often the data should be refreshed, in minutes. The default is 2 minutes, which is as fast as possible while staying within the free API tier limit of 250 calls per day.
+*   **Add Assets**:
+    *   Type a symbol (e.g., `AAPL`, `BTC-USD`, `^GSPC`) into the "Add Asset" input field. The field supports autocomplete to help you find the correct symbol.
+    *   Click the **Add Asset** button. The asset will appear in the "Tracked Assets" list below.
+*   **Manage Assets**:
+    *   **Reorder**: Click and drag any asset in the list to change the display order.
+    *   **Remove**: Click the red '×' button next to an asset to remove it from the list.
 
 ##### 2. Retrieving Your API Key
 The stock data is sourced from a service called [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs). You will need to register for a free account to get an API key.
@@ -141,25 +147,21 @@ The stock data is sourced from a service called [Financial Modeling Prep](https:
 1.  **Navigate to the Registration Page**: Open a web browser and go to the [Financial Modeling Prep registration page](https://site.financialmodelingprep.com/register).
 2.  **Sign Up**: Fill out the required information to create a new account.
 3.  **Find Your API Key**: Once you have created your account and logged in, navigate to your **Dashboard**. Your API key will be displayed in the **"Your API KEY"** section.
-4.  **Copy and Paste**: Copy the API key from the dashboard and paste it into the "API Key" field in the clock's web interface.
+4.  **Copy and Paste**: Copy the API key from the dashboard and paste it into the "Financial Modeling Prep API Key" field in the clock's web interface.
 
-All these settings are saved to the device's non-volatile storage, so they persist even after a reboot.
+##### 3. Data Fetching & Display
+*   **Market Hours**: To stay within the API limits, data is only fetched when the relevant market is open. Stock and index data is fetched during standard US market hours (9:30 AM - 4:00 PM ET, Mon-Fri), while cryptocurrency data is fetched 24/7.
+*   **Batch API Calls**: To maximize efficiency, the clock bundles all assets of the same type (all stocks, all cryptos, etc.) into a single API call.
+*   **Display Pages**: The bottom display row will cycle through your tracked assets. For each asset, it will scroll through three pages of information:
+    1.  **Price & Change**: Current price and the day's percentage change.
+    2.  **Day's High & Low**: The highest and lowest price for the current trading day.
+    3.  **Volume**: The number of shares or coins traded.
+*   **Market Closed Message**: When all relevant markets for your tracked assets are closed, the display will show a static "MARKET CLOSED" message.
 
-##### 3. Data Fetching
-Once the mode is active, the device automatically begins the process of fetching live data.
-
-*   **State Control**: The device prioritizes showing stock data over the default clock or other modes.
-*   **Market Hours Check**: The device is programmed to only fetch data when the stock market is likely open (weekdays, 9:30 AM to 4:00 PM Eastern Time).
-*   **Asynchronous Fetching**: If the market is open, the device triggers a data refresh every **5 minutes**. To ensure the display remains responsive, it launches separate background tasks to fetch data for each symbol.
-*   **Data Formatting**: After receiving data from the API, the code formats it into simple strings that are perfectly sized for the 7-segment displays. For example, the price is condensed to fit within 4 characters, and the percentage change is formatted to two decimal places (e.g., `+1.25`).
-*   **Error Handling**: If an API call fails, the device will show a helpful status message on the display (e.g., `NO API KEY`).
-
-##### 4. Display Layout
-The fetched data is shown across the three display rows.
-
-*   **Symbol**: The stock symbol is displayed across the "Month" and "Day" segments.
-*   **Price**: The current price is displayed in the "Year" segment.
-*   **Change**: The day's percentage change is displayed in the "Time" segment.
+##### 4. MQTT Control
+You can manually cycle through the asset pages using MQTT commands. This is useful for quickly checking a specific data point without waiting for the automatic cycle.
+*   **Next Page**: Publish any message to `bttf-time-circuits/[DEVICE_ID]/stock/next/command`
+*   **Previous Page**: Publish any message to `bttf-time-circuits/[DEVICE_ID]/stock/previous/command`
 
 ---
 

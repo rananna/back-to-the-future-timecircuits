@@ -43,6 +43,7 @@
 #include "DisplayManager.h"
 #include "DataManager.h"
 #include "MqttManager.h"
+#include "StockManager.h"
 #include "timezone.h"
 
 #include <vector>
@@ -122,6 +123,7 @@ DisplayModeState currentDisplayMode = NORMAL_CLOCK; // Current primary mode of t
 
 // --- AUDIO GLOBALS ---
 Audio audio; // The global audio object from the ESP32-audioI2S library.
+StockManager stockManager;
 char currentSoundFile[MAX_FILENAME_LENGTH] = ""; // Filename of the audio file currently being played.
 
 // --- DEVICE IDENTIFIERS ---
@@ -132,7 +134,6 @@ char MQTT_UNIQUE_ID[19]; // The unique identifier for this device, derived from 
 void handlePresetCycling();
 void handleSleepSchedule();
 void handleSequencer();
-bool isMarketOpen();
 bool attemptHardwareInit();
 void onHardwareInitialized();
 void checkDataFetchStatusTask(void* p);
@@ -148,8 +149,6 @@ ClockSettings currentSettings;        // Holds all user-configurable settings fo
 MarqueeData displayPages[5];          // An array to hold the content for the 5 pages of the Data Link marquee.
 MarqueeData lastGoodDisplayPages[5];  // A backup of the last valid marquee data to prevent displaying corrupted info.
 WeatherData currentWeatherData;       // Holds the most recently fetched weather data.
-StockData stockData[3];               // Holds the most recently fetched data for the three stock tickers.
-unsigned long lastStockDataFetch = 0; // Timestamp of the last successful stock data fetch.
 unsigned long lastDisplayUpdateTime = 0;// Timestamp of the last main display update, used for throttling.
 std::string lastCityName = "";        // Caches the last city name used for a weather lookup to avoid redundant geocoding.
 unsigned long bootTimestamp = 0;      // Timestamp (millis) when the setup() function completed.
@@ -904,6 +903,10 @@ void setup() {
 
     setupMqtt();
     Log_printf(LOG_LEVEL_INFO, "MQTT setup initiated.");
+
+    stockManager.begin();
+    Log_printf(LOG_LEVEL_INFO, "StockManager setup initiated.");
+
     Log_printf(LOG_LEVEL_INFO, "Free heap after setup: %u bytes", ESP.getFreeHeap());
 
     ArduinoOTA.setHostname("bttf-time-circuits");
@@ -988,13 +991,6 @@ void handleDisplay() {
             displayMarqueeOverride();
             break;
         case STATE_STOCK_TICKER:
-            if (isMarketOpen() && (millis() - lastStockDataFetch > 300000)) {
-                lastStockDataFetch = millis();
-                for (int i=0; i<3; ++i) {
-                    FetchDataParams* params = new FetchDataParams{ i, 0 };
-                    xTaskCreatePinnedToCore(fetchStockDataTask, "fetchStockDataTask", 8192, params, 1, NULL, 0);
-                }
-            }
             updateStockTickerDisplay();
             break;
         case STATE_DATA_LINK:
@@ -1106,6 +1102,8 @@ void loop() {
                 }
             }
             
+            stockManager.loop();
+
             handleScheduledAnimation();
             static unsigned long lastNtpUpdate = 0;
             if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
@@ -1367,27 +1365,4 @@ void handleSleepSchedule() {
     }
     updateHaStatus("Idle");
   }
-}
-
-bool isMarketOpen() {
-    if (!timeSynchronized) return false;
-
-    bool isOpen = false;
-    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-        setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
-        tzset();
-        struct tm timeinfo;
-        getLocalTime(&timeinfo);
-        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-        tzset();
-
-        if (timeinfo.tm_wday >= 1 && timeinfo.tm_wday <= 5) {
-            int current_minutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-            int market_open_minutes = 9 * 60 + 30;
-            int market_close_minutes = 16 * 60;
-            isOpen = (current_minutes >= market_open_minutes && current_minutes < market_close_minutes);
-        }
-        xSemaphoreGive(xTimeLibMutex);
-    }
-    return isOpen;
 }
