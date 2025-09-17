@@ -158,9 +158,9 @@ static bool fetchWeatherDataFromApi() {
             daily_filter["precipitation_probability_max"] = true;
             daily_filter["wind_speed_10m_max"] = true;
 
-            // 2. Use a JsonDocument on the stack.
+            // 2. Use a JsonDocument on the heap.
             // The document's capacity will grow as needed.
-            StaticJsonDocument<3072> doc;
+            JsonDocument doc;
 
             // 3. Deserialize directly from the HTTP stream with the filter.
             DeserializationError error = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
