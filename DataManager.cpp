@@ -455,9 +455,8 @@ void fetchWeatherData(WeatherTaskParams* params) {
 
 void fetchWeatherDataTask(void* p) {
     // This task is for routine, non-forced updates.
-    // It will use the city name stored in settings and will not force geocoding unless the city name has changed.
-    // The latitude and longitude are set to 0 as they are not used for this type of update.
-    WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false, 0, 0};
+    // It uses the latitude and longitude stored in the current settings.
+    WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false, currentSettings.latitude, currentSettings.longitude};
     fetchWeatherData(params);
     isFetchingWeather = false;
     vTaskDelete(NULL);
