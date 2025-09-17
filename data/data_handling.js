@@ -585,11 +585,11 @@ function getDescriptiveLocationName(location) {
 }
 
 /**
- * Validates a city name using the geocoding API, then triggers a weather data refresh.
+ * Looks up a city name using the geocoding API.
  */
-function refreshWeatherData() {
+function lookupCity() {
     const cityInput = document.getElementById('cityName');
-    const refreshButton = document.getElementById('refreshWeatherBtn');
+    const lookupButton = document.getElementById('lookupCityBtn');
     const city = cityInput.value.trim();
 
     if (!city || city.length < 2) {
@@ -603,7 +603,7 @@ function refreshWeatherData() {
 
     // UX Improvement: Disable inputs and show spinner
     cityInput.disabled = true;
-    refreshButton.disabled = true;
+    lookupButton.disabled = true;
     loadingSpinner.style.display = 'block';
 
     fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=10&language=en&format=json`)
@@ -630,7 +630,7 @@ function refreshWeatherData() {
         .finally(() => {
             // UX Improvement: Re-enable inputs and hide spinner
             cityInput.disabled = false;
-            refreshButton.disabled = false;
+            lookupButton.disabled = false;
             loadingSpinner.style.display = 'none';
         });
 }
@@ -640,11 +640,9 @@ function refreshWeatherData() {
  * Sends the validated city name to the server to trigger a weather data refresh.
  * @param {string} validatedCity The validated and formatted city name from the geocoding API.
  */
-function triggerWeatherRefresh(validatedCity, latitude = null, longitude = null) {
+function triggerWeatherRefresh(latitude, longitude) {
     const preview = document.getElementById('weatherPreview');
     preview.textContent = 'Fetching...';
-    document.getElementById('weatherLatitude').value = latitude;
-    document.getElementById('weatherLongitude').value = longitude;
 
     let payload = {};
     if (latitude !== null && longitude !== null) {
@@ -1076,7 +1074,11 @@ function handleLocationSelection(event) {
     // Use the chosen location's name
     const bestMatch = getDescriptiveLocationName(location);
     correctedCityName = bestMatch;
-    // cityInput.value = correctedCityName; // BUGFIX: Do not overwrite user's input
+
+    // Populate the latitude and longitude fields
+    document.getElementById('weatherLatitude').value = location.latitude.toFixed(4);
+    document.getElementById('weatherLongitude').value = location.longitude.toFixed(4);
+
 
     if (!isLoading) setSettingsChanged(true);
 
@@ -1086,7 +1088,7 @@ function handleLocationSelection(event) {
     modal.style.display = 'none';
 
     // Trigger the weather refresh with the selected location's coordinates
-    triggerWeatherRefresh(bestMatch, location.latitude, location.longitude);
+    triggerWeatherRefresh(location.latitude, location.longitude);
 }
 
 /**

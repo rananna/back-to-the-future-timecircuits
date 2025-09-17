@@ -272,9 +272,14 @@
                 </label>
                 <div id="weatherSettingsContainer" style="display:none; margin-top: 15px;">
                     <label for="cityName">City Name:</label>
-                    <input type="text" id="cityName" placeholder="e.g., New York">
-                    <input type="hidden" id="weatherLatitude" value="">
-                    <input type="hidden" id="weatherLongitude" value="">
+                    <div class="city-lookup-container">
+                        <input type="text" id="cityName" placeholder="e.g., New York">
+                        <button id="lookupCityBtn" class="action-button">Lookup</button>
+                    </div>
+                    <label for="weatherLatitude">Latitude:</label>
+                    <input type="text" id="weatherLatitude" value="" readonly>
+                    <label for="weatherLongitude">Longitude:</label>
+                    <input type="text" id="weatherLongitude" value="" readonly>
                     <label for="useMetricUnits" class="toggle-label">Use Metric Units (C°, km/h)</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="useMetricUnits">
