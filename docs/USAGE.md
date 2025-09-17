@@ -119,10 +119,33 @@ While fetching data, the display will show `WEA TH ER ----`. Once loaded, it wil
 ---
 
 #### Stock Ticker Mode
-This mode transforms the three display rows into a real-time stock and index ticker.
-*   **Configuration**: You must enter a free **Financial Modeling Prep (FMP) API Key** for this to function.
+This mode transforms the three display rows into a real-time stock and index ticker, providing a near-real-time view of market activity. Here’s a detailed look at how it works.
+
+##### 1. Configuration & Activation
+First, you need to enable and configure the mode in the "Data Link" tab of the web interface.
+
+*   **Enable the Mode**: Toggle on "Stock Ticker Mode".
+*   **API Key**: You must provide a valid API key from the **Financial Modeling Prep** service. Without this key, the device cannot fetch any data.
     > ⚠️ **Important Note:** The stock data is sourced from [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs). You will need to register for a free API key from their website.
-*   **Symbols**: Enter up to three stock or index symbols (e.g., `AAPL`, `GOOGL`, `^GSPC` for the S&P 500) to display on the three rows.
+*   **Stock Symbols**: Enter up to three stock or index symbols (e.g., `AAPL` for Apple Inc. or `^GSPC` for the S&P 500) to be displayed on the three rows.
+
+All these settings are saved to the device's non-volatile storage, so they persist even after a reboot.
+
+##### 2. Data Fetching
+Once the mode is active, the device automatically begins the process of fetching live data.
+
+*   **State Control**: The device prioritizes showing stock data over the default clock or other modes.
+*   **Market Hours Check**: The device is programmed to only fetch data when the stock market is likely open (weekdays, 9:30 AM to 4:00 PM Eastern Time).
+*   **Asynchronous Fetching**: If the market is open, the device triggers a data refresh every **5 minutes**. To ensure the display remains responsive, it launches separate background tasks to fetch data for each symbol.
+*   **Data Formatting**: After receiving data from the API, the code formats it into simple strings that are perfectly sized for the 7-segment displays. For example, the price is condensed to fit within 4 characters, and the percentage change is formatted to two decimal places (e.g., `+1.25`).
+*   **Error Handling**: If an API call fails, the device will show a helpful status message on the display (e.g., `NO API KEY`).
+
+##### 3. Display Layout
+The fetched data is shown across the three display rows.
+
+*   **Symbol**: The stock symbol is displayed across the "Month" and "Day" segments.
+*   **Price**: The current price is displayed in the "Year" segment.
+*   **Change**: The day's percentage change is displayed in the "Time" segment.
 
 ---
 
