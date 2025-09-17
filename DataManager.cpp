@@ -125,6 +125,13 @@ public:
     virtual void flush() {
         // Not implemented
     }
+
+    virtual size_t write(uint8_t data) {
+        if (esp_tls_conn_write(tls, &data, 1) > 0) {
+            return 1;
+        }
+        return 0;
+    }
 };
 
 // Forward declaration for the cleanup function
@@ -174,10 +181,17 @@ static bool fetchWeatherDataFromApi() {
             cfg.cacert_bytes = strlen(open_meteo_com_root_ca) + 1;
             cfg.timeout_ms = 10000;
 
-            tls = esp_tls_conn_new_sync("api.open-meteo.com", 443, &cfg);
+            tls = esp_tls_init();
+            if (tls == NULL) {
+                Log_printf(LOG_LEVEL_ERROR, "Failed to allocate TLS handle. Attempt %d", i + 1);
+                continue;
+            }
 
-            if (!tls) {
+            const char *hostname = "api.open-meteo.com";
+            if (esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls) < 0) {
                 Log_printf(LOG_LEVEL_ERROR, "Failed to create TLS connection. Attempt %d", i + 1);
+                esp_tls_conn_destroy(tls);
+                tls = NULL;
                 continue;
             }
             Log_printf(LOG_LEVEL_DEBUG, "TLS connection established.");
@@ -198,8 +212,7 @@ static bool fetchWeatherDataFromApi() {
                  "\r\n",
                  currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
 
-        size_t written;
-        if (esp_tls_conn_write(tls, request, strlen(request), &written) < 0) {
+        if (esp_tls_conn_write(tls, request, strlen(request)) < 0) {
             Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed. Cleaning up and retrying...");
             cleanupWeatherConnection();
             continue;
@@ -405,9 +418,9 @@ static bool fetchWeatherDataFromApi() {
     return false;
 }
 
-static void cleanupWeatherConnection() {
+void cleanupWeatherConnection() {
     if (tls) {
-        esp_tls_conn_delete(tls);
+        esp_tls_conn_destroy(tls);
         tls = NULL;
         Log_printf(LOG_LEVEL_DEBUG, "TLS connection cleaned up.");
     }
