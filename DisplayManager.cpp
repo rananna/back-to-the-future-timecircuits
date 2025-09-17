@@ -606,11 +606,9 @@ void handleWeatherDisplay() {
                                 time_t sunrise = currentWeatherData.sunrise;
                                 time_t sunset = currentWeatherData.sunset;
 
-                                // Temporarily set the timezone to the one provided by the weather API
-                                if (!currentWeatherData.timezone.empty()) {
-                                    setenv("TZ", currentWeatherData.timezone.c_str(), 1);
-                                    tzset();
-                                }
+                                // Set the timezone to the one configured for the device's present time
+                                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                                tzset();
 
                                 // Format sunrise
                                 localtime_r(&sunrise, &timeinfo);
