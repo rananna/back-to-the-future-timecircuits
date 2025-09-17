@@ -397,119 +397,22 @@ void trim(std::string &s) {
 }
 
 void fetchWeatherData(WeatherTaskParams* params) {
-    std::string taskCityName = params->cityName;
-    bool forceGeocode = params->forceGeocode;
+    // This function is now simplified. It only fetches weather for the coordinates
+    // stored in currentSettings. The UI is responsible for all geocoding.
     float latitude = params->latitude;
     float longitude = params->longitude;
-    delete params;
+    delete params; // Clean up the params object.
 
-    trim(taskCityName);
-
-    // Determine if we are fetching by coordinates or by city name
-    bool fetchByCoords = (latitude != 0.0 && longitude != 0.0);
-
-    if (fetchByCoords) {
-        Log_printf(LOG_LEVEL_INFO, "Fetching weather data by coordinates. Lat: %f, Lon: %f", latitude, longitude);
-        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            currentSettings.latitude = latitude;
-            currentSettings.longitude = longitude;
-            xSemaphoreGive(xDisplayDataMutex);
-        }
-    } else {
-        Log_printf(LOG_LEVEL_INFO, "Fetching weather data for city: %s (force geocode: %s)", taskCityName.c_str(), forceGeocode ? "true" : "false");
-        if (taskCityName.empty()) {
-            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                currentWeatherData.dataValid = false;
-                currentWeatherData.errorReason = "CITY NAME IS EMPTY";
-                xSemaphoreGive(xDisplayDataMutex);
-            }
-            return;
-        }
-    }
-
-    // --- Geocoding Logic ---
-    // This block is now skipped if we are fetching by coordinates.
-    bool needsGeocoding = forceGeocode && !fetchByCoords;
-    if (!forceGeocode && !fetchByCoords) {
-        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            if (taskCityName != lastCityName) {
-                needsGeocoding = true;
-            }
-            xSemaphoreGive(xDisplayDataMutex);
-        }
-    }
+    Log_printf(LOG_LEVEL_INFO, "Fetching weather data by coordinates. Lat: %f, Lon: %f", latitude, longitude);
     
-    if (needsGeocoding) {
-        Log_printf(LOG_LEVEL_INFO, "Geocoding required for city: %s", taskCityName.c_str());
-        bool geocodeSuccess = false;
-
-        // By creating the client and HTTP objects outside the loop, we prevent
-        // memory fragmentation and allocation errors on repeated attempts.
-        HTTPClient http;
-        WiFiClientSecure client;
-        client.setInsecure();
-
-        for (int i = 0; i < 3; i++) {
-            showTemporaryMessage("GEO", "", "SRCH", "", 1000);
-            String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + urlEncode(taskCityName.c_str()) + "&count=1&language=en&format=json";
-            if (http.begin(client, geocodeUrl)) {
-                Log_printf(LOG_LEVEL_DEBUG, "Geocode URL: %s", geocodeUrl.c_str());
-                int httpCode = http.GET();
-                Log_printf(LOG_LEVEL_DEBUG, "Geocode HTTP Code: %d", httpCode);
-                if (httpCode == HTTP_CODE_OK) {
-                    String payload = http.getString();
-                    http.end(); // End the connection as soon as we have the payload
-
-                    // Use a smaller buffer for geocoding, as the response is much smaller.
-                    const int JSON_CAPACITY = 1024;
-                    DynamicJsonDocument doc(JSON_CAPACITY);
-                    DeserializationError error = deserializeJson(doc, payload);
-
-                    if (error == DeserializationError::Ok) {
-                        JsonArray results = doc["results"];
-                        if (!results.isNull() && results.size() > 0) {
-                            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                                currentSettings.latitude = doc["results"][0]["latitude"];
-                                currentSettings.longitude = doc["results"][0]["longitude"];
-                                currentWeatherData.latitude = currentSettings.latitude;
-                                currentWeatherData.longitude = currentSettings.longitude;
-                                lastCityName = taskCityName;
-                                xSemaphoreGive(xDisplayDataMutex);
-                            }
-                            geocodeSuccess = true;
-                            Log_printf(LOG_LEVEL_INFO, "Geocode success for %s. Lat: %f, Lon: %f", taskCityName.c_str(), currentSettings.latitude, currentSettings.longitude);
-                            break; // Exit the loop on success
-                        } else {
-                            Log_printf(LOG_LEVEL_WARN, "Geocode response did not contain results.");
-                        }
-                    } else {
-                        Log_printf(LOG_LEVEL_WARN, "Failed to parse geocode JSON. E: %s", error.c_str());
-                    }
-                } else {
-                    Log_printf(LOG_LEVEL_WARN, "Geocode request failed with HTTP code %d", httpCode);
-                    http.end(); // Important to end the connection on failure too
-                }
-            } else {
-                Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for geocoding.");
-            }
-            // If we've failed, wait a moment before retrying.
-            if (!geocodeSuccess) {
-                vTaskDelay(pdMS_TO_TICKS(1000));
-            }
-        }
-
-        if (!geocodeSuccess) {
-            Log_printf(LOG_LEVEL_ERROR, "Geocoding failed for %s after multiple retries.", taskCityName.c_str());
-            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                currentWeatherData.dataValid = false;
-                currentWeatherData.errorReason = "GEOCODING FAILED - CHECK CITY NAME";
-                xSemaphoreGive(xDisplayDataMutex);
-            }
-            return;
-        }
+    // Update the global settings with the coordinates for this fetch.
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        currentSettings.latitude = latitude;
+        currentSettings.longitude = longitude;
+        xSemaphoreGive(xDisplayDataMutex);
     }
 
-    // Now, call the new unified function to fetch all weather data, with retry logic.
+    // Call the new unified function to fetch all weather data, with retry logic.
     bool success = false;
     int attempt = 0;
     const int maxAttempts = 4;
@@ -529,7 +432,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
     }
 
     if (success) {
-        Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data for %s.", taskCityName.c_str());
+        Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data.");
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = true;
             weatherDataUpdated = true; // Signal to the display manager
@@ -538,7 +441,7 @@ void fetchWeatherData(WeatherTaskParams* params) {
             broadcastWeatherUpdate(); // Push the new data to the UI
         }
     } else {
-        Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed for %s.", taskCityName.c_str());
+        Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed after all attempts.");
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.dataValid = false;
             // The specific error reason should already be set by fetchWeatherDataFromApi

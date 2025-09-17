@@ -273,12 +273,15 @@
                 <div id="weatherSettingsContainer" style="display:none; margin-top: 15px;">
                     <label for="cityName">City Name:</label>
                     <input type="text" id="cityName" placeholder="e.g., New York">
+                    <input type="hidden" id="weatherLatitude" value="">
+                    <input type="hidden" id="weatherLongitude" value="">
                     <label for="useMetricUnits" class="toggle-label">Use Metric Units (C°, km/h)</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="useMetricUnits">
                         <span class="slider round"></span>
                     </label>
                     <div id="weatherDisplay" class="weather-display-container">
+                        <!-- Current Weather -->
                         <div class="weather-item">
                             <span class="weather-label">Now</span>
                             <span id="weatherIcon" class="weather-icon"></span>
@@ -297,25 +300,61 @@
                             <span id="weatherWind" class="weather-value">--</span>
                         </div>
                         <div class="weather-item">
-                            <span class="weather-label">High / Low</span>
+                            <span class="weather-label">Weather Code</span>
+                            <span id="weatherCode" class="weather-value">--</span>
+                        </div>
+
+                        <!-- Daily Weather -->
+                        <div class="weather-item">
+                            <span class="weather-label">Today's High/Low</span>
                             <span id="weatherHighLow" class="weather-value">-- / --</span>
                         </div>
                         <div class="weather-item">
+                            <span class="weather-label">Sunrise/Sunset</span>
+                            <span id="weatherSunriseSunset" class="weather-value">--:-- / --:--</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="weather-label">Precip. Chance</span>
+                            <span id="weatherPrecipChance" class="weather-value">--%</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="weather-label">Max Wind</span>
+                            <span id="weatherMaxWind" class="weather-value">--</span>
+                        </div>
+
+                        <!-- Tomorrow's Weather -->
+                         <div class="weather-item">
+                            <span class="weather-label">Tomorrow's High/Low</span>
+                            <span id="weatherTomorrowHighLow" class="weather-value">-- / --</span>
+                        </div>
+                         <div class="weather-item">
+                            <span class="weather-label">Tomorrow's Weather</span>
+                            <span id="weatherTomorrowCode" class="weather-value">--</span>
+                        </div>
+
+                        <!-- Location -->
+                        <div class="weather-item">
                             <span class="weather-label">Latitude</span>
-                            <span id="weatherLatitude" class="weather-value">--</span>
+                            <span id="weatherLatitudeDisplay" class="weather-value">--</span>
                         </div>
                         <div class="weather-item">
                             <span class="weather-label">Longitude</span>
-                            <span id="weatherLongitude" class="weather-value">--</span>
+                            <span id="weatherLongitudeDisplay" class="weather-value">--</span>
                         </div>
                         <div class="loading-spinner-container" style="display: none;">
                             <div class="loading-spinner"></div>
                         </div>
                     </div>
-                    <div id="hourlyForecastContainer" class="hourly-forecast-container"></div>
+                    <div id="hourlyForecastContainer" class="hourly-forecast-container">
+                        <!-- Hourly forecast items will be injected here by JS -->
+                    </div>
                     <div class="weather-preview">
                         <button id="refreshWeatherBtn" class="action-button">Refresh</button>
                         <div id="weatherPreview" class="weather-preview-text"></div>
+                    </div>
+                    <div class="weather-api-url">
+                        <label for="weatherApiUrl">Weather API URL:</label>
+                        <textarea id="weatherApiUrl" readonly rows="3"></textarea>
                     </div>
                 </div>
             </div>
