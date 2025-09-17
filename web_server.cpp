@@ -570,7 +570,7 @@ void setupWebRoutes() {
     WeatherTaskParams* params = nullptr;
 
     // Check if latitude and longitude are provided for a direct weather fetch
-    if (obj.containsKey("latitude") && obj.containsKey("longitude")) {
+    if (obj["latitude"] && obj["longitude"]) {
         float lat = obj["latitude"].as<float>();
         float lon = obj["longitude"].as<float>();
         // We pass an empty city name and set forceGeocode to false, but add lat/lon.
