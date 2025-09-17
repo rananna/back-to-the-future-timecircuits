@@ -785,14 +785,19 @@ function fetchWeatherData() {
             const preview = document.getElementById('weatherPreview');
             preview.textContent = error.reason || 'Data not available. Check city name.';
 
-            // Clear all weather fields on error
-            const weatherFields = ['weatherIcon', 'weatherTemp', 'weatherFeelsLike', 'weatherHumidity', 'weatherWind', 'weatherCode', 'weatherHighLow', 'weatherSunriseSunset', 'weatherPrecipChance', 'weatherMaxWind', 'weatherTomorrowHighLow', 'weatherTomorrowCode', 'weatherLatitudeDisplay', 'weatherLongitudeDisplay'];
-            weatherFields.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = '--';
-            });
-            document.getElementById('hourlyForecastContainer').innerHTML = '';
-            document.getElementById('weatherApiUrl').value = '';
+            // --- START: MODIFICATION - Do not clear UI on fetch error ---
+            // The following lines that clear the UI have been removed to prevent
+            // a failed periodic fetch from wiping out valid data received via WebSocket.
+            // A non-intrusive error message is now shown in the 'weatherPreview' element instead.
+            //
+            // const weatherFields = ['weatherIcon', 'weatherTemp', 'weatherFeelsLike', 'weatherHumidity', 'weatherWind', 'weatherCode', 'weatherHighLow', 'weatherSunriseSunset', 'weatherPrecipChance', 'weatherMaxWind', 'weatherTomorrowHighLow', 'weatherTomorrowCode', 'weatherLatitudeDisplay', 'weatherLongitudeDisplay'];
+            // weatherFields.forEach(id => {
+            //     const el = document.getElementById(id);
+            //     if (el) el.textContent = '--';
+            // });
+            // document.getElementById('hourlyForecastContainer').innerHTML = '';
+            // document.getElementById('weatherApiUrl').value = '';
+            // --- END: MODIFICATION ---
 
             loadingSpinner.style.display = 'none';
         });
