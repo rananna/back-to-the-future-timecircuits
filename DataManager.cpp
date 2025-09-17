@@ -135,7 +135,7 @@ public:
 };
 
 // Forward declaration for the cleanup function
-static void cleanupWeatherConnection();
+void cleanupWeatherConnection();
 
 // Static TLS connection handle
 static esp_tls_t *tls = NULL;
@@ -418,7 +418,7 @@ static bool fetchWeatherDataFromApi() {
     return false;
 }
 
-static void cleanupWeatherConnection() {
+void cleanupWeatherConnection() {
     if (tls) {
         esp_tls_conn_destroy(tls);
         tls = NULL;
