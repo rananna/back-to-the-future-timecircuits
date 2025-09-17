@@ -570,8 +570,6 @@ void setupWebRoutes() {
             delete params;
             request->send(500, "text/plain", "Failed to create weather task.");
         }
-
-    }
     } else {
         // If coordinates are not provided, it's a bad request.
         request->send(400, "text/plain", "Bad Request: Missing latitude or longitude.");
