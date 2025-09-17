@@ -324,7 +324,7 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
  * @param updatePres If true, the present time row is updated.
  * @param updateLast If true, the last time departed row is updated.
  */
-void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
+void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool updateLast) {
   if (isDisplayAsleep || isAnimating || !hardwareInitialized) {
     if(isAnimating) {
     }
@@ -332,7 +332,6 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
   }
 
 #if ENABLE_HARDWARE
-  if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
     if (timeSynchronized) {
       time_t now_t;
       struct tm dest_timeinfo, present_timeinfo;
@@ -408,6 +407,13 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
           }
       }
     }
+#endif
+}
+
+void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
+#if ENABLE_HARDWARE
+  if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    updateNormalClockDisplay_internal(updateDest, updatePres, updateLast);
     xSemaphoreGive(xDisplayDataMutex);
   }
 #endif
@@ -415,8 +421,8 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 
 void handleWeatherDisplay() {
 #if ENABLE_HARDWARE
-    // In weather mode, the top two rows show normal clock information
-    updateNormalClockDisplay(true, true, false);
+    // In weather mode, the top two rows show normal clock information.
+    // This is now handled inside the mutex-protected block below.
 
     // When the weather display is active, we must explicitly turn off the AM/PM LEDs for the last row,
     // as the weather display logic doesn't use the `updateDisplayRow` function which normally handles this.
@@ -427,9 +433,13 @@ void handleWeatherDisplay() {
     bool shouldWriteToDisplay = false;
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        // Always update the top two rows with the normal clock display
+        updateNormalClockDisplay_internal(true, true, false);
+
         if (initialFetchTimedOut) {
+            // If the fetch has timed out, show the last row as normal clock too and exit.
+            updateNormalClockDisplay_internal(false, false, true);
             xSemaphoreGive(xDisplayDataMutex);
-            updateNormalClockDisplay(true, true, true);
             return;
         }
 
@@ -438,6 +448,7 @@ void handleWeatherDisplay() {
         const unsigned long errorRetryDelay = 10000; // 10 seconds
 
         if (!currentWeatherData.dataValid) {
+            updateNormalClockDisplay_internal(true, true, false);
             // If there's a specific error reason, switch to the error state.
             if (!currentWeatherData.errorReason.empty() && weatherState != WD_ERROR) {
                 weatherState = WD_ERROR;

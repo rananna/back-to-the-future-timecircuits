@@ -326,11 +326,9 @@ void handleBackgroundSave() {
  */
 void handleWeatherTimeout() {
     Log_printf(LOG_LEVEL_WARN, "Weather fetch timed out. Disabling weather mode.");
-    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        currentWeatherData.dataValid = false;
-        currentWeatherData.errorReason = "FETCH TIMEOUT";
-        xSemaphoreGive(xDisplayDataMutex);
-    }
+    // The xDisplayDataMutex is already taken by the calling function (handleWeatherDisplay)
+    currentWeatherData.dataValid = false;
+    currentWeatherData.errorReason = "FETCH TIMEOUT";
 
     // Disable weather mode to prevent getting stuck in a timeout loop
     currentSettings.weatherModeEnabled = false;
