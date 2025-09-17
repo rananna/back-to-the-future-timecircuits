@@ -20,7 +20,7 @@ bool isWeatherBufferDirty = true;
 bool isMarqueeOverrideBufferDirty = true;
 
 std::string marqueeBuffer;
-std::string weatherBuffer;
+char weatherBuffer[512]; // Increased size for safety, changed to char array
 std::string marqueeOverrideBuffer;
 #include "HardwareControl.h"
 
@@ -424,15 +424,11 @@ void handleWeatherDisplay() {
     // Log the current state at the beginning of the function
     Log_printf(LOG_LEVEL_DEBUG, "handleWeatherDisplay: Current state is %d", weatherState);
 
-    // In weather mode, the top two rows show normal clock information.
-    // This is now handled inside the mutex-protected block below.
-
     // When the weather display is active, we must explicitly turn off the AM/PM LEDs for the last row,
     // as the weather display logic doesn't use the `updateDisplayRow` function which normally handles this.
     digitalWrite(LAST_AM_PIN, LOW);
     digitalWrite(LAST_PM_PIN, LOW);
 
-    String viewport;
     bool shouldWriteToDisplay = false;
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
@@ -440,7 +436,6 @@ void handleWeatherDisplay() {
         updateNormalClockDisplay_internal(true, true, false);
 
         if (initialFetchTimedOut) {
-            // If the fetch has timed out, show the last row as normal clock too and exit.
             updateNormalClockDisplay_internal(false, false, true);
             xSemaphoreGive(xDisplayDataMutex);
             return;
@@ -451,28 +446,22 @@ void handleWeatherDisplay() {
         const unsigned long errorRetryDelay = 10000; // 10 seconds
 
         if (!currentWeatherData.dataValid) {
-            updateNormalClockDisplay_internal(true, true, false);
-            // If there's a specific error reason, switch to the error state.
             if (!currentWeatherData.errorReason.empty() && weatherState != WD_ERROR) {
                 weatherState = WD_ERROR;
-                weatherBuffer = "             WEATHER ERROR: " + currentWeatherData.errorReason;
+                snprintf(weatherBuffer, sizeof(weatherBuffer), "             WEATHER ERROR: %s", currentWeatherData.errorReason.c_str());
                 weatherScrollPosition = 0;
-                lastWeatherUpdate = millis(); // Start the timer for the error display
-            }
-            // If the fetch has been triggered and 30 seconds have passed, call the main timeout handler
-            else if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
+                lastWeatherUpdate = millis();
+            } else if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
                 Log_printf(LOG_LEVEL_WARN, "Weather fetch task timed out. Deleting task.");
                 if (weatherTaskHandle != NULL) {
                     vTaskDelete(weatherTaskHandle);
                     weatherTaskHandle = NULL;
                 }
-                isFetchingWeather = false; // Reset the flag here since the task was killed
+                isFetchingWeather = false;
                 handleWeatherTimeout();
                 xSemaphoreGive(xDisplayDataMutex);
                 return;
-            }
-            // Otherwise, show the initial "Loading..." state
-            else {
+            } else {
                 printToDisplay(lastRow.month, "WEA", 1);
                 printToDisplay(lastRow.day, "TH", 2);
                 printToDisplay(lastRow.year, "ER");
@@ -483,37 +472,32 @@ void handleWeatherDisplay() {
             if (!initialFetchTriggered && !isFetchingWeather) {
                 Log_printf(LOG_LEVEL_INFO, "Weather data is invalid, triggering initial fetch.");
                 isFetchingWeather = true;
-                if (weatherTaskHandle != NULL) { // Defensive delete of any old handle
+                if (weatherTaskHandle != NULL) {
                     vTaskDelete(weatherTaskHandle);
                 }
                 xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, &weatherTaskHandle);
                 initialFetchTriggered = true;
                 initialFetchStartTime = millis();
-                lastWeatherFetchTime = 0; // Reset this so it gets set upon successful fetch
+                lastWeatherFetchTime = 0;
             }
         } else {
-            // If we have valid data, make sure our state flags are reset for the next time we need them.
             initialFetchTriggered = false;
             initialFetchStartTime = 0;
             initialFetchTimedOut = false;
 
-            // Start the periodic refresh timer after the first successful fetch
             if (lastWeatherFetchTime == 0) {
                 lastWeatherFetchTime = millis();
             }
 
-            // Check if it's time to refresh the weather data
             if ((millis() - lastWeatherFetchTime > WEATHER_REFRESH_INTERVAL) && !isFetchingWeather) {
-                Log_printf(LOG_LEVEL_INFO, "Periodic weather refresh triggered (5-minute interval).");
-                lastWeatherFetchTime = millis(); // Reset the timer immediately
-                isFetchingWeather = true; // Set the flag to prevent concurrent fetches
-                // Reuse the timeout mechanism for this fetch as well
+                Log_printf(LOG_LEVEL_INFO, "Periodic weather refresh triggered.");
+                lastWeatherFetchTime = millis();
+                isFetchingWeather = true;
                 initialFetchTriggered = true;
                 initialFetchStartTime = millis();
-                if (weatherTaskHandle != NULL) { // Defensive delete of any old handle
+                if (weatherTaskHandle != NULL) {
                     vTaskDelete(weatherTaskHandle);
                 }
-                // Create a new task to fetch weather data in the background
                 xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, &weatherTaskHandle);
             }
 
@@ -523,185 +507,154 @@ void handleWeatherDisplay() {
                 weatherPage = 0;
                 weatherDataUpdated = false;
                 isWeatherBufferDirty = false;
-                initialFetchTriggered = false;
-                initialFetchStartTime = 0;
-                initialFetchTimedOut = false;
                 if (weatherTaskHandle != NULL) {
                     weatherTaskHandle = NULL;
                 }
             }
 
+            // This buffer is used to safely construct the display segments.
+            char viewport[14];
+            char segment_month[4], segment_day[3], segment_year[5], segment_time[5];
+
             switch (weatherState) {
                 case WD_ERROR: {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
-                        std::string tempScrollText = weatherBuffer + "             ";
-                        std::string viewport_str = tempScrollText.substr(weatherScrollPosition, 13);
-                        const char* viewport = viewport_str.c_str();
 
-                        printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 1);
-                        printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 2);
-                        printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
-                        printToDisplay(lastRow.time, std::string(viewport).substr(9, 13).c_str(), 0);
-                        shouldWriteToDisplay = true;
+                        // Safely create the scrolling viewport
+                        char tempScrollText[sizeof(weatherBuffer) + 14];
+                        snprintf(tempScrollText, sizeof(tempScrollText), "%s             ", weatherBuffer);
 
-                        weatherScrollPosition++;
-                        if (weatherScrollPosition > weatherBuffer.length()) {
-                            if (millis() - lastWeatherUpdate > errorRetryDelay) {
+                        // Ensure we don't read past the buffer
+                        if(weatherScrollPosition > strlen(weatherBuffer)) {
+                             if (millis() - lastWeatherUpdate > errorRetryDelay) {
                                 currentWeatherData.errorReason = ""; // Clear reason
                                 weatherState = WD_START_PAGE;
                                 initialFetchTriggered = false; // Allow a new fetch
                             }
+                        } else {
+                            strncpy(viewport, tempScrollText + weatherScrollPosition, 13);
+                            viewport[13] = '\0';
+
+                            // Safely extract segments
+                            strncpy(segment_month, viewport, 3); segment_month[3] = '\0';
+                            strncpy(segment_day, viewport + 3, 2); segment_day[2] = '\0';
+                            strncpy(segment_year, viewport + 5, 4); segment_year[4] = '\0';
+                            strncpy(segment_time, viewport + 9, 4); segment_time[4] = '\0';
+
+                            printToDisplay(lastRow.month, segment_month, 1);
+                            printToDisplay(lastRow.day, segment_day, 2);
+                            printToDisplay(lastRow.year, segment_year, 0);
+                            printToDisplay(lastRow.time, segment_time, 0);
+                            shouldWriteToDisplay = true;
+
+                            weatherScrollPosition++;
                         }
                     }
                     break;
                 }
                 case WD_START_PAGE: {
+                    // Clear display before showing new text
                     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                        printToDisplay(lastRow.month, "   ", 0);
-                        printToDisplay(lastRow.day, "  ", 0);
-                        printToDisplay(lastRow.year, "    ", 0);
-                        printToDisplay(lastRow.time, "    ", 0);
-                        lastRow.month.writeDisplay();
-                        lastRow.day.writeDisplay();
-                        lastRow.year.writeDisplay();
-                        lastRow.time.writeDisplay();
+                        printToDisplay(lastRow.month, "   ", 0); printToDisplay(lastRow.day, "  ", 0);
+                        printToDisplay(lastRow.year, "    ", 0); printToDisplay(lastRow.time, "    ", 0);
+                        lastRow.month.writeDisplay(); lastRow.day.writeDisplay();
+                        lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
                         vTaskDelay(pdMS_TO_TICKS(2));
                         xSemaphoreGive(xDisplayHardwareMutex);
                     }
-                    char buffer[20];
-                    String tempWeatherString;
+
+                    // Build the weather string safely in the char buffer
+                    char temp_buf[20];
+                    const char* unit = currentSettings.useMetricUnits ? "C" : "F";
+                    const char* windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
+
+                    snprintf(weatherBuffer, sizeof(weatherBuffer), "             "); // Start with padding
+
                     switch (weatherPage) {
-                        case 0: { // Current Weather
-                            // The global dataValid flag is checked before this switch, so we can assume data is present.
-                            dtostrf(currentWeatherData.temperature, 4, 1, buffer);
-                            const char* desc = getWeatherDescriptionForCode(currentWeatherData.weatherCode);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            tempWeatherString = "CURRENTLY " + String(buffer) + unit + ", " + desc;
+                        case 0: // Current Weather
+                            dtostrf(currentWeatherData.temperature, 4, 1, temp_buf);
+                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "CURRENTLY %s%s, %s", temp_buf, unit, getWeatherDescriptionForCode(currentWeatherData.weatherCode));
                             break;
-                        }
-                        case 1: { // Tomorrow's Forecast
-                            // The global dataValid flag is checked before this switch, so we can assume data is present.
+                        case 1: // Tomorrow's Forecast
                             char high_buf[8], low_buf[8];
                             dtostrf(currentWeatherData.tomorrowHigh, 1, 0, high_buf);
                             dtostrf(currentWeatherData.tomorrowLow, 1, 0, low_buf);
-                            const char* desc = getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            tempWeatherString = "TOMORROW HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit + ", " + desc;
+                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "TOMORROW HIGH %s%s, LOW %s%s, %s", high_buf, unit, low_buf, unit, getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode));
                             break;
-                        }
-                        case 2: { // Wind & Rain
-                            // The global dataValid flag is checked before this switch, so we can assume data is present.
-                            String windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
-                            tempWeatherString = "WIND " + String((int)currentWeatherData.windSpeed) + " " + windUnit +
-                                                ", MAX " + String((int)currentWeatherData.maxWindSpeed) + " " + windUnit +
-                                                ", PRECIP " + String(currentWeatherData.precipitationProbability) + "%";
+                        case 2: // Wind & Rain
+                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "WIND %d %s, MAX %d %s, PRECIP %d%%", (int)currentWeatherData.windSpeed, windUnit, (int)currentWeatherData.maxWindSpeed, windUnit, currentWeatherData.precipitationProbability);
                             break;
-                        }
                         case 3: { // Sunrise & Sunset
-                            // The global dataValid flag is checked before this switch, so we can assume data is present.
-                            struct tm timeinfo;
-                            char timeBuffer[8];
-                            time_t sunriseTime = currentWeatherData.sunrise;
-                            time_t sunsetTime = currentWeatherData.sunset;
-
-                            // Format sunrise time
-                            localtime_r(&sunriseTime, &timeinfo);
-                                int sunriseHour = timeinfo.tm_hour;
-                                if (!currentSettings.displayFormat24h) {
-                                    const char* sunriseAmpm = (sunriseHour >= 12) ? "PM" : "AM";
-                                    if (sunriseHour > 12) sunriseHour -= 12;
-                                    if (sunriseHour == 0) sunriseHour = 12;
-                                    sprintf(timeBuffer, "%d%02d%s", sunriseHour, timeinfo.tm_min, sunriseAmpm);
-                                } else {
-                                    sprintf(timeBuffer, "%02d%02d", sunriseHour, timeinfo.tm_min);
-                                }
-                                String sunriseStr(timeBuffer);
-
-                                // Format sunset time
-                                localtime_r(&sunsetTime, &timeinfo);
-                                int sunsetHour = timeinfo.tm_hour;
-                                if (!currentSettings.displayFormat24h) {
-                                    const char* sunsetAmpm = (sunsetHour >= 12) ? "PM" : "AM";
-                                    if (sunsetHour > 12) sunsetHour -= 12;
-                                    if (sunsetHour == 0) sunsetHour = 12;
-                                    sprintf(timeBuffer, "%d%02d%s", sunsetHour, timeinfo.tm_min, sunsetAmpm);
-                                } else {
-                                    sprintf(timeBuffer, "%02d%02d", sunsetHour, timeinfo.tm_min);
-                                }
-                                String sunsetStr(timeBuffer);
-
-                                tempWeatherString = "SUNRISE " + sunriseStr + ", SUNSET " + sunsetStr;
+                            struct tm timeinfo; char timeStr[8];
+                            time_t sunrise = currentWeatherData.sunrise, sunset = currentWeatherData.sunset;
+                            localtime_r(&sunrise, &timeinfo);
+                            strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
+                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "SUNRISE %s, SUNSET ", timeStr);
+                            localtime_r(&sunset, &timeinfo);
+                            strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
+                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s", timeStr);
                             break;
                         }
                         case 4: { // Hourly Forecast
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            tempWeatherString = "NEXT 3 HRS ";
+                            strncat(weatherBuffer, "NEXT 3 HRS ", sizeof(weatherBuffer) - strlen(weatherBuffer) - 1);
                             bool hourlyDataOk = true;
-                            for(int i=0; i<3; ++i) {
-                                if(currentWeatherData.hourlyCode[i] == -1) {
-                                    hourlyDataOk = false;
-                                    break;
-                                }
-                            }
+                            for(int i=0; i<3; ++i) if(currentWeatherData.hourlyCode[i] == -1) hourlyDataOk = false;
 
                             if (!hourlyDataOk) {
-                                tempWeatherString = "HOURLY DATA UNAVAILABLE";
+                                strncat(weatherBuffer, "HOURLY DATA UNAVAILABLE", sizeof(weatherBuffer) - strlen(weatherBuffer) - 1);
                             } else {
                                 for (int i = 0; i < 3; ++i) {
-                                    char temp_buf[8];
                                     dtostrf(currentWeatherData.hourlyTemp[i], 1, 0, temp_buf);
-                                    const char* desc = getWeatherDescriptionForCode(currentWeatherData.hourlyCode[i]);
-                                    tempWeatherString += String(temp_buf) + unit + " " + desc;
-                                    if (i < 2) {
-                                        tempWeatherString += ", ";
-                                    }
+                                    snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s%s %s%s", temp_buf, unit, getWeatherDescriptionForCode(currentWeatherData.hourlyCode[i]), (i < 2 ? ", " : ""));
                                 }
                             }
                             break;
                         }
-                        case 5: { // Feels Like & Humidity
-                            // The global dataValid flag is checked before this switch, so we can assume data is present.
-                            char feels_like_buf[8];
-                            dtostrf(currentWeatherData.apparentTemperature, 1, 0, feels_like_buf);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            tempWeatherString = "FEELS LIKE " + String(feels_like_buf) + unit + ", HUMIDITY " + String(currentWeatherData.humidity) + "%";
+                        case 5: // Feels Like & Humidity
+                            dtostrf(currentWeatherData.apparentTemperature, 1, 0, temp_buf);
+                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "FEELS LIKE %s%s, HUMIDITY %d%%", temp_buf, unit, currentWeatherData.humidity);
                             break;
-                        }
-                        case 6: { // Today's High/Low
-                            // The global dataValid flag is checked before this switch, so we can assume data is present.
-                            char high_buf[8], low_buf[8];
+                        case 6: // Today's High/Low
+                             char high_buf[8], low_buf[8];
                             dtostrf(currentWeatherData.dailyHigh, 1, 0, high_buf);
                             dtostrf(currentWeatherData.dailyLow, 1, 0, low_buf);
-                            String unit = currentSettings.useMetricUnits ? "C" : "F";
-                            tempWeatherString = "TODAY HIGH " + String(high_buf) + unit + ", LOW " + String(low_buf) + unit;
+                            snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "TODAY HIGH %s%s, LOW %s%s", high_buf, unit, low_buf, unit);
                             break;
-                        }
                     }
-                    weatherBuffer = "             " + std::string(tempWeatherString.c_str());
                     weatherScrollPosition = 0;
                     weatherState = WD_SCROLLING;
                     lastWeatherUpdate = millis();
+                    break; // End of WD_START_PAGE
                 }
 
                 case WD_SCROLLING: {
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
-                        std::string tempScrollText = weatherBuffer + "             ";
-                        std::string viewport_str = tempScrollText.substr(weatherScrollPosition, 13);
-                        const char* viewport = viewport_str.c_str();
 
-                        printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 1);
-                        printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 2);
-                        printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
-                        printToDisplay(lastRow.time, std::string(viewport).substr(9, 13).c_str(), 0);
-                        shouldWriteToDisplay = true;
+                        char tempScrollText[sizeof(weatherBuffer) + 14];
+                        snprintf(tempScrollText, sizeof(tempScrollText), "%s             ", weatherBuffer);
 
-                        weatherScrollPosition++;
-                        if (weatherScrollPosition > weatherBuffer.length()) {
+                        if(weatherScrollPosition > strlen(weatherBuffer)) {
                             Log_printf(LOG_LEVEL_DEBUG, "Scrolling finished, transitioning to WD_PAUSING state");
                             weatherState = WD_PAUSING;
                             lastWeatherUpdate = millis();
+                        } else {
+                            strncpy(viewport, tempScrollText + weatherScrollPosition, 13);
+                            viewport[13] = '\0';
+
+                            strncpy(segment_month, viewport, 3); segment_month[3] = '\0';
+                            strncpy(segment_day, viewport + 3, 2); segment_day[2] = '\0';
+                            strncpy(segment_year, viewport + 5, 4); segment_year[4] = '\0';
+                            strncpy(segment_time, viewport + 9, 4); segment_time[4] = '\0';
+
+                            printToDisplay(lastRow.month, segment_month, 1);
+                            printToDisplay(lastRow.day, segment_day, 2);
+                            printToDisplay(lastRow.year, segment_year, 0);
+                            printToDisplay(lastRow.time, segment_time, 0);
+                            shouldWriteToDisplay = true;
+
+                            weatherScrollPosition++;
                         }
                     }
                     break;
@@ -709,7 +662,7 @@ void handleWeatherDisplay() {
 
                 case WD_PAUSING: {
                     if (millis() - lastWeatherUpdate > pauseDuration) {
-                        weatherPage = (weatherPage + 1) % 7; // MODIFIED: Increased page count
+                        weatherPage = (weatherPage + 1) % 7;
                         Log_printf(LOG_LEVEL_DEBUG, "Pause finished, transitioning to WD_START_PAGE for page %d", weatherPage);
                         weatherState = WD_START_PAGE;
                     }
