@@ -15,6 +15,7 @@
 #include "web_server.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 extern bool weatherDataUpdated;
 #include <WiFiClientSecure.h>
 #include <time.h>
@@ -206,14 +207,11 @@ static bool fetchWeatherDataFromApi() {
     HTTPClient http;
     WiFiClientSecure client;
     client.setInsecure();
+    client.setTimeout(10000); // 10-second timeout
 
     String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
     String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
 
-    // This new URL is optimized to fetch everything at once.
-    // 'current' now includes all immediately needed data points.
-    // 'hourly' is limited to 12 hours to save memory, as we only need the next 3.
-    // 'daily' remains as it was, fetching for today and tomorrow.
     char weatherUrl[512];
     snprintf(weatherUrl, sizeof(weatherUrl),
              "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
@@ -229,18 +227,44 @@ static bool fetchWeatherDataFromApi() {
         Log_printf(LOG_LEVEL_DEBUG, "Unified Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            // Reading the full response to a String is more robust than parsing from the raw stream,
-            // as it avoids potential timing issues with the underlying network libraries.
-            String payload = http.getString();
-            Log_printf(LOG_LEVEL_DEBUG, "Full Weather API Response: %s", payload.c_str());
+            // --- Robust Streaming Implementation ---
 
-            // The JSON from the weather API is quite large (around 1.5KB).
-            // We allocate a 4KB buffer on the heap to safely handle this larger payload.
-            const int JSON_CAPACITY = 4096;
-            DynamicJsonDocument doc(JSON_CAPACITY);
+            // 1. Create a filter to only parse the data we need.
+            // This massively reduces memory usage.
+            StaticJsonDocument<512> filter;
+            JsonObject current_filter = filter.createNestedObject("current");
+            current_filter["time"] = true;
+            current_filter["temperature_2m"] = true;
+            current_filter["relative_humidity_2m"] = true;
+            current_filter["apparent_temperature"] = true;
+            current_filter["weather_code"] = true;
+            current_filter["wind_speed_10m"] = true;
+            JsonObject hourly_filter = filter.createNestedObject("hourly");
+            hourly_filter["time"] = true;
+            hourly_filter["temperature_2m"] = true;
+            hourly_filter["weather_code"] = true;
+            JsonObject daily_filter = filter.createNestedObject("daily");
+            daily_filter["time"] = true;
+            daily_filter["temperature_2m_max"] = true;
+            daily_filter["temperature_2m_min"] = true;
+            daily_filter["weather_code"] = true;
+            daily_filter["sunrise"] = true;
+            daily_filter["sunset"] = true;
+            daily_filter["precipitation_probability_max"] = true;
+            daily_filter["wind_speed_10m_max"] = true;
+
+            // 2. Use a StaticJsonDocument on the stack to avoid heap fragmentation.
+            // Size is 2KB, which is safe for a filtered response on an 8KB task stack.
+            StaticJsonDocument<2048> doc;
+
+            // 3. Use a ReadBufferingStream to make parsing resilient to network instability.
+            char buffer[256];
+            ReadBufferingStream bufferedStream(http.getStream(), sizeof(buffer));
+
+            // 4. Deserialize with the filter.
+            DeserializationError error = deserializeJson(doc, bufferedStream, DeserializationOption::Filter(filter));
             
-            DeserializationError error = deserializeJson(doc, payload);
-            http.end(); // End the connection as soon as we're done with the stream.
+            http.end(); // End the connection now that we are done with the stream.
 
             if (error == DeserializationError::Ok) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
