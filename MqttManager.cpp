@@ -413,6 +413,49 @@ void publishHaAutoDiscovery() {
     serializeJson(doc, payload);
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
+    // --- Live Weather Mode Entities ---
+    doc.clear();
+    doc["name"] = "Live Weather Mode";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_weather_mode";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_weather_mode";
+    doc["command_topic"] = device_base_topic + "/weather_mode/command";
+    doc["state_topic"] = device_base_topic + "/weather_mode/state";
+    doc["icon"] = "mdi:weather-cloudy";
+    doc["entity_category"] = "config";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+
+    doc.clear();
+    doc["name"] = "Weather City";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_weather_city";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_weather_city";
+    doc["command_topic"] = device_base_topic + "/weather_city/command";
+    doc["state_topic"] = device_base_topic + "/weather_city/state";
+    doc["icon"] = "mdi:city";
+    doc["entity_category"] = "config";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+
+    doc.clear();
+    doc["name"] = "Refresh Weather Data";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_weather_refresh";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_weather_refresh";
+    doc["command_topic"] = device_base_topic + "/weather_refresh/command";
+    doc["payload_press"] = "PRESS";
+    doc["icon"] = "mdi:refresh";
+    doc["entity_category"] = "config";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/button/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+
     // New Audio sensor for stream state
     doc.clear();
     doc["name"] = "Audio Stream Status";
@@ -692,9 +735,16 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         }
         else if (topicStr == base_topic + "weather_refresh/command") {
             if (message == "PRESS") {
-                // This now requires coordinates. We can't trigger from MQTT without them.
-                // Consider this a deprecated command.
-                Log_printf(LOG_LEVEL_WARN, "Weather refresh from MQTT is deprecated. Use the web UI.");
+                if (isFetchingWeather) {
+                    Log_printf(LOG_LEVEL_WARN, "Weather fetch is already in progress. Ignoring refresh command.");
+                } else if (currentSettings.latitude == 0.0f && currentSettings.longitude == 0.0f) {
+                    Log_printf(LOG_LEVEL_WARN, "No coordinates set. Cannot refresh weather from MQTT.");
+                }
+                else {
+                    Log_printf(LOG_LEVEL_INFO, "Weather refresh triggered from MQTT.");
+                    isFetchingWeather = true; // Set the flag to prevent concurrent fetches
+                    xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", 8192, NULL, 1, NULL);
+                }
             }
         }
         else if (topicStr == base_topic + "24h_format/command") {
