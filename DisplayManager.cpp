@@ -12,7 +12,10 @@
 #include "DisplayManager.h"
 #include "DataManager.h"
 #include "EventManager.h"
+#include "StockManager.h"
 #include <string>
+
+extern StockManager stockManager;
 
 // Define and initialize the dirty flags and buffers for scrolling text
 bool isMarqueeBufferDirty = true;
@@ -211,55 +214,62 @@ void displayMarqueeOverride() {
 }
 
 void updateStockTickerDisplay() {
-    // ... function content remains the same ...
     if (isDisplayAsleep || isAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
-    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
-    for (int i = 0; i < 3; ++i) {
-        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            if (stockData[i].dataValid) {
-                String symbol = String(stockData[i].symbol.c_str());
-                if(symbol.startsWith("^")) symbol.remove(0,1);
-                printToDisplay(rows[i]->month, symbol.substring(0, 3).c_str());
-                printToDisplay(rows[i]->day, symbol.substring(3, 5).c_str(), 2);
+    // In stock mode, top two rows show the clock
+    updateNormalClockDisplay_internal(true, true, false);
 
-                printToDisplay(rows[i]->year, stockData[i].price.c_str());
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        static std::string stockMarqueeBuffer;
+        static bool isBufferDirty = true;
+        static int scrollPosition = 0;
+        static unsigned long lastScrollTime = 0;
 
-                printToDisplay(rows[i]->time, stockData[i].change_percent.c_str());
+        String marqueeLine = stockManager.getMarqueeLine();
 
+        // A simple dirty check. A more robust solution might be needed.
+        if (stockMarqueeBuffer != marqueeLine.c_str()) {
+            isBufferDirty = true;
+        }
+
+        if (isBufferDirty) {
+            if (marqueeLine.length() > 13) {
+                stockMarqueeBuffer = "  " + std::string(marqueeLine.c_str()) + "  ";
             } else {
-                std::string symbol;
-                if (i == 0) symbol = currentSettings.stockRow1_symbol;
-                else if (i == 1) symbol = currentSettings.stockRow2_symbol;
-                else symbol = currentSettings.stockRow3_symbol;
+                stockMarqueeBuffer = marqueeLine.c_str();
+            }
+            scrollPosition = 0;
+            isBufferDirty = false;
+        }
 
-                if (symbol.empty()) {
-                    printToDisplay(rows[i]->month, "---");
-                    printToDisplay(rows[i]->day, "--", 2);
-                    printToDisplay(rows[i]->year, "EMPTY");
-                    printToDisplay(rows[i]->time, "----");
-                } else if (currentSettings.financialModelingPrepApiKey.empty()) {
-                    printToDisplay(rows[i]->month, "NO");
-                    printToDisplay(rows[i]->day, "API", 2);
-                    printToDisplay(rows[i]->year, "KEY");
-                    printToDisplay(rows[i]->time, "----");
-                } else {
-                    printToDisplay(rows[i]->month, "---");
-                    printToDisplay(rows[i]->day, "--", 2);
-                    printToDisplay(rows[i]->year, "LOAD");
-                    printToDisplay(rows[i]->time, "ING");
+        if (millis() - lastScrollTime > 150) { // Scroll speed
+            lastScrollTime = millis();
+
+            std::string viewport_str = stockMarqueeBuffer.substr(scrollPosition, 13);
+            const char* viewport = viewport_str.c_str();
+
+            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 0);
+                printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 0);
+                printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
+                printToDisplay(lastRow.time, std::string(viewport).substr(9, 13).c_str(), 0);
+
+                lastRow.month.writeDisplay();
+                lastRow.day.writeDisplay();
+                lastRow.year.writeDisplay();
+                lastRow.time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
+                xSemaphoreGive(xDisplayHardwareMutex);
+            }
+
+            if (stockMarqueeBuffer.length() > 13) {
+                scrollPosition++;
+                if (scrollPosition > stockMarqueeBuffer.length() - 13) {
+                    scrollPosition = 0;
                 }
             }
-             xSemaphoreGive(xDisplayDataMutex);
         }
-        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            rows[i]->month.writeDisplay();
-            rows[i]->day.writeDisplay();
-            rows[i]->year.writeDisplay();
-            rows[i]->time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
-            xSemaphoreGive(xDisplayHardwareMutex);
-        }
+        xSemaphoreGive(xDisplayDataMutex);
     }
 #endif
 }

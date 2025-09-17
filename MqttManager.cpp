@@ -15,6 +15,9 @@ al * control. It is responsible for generating the Home Assistant MQTT Discovery
 #include "DisplayManager.h"
 #include "DataManager.h"
 #include "web_server.h"
+#include "StockManager.h"
+
+extern StockManager stockManager;
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
@@ -909,6 +912,12 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (component == "alpha_vantage_api_key") {
             currentSettings.financialModelingPrepApiKey = message.c_str();
             settingsChanged = true;
+        }
+        else if (component == "stock" && topicStr.endsWith("/next/command")) {
+            stockManager.nextPage();
+        }
+        else if (component == "stock" && topicStr.endsWith("/previous/command")) {
+            stockManager.previousPage();
         }
         else if (topicStr == base_topic + "tts/play") {
             JsonDocument doc;

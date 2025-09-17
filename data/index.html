@@ -227,39 +227,28 @@
                     <span class="slider round"></span>
                 </label>
                 <div id="stockTickerSettingsContainer" style="display:none; margin-top: 20px;">
-                  <label for="alphaVantageApiKey">Stock API Key (from FMP):</label>
-                  <input type="text" id="alphaVantageApiKey" placeholder="Enter your free FMP API key">
+                  <label for="financialModelingPrepApiKey">Financial Modeling Prep API Key:</label>
+                  <input type="text" id="financialModelingPrepApiKey" placeholder="Enter your free FMP API key">
 
-                    <label for="stockRow1_symbol">Destination Row Symbol:</label>
-                    <div class="stock-row-input">
-                        <input type="text" id="stockRow1_symbol" placeholder="e.g., ^GSPC, AAPL">
-                        <button class="action-button fetch-stock-btn" data-index="0">Fetch</button>
-                    </div>
-                     <div class="stock-preview-container" id="stock_preview_0">
-                        <span class="stock-price">--</span>
-                        <span class="stock-change">--</span>
-                    </div>
+                  <label for="stockRefreshInterval">Refresh Interval (minutes):</label>
+                  <input type="number" id="stockRefreshInterval" value="2" min="1" style="width: 100px;">
 
-                    <label for="stockRow2_symbol">Present Row Symbol:</label>
-                    <div class="stock-row-input">
-                        <input type="text" id="stockRow2_symbol" placeholder="e.g., ^GSPTSE, GOOGL">
-                        <button class="action-button fetch-stock-btn" data-index="1">Fetch</button>
-                    </div>
-                     <div class="stock-preview-container" id="stock_preview_1">
-                        <span class="stock-price">--</span>
-                        <span class="stock-change">--</span>
-                    </div>
+                  <div id="stockApiStatus" class="api-status">
+                      <span id="stockApiUsage">API Calls Today: --</span>
+                  </div>
 
-                    <label for="stockRow3_symbol">Last Departed Row Symbol:</label>
-                     <div class="stock-row-input">
-                        <input type="text" id="stockRow3_symbol" placeholder="e.g., ^IXIC, MSFT">
-                        <button class="action-button fetch-stock-btn" data-index="2">Fetch</button>
-                    </div>
-                     <div class="stock-preview-container" id="stock_preview_2">
-                        <span class="stock-price">--</span>
-                        <span class="stock-change">--</span>
-                    </div>
-                     <p style="font-size: 0.8em; opacity: 0.7;">Note: Use Yahoo Finance ticker symbols. Indices often start with '^'.</p>
+                  <hr>
+
+                  <h4>Tracked Assets</h4>
+                  <div id="stockAssetList" class="asset-list">
+                      <!-- Assets will be dynamically inserted here -->
+                  </div>
+
+                  <div class="add-asset-container">
+                      <input type="text" id="addAssetInput" placeholder="e.g., AAPL, BTC-USD, ^GSPC">
+                      <button id="addAssetBtn" class="action-button">Add Asset</button>
+                  </div>
+                   <div id="symbolAutocompleteContainer" class="autocomplete-container"></div>
                 </div>
             </div>
 

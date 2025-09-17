@@ -1740,3 +1740,92 @@ body.time-travel-active {
 #locationList li:last-child {
     border-bottom: none;
 }
+
+/* --- Stock Ticker UI Styles --- */
+.asset-list {
+    margin-top: 15px;
+    margin-bottom: 20px;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--input-border);
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.asset-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px dashed #555;
+    cursor: grab;
+}
+.asset-item:last-child {
+    border-bottom: none;
+}
+.asset-item:active {
+    cursor: grabbing;
+    background-color: var(--tab-active-bg);
+}
+
+.asset-symbol {
+    flex-basis: 25%;
+    font-weight: bold;
+    color: var(--highlight-text-color);
+}
+.asset-name {
+    flex-grow: 1;
+    color: var(--text-color);
+    opacity: 0.8;
+    font-size: 0.9em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.asset-price {
+    flex-basis: 20%;
+    text-align: right;
+}
+.asset-change {
+    flex-basis: 20%;
+    text-align: right;
+    font-weight: bold;
+}
+.asset-change.positive { color: #00ff00; }
+.asset-change.negative { color: #ff0000; }
+
+.remove-asset-btn {
+    background: none;
+    border: none;
+    color: #ff0000;
+    font-size: 1.5em;
+    cursor: pointer;
+    padding: 0 10px;
+    margin-left: 10px;
+}
+
+.add-asset-container {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+.add-asset-container input {
+    flex-grow: 1;
+    margin: 0;
+}
+.add-asset-container button {
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.autocomplete-container {
+    position: relative;
+}
+.autocomplete-item {
+    padding: 10px;
+    cursor: pointer;
+    background-color: var(--container-bg-color);
+    border-bottom: 1px solid #555;
+}
+.autocomplete-item:hover {
+    background-color: var(--tab-active-bg);
+}

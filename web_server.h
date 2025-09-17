@@ -19,6 +19,7 @@ extern AsyncWebServer server;
 extern AsyncWebSocket ws;
 extern ClockSettings currentSettings;
 extern WeatherData currentWeatherData;
+extern StockManager stockManager;
 extern String apiTemplatesJson;
 extern Preferences preferences;
 extern bool timeSynchronized;
