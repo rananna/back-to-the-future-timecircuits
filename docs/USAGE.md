@@ -133,12 +133,19 @@ First, you need to enable and configure the mode in the "Data Link" tab of the w
 
 *   **Enable the Mode**: Toggle on "Stock Ticker Mode".
 *   **API Key**: You must provide a valid API key from the **Financial Modeling Prep** service. Without this key, the device cannot fetch any data.
-    > ⚠️ **Important Note:** The stock data is sourced from [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs). You will need to register for a free API key from their website.
 *   **Stock Symbols**: Enter up to three stock or index symbols (e.g., `AAPL` for Apple Inc. or `^GSPC` for the S&P 500) to be displayed on the three rows.
+
+##### 2. Retrieving Your API Key
+The stock data is sourced from a service called [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs). You will need to register for a free account to get an API key.
+
+1.  **Navigate to the Registration Page**: Open a web browser and go to the [Financial Modeling Prep registration page](https://site.financialmodelingprep.com/register).
+2.  **Sign Up**: Fill out the required information to create a new account.
+3.  **Find Your API Key**: Once you have created your account and logged in, navigate to your **Dashboard**. Your API key will be displayed in the **"Your API KEY"** section.
+4.  **Copy and Paste**: Copy the API key from the dashboard and paste it into the "API Key" field in the clock's web interface.
 
 All these settings are saved to the device's non-volatile storage, so they persist even after a reboot.
 
-##### 2. Data Fetching
+##### 3. Data Fetching
 Once the mode is active, the device automatically begins the process of fetching live data.
 
 *   **State Control**: The device prioritizes showing stock data over the default clock or other modes.
@@ -147,7 +154,7 @@ Once the mode is active, the device automatically begins the process of fetching
 *   **Data Formatting**: After receiving data from the API, the code formats it into simple strings that are perfectly sized for the 7-segment displays. For example, the price is condensed to fit within 4 characters, and the percentage change is formatted to two decimal places (e.g., `+1.25`).
 *   **Error Handling**: If an API call fails, the device will show a helpful status message on the display (e.g., `NO API KEY`).
 
-##### 3. Display Layout
+##### 4. Display Layout
 The fetched data is shown across the three display rows.
 
 *   **Symbol**: The stock symbol is displayed across the "Month" and "Day" segments.
