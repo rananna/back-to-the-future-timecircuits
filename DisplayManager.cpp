@@ -606,8 +606,24 @@ void handleWeatherDisplay() {
                                 time_t sunrise = currentWeatherData.sunrise;
                                 time_t sunset = currentWeatherData.sunset;
 
-                                // Set the timezone to the one configured for the device's present time
-                                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                                // --- START: MODIFICATION - Use Weather Location Timezone for Sunrise/Sunset ---
+                                const char* weatherTz = nullptr;
+                                if (!currentWeatherData.timezone.empty()) {
+                                    for (const auto& tzData : TZ_DATA) {
+                                        if (currentWeatherData.timezone == tzData.ianaTzName) {
+                                            weatherTz = tzData.tzString;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                // Fallback to present time timezone if weather one isn't found
+                                if (weatherTz == nullptr) {
+                                    weatherTz = TZ_DATA[currentSettings.presentTimezoneIndex].tzString;
+                                }
+
+                                // Set the timezone for sunrise/sunset calculation
+                                setenv("TZ", weatherTz, 1);
                                 tzset();
 
                                 // Format sunrise
