@@ -9,7 +9,6 @@
  */
 
 #include <esp_tls.h>
-#include "secrets.h"
 #include "DebugLog.h"
 #include "DataManager.h"
 #include "EventManager.h"
