@@ -379,8 +379,17 @@ function attachEventListeners() {
     document.getElementById('savePresetBtn').onclick = handleSavePreset;
     document.getElementById('deletePresetBtn').onclick = deletePreset;
     document.getElementById('newPresetBtn').onclick = resetPresetForm;
-    // Weather refresh button
-    document.getElementById('refreshWeatherBtn').onclick = refreshWeatherData;
+    // Weather lookup and refresh buttons
+    document.getElementById('lookupCityBtn').onclick = lookupCity;
+    document.getElementById('refreshWeatherBtn').onclick = () => {
+        const lat = document.getElementById('weatherLatitude').value;
+        const lon = document.getElementById('weatherLongitude').value;
+        if (lat && lon) {
+            triggerWeatherRefresh(parseFloat(lat), parseFloat(lon));
+        } else {
+            showMessage('Please lookup a city to get coordinates first.', 'error');
+        }
+    };
     // Test all data points button
     document.getElementById('testAllDataPointsBtn').onclick = testAllDataPoints;
 
@@ -411,9 +420,9 @@ function attachEventListeners() {
             document.getElementById('stockTickerModeEnabled').checked = false;
             document.getElementById('stockTickerSettingsContainer').style.display = 'none';
             document.getElementById('weatherModeGroup').classList.remove('disabled');
-            // Instead of just fetching, trigger a refresh which includes geocoding validation
+            // Instead of just fetching, trigger a lookup which includes geocoding validation
             if (document.getElementById('cityName').value) {
-                refreshWeatherData();
+                lookupCity();
             }
         }
         if (!isLoading) setSettingsChanged(true);

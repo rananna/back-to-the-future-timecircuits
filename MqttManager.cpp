@@ -685,15 +685,16 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         else if (topicStr == base_topic + "weather_city/command") {
             if (currentSettings.cityName != message.c_str()) {
                 currentSettings.cityName = message.c_str();
-                WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, true};
-                xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
+                // Just save the city name. The user must trigger the lookup and refresh from the UI.
                 settingsChanged = true;
+                broadcastWsStateUpdate("cityName", message.c_str());
             }
         }
         else if (topicStr == base_topic + "weather_refresh/command") {
             if (message == "PRESS") {
-                WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, true};
-                xTaskCreatePinnedToCore(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL, 0);
+                // This now requires coordinates. We can't trigger from MQTT without them.
+                // Consider this a deprecated command.
+                Log_printf(LOG_LEVEL_WARN, "Weather refresh from MQTT is deprecated. Use the web UI.");
             }
         }
         else if (topicStr == base_topic + "24h_format/command") {

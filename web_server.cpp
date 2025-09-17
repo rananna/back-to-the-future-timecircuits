@@ -572,23 +572,9 @@ void setupWebRoutes() {
         }
 
     }
-    // Fallback to the old method if only cityName is provided
-    else if (obj.containsKey("cityName")) {
-        std::string city = obj["cityName"].as<std::string>();
-        // Here, we force geocoding because the client is just passing a name.
-        params = new WeatherTaskParams{city, true, 0, 0};
-        Log_printf(LOG_LEVEL_INFO, "Weather refresh triggered by city name: %s", city.c_str());
-
-        if (xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL) == pdPASS) {
-            request->send(202, "text/plain", "Weather refresh triggered for new city.");
-        } else {
-            delete params;
-            request->send(500, "text/plain", "Failed to create weather task.");
-        }
-
     } else {
-        // If neither city name nor coordinates are provided, it's a bad request.
-        request->send(400, "text/plain", "Bad Request: Missing cityName or coordinates.");
+        // If coordinates are not provided, it's a bad request.
+        request->send(400, "text/plain", "Bad Request: Missing latitude or longitude.");
     }
   });
   server.addHandler(refreshWeatherHandler);
