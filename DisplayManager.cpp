@@ -439,7 +439,6 @@ void handleWeatherDisplay() {
             if (!currentWeatherData.errorReason.empty() && weatherState != WD_ERROR) {
                 weatherState = WD_ERROR;
                 weatherBuffer = "             WEATHER ERROR: " + currentWeatherData.errorReason;
-                Log_printf(LOG_LEVEL_WARN, "Entering weather error display state. Full message: %s", weatherBuffer.c_str());
                 weatherScrollPosition = 0;
                 lastWeatherUpdate = millis(); // Start the timer for the error display
             }
@@ -516,44 +515,26 @@ void handleWeatherDisplay() {
 
             switch (weatherState) {
                 case WD_ERROR: {
-                    static unsigned long errorStateStartTime = 0;
-                    if (errorStateStartTime == 0) {
-                        errorStateStartTime = millis();
-                    }
-
                     if (millis() - lastWeatherUpdate > scrollSpeed) {
                         lastWeatherUpdate = millis();
-
-                        // To improve stability and reduce heap fragmentation, we avoid creating
-                        // many temporary std::string objects in this critical loop.
                         std::string tempScrollText = weatherBuffer + "             ";
                         std::string viewport_str = tempScrollText.substr(weatherScrollPosition, 13);
+                        const char* viewport = viewport_str.c_str();
 
-                        Log_printf(LOG_LEVEL_DEBUG, "Weather error scroll viewport: [%s]", viewport_str.c_str());
-
-                        // CRASH FIX: The substr calls below were incorrect, reading past the end of the
-                        // string and causing a StoreProhibited crash. Corrected the lengths to match the display segments.
-                        printToDisplay(lastRow.month, viewport_str.substr(0, 3).c_str(), 1);
-                        printToDisplay(lastRow.day,   viewport_str.substr(3, 2).c_str(), 2);
-                        printToDisplay(lastRow.year,  viewport_str.substr(5, 4).c_str(), 0);
-                        printToDisplay(lastRow.time,  viewport_str.substr(9, 4).c_str(), 0);
+                        printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 1);
+                        printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 2);
+                        printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
+                        printToDisplay(lastRow.time, std::string(viewport).substr(9, 13).c_str(), 0);
                         shouldWriteToDisplay = true;
 
                         weatherScrollPosition++;
-                        // Correctly loop the scrolling text.
-                        if (weatherScrollPosition >= tempScrollText.length() - 13) {
-                            weatherScrollPosition = 0;
+                        if (weatherScrollPosition > weatherBuffer.length()) {
+                            if (millis() - lastWeatherUpdate > errorRetryDelay) {
+                                currentWeatherData.errorReason = ""; // Clear reason
+                                weatherState = WD_START_PAGE;
+                                initialFetchTriggered = false; // Allow a new fetch
+                            }
                         }
-                    }
-
-                    // Use a separate, dedicated timer to decide when to exit the error state.
-                    // This fixes a bug where the error message would display indefinitely.
-                    if (millis() - errorStateStartTime > errorRetryDelay) {
-                        Log_printf(LOG_LEVEL_INFO, "Exiting weather error state and retrying.");
-                        currentWeatherData.errorReason = ""; // Clear reason
-                        weatherState = WD_START_PAGE;
-                        initialFetchTriggered = false; // Allow a new fetch
-                        errorStateStartTime = 0; // Reset for the next error
                     }
                     break;
                 }
