@@ -232,6 +232,7 @@ static bool fetchWeatherDataFromApi() {
             // Reading the full response to a String is more robust than parsing from the raw stream,
             // as it avoids potential timing issues with the underlying network libraries.
             String payload = http.getString();
+            Log_printf(LOG_LEVEL_DEBUG, "Full Weather API Response: %s", payload.c_str());
 
             // The JSON from the weather API is quite large (around 1.5KB).
             // We allocate a 4KB buffer on the heap to safely handle this larger payload.

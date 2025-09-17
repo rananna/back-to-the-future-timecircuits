@@ -421,6 +421,9 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 
 void handleWeatherDisplay() {
 #if ENABLE_HARDWARE
+    // Log the current state at the beginning of the function
+    Log_printf(LOG_LEVEL_DEBUG, "handleWeatherDisplay: Current state is %d", weatherState);
+
     // In weather mode, the top two rows show normal clock information.
     // This is now handled inside the mutex-protected block below.
 
@@ -515,6 +518,7 @@ void handleWeatherDisplay() {
             }
 
             if (weatherDataUpdated || isWeatherBufferDirty) {
+                Log_printf(LOG_LEVEL_DEBUG, "Weather data updated, resetting state to WD_START_PAGE");
                 weatherState = WD_START_PAGE;
                 weatherPage = 0;
                 weatherDataUpdated = false;
@@ -695,6 +699,7 @@ void handleWeatherDisplay() {
 
                         weatherScrollPosition++;
                         if (weatherScrollPosition > weatherBuffer.length()) {
+                            Log_printf(LOG_LEVEL_DEBUG, "Scrolling finished, transitioning to WD_PAUSING state");
                             weatherState = WD_PAUSING;
                             lastWeatherUpdate = millis();
                         }
@@ -705,6 +710,7 @@ void handleWeatherDisplay() {
                 case WD_PAUSING: {
                     if (millis() - lastWeatherUpdate > pauseDuration) {
                         weatherPage = (weatherPage + 1) % 7; // MODIFIED: Increased page count
+                        Log_printf(LOG_LEVEL_DEBUG, "Pause finished, transitioning to WD_START_PAGE for page %d", weatherPage);
                         weatherState = WD_START_PAGE;
                     }
                     break;
