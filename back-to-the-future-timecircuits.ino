@@ -998,11 +998,7 @@ void handleDisplay() {
             updateMarqueeDisplay();
             break;
         case STATE_WEATHER:
-            // First, update the top two rows (Destination and Present) with the current time.
-            // The 'false' argument prevents this call from overwriting the bottom row,
-            // which is reserved for the weather information.
-            updateNormalClockDisplay(true, true, false);
-            // Now, let the handleWeatherDisplay function manage the bottom row.
+            // Weather mode is now handled by the handleWeatherDisplay function
             handleWeatherDisplay();
             break;
         case STATE_NORMAL_CLOCK:
