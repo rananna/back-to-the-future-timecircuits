@@ -111,11 +111,15 @@ static bool fetchWeatherDataFromApi() {
     char weatherUrl[512];
     snprintf(weatherUrl, sizeof(weatherUrl),
              "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
-             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m"
+             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
              "&hourly=temperature_2m,weather_code"
              "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
              "&forecast_days=2&forecast_hours=12&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime",
              currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
+
+    // Set smaller buffer sizes for the secure client to reduce heap usage.
+    // This is crucial for preventing memory allocation failures on memory-constrained devices.
+    client.setBufferSizes(512, 512);
 
     // Downgrade to HTTP 1.0 to disable chunked encoding, which allows for direct streaming
     // into the JSON parser without needing an intermediate buffer or special handling.
@@ -132,6 +136,7 @@ static bool fetchWeatherDataFromApi() {
             // 1. Create a filter to only parse the data we need.
             // This massively reduces memory usage.
             JsonDocument filter;
+            filter["timezone"] = true;
             JsonObject current_filter = filter["current"].to<JsonObject>();
             current_filter["time"] = true;
             current_filter["temperature_2m"] = true;
@@ -189,6 +194,11 @@ static bool fetchWeatherDataFromApi() {
                         JsonObject current = doc["current"];
                         JsonObject daily = doc["daily"];
                         JsonObject hourly = doc["hourly"];
+
+                        // --- Timezone ---
+                        if (!doc["timezone"].isNull()) {
+                            currentWeatherData.timezone = doc["timezone"].as<const char*>();
+                        }
 
                         // --- Current Weather Data ---
                         currentWeatherData.temperature = getJsonValue(current, "temperature_2m");
