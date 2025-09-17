@@ -231,19 +231,19 @@ static bool fetchWeatherDataFromApi() {
 
             // 1. Create a filter to only parse the data we need.
             // This massively reduces memory usage.
-            StaticJsonDocument<512> filter;
-            JsonObject current_filter = filter.createNestedObject("current");
+            JsonDocument filter;
+            JsonObject current_filter = filter["current"].to<JsonObject>();
             current_filter["time"] = true;
             current_filter["temperature_2m"] = true;
             current_filter["relative_humidity_2m"] = true;
             current_filter["apparent_temperature"] = true;
             current_filter["weather_code"] = true;
             current_filter["wind_speed_10m"] = true;
-            JsonObject hourly_filter = filter.createNestedObject("hourly");
+            JsonObject hourly_filter = filter["hourly"].to<JsonObject>();
             hourly_filter["time"] = true;
             hourly_filter["temperature_2m"] = true;
             hourly_filter["weather_code"] = true;
-            JsonObject daily_filter = filter.createNestedObject("daily");
+            JsonObject daily_filter = filter["daily"].to<JsonObject>();
             daily_filter["time"] = true;
             daily_filter["temperature_2m_max"] = true;
             daily_filter["temperature_2m_min"] = true;
@@ -253,16 +253,16 @@ static bool fetchWeatherDataFromApi() {
             daily_filter["precipitation_probability_max"] = true;
             daily_filter["wind_speed_10m_max"] = true;
 
-            // 2. Use a StaticJsonDocument on the stack to avoid heap fragmentation.
-            // Size is 2KB, which is safe for a filtered response on an 8KB task stack.
-            StaticJsonDocument<2048> doc;
+            // 2. Use a JsonDocument on the stack.
+            // The document's capacity will grow as needed.
+            JsonDocument doc;
 
-            // 3. Use a ReadBufferingStream to make parsing resilient to network instability.
+            // 3. Use a ReadBufferingClient to make parsing resilient to network instability.
             char buffer[256];
-            ReadBufferingStream bufferedStream(http.getStream(), sizeof(buffer));
+            ReadBufferingClient bufferedClient(http.getStream(), sizeof(buffer));
 
             // 4. Deserialize with the filter.
-            DeserializationError error = deserializeJson(doc, bufferedStream, DeserializationOption::Filter(filter));
+            DeserializationError error = deserializeJson(doc, bufferedClient, DeserializationOption::Filter(filter));
             
             http.end(); // End the connection now that we are done with the stream.
 

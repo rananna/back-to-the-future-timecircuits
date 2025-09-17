@@ -568,6 +568,7 @@ void handleWeatherDisplay() {
                     char temp_buf[20];
                     const char* unit = currentSettings.useMetricUnits ? "C" : "F";
                     const char* windUnit = currentSettings.useMetricUnits ? "KPH" : "MPH";
+                    char high_buf[8], low_buf[8];
 
                     snprintf(weatherBuffer, sizeof(weatherBuffer), "             "); // Start with padding
 
@@ -577,7 +578,6 @@ void handleWeatherDisplay() {
                             snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "CURRENTLY %s%s, %s", temp_buf, unit, getWeatherDescriptionForCode(currentWeatherData.weatherCode));
                             break;
                         case 1: // Tomorrow's Forecast
-                            char high_buf[8], low_buf[8];
                             dtostrf(currentWeatherData.tomorrowHigh, 1, 0, high_buf);
                             dtostrf(currentWeatherData.tomorrowLow, 1, 0, low_buf);
                             snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "TOMORROW HIGH %s%s, LOW %s%s, %s", high_buf, unit, low_buf, unit, getWeatherDescriptionForCode(currentWeatherData.tomorrowWeatherCode));
@@ -616,7 +616,6 @@ void handleWeatherDisplay() {
                             snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "FEELS LIKE %s%s, HUMIDITY %d%%", temp_buf, unit, currentWeatherData.humidity);
                             break;
                         case 6: // Today's High/Low
-                             char high_buf[8], low_buf[8];
                             dtostrf(currentWeatherData.dailyHigh, 1, 0, high_buf);
                             dtostrf(currentWeatherData.dailyLow, 1, 0, low_buf);
                             snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "TODAY HIGH %s%s, LOW %s%s", high_buf, unit, low_buf, unit);

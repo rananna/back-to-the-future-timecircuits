@@ -20,7 +20,7 @@ extern bool isWeatherBufferDirty;
 extern bool isMarqueeOverrideBufferDirty;
 
 extern std::string marqueeBuffer;
-extern std::string weatherBuffer;
+extern char weatherBuffer[512];
 extern std::string marqueeOverrideBuffer;
 
 // MODIFIED: Function now accepts flags to control which rows are updated
