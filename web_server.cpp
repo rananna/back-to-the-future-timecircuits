@@ -161,6 +161,13 @@ void broadcastWeatherUpdate() {
         data["dailyLow"] = currentWeatherData.dailyLow;
         data["latitude"] = currentWeatherData.latitude;
         data["longitude"] = currentWeatherData.longitude;
+        data["sunrise"] = currentWeatherData.sunrise;
+        data["sunset"] = currentWeatherData.sunset;
+        data["precipitationProbability"] = currentWeatherData.precipitationProbability;
+        data["maxWindSpeed"] = currentWeatherData.maxWindSpeed;
+        data["tomorrowHigh"] = currentWeatherData.tomorrowHigh;
+        data["tomorrowLow"] = currentWeatherData.tomorrowLow;
+        data["tomorrowWeatherCode"] = currentWeatherData.tomorrowWeatherCode;
 
         // Create a nested array for the 3-hour forecast
         JsonArray hourly = data["hourly"].to<JsonArray>();
@@ -530,6 +537,13 @@ void setupWebRoutes() {
         doc["dailyLow"] = currentWeatherData.dailyLow;
         doc["latitude"] = currentWeatherData.latitude;
         doc["longitude"] = currentWeatherData.longitude;
+        doc["sunrise"] = currentWeatherData.sunrise;
+        doc["sunset"] = currentWeatherData.sunset;
+        doc["precipitationProbability"] = currentWeatherData.precipitationProbability;
+        doc["maxWindSpeed"] = currentWeatherData.maxWindSpeed;
+        doc["tomorrowHigh"] = currentWeatherData.tomorrowHigh;
+        doc["tomorrowLow"] = currentWeatherData.tomorrowLow;
+        doc["tomorrowWeatherCode"] = currentWeatherData.tomorrowWeatherCode;
         
         JsonArray hourly = doc["hourly"].to<JsonArray>();
         for (int i = 0; i < 3; i++) {
