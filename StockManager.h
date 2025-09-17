@@ -85,8 +85,8 @@ private:
     AssetType getAssetType(const String& symbol);
     void fetchBatchData(const std::vector<String>& symbols, AssetType type);
     void parseJsonResponse(JsonDocument& doc, AssetType type);
-    bool isStockMarketOpen();
-    bool isCryptoMarketOpen();
+    bool isStockMarketOpen() const;
+    bool isCryptoMarketOpen() const;
 };
 
 #endif // STOCK_MANAGER_H
