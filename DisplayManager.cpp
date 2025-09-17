@@ -421,9 +421,6 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 
 void handleWeatherDisplay() {
 #if ENABLE_HARDWARE
-    // Log the current state at the beginning of the function
-    Log_printf(LOG_LEVEL_DEBUG, "handleWeatherDisplay: Current state is %d", weatherState);
-
     // When the weather display is active, we must explicitly turn off the AM/PM LEDs for the last row,
     // as the weather display logic doesn't use the `updateDisplayRow` function which normally handles this.
     digitalWrite(LAST_AM_PIN, LOW);
