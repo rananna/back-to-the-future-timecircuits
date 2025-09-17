@@ -229,13 +229,17 @@ static bool fetchWeatherDataFromApi() {
         Log_printf(LOG_LEVEL_DEBUG, "Unified Weather API HTTP Code: %d", httpCode);
 
         if (httpCode == HTTP_CODE_OK) {
-            // By using http.getStream(), we avoid allocating a large String for the payload.
-            // ArduinoJson will parse the JSON directly from the network stream, which is much more memory-efficient.
-            JsonDocument doc;
+            // The JSON from the weather API is quite large (around 1.5KB).
+            // The default JsonDocument size is too small, causing an "InvalidInput" or "NoMemory" error.
+            // We are allocating a 4KB buffer on the heap to safely handle this larger payload.
+            const int JSON_CAPACITY = 4096;
+            DynamicJsonDocument doc(JSON_CAPACITY);
+
             DeserializationError error = deserializeJson(doc, http.getStream());
             http.end(); // End the connection as soon as we're done with the stream.
 
             if (error == DeserializationError::Ok) {
+                Log_printf(LOG_LEVEL_DEBUG, "JSON memory usage: %d bytes of %d allocated", doc.memoryUsage(), doc.capacity());
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     if (doc["error"].isNull()) {
                         Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
