@@ -221,6 +221,10 @@ static bool fetchWeatherDataFromApi() {
              "&forecast_days=2&forecast_hours=12&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime",
              currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
 
+    // Downgrade to HTTP 1.0 to disable chunked encoding, which allows for direct streaming
+    // into the JSON parser without needing an intermediate buffer or special handling.
+    // This is the recommended approach from the ArduinoJson library documentation.
+    http.useHTTP10(true);
     if (http.begin(client, weatherUrl)) {
         Log_printf(LOG_LEVEL_DEBUG, "Unified Weather URL: %s", weatherUrl);
         int httpCode = http.GET();
@@ -257,12 +261,8 @@ static bool fetchWeatherDataFromApi() {
             // The document's capacity will grow as needed.
             JsonDocument doc;
 
-            // 3. Use a ReadBufferingClient to make parsing resilient to network instability.
-            char buffer[256];
-            ReadBufferingClient bufferedClient(http.getStream(), sizeof(buffer));
-
-            // 4. Deserialize with the filter.
-            DeserializationError error = deserializeJson(doc, bufferedClient, DeserializationOption::Filter(filter));
+            // 3. Deserialize directly from the HTTP stream with the filter.
+            DeserializationError error = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
             
             http.end(); // End the connection now that we are done with the stream.
 
