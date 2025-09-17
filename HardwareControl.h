@@ -176,6 +176,7 @@ struct WeatherData {
   float longitude;
   bool dataValid = false;
   std::string errorReason;
+  std::string timezone;
 };
 
 struct DisplayRow {

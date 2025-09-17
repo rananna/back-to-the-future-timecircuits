@@ -11,6 +11,7 @@
 #include "DebugLog.h"
 #include "DisplayManager.h"
 #include "DataManager.h"
+#include "timezone.h"
 #include "EventManager.h"
 #include "StockManager.h"
 #include <string>
@@ -594,13 +595,30 @@ void handleWeatherDisplay() {
                             break;
                         case 3: { // Sunrise & Sunset
                             struct tm timeinfo; char timeStr[8];
-                            time_t sunrise = currentWeatherData.sunrise, sunset = currentWeatherData.sunset;
+                        case 3: { // Sunrise & Sunset
+                            struct tm timeinfo; char timeStr[8];
+                            time_t sunrise = currentWeatherData.sunrise;
+                            time_t sunset = currentWeatherData.sunset;
+
+                            // Temporarily set the timezone to the one provided by the weather API
+                            if (!currentWeatherData.timezone.empty()) {
+                                setenv("TZ", currentWeatherData.timezone.c_str(), 1);
+                                tzset();
+                            }
+
+                            // Format sunrise
                             localtime_r(&sunrise, &timeinfo);
                             strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
                             snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "SUNRISE %s, SUNSET ", timeStr);
+
+                            // Format sunset
                             localtime_r(&sunset, &timeinfo);
                             strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
                             snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s", timeStr);
+
+                            // Restore the original timezone for the main clock display
+                            setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                            tzset();
                             break;
                         }
                         case 4: { // Hourly Forecast
