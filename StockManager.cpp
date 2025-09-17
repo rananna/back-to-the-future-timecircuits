@@ -132,7 +132,7 @@ void StockManager::fetchData() {
     if (!stocks.empty() && isStockMarketOpen()) {
         StockFetchParams* params = new StockFetchParams{stocks, STOCK, this};
         if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks++;
+            _running_tasks += 1;
         } else {
             delete params;
         }
@@ -140,7 +140,7 @@ void StockManager::fetchData() {
     if (!cryptos.empty()) {
         StockFetchParams* params = new StockFetchParams{cryptos, CRYPTO, this};
         if (xTaskCreate(fetchStockDataBatchTask, "cryptoFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks++;
+            _running_tasks += 1;
         } else {
             delete params;
         }
@@ -148,7 +148,7 @@ void StockManager::fetchData() {
     if (!indices.empty() && isStockMarketOpen()) {
         StockFetchParams* params = new StockFetchParams{indices, INDEX, this};
         if (xTaskCreate(fetchStockDataBatchTask, "indexFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks++;
+            _running_tasks += 1;
         } else {
             delete params;
         }
@@ -252,7 +252,7 @@ void fetchStockDataBatchTask(void* p) {
     params->manager->fetchBatchData(params->symbols, params->type);
 
     xSemaphoreTake(params->manager->_task_mutex, portMAX_DELAY);
-    params->manager->_running_tasks--;
+    params->manager->_running_tasks -= 1;
     if (params->manager->_running_tasks == 0) {
         params->manager->_is_fetching = false;
         Log_printf(LOG_LEVEL_INFO, "All stock fetch tasks complete.");
@@ -387,7 +387,7 @@ AssetType StockManager::getAssetType(const String& symbol) {
     return STOCK;
 }
 
-bool StockManager::isStockMarketOpen() {
+bool StockManager::isStockMarketOpen() const {
     if (!timeSynchronized) return false;
 
     // The market timezone is Eastern Time (ET)
@@ -415,6 +415,6 @@ bool StockManager::isStockMarketOpen() {
     return false;
 }
 
-bool StockManager::isCryptoMarketOpen() {
+bool StockManager::isCryptoMarketOpen() const {
     return true; // Crypto market is 24/7
 }

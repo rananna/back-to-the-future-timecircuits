@@ -439,7 +439,7 @@ void setupWebRoutes() {
 
   AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
-    if (obj.containsKey("symbol")) {
+    if (!obj["symbol"].isNull()) {
         String symbol = obj["symbol"];
         if (stockManager.addAsset(symbol)) {
             request->send(200, "application/json", "{\"status\":\"success\"}");
@@ -454,7 +454,7 @@ void setupWebRoutes() {
 
   AsyncCallbackJsonWebHandler* deleteStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks/delete", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
-    if (obj.containsKey("symbol")) {
+    if (!obj["symbol"].isNull()) {
         String symbol = obj["symbol"];
         if (stockManager.removeAsset(symbol)) {
             request->send(200, "application/json", "{\"status\":\"success\"}");
@@ -505,21 +505,6 @@ void setupWebRoutes() {
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
-
-  AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    JsonObject obj = json.as<JsonObject>();
-    if (obj.containsKey("symbol")) {
-        String symbol = obj["symbol"];
-        if (stockManager.addAsset(symbol)) {
-            request->send(200, "application/json", "{\"status\":\"success\"}");
-        } else {
-            request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Asset already exists or invalid.\"}");
-        }
-    } else {
-        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol.\"}");
-    }
-  });
-  server.addHandler(addStockHandler);
 
   server.on("/api/settings/temporal", HTTP_GET, [](AsyncWebServerRequest *request) {
     JsonDocument doc;
