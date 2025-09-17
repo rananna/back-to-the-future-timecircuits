@@ -25,6 +25,7 @@ extern std::string marqueeOverrideBuffer;
 
 // MODIFIED: Function now accepts flags to control which rows are updated
 void updateNormalClockDisplay(bool updateDest = true, bool updatePres = true, bool updateLast = true);
+void updateNormalClockDisplay_internal(bool updateDest = true, bool updatePres = true, bool updateLast = true);
 void updateMarqueeDisplay();
 void handleWeatherDisplay();
 void displayOverrideMessage();
