@@ -170,8 +170,8 @@ struct WeatherData {
   int tomorrowWeatherCode;
   int precipitationProbability;
   float maxWindSpeed;
-  time_t sunrise;
-  time_t sunset;
+  std::string sunrise;
+  std::string sunset;
   float latitude;
   float longitude;
   bool dataValid = false;

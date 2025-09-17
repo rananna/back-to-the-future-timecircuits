@@ -602,27 +602,39 @@ void handleWeatherDisplay() {
                                 snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "WIND %d %s, MAX %d %s, PRECIP %d%%", (int)currentWeatherData.windSpeed, windUnit, (int)currentWeatherData.maxWindSpeed, windUnit, currentWeatherData.precipitationProbability);
                                 break;
                             case 3: { // Sunrise & Sunset
-                                struct tm timeinfo; char timeStr[8];
-                                time_t sunrise = currentWeatherData.sunrise;
-                                time_t sunset = currentWeatherData.sunset;
+                                char sunrise_formatted[6], sunset_formatted[6];
 
-                                // Set the timezone to the one configured for the device's present time
-                                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                                tzset();
+                                // --- Format Sunrise ---
+                                if (currentWeatherData.sunrise.length() >= 16) {
+                                    int hour = std::stoi(currentWeatherData.sunrise.substr(11, 2));
+                                    std::string minute_str = currentWeatherData.sunrise.substr(14, 2);
+                                    if (currentSettings.displayFormat24h) {
+                                        snprintf(sunrise_formatted, sizeof(sunrise_formatted), "%02d%s", hour, minute_str.c_str());
+                                    } else {
+                                        if (hour > 12) hour -= 12;
+                                        if (hour == 0) hour = 12;
+                                        snprintf(sunrise_formatted, sizeof(sunrise_formatted), "%2d%s", hour, minute_str.c_str());
+                                    }
+                                } else {
+                                    strcpy(sunrise_formatted, "----");
+                                }
 
-                                // Format sunrise
-                                localtime_r(&sunrise, &timeinfo);
-                                strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
-                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "SUNRISE %s, SUNSET ", timeStr);
+                                // --- Format Sunset ---
+                                if (currentWeatherData.sunset.length() >= 16) {
+                                    int hour = std::stoi(currentWeatherData.sunset.substr(11, 2));
+                                    std::string minute_str = currentWeatherData.sunset.substr(14, 2);
+                                    if (currentSettings.displayFormat24h) {
+                                        snprintf(sunset_formatted, sizeof(sunset_formatted), "%02d%s", hour, minute_str.c_str());
+                                    } else {
+                                        if (hour > 12) hour -= 12;
+                                        if (hour == 0) hour = 12;
+                                        snprintf(sunset_formatted, sizeof(sunset_formatted), "%2d%s", hour, minute_str.c_str());
+                                    }
+                                } else {
+                                    strcpy(sunset_formatted, "----");
+                                }
 
-                                // Format sunset
-                                localtime_r(&sunset, &timeinfo);
-                                strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
-                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s", timeStr);
-
-                                // Restore the original timezone for the main clock display
-                                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                                tzset();
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "SUNRISE %s, SUNSET %s", sunrise_formatted, sunset_formatted);
                                 break;
                             }
                             case 4: { // Hourly Forecast
