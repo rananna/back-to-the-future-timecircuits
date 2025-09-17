@@ -297,7 +297,7 @@ async function applyDataLinkSettings(datalink) {
     document.getElementById('cityName').value = datalink.cityName || '';
     document.getElementById('useMetricUnits').checked = datalink.useMetricUnits;
 
-    document.getElementById('alphaVantageApiKey').value = datalink.alphaVantageApiKey || '';
+    document.getElementById('alphaVantageApiKey').value = datalink.financialModelingPrepApiKey || '';
     document.getElementById('stockRow1_symbol').value = datalink.stockRow1_symbol || '';
     document.getElementById('stockRow2_symbol').value = datalink.stockRow2_symbol || '';
     document.getElementById('stockRow3_symbol').value = datalink.stockRow3_symbol || '';

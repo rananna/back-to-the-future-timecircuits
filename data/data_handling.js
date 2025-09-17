@@ -348,9 +348,59 @@ function startApiWizard(event) {
 }
 
 /**
+ * Asynchronously performs geocoding for a city name if it has changed.
+ * @param {string} cityName The name of the city to geocode.
+ * @returns {Promise<object|null>} A promise that resolves with an object containing latitude and longitude, or null if geocoding fails.
+ */
+async function geocodeCityIfNeeded(cityName) {
+    // If city name hasn't changed since last successful geocoding, resolve immediately.
+    const weatherLatitude = document.getElementById('weatherLatitude');
+    const weatherLongitude = document.getElementById('weatherLongitude');
+
+    if (cityName.toLowerCase() === correctedCityName.toLowerCase() && weatherLatitude.value && weatherLongitude.value) {
+        return {
+            latitude: parseFloat(weatherLatitude.value),
+            longitude: parseFloat(weatherLongitude.value)
+        };
+    }
+
+    // If city name is empty, resolve with nulls, which will be handled by the backend.
+    if (!cityName || cityName.length < 2) {
+        return { latitude: 0.0, longitude: 0.0 };
+    }
+
+    showMessage('Validating city name...', 'info', 10000); // Show for longer
+
+    try {
+        const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`);
+        if (!response.ok) {
+            throw new Error(`Geocoding API failed with status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        if (data && data.results && data.results.length > 0) {
+            const location = data.results[0];
+            correctedCityName = getDescriptiveLocationName(location);
+            weatherLatitude.value = location.latitude;
+            weatherLongitude.value = location.longitude;
+            showMessage(`City validated: ${correctedCityName}`, 'success');
+            return { latitude: location.latitude, longitude: location.longitude };
+        } else {
+            showMessage('City not found. Weather location will not be updated.', 'error');
+            return null; // Indicates geocoding failure
+        }
+    } catch (err) {
+        console.error("CLIENT_DEBUG: Geocoding API error:", err);
+        showMessage('Error verifying city name. Weather location will not be updated.', 'error');
+        return null; // Indicates geocoding failure
+    }
+}
+
+
+/**
  * Saves all the settings to the server.
  */
-function saveSettings() {
+async function saveSettings() {
     // Helper functions to safely get values from DOM elements.
     const getEl = (id) => document.getElementById(id);
     const getValue = (id, def = '') => { const el = getEl(id); return el ? el.value : def; };
@@ -389,6 +439,19 @@ function saveSettings() {
     showLoading('saveSettingsBtn', true);
     console.log("CLIENT_DEBUG: 'Engage Time Circuits' button clicked. Starting save process.");
     
+    // --- Geocode city name if weather mode is enabled ---
+    if (getChecked('weatherModeEnabled')) {
+        const cityName = getValue('cityName');
+        const location = await geocodeCityIfNeeded(cityName);
+
+        if (location === null) {
+            // Geocoding failed, halt the save.
+            showLoading('saveSettingsBtn', false);
+            return;
+        }
+        // These will be added to the settings object later.
+    }
+
     // Time Circuits & Temporal Settings
     settings.destinationTimezoneIndex = getIntValue('destinationTimezoneSelect');
     settings.presentTimezoneIndex = getIntValue('presentTimezoneSelect');
@@ -431,9 +494,9 @@ function saveSettings() {
     settings.useMetricUnits = getChecked('useMetricUnits');
     
     settings.stockTickerModeEnabled = getChecked('stockTickerModeEnabled');
-    settings.alphaVantageApiKey = getValue('alphaVantageApiKey');
+    settings.financialModelingPrepApiKey = getValue('alphaVantageApiKey');
 
-    if (settings.stockTickerModeEnabled && !settings.alphaVantageApiKey) {
+    if (settings.stockTickerModeEnabled && !settings.financialModelingPrepApiKey) {
         showMessage('FMP API Key is required for Stock Ticker Mode.', 'error');
         showLoading('saveSettingsBtn', false);
         return;
