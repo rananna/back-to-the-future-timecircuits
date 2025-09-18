@@ -292,7 +292,7 @@ static bool fetchWeatherDataFromApi() {
              "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
              "&hourly=temperature_2m,weather_code"
              "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
-             "&forecast_days=2&forecast_hours=12&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime"
+             "&forecast_days=2&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime"
              " HTTP/1.1\r\n"
              "Host: api.open-meteo.com\r\n"
              "Connection: keep-alive\r\n"
