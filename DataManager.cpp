@@ -470,9 +470,7 @@ static bool fetchWeatherDataFromApi() {
 
         retry:;
     }
-
     return false;
-}
 }
 
 void cleanupWeatherConnection() {
