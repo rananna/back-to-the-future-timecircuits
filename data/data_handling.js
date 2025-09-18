@@ -1070,9 +1070,12 @@ async function addStockAsset() {
 }
 
 async function updateStockMarqueePreview() {
-    if (!document.getElementById('stockTickerModeEnabled').checked) {
-        const previewEl = document.getElementById('stockMarqueePreview');
-        if (previewEl) {
+    const previewEl = document.getElementById('stockMarqueePreview');
+    // If stock ticker is disabled, or the websocket is not connected, do nothing.
+    if (!document.getElementById('stockTickerModeEnabled').checked || !ws || ws.readyState !== WebSocket.OPEN) {
+        if (previewEl && document.getElementById('stockTickerModeEnabled').checked) {
+            previewEl.textContent = 'Device is offline.';
+        } else if (previewEl) {
             previewEl.textContent = 'Stock Ticker Mode is disabled.';
         }
         return;
@@ -1081,15 +1084,19 @@ async function updateStockMarqueePreview() {
     try {
         const response = await fetch('/api/stocks/marquee');
         if (!response.ok) {
-            throw new Error('Failed to fetch marquee preview');
+            // Don't log an error here, the browser console already shows network failures.
+            // This prevents the console from being spammed when the device is unreachable.
+            return;
         }
         const data = await response.json();
-        const previewEl = document.getElementById('stockMarqueePreview');
         if (previewEl) {
             previewEl.textContent = data.marqueeText;
         }
     } catch (error) {
-        console.error('Error updating stock marquee preview:', error);
+        // This catch block will handle network errors (e.g., device disconnected).
+        // We are intentionally leaving this empty to prevent spamming the console
+        // with errors when the device is temporarily unreachable. The UI will
+        // indicate the offline status based on the WebSocket state check above.
     }
 }
 
