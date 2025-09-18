@@ -246,13 +246,13 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
     row.time.writeDigitAscii(3, timeBuffer[3]);
 
     // Write all changes to the hardware
-    Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s MONTH", rowName);
+    // Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s MONTH", rowName);
     row.month.writeDisplay();
-    Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s DAY", rowName);
+    // Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s DAY", rowName);
     row.day.writeDisplay();
-    Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s YEAR", rowName);
+    // Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s YEAR", rowName);
     row.year.writeDisplay();
-    Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s TIME", rowName);
+    // Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s TIME", rowName);
     row.time.writeDisplay();
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by updateDisplayRow"); }
   #endif
