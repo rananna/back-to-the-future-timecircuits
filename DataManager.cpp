@@ -115,12 +115,38 @@ public:
 
     virtual int read() {
         unsigned char c;
-        // Poll with a small timeout to avoid blocking forever if the server is slow.
-        int ret = esp_tls_conn_read(tls, &c, 1);
-        if (ret > 0) {
-            return c;
+        int ret;
+        unsigned long start_time = millis();
+        // This timeout should be longer than the TLS-level timeout, but not infinite.
+        // It's a safety net for the stream consumer (ArduinoJson). 15 seconds.
+        const unsigned long READ_TIMEOUT_MS = 15000;
+
+        while (millis() - start_time < READ_TIMEOUT_MS) {
+            ret = esp_tls_conn_read(tls, &c, 1);
+
+            if (ret > 0) {
+                return c; // Success, return the character
+            }
+
+            if (ret == 0) {
+                // Connection closed by peer
+                return -1;
+            }
+
+            // ret < 0, it's an error
+            if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                // A fatal error occurred
+                return -1;
+            }
+
+            // It's a WANT_READ or WANT_WRITE. We need to wait and retry.
+            // A small delay to prevent busy-waiting and yield to other tasks.
+            vTaskDelay(pdMS_TO_TICKS(20));
         }
-        return -1; // Let the caller (ArduinoJson) handle the timeout/end of stream.
+
+        // If we get here, we've timed out.
+        Log_printf(LOG_LEVEL_WARN, "TlsStream::read() timed out after %lu ms", READ_TIMEOUT_MS);
+        return -1;
     }
 
     virtual int peek() {
