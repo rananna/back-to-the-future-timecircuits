@@ -283,6 +283,7 @@ static bool fetchWeatherDataFromApi() {
         const unsigned long HEADER_TIMEOUT_MS = 10000; // 10-second timeout
 
         char* body_start_ptr = NULL;
+        bool operation_failed = false;
 
         while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
             int ret = esp_tls_conn_read(tls,
@@ -293,13 +294,15 @@ static bool fetchWeatherDataFromApi() {
                 if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
                     Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_read failed: -0x%x", -ret);
                     cleanupWeatherConnection();
-                    continue; // Use continue instead of goto
+                    operation_failed = true;
+                    break;
                 }
                 vTaskDelay(pdMS_TO_TICKS(20));
-                continue;
+                continue; // Continue while loop for non-fatal SSL want_read/write
             }
 
             if (ret == 0) {
+                // No data received, wait a bit and try again
                 vTaskDelay(pdMS_TO_TICKS(20));
                 continue;
             }
@@ -310,21 +313,27 @@ static bool fetchWeatherDataFromApi() {
             // Check if we've found the end of the headers
             body_start_ptr = strstr(header_buf, "\r\n\r\n");
             if (body_start_ptr) {
-                break;
+                break; // Found headers, exit while loop
             }
 
             // Check if the buffer is full
             if (header_len >= sizeof(header_buf) - 1) {
                 Log_printf(LOG_LEVEL_ERROR, "Headers too large, aborting.");
                 cleanupWeatherConnection();
-                continue; // Use continue instead of goto
+                operation_failed = true;
+                break;
             }
+        }
+
+        // If the inner loop failed, continue the outer retry loop
+        if (operation_failed) {
+            continue;
         }
 
         if (!body_start_ptr) {
             Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for HTTP headers or headers incomplete.");
             cleanupWeatherConnection();
-            continue; // Use continue instead of goto
+            continue;
         }
 
         sscanf(header_buf, "HTTP/1.1 %d", &http_status);
