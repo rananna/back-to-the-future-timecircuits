@@ -169,6 +169,119 @@ public:
 // A stream that combines a pre-read buffer with another stream.
 // This is necessary because we read a chunk of the response to find the
 // end of the HTTP headers, and that chunk may contain the start of the body.
+class DechunkingStream : public Stream {
+private:
+    Stream& _stream;
+    size_t _chunk_len;
+    bool _stream_ended;
+
+    // Helper to read a line from the stream
+    String readLine() {
+        String line = "";
+        unsigned long start_time = millis();
+        // A short timeout to avoid getting stuck forever
+        const unsigned long READLINE_TIMEOUT_MS = 2000;
+        while (millis() - start_time < READLINE_TIMEOUT_MS) {
+            if (!_stream.available()) {
+                vTaskDelay(pdMS_TO_TICKS(10));
+                continue;
+            }
+            char c = _stream.read();
+            if (c < 0) { // Should not happen if available() is reliable, but as a safeguard
+                break;
+            }
+            if (c == '\r') {
+                continue; // Ignore CR
+            }
+            if (c == '\n') {
+                break; // End of line
+            }
+            line += c;
+        }
+        return line;
+    }
+
+    // Read the next chunk size. Returns false if parsing fails or end of stream.
+    bool readChunkSize() {
+        if (_stream_ended) {
+            return false;
+        }
+
+        String line = readLine();
+        if (line.length() == 0) {
+            Log_printf(LOG_LEVEL_WARN, "DechunkingStream: Timed out or failed to read chunk size line.");
+            _stream_ended = true;
+            return false;
+        }
+
+        // strtol with base 16 to parse hex
+        _chunk_len = strtol(line.c_str(), NULL, 16);
+        Log_printf(LOG_LEVEL_DEBUG, "DechunkingStream: Read chunk size %d (0x%X)", _chunk_len, _chunk_len);
+
+        if (_chunk_len == 0) {
+            _stream_ended = true;
+            // Consume final CRLF if present
+            readLine();
+        }
+        return _chunk_len > 0;
+    }
+
+public:
+    DechunkingStream(Stream& s)
+        : _stream(s), _chunk_len(0), _stream_ended(false) {}
+
+    virtual int available() {
+        if (_stream_ended) return 0;
+        // This is just an estimate. The stream consumer should rely on read() returning -1.
+        return _chunk_len + _stream.available();
+    }
+
+    virtual int read() {
+        if (_stream_ended) {
+            return -1;
+        }
+
+        if (_chunk_len == 0) {
+            if (!readChunkSize()) {
+                return -1; // End of stream or error
+            }
+        }
+
+        if (_chunk_len > 0) {
+            int val = _stream.read();
+            if (val != -1) {
+                _chunk_len--;
+                if (_chunk_len == 0) {
+                    // End of chunk, consume the trailing CRLF
+                    readLine();
+                }
+                return val;
+            } else {
+                // Underlying stream ended unexpectedly
+                _stream_ended = true;
+                return -1;
+            }
+        }
+        // Should not be reached if logic is correct
+        return -1;
+    }
+
+    virtual int peek() {
+        // Peek is complicated to implement correctly with de-chunking,
+        // and ArduinoJson's parser doesn't require it.
+        return -1;
+    }
+
+    virtual void flush() {
+        _stream.flush();
+    }
+
+    virtual size_t write(uint8_t data) {
+        // Not needed for this implementation
+        return 0;
+    }
+};
+
 class CombinedStream : public Stream {
 private:
     const char* _buffer;
@@ -299,6 +412,19 @@ static bool fetchWeatherDataFromApi() {
              "\r\n",
              currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
 
+    // --- Start of new logging ---
+    // Log the full request URL for debugging purposes.
+    char full_url[512];
+    snprintf(full_url, sizeof(full_url),
+             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
+             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
+             "&hourly=temperature_2m,weather_code"
+             "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
+             "&forecast_days=2&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime",
+             currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
+    Log_printf(LOG_LEVEL_INFO, "Weather API URL: %s", full_url);
+    // --- End of new logging ---
+
     if (esp_tls_conn_write(tls, request, strlen(request)) < 0) {
         Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed. Cleaning up connection.");
         int esp_tls_code, esp_tls_flags;
@@ -426,6 +552,14 @@ static bool fetchWeatherDataFromApi() {
     TlsStream tls_stream(tls);
     CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
 
+    // Check for chunked encoding. Use strcasestr for case-insensitivity.
+    bool is_chunked = false;
+    // Note: strcasestr is a GNU extension, but it is available in ESP-IDF.
+    if (strcasestr(header_buf, "Transfer-Encoding: chunked")) {
+        is_chunked = true;
+        Log_printf(LOG_LEVEL_INFO, "Chunked transfer encoding detected.");
+    }
+
     JsonDocument filter;
     filter["timezone"] = true;
     JsonObject current_filter = filter["current"].to<JsonObject>();
@@ -450,7 +584,14 @@ static bool fetchWeatherDataFromApi() {
     daily_filter["wind_speed_10m_max"] = true;
 
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
+    DeserializationError error;
+
+    if (is_chunked) {
+        DechunkingStream dechunking_stream(combined_stream);
+        error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
+    } else {
+        error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
+    }
 
     if (error == DeserializationError::Ok && !doc.isNull()) {
         if (doc["error"].isNull()) {
