@@ -398,7 +398,7 @@ void StockManager::fetchData() {
         if (!symbols.empty()) {
             StockFetchParams* params = new StockFetchParams{symbols, STOCK, this};
             if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
-                _running_tasks++;
+                _running_tasks += 1;
             } else {
                 delete params;
             }
@@ -409,7 +409,7 @@ void StockManager::fetchData() {
     if (!cryptos.empty()) {
         StockFetchParams* params = new StockFetchParams{cryptos, CRYPTO, this};
         if (xTaskCreate(fetchStockDataBatchTask, "cryptoFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks++;
+            _running_tasks += 1;
         } else {
             delete params;
         }
@@ -421,7 +421,7 @@ void StockManager::fetchData() {
         if (!symbols.empty()) {
             StockFetchParams* params = new StockFetchParams{symbols, INDEX, this};
             if (xTaskCreate(fetchStockDataBatchTask, "indexFetch", 8192, params, 1, NULL) == pdPASS) {
-                _running_tasks++;
+                _running_tasks += 1;
             } else {
                 delete params;
             }
@@ -442,148 +442,152 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         return FETCH_CONNECTION_FAILED;
     }
 
-    esp_tls_cfg_t cfg = {};
-    cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
-    cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
-    cfg.timeout_ms = 10000; // Increased timeout for connection
-
-    const char *hostname = "financialmodelingprep.com";
-    if (esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls_stock) < 0) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to create stock TLS connection.");
-        esp_tls_conn_destroy(tls_stock);
-        return FETCH_CONNECTION_FAILED;
-    }
-
-    Log_printf(LOG_LEVEL_DEBUG, "Stock TLS connection established.");
-
-    String symbols_str = "";
-    for (const auto& s : symbols) {
-        symbols_str += s + ",";
-    }
-    if (symbols_str.length() > 0) {
-        symbols_str.remove(symbols_str.length() - 1);
-    }
-
-    char request[512];
-    snprintf(request, sizeof(request),
-             "GET /api/v3/quote/%s?apikey=%s HTTP/1.1\r\n"
-             "Host: financialmodelingprep.com\r\n"
-             "Connection: close\r\n" // Use close instead of keep-alive
-             "\r\n",
-             symbols_str.c_str(), _api_key.c_str());
-
-    if (esp_tls_conn_write(tls_stock, request, strlen(request)) < 0) {
-        Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_write failed.");
-        esp_tls_conn_destroy(tls_stock);
-        return FETCH_CONNECTION_FAILED;
-    }
-    _api_usage_count++;
-
-    char header_buf[2048];
-    int http_status = 0;
-    size_t header_len = 0;
-    unsigned long header_read_start_time = millis();
-    const unsigned long HEADER_TIMEOUT_MS = 10000;
-
-    char* body_start_ptr = NULL;
     FetchStatus status = FETCH_FAILED; // Default status
+    char header_buf[2048];
+    char* body_start_ptr = NULL;
+    size_t header_len = 0;
 
-    // Read headers and find the body
-    while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
-        int ret = esp_tls_conn_read(tls_stock,
-                                    (unsigned char *)header_buf + header_len,
-                                    sizeof(header_buf) - header_len - 1);
+    // This block scopes the variables that were causing issues with goto.
+    // The goto will now jump to the 'cleanup' label outside this block.
+    {
+        esp_tls_cfg_t cfg = {};
+        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
+        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+        cfg.timeout_ms = 10000; // Increased timeout for connection
 
-        if (ret < 0) {
-            if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-                Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_read failed: -0x%x", -ret);
-                status = FETCH_CONNECTION_FAILED;
-                goto cleanup;
-            }
-            vTaskDelay(pdMS_TO_TICKS(20));
-            continue;
-        }
-
-        if (ret == 0) {
-            Log_printf(LOG_LEVEL_WARN, "Stock connection closed by peer during header read.");
+        const char *hostname = "financialmodelingprep.com";
+        if (esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls_stock) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to create stock TLS connection.");
             status = FETCH_CONNECTION_FAILED;
             goto cleanup;
         }
 
-        header_len += ret;
-        header_buf[header_len] = '\0';
+        Log_printf(LOG_LEVEL_DEBUG, "Stock TLS connection established.");
 
-        body_start_ptr = strstr(header_buf, "\r\n\r\n");
-        if (body_start_ptr) {
-            break;
+        String symbols_str = "";
+        for (const auto& s : symbols) {
+            symbols_str += s + ",";
+        }
+        if (symbols_str.length() > 0) {
+            symbols_str.remove(symbols_str.length() - 1);
         }
 
-        if (header_len >= sizeof(header_buf) - 1) {
-            Log_printf(LOG_LEVEL_ERROR, "Stock headers too large, aborting.");
-            status = FETCH_FAILED;
+        char request[512];
+        snprintf(request, sizeof(request),
+                "GET /api/v3/quote/%s?apikey=%s HTTP/1.1\r\n"
+                "Host: financialmodelingprep.com\r\n"
+                "Connection: close\r\n" // Use close instead of keep-alive
+                "\r\n",
+                symbols_str.c_str(), _api_key.c_str());
+
+        if (esp_tls_conn_write(tls_stock, request, strlen(request)) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_write failed.");
+            status = FETCH_CONNECTION_FAILED;
             goto cleanup;
         }
-    }
+        _api_usage_count++;
 
-    if (!body_start_ptr) {
-        Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for stock HTTP headers.");
-        status = FETCH_CONNECTION_FAILED;
-        goto cleanup;
-    }
+        unsigned long header_read_start_time = millis();
+        const unsigned long HEADER_TIMEOUT_MS = 10000;
 
-    // Parse HTTP status code
-    const char* status_line_start = strstr(header_buf, "HTTP/");
-    if (status_line_start) {
-        const char* code_start = strchr(status_line_start, ' ');
-        if (code_start) {
-            http_status = strtol(code_start + 1, NULL, 10);
+        // Read headers and find the body
+        while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
+            int ret = esp_tls_conn_read(tls_stock,
+                                        (unsigned char *)header_buf + header_len,
+                                        sizeof(header_buf) - header_len - 1);
+
+            if (ret < 0) {
+                if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                    Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_read failed: -0x%x", -ret);
+                    status = FETCH_CONNECTION_FAILED;
+                    goto cleanup;
+                }
+                vTaskDelay(pdMS_TO_TICKS(20));
+                continue;
+            }
+
+            if (ret == 0) {
+                Log_printf(LOG_LEVEL_WARN, "Stock connection closed by peer during header read.");
+                status = FETCH_CONNECTION_FAILED;
+                goto cleanup;
+            }
+
+            header_len += ret;
+            header_buf[header_len] = '\0';
+
+            body_start_ptr = strstr(header_buf, "\r\n\r\n");
+            if (body_start_ptr) {
+                break;
+            }
+
+            if (header_len >= sizeof(header_buf) - 1) {
+                Log_printf(LOG_LEVEL_ERROR, "Stock headers too large, aborting.");
+                status = FETCH_FAILED;
+                goto cleanup;
+            }
         }
-    }
 
-    if (http_status != 200) {
-        Log_printf(LOG_LEVEL_WARN, "Stock HTTP request failed with code %d.", http_status);
-        if (http_status == 429) {
-            status = FETCH_RATE_LIMITED;
+        if (!body_start_ptr) {
+            Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for stock HTTP headers.");
+            status = FETCH_CONNECTION_FAILED;
+            goto cleanup;
+        }
+
+        // Parse HTTP status code
+        int http_status = 0;
+        const char* status_line_start = strstr(header_buf, "HTTP/");
+        if (status_line_start) {
+            const char* code_start = strchr(status_line_start, ' ');
+            if (code_start) {
+                http_status = strtol(code_start + 1, NULL, 10);
+            }
+        }
+
+        if (http_status != 200) {
+            Log_printf(LOG_LEVEL_WARN, "Stock HTTP request failed with code %d.", http_status);
+            if (http_status == 429) {
+                status = FETCH_RATE_LIMITED;
+            } else {
+                status = FETCH_FAILED;
+            }
+            goto cleanup;
+        }
+
+        // Prepare for JSON parsing
+        body_start_ptr += 4; // Move past the double CRLF
+        size_t body_part_len = header_len - (body_start_ptr - header_buf);
+
+        TlsStream tls_stream(tls_stock);
+        CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
+
+        bool is_chunked = (strcasestr(header_buf, "Transfer-Encoding: chunked") != NULL);
+
+        JsonDocument filter;
+        filter[0]["symbol"] = true;
+        filter[0]["name"] = true;
+        filter[0]["price"] = true;
+        filter[0]["changesPercentage"] = true;
+        filter[0]["dayLow"] = true;
+        filter[0]["dayHigh"] = true;
+        filter[0]["volume"] = true;
+
+        JsonDocument doc;
+        DeserializationError error;
+
+        if (is_chunked) {
+            DechunkingStream dechunking_stream(combined_stream);
+            error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
         } else {
+            error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
+        }
+
+        if (error == DeserializationError::Ok) {
+            parseJsonResponse(doc, type, symbols);
+            status = FETCH_SUCCESS;
+        } else {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock JSON for %s: %s", symbols_str.c_str(), error.c_str());
             status = FETCH_FAILED;
         }
-        goto cleanup;
-    }
-
-    // Prepare for JSON parsing
-    body_start_ptr += 4; // Move past the double CRLF
-    size_t body_part_len = header_len - (body_start_ptr - header_buf);
-
-    TlsStream tls_stream(tls_stock);
-    CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
-
-    bool is_chunked = (strcasestr(header_buf, "Transfer-Encoding: chunked") != NULL);
-
-    JsonDocument filter;
-    filter[0]["symbol"] = true;
-    filter[0]["name"] = true;
-    filter[0]["price"] = true;
-    filter[0]["changesPercentage"] = true;
-    filter[0]["dayLow"] = true;
-    filter[0]["dayHigh"] = true;
-    filter[0]["volume"] = true;
-
-    JsonDocument doc;
-    DeserializationError error;
-
-    if (is_chunked) {
-        DechunkingStream dechunking_stream(combined_stream);
-        error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
-    } else {
-        error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
-    }
-
-    if (error == DeserializationError::Ok) {
-        parseJsonResponse(doc, type, symbols);
-        status = FETCH_SUCCESS;
-    } else {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock JSON for %s: %s", symbols_str.c_str(), error.c_str());
-        status = FETCH_FAILED;
     }
 
 cleanup:
