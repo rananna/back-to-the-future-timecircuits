@@ -266,6 +266,7 @@ static bool fetchWeatherDataFromApi() {
         char linebuf[256];
         int http_status = 0;
         bool headers_done = false;
+        char* body_start = NULL;
 
         while (true) {
             int ret = esp_tls_conn_read(tls, (unsigned char *)linebuf, sizeof(linebuf) - 1);
@@ -299,7 +300,7 @@ static bool fetchWeatherDataFromApi() {
 
         if (headers_done) {
             // Find the start of the body
-            char* body_start = strstr(linebuf, "\r\n\r\n");
+            body_start = strstr(linebuf, "\r\n\r\n");
             if (body_start) {
                 body_start += 4; // Move pointer past the CRLF CRLF
 
@@ -471,6 +472,7 @@ static bool fetchWeatherDataFromApi() {
     }
 
     return false;
+}
 }
 
 void cleanupWeatherConnection() {
