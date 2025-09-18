@@ -145,46 +145,6 @@ void testDecimalPointFlashing();
 void handleScheduledAnimation();
 
 // --- GLOBAL DATA STRUCTURES & SETTINGS ---
-struct ClockSettings {
-    int destinationYear;
-    int destinationTimezoneIndex;
-    int lastTimeDepartedYear;
-    int lastTimeDepartedMonth;
-    int lastTimeDepartedDay;
-    int lastTimeDepartedHour;
-    int lastTimeDepartedMinute;
-    int presentTimezoneIndex;
-    int departureHour;
-    int departureMinute;
-    int arrivalHour;
-    int arrivalMinute;
-    uint8_t brightness;
-    uint8_t notificationVolume;
-    int timeTravelAnimationDuration;
-    int timeTravelAnimationInterval;
-    int animationStyle;
-    bool timeTravelSoundToggle;
-    int presetCycleInterval;
-    bool displayFormat24h;
-    bool dataLinkEnabled;
-    int dataLinkRefreshInterval;
-    int numDataPoints;
-    std::string mqttBroker;
-    int mqttPort;
-    std::string mqttUser;
-    std::string mqttPassword;
-    bool weatherModeEnabled;
-    std::string cityName;
-    bool useMetricUnits;
-    float latitude;
-    float longitude;
-    bool stockTickerModeEnabled;
-    std::string financialModelingPrepApiKey;
-    DataPoint dataPoints[5];
-    int theme;
-    int dataLinkTargetRow;
-    std::string stockAssetsJson;
-};
 
 ClockSettings currentSettings;        // Holds all user-configurable settings for the clock.
 MarqueeData displayPages[5];          // An array to hold the content for the 5 pages of the Data Link marquee.
