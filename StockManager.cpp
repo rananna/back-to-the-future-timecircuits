@@ -359,6 +359,18 @@ std::vector<Asset> StockManager::getAssets() const {
     return assets_copy;
 }
 
+void StockManager::setAssetTimezone(const String& symbol, const String& timezone) {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    for (auto& asset : _assets) {
+        if (asset.symbol.equalsIgnoreCase(symbol)) {
+            asset.timezone = timezone;
+            Log_printf(LOG_LEVEL_INFO, "Set timezone for %s to %s", symbol.c_str(), timezone.c_str());
+            break;
+        }
+    }
+    xSemaphoreGive(_assets_mutex);
+}
+
 // Forward declaration for the FreeRTOS task
 void fetchStockDataBatchTask(void* p);
 
