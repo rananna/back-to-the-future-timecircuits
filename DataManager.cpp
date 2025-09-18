@@ -321,12 +321,6 @@ public:
     }
 };
 
-// Forward declaration for the cleanup function
-void cleanupWeatherConnection();
-
-// Static TLS connection handle
-static esp_tls_t *tls = NULL;
-
 // Root CA certificate for api.open-meteo.com (Let's Encrypt R11)
 static const char *open_meteo_com_root_ca = \
 "-----BEGIN CERTIFICATE-----\n" \
@@ -362,43 +356,43 @@ static const char *open_meteo_com_root_ca = \
 // This new function is responsible for fetching all weather data (current, daily, and hourly) in a single API call.
 // It performs one atomic attempt. Retries are handled by the calling function.
 static bool fetchWeatherDataFromApi() {
-    // The previous check using esp_tls_get_bytes_avail() was not reliable.
-    // A disconnected socket is more robustly detected by a failed write or read.
-    // The esp_tls_conn_write() call below will fail if the connection has been
-    // closed by the peer, triggering the cleanup and retry logic.
-
-    if (!tls) {
-        esp_tls_cfg_t cfg = {};
-        cfg.cacert_buf = (const unsigned char *)open_meteo_com_root_ca;
-        cfg.cacert_bytes = strlen(open_meteo_com_root_ca) + 1;
-        cfg.timeout_ms = 5000; // 5 second timeout for TLS read/write operations
-
-        tls = esp_tls_init();
-        if (tls == NULL) {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to allocate TLS handle.");
-            return false;
-        }
-
-        const char *hostname = "api.open-meteo.com";
-        int ret = esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls);
-        if (ret < 0) {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to create TLS connection. esp_tls_conn_new_sync returned: %d", ret);
-            int esp_tls_code, esp_tls_flags;
-            esp_tls_error_handle_t esp_tls_error_handle;
-            esp_tls_get_error_handle(tls, &esp_tls_error_handle);
-            esp_err_t err = esp_tls_get_and_clear_last_error(esp_tls_error_handle, &esp_tls_code, &esp_tls_flags);
-            if (err == ESP_OK) {
-                Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
-            }
-            esp_tls_conn_destroy(tls);
-            tls = NULL;
-            return false;
-        }
-        Log_printf(LOG_LEVEL_DEBUG, "TLS connection established.");
+    esp_tls_t *tls = esp_tls_init();
+    if (tls == NULL) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to allocate TLS handle.");
+        return false;
     }
 
-    String tempUnit = currentSettings.useMetricUnits ? "celsius" : "fahrenheit";
-    String speedUnit = currentSettings.useMetricUnits ? "kmh" : "mph";
+    // This boolean will track the outcome of the operation.
+    bool success = false;
+
+    // Use a goto-based cleanup pattern, which is common and readable in C for
+    // resource management, to ensure esp_tls_conn_destroy is always called.
+
+    esp_tls_cfg_t cfg = {};
+    cfg.cacert_buf = (const unsigned char *)open_meteo_com_root_ca;
+    cfg.cacert_bytes = strlen(open_meteo_com_root_ca) + 1;
+    cfg.timeout_ms = 10000; // 10 second timeout for TLS handshake and read/write operations
+
+    const char *hostname = "api.open-meteo.com";
+    int ret = esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls);
+    if (ret < 0) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to create TLS connection. esp_tls_conn_new_sync returned: -0x%x", -ret);
+        int esp_tls_code, esp_tls_flags;
+        esp_tls_error_handle_t esp_tls_error_handle;
+        esp_tls_get_error_handle(tls, &esp_tls_error_handle);
+        esp_err_t err = esp_tls_get_and_clear_last_error(esp_tls_error_handle, &esp_tls_code, &esp_tls_flags);
+        if (err == ESP_OK) {
+            Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
+        }
+        goto cleanup;
+    }
+    Log_printf(LOG_LEVEL_DEBUG, "TLS connection established.");
+
+    char tempUnit[11]; // "fahrenheit" is 10 chars + null
+    char speedUnit[4]; // "kmh" or "mph" is 3 chars + null
+    strncpy(tempUnit, currentSettings.useMetricUnits ? "celsius" : "fahrenheit", sizeof(tempUnit));
+    strncpy(speedUnit, currentSettings.useMetricUnits ? "kmh" : "mph", sizeof(speedUnit));
+
     char request[512];
     snprintf(request, sizeof(request),
              "GET /v1/forecast?latitude=%.4f&longitude=%.4f"
@@ -408,9 +402,9 @@ static bool fetchWeatherDataFromApi() {
              "&forecast_days=2&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime"
              " HTTP/1.1\r\n"
              "Host: api.open-meteo.com\r\n"
-             "Connection: keep-alive\r\n"
+             "Connection: close\r\n"
              "\r\n",
-             currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
+             currentSettings.latitude, currentSettings.longitude, tempUnit, speedUnit);
 
     // --- Start of new logging ---
     // Log the full request URL for debugging purposes.
@@ -426,7 +420,7 @@ static bool fetchWeatherDataFromApi() {
     // --- End of new logging ---
 
     if (esp_tls_conn_write(tls, request, strlen(request)) < 0) {
-        Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed. Cleaning up connection.");
+        Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed.");
         int esp_tls_code, esp_tls_flags;
         esp_tls_error_handle_t esp_tls_error_handle;
         esp_tls_get_error_handle(tls, &esp_tls_error_handle);
@@ -434,8 +428,7 @@ static bool fetchWeatherDataFromApi() {
         if (err == ESP_OK) {
             Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
         }
-        cleanupWeatherConnection();
-        return false;
+        goto cleanup;
     }
 
     // Use a stack-allocated buffer for headers to avoid heap fragmentation.
@@ -446,58 +439,53 @@ static bool fetchWeatherDataFromApi() {
     const unsigned long HEADER_TIMEOUT_MS = 10000; // 10-second timeout
 
     char* body_start_ptr = NULL;
-    bool operation_failed = false;
 
     while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
-        int ret = esp_tls_conn_read(tls,
+        int read_ret = esp_tls_conn_read(tls,
                                     (unsigned char *)header_buf + header_len,
                                     sizeof(header_buf) - header_len - 1);
 
-        if (ret < 0) {
-            if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-                Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_read failed: -0x%x", -ret);
-                cleanupWeatherConnection();
-                operation_failed = true;
-                break;
+        if (read_ret < 0) {
+            if (read_ret != MBEDTLS_ERR_SSL_WANT_READ && read_ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_read failed: -0x%x", -read_ret);
+                goto cleanup;
             }
             vTaskDelay(pdMS_TO_TICKS(20));
             continue; // Continue while loop for non-fatal SSL want_read/write
         }
 
-        if (ret == 0) {
-            // According to esp-tls docs, a return value of 0 means the connection was closed.
-            Log_printf(LOG_LEVEL_WARN, "Connection closed by peer during header read.");
-            cleanupWeatherConnection();
-            operation_failed = true;
+        if (read_ret == 0) {
+            // The connection was closed gracefully by the peer after sending all data.
+            // This is expected with "Connection: close". Break the loop and proceed.
+            Log_printf(LOG_LEVEL_DEBUG, "Connection closed by peer, which is expected.");
             break;
         }
 
-        header_len += ret;
+        header_len += read_ret;
         header_buf[header_len] = '\0'; // Null-terminate the buffer
 
         // Check if we've found the end of the headers
         body_start_ptr = strstr(header_buf, "\r\n\r\n");
         if (body_start_ptr) {
-            break; // Found headers, exit while loop
+            // Found headers, but we should continue reading until the connection is closed
+            // by the peer, as more body data might be waiting. We just stop looking for the
+            // header separator.
+            // For simplicity in this model, we'll break and assume the rest of the body follows.
+            // A more robust implementation might continue reading until read_ret is 0.
         }
 
         // Check if the buffer is full
         if (header_len >= sizeof(header_buf) - 1) {
-            Log_printf(LOG_LEVEL_ERROR, "Headers too large, aborting.");
-            cleanupWeatherConnection();
-            operation_failed = true;
-            break;
+            Log_printf(LOG_LEVEL_ERROR, "Headers and initial body part are too large for buffer, aborting.");
+            goto cleanup;
         }
     }
 
-    if (operation_failed) {
-        return false;
-    }
-
+    // After the read loop, we must have found the header separator
+    body_start_ptr = strstr(header_buf, "\r\n\r\n");
     if (!body_start_ptr) {
-        Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for HTTP headers or headers incomplete.");
-        cleanupWeatherConnection();
-        return false;
+        Log_printf(LOG_LEVEL_ERROR, "Could not find end of HTTP headers in response.");
+        goto cleanup;
     }
 
     // sscanf is fragile. A robust parsing of the status code is needed.
@@ -508,11 +496,11 @@ static bool fetchWeatherDataFromApi() {
             http_status = strtol(code_start + 1, NULL, 10);
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Malformed HTTP status line: no space found.");
-            http_status = 0; // Indicate failure
+            goto cleanup;
         }
     } else {
         Log_printf(LOG_LEVEL_ERROR, "Could not find HTTP status line in response.");
-        http_status = 0; // Indicate failure
+        goto cleanup;
     }
 
     if (http_status != 200) {
@@ -531,10 +519,7 @@ static bool fetchWeatherDataFromApi() {
             preview_buf[preview_len] = '\0';
             Log_printf(LOG_LEVEL_WARN, "Server response preview: %s", preview_buf);
         }
-
-        // Do not clean up the connection for HTTP errors; the connection itself is likely fine.
-        // The calling function will handle the retry logic.
-        return false;
+        goto cleanup;
     }
 
     // The headers are now processed, proceed to the body
@@ -680,44 +665,138 @@ static bool fetchWeatherDataFromApi() {
 
                 if (!allDataPresent) {
                     currentWeatherData.errorReason = "INCOMPLETE WEATHER DATA";
-                    xSemaphoreGive(xDisplayDataMutex);
-                    return false;
+                    success = false;
+                } else {
+                    success = true; // Success!
                 }
-
                 xSemaphoreGive(xDisplayDataMutex);
-                return true; // Success
+            } else {
+                 Log_printf(LOG_LEVEL_ERROR, "Could not obtain display data mutex, weather data processing aborted.");
+                 success = false;
             }
-            // This path should ideally not be reached with portMAX_DELAY, but as a safeguard:
-            Log_printf(LOG_LEVEL_ERROR, "Could not obtain display data mutex, weather data processing aborted.");
-            return false;
         } else {
             // This block handles cases where the API returns a valid JSON with an error message.
             const char* reason = doc["reason"].as<const char*>();
             Log_printf(LOG_LEVEL_WARN, "Unified Weather API returned an error: %s", reason);
-            // Do not clean up the connection for API-level errors. The connection is healthy.
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 currentWeatherData.errorReason = reason;
                 xSemaphoreGive(xDisplayDataMutex);
             }
-            return false;
+            success = false;
         }
     } else {
         // This block handles JSON parsing errors.
         Log_printf(LOG_LEVEL_WARN, "Failed to parse Unified Weather JSON. E: %s", error.c_str());
-        // Do not clean up the connection for parsing errors. The data is bad, not the connection.
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.errorReason = "WEATHER PARSING FAILED";
             xSemaphoreGive(xDisplayDataMutex);
         }
-        return false;
+        success = false;
     }
-}
 
-void cleanupWeatherConnection() {
+cleanup:
     if (tls) {
         esp_tls_conn_destroy(tls);
         tls = NULL;
-        Log_printf(LOG_LEVEL_DEBUG, "TLS connection cleaned up.");
+    }
+    return success;
+}
+
+#include <algorithm>
+#include <cctype>
+
+// Function to trim leading and trailing whitespace from a std::string
+void trim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+void fetchWeatherData(WeatherTaskParams* params) {
+    // This function is now simplified. It only fetches weather for the coordinates
+    // stored in currentSettings. The UI is responsible for all geocoding.
+    float latitude = params->latitude;
+    float longitude = params->longitude;
+    delete params; // Clean up the params object.
+
+    Log_printf(LOG_LEVEL_INFO, "Fetching weather data by coordinates. Lat: %f, Lon: %f", latitude, longitude);
+
+    // Update the global settings with the coordinates for this fetch.
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        currentSettings.latitude = latitude;
+        currentSettings.longitude = longitude;
+        xSemaphoreGive(xDisplayDataMutex);
+    }
+
+    // Clear any previous error state before starting the fetch process.
+    if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        currentWeatherData.errorReason.clear();
+        xSemaphoreGive(xDisplayDataMutex);
+    }
+
+    // Call the new unified function to fetch all weather data, with retry logic.
+    bool success = false;
+    int attempt = 0;
+    const int maxAttempts = 3; // Use a maximum of 3 attempts
+
+    while (attempt < maxAttempts && !success) {
+        attempt++;
+        Log_printf(LOG_LEVEL_INFO, "Weather fetch attempt %d of %d...", attempt, maxAttempts);
+        success = fetchWeatherDataFromApi();
+
+        if (success) {
+            Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data on attempt %d.", attempt);
+            break;
+        }
+
+        // After a failed attempt, check for unrecoverable errors to avoid pointless retries.
+        if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            if (!currentWeatherData.errorReason.empty()) {
+                // The Open-Meteo API returns reasons like "Invalid timezone" or "Latitude is out of bounds".
+                // These are configuration errors that won't be fixed by a simple retry.
+                // We check for keywords in a case-insensitive way.
+                std::string reason_lower = currentWeatherData.errorReason;
+                std::transform(reason_lower.begin(), reason_lower.end(), reason_lower.begin(),
+                    [](unsigned char c){ return std::tolower(c); });
+
+                if (reason_lower.find("invalid") != std::string::npos ||
+                    reason_lower.find("out of range") != std::string::npos) {
+                    Log_printf(LOG_LEVEL_ERROR, "Unrecoverable API error: %s. Aborting retries.", currentWeatherData.errorReason.c_str());
+                    xSemaphoreGive(xDisplayDataMutex);
+                    break; // Exit the retry loop immediately.
+                }
+            }
+            xSemaphoreGive(xDisplayDataMutex);
+        }
+
+        if (attempt < maxAttempts) {
+            Log_printf(LOG_LEVEL_WARN, "Weather fetch failed on attempt %d. Retrying in 5 seconds...", attempt);
+            vTaskDelay(pdMS_TO_TICKS(5000));
+        }
+    }
+
+    if (success) {
+        Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data.");
+        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+            currentWeatherData.dataValid = true;
+            weatherDataUpdated = true; // Signal to the display manager
+            isWeatherBufferDirty = true;
+            xSemaphoreGive(xDisplayDataMutex);
+            broadcastWeatherUpdate(); // Push the new data to the UI
+        }
+    } else {
+        Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed after all attempts.");
+        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+            currentWeatherData.dataValid = false;
+            // The specific error reason should already be set by fetchWeatherDataFromApi
+            if (currentWeatherData.errorReason.empty()) {
+                 currentWeatherData.errorReason = "WEATHER API FAILED - CHECK WI-FI";
+            }
+            xSemaphoreGive(xDisplayDataMutex);
+        }
     }
 }
 
