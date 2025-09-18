@@ -56,7 +56,7 @@ public:
     bool removeAsset(const String& symbol);
     void reorderAssets(const std::vector<String>& symbols);
     void clearAssets();
-    const std::vector<Asset>& getAssets() const;
+    std::vector<Asset> getAssets() const;
 
     // Data Fetching
     void fetchData();
@@ -91,6 +91,7 @@ private:
     int _api_usage_count;
 
     SemaphoreHandle_t _task_mutex;
+    SemaphoreHandle_t _assets_mutex;
     volatile int _running_tasks;
 
     // Private methods
