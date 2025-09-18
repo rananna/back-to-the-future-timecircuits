@@ -603,10 +603,21 @@ void saveSettings() {
         Log_printf(LOG_LEVEL_DEBUG, "SAVING: stModeEnabled -> %s", currentSettings.stockTickerModeEnabled ? "true" : "false");
     }
 
-    SAVE_STRING_IF_CHANGED("stRow1Sym", currentSettings.stockRow1_symbol);
-    SAVE_STRING_IF_CHANGED("stRow2Sym", currentSettings.stockRow2_symbol);
-    SAVE_STRING_IF_CHANGED("stRow3Sym", currentSettings.stockRow3_symbol);
     SAVE_STRING_IF_CHANGED("fmpApiKey", currentSettings.financialModelingPrepApiKey);
+
+    // Serialize stock assets to JSON
+    JsonDocument doc;
+    JsonArray assetsArray = doc.to<JsonArray>();
+    for (const auto& asset : stockManager.getAssets()) {
+        JsonObject assetObj = assetsArray.add<JsonObject>();
+        assetObj["symbol"] = asset.symbol;
+        assetObj["type"] = static_cast<int>(asset.type);
+        assetObj["timezone"] = asset.timezone;
+    }
+    String assetsJson;
+    serializeJson(doc, assetsJson);
+    preferences.putString("stockAssets", assetsJson);
+    Log_printf(LOG_LEVEL_DEBUG, "SAVING: stockAssets -> %s", assetsJson.c_str());
 
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
@@ -690,10 +701,8 @@ void loadSettings() {
 		currentSettings.latitude = 40.7128;
 		currentSettings.longitude = -74.0060;
 		currentSettings.stockTickerModeEnabled = false;
-		currentSettings.stockRow1_symbol = "^GSPC";
-		currentSettings.stockRow2_symbol = "^GSPTSE";
-		currentSettings.stockRow3_symbol = "^IXIC";
 		currentSettings.financialModelingPrepApiKey = "";
+        stockManager.clearAssets();
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
 		}
@@ -742,14 +751,31 @@ void loadSettings() {
 		currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
 		currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
 		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
-		tempString = preferences.getString("stRow1Sym", "^GSPC");
-		currentSettings.stockRow1_symbol = tempString.c_str();
-		tempString = preferences.getString("stRow2Sym", "^GSPTSE");
-		currentSettings.stockRow2_symbol = tempString.c_str();
-		tempString = preferences.getString("stRow3Sym", "^IXIC");
-		currentSettings.stockRow3_symbol = tempString.c_str();
 		tempString = preferences.getString("fmpApiKey", "");
 		currentSettings.financialModelingPrepApiKey = tempString.c_str();
+
+        // Load stock assets from JSON
+        stockManager.clearAssets();
+        String assetsJson = preferences.getString("stockAssets", "[]");
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, assetsJson);
+        if (!error) {
+            JsonArray assets = doc.as<JsonArray>();
+            for (JsonObject assetObj : assets) {
+                String symbol = assetObj["symbol"];
+                AssetType type = static_cast<AssetType>(assetObj["type"].as<int>());
+                String timezone = assetObj["timezone"];
+                stockManager.addAsset(symbol, type);
+                // This is a bit of a hack, but it's the easiest way to set the timezone
+                // without changing the StockManager interface even more.
+                auto& asset_list = const_cast<std::vector<Asset>&>(stockManager.getAssets());
+                auto it = std::find_if(asset_list.begin(), asset_list.end(), [&](const Asset& a){ return a.symbol == symbol; });
+                if (it != asset_list.end()) {
+                    it->timezone = timezone;
+                }
+            }
+        }
+
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
 			if(preferences.isKey((prefix + "url").c_str())) currentSettings.dataPoints[i].url = preferences.getString((prefix + "url").c_str(), "").c_str();
