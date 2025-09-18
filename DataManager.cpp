@@ -365,336 +365,336 @@ static bool fetchWeatherDataFromApi() {
     // This boolean will track the outcome of the operation.
     bool success = false;
 
-    // Use a goto-based cleanup pattern, which is common and readable in C for
-    // resource management, to ensure esp_tls_conn_destroy is always called.
+    // Use a do-while(0) loop and `break` statements instead of `goto` to avoid
+    // "crosses initialization" errors. This is a safer pattern for resource management.
+    do {
+        esp_tls_cfg_t cfg = {};
+        cfg.cacert_buf = (const unsigned char *)open_meteo_com_root_ca;
+        cfg.cacert_bytes = strlen(open_meteo_com_root_ca) + 1;
+        cfg.timeout_ms = 10000; // 10 second timeout for TLS handshake and read/write operations
 
-    esp_tls_cfg_t cfg = {};
-    cfg.cacert_buf = (const unsigned char *)open_meteo_com_root_ca;
-    cfg.cacert_bytes = strlen(open_meteo_com_root_ca) + 1;
-    cfg.timeout_ms = 10000; // 10 second timeout for TLS handshake and read/write operations
-
-    const char *hostname = "api.open-meteo.com";
-    int ret = esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls);
-    if (ret < 0) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to create TLS connection. esp_tls_conn_new_sync returned: -0x%x", -ret);
-        int esp_tls_code, esp_tls_flags;
-        esp_tls_error_handle_t esp_tls_error_handle;
-        esp_tls_get_error_handle(tls, &esp_tls_error_handle);
-        esp_err_t err = esp_tls_get_and_clear_last_error(esp_tls_error_handle, &esp_tls_code, &esp_tls_flags);
-        if (err == ESP_OK) {
-            Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
-        }
-        goto cleanup;
-    }
-    Log_printf(LOG_LEVEL_DEBUG, "TLS connection established.");
-
-    char tempUnit[11]; // "fahrenheit" is 10 chars + null
-    char speedUnit[4]; // "kmh" or "mph" is 3 chars + null
-    strncpy(tempUnit, currentSettings.useMetricUnits ? "celsius" : "fahrenheit", sizeof(tempUnit));
-    strncpy(speedUnit, currentSettings.useMetricUnits ? "kmh" : "mph", sizeof(speedUnit));
-
-    char request[512];
-    snprintf(request, sizeof(request),
-             "GET /v1/forecast?latitude=%.4f&longitude=%.4f"
-             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
-             "&hourly=temperature_2m,weather_code"
-             "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
-             "&forecast_days=2&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime"
-             " HTTP/1.1\r\n"
-             "Host: api.open-meteo.com\r\n"
-             "Connection: close\r\n"
-             "\r\n",
-             currentSettings.latitude, currentSettings.longitude, tempUnit, speedUnit);
-
-    // --- Start of new logging ---
-    // Log the full request URL for debugging purposes.
-    char full_url[512];
-    snprintf(full_url, sizeof(full_url),
-             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
-             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
-             "&hourly=temperature_2m,weather_code"
-             "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
-             "&forecast_days=2&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime",
-             currentSettings.latitude, currentSettings.longitude, tempUnit.c_str(), speedUnit.c_str());
-    Log_printf(LOG_LEVEL_INFO, "Weather API URL: %s", full_url);
-    // --- End of new logging ---
-
-    if (esp_tls_conn_write(tls, request, strlen(request)) < 0) {
-        Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed.");
-        int esp_tls_code, esp_tls_flags;
-        esp_tls_error_handle_t esp_tls_error_handle;
-        esp_tls_get_error_handle(tls, &esp_tls_error_handle);
-        esp_err_t err = esp_tls_get_and_clear_last_error(esp_tls_error_handle, &esp_tls_code, &esp_tls_flags);
-        if (err == ESP_OK) {
-            Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
-        }
-        goto cleanup;
-    }
-
-    // Use a stack-allocated buffer for headers to avoid heap fragmentation.
-    char header_buf[2048];
-    int http_status = 0;
-    size_t header_len = 0;
-    unsigned long header_read_start_time = millis();
-    const unsigned long HEADER_TIMEOUT_MS = 10000; // 10-second timeout
-
-    char* body_start_ptr = NULL;
-
-    while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
-        int read_ret = esp_tls_conn_read(tls,
-                                    (unsigned char *)header_buf + header_len,
-                                    sizeof(header_buf) - header_len - 1);
-
-        if (read_ret < 0) {
-            if (read_ret != MBEDTLS_ERR_SSL_WANT_READ && read_ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-                Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_read failed: -0x%x", -read_ret);
-                goto cleanup;
+        const char *hostname = "api.open-meteo.com";
+        int ret = esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls);
+        if (ret < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to create TLS connection. esp_tls_conn_new_sync returned: -0x%x", -ret);
+            int esp_tls_code, esp_tls_flags;
+            esp_tls_error_handle_t esp_tls_error_handle;
+            esp_tls_get_error_handle(tls, &esp_tls_error_handle);
+            esp_err_t err = esp_tls_get_and_clear_last_error(esp_tls_error_handle, &esp_tls_code, &esp_tls_flags);
+            if (err == ESP_OK) {
+                Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
             }
-            vTaskDelay(pdMS_TO_TICKS(20));
-            continue; // Continue while loop for non-fatal SSL want_read/write
+            break;
         }
+        Log_printf(LOG_LEVEL_DEBUG, "TLS connection established.");
 
-        if (read_ret == 0) {
-            // The connection was closed gracefully by the peer after sending all data.
-            // This is expected with "Connection: close". Break the loop and proceed.
-            Log_printf(LOG_LEVEL_DEBUG, "Connection closed by peer, which is expected.");
+        char tempUnit[11]; // "fahrenheit" is 10 chars + null
+        char speedUnit[4]; // "kmh" or "mph" is 3 chars + null
+        strncpy(tempUnit, currentSettings.useMetricUnits ? "celsius" : "fahrenheit", sizeof(tempUnit));
+        strncpy(speedUnit, currentSettings.useMetricUnits ? "kmh" : "mph", sizeof(speedUnit));
+
+        char request[512];
+        snprintf(request, sizeof(request),
+                "GET /v1/forecast?latitude=%.4f&longitude=%.4f"
+                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
+                "&hourly=temperature_2m,weather_code"
+                "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
+                "&forecast_days=2&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime"
+                " HTTP/1.1\r\n"
+                "Host: api.open-meteo.com\r\n"
+                "Connection: close\r\n"
+                "\r\n",
+                currentSettings.latitude, currentSettings.longitude, tempUnit, speedUnit);
+
+        // --- Start of new logging ---
+        // Log the full request URL for debugging purposes.
+        char full_url[512];
+        snprintf(full_url, sizeof(full_url),
+                "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
+                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
+                "&hourly=temperature_2m,weather_code"
+                "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
+                "&forecast_days=2&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime",
+                currentSettings.latitude, currentSettings.longitude, tempUnit, speedUnit);
+        Log_printf(LOG_LEVEL_INFO, "Weather API URL: %s", full_url);
+        // --- End of new logging ---
+
+        if (esp_tls_conn_write(tls, request, strlen(request)) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed.");
+            int esp_tls_code, esp_tls_flags;
+            esp_tls_error_handle_t esp_tls_error_handle;
+            esp_tls_get_error_handle(tls, &esp_tls_error_handle);
+            esp_err_t err = esp_tls_get_and_clear_last_error(esp_tls_error_handle, &esp_tls_code, &esp_tls_flags);
+            if (err == ESP_OK) {
+                Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
+            }
             break;
         }
 
-        header_len += read_ret;
-        header_buf[header_len] = '\0'; // Null-terminate the buffer
+        // Use a stack-allocated buffer for headers to avoid heap fragmentation.
+        char header_buf[2048];
+        int http_status = 0;
+        size_t header_len = 0;
+        unsigned long header_read_start_time = millis();
+        const unsigned long HEADER_TIMEOUT_MS = 10000; // 10-second timeout
 
-        // Check if we've found the end of the headers
+        char* body_start_ptr = NULL;
+
+        while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
+            int read_ret = esp_tls_conn_read(tls,
+                                        (unsigned char *)header_buf + header_len,
+                                        sizeof(header_buf) - header_len - 1);
+
+            if (read_ret < 0) {
+                if (read_ret != MBEDTLS_ERR_SSL_WANT_READ && read_ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                    Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_read failed: -0x%x", -read_ret);
+                    break;
+                }
+                vTaskDelay(pdMS_TO_TICKS(20));
+                continue; // Continue while loop for non-fatal SSL want_read/write
+            }
+
+            if (read_ret == 0) {
+                // The connection was closed gracefully by the peer after sending all data.
+                // This is expected with "Connection: close". Break the loop and proceed.
+                Log_printf(LOG_LEVEL_DEBUG, "Connection closed by peer, which is expected.");
+                break;
+            }
+
+            header_len += read_ret;
+            header_buf[header_len] = '\0'; // Null-terminate the buffer
+
+            // Check if we've found the end of the headers
+            body_start_ptr = strstr(header_buf, "\r\n\r\n");
+            if (body_start_ptr) {
+                // Found headers, but we should continue reading until the connection is closed
+                // by the peer, as more body data might be waiting. We just stop looking for the
+                // header separator.
+                // For simplicity in this model, we'll break and assume the rest of the body follows.
+                // A more robust implementation might continue reading until read_ret is 0.
+            }
+
+            // Check if the buffer is full
+            if (header_len >= sizeof(header_buf) - 1) {
+                Log_printf(LOG_LEVEL_ERROR, "Headers and initial body part are too large for buffer, aborting.");
+                break;
+            }
+        }
+
+        // After the read loop, we must have found the header separator
         body_start_ptr = strstr(header_buf, "\r\n\r\n");
-        if (body_start_ptr) {
-            // Found headers, but we should continue reading until the connection is closed
-            // by the peer, as more body data might be waiting. We just stop looking for the
-            // header separator.
-            // For simplicity in this model, we'll break and assume the rest of the body follows.
-            // A more robust implementation might continue reading until read_ret is 0.
+        if (!body_start_ptr) {
+            Log_printf(LOG_LEVEL_ERROR, "Could not find end of HTTP headers in response.");
+            break;
         }
 
-        // Check if the buffer is full
-        if (header_len >= sizeof(header_buf) - 1) {
-            Log_printf(LOG_LEVEL_ERROR, "Headers and initial body part are too large for buffer, aborting.");
-            goto cleanup;
-        }
-    }
-
-    // After the read loop, we must have found the header separator
-    body_start_ptr = strstr(header_buf, "\r\n\r\n");
-    if (!body_start_ptr) {
-        Log_printf(LOG_LEVEL_ERROR, "Could not find end of HTTP headers in response.");
-        goto cleanup;
-    }
-
-    // sscanf is fragile. A robust parsing of the status code is needed.
-    const char* status_line_start = strstr(header_buf, "HTTP/");
-    if (status_line_start) {
-        const char* code_start = strchr(status_line_start, ' ');
-        if (code_start) {
-            http_status = strtol(code_start + 1, NULL, 10);
-        } else {
-            Log_printf(LOG_LEVEL_ERROR, "Malformed HTTP status line: no space found.");
-            goto cleanup;
-        }
-    } else {
-        Log_printf(LOG_LEVEL_ERROR, "Could not find HTTP status line in response.");
-        goto cleanup;
-    }
-
-    if (http_status != 200) {
-        Log_printf(LOG_LEVEL_WARN, "HTTP request failed with code %d.", http_status);
-
-        // Log a preview of the server's error message.
-        char* body_preview_start = strstr(header_buf, "\r\n\r\n");
-        if (body_preview_start) {
-            body_preview_start += 4; // Move past the separator
-            char preview_buf[129]; // 128 chars + null
-            size_t preview_len = strlen(body_preview_start);
-            if (preview_len > 128) {
-                preview_len = 128;
-            }
-            strncpy(preview_buf, body_preview_start, preview_len);
-            preview_buf[preview_len] = '\0';
-            Log_printf(LOG_LEVEL_WARN, "Server response preview: %s", preview_buf);
-        }
-        goto cleanup;
-    }
-
-    // The headers are now processed, proceed to the body
-    body_start_ptr += 4;
-    size_t body_part_len = header_len - (body_start_ptr - header_buf);
-
-    // --- Add logging to see the raw response body ---
-    char response_preview[513]; // 512 chars + null terminator
-    size_t preview_len = (body_part_len < 512) ? body_part_len : 512;
-    strncpy(response_preview, body_start_ptr, preview_len);
-    response_preview[preview_len] = '\0';
-    Log_printf(LOG_LEVEL_DEBUG, "Raw Weather Response Body Preview (first %d bytes): %s", preview_len, response_preview);
-    // --- End of logging ---
-
-    TlsStream tls_stream(tls);
-    CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
-
-    // Check for chunked encoding. Use strcasestr for case-insensitivity.
-    bool is_chunked = false;
-    // Note: strcasestr is a GNU extension, but it is available in ESP-IDF.
-    if (strcasestr(header_buf, "Transfer-Encoding: chunked")) {
-        is_chunked = true;
-        Log_printf(LOG_LEVEL_INFO, "Chunked transfer encoding detected.");
-    }
-
-    JsonDocument filter;
-    filter["timezone"] = true;
-    JsonObject current_filter = filter["current"].to<JsonObject>();
-    current_filter["time"] = true;
-    current_filter["temperature_2m"] = true;
-    current_filter["relative_humidity_2m"] = true;
-    current_filter["apparent_temperature"] = true;
-    current_filter["weather_code"] = true;
-    current_filter["wind_speed_10m"] = true;
-    JsonObject hourly_filter = filter["hourly"].to<JsonObject>();
-    hourly_filter["time"] = true;
-    hourly_filter["temperature_2m"] = true;
-    hourly_filter["weather_code"] = true;
-    JsonObject daily_filter = filter["daily"].to<JsonObject>();
-    daily_filter["time"] = true;
-    daily_filter["temperature_2m_max"] = true;
-    daily_filter["temperature_2m_min"] = true;
-    daily_filter["weather_code"] = true;
-    daily_filter["sunrise"] = true;
-    daily_filter["sunset"] = true;
-    daily_filter["precipitation_probability_max"] = true;
-    daily_filter["wind_speed_10m_max"] = true;
-
-    JsonDocument doc;
-    DeserializationError error;
-
-    if (is_chunked) {
-        DechunkingStream dechunking_stream(combined_stream);
-        error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
-    } else {
-        error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
-    }
-
-    if (error == DeserializationError::Ok && !doc.isNull()) {
-        if (doc["error"].isNull()) {
-            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
-
-                bool allDataPresent = true;
-                auto getJsonValue = [&](const JsonVariant& parent, const char* key) -> JsonVariant {
-                    if (parent.isNull() || parent[key].isNull()) {
-                        allDataPresent = false;
-                        Log_printf(LOG_LEVEL_WARN, "Weather JSON missing key: %s", key);
-                        return JsonVariant();
-                    }
-                    return parent[key];
-                };
-                auto getJsonValueFromArray = [&](const JsonVariant& parent, int index) -> JsonVariant {
-                    if (parent.isNull() || !parent.is<JsonArray>() || parent.size() <= index) {
-                        allDataPresent = false;
-                        Log_printf(LOG_LEVEL_WARN, "Weather JSON array access out of bounds at index %d", index);
-                        return JsonVariant();
-                    }
-                    return parent[index];
-                };
-
-                JsonObject current = doc["current"];
-                JsonObject daily = doc["daily"];
-                JsonObject hourly = doc["hourly"];
-
-                if (!doc["timezone"].isNull()) { currentWeatherData.timezone = doc["timezone"].as<const char*>(); }
-                currentWeatherData.temperature = getJsonValue(current, "temperature_2m");
-                currentWeatherData.apparentTemperature = getJsonValue(current, "apparent_temperature");
-                currentWeatherData.windSpeed = getJsonValue(current, "wind_speed_10m");
-                currentWeatherData.humidity = getJsonValue(current, "relative_humidity_2m");
-                currentWeatherData.weatherCode = getJsonValue(current, "weather_code");
-                currentWeatherData.dailyHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 0);
-                currentWeatherData.dailyLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 0);
-                currentWeatherData.sunrise = getJsonValueFromArray(getJsonValue(daily, "sunrise"), 0);
-                currentWeatherData.sunset = getJsonValueFromArray(getJsonValue(daily, "sunset"), 0);
-                currentWeatherData.precipitationProbability = getJsonValueFromArray(getJsonValue(daily, "precipitation_probability_max"), 0);
-                currentWeatherData.maxWindSpeed = getJsonValueFromArray(getJsonValue(daily, "wind_speed_10m_max"), 0);
-                currentWeatherData.tomorrowHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 1);
-                currentWeatherData.tomorrowLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 1);
-                currentWeatherData.tomorrowWeatherCode = getJsonValueFromArray(getJsonValue(daily, "weather_code"), 1);
-
-                JsonArray hourly_temp = getJsonValue(hourly, "temperature_2m").as<JsonArray>();
-                JsonArray hourly_code = getJsonValue(hourly, "weather_code").as<JsonArray>();
-
-                time_t now = getJsonValue(current, "time").as<time_t>();
-                if (now == 0) {
-                    allDataPresent = false;
-                    Log_printf(LOG_LEVEL_WARN, "Weather JSON missing current.time");
-                }
-
-                int startIndex = -1;
-                JsonArray timeArray = hourly["time"];
-                if (!timeArray.isNull()) {
-                    for (int i = 0; i < timeArray.size(); i++) {
-                        if (timeArray[i].as<time_t>() >= now) {
-                            startIndex = i;
-                            Log_printf(LOG_LEVEL_DEBUG, "Found start index %d for hourly forecast (current: %lu, forecast: %lu).", startIndex, (unsigned long)now, (unsigned long)timeArray[i].as<time_t>());
-                            break;
-                        }
-                    }
-                } else { allDataPresent = false; Log_printf(LOG_LEVEL_WARN, "Weather JSON missing hourly.time array"); }
-
-                if (startIndex != -1) {
-                    for (int j = 0; j < NUM_HOURLY_FORECASTS; j++) {
-                        int forecastIndex = startIndex + j;
-                        if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
-                            currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
-                            currentWeatherData.hourlyCode[j] = hourly_code[forecastIndex];
-                        } else { currentWeatherData.hourlyTemp[j] = -999; currentWeatherData.hourlyCode[j] = -1; }
-                    }
-                } else {
-                    Log_printf(LOG_LEVEL_WARN, "Could not find current hour in hourly forecast data. Hourly forecast may be inaccurate.");
-                    bool fallbackSuccess = true;
-                    for (int j = 0; j < NUM_HOURLY_FORECASTS; j++) {
-                        int forecastIndex = j;
-                        if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
-                            currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
-                            currentWeatherData.hourlyCode[j] = hourly_code[forecastIndex];
-                        } else { currentWeatherData.hourlyTemp[j] = -999; currentWeatherData.hourlyCode[j] = -1; fallbackSuccess = false; }
-                    }
-                    if (!fallbackSuccess) { allDataPresent = false; Log_printf(LOG_LEVEL_WARN, "Hourly forecast fallback also failed to retrieve complete data."); }
-                }
-
-                if (!allDataPresent) {
-                    currentWeatherData.errorReason = "INCOMPLETE WEATHER DATA";
-                    success = false;
-                } else {
-                    success = true; // Success!
-                }
-                xSemaphoreGive(xDisplayDataMutex);
+        // sscanf is fragile. A robust parsing of the status code is needed.
+        const char* status_line_start = strstr(header_buf, "HTTP/");
+        if (status_line_start) {
+            const char* code_start = strchr(status_line_start, ' ');
+            if (code_start) {
+                http_status = strtol(code_start + 1, NULL, 10);
             } else {
-                 Log_printf(LOG_LEVEL_ERROR, "Could not obtain display data mutex, weather data processing aborted.");
-                 success = false;
+                Log_printf(LOG_LEVEL_ERROR, "Malformed HTTP status line: no space found.");
+                break;
             }
         } else {
-            // This block handles cases where the API returns a valid JSON with an error message.
-            const char* reason = doc["reason"].as<const char*>();
-            Log_printf(LOG_LEVEL_WARN, "Unified Weather API returned an error: %s", reason);
+            Log_printf(LOG_LEVEL_ERROR, "Could not find HTTP status line in response.");
+            break;
+        }
+
+        if (http_status != 200) {
+            Log_printf(LOG_LEVEL_WARN, "HTTP request failed with code %d.", http_status);
+
+            // Log a preview of the server's error message.
+            char* body_preview_start = strstr(header_buf, "\r\n\r\n");
+            if (body_preview_start) {
+                body_preview_start += 4; // Move past the separator
+                char preview_buf[129]; // 128 chars + null
+                size_t preview_len = strlen(body_preview_start);
+                if (preview_len > 128) {
+                    preview_len = 128;
+                }
+                strncpy(preview_buf, body_preview_start, preview_len);
+                preview_buf[preview_len] = '\0';
+                Log_printf(LOG_LEVEL_WARN, "Server response preview: %s", preview_buf);
+            }
+            break;
+        }
+
+        // The headers are now processed, proceed to the body
+        body_start_ptr += 4;
+        size_t body_part_len = header_len - (body_start_ptr - header_buf);
+
+        // --- Add logging to see the raw response body ---
+        char response_preview[513]; // 512 chars + null terminator
+        size_t preview_len = (body_part_len < 512) ? body_part_len : 512;
+        strncpy(response_preview, body_start_ptr, preview_len);
+        response_preview[preview_len] = '\0';
+        Log_printf(LOG_LEVEL_DEBUG, "Raw Weather Response Body Preview (first %d bytes): %s", preview_len, response_preview);
+        // --- End of logging ---
+
+        TlsStream tls_stream(tls);
+        CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
+
+        // Check for chunked encoding. Use strcasestr for case-insensitivity.
+        bool is_chunked = false;
+        // Note: strcasestr is a GNU extension, but it is available in ESP-IDF.
+        if (strcasestr(header_buf, "Transfer-Encoding: chunked")) {
+            is_chunked = true;
+            Log_printf(LOG_LEVEL_INFO, "Chunked transfer encoding detected.");
+        }
+
+        JsonDocument filter;
+        filter["timezone"] = true;
+        JsonObject current_filter = filter["current"].to<JsonObject>();
+        current_filter["time"] = true;
+        current_filter["temperature_2m"] = true;
+        current_filter["relative_humidity_2m"] = true;
+        current_filter["apparent_temperature"] = true;
+        current_filter["weather_code"] = true;
+        current_filter["wind_speed_10m"] = true;
+        JsonObject hourly_filter = filter["hourly"].to<JsonObject>();
+        hourly_filter["time"] = true;
+        hourly_filter["temperature_2m"] = true;
+        hourly_filter["weather_code"] = true;
+        JsonObject daily_filter = filter["daily"].to<JsonObject>();
+        daily_filter["time"] = true;
+        daily_filter["temperature_2m_max"] = true;
+        daily_filter["temperature_2m_min"] = true;
+        daily_filter["weather_code"] = true;
+        daily_filter["sunrise"] = true;
+        daily_filter["sunset"] = true;
+        daily_filter["precipitation_probability_max"] = true;
+        daily_filter["wind_speed_10m_max"] = true;
+
+        JsonDocument doc;
+        DeserializationError error;
+
+        if (is_chunked) {
+            DechunkingStream dechunking_stream(combined_stream);
+            error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
+        } else {
+            error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
+        }
+
+        if (error == DeserializationError::Ok && !doc.isNull()) {
+            if (doc["error"].isNull()) {
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
+
+                    bool allDataPresent = true;
+                    auto getJsonValue = [&](const JsonVariant& parent, const char* key) -> JsonVariant {
+                        if (parent.isNull() || parent[key].isNull()) {
+                            allDataPresent = false;
+                            Log_printf(LOG_LEVEL_WARN, "Weather JSON missing key: %s", key);
+                            return JsonVariant();
+                        }
+                        return parent[key];
+                    };
+                    auto getJsonValueFromArray = [&](const JsonVariant& parent, int index) -> JsonVariant {
+                        if (parent.isNull() || !parent.is<JsonArray>() || parent.size() <= index) {
+                            allDataPresent = false;
+                            Log_printf(LOG_LEVEL_WARN, "Weather JSON array access out of bounds at index %d", index);
+                            return JsonVariant();
+                        }
+                        return parent[index];
+                    };
+
+                    JsonObject current = doc["current"];
+                    JsonObject daily = doc["daily"];
+                    JsonObject hourly = doc["hourly"];
+
+                    if (!doc["timezone"].isNull()) { currentWeatherData.timezone = doc["timezone"].as<const char*>(); }
+                    currentWeatherData.temperature = getJsonValue(current, "temperature_2m");
+                    currentWeatherData.apparentTemperature = getJsonValue(current, "apparent_temperature");
+                    currentWeatherData.windSpeed = getJsonValue(current, "wind_speed_10m");
+                    currentWeatherData.humidity = getJsonValue(current, "relative_humidity_2m");
+                    currentWeatherData.weatherCode = getJsonValue(current, "weather_code");
+                    currentWeatherData.dailyHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 0);
+                    currentWeatherData.dailyLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 0);
+                    currentWeatherData.sunrise = getJsonValueFromArray(getJsonValue(daily, "sunrise"), 0);
+                    currentWeatherData.sunset = getJsonValueFromArray(getJsonValue(daily, "sunset"), 0);
+                    currentWeatherData.precipitationProbability = getJsonValueFromArray(getJsonValue(daily, "precipitation_probability_max"), 0);
+                    currentWeatherData.maxWindSpeed = getJsonValueFromArray(getJsonValue(daily, "wind_speed_10m_max"), 0);
+                    currentWeatherData.tomorrowHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 1);
+                    currentWeatherData.tomorrowLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 1);
+                    currentWeatherData.tomorrowWeatherCode = getJsonValueFromArray(getJsonValue(daily, "weather_code"), 1);
+
+                    JsonArray hourly_temp = getJsonValue(hourly, "temperature_2m").as<JsonArray>();
+                    JsonArray hourly_code = getJsonValue(hourly, "weather_code").as<JsonArray>();
+
+                    time_t now = getJsonValue(current, "time").as<time_t>();
+                    if (now == 0) {
+                        allDataPresent = false;
+                        Log_printf(LOG_LEVEL_WARN, "Weather JSON missing current.time");
+                    }
+
+                    int startIndex = -1;
+                    JsonArray timeArray = hourly["time"];
+                    if (!timeArray.isNull()) {
+                        for (int i = 0; i < timeArray.size(); i++) {
+                            if (timeArray[i].as<time_t>() >= now) {
+                                startIndex = i;
+                                Log_printf(LOG_LEVEL_DEBUG, "Found start index %d for hourly forecast (current: %lu, forecast: %lu).", startIndex, (unsigned long)now, (unsigned long)timeArray[i].as<time_t>());
+                                break;
+                            }
+                        }
+                    } else { allDataPresent = false; Log_printf(LOG_LEVEL_WARN, "Weather JSON missing hourly.time array"); }
+
+                    if (startIndex != -1) {
+                        for (int j = 0; j < NUM_HOURLY_FORECASTS; j++) {
+                            int forecastIndex = startIndex + j;
+                            if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
+                                currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
+                                currentWeatherData.hourlyCode[j] = hourly_code[forecastIndex];
+                            } else { currentWeatherData.hourlyTemp[j] = -999; currentWeatherData.hourlyCode[j] = -1; }
+                        }
+                    } else {
+                        Log_printf(LOG_LEVEL_WARN, "Could not find current hour in hourly forecast data. Hourly forecast may be inaccurate.");
+                        bool fallbackSuccess = true;
+                        for (int j = 0; j < NUM_HOURLY_FORECASTS; j++) {
+                            int forecastIndex = j;
+                            if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
+                                currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
+                                currentWeatherData.hourlyCode[j] = hourly_code[forecastIndex];
+                            } else { currentWeatherData.hourlyTemp[j] = -999; currentWeatherData.hourlyCode[j] = -1; fallbackSuccess = false; }
+                        }
+                        if (!fallbackSuccess) { allDataPresent = false; Log_printf(LOG_LEVEL_WARN, "Hourly forecast fallback also failed to retrieve complete data."); }
+                    }
+
+                    if (!allDataPresent) {
+                        currentWeatherData.errorReason = "INCOMPLETE WEATHER DATA";
+                        success = false;
+                    } else {
+                        success = true; // Success!
+                    }
+                    xSemaphoreGive(xDisplayDataMutex);
+                } else {
+                    Log_printf(LOG_LEVEL_ERROR, "Could not obtain display data mutex, weather data processing aborted.");
+                    success = false;
+                }
+            } else {
+                // This block handles cases where the API returns a valid JSON with an error message.
+                const char* reason = doc["reason"].as<const char*>();
+                Log_printf(LOG_LEVEL_WARN, "Unified Weather API returned an error: %s", reason);
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    currentWeatherData.errorReason = reason;
+                    xSemaphoreGive(xDisplayDataMutex);
+                }
+                success = false;
+            }
+        } else {
+            // This block handles JSON parsing errors.
+            Log_printf(LOG_LEVEL_WARN, "Failed to parse Unified Weather JSON. E: %s", error.c_str());
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                currentWeatherData.errorReason = reason;
+                currentWeatherData.errorReason = "WEATHER PARSING FAILED";
                 xSemaphoreGive(xDisplayDataMutex);
             }
             success = false;
         }
-    } else {
-        // This block handles JSON parsing errors.
-        Log_printf(LOG_LEVEL_WARN, "Failed to parse Unified Weather JSON. E: %s", error.c_str());
-        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            currentWeatherData.errorReason = "WEATHER PARSING FAILED";
-            xSemaphoreGive(xDisplayDataMutex);
-        }
-        success = false;
-    }
+    } while(0);
 
-cleanup:
     if (tls) {
         esp_tls_conn_destroy(tls);
         tls = NULL;
@@ -800,103 +800,6 @@ void fetchWeatherData(WeatherTaskParams* params) {
     }
 }
 
-#include <algorithm>
-#include <cctype>
-
-// Function to trim leading and trailing whitespace from a std::string
-void trim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
-        return !std::isspace(ch);
-    }));
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
-        return !std::isspace(ch);
-    }).base(), s.end());
-}
-
-void fetchWeatherData(WeatherTaskParams* params) {
-    // This function is now simplified. It only fetches weather for the coordinates
-    // stored in currentSettings. The UI is responsible for all geocoding.
-    float latitude = params->latitude;
-    float longitude = params->longitude;
-    delete params; // Clean up the params object.
-
-    Log_printf(LOG_LEVEL_INFO, "Fetching weather data by coordinates. Lat: %f, Lon: %f", latitude, longitude);
-    
-    // Update the global settings with the coordinates for this fetch.
-    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        currentSettings.latitude = latitude;
-        currentSettings.longitude = longitude;
-        xSemaphoreGive(xDisplayDataMutex);
-    }
-
-    // Clear any previous error state before starting the fetch process.
-    if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-        currentWeatherData.errorReason.clear();
-        xSemaphoreGive(xDisplayDataMutex);
-    }
-
-    // Call the new unified function to fetch all weather data, with retry logic.
-    bool success = false;
-    int attempt = 0;
-    const int maxAttempts = 3; // Use a maximum of 3 attempts
-
-    while (attempt < maxAttempts && !success) {
-        attempt++;
-        Log_printf(LOG_LEVEL_INFO, "Weather fetch attempt %d of %d...", attempt, maxAttempts);
-        success = fetchWeatherDataFromApi();
-
-        if (success) {
-            Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data on attempt %d.", attempt);
-            break;
-        }
-
-        // After a failed attempt, check for unrecoverable errors to avoid pointless retries.
-        if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-            if (!currentWeatherData.errorReason.empty()) {
-                // The Open-Meteo API returns reasons like "Invalid timezone" or "Latitude is out of bounds".
-                // These are configuration errors that won't be fixed by a simple retry.
-                // We check for keywords in a case-insensitive way.
-                std::string reason_lower = currentWeatherData.errorReason;
-                std::transform(reason_lower.begin(), reason_lower.end(), reason_lower.begin(),
-                    [](unsigned char c){ return std::tolower(c); });
-
-                if (reason_lower.find("invalid") != std::string::npos ||
-                    reason_lower.find("out of range") != std::string::npos) {
-                    Log_printf(LOG_LEVEL_ERROR, "Unrecoverable API error: %s. Aborting retries.", currentWeatherData.errorReason.c_str());
-                    xSemaphoreGive(xDisplayDataMutex);
-                    break; // Exit the retry loop immediately.
-                }
-            }
-            xSemaphoreGive(xDisplayDataMutex);
-        }
-
-        if (attempt < maxAttempts) {
-            Log_printf(LOG_LEVEL_WARN, "Weather fetch failed on attempt %d. Retrying in 5 seconds...", attempt);
-            vTaskDelay(pdMS_TO_TICKS(5000));
-        }
-    }
-
-    if (success) {
-        Log_printf(LOG_LEVEL_INFO, "Successfully fetched all weather data.");
-        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            currentWeatherData.dataValid = true;
-            weatherDataUpdated = true; // Signal to the display manager
-            isWeatherBufferDirty = true;
-            xSemaphoreGive(xDisplayDataMutex);
-            broadcastWeatherUpdate(); // Push the new data to the UI
-        }
-    } else {
-        Log_printf(LOG_LEVEL_ERROR, "Weather fetch failed after all attempts.");
-        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            currentWeatherData.dataValid = false;
-            // The specific error reason should already be set by fetchWeatherDataFromApi
-            if (currentWeatherData.errorReason.empty()) {
-                 currentWeatherData.errorReason = "WEATHER API FAILED - CHECK WI-FI";
-            }
-            xSemaphoreGive(xDisplayDataMutex);
-        }
-    }
-}
 
 void fetchWeatherDataTask(void* p) {
     // This task is for routine, non-forced updates.
