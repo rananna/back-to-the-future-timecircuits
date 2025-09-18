@@ -57,6 +57,7 @@ public:
     void reorderAssets(const std::vector<String>& symbols);
     void clearAssets();
     std::vector<Asset> getAssets() const;
+    void setAssetTimezone(const String& symbol, const String& timezone);
 
     // Data Fetching
     void fetchData();

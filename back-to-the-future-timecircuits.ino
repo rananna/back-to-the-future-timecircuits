@@ -754,13 +754,7 @@ void loadSettings() {
                 AssetType type = static_cast<AssetType>(assetObj["type"].as<int>());
                 String timezone = assetObj["timezone"];
                 stockManager.addAsset(symbol, type);
-                // This is a bit of a hack, but it's the easiest way to set the timezone
-                // without changing the StockManager interface even more.
-                auto& asset_list = const_cast<std::vector<Asset>&>(stockManager.getAssets());
-                auto it = std::find_if(asset_list.begin(), asset_list.end(), [&](const Asset& a){ return a.symbol == symbol; });
-                if (it != asset_list.end()) {
-                    it->timezone = timezone;
-                }
+                stockManager.setAssetTimezone(symbol, timezone);
             }
         }
 

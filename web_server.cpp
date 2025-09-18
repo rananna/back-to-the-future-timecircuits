@@ -782,14 +782,7 @@ void setupWebRoutes() {
             String timezone = assetObj["timezone"];
             if (!symbol.isEmpty()) {
                 stockManager.addAsset(symbol, type);
-                // Set timezone on the newly added asset
-                 auto& asset_list = const_cast<std::vector<Asset>&>(stockManager.getAssets());
-                 auto it = std::find_if(asset_list.begin(), asset_list.end(), [&](const Asset& a) {
-                     return a.symbol.equalsIgnoreCase(symbol);
-                 });
-                 if (it != asset_list.end()) {
-                     it->timezone = timezone;
-                 }
+                stockManager.setAssetTimezone(symbol, timezone);
             }
         }
     }
