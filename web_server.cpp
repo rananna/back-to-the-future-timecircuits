@@ -439,15 +439,29 @@ void setupWebRoutes() {
 
   AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
-    if (!obj["symbol"].isNull()) {
-        String symbol = obj["symbol"];
-        if (stockManager.addAsset(symbol)) {
-            request->send(200, "application/json", "{\"status\":\"success\"}");
-        } else {
-            request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Asset already exists or invalid.\"}");
-        }
-    } else {
+    if (obj["symbol"].isNull()) {
         request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol.\"}");
+        return;
+    }
+
+    String symbol = obj["symbol"];
+    AssetType type = obj["type"].as<AssetType>();
+    String timezone = obj["timezone"];
+
+    if (stockManager.addAsset(symbol, type)) {
+        // Find the newly added asset and set its timezone
+        // This is not ideal, but it's the simplest way without changing the StockManager interface further
+        auto& assets = const_cast<std::vector<Asset>&>(stockManager.getAssets());
+        auto it = std::find_if(assets.begin(), assets.end(), [&](const Asset& asset) {
+            return asset.symbol.equalsIgnoreCase(symbol);
+        });
+        if (it != assets.end()) {
+            it->timezone = timezone;
+        }
+
+        request->send(200, "application/json", "{\"status\":\"success\"}");
+    } else {
+        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Asset already exists or invalid.\"}");
     }
   });
   server.addHandler(addStockHandler);

@@ -26,12 +26,21 @@ struct Asset {
     unsigned long last_update;
     bool data_valid;
     String currency; // e.g., "USD"
+    String timezone; // e.g., "EST5EDT,M3.2.0,M11.1.0"
+    String error_reason; // To store specific error messages
 
     // Default constructor
     Asset() : price(0), change_percent(0), day_high(0), day_low(0), volume(0), last_update(0), data_valid(false) {}
 };
 
 #include <freertos/semphr.h>
+
+enum FetchStatus {
+    FETCH_SUCCESS,
+    FETCH_CONNECTION_FAILED,
+    FETCH_RATE_LIMITED,
+    FETCH_FAILED
+};
 
 class StockManager {
     friend void fetchStockDataBatchTask(void* p);
@@ -42,7 +51,7 @@ public:
     void loop();
 
     // Asset Management
-    bool addAsset(const String& symbol);
+    bool addAsset(const String& symbol, AssetType type);
     bool removeAsset(const String& symbol);
     void reorderAssets(const std::vector<String>& symbols);
     void clearAssets();
@@ -82,11 +91,12 @@ private:
     volatile int _running_tasks;
 
     // Private methods
-    AssetType getAssetType(const String& symbol);
+    FetchStatus fetchBatchDataFromApi(const std::vector<String>& symbols, AssetType type);
     void fetchBatchData(const std::vector<String>& symbols, AssetType type);
-    void parseJsonResponse(JsonDocument& doc, AssetType type);
-    bool isStockMarketOpen() const;
+    void parseJsonResponse(JsonDocument& doc, AssetType type, const std::vector<String>& requested_symbols);
     bool isCryptoMarketOpen() const;
 };
+
+bool isStockMarketOpen(const char* tz_string);
 
 #endif // STOCK_MANAGER_H

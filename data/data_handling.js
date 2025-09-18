@@ -1029,15 +1029,24 @@ function renderStockAssets(assets) {
 }
 
 async function addStockAsset() {
-    const input = document.getElementById('addAssetInput');
-    const symbol = input.value.trim().toUpperCase();
-    if (!symbol) return;
+    const symbolInput = document.getElementById('addAssetInput');
+    const typeInput = document.getElementById('addAssetType');
+    const timezoneInput = document.getElementById('addAssetTimezone');
+
+    const symbol = symbolInput.value.trim().toUpperCase();
+    const type = parseInt(typeInput.value, 10);
+    const timezone = timezoneInput.value.trim();
+
+    if (!symbol) {
+        showMessage('Asset symbol is required.', 'error');
+        return;
+    }
 
     try {
         const response = await fetch('/api/stocks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol })
+            body: JSON.stringify({ symbol, type, timezone })
         });
 
         const result = await response.json();

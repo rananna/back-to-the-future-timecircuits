@@ -246,6 +246,12 @@
 
                   <div class="add-asset-container">
                       <input type="text" id="addAssetInput" placeholder="e.g., AAPL, BTC-USD, ^GSPC">
+                      <select id="addAssetType">
+                          <option value="0">Stock</option>
+                          <option value="1">Crypto</option>
+                          <option value="2">Index</option>
+                      </select>
+                      <input type="text" id="addAssetTimezone" placeholder="Timezone (e.g., EST5EDT,M3.2.0,M11.1.0)">
                       <button id="addAssetBtn" class="action-button">Add Asset</button>
                   </div>
                    <div id="symbolAutocompleteContainer" class="autocomplete-container"></div>
