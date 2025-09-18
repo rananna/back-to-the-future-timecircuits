@@ -198,9 +198,10 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
 
     // Identify which row we are updating
     int rowIndex = -1;
-    if (&row == &destRow) rowIndex = 0;
-    else if (&row == &presRow) rowIndex = 1;
-    else if (&row == &lastRow) rowIndex = 2;
+    const char* rowName = "UNKNOWN";
+    if (&row == &destRow) { rowIndex = 0; rowName = "DEST"; }
+    else if (&row == &presRow) { rowIndex = 1; rowName = "PRES"; }
+    else if (&row == &lastRow) { rowIndex = 2; rowName = "LAST"; }
 
     // Handle AM/PM and 12/24 hour logic
     if (!currentSettings.displayFormat24h) {
@@ -245,9 +246,13 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
     row.time.writeDigitAscii(3, timeBuffer[3]);
 
     // Write all changes to the hardware
+    Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s MONTH", rowName);
     row.month.writeDisplay();
+    Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s DAY", rowName);
     row.day.writeDisplay();
+    Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s YEAR", rowName);
     row.year.writeDisplay();
+    Log_printf(LOG_LEVEL_DEBUG, "I2C_WRITE: %s TIME", rowName);
     row.time.writeDisplay();
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by updateDisplayRow"); }
   #endif

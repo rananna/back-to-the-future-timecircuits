@@ -415,6 +415,14 @@ static bool fetchWeatherDataFromApi() {
     body_start_ptr += 4;
     size_t body_part_len = header_len - (body_start_ptr - header_buf);
 
+    // --- Add logging to see the raw response body ---
+    char response_preview[513]; // 512 chars + null terminator
+    size_t preview_len = (body_part_len < 512) ? body_part_len : 512;
+    strncpy(response_preview, body_start_ptr, preview_len);
+    response_preview[preview_len] = '\0';
+    Log_printf(LOG_LEVEL_DEBUG, "Raw Weather Response Body Preview (first %d bytes): %s", preview_len, response_preview);
+    // --- End of logging ---
+
     TlsStream tls_stream(tls);
     CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
 
