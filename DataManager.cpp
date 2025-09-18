@@ -472,6 +472,7 @@ static bool fetchWeatherDataFromApi() {
     }
     return false;
 }
+}
 
 void cleanupWeatherConnection() {
     if (tls) {
