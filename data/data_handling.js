@@ -1148,9 +1148,12 @@ async function addStockAsset() {
 
 async function updateStockMarqueePreview() {
     const previewEl = document.getElementById('stockMarqueePreview');
-    if (!document.getElementById('stockTickerModeEnabled').checked) {
+    const stockTickerEnabled = document.getElementById('stockTickerModeEnabled').checked;
+    const apiKey = document.getElementById('financialModelingPrepApiKey').value;
+
+    if (!stockTickerEnabled || !apiKey) {
         if (previewEl) {
-            previewEl.textContent = 'Stock Ticker Mode is disabled.';
+            previewEl.textContent = 'Stock Ticker Mode is disabled or API key is not set.';
         }
         return;
     }
