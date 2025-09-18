@@ -299,6 +299,11 @@ static bool fetchWeatherDataFromApi() {
 
     if (esp_tls_conn_write(tls, request, strlen(request)) < 0) {
         Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed. Cleaning up connection.");
+        int esp_tls_code, esp_tls_flags;
+        esp_err_t err = esp_tls_get_and_clear_last_error(tls->error_handle, &esp_tls_code, &esp_tls_flags);
+        if (err == ESP_OK) {
+            Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
+        }
         cleanupWeatherConnection();
         return false;
     }
@@ -482,7 +487,10 @@ static bool fetchWeatherDataFromApi() {
                 JsonArray hourly_code = getJsonValue(hourly, "weather_code").as<JsonArray>();
 
                 time_t now = getJsonValue(current, "time").as<time_t>();
-                if (now == 0) { allDataPresent = false; Log_printf(LOG_LEVEL_WARN, "Weather JSON missing current.time"); }
+                if (now == 0) {
+                    allDataPresent = false;
+                    Log_printf(LOG_LEVEL_WARN, "Weather JSON missing current.time");
+                }
 
                 int startIndex = -1;
                 JsonArray timeArray = hourly["time"];
@@ -490,6 +498,7 @@ static bool fetchWeatherDataFromApi() {
                     for (int i = 0; i < timeArray.size(); i++) {
                         if (timeArray[i].as<time_t>() >= now) {
                             startIndex = i;
+                            Log_printf(LOG_LEVEL_DEBUG, "Found start index %d for hourly forecast (current: %lu, forecast: %lu).", startIndex, (unsigned long)now, (unsigned long)timeArray[i].as<time_t>());
                             break;
                         }
                     }
@@ -585,6 +594,12 @@ void fetchWeatherData(WeatherTaskParams* params) {
         xSemaphoreGive(xDisplayDataMutex);
     }
 
+    // Clear any previous error state before starting the fetch process.
+    if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        currentWeatherData.errorReason.clear();
+        xSemaphoreGive(xDisplayDataMutex);
+    }
+
     // Call the new unified function to fetch all weather data, with retry logic.
     bool success = false;
     int attempt = 0;
@@ -604,8 +619,14 @@ void fetchWeatherData(WeatherTaskParams* params) {
         if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
             if (!currentWeatherData.errorReason.empty()) {
                 // The Open-Meteo API returns reasons like "Invalid timezone" or "Latitude is out of bounds".
-                // If the reason contains "Invalid", it's a configuration error that won't be fixed by a retry.
-                if (currentWeatherData.errorReason.find("Invalid") != std::string::npos) {
+                // These are configuration errors that won't be fixed by a simple retry.
+                // We check for keywords in a case-insensitive way.
+                std::string reason_lower = currentWeatherData.errorReason;
+                std::transform(reason_lower.begin(), reason_lower.end(), reason_lower.begin(),
+                    [](unsigned char c){ return std::tolower(c); });
+
+                if (reason_lower.find("invalid") != std::string::npos ||
+                    reason_lower.find("out of range") != std::string::npos) {
                     Log_printf(LOG_LEVEL_ERROR, "Unrecoverable API error: %s. Aborting retries.", currentWeatherData.errorReason.c_str());
                     xSemaphoreGive(xDisplayDataMutex);
                     break; // Exit the retry loop immediately.
