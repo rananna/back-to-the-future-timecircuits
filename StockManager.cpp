@@ -376,50 +376,72 @@ void StockManager::fetchData() {
     _is_fetching = true;
     _last_fetch_time = millis();
 
-    std::vector<String> stocks;
+    std::map<String, std::vector<String>> stocks_by_tz;
     std::vector<String> cryptos;
-    std::vector<String> indices;
+    std::map<String, std::vector<String>> indices_by_tz;
 
     for (const auto& asset : _assets) {
         switch (asset.type) {
-            case STOCK:
-                stocks.push_back(asset.symbol);
+            case STOCK: {
+                const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
+                if (isStockMarketOpen(tz)) {
+                    stocks_by_tz[tz].push_back(asset.symbol);
+                }
                 break;
+            }
             case CRYPTO:
+                // Crypto market is always open, so no check needed here.
                 cryptos.push_back(asset.symbol);
                 break;
-            case INDEX:
-                indices.push_back(asset.symbol);
+            case INDEX: {
+                const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
+                if (isStockMarketOpen(tz)) {
+                    indices_by_tz[tz].push_back(asset.symbol);
+                }
                 break;
+            }
         }
     }
 
     xSemaphoreTake(_task_mutex, portMAX_DELAY);
     _running_tasks = 0;
-    if (!stocks.empty() && isStockMarketOpen()) {
-        StockFetchParams* params = new StockFetchParams{stocks, STOCK, this};
-        if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks += 1;
-        } else {
-            delete params;
+
+    // Create tasks for stocks, grouped by timezone
+    for (auto const& pair : stocks_by_tz) {
+        const std::vector<String>& symbols = pair.second;
+        if (!symbols.empty()) {
+            StockFetchParams* params = new StockFetchParams{symbols, STOCK, this};
+            if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
+                _running_tasks++;
+            } else {
+                delete params;
+            }
         }
     }
+
+    // Create task for cryptos
     if (!cryptos.empty()) {
         StockFetchParams* params = new StockFetchParams{cryptos, CRYPTO, this};
         if (xTaskCreate(fetchStockDataBatchTask, "cryptoFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks += 1;
+            _running_tasks++;
         } else {
             delete params;
         }
     }
-    if (!indices.empty() && isStockMarketOpen()) {
-        StockFetchParams* params = new StockFetchParams{indices, INDEX, this};
-        if (xTaskCreate(fetchStockDataBatchTask, "indexFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks += 1;
-        } else {
-            delete params;
+
+    // Create tasks for indices, grouped by timezone
+    for (auto const& pair : indices_by_tz) {
+        const std::vector<String>& symbols = pair.second;
+        if (!symbols.empty()) {
+            StockFetchParams* params = new StockFetchParams{symbols, INDEX, this};
+            if (xTaskCreate(fetchStockDataBatchTask, "indexFetch", 8192, params, 1, NULL) == pdPASS) {
+                _running_tasks++;
+            } else {
+                delete params;
+            }
         }
     }
+
     xSemaphoreGive(_task_mutex);
 
     if (_running_tasks == 0) {

@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <vector>
 #include <string>
+#include <map>
 #include <ArduinoJson.h>
 
 // Enum to define the type of financial asset
