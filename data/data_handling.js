@@ -499,6 +499,8 @@ async function saveSettings() {
 
     if (settings.stockTickerModeEnabled && !settings.financialModelingPrepApiKey) {
         showMessage('FMP API Key is required for Stock Ticker Mode.', 'error');
+        getEl('financialModelingPrepApiKey').classList.add('invalid-input');
+        getEl('financialModelingPrepApiKey').focus();
         showLoading('saveSettingsBtn', false);
         return;
     }
@@ -1260,12 +1262,18 @@ async function updateStockStatus() {
     try {
         const response = await fetch('/api/stocks/status');
         if (!response.ok) {
-            throw new Error('Failed to fetch stock status');
+            const errorData = await response.json().catch(() => ({ error: 'Failed to fetch stock status' }));
+            throw new Error(errorData.error || 'Failed to fetch stock status');
         }
         const status = await response.json();
 
-        document.getElementById('stockApiUsage').textContent = `API Calls Today: ${status.api_usage}`;
+        // Update API usage count
+        const apiUsageEl = document.getElementById('stockApiUsage');
+        if (apiUsageEl) {
+            apiUsageEl.textContent = `API Calls Today: ${status.api_usage}`;
+        }
 
+        // Update individual asset display
         status.assets.forEach(asset => {
             const assetDiv = document.querySelector(`.asset-item[data-symbol="${asset.symbol}"]`);
             if (assetDiv) {
@@ -1277,15 +1285,19 @@ async function updateStockStatus() {
                     changeEl.textContent = `${asset.change_percent.toFixed(2)}%`;
                     changeEl.className = 'asset-change ' + (asset.change_percent >= 0 ? 'positive' : 'negative');
                 } else {
-                    priceEl.textContent = '--';
-                    changeEl.textContent = '--';
-                    changeEl.className = 'asset-change';
+                    priceEl.textContent = 'Error';
+                    changeEl.textContent = asset.error_reason || '--';
+                    changeEl.className = 'asset-change negative';
                 }
             }
         });
 
     } catch (error) {
-        console.error('Error updating stock status:', error);
+        console.error('Error updating stock status:', error.message);
+        const apiUsageEl = document.getElementById('stockApiUsage');
+        if (apiUsageEl) {
+            apiUsageEl.textContent = 'Could not get status.';
+        }
     }
 }
 
