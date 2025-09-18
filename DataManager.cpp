@@ -21,6 +21,9 @@ extern bool weatherDataUpdated;
 #include <WiFiClientSecure.h>
 #include <time.h>
 
+// Define the number of hourly forecasts to retrieve and process.
+#define NUM_HOURLY_FORECASTS 3
+
 extern StockData stockData[3];
 
 String urlEncode(const char* msg) {
@@ -272,22 +275,25 @@ static bool fetchWeatherDataFromApi() {
             continue;
         }
 
-        String headerBuffer;
+        // Use a stack-allocated buffer for headers to avoid heap fragmentation.
+        char header_buf[2048];
         int http_status = 0;
-        const int MAX_HEADER_SIZE = 4096;
+        size_t header_len = 0;
         unsigned long header_read_start_time = millis();
-        const unsigned long HEADER_TIMEOUT_MS = 10000; // 10 second timeout for receiving the complete header
+        const unsigned long HEADER_TIMEOUT_MS = 10000; // 10-second timeout
 
-        char read_buf[256];
-        bool headers_done = false;
+        char* body_start_ptr = NULL;
+
         while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
-            int ret = esp_tls_conn_read(tls, (unsigned char *)read_buf, sizeof(read_buf) - 1);
+            int ret = esp_tls_conn_read(tls,
+                                        (unsigned char *)header_buf + header_len,
+                                        sizeof(header_buf) - header_len - 1);
 
             if (ret < 0) {
                 if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
                     Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_read failed: -0x%x", -ret);
                     cleanupWeatherConnection();
-                    goto retry;
+                    continue; // Use continue instead of goto
                 }
                 vTaskDelay(pdMS_TO_TICKS(20));
                 continue;
@@ -298,45 +304,43 @@ static bool fetchWeatherDataFromApi() {
                 continue;
             }
 
-            read_buf[ret] = 0;
-            headerBuffer.concat(read_buf);
+            header_len += ret;
+            header_buf[header_len] = '\0'; // Null-terminate the buffer
 
-            if (headerBuffer.indexOf("\r\n\r\n") != -1) {
-                headers_done = true;
+            // Check if we've found the end of the headers
+            body_start_ptr = strstr(header_buf, "\r\n\r\n");
+            if (body_start_ptr) {
                 break;
             }
 
-            if (headerBuffer.length() > MAX_HEADER_SIZE) {
+            // Check if the buffer is full
+            if (header_len >= sizeof(header_buf) - 1) {
                 Log_printf(LOG_LEVEL_ERROR, "Headers too large, aborting.");
                 cleanupWeatherConnection();
-                goto retry;
+                continue; // Use continue instead of goto
             }
         }
 
-        if (!headers_done) {
-            Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for HTTP headers.");
+        if (!body_start_ptr) {
+            Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for HTTP headers or headers incomplete.");
             cleanupWeatherConnection();
-            goto retry;
+            continue; // Use continue instead of goto
         }
 
-        sscanf(headerBuffer.c_str(), "HTTP/1.1 %d", &http_status);
+        sscanf(header_buf, "HTTP/1.1 %d", &http_status);
 
         if (http_status != 200) {
             Log_printf(LOG_LEVEL_WARN, "HTTP request failed with code %d", http_status);
-            // Connection might be reusable for other status codes, so we don't cleanup here.
             return false;
         }
 
-        // The headers are technically "done", so we proceed to process the body
+        // The headers are now processed, proceed to the body
         {
-            // Find the start of the body
-            int body_start_index = headerBuffer.indexOf("\r\n\r\n");
-            if (body_start_index != -1) {
-                body_start_index += 4; // Move pointer past the CRLF CRLF
+            // Move pointer past the CRLF CRLF to the start of the actual body content
+            body_start_ptr += 4;
 
-                // The part of the body we have already read into our buffer
-                const char* body_part_ptr = headerBuffer.c_str() + body_start_index;
-                size_t body_part_len = headerBuffer.length() - body_start_index;
+            // Calculate the length of the body part that was already read into our buffer
+            size_t body_part_len = header_len - (body_start_ptr - header_buf);
 
                 TlsStream tls_stream(tls);
                 CombinedStream combined_stream(body_part_ptr, body_part_len, tls_stream);
@@ -445,7 +449,7 @@ static bool fetchWeatherDataFromApi() {
                         }
 
                         if (startIndex != -1) {
-                            for (int j = 0; j < 3; j++) {
+                            for (int j = 0; j < NUM_HOURLY_FORECASTS; j++) {
                                 int forecastIndex = startIndex + j + 1;
                                 if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
                                     currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
@@ -458,7 +462,7 @@ static bool fetchWeatherDataFromApi() {
                         } else {
                             Log_printf(LOG_LEVEL_WARN, "Could not find current hour in hourly forecast data. Hourly forecast may be inaccurate.");
                             bool fallbackSuccess = true;
-                            for (int j = 0; j < 3; j++) {
+                            for (int j = 0; j < NUM_HOURLY_FORECASTS; j++) {
                                 int forecastIndex = j + 1;
                                 if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
                                     currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
