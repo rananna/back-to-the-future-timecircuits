@@ -105,20 +105,23 @@ public:
     TlsStream(esp_tls_t *tls_handle) : tls(tls_handle) {}
 
     virtual int available() {
-        return esp_tls_get_bytes_avail(tls);
+        // esp_tls_get_bytes_avail can be unreliable, so we just indicate that data *might* be available.
+        // The read() function will handle blocking/timeouts.
+        return 1;
     }
 
     virtual int read() {
         unsigned char c;
+        // Poll with a small timeout to avoid blocking forever if the server is slow.
         int ret = esp_tls_conn_read(tls, &c, 1);
         if (ret > 0) {
             return c;
         }
-        return -1;
+        return -1; // Let the caller (ArduinoJson) handle the timeout/end of stream.
     }
 
     virtual int peek() {
-        // Not implemented
+        // Not implemented for this use case.
         return -1;
     }
 
@@ -130,6 +133,48 @@ public:
         if (esp_tls_conn_write(tls, &data, 1) > 0) {
             return 1;
         }
+        return 0;
+    }
+};
+
+// A stream that combines a pre-read buffer with another stream.
+// This is necessary because we read a chunk of the response to find the
+// end of the HTTP headers, and that chunk may contain the start of the body.
+class CombinedStream : public Stream {
+private:
+    const char* _buffer;
+    size_t _buffer_len;
+    size_t _buffer_pos;
+    Stream& _stream;
+
+public:
+    CombinedStream(const char* buf, size_t len, Stream& s)
+        : _buffer(buf), _buffer_len(len), _buffer_pos(0), _stream(s) {}
+
+    virtual int available() {
+        return (_buffer_len - _buffer_pos) + _stream.available();
+    }
+
+    virtual int read() {
+        if (_buffer_pos < _buffer_len) {
+            return _buffer[_buffer_pos++];
+        }
+        return _stream.read();
+    }
+
+    virtual int peek() {
+        if (_buffer_pos < _buffer_len) {
+            return _buffer[_buffer_pos];
+        }
+        return _stream.peek();
+    }
+
+    virtual void flush() {
+        _stream.flush();
+    }
+
+    virtual size_t write(uint8_t data) {
+        // Not needed for this implementation
         return 0;
     }
 };
@@ -253,38 +298,48 @@ static bool fetchWeatherDataFromApi() {
         }
 
         if (headers_done) {
-            TlsStream stream(tls);
-            JsonDocument filter;
-            filter["timezone"] = true;
-            JsonObject current_filter = filter["current"].to<JsonObject>();
-            current_filter["time"] = true;
-            current_filter["temperature_2m"] = true;
-            current_filter["relative_humidity_2m"] = true;
-            current_filter["apparent_temperature"] = true;
-            current_filter["weather_code"] = true;
-            current_filter["wind_speed_10m"] = true;
-            JsonObject hourly_filter = filter["hourly"].to<JsonObject>();
-            hourly_filter["time"] = true;
-            hourly_filter["temperature_2m"] = true;
-            hourly_filter["weather_code"] = true;
-            JsonObject daily_filter = filter["daily"].to<JsonObject>();
-            daily_filter["time"] = true;
-            daily_filter["temperature_2m_max"] = true;
-            daily_filter["temperature_2m_min"] = true;
-            daily_filter["weather_code"] = true;
-            daily_filter["sunrise"] = true;
-            daily_filter["sunset"] = true;
-            daily_filter["precipitation_probability_max"] = true;
-            daily_filter["wind_speed_10m_max"] = true;
+            // Find the start of the body
+            char* body_start = strstr(linebuf, "\r\n\r\n");
+            if (body_start) {
+                body_start += 4; // Move pointer past the CRLF CRLF
 
-            JsonDocument doc;
-            DeserializationError error = deserializeJson(doc, stream, DeserializationOption::Filter(filter));
+                // Calculate the length of the body part we've already read
+                size_t body_part_len = strlen(body_start);
 
-            if (error == DeserializationError::Ok) {
-                // Same JSON processing logic as before...
-                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    if (doc["error"].isNull()) {
-                        Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
+                TlsStream tls_stream(tls);
+                CombinedStream combined_stream(body_start, body_part_len, tls_stream);
+
+                JsonDocument filter;
+                filter["timezone"] = true;
+                JsonObject current_filter = filter["current"].to<JsonObject>();
+                current_filter["time"] = true;
+                current_filter["temperature_2m"] = true;
+                current_filter["relative_humidity_2m"] = true;
+                current_filter["apparent_temperature"] = true;
+                current_filter["weather_code"] = true;
+                current_filter["wind_speed_10m"] = true;
+                JsonObject hourly_filter = filter["hourly"].to<JsonObject>();
+                hourly_filter["time"] = true;
+                hourly_filter["temperature_2m"] = true;
+                hourly_filter["weather_code"] = true;
+                JsonObject daily_filter = filter["daily"].to<JsonObject>();
+                daily_filter["time"] = true;
+                daily_filter["temperature_2m_max"] = true;
+                daily_filter["temperature_2m_min"] = true;
+                daily_filter["weather_code"] = true;
+                daily_filter["sunrise"] = true;
+                daily_filter["sunset"] = true;
+                daily_filter["precipitation_probability_max"] = true;
+                daily_filter["wind_speed_10m_max"] = true;
+
+                JsonDocument doc;
+                DeserializationError error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
+
+                if (error == DeserializationError::Ok && !doc.isNull()) {
+                    // Same JSON processing logic as before...
+                    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                        if (doc["error"].isNull()) {
+                            Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed Unified Weather JSON");
 
                         bool allDataPresent = true;
                         auto getJsonValue = [&](const JsonVariant& parent, const char* key) -> JsonVariant {
