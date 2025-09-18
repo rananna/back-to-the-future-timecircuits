@@ -529,6 +529,8 @@ void setupWebRoutes() {
         assetObj["price"] = asset.price;
         assetObj["change_percent"] = asset.change_percent;
         assetObj["data_valid"] = asset.data_valid;
+        assetObj["type"] = (int)asset.type;
+        assetObj["timezone"] = asset.timezone;
     }
     String jsonString;
     serializeJson(doc, jsonString);
