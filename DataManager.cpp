@@ -497,7 +497,7 @@ static bool fetchWeatherDataFromApi() {
 
                 if (startIndex != -1) {
                     for (int j = 0; j < NUM_HOURLY_FORECASTS; j++) {
-                        int forecastIndex = startIndex + j + 1;
+                        int forecastIndex = startIndex + j;
                         if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
                             currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
                             currentWeatherData.hourlyCode[j] = hourly_code[forecastIndex];
@@ -507,7 +507,7 @@ static bool fetchWeatherDataFromApi() {
                     Log_printf(LOG_LEVEL_WARN, "Could not find current hour in hourly forecast data. Hourly forecast may be inaccurate.");
                     bool fallbackSuccess = true;
                     for (int j = 0; j < NUM_HOURLY_FORECASTS; j++) {
-                        int forecastIndex = j + 1;
+                        int forecastIndex = j;
                         if (forecastIndex < hourly_temp.size() && forecastIndex < hourly_code.size()) {
                             currentWeatherData.hourlyTemp[j] = hourly_temp[forecastIndex];
                             currentWeatherData.hourlyCode[j] = hourly_code[forecastIndex];
