@@ -202,9 +202,9 @@ static bool fetchWeatherDataFromApi() {
         char request[512];
         snprintf(request, sizeof(request),
                  "GET /v1/forecast?latitude=%.4f&longitude=%.4f"
-                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
-                 "&hourly=temperature_2m,weather_code"
-                 "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max"
+                 "&current=temperature,relative_humidity,apparent_temperature,weather_code,wind_speed"
+                 "&hourly=temperature,weather_code"
+                 "&daily=temperature_max,temperature_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_max"
                  "&forecast_days=2&forecast_hours=12&temperature_unit=%s&wind_speed_unit=%s&timezone=auto&timeformat=unixtime"
                  " HTTP/1.1\r\n"
                  "Host: api.open-meteo.com\r\n"
@@ -258,24 +258,24 @@ static bool fetchWeatherDataFromApi() {
             filter["timezone"] = true;
             JsonObject current_filter = filter["current"].to<JsonObject>();
             current_filter["time"] = true;
-            current_filter["temperature_2m"] = true;
-            current_filter["relative_humidity_2m"] = true;
+            current_filter["temperature"] = true;
+            current_filter["relative_humidity"] = true;
             current_filter["apparent_temperature"] = true;
             current_filter["weather_code"] = true;
-            current_filter["wind_speed_10m"] = true;
+            current_filter["wind_speed"] = true;
             JsonObject hourly_filter = filter["hourly"].to<JsonObject>();
             hourly_filter["time"] = true;
-            hourly_filter["temperature_2m"] = true;
+            hourly_filter["temperature"] = true;
             hourly_filter["weather_code"] = true;
             JsonObject daily_filter = filter["daily"].to<JsonObject>();
             daily_filter["time"] = true;
-            daily_filter["temperature_2m_max"] = true;
-            daily_filter["temperature_2m_min"] = true;
+            daily_filter["temperature_max"] = true;
+            daily_filter["temperature_min"] = true;
             daily_filter["weather_code"] = true;
             daily_filter["sunrise"] = true;
             daily_filter["sunset"] = true;
             daily_filter["precipitation_probability_max"] = true;
-            daily_filter["wind_speed_10m_max"] = true;
+            daily_filter["wind_speed_max"] = true;
 
             JsonDocument doc;
             DeserializationError error = deserializeJson(doc, stream, DeserializationOption::Filter(filter));
@@ -315,25 +315,25 @@ static bool fetchWeatherDataFromApi() {
                         }
 
                         // --- Current Weather Data ---
-                        currentWeatherData.temperature = getJsonValue(current, "temperature_2m");
+                        currentWeatherData.temperature = getJsonValue(current, "temperature");
                         currentWeatherData.apparentTemperature = getJsonValue(current, "apparent_temperature");
-                        currentWeatherData.windSpeed = getJsonValue(current, "wind_speed_10m");
-                        currentWeatherData.humidity = getJsonValue(current, "relative_humidity_2m");
+                        currentWeatherData.windSpeed = getJsonValue(current, "wind_speed");
+                        currentWeatherData.humidity = getJsonValue(current, "relative_humidity");
                         currentWeatherData.weatherCode = getJsonValue(current, "weather_code");
 
                         // --- Daily Weather Data ---
-                        currentWeatherData.dailyHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 0);
-                        currentWeatherData.dailyLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 0);
+                        currentWeatherData.dailyHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_max"), 0);
+                        currentWeatherData.dailyLow = getJsonValueFromArray(getJsonValue(daily, "temperature_min"), 0);
                         currentWeatherData.sunrise = getJsonValueFromArray(getJsonValue(daily, "sunrise"), 0);
                         currentWeatherData.sunset = getJsonValueFromArray(getJsonValue(daily, "sunset"), 0);
                         currentWeatherData.precipitationProbability = getJsonValueFromArray(getJsonValue(daily, "precipitation_probability_max"), 0);
-                        currentWeatherData.maxWindSpeed = getJsonValueFromArray(getJsonValue(daily, "wind_speed_10m_max"), 0);
-                        currentWeatherData.tomorrowHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_max"), 1);
-                        currentWeatherData.tomorrowLow = getJsonValueFromArray(getJsonValue(daily, "temperature_2m_min"), 1);
+                        currentWeatherData.maxWindSpeed = getJsonValueFromArray(getJsonValue(daily, "wind_speed_max"), 0);
+                        currentWeatherData.tomorrowHigh = getJsonValueFromArray(getJsonValue(daily, "temperature_max"), 1);
+                        currentWeatherData.tomorrowLow = getJsonValueFromArray(getJsonValue(daily, "temperature_min"), 1);
                         currentWeatherData.tomorrowWeatherCode = getJsonValueFromArray(getJsonValue(daily, "weather_code"), 1);
 
                         // --- Hourly Weather Data ---
-                        JsonArray hourly_temp = getJsonValue(hourly, "temperature_2m").as<JsonArray>();
+                        JsonArray hourly_temp = getJsonValue(hourly, "temperature").as<JsonArray>();
                         JsonArray hourly_code = getJsonValue(hourly, "weather_code").as<JsonArray>();
 
                         time_t now = getJsonValue(current, "time").as<time_t>();
