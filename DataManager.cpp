@@ -330,8 +330,9 @@ static bool fetchWeatherDataFromApi() {
         sscanf(header_buf, "HTTP/1.1 %d", &http_status);
 
         if (http_status != 200) {
-            Log_printf(LOG_LEVEL_WARN, "HTTP request failed with code %d", http_status);
-            return false;
+            Log_printf(LOG_LEVEL_WARN, "HTTP request failed with code %d. Cleaning up connection.", http_status);
+            cleanupWeatherConnection();
+            continue;
         }
 
         // The headers are now processed, proceed to the body
@@ -505,7 +506,6 @@ static bool fetchWeatherDataFromApi() {
             }
         }
 
-        retry:;
     }
     return false;
 }
