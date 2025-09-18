@@ -1061,14 +1061,16 @@ function handleFirmwareUpload(event) {
 async function loadStockAssets() {
     try {
         const response = await fetch('/api/stocks');
+        const data = await response.json();
         if (!response.ok) {
-            throw new Error('Failed to fetch stock assets');
+            // Use the error message from the server if available
+            throw new Error(data.error || 'Failed to fetch stock assets');
         }
-        const assets = await response.json();
-        renderStockAssets(assets);
+        renderStockAssets(data);
     } catch (error) {
-        console.error('Error loading stock assets:', error);
-        showMessage('Could not load stock assets.', 'error');
+        console.error('Error loading stock assets:', error.message);
+        const container = document.getElementById('stockAssetList');
+        container.innerHTML = `<p class="error-text">Could not load stock assets: ${error.message}</p>`;
     }
 }
 
@@ -1144,11 +1146,8 @@ async function addStockAsset() {
 
 async function updateStockMarqueePreview() {
     const previewEl = document.getElementById('stockMarqueePreview');
-    // If stock ticker is disabled, or the websocket is not connected, do nothing.
-    if (!document.getElementById('stockTickerModeEnabled').checked || !ws || ws.readyState !== WebSocket.OPEN) {
-        if (previewEl && document.getElementById('stockTickerModeEnabled').checked) {
-            previewEl.textContent = 'Device is offline.';
-        } else if (previewEl) {
+    if (!document.getElementById('stockTickerModeEnabled').checked) {
+        if (previewEl) {
             previewEl.textContent = 'Stock Ticker Mode is disabled.';
         }
         return;
@@ -1156,20 +1155,20 @@ async function updateStockMarqueePreview() {
 
     try {
         const response = await fetch('/api/stocks/marquee');
+        const data = await response.json();
         if (!response.ok) {
-            // Don't log an error here, the browser console already shows network failures.
-            // This prevents the console from being spammed when the device is unreachable.
+            if (previewEl) {
+                previewEl.textContent = data.error || 'Error fetching marquee data.';
+            }
             return;
         }
-        const data = await response.json();
         if (previewEl) {
             previewEl.textContent = data.marqueeText;
         }
     } catch (error) {
-        // This catch block will handle network errors (e.g., device disconnected).
-        // We are intentionally leaving this empty to prevent spamming the console
-        // with errors when the device is temporarily unreachable. The UI will
-        // indicate the offline status based on the WebSocket state check above.
+        if (previewEl) {
+            previewEl.textContent = 'Device is offline.';
+        }
     }
 }
 
