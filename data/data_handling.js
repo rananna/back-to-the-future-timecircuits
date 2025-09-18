@@ -108,11 +108,11 @@ function initWebSocket() {
             }
         } else if (msg.action === 'stockTestResult') {
             console.log("CLIENT_DEBUG: Received stockTestResult:", msg);
-            const button = document.querySelector(`.fetch-stock-btn[data-index="${msg.rowIndex}"].analyzing`);
+            const button = document.querySelector(`.test-asset-btn[data-index="${msg.rowIndex}"].analyzing`);
              if (button) {
                  button.disabled = false;
                  button.classList.remove('analyzing');
-                 button.textContent = 'Fetch';
+                 button.textContent = 'Test';
              }
             updateStockPreview(msg.status, msg.payload, msg.rowIndex);
         } else if (msg.action === 'weatherUpdate') {
@@ -892,6 +892,11 @@ function testDataPoint(event) {
 function updateStockPreview(status, payload, rowIndex) {
     console.log(`CLIENT_DEBUG: updateStockPreview - Status: ${status}, RowIndex: ${rowIndex}`, payload);
     const previewContainer = document.getElementById(`stock_preview_${rowIndex}`);
+    // If the preview container doesn't exist, log a warning and exit.
+    if (!previewContainer) {
+        console.warn(`CLIENT_DEBUG: Stock preview container not found for rowIndex: ${rowIndex}`);
+        return;
+    }
     const priceEl = previewContainer.querySelector('.stock-price');
     const changeEl = previewContainer.querySelector('.stock-change');
 
@@ -1085,7 +1090,10 @@ function renderStockAssets(assets) {
         return;
     }
 
-    assets.forEach(asset => {
+    assets.forEach((asset, index) => {
+        const assetContainerDiv = document.createElement('div');
+        assetContainerDiv.className = 'asset-item-container';
+
         const assetDiv = document.createElement('div');
         assetDiv.className = 'asset-item';
         assetDiv.dataset.symbol = asset.symbol;
@@ -1100,15 +1108,62 @@ function renderStockAssets(assets) {
             <span class="asset-name">${asset.name || ''}</span>
             <span class="asset-price">${price}</span>
             <span class="asset-change ${changeClass}">${change}</span>
+            <button class="test-asset-btn action-button" data-symbol="${asset.symbol}" data-index="${index}">Test</button>
             <button class="remove-asset-btn" data-symbol="${asset.symbol}">×</button>
         `;
-        container.appendChild(assetDiv);
+
+        const previewDiv = document.createElement('div');
+        previewDiv.id = `stock_preview_${index}`;
+        previewDiv.className = 'stock-preview';
+
+        assetContainerDiv.appendChild(assetDiv);
+        assetContainerDiv.appendChild(previewDiv);
+        container.appendChild(assetContainerDiv);
     });
 
-    // Add event listeners to the new remove buttons
+    // Add event listeners to the new remove and test buttons
     document.querySelectorAll('.remove-asset-btn').forEach(btn => {
         btn.onclick = removeStockAsset;
     });
+    document.querySelectorAll('.test-asset-btn').forEach(btn => {
+        btn.onclick = testStockAsset;
+    });
+}
+
+/**
+ * Sends a WebSocket message to test a specific stock asset.
+ * @param {Event} event The click event from the "Test" button.
+ */
+function testStockAsset(event) {
+    const symbol = event.target.dataset.symbol;
+    const index = event.target.dataset.index;
+    const apiKey = document.getElementById('financialModelingPrepApiKey').value;
+    const button = event.target;
+
+    if (!apiKey) {
+        showMessage('Please enter your Financial Modeling Prep API key first.', 'error');
+        return;
+    }
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showMessage('Data Link channel is not open. Please wait.', 'error');
+        return;
+    }
+
+    // Show loading state
+    button.disabled = true;
+    button.classList.add('analyzing');
+    button.innerHTML = '<span class="loading-spinner"></span>';
+
+    const message = {
+        action: "testStock",
+        data: {
+            symbol: symbol,
+            apiKey: apiKey,
+            rowIndex: index
+        }
+    };
+    ws.send(JSON.stringify(message));
 }
 
 async function addStockAsset() {
