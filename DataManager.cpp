@@ -457,6 +457,7 @@ static bool fetchWeatherDataFromApi() {
                         Log_printf(LOG_LEVEL_WARN, "Unified Weather API returned an error: %s", doc["reason"].as<const char*>());
                         currentWeatherData.errorReason = "WEATHER API ERROR";
                         xSemaphoreGive(xDisplayDataMutex);
+                        return false;
                     }
                 }
             } else {
@@ -465,6 +466,7 @@ static bool fetchWeatherDataFromApi() {
                     currentWeatherData.errorReason = "WEATHER PARSING FAILED";
                     xSemaphoreGive(xDisplayDataMutex);
                 }
+                return false;
             }
         }
 
