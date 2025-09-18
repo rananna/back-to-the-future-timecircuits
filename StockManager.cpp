@@ -480,6 +480,12 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
                 "\r\n",
                 symbols_str.c_str(), _api_key.c_str());
 
+        // --- START: MODIFICATION - Add logging for stock API calls ---
+        char url_log[256];
+        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/api/v3/quote/%s?apikey=REDACTED", symbols_str.c_str());
+        Log_printf(LOG_LEVEL_INFO, "Fetching stock data from URL: %s", url_log);
+        // --- END: MODIFICATION ---
+
         if (esp_tls_conn_write(tls_stock, request, strlen(request)) < 0) {
             Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_write failed.");
             status = FETCH_CONNECTION_FAILED;
