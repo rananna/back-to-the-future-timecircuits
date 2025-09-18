@@ -220,11 +220,20 @@ static const char *open_meteo_com_root_ca = \
 // This new function is responsible for fetching all weather data (current, daily, and hourly) in a single API call.
 static bool fetchWeatherDataFromApi() {
     for (int i = 0; i < 2; i++) { // Retry loop
+        if (tls) {
+            // Check if the connection is still alive before using it.
+            // esp_tls_get_bytes_avail() returns < 0 on error (e.g. connection closed).
+            if (esp_tls_get_bytes_avail(tls) < 0) {
+                Log_printf(LOG_LEVEL_DEBUG, "Keep-alive connection is stale. Reconnecting.");
+                cleanupWeatherConnection(); // Sets tls to NULL
+            }
+        }
+
         if (!tls) {
             esp_tls_cfg_t cfg = {};
             cfg.cacert_buf = (const unsigned char *)open_meteo_com_root_ca;
             cfg.cacert_bytes = strlen(open_meteo_com_root_ca) + 1;
-            cfg.timeout_ms = 10000;
+            cfg.timeout_ms = 5000; // 5 second timeout for TLS read/write operations
 
             tls = esp_tls_init();
             if (tls == NULL) {
@@ -263,52 +272,74 @@ static bool fetchWeatherDataFromApi() {
             continue;
         }
 
-        char linebuf[256];
+        String headerBuffer;
         int http_status = 0;
+        const int MAX_HEADER_SIZE = 4096;
+        unsigned long header_read_start_time = millis();
+        const unsigned long HEADER_TIMEOUT_MS = 10000; // 10 second timeout for receiving the complete header
+
+        char read_buf[256];
         bool headers_done = false;
-        char* body_start = NULL;
+        while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
+            int ret = esp_tls_conn_read(tls, (unsigned char *)read_buf, sizeof(read_buf) - 1);
 
-        while (true) {
-            int ret = esp_tls_conn_read(tls, (unsigned char *)linebuf, sizeof(linebuf) - 1);
             if (ret < 0) {
-                Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_read failed: -0x%x", -ret);
-                cleanupWeatherConnection();
-                goto retry;
+                if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                    Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_read failed: -0x%x", -ret);
+                    cleanupWeatherConnection();
+                    goto retry;
+                }
+                vTaskDelay(pdMS_TO_TICKS(20));
+                continue;
             }
+
             if (ret == 0) {
-                Log_printf(LOG_LEVEL_WARN, "Connection closed by server.");
-                cleanupWeatherConnection();
-                goto retry;
+                vTaskDelay(pdMS_TO_TICKS(20));
+                continue;
             }
 
-            linebuf[ret] = 0;
-            if (http_status == 0) {
-                sscanf(linebuf, "HTTP/1.1 %d", &http_status);
-            }
+            read_buf[ret] = 0;
+            headerBuffer.concat(read_buf);
 
-            if (strstr(linebuf, "\r\n\r\n")) {
+            if (headerBuffer.indexOf("\r\n\r\n") != -1) {
                 headers_done = true;
                 break;
             }
+
+            if (headerBuffer.length() > MAX_HEADER_SIZE) {
+                Log_printf(LOG_LEVEL_ERROR, "Headers too large, aborting.");
+                cleanupWeatherConnection();
+                goto retry;
+            }
         }
+
+        if (!headers_done) {
+            Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for HTTP headers.");
+            cleanupWeatherConnection();
+            goto retry;
+        }
+
+        sscanf(headerBuffer.c_str(), "HTTP/1.1 %d", &http_status);
 
         if (http_status != 200) {
             Log_printf(LOG_LEVEL_WARN, "HTTP request failed with code %d", http_status);
-            // We don't cleanup here, as the connection might be reusable.
+            // Connection might be reusable for other status codes, so we don't cleanup here.
             return false;
         }
 
-        if (headers_done) {
+        // The headers are technically "done", so we proceed to process the body
+        {
             // Find the start of the body
-            body_start = strstr(linebuf, "\r\n\r\n");
-            if (body_start) {
-                body_start += 4; // Move pointer past the CRLF CRLF
+            int body_start_index = headerBuffer.indexOf("\r\n\r\n");
+            if (body_start_index != -1) {
+                body_start_index += 4; // Move pointer past the CRLF CRLF
 
-                // Calculate the length of the body part we've already read
-                size_t body_part_len = strlen(body_start);
+                // The part of the body we have already read into our buffer
+                const char* body_part_ptr = headerBuffer.c_str() + body_start_index;
+                size_t body_part_len = headerBuffer.length() - body_start_index;
 
                 TlsStream tls_stream(tls);
-                CombinedStream combined_stream(body_start, body_part_len, tls_stream);
+                CombinedStream combined_stream(body_part_ptr, body_part_len, tls_stream);
 
                 JsonDocument filter;
                 filter["timezone"] = true;
