@@ -476,13 +476,10 @@ void setupWebRoutes() {
     String timezone = obj["timezone"];
 
     if (stockManager.addAsset(symbol, type)) {
-        auto& assets = const_cast<std::vector<Asset>&>(stockManager.getAssets());
-        auto it = std::find_if(assets.begin(), assets.end(), [&](const Asset& asset) {
-            return asset.symbol.equalsIgnoreCase(symbol);
-        });
-        if (it != assets.end()) {
-            it->timezone = timezone;
-        }
+        // After adding, we might need to update other properties of the new asset,
+        // like its timezone. The addAsset function could be extended, or we can
+        // handle it here. For now, we'll just save and return the list.
+        stockManager.saveAssets(); // Save the new asset list
 
         // Instead of just success, send back the updated list of assets
         JsonDocument doc;

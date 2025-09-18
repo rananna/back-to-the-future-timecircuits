@@ -272,6 +272,7 @@ StockManager::StockManager() :
     _api_usage_count(0),
     _running_tasks(0) {
     _task_mutex = xSemaphoreCreateMutex();
+    _assets_mutex = xSemaphoreCreateMutex();
 }
 
 void StockManager::begin() {
@@ -291,9 +292,11 @@ void StockManager::loop() {
 }
 
 bool StockManager::addAsset(const String& symbol, AssetType type) {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
         if (asset.symbol.equalsIgnoreCase(symbol)) {
             Log_printf(LOG_LEVEL_WARN, "Asset %s already exists.", symbol.c_str());
+            xSemaphoreGive(_assets_mutex);
             return false;
         }
     }
@@ -302,27 +305,32 @@ bool StockManager::addAsset(const String& symbol, AssetType type) {
     newAsset.symbol = symbol;
     newAsset.type = type;
     _assets.push_back(newAsset);
+    xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "Added asset: %s", symbol.c_str());
     return true;
 }
 
 bool StockManager::removeAsset(const String& symbol) {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     auto it = std::remove_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
         return asset.symbol.equalsIgnoreCase(symbol);
     });
 
+    bool removed = false;
     if (it != _assets.end()) {
         _assets.erase(it, _assets.end());
         Log_printf(LOG_LEVEL_INFO, "Removed asset: %s", symbol.c_str());
         if (_current_asset_index >= _assets.size() && !_assets.empty()) {
             _current_asset_index = _assets.size() - 1;
         }
-        return true;
+        removed = true;
     }
-    return false;
+    xSemaphoreGive(_assets_mutex);
+    return removed;
 }
 
 void StockManager::reorderAssets(const std::vector<String>& symbols) {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     std::vector<Asset> reordered_assets;
     for (const auto& symbol : symbols) {
         for (const auto& asset : _assets) {
@@ -333,16 +341,22 @@ void StockManager::reorderAssets(const std::vector<String>& symbols) {
         }
     }
     _assets = reordered_assets;
+    xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "Assets reordered.");
 }
 
 void StockManager::clearAssets() {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     _assets.clear();
+    xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "All assets cleared.");
 }
 
-const std::vector<Asset>& StockManager::getAssets() const {
-    return _assets;
+std::vector<Asset> StockManager::getAssets() const {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    std::vector<Asset> assets_copy = _assets;
+    xSemaphoreGive(_assets_mutex);
+    return assets_copy;
 }
 
 // Forward declaration for the FreeRTOS task
@@ -369,6 +383,7 @@ void StockManager::fetchData() {
     std::vector<String> cryptos;
     std::map<String, std::vector<String>> indices_by_tz;
 
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
         switch (asset.type) {
             case STOCK: {
@@ -391,6 +406,7 @@ void StockManager::fetchData() {
             }
         }
     }
+    xSemaphoreGive(_assets_mutex);
 
     xSemaphoreTake(_task_mutex, portMAX_DELAY);
     _running_tasks = 0;
@@ -653,6 +669,7 @@ void StockManager::fetchBatchData(const std::vector<String>& symbols, AssetType 
 }
 
 void StockManager::parseJsonResponse(JsonDocument& doc, AssetType type, const std::vector<String>& requested_symbols) {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     JsonArray array = doc.as<JsonArray>();
 
     // Create a temporary list of received symbols for efficient lookup.
@@ -710,6 +727,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, AssetType type, const st
             }
         }
     }
+    xSemaphoreGive(_assets_mutex);
 }
 
 void fetchStockDataBatchTask(void* p) {
@@ -748,7 +766,10 @@ String StockManager::getMarqueeLine() {
         return "MARKET CLOSED";
     }
 
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+
     if (_assets.empty()) {
+        xSemaphoreGive(_assets_mutex);
         return "ADD ASSETS IN UI";
     }
 
@@ -759,10 +780,14 @@ String StockManager::getMarqueeLine() {
     const Asset& current_asset = _assets[_current_asset_index];
 
     if (!current_asset.data_valid) {
+        String error_msg;
         if (!current_asset.error_reason.isEmpty()) {
-            return current_asset.symbol + " " + current_asset.error_reason;
+            error_msg = current_asset.symbol + " " + current_asset.error_reason;
+        } else {
+            error_msg = current_asset.symbol + " NO DATA";
         }
-        return current_asset.symbol + " NO DATA";
+        xSemaphoreGive(_assets_mutex);
+        return error_msg;
     }
 
     char buffer[64]; // Increased buffer size for safety
@@ -806,14 +831,21 @@ String StockManager::getMarqueeLine() {
             break;
         default:
             _current_page_index = 0;
+            // We need to release the mutex before the recursive call
+            xSemaphoreGive(_assets_mutex);
             return getMarqueeLine();
     }
 
+    xSemaphoreGive(_assets_mutex);
     return String(buffer);
 }
 
 void StockManager::nextPage() {
-    if (_assets.empty()) return;
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    if (_assets.empty()) {
+        xSemaphoreGive(_assets_mutex);
+        return;
+    }
 
     _current_page_index++;
     if (_current_page_index > 2) { // 3 pages: Price, High/Low, Volume
@@ -824,10 +856,15 @@ void StockManager::nextPage() {
         }
     }
     Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Next Page (Asset: %d, Page: %d)", _current_asset_index, _current_page_index);
+    xSemaphoreGive(_assets_mutex);
 }
 
 void StockManager::previousPage() {
-    if (_assets.empty()) return;
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    if (_assets.empty()) {
+        xSemaphoreGive(_assets_mutex);
+        return;
+    }
 
     _current_page_index--;
     if (_current_page_index < 0) {
@@ -838,6 +875,7 @@ void StockManager::previousPage() {
         }
     }
     Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Previous Page (Asset: %d, Page: %d)", _current_asset_index, _current_page_index);
+    xSemaphoreGive(_assets_mutex);
 }
 
 void StockManager::setApiKey(const String& key) {
@@ -862,8 +900,10 @@ int StockManager::getApiUsage() const {
 bool StockManager::isMarketOpen() const {
     bool crypto_market_open = isCryptoMarketOpen();
 
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
         if (asset.type == CRYPTO && crypto_market_open) {
+            xSemaphoreGive(_assets_mutex);
             return true;
         }
         // For stocks and indices, check their specific market hours.
@@ -872,10 +912,12 @@ bool StockManager::isMarketOpen() const {
         if (asset.type == STOCK || asset.type == INDEX) {
             const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
             if (isStockMarketOpen(tz)) {
+                xSemaphoreGive(_assets_mutex);
                 return true;
             }
         }
     }
+    xSemaphoreGive(_assets_mutex);
     return false;
 }
 
@@ -917,12 +959,14 @@ void StockManager::saveAssets() {
     // Create a JSON document to hold the assets
     JsonDocument doc;
     JsonArray assetsArray = doc.to<JsonArray>();
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
         JsonObject assetObj = assetsArray.add<JsonObject>();
         assetObj["symbol"] = asset.symbol;
         assetObj["type"] = (int)asset.type;
         assetObj["timezone"] = asset.timezone;
     }
+    xSemaphoreGive(_assets_mutex);
 
     String jsonString;
     serializeJson(doc, jsonString);
@@ -946,6 +990,7 @@ void StockManager::loadAssets() {
         return;
     }
 
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     JsonArray assetsArray = doc.as<JsonArray>();
     _assets.clear();
     for (JsonObject assetObj : assetsArray) {
@@ -955,5 +1000,7 @@ void StockManager::loadAssets() {
         newAsset.timezone = assetObj["timezone"].as<String>();
         _assets.push_back(newAsset);
     }
-    Log_printf(LOG_LEVEL_INFO, "Loaded %d stock assets from NVS.", _assets.size());
+    int numLoaded = _assets.size();
+    xSemaphoreGive(_assets_mutex);
+    Log_printf(LOG_LEVEL_INFO, "Loaded %d stock assets from NVS.", numLoaded);
 }
