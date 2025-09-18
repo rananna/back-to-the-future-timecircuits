@@ -556,8 +556,6 @@ void setupWebRoutes() {
         assetObj["price"] = asset.price;
         assetObj["change_percent"] = asset.change_percent;
         assetObj["data_valid"] = asset.data_valid;
-        assetObj["type"] = (int)asset.type;
-        assetObj["timezone"] = asset.timezone;
     }
     String jsonString;
     serializeJson(doc, jsonString);
@@ -565,6 +563,10 @@ void setupWebRoutes() {
   });
 
   server.on("/api/stocks/marquee", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!currentSettings.stockTickerModeEnabled || currentSettings.financialModelingPrepApiKey.isEmpty()) {
+        request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled or API key is not set.\"}");
+        return;
+    }
     String marqueeLine = stockManager.getMarqueeLine();
     JsonDocument doc;
     doc["marqueeText"] = marqueeLine;
@@ -900,6 +902,10 @@ void setupWebRoutes() {
   });
 
   server.on("/api/stocks", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!currentSettings.stockTickerModeEnabled || currentSettings.financialModelingPrepApiKey.isEmpty()) {
+        request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled or API key is not set.\"}");
+        return;
+    }
     JsonDocument doc;
     JsonArray assets = doc.to<JsonArray>();
     for (const auto& asset : stockManager.getAssets()) {
@@ -909,6 +915,8 @@ void setupWebRoutes() {
         assetObj["price"] = asset.price;
         assetObj["change_percent"] = asset.change_percent;
         assetObj["data_valid"] = asset.data_valid;
+        assetObj["type"] = (int)asset.type;
+        assetObj["timezone"] = asset.timezone;
     }
     String jsonString;
     serializeJson(doc, jsonString);
