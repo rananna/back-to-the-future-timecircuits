@@ -225,24 +225,36 @@ void updateStockTickerDisplay() {
         static bool isBufferDirty = true;
         static int scrollPosition = 0;
         static unsigned long lastScrollTime = 0;
+        static unsigned long lastPageChangeTime = 0;
+        const unsigned long pageChangeInterval = 5000; // 5 seconds per page
+
+        // Check if it's time to advance to the next page/stock
+        if (millis() - lastPageChangeTime > pageChangeInterval) {
+            stockManager.nextPage();
+            isBufferDirty = true; // Mark buffer as dirty to fetch new marquee line
+            lastPageChangeTime = millis();
+        }
 
         String marqueeLine = stockManager.getMarqueeLine();
 
-        // A simple dirty check. A more robust solution might be needed.
-        if (stockMarqueeBuffer != marqueeLine.c_str()) {
-            isBufferDirty = true;
-        }
-
+        // If the line has changed (e.g. nextPage was called), rebuild the buffer
         if (isBufferDirty) {
             if (marqueeLine.length() > 13) {
+                // Pad for scrolling
                 stockMarqueeBuffer = "  " + std::string(marqueeLine.c_str()) + "  ";
             } else {
-                stockMarqueeBuffer = marqueeLine.c_str();
+                // Center the text if it fits
+                int padding = (13 - marqueeLine.length()) / 2;
+                String paddedLine = "";
+                for(int i=0; i<padding; i++) paddedLine += " ";
+                paddedLine += marqueeLine;
+                stockMarqueeBuffer = paddedLine.c_str();
             }
             scrollPosition = 0;
             isBufferDirty = false;
         }
 
+        // Handle scrolling animation
         if (millis() - lastScrollTime > 150) { // Scroll speed
             lastScrollTime = millis();
 
@@ -250,6 +262,7 @@ void updateStockTickerDisplay() {
             const char* viewport = viewport_str.c_str();
 
             if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                // Update the last row displays with the viewport
                 printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 0);
                 printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 0);
                 printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
@@ -263,10 +276,11 @@ void updateStockTickerDisplay() {
                 xSemaphoreGive(xDisplayHardwareMutex);
             }
 
+            // Move scroll position for next frame
             if (stockMarqueeBuffer.length() > 13) {
                 scrollPosition++;
                 if (scrollPosition > stockMarqueeBuffer.length() - 13) {
-                    scrollPosition = 0;
+                    scrollPosition = 0; // Loop back
                 }
             }
         }

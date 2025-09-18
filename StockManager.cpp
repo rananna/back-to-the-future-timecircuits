@@ -551,6 +551,18 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
         if (http_status != 200) {
             Log_printf(LOG_LEVEL_WARN, "Stock HTTP request failed with code %d.", http_status);
+            if (http_status == 401 || http_status == 403) {
+                // Mark all assets as invalid due to API key error
+                for (const auto& symbol : symbols) {
+                    auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
+                        return asset.symbol.equalsIgnoreCase(symbol);
+                    });
+                    if (it != _assets.end()) {
+                        it->data_valid = false;
+                        it->error_reason = "INVALID API KEY";
+                    }
+                }
+            }
             if (http_status == 429) {
                 status = FETCH_RATE_LIMITED;
             } else {
