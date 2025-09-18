@@ -271,7 +271,9 @@ static bool fetchWeatherDataFromApi() {
         if (ret < 0) {
             Log_printf(LOG_LEVEL_ERROR, "Failed to create TLS connection. esp_tls_conn_new_sync returned: %d", ret);
             int esp_tls_code, esp_tls_flags;
-            esp_err_t err = esp_tls_get_and_clear_last_error(tls, &esp_tls_code, &esp_tls_flags);
+            esp_tls_error_handle_t esp_tls_error_handle;
+            esp_tls_get_error_handle(tls, &esp_tls_error_handle);
+            esp_err_t err = esp_tls_get_and_clear_last_error(esp_tls_error_handle, &esp_tls_code, &esp_tls_flags);
             if (err == ESP_OK) {
                 Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
             }
@@ -300,7 +302,9 @@ static bool fetchWeatherDataFromApi() {
     if (esp_tls_conn_write(tls, request, strlen(request)) < 0) {
         Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed. Cleaning up connection.");
         int esp_tls_code, esp_tls_flags;
-        esp_err_t err = esp_tls_get_and_clear_last_error(tls, &esp_tls_code, &esp_tls_flags);
+        esp_tls_error_handle_t esp_tls_error_handle;
+        esp_tls_get_error_handle(tls, &esp_tls_error_handle);
+        esp_err_t err = esp_tls_get_and_clear_last_error(esp_tls_error_handle, &esp_tls_code, &esp_tls_flags);
         if (err == ESP_OK) {
             Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
         }
