@@ -259,6 +259,8 @@ static const char *fmp_root_ca = \
 "akcjMS9cmvqtmg5iUaQqqcT5NJ0hGA==\n" \
 "-----END CERTIFICATE-----\n";
 
+#include <Preferences.h>
+
 StockManager::StockManager() :
     _api_key(""),
     _refresh_interval_ms(2 * 60 * 1000), // Default 2 minutes
@@ -274,6 +276,7 @@ StockManager::StockManager() :
 
 void StockManager::begin() {
     Log_printf(LOG_LEVEL_INFO, "StockManager initialized.");
+    loadAssets();
 }
 
 void StockManager::loop() {
@@ -905,4 +908,52 @@ bool isStockMarketOpen(const char* tz_string) {
 
 bool StockManager::isCryptoMarketOpen() const {
     return true; // Crypto market is 24/7
+}
+
+void StockManager::saveAssets() {
+    Preferences preferences;
+    preferences.begin("stock-assets", false);
+
+    // Create a JSON document to hold the assets
+    JsonDocument doc;
+    JsonArray assetsArray = doc.to<JsonArray>();
+    for (const auto& asset : _assets) {
+        JsonObject assetObj = assetsArray.add<JsonObject>();
+        assetObj["symbol"] = asset.symbol;
+        assetObj["type"] = (int)asset.type;
+        assetObj["timezone"] = asset.timezone;
+    }
+
+    String jsonString;
+    serializeJson(doc, jsonString);
+
+    preferences.putString("assets", jsonString);
+    preferences.end();
+    Log_printf(LOG_LEVEL_INFO, "Saved stock assets to NVS.");
+}
+
+void StockManager::loadAssets() {
+    Preferences preferences;
+    preferences.begin("stock-assets", true);
+    String jsonString = preferences.getString("assets", "[]");
+    preferences.end();
+
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, jsonString);
+
+    if (error) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to parse saved assets: %s", error.c_str());
+        return;
+    }
+
+    JsonArray assetsArray = doc.as<JsonArray>();
+    _assets.clear();
+    for (JsonObject assetObj : assetsArray) {
+        Asset newAsset;
+        newAsset.symbol = assetObj["symbol"].as<String>();
+        newAsset.type = (AssetType)assetObj["type"].as<int>();
+        newAsset.timezone = assetObj["timezone"].as<String>();
+        _assets.push_back(newAsset);
+    }
+    Log_printf(LOG_LEVEL_INFO, "Loaded %d stock assets from NVS.", _assets.size());
 }
