@@ -464,6 +464,29 @@ void setupWebRoutes() {
     request->send(200, "application/json", jsonString);
   });
 
+  server.on("/api/stocks", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!currentSettings.stockTickerModeEnabled || stockManager.getAssets().empty()) {
+        request->send(200, "application/json", "[]");
+        return;
+    }
+
+    JsonDocument doc;
+    JsonArray assets = doc.to<JsonArray>();
+    for (const auto& asset : stockManager.getAssets()) {
+        JsonObject assetObj = assets.add<JsonObject>();
+        assetObj["symbol"] = asset.symbol;
+        assetObj["name"] = asset.name;
+        assetObj["price"] = asset.price;
+        assetObj["change_percent"] = asset.change_percent;
+        assetObj["data_valid"] = asset.data_valid;
+        assetObj["type"] = (int)asset.type;
+        assetObj["timezone"] = asset.timezone;
+    }
+    String jsonString;
+    serializeJson(doc, jsonString);
+    request->send(200, "application/json", jsonString);
+  });
+
   AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
     if (obj["symbol"].isNull()) {
@@ -571,7 +594,11 @@ void setupWebRoutes() {
 
   server.on("/api/stocks/marquee", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!currentSettings.stockTickerModeEnabled || currentSettings.financialModelingPrepApiKey.empty()) {
-        request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled or API key is not set.\"}");
+        JsonDocument doc;
+        doc["marqueeText"] = "Stock Ticker Mode is disabled or API key is not set.";
+        String jsonString;
+        serializeJson(doc, jsonString);
+        request->send(200, "application/json", jsonString);
         return;
     }
     String marqueeLine = stockManager.getMarqueeLine();
