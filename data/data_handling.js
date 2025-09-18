@@ -503,9 +503,15 @@ async function saveSettings() {
         return;
     }
 
-    settings.stockRow1_symbol = getValue('stockRow1_symbol');
-    settings.stockRow2_symbol = getValue('stockRow2_symbol');
-    settings.stockRow3_symbol = getValue('stockRow3_symbol');
+    const stockAssets = [];
+    document.querySelectorAll('#stockAssetList .asset-item').forEach(item => {
+        stockAssets.push({
+            symbol: item.dataset.symbol,
+            type: parseInt(item.dataset.type, 10),
+            timezone: item.dataset.timezone
+        });
+    });
+    settings.stockAssets = stockAssets;
 
     if (settings.dataLinkEnabled) {
         const numDataPoints = getIntValue('numDataPoints', 0);
@@ -1051,15 +1057,39 @@ async function addStockAsset() {
 
         const result = await response.json();
         if (result.status === 'success') {
-            input.value = '';
+            symbolInput.value = '';
             showMessage(`Asset ${symbol} added.`, 'success');
-            await loadStockAssets();
+            renderStockAssets(result.assets); // Directly render the returned list
         } else {
             throw new Error(result.message || 'Failed to add asset.');
         }
     } catch (error) {
         console.error('Error adding asset:', error);
         showMessage(`Error: ${error.message}`, 'error');
+    }
+}
+
+async function updateStockMarqueePreview() {
+    if (!document.getElementById('stockTickerModeEnabled').checked) {
+        const previewEl = document.getElementById('stockMarqueePreview');
+        if (previewEl) {
+            previewEl.textContent = 'Stock Ticker Mode is disabled.';
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/stocks/marquee');
+        if (!response.ok) {
+            throw new Error('Failed to fetch marquee preview');
+        }
+        const data = await response.json();
+        const previewEl = document.getElementById('stockMarqueePreview');
+        if (previewEl) {
+            previewEl.textContent = data.marqueeText;
+        }
+    } catch (error) {
+        console.error('Error updating stock marquee preview:', error);
     }
 }
 
