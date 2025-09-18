@@ -707,7 +707,7 @@ void setupWebRoutes() {
     // The main save logic is in the main loop, but we need to update the
     // stock manager's state immediately so the UI feels responsive.
     JsonObject obj = json.as<JsonObject>();
-    if (obj.containsKey("stockAssets")) {
+    if (!obj["stockAssets"].isNull()) {
         JsonArray assets = obj["stockAssets"].as<JsonArray>();
         stockManager.clearAssets(); // Clear the existing list
         for (JsonVariant v : assets) {
@@ -741,7 +741,7 @@ void setupWebRoutes() {
     request->send(200, "text/plain", "Settings Save Queued!");
 
     // The actual saving and animation trigger now happens in the main loop.
-  }, 8192);
+  });
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){
