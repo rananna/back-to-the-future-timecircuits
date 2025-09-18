@@ -397,7 +397,8 @@ static bool fetchWeatherDataFromApi() {
             Log_printf(LOG_LEVEL_WARN, "Server response preview: %s", preview_buf);
         }
 
-        cleanupWeatherConnection();
+        // Do not clean up the connection for HTTP errors; the connection itself is likely fine.
+        // The calling function will handle the retry logic.
         return false;
     }
 
@@ -528,7 +529,7 @@ static bool fetchWeatherDataFromApi() {
             // This block handles cases where the API returns a valid JSON with an error message.
             const char* reason = doc["reason"].as<const char*>();
             Log_printf(LOG_LEVEL_WARN, "Unified Weather API returned an error: %s", reason);
-            cleanupWeatherConnection();
+            // Do not clean up the connection for API-level errors. The connection is healthy.
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 currentWeatherData.errorReason = reason;
                 xSemaphoreGive(xDisplayDataMutex);
@@ -538,7 +539,7 @@ static bool fetchWeatherDataFromApi() {
     } else {
         // This block handles JSON parsing errors.
         Log_printf(LOG_LEVEL_WARN, "Failed to parse Unified Weather JSON. E: %s", error.c_str());
-        cleanupWeatherConnection();
+        // Do not clean up the connection for parsing errors. The data is bad, not the connection.
         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
             currentWeatherData.errorReason = "WEATHER PARSING FAILED";
             xSemaphoreGive(xDisplayDataMutex);
