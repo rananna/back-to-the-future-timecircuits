@@ -150,6 +150,9 @@ struct ClockSettings {
     int theme;
     int dataLinkTargetRow;
     std::string stockAssetsJson;
+    std::string stockRow1_symbol;
+    std::string stockRow2_symbol;
+    std::string stockRow3_symbol;
 };
 
 struct StockData {
