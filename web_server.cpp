@@ -786,6 +786,7 @@ void setupWebRoutes() {
     // Explicitly update the stock manager's API key.
     if (!obj["financialModelingPrepApiKey"].isNull()) {
         stockManager.setApiKey(obj["financialModelingPrepApiKey"].as<String>());
+        stockManager.saveAssets();
     }
     // --- END: MODIFICATION ---
   });
@@ -912,10 +913,11 @@ void setupWebRoutes() {
   });
 
   server.on("/api/stocks", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!currentSettings.stockTickerModeEnabled || currentSettings.financialModelingPrepApiKey.empty()) {
-        request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled or API key is not set.\"}");
+    if (!currentSettings.stockTickerModeEnabled || stockManager.getAssets().empty()) {
+        request->send(200, "application/json", "[]");
         return;
     }
+
     JsonDocument doc;
     JsonArray assets = doc.to<JsonArray>();
     for (const auto& asset : stockManager.getAssets()) {

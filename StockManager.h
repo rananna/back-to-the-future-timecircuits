@@ -70,6 +70,8 @@ public:
     void setApiKey(const String& key);
     void setRefreshInterval(unsigned long interval); // in minutes
     void setEnabled(bool enabled);
+    void saveAssets();
+    void loadAssets();
 
     // Status
     int getApiUsage() const;
