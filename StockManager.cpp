@@ -650,41 +650,43 @@ void StockManager::fetchBatchData(const std::vector<String>& symbols, AssetType 
 
 void StockManager::parseJsonResponse(JsonDocument& doc, AssetType type, const std::vector<String>& requested_symbols) {
     JsonArray array = doc.as<JsonArray>();
-    if (array.isNull()) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to parse JSON response: not an array.");
-        return;
-    }
 
+    // Create a temporary list of received symbols for efficient lookup.
     std::vector<String> received_symbols;
-    for (JsonObject quote : array) {
-        String symbol = quote["symbol"];
-        if (symbol.isEmpty()) {
-            continue;
-        }
-        received_symbols.push_back(symbol);
+    if (!array.isNull()) {
+        for (JsonObject quote : array) {
+            String symbol = quote["symbol"];
+            if (symbol.isEmpty()) {
+                continue;
+            }
+            received_symbols.push_back(symbol);
 
-        auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
-            return asset.symbol.equalsIgnoreCase(symbol);
-        });
+            auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
+                return asset.symbol.equalsIgnoreCase(symbol);
+            });
 
-        if (it != _assets.end()) {
-            it->price = quote["price"].as<float>();
-            it->change_percent = quote["changesPercentage"].as<float>();
-            it->day_high = quote["dayHigh"].as<float>();
-            it->day_low = quote["dayLow"].as<float>();
-            it->volume = quote["volume"].as<unsigned long>();
-            it->name = quote["name"].as<String>();
-            it->currency = quote["currency"].as<String>();
-            it->last_update = millis();
-            it->data_valid = true;
-            it->error_reason = ""; // Clear previous error
-            Log_printf(LOG_LEVEL_INFO, "Updated data for %s", symbol.c_str());
-        } else {
-            Log_printf(LOG_LEVEL_WARN, "Received data for untracked symbol: %s", symbol.c_str());
+            if (it != _assets.end()) {
+                it->price = quote["price"].as<float>();
+                it->change_percent = quote["changesPercentage"].as<float>();
+                it->day_high = quote["dayHigh"].as<float>();
+                it->day_low = quote["dayLow"].as<float>();
+                it->volume = quote["volume"].as<unsigned long>();
+                it->name = quote["name"].as<String>();
+                it->currency = quote["currency"].as<String>();
+                it->last_update = millis();
+                it->data_valid = true;
+                it->error_reason = ""; // Clear previous error
+                Log_printf(LOG_LEVEL_INFO, "Updated data for %s", symbol.c_str());
+            } else {
+                Log_printf(LOG_LEVEL_WARN, "Received data for untracked symbol: %s", symbol.c_str());
+            }
         }
+    } else {
+        Log_printf(LOG_LEVEL_WARN, "JSON response was null or not an array. Assuming all requested symbols are invalid.");
     }
 
-    // Now, check for requested symbols that were not in the response
+    // Now, iterate through the originally requested symbols and mark any that were not in the response as invalid.
+    // This ensures that symbols that result in an empty or malformed response are correctly handled.
     for (const auto& req_sym : requested_symbols) {
         bool found = false;
         for (const auto& rec_sym : received_symbols) {
@@ -700,7 +702,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, AssetType type, const st
             if (it != _assets.end()) {
                 it->data_valid = false;
                 it->error_reason = "INVALID";
-                Log_printf(LOG_LEVEL_WARN, "Symbol %s requested but not found in response. Marked as invalid.", req_sym.c_str());
+                Log_printf(LOG_LEVEL_WARN, "Symbol %s requested but not found in API response. Marked as invalid.", req_sym.c_str());
             }
         }
     }
