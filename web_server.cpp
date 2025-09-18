@@ -341,7 +341,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 }
                 Log_printf(LOG_LEVEL_DEBUG, "Stock URL created: %s", url.c_str());
 
-                ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex};
+                ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", String(rowIndex)};
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
                     delete params;
@@ -367,7 +367,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String authValue = doc["data"]["authValue"];
                  Log_printf(LOG_LEVEL_DEBUG, "API Test URL: %s", url.c_str());
 
-                ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id(), "apiResult", 0};
+                ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id(), "apiResult", String(0)};
 
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
@@ -563,7 +563,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/stocks/marquee", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!currentSettings.stockTickerModeEnabled || currentSettings.financialModelingPrepApiKey.isEmpty()) {
+    if (!currentSettings.stockTickerModeEnabled || currentSettings.financialModelingPrepApiKey.empty()) {
         request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled or API key is not set.\"}");
         return;
     }
@@ -774,7 +774,7 @@ void setupWebRoutes() {
     // The actual saving and animation trigger now happens in the main loop.
     // --- START: MODIFICATION - Set Stock Manager API Key ---
     // Explicitly update the stock manager's API key.
-    if (obj.containsKey("financialModelingPrepApiKey")) {
+    if (!obj["financialModelingPrepApiKey"].isNull()) {
         stockManager.setApiKey(obj["financialModelingPrepApiKey"].as<String>());
     }
     // --- END: MODIFICATION ---
@@ -902,7 +902,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/stocks", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!currentSettings.stockTickerModeEnabled || currentSettings.financialModelingPrepApiKey.isEmpty()) {
+    if (!currentSettings.stockTickerModeEnabled || currentSettings.financialModelingPrepApiKey.empty()) {
         request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled or API key is not set.\"}");
         return;
     }
