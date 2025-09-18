@@ -145,6 +145,47 @@ void testDecimalPointFlashing();
 void handleScheduledAnimation();
 
 // --- GLOBAL DATA STRUCTURES & SETTINGS ---
+struct ClockSettings {
+    int destinationYear;
+    int destinationTimezoneIndex;
+    int lastTimeDepartedYear;
+    int lastTimeDepartedMonth;
+    int lastTimeDepartedDay;
+    int lastTimeDepartedHour;
+    int lastTimeDepartedMinute;
+    int presentTimezoneIndex;
+    int departureHour;
+    int departureMinute;
+    int arrivalHour;
+    int arrivalMinute;
+    uint8_t brightness;
+    uint8_t notificationVolume;
+    int timeTravelAnimationDuration;
+    int timeTravelAnimationInterval;
+    int animationStyle;
+    bool timeTravelSoundToggle;
+    int presetCycleInterval;
+    bool displayFormat24h;
+    bool dataLinkEnabled;
+    int dataLinkRefreshInterval;
+    int numDataPoints;
+    std::string mqttBroker;
+    int mqttPort;
+    std::string mqttUser;
+    std::string mqttPassword;
+    bool weatherModeEnabled;
+    std::string cityName;
+    bool useMetricUnits;
+    float latitude;
+    float longitude;
+    bool stockTickerModeEnabled;
+    std::string financialModelingPrepApiKey;
+    DataPoint dataPoints[5];
+    int theme;
+    int dataLinkTargetRow;
+    std::string stockAssetsJson;
+};
+
 ClockSettings currentSettings;        // Holds all user-configurable settings for the clock.
 MarqueeData displayPages[5];          // An array to hold the content for the 5 pages of the Data Link marquee.
 MarqueeData lastGoodDisplayPages[5];  // A backup of the last valid marquee data to prevent displaying corrupted info.
@@ -441,9 +482,9 @@ void applySettingsFromJson(const JsonObject& obj) {
     if (!obj["financialModelingPrepApiKey"].isNull()) {
         currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
     }
-    if (!obj["stockRow1_symbol"].isNull()) currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
-    if (!obj["stockRow2_symbol"].isNull()) currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
-    if (!obj["stockRow3_symbol"].isNull()) currentSettings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
+    if (!obj["stockAssetsJson"].isNull()) {
+        currentSettings.stockAssetsJson = obj["stockAssetsJson"].as<std::string>();
+    }
 
     int numPoints = obj["numDataPoints"] | 0;
     currentSettings.numDataPoints = (numPoints < 0) ? 0 : (numPoints > 5 ? 5 : numPoints);
@@ -603,20 +644,7 @@ void saveSettings() {
     }
 
     SAVE_STRING_IF_CHANGED("fmpApiKey", currentSettings.financialModelingPrepApiKey);
-
-    // Serialize stock assets to JSON
-    JsonDocument doc;
-    JsonArray assetsArray = doc.to<JsonArray>();
-    for (const auto& asset : stockManager.getAssets()) {
-        JsonObject assetObj = assetsArray.add<JsonObject>();
-        assetObj["symbol"] = asset.symbol;
-        assetObj["type"] = static_cast<int>(asset.type);
-        assetObj["timezone"] = asset.timezone;
-    }
-    String assetsJson;
-    serializeJson(doc, assetsJson);
-    preferences.putString("stockAssets", assetsJson);
-    Log_printf(LOG_LEVEL_DEBUG, "SAVING: stockAssets -> %s", assetsJson.c_str());
+    SAVE_STRING_IF_CHANGED("stockAssets", currentSettings.stockAssetsJson);
 
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
@@ -701,6 +729,7 @@ void loadSettings() {
 		currentSettings.longitude = -74.0060;
 		currentSettings.stockTickerModeEnabled = false;
 		currentSettings.financialModelingPrepApiKey = "";
+        currentSettings.stockAssetsJson = "[]";
         stockManager.clearAssets();
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
@@ -755,9 +784,9 @@ void loadSettings() {
 
         // Load stock assets from JSON
         stockManager.clearAssets();
-        String assetsJson = preferences.getString("stockAssets", "[]");
+        currentSettings.stockAssetsJson = preferences.getString("stockAssets", "[]").c_str();
         JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, assetsJson);
+        DeserializationError error = deserializeJson(doc, currentSettings.stockAssetsJson);
         if (!error) {
             JsonArray assets = doc.as<JsonArray>();
             for (JsonObject assetObj : assets) {

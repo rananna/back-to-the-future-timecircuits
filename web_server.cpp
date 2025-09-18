@@ -445,12 +445,10 @@ void setupWebRoutes() {
     }
 
     String symbol = obj["symbol"];
-    AssetType type = obj["type"].as<AssetType>();
+    AssetType type = (AssetType)obj["type"].as<int>();
     String timezone = obj["timezone"];
 
     if (stockManager.addAsset(symbol, type)) {
-        // Find the newly added asset and set its timezone
-        // This is not ideal, but it's the simplest way without changing the StockManager interface further
         auto& assets = const_cast<std::vector<Asset>&>(stockManager.getAssets());
         auto it = std::find_if(assets.begin(), assets.end(), [&](const Asset& asset) {
             return asset.symbol.equalsIgnoreCase(symbol);
@@ -459,7 +457,24 @@ void setupWebRoutes() {
             it->timezone = timezone;
         }
 
-        request->send(200, "application/json", "{\"status\":\"success\"}");
+        // Instead of just success, send back the updated list of assets
+        JsonDocument doc;
+        doc["status"] = "success";
+        JsonArray assetsArray = doc["assets"].to<JsonArray>();
+        for (const auto& asset : stockManager.getAssets()) {
+            JsonObject assetObj = assetsArray.add<JsonObject>();
+            assetObj["symbol"] = asset.symbol;
+            assetObj["name"] = asset.name;
+            assetObj["price"] = asset.price;
+            assetObj["change_percent"] = asset.change_percent;
+            assetObj["data_valid"] = asset.data_valid;
+            assetObj["type"] = (int)asset.type;
+            assetObj["timezone"] = asset.timezone;
+        }
+        String jsonString;
+        serializeJson(doc, jsonString);
+        request->send(200, "application/json", jsonString);
+
     } else {
         request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Asset already exists or invalid.\"}");
     }
@@ -515,6 +530,15 @@ void setupWebRoutes() {
         assetObj["change_percent"] = asset.change_percent;
         assetObj["data_valid"] = asset.data_valid;
     }
+    String jsonString;
+    serializeJson(doc, jsonString);
+    request->send(200, "application/json", jsonString);
+  });
+
+  server.on("/api/stocks/marquee", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String marqueeLine = stockManager.getMarqueeLine();
+    JsonDocument doc;
+    doc["marqueeText"] = marqueeLine;
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
@@ -679,6 +703,33 @@ void setupWebRoutes() {
     // This handler is now asynchronous. It just captures the settings and flags
     // the main loop to perform the save, then immediately responds to the client.
     
+    // --- START: Stock Asset Handling ---
+    // The main save logic is in the main loop, but we need to update the
+    // stock manager's state immediately so the UI feels responsive.
+    JsonObject obj = json.as<JsonObject>();
+    if (obj.containsKey("stockAssets")) {
+        JsonArray assets = obj["stockAssets"].as<JsonArray>();
+        stockManager.clearAssets(); // Clear the existing list
+        for (JsonVariant v : assets) {
+            JsonObject assetObj = v.as<JsonObject>();
+            String symbol = assetObj["symbol"];
+            AssetType type = (AssetType)assetObj["type"].as<int>();
+            String timezone = assetObj["timezone"];
+            if (!symbol.isEmpty()) {
+                stockManager.addAsset(symbol, type);
+                // Set timezone on the newly added asset
+                 auto& asset_list = const_cast<std::vector<Asset>&>(stockManager.getAssets());
+                 auto it = std::find_if(asset_list.begin(), asset_list.end(), [&](const Asset& a) {
+                     return a.symbol.equalsIgnoreCase(symbol);
+                 });
+                 if (it != asset_list.end()) {
+                     it->timezone = timezone;
+                 }
+            }
+        }
+    }
+    // --- END: Stock Asset Handling ---
+
     // Re-serialize the parsed JSON from the request back into our global string buffer.
     settingsToSaveJson = ""; // Clear any previous data.
     serializeJson(json, settingsToSaveJson);
@@ -690,7 +741,7 @@ void setupWebRoutes() {
     request->send(200, "text/plain", "Settings Save Queued!");
 
     // The actual saving and animation trigger now happens in the main loop.
-  }); // The 8192 buffer size is still needed to receive the large JSON payload.
+  }, 8192);
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){
