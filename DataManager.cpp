@@ -271,7 +271,7 @@ static bool fetchWeatherDataFromApi() {
         if (ret < 0) {
             Log_printf(LOG_LEVEL_ERROR, "Failed to create TLS connection. esp_tls_conn_new_sync returned: %d", ret);
             int esp_tls_code, esp_tls_flags;
-            esp_err_t err = esp_tls_get_and_clear_last_error(tls->error_handle, &esp_tls_code, &esp_tls_flags);
+            esp_err_t err = esp_tls_get_and_clear_last_error(tls, &esp_tls_code, &esp_tls_flags);
             if (err == ESP_OK) {
                 Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
             }
@@ -300,7 +300,7 @@ static bool fetchWeatherDataFromApi() {
     if (esp_tls_conn_write(tls, request, strlen(request)) < 0) {
         Log_printf(LOG_LEVEL_ERROR, "esp_tls_conn_write failed. Cleaning up connection.");
         int esp_tls_code, esp_tls_flags;
-        esp_err_t err = esp_tls_get_and_clear_last_error(tls->error_handle, &esp_tls_code, &esp_tls_flags);
+        esp_err_t err = esp_tls_get_and_clear_last_error(tls, &esp_tls_code, &esp_tls_flags);
         if (err == ESP_OK) {
             Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
         }
@@ -412,7 +412,7 @@ static bool fetchWeatherDataFromApi() {
     size_t body_part_len = header_len - (body_start_ptr - header_buf);
 
     TlsStream tls_stream(tls);
-    CombinedStream combined_stream(body_part_ptr, body_part_len, tls_stream);
+    CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
 
     JsonDocument filter;
     filter["timezone"] = true;
@@ -534,6 +534,9 @@ static bool fetchWeatherDataFromApi() {
                 xSemaphoreGive(xDisplayDataMutex);
                 return true; // Success
             }
+            // This path should ideally not be reached with portMAX_DELAY, but as a safeguard:
+            Log_printf(LOG_LEVEL_ERROR, "Could not obtain display data mutex, weather data processing aborted.");
+            return false;
         } else {
             // This block handles cases where the API returns a valid JSON with an error message.
             const char* reason = doc["reason"].as<const char*>();
