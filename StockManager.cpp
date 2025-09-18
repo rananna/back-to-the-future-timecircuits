@@ -7,9 +7,6 @@
 
 extern bool timeSynchronized;
 
-// Forward declaration for the cleanup function
-void cleanupStockConnection();
-
 // A simple Stream implementation for esp_tls
 class TlsStream : public Stream {
 private:
@@ -232,9 +229,6 @@ public:
     }
 };
 
-// Static TLS connection handle
-static esp_tls_t *tls_stock = NULL;
-
 // Root CA certificate for financialmodelingprep.com (Amazon Root CA 1)
 static const char *fmp_root_ca = \
 "-----BEGIN CERTIFICATE-----\n" \
@@ -276,14 +270,6 @@ StockManager::StockManager() :
     _api_usage_count(0),
     _running_tasks(0) {
     _task_mutex = xSemaphoreCreateMutex();
-}
-
-void cleanupStockConnection() {
-    if (tls_stock) {
-        esp_tls_conn_destroy(tls_stock);
-        tls_stock = NULL;
-        Log_printf(LOG_LEVEL_DEBUG, "Stock TLS connection cleaned up.");
-    }
 }
 
 void StockManager::begin() {
@@ -450,46 +436,45 @@ void StockManager::fetchData() {
 }
 
 FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbols, AssetType type) {
+    esp_tls_t *tls_stock = esp_tls_init();
     if (!tls_stock) {
-        esp_tls_cfg_t cfg = {};
-        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
-        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
-        cfg.timeout_ms = 5000;
-
-        tls_stock = esp_tls_init();
-        if (tls_stock == NULL) {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to allocate stock TLS handle.");
-            return FETCH_CONNECTION_FAILED;
-        }
-
-        const char *hostname = "financialmodelingprep.com";
-        int ret = esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls_stock);
-        if (ret < 0) {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to create stock TLS connection. esp_tls_conn_new_sync returned: %d", ret);
-            esp_tls_conn_destroy(tls_stock);
-            tls_stock = NULL;
-            return FETCH_CONNECTION_FAILED;
-        }
-        Log_printf(LOG_LEVEL_DEBUG, "Stock TLS connection established.");
+        Log_printf(LOG_LEVEL_ERROR, "Failed to allocate stock TLS handle.");
+        return FETCH_CONNECTION_FAILED;
     }
+
+    esp_tls_cfg_t cfg = {};
+    cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
+    cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+    cfg.timeout_ms = 10000; // Increased timeout for connection
+
+    const char *hostname = "financialmodelingprep.com";
+    if (esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls_stock) < 0) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to create stock TLS connection.");
+        esp_tls_conn_destroy(tls_stock);
+        return FETCH_CONNECTION_FAILED;
+    }
+
+    Log_printf(LOG_LEVEL_DEBUG, "Stock TLS connection established.");
 
     String symbols_str = "";
     for (const auto& s : symbols) {
         symbols_str += s + ",";
     }
-    symbols_str.remove(symbols_str.length() - 1);
+    if (symbols_str.length() > 0) {
+        symbols_str.remove(symbols_str.length() - 1);
+    }
 
     char request[512];
     snprintf(request, sizeof(request),
              "GET /api/v3/quote/%s?apikey=%s HTTP/1.1\r\n"
              "Host: financialmodelingprep.com\r\n"
-             "Connection: keep-alive\r\n"
+             "Connection: close\r\n" // Use close instead of keep-alive
              "\r\n",
              symbols_str.c_str(), _api_key.c_str());
 
     if (esp_tls_conn_write(tls_stock, request, strlen(request)) < 0) {
-        Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_write failed. Cleaning up connection.");
-        cleanupStockConnection();
+        Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_write failed.");
+        esp_tls_conn_destroy(tls_stock);
         return FETCH_CONNECTION_FAILED;
     }
     _api_usage_count++;
@@ -501,8 +486,9 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
     const unsigned long HEADER_TIMEOUT_MS = 10000;
 
     char* body_start_ptr = NULL;
-    bool operation_failed = false;
+    FetchStatus status = FETCH_FAILED; // Default status
 
+    // Read headers and find the body
     while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
         int ret = esp_tls_conn_read(tls_stock,
                                     (unsigned char *)header_buf + header_len,
@@ -511,9 +497,8 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         if (ret < 0) {
             if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
                 Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_read failed: -0x%x", -ret);
-                cleanupStockConnection();
-                operation_failed = true;
-                break;
+                status = FETCH_CONNECTION_FAILED;
+                goto cleanup;
             }
             vTaskDelay(pdMS_TO_TICKS(20));
             continue;
@@ -521,9 +506,8 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
         if (ret == 0) {
             Log_printf(LOG_LEVEL_WARN, "Stock connection closed by peer during header read.");
-            cleanupStockConnection();
-            operation_failed = true;
-            break;
+            status = FETCH_CONNECTION_FAILED;
+            goto cleanup;
         }
 
         header_len += ret;
@@ -536,22 +520,18 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
         if (header_len >= sizeof(header_buf) - 1) {
             Log_printf(LOG_LEVEL_ERROR, "Stock headers too large, aborting.");
-            cleanupStockConnection();
-            operation_failed = true;
-            break;
+            status = FETCH_FAILED;
+            goto cleanup;
         }
-    }
-
-    if (operation_failed) {
-        return FETCH_CONNECTION_FAILED;
     }
 
     if (!body_start_ptr) {
         Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for stock HTTP headers.");
-        cleanupStockConnection();
-        return FETCH_CONNECTION_FAILED;
+        status = FETCH_CONNECTION_FAILED;
+        goto cleanup;
     }
 
+    // Parse HTTP status code
     const char* status_line_start = strstr(header_buf, "HTTP/");
     if (status_line_start) {
         const char* code_start = strchr(status_line_start, ' ');
@@ -563,21 +543,21 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
     if (http_status != 200) {
         Log_printf(LOG_LEVEL_WARN, "Stock HTTP request failed with code %d.", http_status);
         if (http_status == 429) {
-            return FETCH_RATE_LIMITED;
+            status = FETCH_RATE_LIMITED;
+        } else {
+            status = FETCH_FAILED;
         }
-        return FETCH_FAILED;
+        goto cleanup;
     }
 
-    body_start_ptr += 4;
+    // Prepare for JSON parsing
+    body_start_ptr += 4; // Move past the double CRLF
     size_t body_part_len = header_len - (body_start_ptr - header_buf);
 
     TlsStream tls_stream(tls_stock);
     CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
 
-    bool is_chunked = false;
-    if (strcasestr(header_buf, "Transfer-Encoding: chunked")) {
-        is_chunked = true;
-    }
+    bool is_chunked = (strcasestr(header_buf, "Transfer-Encoding: chunked") != NULL);
 
     JsonDocument filter;
     filter[0]["symbol"] = true;
@@ -600,11 +580,16 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
     if (error == DeserializationError::Ok) {
         parseJsonResponse(doc, type, symbols);
-        return FETCH_SUCCESS;
+        status = FETCH_SUCCESS;
     } else {
         Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock JSON for %s: %s", symbols_str.c_str(), error.c_str());
-        return FETCH_FAILED;
+        status = FETCH_FAILED;
     }
+
+cleanup:
+    Log_printf(LOG_LEVEL_DEBUG, "Stock TLS connection closing.");
+    esp_tls_conn_destroy(tls_stock);
+    return status;
 }
 
 void StockManager::fetchBatchData(const std::vector<String>& symbols, AssetType type) {
@@ -823,8 +808,6 @@ void StockManager::setEnabled(bool enabled) {
     _enabled = enabled;
     if (_enabled) {
         _last_fetch_time = 0; // Force fetch on enable
-    } else {
-        cleanupStockConnection();
     }
 }
 
