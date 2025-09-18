@@ -226,7 +226,7 @@ void makeApiRequestTask(void* p) {
     String authValue = params->authValue;
     uint32_t clientId = params->clientId;
     String action = params->action;
-    int rowIndex = params->rowIndex;
+    String rowIndex = params->rowIndex; // Changed to String
     delete params; // Clean up the params object immediately
 
     HTTPClient http;
@@ -243,7 +243,7 @@ void makeApiRequestTask(void* p) {
         String responseString;
         JsonDocument responseJson;
         responseJson["action"] = action;
-        responseJson["rowIndex"] = rowIndex;
+        responseJson["rowIndex"] = rowIndex; // Pass as String
 
         if (httpCode > 0) {
             if (httpCode == HTTP_CODE_OK) {
@@ -274,7 +274,7 @@ void makeApiRequestTask(void* p) {
         String responseString;
         JsonDocument responseJson;
         responseJson["action"] = action;
-        responseJson["rowIndex"] = rowIndex;
+        responseJson["rowIndex"] = rowIndex; // Pass as String
         responseJson["status"] = "error";
         responseJson["payload"] = "Connection Failed. Check URL/DNS.";
         serializeJson(responseJson, responseString);
@@ -373,6 +373,33 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 if (taskCreated != pdPASS) {
                     delete params;
                      Log_printf(LOG_LEVEL_ERROR, "Failed to create API test task!");
+                }
+            } else if (action == "testStock") {
+                Log_printf(LOG_LEVEL_DEBUG, "'testStock' action received.");
+                 if (!timeSynchronized) {
+                    String responseString;
+                    JsonDocument responseJson;
+                    responseJson["action"] = "stockTestResult";
+                    responseJson["status"] = "error";
+                    responseJson["payload"] = "Time not sync'd. Go to System->Sync Time.";
+                    serializeJson(responseJson, responseString);
+                    ws.text(client->id(), responseString);
+                    return;
+                }
+                String symbol = doc["data"]["symbol"];
+                String apiKey = doc["data"]["apiKey"];
+                String rowIndex = doc["data"]["rowIndex"];
+
+                String url = "https://financialmodelingprep.com/api/v3/quote/" + symbol + "?apikey=" + apiKey;
+                Log_printf(LOG_LEVEL_DEBUG, "Stock URL created: %s", url.c_str());
+
+                ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex};
+                BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
+                if (taskCreated != pdPASS) {
+                    delete params;
+                    Log_printf(LOG_LEVEL_ERROR, "Failed to create stock test task!");
+                } else {
+                    Log_printf(LOG_LEVEL_DEBUG, "Stock test task created successfully.");
                 }
             }
         }
@@ -743,6 +770,12 @@ void setupWebRoutes() {
     request->send(200, "text/plain", "Settings Save Queued!");
 
     // The actual saving and animation trigger now happens in the main loop.
+    // --- START: MODIFICATION - Set Stock Manager API Key ---
+    // Explicitly update the stock manager's API key.
+    if (obj.containsKey("financialModelingPrepApiKey")) {
+        stockManager.setApiKey(obj["financialModelingPrepApiKey"].as<String>());
+    }
+    // --- END: MODIFICATION ---
   });
   server.addHandler(saveSettingsHandler);
 

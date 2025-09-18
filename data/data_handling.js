@@ -495,7 +495,7 @@ async function saveSettings() {
     settings.useMetricUnits = getChecked('useMetricUnits');
     
     settings.stockTickerModeEnabled = getChecked('stockTickerModeEnabled');
-    settings.financialModelingPrepApiKey = getValue('alphaVantageApiKey');
+    settings.financialModelingPrepApiKey = getValue('financialModelingPrepApiKey');
 
     if (settings.stockTickerModeEnabled && !settings.financialModelingPrepApiKey) {
         showMessage('FMP API Key is required for Stock Ticker Mode.', 'error');
@@ -930,6 +930,79 @@ function updateStockPreview(status, payload, rowIndex) {
         console.error(`CLIENT_DEBUG: Stock fetch error for row ${rowIndex}:`, errorMsg);
     }
 }
+
+function lookupStockAsset() {
+    const symbol = document.getElementById('addAssetInput').value.trim().toUpperCase();
+    const apiKey = document.getElementById('financialModelingPrepApiKey').value;
+    const button = document.getElementById('lookupAssetBtn');
+
+    if (!symbol) {
+        showMessage('Please enter an asset symbol to look up.', 'error');
+        return;
+    }
+
+    if (!apiKey) {
+        showMessage('Please enter your Financial Modeling Prep API key first.', 'error');
+        return;
+    }
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showMessage('Data Link channel is not open. Please wait.', 'error');
+        return;
+    }
+
+    button.disabled = true;
+    button.classList.add('analyzing');
+    button.innerHTML = '<span class="loading-spinner"></span>';
+
+    const message = {
+        action: "testStock",
+        data: {
+            symbol: symbol,
+            apiKey: apiKey,
+            rowIndex: 'lookup' // Special index for the lookup preview
+        }
+    };
+    ws.send(JSON.stringify(message));
+}
+
+ws.addEventListener('message', function(event) {
+    const msg = JSON.parse(event.data);
+    if (msg.action === 'stockTestResult' && msg.rowIndex === 'lookup') {
+        const button = document.getElementById('lookupAssetBtn');
+        if (button) {
+            button.disabled = false;
+            button.classList.remove('analyzing');
+            button.textContent = 'Lookup';
+        }
+
+        const previewContainer = document.getElementById('assetLookupPreview');
+        const quote = Array.isArray(msg.payload) ? msg.payload[0] : msg.payload;
+
+        if (msg.status === 'success' && quote && typeof quote === 'object' && !quote["Error Message"]) {
+            const price = parseFloat(quote.price).toFixed(2);
+            const change = parseFloat(quote.changesPercentage).toFixed(2);
+            const changeClass = change >= 0 ? 'positive' : 'negative';
+            previewContainer.innerHTML = `
+                <span class="lookup-symbol">${quote.symbol}</span>
+                <span class="lookup-name">${quote.name || ''}</span>
+                <span class="lookup-price">$${price}</span>
+                <span class="lookup-change ${changeClass}">${change}%</span>
+            `;
+            updateStockMarqueePreview();
+        } else {
+            let errorMsg = 'Failed to fetch stock data.';
+             if (typeof msg.payload === 'string') {
+                errorMsg = msg.payload;
+            } else if (quote && quote["Error Message"]) {
+                errorMsg = quote["Error Message"];
+            } else if (quote && quote["Note"]) {
+                 errorMsg = quote["Note"];
+            }
+            previewContainer.innerHTML = `<span class="error-text">Error: ${errorMsg}</span>`;
+        }
+    }
+});
 
 /**
  * Handles the firmware file upload.

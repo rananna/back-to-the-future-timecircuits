@@ -468,6 +468,7 @@ function attachEventListeners() {
     // Use event delegation for the stock fetch buttons. This ensures the click event
     // is handled even if the buttons are added to the DOM after the initial page load.
     document.getElementById('addAssetBtn').onclick = addStockAsset;
+    document.getElementById('lookupAssetBtn').onclick = lookupStockAsset;
     document.getElementById('addAssetInput').addEventListener('input', handleSymbolAutocomplete);
 
     // Number of data points slider

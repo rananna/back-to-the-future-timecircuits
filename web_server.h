@@ -39,7 +39,7 @@ struct ApiTestParams {
     String authValue;
     uint32_t clientId;
     String action;
-    int rowIndex;
+    String rowIndex;
 };
 
 extern JsonVariant getJsonVariant(JsonVariant root, const char* path);
