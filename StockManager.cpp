@@ -18,7 +18,7 @@ public:
     virtual int available() {
         // esp_tls_get_bytes_avail can be unreliable, so we just indicate that data *might* be available.
         // The read() function will handle blocking/timeouts.
-        return 1;
+        return esp_tls_get_bytes_avail(tls);
     }
 
     virtual int read() {
@@ -588,6 +588,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         filter[0]["dayLow"] = true;
         filter[0]["dayHigh"] = true;
         filter[0]["volume"] = true;
+        filter[0]["currency"] = true;
 
         JsonDocument doc;
         DeserializationError error;
@@ -761,23 +762,39 @@ String StockManager::getMarqueeLine() {
         return current_asset.symbol + " NO DATA";
     }
 
-    char buffer[50];
-    String currency_symbol = getCurrencySymbol(current_asset.currency);
+    char buffer[64]; // Increased buffer size for safety
+    String currency_symbol_str = getCurrencySymbol(current_asset.currency);
+    const char* currency_symbol = currency_symbol_str.c_str();
+
     switch (_current_page_index) {
         case 0: // Price and Percentage Change
-            snprintf(buffer, sizeof(buffer), "%s %s%.2f %.2f%%",
-                     current_asset.symbol.c_str(),
-                     currency_symbol.c_str(),
-                     current_asset.price,
-                     current_asset.change_percent);
+            if (current_asset.currency.isEmpty()) {
+                snprintf(buffer, sizeof(buffer), "%s %.2f %.2f%%",
+                         current_asset.symbol.c_str(),
+                         current_asset.price,
+                         current_asset.change_percent);
+            } else {
+                snprintf(buffer, sizeof(buffer), "%s %s%.2f %.2f%%",
+                         current_asset.symbol.c_str(),
+                         currency_symbol,
+                         current_asset.price,
+                         current_asset.change_percent);
+            }
             break;
         case 1: // Day's High and Low
-            snprintf(buffer, sizeof(buffer), "%s H:%s%.2f L:%s%.2f",
-                     current_asset.symbol.c_str(),
-                     currency_symbol.c_str(),
-                     current_asset.day_high,
-                     currency_symbol.c_str(),
-                     current_asset.day_low);
+            if (current_asset.currency.isEmpty()) {
+                snprintf(buffer, sizeof(buffer), "%s H:%.2f L:%.2f",
+                         current_asset.symbol.c_str(),
+                         current_asset.day_high,
+                         current_asset.day_low);
+            } else {
+                snprintf(buffer, sizeof(buffer), "%s H:%s%.2f L:%s%.2f",
+                         current_asset.symbol.c_str(),
+                         currency_symbol,
+                         current_asset.day_high,
+                         currency_symbol,
+                         current_asset.day_low);
+            }
             break;
         case 2: // Trading Volume
             snprintf(buffer, sizeof(buffer), "%s VOL: %lu",
