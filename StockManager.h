@@ -70,8 +70,11 @@ public:
     // Status
     int getApiUsage() const;
     bool isMarketOpen() const;
+    bool hasDataBeenUpdated();
 
 private:
+    void clearDataUpdatedFlag();
+
     std::vector<Asset> _assets;
     String _api_key;
     unsigned long _refresh_interval_ms;
@@ -87,6 +90,7 @@ private:
     SemaphoreHandle_t _task_mutex;
     SemaphoreHandle_t _assets_mutex;
     volatile int _running_tasks;
+    bool _data_updated;
 
     // Private methods
     FetchStatus fetchBatchDataFromApi(const std::vector<String>& symbols);

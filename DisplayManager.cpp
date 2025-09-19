@@ -235,9 +235,14 @@ void updateStockTickerDisplay() {
             lastPageChangeTime = millis();
         }
 
+        // Check for data updates *before* getting the marquee line
+        if (stockManager.hasDataBeenUpdated()) {
+            isBufferDirty = true;
+        }
+
         String marqueeLine = stockManager.getMarqueeLine();
 
-        // If the line has changed (e.g. nextPage was called), rebuild the buffer
+        // If the line has changed (e.g. nextPage was called or data updated), rebuild the buffer
         if (isBufferDirty) {
             if (marqueeLine.length() > 13) {
                 // Pad for scrolling
@@ -252,6 +257,7 @@ void updateStockTickerDisplay() {
             }
             scrollPosition = 0;
             isBufferDirty = false;
+            stockManager.clearDataUpdatedFlag(); // Reset the flag
         }
 
         // Handle scrolling animation
