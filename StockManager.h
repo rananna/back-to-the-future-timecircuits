@@ -19,6 +19,7 @@ struct Asset {
     unsigned long last_update;
     bool data_valid;
     String currency; // e.g., "USD"
+    String exchange; // e.g., "NASDAQ"
     String timezone; // e.g., "EST5EDT,M3.2.0,M11.1.0"
     String error_reason; // To store specific error messages
 
@@ -92,12 +93,17 @@ private:
     volatile int _running_tasks;
     bool _data_updated;
 
+    // Market open cache
+    mutable std::map<String, bool> _market_open_cache;
+    mutable unsigned long _last_market_open_check;
+
+
     // Private methods
+    bool fetchMarketStatusForExchange(const String& exchange) const;
+    String fetchExchangeForSymbol(const String& symbol) const;
     FetchStatus fetchBatchDataFromApi(const std::vector<String>& symbols);
     void fetchBatchData(const std::vector<String>& symbols);
     void parseJsonResponse(JsonDocument& doc, const std::vector<String>& requested_symbols);
 };
-
-bool isStockMarketOpen(const char* tz_string);
 
 #endif // STOCK_MANAGER_H
