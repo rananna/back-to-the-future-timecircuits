@@ -892,13 +892,19 @@ function testDataPoint(event) {
 function updateStockPreview(status, payload, rowIndex) {
     console.log(`CLIENT_DEBUG: updateStockPreview - Status: ${status}, RowIndex: ${rowIndex}`, payload);
     const previewContainer = document.getElementById(`stock_preview_${rowIndex}`);
-    // If the preview container doesn't exist, log a warning and exit.
     if (!previewContainer) {
         console.warn(`CLIENT_DEBUG: Stock preview container not found for rowIndex: ${rowIndex}`);
+        showMessage('Could not update stock preview.', 'error');
         return;
     }
     const priceEl = previewContainer.querySelector('.stock-price');
     const changeEl = previewContainer.querySelector('.stock-change');
+
+    // Make sure elements exist before trying to set their properties
+    if (!priceEl || !changeEl) {
+        console.error(`CLIENT_DEBUG: Preview elements not found for rowIndex: ${rowIndex}`);
+        return;
+    }
 
     const quote = Array.isArray(payload) ? payload[0] : payload;
 
@@ -910,7 +916,7 @@ function updateStockPreview(status, payload, rowIndex) {
         if (quote.changesPercentage !== undefined) {
             const change = parseFloat(quote.changesPercentage).toFixed(2);
             changeEl.textContent = `${change}%`;
-            changeEl.classList.remove('positive', 'negative');
+            changeEl.classList.remove('positive', 'negative', 'error-text');
             if (change > 0) {
                 changeEl.classList.add('positive');
             } else if (change < 0) {
@@ -918,13 +924,10 @@ function updateStockPreview(status, payload, rowIndex) {
             }
         } else {
             changeEl.textContent = '--';
-            changeEl.classList.remove('positive', 'negative');
+            changeEl.classList.remove('positive', 'negative', 'error-text');
         }
         console.log(`CLIENT_DEBUG: Stock UI updated for row ${rowIndex} - Price: ${price}`);
     } else {
-        priceEl.textContent = 'Error';
-        changeEl.textContent = '--';
-        changeEl.classList.remove('positive', 'negative');
         let errorMsg = 'Failed to fetch stock data.';
         if (typeof payload === 'string') {
             errorMsg = payload;
@@ -933,7 +936,14 @@ function updateStockPreview(status, payload, rowIndex) {
         } else if (payload && payload['Note']) {
             errorMsg = payload['Note'];
         }
-        showMessage(errorMsg, 'error');
+
+        priceEl.textContent = 'Error';
+        changeEl.textContent = errorMsg;
+        changeEl.classList.add('error-text');
+        changeEl.classList.remove('positive', 'negative');
+
+        // Also show a general message at the top, but the specific error is in the preview
+        showMessage('Stock data error. See details below.', 'error');
         console.error(`CLIENT_DEBUG: Stock fetch error for row ${rowIndex}:`, errorMsg);
     }
 }
@@ -1111,13 +1121,14 @@ function renderStockAssets(assets) {
             <button class="test-asset-btn action-button" data-symbol="${asset.symbol}" data-index="${index}">Test</button>
             <button class="remove-asset-btn" data-symbol="${asset.symbol}">×</button>
         `;
+        assetContainerDiv.appendChild(assetDiv);
 
         const previewDiv = document.createElement('div');
         previewDiv.id = `stock_preview_${index}`;
         previewDiv.className = 'stock-preview';
-
-        assetContainerDiv.appendChild(assetDiv);
+        previewDiv.innerHTML = `<span class="stock-price"></span><span class="stock-change"></span>`;
         assetContainerDiv.appendChild(previewDiv);
+
         container.appendChild(assetContainerDiv);
     });
 
