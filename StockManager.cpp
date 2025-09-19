@@ -465,8 +465,8 @@ bool StockManager::fetchMarketStatusForExchange(const String& exchange) const {
 
     {
         esp_tls_cfg_t cfg = {};
-        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
-        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+        // cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
+        // cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
         cfg.timeout_ms = 10000;
 
         const char *hostname = "financialmodelingprep.com";
@@ -568,8 +568,8 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
 
     {
         esp_tls_cfg_t cfg = {};
-        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
-        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+        // cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
+        // cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
         cfg.timeout_ms = 10000;
 
         const char *hostname = "financialmodelingprep.com";
@@ -673,8 +673,8 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
     {
         esp_tls_cfg_t cfg = {};
-        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
-        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+        // cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
+        // cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
         cfg.timeout_ms = 10000;
 
         const char *hostname = "financialmodelingprep.com";
