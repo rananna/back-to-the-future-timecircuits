@@ -491,7 +491,7 @@ bool StockManager::fetchMarketStatusForExchange(const String& exchange) const {
 
         char request[512];
         snprintf(request, sizeof(request),
-                 "GET /api/v3/exchange-market-hours/%s?apikey=%s HTTP/1.1\r\n"
+                 "GET /stable/exchange-market-hours?exchange=%s&apikey=%s HTTP/1.1\r\n"
                  "Host: financialmodelingprep.com\r\n"
                  "Connection: close\r\n"
                  "\r\n",
