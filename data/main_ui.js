@@ -1,6 +1,5 @@
 // Global state for the animation preview interval
 let animationPreviewInterval = null;
-let timezoneOptions = [];
 
 /**
  * Initializes the UI when the DOM is fully loaded.
