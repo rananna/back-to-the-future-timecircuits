@@ -152,10 +152,8 @@ The stock data is sourced from a service called [Financial Modeling Prep](https:
 ##### 3. Data Fetching & Display
 *   **Market Hours**: To stay within the API limits, data is only fetched when the relevant market is open. Stock and index data is fetched during standard US market hours (9:30 AM - 4:00 PM ET, Mon-Fri), while cryptocurrency data is fetched 24/7.
 *   **Batch API Calls**: To maximize efficiency, the clock bundles all assets of the same type (all stocks, all cryptos, etc.) into a single API call.
-*   **Display Pages**: The bottom display row will cycle through your tracked assets. For each asset, it will scroll through three pages of information:
-    1.  **Price & Change**: Current price and the day's percentage change.
-    2.  **Day's High & Low**: The highest and lowest price for the current trading day.
-    3.  **Volume**: The number of shares or coins traded.
+*   **Display Cycle**: The bottom display row will cycle through your tracked assets. For each asset, it will display a single scrolling line containing the asset's name, price, percentage change, and daily volume.
+    *   *Example: `TESLA $250.00 +1.23% VOL:1.5M`*
 *   **Market Closed Message**: When all relevant markets for your tracked assets are closed, the display will show a static "MARKET CLOSED" message.
 
 ##### 4. MQTT Control
