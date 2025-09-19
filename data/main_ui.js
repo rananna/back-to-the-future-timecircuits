@@ -475,6 +475,8 @@ function attachEventListeners() {
             document.getElementById('weatherSettingsContainer').style.display = 'none';
             document.getElementById('stockTickerGroup').classList.remove('disabled');
             loadStockAssets();
+            updateStockStatus();
+            updateStockMarqueePreview();
         }
         if (!isLoading) setSettingsChanged(true);
     };
