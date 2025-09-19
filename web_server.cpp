@@ -483,9 +483,13 @@ void setupWebRoutes() {
         int httpCode = http.GET();
         if (httpCode > 0) {
             if (httpCode == HTTP_CODE_OK) {
-                request->send(200, "application/json", http.getString());
+                String payload = http.getString();
+                Log_printf(LOG_LEVEL_INFO, "Stock search response: %s", payload.c_str());
+                request->send(200, "application/json", payload);
             } else {
-                request->send(httpCode, "text/plain", http.getString());
+                String errorPayload = http.getString();
+                Log_printf(LOG_LEVEL_ERROR, "Stock search error response: %s", errorPayload.c_str());
+                request->send(httpCode, "text/plain", errorPayload);
             }
         } else {
             request->send(500, "text/plain", "Request failed");
