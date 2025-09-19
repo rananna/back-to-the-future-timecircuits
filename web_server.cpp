@@ -471,13 +471,13 @@ void setupWebRoutes() {
     }
 
     String symbol = obj["symbol"];
-    AssetType type = (AssetType)obj["type"].as<int>();
-    String timezone = obj["timezone"];
+    AssetType type = obj["type"].as<int>(); // Assuming type is provided.
+    String timezone = obj["timezone"].as<String>();
 
     if (stockManager.addAsset(symbol, type)) {
-        // After adding, we might need to update other properties of the new asset,
-        // like its timezone. The addAsset function could be extended, or we can
-        // handle it here. For now, we'll just save and return the list.
+        if (!timezone.isEmpty()) {
+            stockManager.setAssetTimezone(symbol, timezone);
+        }
 
         // Instead of just success, send back the updated list of assets
         JsonDocument doc;
