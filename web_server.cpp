@@ -337,12 +337,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String apiKey = doc["data"]["apiKey"];
                 int rowIndex = doc["data"]["rowIndex"];
                 
-                String url;
-                if (symbol.startsWith("^")) {
-                    url = "https://financialmodelingprep.com/api/v3/quote-short/" + symbol + "?apikey=" + apiKey;
-                } else {
-                    url = "https://financialmodelingprep.com/api/v3/quote/" + symbol + "?apikey=" + apiKey;
-                }
+                String url = "https://financialmodelingprep.com/api/v3/quote/" + symbol + "?apikey=" + apiKey;
                 Log_printf(LOG_LEVEL_DEBUG, "Stock URL created: %s", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", String(rowIndex)};
@@ -468,29 +463,6 @@ void setupWebRoutes() {
     request->send(200, "application/json", jsonString);
   });
 
-  server.on("/api/stocks", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!currentSettings.stockTickerModeEnabled || stockManager.getAssets().empty()) {
-        request->send(200, "application/json", "[]");
-        return;
-    }
-
-    JsonDocument doc;
-    JsonArray assets = doc.to<JsonArray>();
-    for (const auto& asset : stockManager.getAssets()) {
-        JsonObject assetObj = assets.add<JsonObject>();
-        assetObj["symbol"] = asset.symbol;
-        assetObj["name"] = asset.name;
-        assetObj["price"] = asset.price;
-        assetObj["change_percent"] = asset.change_percent;
-        assetObj["data_valid"] = asset.data_valid;
-        assetObj["type"] = (int)asset.type;
-        assetObj["timezone"] = asset.timezone;
-    }
-    String jsonString;
-    serializeJson(doc, jsonString);
-    request->send(200, "application/json", jsonString);
-  });
-
   AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
     if (obj["symbol"].isNull()) {
@@ -506,7 +478,6 @@ void setupWebRoutes() {
         // After adding, we might need to update other properties of the new asset,
         // like its timezone. The addAsset function could be extended, or we can
         // handle it here. For now, we'll just save and return the list.
-        stockManager.saveAssets(); // Save the new asset list
 
         // Instead of just success, send back the updated list of assets
         JsonDocument doc;
