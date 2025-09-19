@@ -320,6 +320,21 @@ bool StockManager::addAsset(const String& symbol) {
 
     Log_printf(LOG_LEVEL_INFO, "Added asset: %s on exchange %s", symbol.c_str(), newAsset.exchange.c_str());
     saveAssets();
+
+    // After adding, trigger an immediate fetch for this new asset
+    // so the UI can be populated with fresh data right away.
+    Log_printf(LOG_LEVEL_INFO, "Triggering immediate fetch for new asset: %s", symbol.c_str());
+    std::vector<String> symbols_to_fetch;
+    symbols_to_fetch.push_back(symbol);
+
+    // This runs the fetch in a separate task so it doesn't block the UI response.
+    StockFetchParams* params = new StockFetchParams{symbols_to_fetch, this};
+    // Note: A new task function `fetchSingleStockTask` is used to avoid interfering with batch updates.
+    if (xTaskCreate(fetchSingleStockTask, "singleStockFetch", 8192, params, 1, NULL) != pdPASS) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to create single stock fetch task for %s.", symbol.c_str());
+        delete params; // Clean up if task creation fails
+    }
+
     return true;
 }
 
@@ -1015,6 +1030,17 @@ void fetchStockDataBatchTask(void* p) {
     vTaskDelete(NULL);
 }
 
+// This is the new task function for fetching a single, newly added asset.
+// It does not interfere with the main batch fetching state (_is_fetching, _running_tasks).
+void fetchSingleStockTask(void* p) {
+    StockFetchParams* params = (StockFetchParams*)p;
+    Log_printf(LOG_LEVEL_INFO, "Single stock fetch task started for %s.", params->symbols[0].c_str());
+    params->manager->fetchBatchData(params->symbols);
+    Log_printf(LOG_LEVEL_INFO, "Single stock fetch task finished for %s.", params->symbols[0].c_str());
+    delete params;
+    vTaskDelete(NULL);
+}
+
 String getCurrencySymbol(const String& currency_code) {
     if (currency_code == "USD") return "$";
     if (currency_code == "EUR") return "€";
@@ -1156,6 +1182,10 @@ void StockManager::previousPage() {
 
 void StockManager::setApiKey(const String& key) {
     _api_key = key;
+}
+
+String StockManager::getApiKey() const {
+    return _api_key;
 }
 
 void StockManager::setRefreshInterval(unsigned long interval) {

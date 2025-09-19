@@ -1882,7 +1882,7 @@ function renderStockAssets(assets) {
             <span class="asset-price">${price}</span>
             <span class="asset-change ${changeClass}">${change}</span>
             <span class="asset-error"></span>
-            <button class="remove-asset-btn" data-symbol="${asset.symbol}">×</button>
+            <button class="remove-asset-btn" data-symbol="${asset.symbol}">Delete</button>
         `;
         container.appendChild(assetDiv);
     });
