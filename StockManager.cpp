@@ -494,15 +494,16 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
         char request[512];
         snprintf(request, sizeof(request),
-                "GET /stable/quote/%s?apikey=%s HTTP/1.1\r\n"
-                "Host: financialmodelingprep.com\r\n"
-                "Connection: close\r\n" // Use close instead of keep-alive
-                "\r\n",
-                symbols_str.c_str(), _api_key.c_str());
+                 "GET /stable/stock/market/batch?symbols=%s&types=quote&apikey=%s HTTP/1.1\r\n"
+                 "Host: financialmodelingprep.com\r\n"
+                 "Connection: close\r\n"
+                 "\r\n",
+                 symbols_str.c_str(), _api_key.c_str());
+
 
         // --- START: MODIFICATION - Add logging for stock API calls ---
         char url_log[256];
-        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/quote/%s?apikey=REDACTED", symbols_str.c_str());
+        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/stock/market/batch?symbols=%s&types=quote&apikey=REDACTED", symbols_str.c_str());
         Log_printf(LOG_LEVEL_INFO, "Fetching stock data from URL: %s", url_log);
         // --- END: MODIFICATION ---
 
