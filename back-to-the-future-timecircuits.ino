@@ -1123,6 +1123,7 @@ void loop() {
                     // Re-initialize the stock manager from the master settings object.
                     stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
                     stockManager.updateAssetsFromJson(currentSettings.stockAssetsJson.c_str());
+                    stockManager.setEnabled(true); // Re-enable the manager after reset
                     lastStockManagerReset = now;
                 }
             } else {
