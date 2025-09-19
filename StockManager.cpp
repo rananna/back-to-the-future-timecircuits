@@ -594,7 +594,7 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
 
         char request[512];
         snprintf(request, sizeof(request),
-                 "GET /api/v3/search-ticker?query=%s&limit=1&apikey=%s HTTP/1.1\r\n"
+                 "GET /stable/search-symbol?query=%s&limit=1&apikey=%s HTTP/1.1\r\n"
                  "Host: financialmodelingprep.com\r\n"
                  "Connection: close\r\n"
                  "\r\n",

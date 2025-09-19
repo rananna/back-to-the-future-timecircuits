@@ -539,7 +539,7 @@ void setupWebRoutes() {
     WiFiClientSecure client;
     client.setInsecure(); // For simplicity, though not recommended for production
     HTTPClient http;
-    String url = "https://financialmodelingprep.com/api/v3/search?query=" + query + "&limit=10&apikey=" + apiKey;
+    String url = "https://financialmodelingprep.com/stable/search-symbol?query=" + query + "&limit=10&apikey=" + apiKey;
 
     if (http.begin(client, url)) {
         int httpCode = http.GET();
