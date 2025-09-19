@@ -456,24 +456,26 @@ void StockManager::fetchData() {
 }
 
 FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbols) {
+    if (symbols.empty()) {
+        return FETCH_SUCCESS; // Nothing to fetch
+    }
+
     esp_tls_t *tls_stock = esp_tls_init();
     if (!tls_stock) {
         Log_printf(LOG_LEVEL_ERROR, "Failed to allocate stock TLS handle.");
         return FETCH_CONNECTION_FAILED;
     }
 
-    FetchStatus status = FETCH_FAILED; // Default status
+    FetchStatus status = FETCH_FAILED;
     char header_buf[2048];
     char* body_start_ptr = NULL;
     size_t header_len = 0;
 
-    // This block scopes the variables that were causing issues with goto.
-    // The goto will now jump to the 'cleanup' label outside this block.
     {
         esp_tls_cfg_t cfg = {};
         cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
         cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
-        cfg.timeout_ms = 10000; // Increased timeout for connection
+        cfg.timeout_ms = 10000;
 
         const char *hostname = "financialmodelingprep.com";
         if (esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls_stock) < 0) {
@@ -484,40 +486,86 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
         Log_printf(LOG_LEVEL_DEBUG, "Stock TLS connection established.");
 
-        String symbols_str = "";
+        char request[1024];
+        char url_log[512];
+        char* symbols_str_buf = NULL; // Keep track of buffer for cleanup
+
+        // All symbols must be capitalized.
+        std::vector<String> upper_symbols;
+        upper_symbols.reserve(symbols.size());
         for (const auto& s : symbols) {
-            symbols_str += s + ",";
+            String upper_s = s;
+            upper_s.toUpperCase();
+            upper_symbols.push_back(upper_s);
         }
-        if (symbols_str.length() > 0) {
-            symbols_str.remove(symbols_str.length() - 1);
+
+        if (symbols.size() == 1) {
+            // --- SINGLE SYMBOL LOOKUP ---
+            const char* symbol_cstr = upper_symbols[0].c_str();
+            snprintf(request, sizeof(request),
+                     "GET /stable/quote/%s?apikey=%s HTTP/1.1\r\n"
+                     "Host: financialmodelingprep.com\r\n"
+                     "Connection: close\r\n"
+                     "\r\n",
+                     symbol_cstr, _api_key.c_str());
+
+            snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/quote/%s?apikey=REDACTED", symbol_cstr);
+        } else {
+            // --- BATCH SYMBOL LOOKUP ---
+            // Pre-calculate buffer size to avoid String concatenation in a loop
+            size_t total_len = 0;
+            for (const auto& s : upper_symbols) {
+                total_len += s.length();
+            }
+            total_len += upper_symbols.size() - 1; // For the commas
+
+            symbols_str_buf = new char[total_len + 1];
+            if (!symbols_str_buf) {
+                Log_printf(LOG_LEVEL_ERROR, "Failed to allocate memory for symbols string.");
+                status = FETCH_FAILED;
+                goto cleanup;
+            }
+
+            // Build the symbol string manually
+            symbols_str_buf[0] = '\0';
+            char* current_pos = symbols_str_buf;
+            for (size_t i = 0; i < upper_symbols.size(); ++i) {
+                strcpy(current_pos, upper_symbols[i].c_str());
+                current_pos += upper_symbols[i].length();
+                if (i < upper_symbols.size() - 1) {
+                    *current_pos++ = ',';
+                }
+            }
+            *current_pos = '\0';
+
+            snprintf(request, sizeof(request),
+                     "GET /stable/stock/market/batch?symbols=%s&types=quote&apikey=%s HTTP/1.1\r\n"
+                     "Host: financialmodelingprep.com\r\n"
+                     "Connection: close\r\n"
+                     "\r\n",
+                     symbols_str_buf, _api_key.c_str());
+
+            snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/stock/market/batch?symbols=%s&types=quote&apikey=REDACTED", symbols_str_buf);
         }
 
-        char request[512];
-        snprintf(request, sizeof(request),
-                 "GET /stable/stock/market/batch?symbols=%s&types=quote&apikey=%s HTTP/1.1\r\n"
-                 "Host: financialmodelingprep.com\r\n"
-                 "Connection: close\r\n"
-                 "\r\n",
-                 symbols_str.c_str(), _api_key.c_str());
-
-
-        // --- START: MODIFICATION - Add logging for stock API calls ---
-        char url_log[256];
-        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/stock/market/batch?symbols=%s&types=quote&apikey=REDACTED", symbols_str.c_str());
         Log_printf(LOG_LEVEL_INFO, "Fetching stock data from URL: %s", url_log);
-        // --- END: MODIFICATION ---
 
         if (esp_tls_conn_write(tls_stock, request, strlen(request)) < 0) {
             Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_write failed.");
             status = FETCH_CONNECTION_FAILED;
+            if (symbols_str_buf) delete[] symbols_str_buf;
             goto cleanup;
         }
         _api_usage_count++;
 
+        if (symbols_str_buf) {
+            delete[] symbols_str_buf;
+            symbols_str_buf = NULL;
+        }
+
         unsigned long header_read_start_time = millis();
         const unsigned long HEADER_TIMEOUT_MS = 10000;
 
-        // Read headers and find the body
         while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
             int ret = esp_tls_conn_read(tls_stock,
                                         (unsigned char *)header_buf + header_len,
@@ -560,7 +608,6 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
             goto cleanup;
         }
 
-        // Parse HTTP status code
         int http_status = 0;
         const char* status_line_start = strstr(header_buf, "HTTP/");
         if (status_line_start) {
@@ -573,7 +620,6 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         if (http_status != 200) {
             Log_printf(LOG_LEVEL_WARN, "Stock HTTP request failed with code %d.", http_status);
             if (http_status == 401 || http_status == 403) {
-                // Mark all assets as invalid due to API key error
                 xSemaphoreTake(_assets_mutex, portMAX_DELAY);
                 for (const auto& symbol : symbols) {
                     auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
@@ -594,8 +640,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
             goto cleanup;
         }
 
-        // Prepare for JSON parsing
-        body_start_ptr += 4; // Move past the double CRLF
+        body_start_ptr += 4;
         size_t body_part_len = header_len - (body_start_ptr - header_buf);
 
         TlsStream tls_stream(tls_stock);
@@ -616,6 +661,9 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         JsonDocument doc;
         DeserializationError error;
 
+        // For single symbol lookups, the response is an array with one object.
+        // For batch lookups, it's an array of objects.
+        // The existing parseJsonResponse handles both cases correctly.
         if (is_chunked) {
             DechunkingStream dechunking_stream(combined_stream);
             error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
@@ -627,7 +675,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
             parseJsonResponse(doc, symbols);
             status = FETCH_SUCCESS;
         } else {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock JSON for %s: %s", symbols_str.c_str(), error.c_str());
+            Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock JSON: %s", error.c_str());
             status = FETCH_FAILED;
         }
     }
