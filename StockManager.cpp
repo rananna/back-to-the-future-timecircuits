@@ -705,7 +705,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
         char request[2048];
         char url_log[512];
-        char* symbols_str_buf = NULL; // Keep track of buffer for cleanup
+        char* symbols_str_buf = NULL; // This is no longer used but kept to avoid breaking cleanup logic.
 
         // All symbols must be capitalized.
         std::vector<String> upper_symbols;
@@ -716,69 +716,25 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
             upper_symbols.push_back(upper_s);
         }
 
-        if (symbols.size() == 1) {
-            // --- SINGLE SYMBOL LOOKUP ---
-            const char* symbol_cstr = upper_symbols[0].c_str();
-            snprintf(request, sizeof(request),
-                     "GET /stable/quote?symbol=%s&apikey=%s HTTP/1.1\r\n"
-                     "Host: financialmodelingprep.com\r\n"
-                     "Connection: close\r\n"
-                     "\r\n",
-                     symbol_cstr, _api_key.c_str());
+        // All fetches are now for a single symbol, so we removed the batch logic.
+        const char* symbol_cstr = upper_symbols[0].c_str();
+        snprintf(request, sizeof(request),
+                    "GET /api/v3/quote/%s?apikey=%s HTTP/1.1\r\n"
+                    "Host: financialmodelingprep.com\r\n"
+                    "Connection: close\r\n"
+                    "\r\n",
+                    symbol_cstr, _api_key.c_str());
 
-            snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/quote?symbol=%s&apikey=REDACTED", symbol_cstr);
-        } else {
-            // --- BATCH SYMBOL LOOKUP ---
-            // Pre-calculate buffer size to avoid String concatenation in a loop
-            size_t total_len = 0;
-            for (const auto& s : upper_symbols) {
-                total_len += s.length();
-            }
-            total_len += upper_symbols.size() - 1; // For the commas
-
-            symbols_str_buf = new char[total_len + 1];
-            if (!symbols_str_buf) {
-                Log_printf(LOG_LEVEL_ERROR, "Failed to allocate memory for symbols string.");
-                status = FETCH_FAILED;
-                goto cleanup;
-            }
-
-            // Build the symbol string manually
-            symbols_str_buf[0] = '\0';
-            char* current_pos = symbols_str_buf;
-            for (size_t i = 0; i < upper_symbols.size(); ++i) {
-                strcpy(current_pos, upper_symbols[i].c_str());
-                current_pos += upper_symbols[i].length();
-                if (i < upper_symbols.size() - 1) {
-                    *current_pos++ = ',';
-                }
-            }
-            *current_pos = '\0';
-
-            snprintf(request, sizeof(request),
-                     "GET /stable/batch-quote?symbols=%s&apikey=%s HTTP/1.1\r\n"
-                     "Host: financialmodelingprep.com\r\n"
-                     "Connection: close\r\n"
-                     "\r\n",
-                     symbols_str_buf, _api_key.c_str());
-
-            snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/batch-quote?symbols=%s&apikey=REDACTED", symbols_str_buf);
-        }
+        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/api/v3/quote/%s?apikey=REDACTED", symbol_cstr);
 
         Log_printf(LOG_LEVEL_INFO, "Fetching stock data from URL: %s", url_log);
 
         if (esp_tls_conn_write(tls_stock, request, strlen(request)) < 0) {
             Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_write failed.");
             status = FETCH_CONNECTION_FAILED;
-            if (symbols_str_buf) delete[] symbols_str_buf;
             goto cleanup;
         }
         _api_usage_count++;
-
-        if (symbols_str_buf) {
-            delete[] symbols_str_buf;
-            symbols_str_buf = NULL;
-        }
 
         unsigned long header_read_start_time = millis();
         const unsigned long HEADER_TIMEOUT_MS = 10000;
@@ -916,37 +872,48 @@ cleanup:
 }
 
 void StockManager::fetchBatchData(const std::vector<String>& symbols) {
-    FetchStatus status = FETCH_FAILED;
-    int attempt = 0;
-    const int maxAttempts = 3;
+    for (const auto& symbol : symbols) {
+        FetchStatus status = FETCH_FAILED;
+        int attempt = 0;
+        const int maxAttempts = 3;
 
-    while (attempt < maxAttempts) {
-        attempt++;
-        Log_printf(LOG_LEVEL_INFO, "Stock fetch attempt %d of %d...", attempt, maxAttempts);
-        status = fetchBatchDataFromApi(symbols);
+        // Create a vector with a single symbol to pass to the API function
+        std::vector<String> single_symbol_vec;
+        single_symbol_vec.push_back(symbol);
 
-        if (status == FETCH_SUCCESS) {
-            Log_printf(LOG_LEVEL_INFO, "Successfully fetched stock data on attempt %d.", attempt);
-            return; // Exit successfully
-        }
+        while (attempt < maxAttempts) {
+            attempt++;
+            Log_printf(LOG_LEVEL_INFO, "Stock fetch for %s, attempt %d of %d...", symbol.c_str(), attempt, maxAttempts);
+            status = fetchBatchDataFromApi(single_symbol_vec);
 
-        if (status == FETCH_FAILED) {
-            Log_printf(LOG_LEVEL_ERROR, "Stock fetch failed with an unrecoverable error.");
-            return; // Don't retry on hard errors
-        }
+            if (status == FETCH_SUCCESS) {
+                // Log_printf(LOG_LEVEL_INFO, "Successfully fetched stock data for %s on attempt %d.", symbol.c_str(), attempt);
+                break; // Success, exit the retry loop for this symbol
+            }
 
-        if (attempt < maxAttempts) {
-            if (status == FETCH_RATE_LIMITED) {
-                Log_printf(LOG_LEVEL_WARN, "Rate limited. Retrying in 60 seconds...");
-                vTaskDelay(pdMS_TO_TICKS(60000));
-            } else { // FETCH_CONNECTION_FAILED
-                Log_printf(LOG_LEVEL_WARN, "Stock fetch failed on attempt %d. Retrying in 5 seconds...", attempt);
-                vTaskDelay(pdMS_TO_TICKS(5000));
+            if (status == FETCH_FAILED) {
+                Log_printf(LOG_LEVEL_ERROR, "Stock fetch for %s failed with an unrecoverable error.", symbol.c_str());
+                break; // Don't retry on hard errors
+            }
+
+            if (attempt < maxAttempts) {
+                if (status == FETCH_RATE_LIMITED) {
+                    Log_printf(LOG_LEVEL_WARN, "Rate limited on %s. Retrying in 60 seconds...", symbol.c_str());
+                    vTaskDelay(pdMS_TO_TICKS(60000));
+                } else { // FETCH_CONNECTION_FAILED
+                    Log_printf(LOG_LEVEL_WARN, "Stock fetch for %s failed on attempt %d. Retrying in 5 seconds...", symbol.c_str(), attempt);
+                    vTaskDelay(pdMS_TO_TICKS(5000));
+                }
             }
         }
-    }
 
-    Log_printf(LOG_LEVEL_ERROR, "Stock fetch failed after all attempts.");
+        if (status != FETCH_SUCCESS) {
+            Log_printf(LOG_LEVEL_ERROR, "Stock fetch for %s failed after all attempts.", symbol.c_str());
+        }
+
+        // Small delay between API calls to be nice to the server.
+        vTaskDelay(pdMS_TO_TICKS(250));
+    }
 }
 
 void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String>& requested_symbols) {

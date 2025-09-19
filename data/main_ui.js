@@ -603,16 +603,20 @@ async function updateStockStatus() {
     if (!document.getElementById('stockTickerModeEnabled').checked) {
         return;
     }
+    const stockApiUsageElements = document.querySelectorAll('.stockApiUsage');
     try {
         const response = await fetch('/api/stocks/status');
         if (!response.ok) {
-            throw new Error(`Failed to fetch stock status: ${response.status}`);
+            throw new Error(`Failed to fetch stock status: ${response.statusText}`);
         }
         const status = await response.json();
 
-        const stockApiUsageElements = document.querySelectorAll('.stockApiUsage');
         stockApiUsageElements.forEach(element => {
-            element.textContent = `API Calls Today: ${status.api_usage}`;
+            if (typeof status.api_usage === 'number') {
+                element.textContent = `API Calls Today: ${status.api_usage}`;
+            } else {
+                element.textContent = 'API Calls Today: N/A';
+            }
         });
 
         if (status.assets && Array.isArray(status.assets)) {
@@ -639,7 +643,32 @@ async function updateStockStatus() {
         }
     } catch (error) {
         console.error('Error updating stock status:', error);
+        stockApiUsageElements.forEach(element => {
+            element.textContent = 'API Calls Today: N/A';
+        });
     }
+}
+
+function updateStockRefreshGuidance(numAssets) {
+    const FMP_FREE_API_LIMIT = 250; // Daily limit
+    const TRADING_HOURS_PER_DAY = 8; // Assume 8 hours of trading
+    const guidanceEl = document.getElementById('stockRefreshGuidance');
+
+    if (!guidanceEl) return;
+
+    if (numAssets === 0) {
+        guidanceEl.textContent = '';
+        return;
+    }
+
+    // Calculate how many times we can refresh all assets in a day
+    const refreshesPerDay = FMP_FREE_API_LIMIT / numAssets;
+
+    // Calculate the interval in minutes, assuming trading hours
+    const tradingMinutes = TRADING_HOURS_PER_DAY * 60;
+    const suggestedInterval = Math.ceil(tradingMinutes / refreshesPerDay);
+
+    guidanceEl.innerHTML = `With ${numAssets} asset(s), the suggested refresh interval to stay within the free daily limit of ${FMP_FREE_API_LIMIT} calls is <b>~${suggestedInterval} minutes</b>.`;
 }
 
 /**
@@ -1856,12 +1885,39 @@ async function loadStockAssets() {
     } catch (error) {
         console.error('Error loading stock assets:', error);
         showMessage('Could not load stock assets.', 'error');
+        stockApiUsageElements.forEach(element => {
+            element.textContent = 'API Calls Today: N/A';
+        });
     }
+}
+
+function updateStockRefreshGuidance(numAssets) {
+    const FMP_FREE_API_LIMIT = 250; // Daily limit
+    const TRADING_HOURS_PER_DAY = 8; // Assume 8 hours of trading
+    const guidanceEl = document.getElementById('stockRefreshGuidance');
+
+    if (!guidanceEl) return;
+
+    if (numAssets === 0) {
+        guidanceEl.textContent = '';
+        return;
+    }
+
+    // Calculate how many times we can refresh all assets in a day
+    const refreshesPerDay = FMP_FREE_API_LIMIT / numAssets;
+
+    // Calculate the interval in minutes, assuming trading hours
+    const tradingMinutes = TRADING_HOURS_PER_DAY * 60;
+    const suggestedInterval = Math.ceil(tradingMinutes / refreshesPerDay);
+
+    guidanceEl.innerHTML = `With ${numAssets} asset(s), the suggested refresh interval to stay within the free daily limit of ${FMP_FREE_API_LIMIT} calls is <b>~${suggestedInterval} minutes</b>.`;
 }
 
 function renderStockAssets(assets) {
     const container = document.getElementById('stockAssetList');
     container.innerHTML = ''; // Clear existing list
+
+    updateStockRefreshGuidance(assets.length);
 
     if (assets.length === 0) {
         container.innerHTML = '<p>(None)</p>';

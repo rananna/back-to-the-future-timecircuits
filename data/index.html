@@ -231,11 +231,12 @@
                   <input type="text" id="financialModelingPrepApiKey" placeholder="Enter your free FMP API key">
 
                   <div id="stockApiStatus" class="api-status">
-                      <span class="stockApiUsage">API Calls Today: --</span>
+                      <span class="stockApiUsage">API Calls Today: Loading...</span>
                   </div>
 
                   <label for="stockRefreshInterval">Refresh Interval (minutes):</label>
                   <input type="number" id="stockRefreshInterval" value="2" min="1" style="width: 100px;">
+                  <p id="stockRefreshGuidance" class="guidance-text"></p>
 
                   <hr>
 
