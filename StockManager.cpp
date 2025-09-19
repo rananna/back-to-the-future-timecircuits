@@ -1066,11 +1066,8 @@ void StockManager::saveAssets() {
 
 void StockManager::loadAssets() {
     Preferences preferences;
-    // --- START: MODIFICATION - Correct preferences namespace and key ---
-    // The namespace should be "stocks" and the key "assets" to match saveAssets().
     preferences.begin("stocks", true); // read-only
     String assetsJson = preferences.getString("assets", "[]");
-    // --- END: MODIFICATION ---
     preferences.end();
     updateAssetsFromJson(assetsJson);
 }

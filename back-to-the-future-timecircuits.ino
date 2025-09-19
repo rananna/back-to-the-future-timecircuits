@@ -745,6 +745,8 @@ void loadSettings() {
 		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
 		tempString = preferences.getString("fmpApiKey", "");
 		currentSettings.financialModelingPrepApiKey = tempString.c_str();
+        tempString = preferences.getString("stockAssets", "[]");
+        currentSettings.stockAssetsJson = tempString.c_str();
 
 
 		for (int i = 0; i < 5; i++) {
@@ -772,6 +774,12 @@ void loadSettings() {
 		}
 	}
 	preferences.end();
+
+    // Initialize the StockManager with the loaded settings
+    stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
+    stockManager.updateAssetsFromJson(currentSettings.stockAssetsJson.c_str());
+    stockManager.setEnabled(currentSettings.stockTickerModeEnabled);
+
 	Log_printf(LOG_LEVEL_INFO, "--- Settings Loaded ---");
 	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
 		currentSettings.presentTimezoneIndex = 0;
@@ -1111,9 +1119,10 @@ void loop() {
                 }
                 unsigned long now = millis();
                 if (now - lastStockManagerReset > STOCK_MANAGER_RESET_INTERVAL) {
-                    Log_printf(LOG_LEVEL_INFO, "Performing periodic reset of StockManager.");
-                    stockManager.clearAssets();
-                    stockManager.loadAssets();
+                    Log_printf(LOG_LEVEL_INFO, "Performing periodic reset of StockManager to prevent heap fragmentation.");
+                    // Re-initialize the stock manager from the master settings object.
+                    stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
+                    stockManager.updateAssetsFromJson(currentSettings.stockAssetsJson.c_str());
                     lastStockManagerReset = now;
                 }
             } else {
