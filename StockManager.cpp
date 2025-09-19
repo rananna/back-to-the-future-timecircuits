@@ -271,7 +271,8 @@ StockManager::StockManager() :
     _current_page_index(0),
     _api_usage_count(0),
     _running_tasks(0),
-    _data_updated(false) {
+    _data_updated(false),
+    _last_market_open_check(0) {
     _task_mutex = xSemaphoreCreateMutex();
     _assets_mutex = xSemaphoreCreateMutex();
 }
@@ -304,9 +305,22 @@ bool StockManager::addAsset(const String& symbol, const String& timezone) {
     Asset newAsset;
     newAsset.symbol = symbol;
     newAsset.timezone = timezone;
+
+    // Release the mutex before making a network call
+    xSemaphoreGive(_assets_mutex);
+
+    newAsset.exchange = fetchExchangeForSymbol(symbol);
+    if (newAsset.exchange.isEmpty()) {
+        Log_printf(LOG_LEVEL_WARN, "Could not determine exchange for %s. Asset not added.", symbol.c_str());
+        return false; // Or handle this case as you see fit
+    }
+
+    // Re-acquire the mutex to add the new asset to the vector
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     _assets.push_back(newAsset);
     xSemaphoreGive(_assets_mutex);
-    Log_printf(LOG_LEVEL_INFO, "Added asset: %s with timezone %s", symbol.c_str(), timezone.c_str());
+
+    Log_printf(LOG_LEVEL_INFO, "Added asset: %s on exchange %s with timezone %s", symbol.c_str(), newAsset.exchange.c_str(), timezone.c_str());
     saveAssets();
     return true;
 }
@@ -391,7 +405,7 @@ struct StockFetchParams {
 };
 
 void StockManager::fetchData() {
-    if (_assets.empty()) {
+    if (_assets.empty() || _api_key.isEmpty()) {
         _is_fetching = false;
         return;
     }
@@ -400,7 +414,7 @@ void StockManager::fetchData() {
     _is_fetching = true;
     _last_fetch_time = millis();
 
-    std::map<String, std::vector<String>> stocks_by_tz;
+    std::vector<String> stocks;
     std::vector<String> cryptos;
 
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
@@ -409,10 +423,7 @@ void StockManager::fetchData() {
         if (asset.symbol.indexOf("-USD") != -1 || asset.symbol.indexOf("-EUR") != -1) {
             cryptos.push_back(asset.symbol);
         } else {
-            const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
-            if (isStockMarketOpen(tz)) {
-                stocks_by_tz[tz].push_back(asset.symbol);
-            }
+            stocks.push_back(asset.symbol);
         }
     }
     xSemaphoreGive(_assets_mutex);
@@ -432,18 +443,15 @@ void StockManager::fetchData() {
         }
     }
 
-    // Create tasks for stocks, grouped by timezone
-    for (auto const& pair : stocks_by_tz) {
-        const std::vector<String>& symbols = pair.second;
-        if (!symbols.empty()) {
-            StockFetchParams* params = new StockFetchParams{symbols, this};
-            if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
-                _running_tasks++;
-                Log_printf(LOG_LEVEL_INFO, "Created task to fetch %d stock assets for TZ %s.", symbols.size(), pair.first.c_str());
-            } else {
-                Log_printf(LOG_LEVEL_ERROR, "Failed to create stock fetch task for TZ %s.", pair.first.c_str());
-                delete params;
-            }
+    // Create a single task for all stocks
+    if (!stocks.empty()) {
+        StockFetchParams* params = new StockFetchParams{stocks, this};
+        if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
+            _running_tasks++;
+            Log_printf(LOG_LEVEL_INFO, "Created task to fetch %d stock assets.", stocks.size());
+        } else {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to create stock fetch task.");
+            delete params;
         }
     }
 
@@ -453,6 +461,212 @@ void StockManager::fetchData() {
         _is_fetching = false;
         Log_printf(LOG_LEVEL_INFO, "No assets to fetch at this time.");
     }
+}
+
+bool StockManager::fetchMarketStatusForExchange(const String& exchange) const {
+    Log_printf(LOG_LEVEL_INFO, "Fetching market status for exchange: %s", exchange.c_str());
+
+    esp_tls_t *tls_market = esp_tls_init();
+    if (!tls_market) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to allocate market status TLS handle.");
+        return false;
+    }
+
+    bool is_open = false;
+    char header_buf[2048];
+    char* body_start_ptr = NULL;
+    size_t header_len = 0;
+
+    {
+        esp_tls_cfg_t cfg = {};
+        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
+        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+        cfg.timeout_ms = 10000;
+
+        const char *hostname = "financialmodelingprep.com";
+        if (esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls_market) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to create market status TLS connection.");
+            goto cleanup;
+        }
+
+        char request[512];
+        snprintf(request, sizeof(request),
+                 "GET /api/v3/exchange-market-hours/%s?apikey=%s HTTP/1.1\r\n"
+                 "Host: financialmodelingprep.com\r\n"
+                 "Connection: close\r\n"
+                 "\r\n",
+                 exchange.c_str(), _api_key.c_str());
+
+        if (esp_tls_conn_write(tls_market, request, strlen(request)) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "Market status esp_tls_conn_write failed.");
+            goto cleanup;
+        }
+
+        unsigned long header_read_start_time = millis();
+        const unsigned long HEADER_TIMEOUT_MS = 10000;
+
+        while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
+            int ret = esp_tls_conn_read(tls_market, (unsigned char *)header_buf + header_len, sizeof(header_buf) - header_len - 1);
+            if (ret < 0) {
+                if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                    Log_printf(LOG_LEVEL_ERROR, "Market status esp_tls_conn_read failed: -0x%x", -ret);
+                    goto cleanup;
+                }
+                vTaskDelay(pdMS_TO_TICKS(20));
+                continue;
+            }
+            if (ret == 0) {
+                Log_printf(LOG_LEVEL_WARN, "Market status connection closed by peer during header read.");
+                goto cleanup;
+            }
+            header_len += ret;
+            header_buf[header_len] = '\0';
+            body_start_ptr = strstr(header_buf, "\r\n\r\n");
+            if (body_start_ptr) break;
+        }
+
+        if (!body_start_ptr) {
+            Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for market status HTTP headers.");
+            goto cleanup;
+        }
+
+        body_start_ptr += 4;
+        size_t body_part_len = header_len - (body_start_ptr - header_buf);
+
+        TlsStream tls_stream(tls_market);
+        CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
+
+        bool is_chunked = (strcasestr(header_buf, "Transfer-Encoding: chunked") != NULL);
+
+        JsonDocument doc;
+        DeserializationError error;
+        if (is_chunked) {
+            DechunkingStream dechunking_stream(combined_stream);
+            error = deserializeJson(doc, dechunking_stream);
+        } else {
+            error = deserializeJson(doc, combined_stream);
+        }
+
+        if (error == DeserializationError::Ok) {
+            JsonArray array = doc.as<JsonArray>();
+            if (array.size() > 0) {
+                JsonObject obj = array[0];
+                is_open = obj["isTheStockMarketOpen"].as<bool>();
+                Log_printf(LOG_LEVEL_INFO, "Market status for %s is %s", exchange.c_str(), is_open ? "OPEN" : "CLOSED");
+            } else {
+                Log_printf(LOG_LEVEL_WARN, "No market status found for exchange '%s'", exchange.c_str());
+            }
+        } else {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to parse market status JSON: %s", error.c_str());
+        }
+    }
+
+cleanup:
+    esp_tls_conn_destroy(tls_market);
+    return is_open;
+}
+
+String StockManager::fetchExchangeForSymbol(const String& symbol) const {
+    Log_printf(LOG_LEVEL_INFO, "Fetching exchange for symbol: %s", symbol.c_str());
+
+    esp_tls_t *tls_search = esp_tls_init();
+    if (!tls_search) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to allocate search TLS handle.");
+        return "";
+    }
+
+    String exchange = "";
+    char header_buf[2048];
+    char* body_start_ptr = NULL;
+    size_t header_len = 0;
+
+    {
+        esp_tls_cfg_t cfg = {};
+        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
+        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+        cfg.timeout_ms = 10000;
+
+        const char *hostname = "financialmodelingprep.com";
+        if (esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls_search) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to create search TLS connection.");
+            goto cleanup;
+        }
+
+        char request[512];
+        snprintf(request, sizeof(request),
+                 "GET /api/v3/search-ticker?query=%s&limit=1&apikey=%s HTTP/1.1\r\n"
+                 "Host: financialmodelingprep.com\r\n"
+                 "Connection: close\r\n"
+                 "\r\n",
+                 symbol.c_str(), _api_key.c_str());
+
+        if (esp_tls_conn_write(tls_search, request, strlen(request)) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "Search esp_tls_conn_write failed.");
+            goto cleanup;
+        }
+
+        unsigned long header_read_start_time = millis();
+        const unsigned long HEADER_TIMEOUT_MS = 10000;
+
+        while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
+            int ret = esp_tls_conn_read(tls_search, (unsigned char *)header_buf + header_len, sizeof(header_buf) - header_len - 1);
+            if (ret < 0) {
+                if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                    Log_printf(LOG_LEVEL_ERROR, "Search esp_tls_conn_read failed: -0x%x", -ret);
+                    goto cleanup;
+                }
+                vTaskDelay(pdMS_TO_TICKS(20));
+                continue;
+            }
+            if (ret == 0) {
+                Log_printf(LOG_LEVEL_WARN, "Search connection closed by peer during header read.");
+                goto cleanup;
+            }
+            header_len += ret;
+            header_buf[header_len] = '\0';
+            body_start_ptr = strstr(header_buf, "\r\n\r\n");
+            if (body_start_ptr) break;
+        }
+
+        if (!body_start_ptr) {
+            Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for search HTTP headers.");
+            goto cleanup;
+        }
+
+        body_start_ptr += 4;
+        size_t body_part_len = header_len - (body_start_ptr - header_buf);
+
+        TlsStream tls_stream(tls_search);
+        CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
+
+        bool is_chunked = (strcasestr(header_buf, "Transfer-Encoding: chunked") != NULL);
+
+        JsonDocument doc;
+        DeserializationError error;
+        if (is_chunked) {
+            DechunkingStream dechunking_stream(combined_stream);
+            error = deserializeJson(doc, dechunking_stream);
+        } else {
+            error = deserializeJson(doc, combined_stream);
+        }
+
+        if (error == DeserializationError::Ok) {
+            JsonArray array = doc.as<JsonArray>();
+            if (array.size() > 0) {
+                JsonObject obj = array[0];
+                exchange = obj["exchangeShortName"].as<String>();
+                Log_printf(LOG_LEVEL_INFO, "Found exchange '%s' for symbol '%s'", exchange.c_str(), symbol.c_str());
+            } else {
+                Log_printf(LOG_LEVEL_WARN, "No exchange found for symbol '%s'", symbol.c_str());
+            }
+        } else {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to parse search JSON: %s", error.c_str());
+        }
+    }
+
+cleanup:
+    esp_tls_conn_destroy(tls_search);
+    return exchange;
 }
 
 FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbols) {
@@ -975,48 +1189,48 @@ int StockManager::getApiUsage() const {
 }
 
 bool StockManager::isMarketOpen() const {
+    const unsigned long CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+    unsigned long now = millis();
+
+    if (now - _last_market_open_check < CACHE_DURATION_MS) {
+        // Return cached result
+        for (auto const& [exchange, is_open] : _market_open_cache) {
+            if (is_open) return true;
+        }
+        return false;
+    }
+
+    Log_printf(LOG_LEVEL_INFO, "Market open cache expired. Re-fetching status.");
+    _last_market_open_check = now;
+    _market_open_cache.clear();
+
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     if (_assets.empty()) {
         xSemaphoreGive(_assets_mutex);
         return false;
     }
 
+    // Get unique exchanges
+    std::map<String, bool> unique_exchanges;
     for (const auto& asset : _assets) {
-        const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
-        if (isStockMarketOpen(tz)) {
-            xSemaphoreGive(_assets_mutex);
-            return true;
+        if (!asset.exchange.isEmpty()) {
+            unique_exchanges[asset.exchange] = false; // Value doesn't matter here
         }
     }
     xSemaphoreGive(_assets_mutex);
-    return false;
-}
 
-bool isStockMarketOpen(const char* tz_string) {
-    if (!timeSynchronized) return false;
-
-    // Set the timezone for this specific check
-    setenv("TZ", tz_string, 1);
-    tzset();
-
-    time_t now = time(nullptr);
-    struct tm* timeinfo = localtime(&now);
-
-    // Market is open Monday (1) to Friday (5)
-    if (timeinfo->tm_wday < 1 || timeinfo->tm_wday > 5) {
-        return false;
+    // Fetch status for each unique exchange
+    bool any_market_is_open = false;
+    for (auto& pair : unique_exchanges) {
+        String exchange = pair.first;
+        bool is_open = fetchMarketStatusForExchange(exchange);
+        _market_open_cache[exchange] = is_open;
+        if (is_open) {
+            any_market_is_open = true;
+        }
     }
 
-    // Market hours are 9:30 AM to 4:00 PM
-    int current_minutes = timeinfo->tm_hour * 60 + timeinfo->tm_min;
-    int market_open_minutes = 9 * 60 + 30;
-    int market_close_minutes = 16 * 60;
-
-    if (current_minutes >= market_open_minutes && current_minutes < market_close_minutes) {
-        return true;
-    }
-
-    return false;
+    return any_market_is_open;
 }
 
 void StockManager::updateAssetsFromJson(const String& jsonString) {
@@ -1035,6 +1249,7 @@ void StockManager::updateAssetsFromJson(const String& jsonString) {
         Asset newAsset;
         newAsset.symbol = assetObj["symbol"].as<String>();
         newAsset.timezone = assetObj["timezone"].as<String>();
+        newAsset.exchange = assetObj["exchange"].as<String>();
         _assets.push_back(newAsset);
     }
     int numLoaded = _assets.size();
@@ -1051,6 +1266,7 @@ void StockManager::saveAssets() {
         JsonObject assetObj = assetsArray.add<JsonObject>();
         assetObj["symbol"] = asset.symbol;
         assetObj["timezone"] = asset.timezone;
+        assetObj["exchange"] = asset.exchange;
     }
     xSemaphoreGive(_assets_mutex);
 
