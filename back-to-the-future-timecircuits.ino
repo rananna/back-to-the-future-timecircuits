@@ -439,11 +439,14 @@ void applySettingsFromJson(const JsonObject& obj) {
     }
     currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
     currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
+    stockManager.setEnabled(currentSettings.stockTickerModeEnabled);
     if (!obj["financialModelingPrepApiKey"].isNull()) {
         currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
+        stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
     }
     if (!obj["stockAssetsJson"].isNull()) {
         currentSettings.stockAssetsJson = obj["stockAssetsJson"].as<std::string>();
+        stockManager.updateAssetsFromJson(currentSettings.stockAssetsJson.c_str());
     }
 
     int numPoints = obj["numDataPoints"] | 0;
@@ -742,8 +745,6 @@ void loadSettings() {
 		tempString = preferences.getString("fmpApiKey", "");
 		currentSettings.financialModelingPrepApiKey = tempString.c_str();
 
-        // Load stock assets from JSON
-        stockManager.loadAssets();
 
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
@@ -862,6 +863,7 @@ void setup() {
 
     Log_printf(LOG_LEVEL_INFO, "Loading settings...");
     loadSettings();
+    stockManager.updateAssetsFromJson(currentSettings.stockAssetsJson.c_str());
     Log_printf(LOG_LEVEL_INFO, "Settings loaded... OK");
 
     xDisplayDataMutex = xSemaphoreCreateMutex();

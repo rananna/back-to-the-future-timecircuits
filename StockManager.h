@@ -58,6 +58,7 @@ public:
     void clearAssets();
     const std::vector<Asset>& getAssets() const;
     void setAssetTimezone(const String& symbol, const String& timezone);
+    void updateAssetsFromJson(const String& jsonString);
 
     // Data Fetching
     void fetchData();
@@ -71,8 +72,6 @@ public:
     void setApiKey(const String& key);
     void setRefreshInterval(unsigned long interval); // in minutes
     void setEnabled(bool enabled);
-    void saveAssets();
-    void loadAssets();
 
     // Status
     int getApiUsage() const;

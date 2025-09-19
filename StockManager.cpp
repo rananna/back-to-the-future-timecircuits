@@ -277,7 +277,6 @@ StockManager::StockManager() :
 
 void StockManager::begin() {
     Log_printf(LOG_LEVEL_INFO, "StockManager initialized.");
-    loadAssets();
 }
 
 void StockManager::loop() {
@@ -968,47 +967,18 @@ bool StockManager::isCryptoMarketOpen() const {
     return true; // Crypto market is 24/7
 }
 
-void StockManager::saveAssets() {
-    Preferences preferences;
-    preferences.begin("stock-assets", false);
-
-    // Create a JSON document to hold the assets
-    JsonDocument doc;
-    JsonArray assetsArray = doc.to<JsonArray>();
-    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    for (const auto& asset : _assets) {
-        JsonObject assetObj = assetsArray.add<JsonObject>();
-        assetObj["symbol"] = asset.symbol;
-        assetObj["type"] = (int)asset.type;
-        assetObj["timezone"] = asset.timezone;
-    }
-    xSemaphoreGive(_assets_mutex);
-
-    String jsonString;
-    serializeJson(doc, jsonString);
-
-    preferences.putString("assets", jsonString);
-    preferences.end();
-    Log_printf(LOG_LEVEL_INFO, "Saved stock assets to NVS.");
-}
-
-void StockManager::loadAssets() {
-    Preferences preferences;
-    preferences.begin("stock-assets", true);
-    String jsonString = preferences.getString("assets", "[]");
-    preferences.end();
-
+void StockManager::updateAssetsFromJson(const String& jsonString) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, jsonString);
 
     if (error) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to parse saved assets: %s", error.c_str());
+        Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock assets JSON: %s", error.c_str());
         return;
     }
 
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    JsonArray assetsArray = doc.as<JsonArray>();
     _assets.clear();
+    JsonArray assetsArray = doc.as<JsonArray>();
     for (JsonObject assetObj : assetsArray) {
         Asset newAsset;
         newAsset.symbol = assetObj["symbol"].as<String>();
@@ -1018,5 +988,5 @@ void StockManager::loadAssets() {
     }
     int numLoaded = _assets.size();
     xSemaphoreGive(_assets_mutex);
-    Log_printf(LOG_LEVEL_INFO, "Loaded %d stock assets from NVS.", numLoaded);
+    Log_printf(LOG_LEVEL_INFO, "Loaded %d stock assets from JSON.", numLoaded);
 }
