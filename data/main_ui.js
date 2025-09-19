@@ -599,9 +599,34 @@ async function updateStockStatus() {
 
         document.getElementById('stockApiUsage').textContent = `API Calls Today: ${status.api_usage}`;
 
-        status.assets.forEach(asset => {
-            const assetDiv = document.querySelector(`.asset-item[data-symbol="${asset.symbol}"]`);
-            if (assetDiv) {
+        // --- START: MODIFICATION - Gracefully handle missing assets array ---
+        // If the API call fails (e.g., invalid key), the 'assets' property might not exist.
+        // This check prevents a TypeError from crashing the update loop.
+        if (status.assets && Array.isArray(status.assets)) {
+            status.assets.forEach(asset => {
+                const assetDiv = document.querySelector(`.asset-item[data-symbol="${asset.symbol}"]`);
+                if (assetDiv) {
+                    const priceEl = assetDiv.querySelector('.asset-price');
+                    const changeEl = assetDiv.querySelector('.asset-change');
+
+                    if (asset.data_valid) {
+                        priceEl.textContent = `$${asset.price.toFixed(2)}`;
+                        changeEl.textContent = `${asset.change_percent.toFixed(2)}%`;
+                        changeEl.className = 'asset-change ' + (asset.change_percent >= 0 ? 'positive' : 'negative');
+                    } else {
+                        priceEl.textContent = '--';
+                        changeEl.textContent = '--';
+                        changeEl.className = 'asset-change';
+                    }
+                }
+            });
+        }
+        // --- END: MODIFICATION ---
+
+    } catch (error) {
+        console.error('Error updating stock status:', error);
+    }
+}
                 const priceEl = assetDiv.querySelector('.asset-price');
                 const changeEl = assetDiv.querySelector('.asset-change');
 
