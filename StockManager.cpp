@@ -580,7 +580,7 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
 
         char request[512];
         snprintf(request, sizeof(request),
-                 "GET /stable/search-symbol?query=%s&limit=1&apikey=%s HTTP/1.1\r\n"
+                 "GET /stable/quote?symbol=%s&apikey=%s HTTP/1.1\r\n"
                  "Host: financialmodelingprep.com\r\n"
                  "Connection: close\r\n"
                  "\r\n",
@@ -686,7 +686,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
         Log_printf(LOG_LEVEL_DEBUG, "Stock TLS connection established.");
 
-        char request[1024];
+        char request[2048];
         char url_log[512];
         char* symbols_str_buf = NULL; // Keep track of buffer for cleanup
 

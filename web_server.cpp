@@ -537,8 +537,9 @@ void setupWebRoutes() {
     WiFiClientSecure client;
     client.setInsecure(); // For simplicity, though not recommended for production
     HTTPClient http;
-    String url = "https://financialmodelingprep.com/stable/search-symbol?query=" + query + "&limit=10&apikey=" + apiKey;
-    Log_printf(LOG_LEVEL_INFO, "Proxying stock search to: %s", url.c_str());
+    String url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=" + apiKey;
+    String log_url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=REDACTED";
+    Log_printf(LOG_LEVEL_INFO, "Proxying stock search to: %s", log_url.c_str());
 
     if (http.begin(client, url)) {
         int httpCode = http.GET();
