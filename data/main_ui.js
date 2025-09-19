@@ -498,7 +498,6 @@ function attachEventListeners() {
     // Use event delegation for the stock fetch buttons. This ensures the click event
     // is handled even if the buttons are added to the DOM after the initial page load.
     document.getElementById('addAssetBtn').onclick = addStockAsset;
-    document.getElementById('addAssetInput').addEventListener('input', handleSymbolAutocomplete);
 
     // Number of data points slider
     document.getElementById('notificationVolume').addEventListener('input', (e) => {
@@ -654,53 +653,6 @@ async function updateStockStatus() {
         }
     } catch (error) {
         console.error('Error updating stock status:', error);
-    }
-}
-
-async function handleSymbolAutocomplete(e) {
-    const query = e.target.value;
-    const container = document.getElementById('symbolAutocompleteContainer');
-    if (query.length < 1) {
-        container.innerHTML = '';
-        container.style.display = 'none';
-        return;
-    }
-
-    const apiKey = document.getElementById('financialModelingPrepApiKey').value;
-    if (!apiKey) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/stocks/search?q=${query}&apikey=${apiKey}`);
-        if (!response.ok) {
-            throw new Error('Symbol search failed');
-        }
-        const results = await response.json();
-        renderAutocompleteResults(results);
-    } catch (error) {
-        console.error('Error during symbol autocomplete:', error);
-    }
-}
-
-function renderAutocompleteResults(results) {
-    const container = document.getElementById('symbolAutocompleteContainer');
-    container.innerHTML = '';
-    if (results.length > 0) {
-        container.style.display = 'block';
-        results.forEach(result => {
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'autocomplete-item';
-            resultDiv.textContent = `${result.symbol} - ${result.name}`;
-            resultDiv.onclick = () => {
-                document.getElementById('addAssetInput').value = result.symbol;
-                container.innerHTML = '';
-                container.style.display = 'none';
-            };
-            container.appendChild(resultDiv);
-        });
-    } else {
-        container.style.display = 'none';
     }
 }
 
@@ -1972,7 +1924,9 @@ async function addStockAsset() {
             return;
         }
 
-        const testResponse = await fetch(`/api/stocks/search?q=${symbol}&apikey=${apiKey}`);
+        const url = `/api/stocks/search?q=${symbol}&apikey=${apiKey}`;
+        console.log(`Validating symbol '${symbol}' with URL: ${url}`);
+        const testResponse = await fetch(url);
         const testResult = await testResponse.json();
 
         let isValid = false;
