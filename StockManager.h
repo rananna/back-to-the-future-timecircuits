@@ -70,6 +70,8 @@ public:
     String getMarqueeLine();
     void nextPage();
     void previousPage();
+    void resetTicker();
+    Asset getCurrentStockInfo() const;
 
     // Configuration
     void setApiKey(const String& key);

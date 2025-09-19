@@ -10,6 +10,15 @@ enum WeatherDisplayState {
     WD_ERROR
 };
 
+enum StockDisplayState {
+    SD_START_PAGE,
+    SD_SCROLLING,
+    SD_PAUSING,
+    SD_ERROR,
+    SD_CONNECTING,
+    SD_MARKET_CLOSED
+};
+
 extern bool weatherDataUpdated;
 extern bool isRowInManualMode[3];
 extern std::string manualDisplayText[3][4];

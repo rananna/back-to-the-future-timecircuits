@@ -46,6 +46,11 @@ static int weatherPage = 0;
 static int weatherScrollPosition = 0;
 static unsigned long lastWeatherUpdate = 0;
 
+// File-scoped state variables for the stock ticker display state machine
+static StockDisplayState stockState = SD_START_PAGE;
+static int stockScrollPosition = 0;
+static unsigned long lastStockUpdate = 0;
+
 /**
  * @brief Resets the state flags used for the initial weather data fetch.
  * @details This function is called to clear any timeout or error states,
@@ -220,97 +225,126 @@ void updateStockTickerDisplay() {
     // In stock mode, top two rows show the clock
     updateNormalClockDisplay_internal(true, true, false);
 
+    // Turn off AM/PM LEDs for the last row
+    digitalWrite(LAST_AM_PIN, LOW);
+    digitalWrite(LAST_PM_PIN, LOW);
+
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        // --- START MODIFICATION: Check for time sync ---
-        if (!stockManager.isTimeSynchronized()) {
-            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                printToDisplay(lastRow.month, " ", 0);
-                printToDisplay(lastRow.day, " ", 0);
-                printToDisplay(lastRow.year, "CONNECTING", 0);
-                printToDisplay(lastRow.time, "....", 0);
-                lastRow.month.writeDisplay();
-                lastRow.day.writeDisplay();
-                lastRow.year.writeDisplay();
-                lastRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(2));
-                xSemaphoreGive(xDisplayHardwareMutex);
-            }
-            xSemaphoreGive(xDisplayDataMutex);
-            return;
-        }
-        // --- END MODIFICATION ---
-        static std::string stockMarqueeBuffer;
-        static bool isBufferDirty = true;
-        static int scrollPosition = 0;
-        static unsigned long lastScrollTime = 0;
-        static unsigned long lastPageChangeTime = 0;
-        const unsigned long pageChangeInterval = 5000; // 5 seconds per page
+        const unsigned long scrollSpeed = 250;
+        const unsigned long pauseDuration = 2000; // 2-second pause between tickers
+        static char stockMarqueeBuffer[256]; // Buffer for the full text
 
-        // Check if it's time to advance to the next page/stock
-        if (millis() - lastPageChangeTime > pageChangeInterval) {
-            stockManager.nextPage();
-            isBufferDirty = true; // Mark buffer as dirty to fetch new marquee line
-            lastPageChangeTime = millis();
-        }
-
-        // Check for data updates *before* getting the marquee line
-        if (stockManager.hasDataBeenUpdated()) {
-            isBufferDirty = true;
-        }
-
-        String marqueeLine = stockManager.getMarqueeLine();
-
-        // If the line has changed (e.g. nextPage was called or data updated), rebuild the buffer
-        if (isBufferDirty) {
-            if (marqueeLine.length() > 13) {
-                // Pad for scrolling
-                stockMarqueeBuffer = "  " + std::string(marqueeLine.c_str()) + "  ";
-            } else {
-                // Center the text if it fits
-                int padding = (13 - marqueeLine.length()) / 2;
-                String paddedLine = "";
-                if (marqueeLine == "MARKET CLOSED") {
-                    // Manual adjustment for "MARKET CLOSED" to shift it right by one character.
-                    paddedLine = " ";
+        // State machine for stock ticker display
+        switch (stockState) {
+            case SD_CONNECTING:
+                if (stockManager.isTimeSynchronized()) {
+                    stockState = SD_START_PAGE; // Time is synced, proceed
                 } else {
-                    for(int i=0; i<padding; i++) paddedLine += " ";
+                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        printToDisplay(lastRow.month, " ", 0);
+                        printToDisplay(lastRow.day, " ", 0);
+                        printToDisplay(lastRow.year, "CONNECTING", 0);
+                        printToDisplay(lastRow.time, "....", 0);
+                        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
+                        xSemaphoreGive(xDisplayHardwareMutex);
+                    }
                 }
-                paddedLine += marqueeLine;
-                stockMarqueeBuffer = paddedLine.c_str();
-            }
-            scrollPosition = 0;
-            isBufferDirty = false;
-            stockManager.clearDataUpdatedFlag(); // Reset the flag
-        }
+                break;
 
-        // Handle scrolling animation
-        if (millis() - lastScrollTime > 150) { // Scroll speed
-            lastScrollTime = millis();
+            case SD_START_PAGE: {
+                stockManager.nextPage();
 
-            std::string viewport_str = stockMarqueeBuffer.substr(scrollPosition, 13);
-            const char* viewport = viewport_str.c_str();
-
-            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                // Update the last row displays with the viewport
-                printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 0);
-                printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 0);
-                printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
-                printToDisplay(lastRow.time, std::string(viewport).substr(9, 13).c_str(), 0);
-
-                lastRow.month.writeDisplay();
-                lastRow.day.writeDisplay();
-                lastRow.year.writeDisplay();
-                lastRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(2));
-                xSemaphoreGive(xDisplayHardwareMutex);
-            }
-
-            // Move scroll position for next frame
-            if (stockMarqueeBuffer.length() > 13) {
-                scrollPosition++;
-                if (scrollPosition > stockMarqueeBuffer.length() - 13) {
-                    scrollPosition = 0; // Loop back
+                if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                    printToDisplay(lastRow.month, "   ", 0); printToDisplay(lastRow.day, "  ", 0);
+                    printToDisplay(lastRow.year, "    ", 0); printToDisplay(lastRow.time, "    ", 0);
+                    lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
+                    xSemaphoreGive(xDisplayHardwareMutex);
                 }
+
+                String marqueeLine = stockManager.getMarqueeLine();
+
+                if (marqueeLine == "MARKET CLOSED") {
+                    snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "MARKET CLOSED");
+                    stockState = SD_MARKET_CLOSED;
+                    break;
+                }
+                if (marqueeLine == "ADD SYMBOLS IN UI" || marqueeLine.indexOf("NO DATA") != -1 || marqueeLine.indexOf("INVALID") != -1) {
+                    snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "%s", marqueeLine.c_str());
+                    stockState = SD_ERROR;
+                    break;
+                }
+
+                snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s             ", marqueeLine.c_str());
+                stockScrollPosition = 0;
+                stockState = SD_SCROLLING;
+                lastStockUpdate = millis();
+                break;
+            }
+
+            case SD_SCROLLING: {
+                if (millis() - lastStockUpdate > scrollSpeed) {
+                    lastStockUpdate = millis();
+
+                    if (stockScrollPosition > strlen(stockMarqueeBuffer)) {
+                        stockState = SD_PAUSING;
+                        lastStockUpdate = millis();
+                    } else {
+                        char viewport[14];
+                        int text_len = strlen(stockMarqueeBuffer);
+                        for (int i = 0; i < 13; i++) {
+                            int source_idx = stockScrollPosition + i;
+                            if (source_idx < text_len) viewport[i] = stockMarqueeBuffer[source_idx];
+                            else viewport[i] = ' ';
+                        }
+                        viewport[13] = '\0';
+
+                        char segment_month[4], segment_day[3], segment_year[5], segment_time[5];
+                        strncpy(segment_month, viewport, 3); segment_month[3] = '\0';
+                        strncpy(segment_day, viewport + 3, 2); segment_day[2] = '\0';
+                        strncpy(segment_year, viewport + 5, 4); segment_year[4] = '\0';
+                        strncpy(segment_time, viewport + 9, 4); segment_time[4] = '\0';
+
+                        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                            printToDisplay(lastRow.month, segment_month, 0);
+                            printToDisplay(lastRow.day, segment_day, 0);
+                            printToDisplay(lastRow.year, segment_year, 0);
+                            printToDisplay(lastRow.time, segment_time, 0);
+                            lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+                            vTaskDelay(pdMS_TO_TICKS(2));
+                            xSemaphoreGive(xDisplayHardwareMutex);
+                        }
+                        stockScrollPosition++;
+                    }
+                }
+                break;
+            }
+
+            case SD_PAUSING: {
+                if (millis() - lastStockUpdate > pauseDuration) {
+                    stockState = SD_START_PAGE;
+                }
+                break;
+            }
+
+            case SD_MARKET_CLOSED:
+            case SD_ERROR: {
+                int padding = (13 - strlen(stockMarqueeBuffer)) / 2;
+                char paddedLine[14] = "";
+                for(int i=0; i<padding; i++) strcat(paddedLine, " ");
+                strcat(paddedLine, stockMarqueeBuffer);
+
+                if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                    printToDisplay(lastRow.month, std::string(paddedLine).substr(0, 3).c_str(), 0);
+                    printToDisplay(lastRow.day, std::string(paddedLine).substr(3, 2).c_str(), 0);
+                    printToDisplay(lastRow.year, std::string(paddedLine).substr(5, 4).c_str(), 0);
+                    printToDisplay(lastRow.time, std::string(paddedLine).substr(9, 4).c_str(), 0);
+                    lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
+                    xSemaphoreGive(xDisplayHardwareMutex);
+                }
+                break;
             }
         }
         xSemaphoreGive(xDisplayDataMutex);

@@ -235,6 +235,7 @@ enum DisplayState {
     STATE_WEATHER
 };
 DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
+extern StockDisplayState stockState;
 
 
 // --- Callback function to handle audio events ---
@@ -957,21 +958,38 @@ void setup() {
 
 // --- NEW STATE DETERMINATION FUNCTION ---
 void updateDisplayState() {
+    static DisplayState previousDisplayState = STATE_NORMAL_CLOCK;
+    DisplayState newDisplayState;
+
     if (isMessageOverrideActive) {
-        currentDisplayState = STATE_MESSAGE_OVERRIDE;
+        newDisplayState = STATE_MESSAGE_OVERRIDE;
     } else if (isAnimating) {
-        currentDisplayState = STATE_ANIMATING;
+        newDisplayState = STATE_ANIMATING;
     } else if (isMarqueeOverrideActive) {
-        currentDisplayState = STATE_MARQUEE_OVERRIDE;
+        newDisplayState = STATE_MARQUEE_OVERRIDE;
     } else if (currentSettings.stockTickerModeEnabled) {
-        currentDisplayState = STATE_STOCK_TICKER;
+        newDisplayState = STATE_STOCK_TICKER;
     } else if (currentSettings.dataLinkEnabled) {
-        currentDisplayState = STATE_DATA_LINK;
+        newDisplayState = STATE_DATA_LINK;
     } else if (currentSettings.weatherModeEnabled) {
-        currentDisplayState = STATE_WEATHER;
+        newDisplayState = STATE_WEATHER;
     } else {
-        currentDisplayState = STATE_NORMAL_CLOCK;
+        newDisplayState = STATE_NORMAL_CLOCK;
     }
+
+    if (newDisplayState != previousDisplayState) {
+        Log_printf(LOG_LEVEL_INFO, "Display state changed from %d to %d", previousDisplayState, newDisplayState);
+        if (newDisplayState == STATE_STOCK_TICKER) {
+            // Reset the stock ticker state machine when entering the mode
+            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                stockState = SD_CONNECTING;
+                xSemaphoreGive(xDisplayDataMutex);
+            }
+        }
+        previousDisplayState = newDisplayState;
+    }
+
+    currentDisplayState = newDisplayState;
 }
 
 // --- NEW DISPLAY HANDLER FUNCTION ---
