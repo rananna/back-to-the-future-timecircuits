@@ -503,13 +503,13 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
             // --- SINGLE SYMBOL LOOKUP ---
             const char* symbol_cstr = upper_symbols[0].c_str();
             snprintf(request, sizeof(request),
-                     "GET /stable/quote/%s?apikey=%s HTTP/1.1\r\n"
+                     "GET /stable/quote?symbol=%s&apikey=%s HTTP/1.1\r\n"
                      "Host: financialmodelingprep.com\r\n"
                      "Connection: close\r\n"
                      "\r\n",
                      symbol_cstr, _api_key.c_str());
 
-            snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/quote/%s?apikey=REDACTED", symbol_cstr);
+            snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/quote?symbol=%s&apikey=REDACTED", symbol_cstr);
         } else {
             // --- BATCH SYMBOL LOOKUP ---
             // Pre-calculate buffer size to avoid String concatenation in a loop
@@ -539,13 +539,13 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
             *current_pos = '\0';
 
             snprintf(request, sizeof(request),
-                     "GET /stable/stock/market/batch?symbols=%s&types=quote&apikey=%s HTTP/1.1\r\n"
+                     "GET /stable/batch-quote?symbols=%s&apikey=%s HTTP/1.1\r\n"
                      "Host: financialmodelingprep.com\r\n"
                      "Connection: close\r\n"
                      "\r\n",
                      symbols_str_buf, _api_key.c_str());
 
-            snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/stock/market/batch?symbols=%s&types=quote&apikey=REDACTED", symbols_str_buf);
+            snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/batch-quote?symbols=%s&apikey=REDACTED", symbols_str_buf);
         }
 
         Log_printf(LOG_LEVEL_INFO, "Fetching stock data from URL: %s", url_log);
