@@ -781,11 +781,11 @@ void setupWebRoutes() {
         for (JsonVariant v : assets) {
             JsonObject assetObj = v.as<JsonObject>();
             String symbol = assetObj["symbol"];
-            AssetType type = (AssetType)assetObj["type"].as<int>();
             String timezone = assetObj["timezone"];
             if (!symbol.isEmpty()) {
-                // addAsset will safely ignore existing assets
-                stockManager.addAsset(symbol, type);
+                // addAsset will safely ignore existing assets.
+                // We then call setAssetTimezone to ensure the timezone is up to date.
+                stockManager.addAsset(symbol, timezone);
                 stockManager.setAssetTimezone(symbol, timezone);
             }
         }

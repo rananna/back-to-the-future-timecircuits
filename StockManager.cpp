@@ -435,7 +435,7 @@ void StockManager::fetchData() {
     if (!cryptos.empty()) {
         StockFetchParams* params = new StockFetchParams{cryptos, this};
         if (xTaskCreate(fetchStockDataBatchTask, "cryptoFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks++;
+            _running_tasks = _running_tasks + 1;
             Log_printf(LOG_LEVEL_INFO, "Created task to fetch %d crypto assets.", cryptos.size());
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Failed to create crypto fetch task.");
@@ -447,7 +447,7 @@ void StockManager::fetchData() {
     if (!stocks.empty()) {
         StockFetchParams* params = new StockFetchParams{stocks, this};
         if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks++;
+            _running_tasks = _running_tasks + 1;
             Log_printf(LOG_LEVEL_INFO, "Created task to fetch %d stock assets.", stocks.size());
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Failed to create stock fetch task.");

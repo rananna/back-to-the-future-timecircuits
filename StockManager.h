@@ -72,10 +72,9 @@ public:
     int getApiUsage() const;
     bool isMarketOpen() const;
     bool hasDataBeenUpdated();
-
-private:
     void clearDataUpdatedFlag();
 
+private:
     std::vector<Asset> _assets;
     String _api_key;
     unsigned long _refresh_interval_ms;
