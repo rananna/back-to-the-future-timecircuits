@@ -126,37 +126,63 @@ While fetching data, the display will show `WEA TH ER ----`. Once loaded, it wil
 ---
 
 #### Stock Ticker Mode
-This mode transforms the bottom display row into a scrolling, multi-page financial ticker. It supports stocks, indices, and cryptocurrencies, allowing you to track your portfolio at a glance.
+This mode transforms the bottom display row into a scrolling, multi-page financial ticker. It supports stocks, indices, and cryptocurrencies from around the world, allowing you to track your portfolio at a glance.
 
-##### 1. Configuration & Activation
+##### 1. Activation & API Key
 First, you need to enable and configure the mode in the "Data Link" tab of the web interface.
 
-*   **Enable the Mode**: Toggle on "Stock Ticker Mode".
+*   **Enable the Mode**: Toggle on "Stock Ticker Mode". This will reveal the settings panel.
 *   **API Key**: You must provide a valid API key from the **Financial Modeling Prep** service. Without this key, the device cannot fetch any data. A free tier is available and is sufficient for this feature.
-*   **Refresh Interval**: Set how often the data should be refreshed, in minutes. The default is 2 minutes, which is as fast as possible while staying within the free API tier limit of 250 calls per day.
-*   **Add Assets**:
-    *   Type a symbol (e.g., `AAPL`, `BTC-USD`, `^GSPC`) into the "Add Asset" input field. The field supports autocomplete to help you find the correct symbol.
-    *   Click the **Add Asset** button. The asset will appear in the "Tracked Assets" list below.
-*   **Manage Assets**:
-    *   **Reorder**: Click and drag any asset in the list to change the display order.
-    *   **Remove**: Click the red '×' button next to an asset to remove it from the list.
+*   **Refresh Interval**: Set how often the data should be refreshed, in minutes. The default is 2 minutes. Note that the free API tier has a limit of 250 calls per day.
 
-##### 2. Retrieving Your API Key
-The stock data is sourced from a service called [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs). You will need to register for a free account to get an API key.
-
+To get your API key:
 1.  **Navigate to the Registration Page**: Open a web browser and go to the [Financial Modeling Prep registration page](https://site.financialmodelingprep.com/register).
 2.  **Sign Up**: Fill out the required information to create a new account.
 3.  **Find Your API Key**: Once you have created your account and logged in, navigate to your **Dashboard**. Your API key will be displayed in the **"Your API KEY"** section.
 4.  **Copy and Paste**: Copy the API key from the dashboard and paste it into the "Financial Modeling Prep API Key" field in the clock's web interface.
 
-##### 3. Data Fetching & Display
-*   **Market Hours**: To stay within the API limits, data is only fetched when the relevant market is open. Stock and index data is fetched during standard US market hours (9:30 AM - 4:00 PM ET, Mon-Fri), while cryptocurrency data is fetched 24/7.
-*   **Batch API Calls**: To maximize efficiency, the clock bundles all assets of the same type (all stocks, all cryptos, etc.) into a single API call.
-*   **Display Cycle**: The bottom display row will cycle through your tracked assets. For each asset, it will display a single scrolling line containing the asset's name, price, percentage change, and daily volume.
-    *   *Example: `TESLA $250.00 +1.23% VOL:1.5M`*
-*   **Market Closed Message**: When all relevant markets for your tracked assets are closed, the display will show a static "MARKET CLOSED" message.
+##### 2. Adding & Managing Assets
+This section allows you to build and manage your list of tracked assets.
 
-##### 4. MQTT Control
+*   **Add an Asset**:
+    1.  **Symbol**: Start typing a stock symbol (e.g., `AAPL`, `MSFT`), index (e.g., `^GSPC`), or cryptocurrency (e.g., `BTCUSD`) into the "Add Asset" input field. The field features an **autocomplete** function that will suggest matching symbols as you type, making it easy to find the correct one.
+    2.  **Timezone**: Select a timezone for the asset. While the clock automatically determines the correct market hours based on the asset's exchange, setting a timezone can be useful for display consistency.
+    3.  **Click "Add Asset"**: The asset will be added to the "Tracked Assets" list below. The clock will automatically look up the asset's name and exchange.
+
+*   **Manage Assets**:
+    *   **Reorder**: Click and drag any asset in the list to change the order in which they are displayed on the clock.
+    *   **Remove**: Click the red **'×'** button next to an asset to remove it from your list.
+
+##### 3. The Display
+The physical display provides a rich, multi-page view of your assets.
+
+*   **Display Cycle**: The clock automatically cycles through each of your tracked assets. For each asset, it displays **two pages** of information:
+    1.  **Page 1: Price & Volume**: Shows the asset's name, current price, percentage change for the day, and trading volume. Volume is automatically abbreviated (K for thousands, M for millions, B for billions).
+        *   *Example: `TESLA $250.00 +1.23% VOL:1.5M`*
+    2.  **Page 2: Day's High & Low**: Shows the asset's name along with the highest and lowest price for the current trading day.
+        *   *Example: `TESLA HIGH $255.50 LOW $248.75`*
+
+*   **Currency Symbols**: The clock automatically converts currency codes (e.g., `USD`, `EUR`, `GBP`) into their common symbols (`$`, `€`, `£`) on the display.
+
+*   **Market Closed Message**: When all the markets for your tracked assets are closed, the display will show a static "MARKET CLOSED" message.
+
+*   **Error Messages**: If the clock encounters a problem with a specific asset (e.g., an invalid symbol or an API key issue), it will display an informative error message on the marquee.
+    *   *Example: `GOOGL INVALID SYMBOL` or `TSLA INVALID API KEY`*
+
+##### 4. Web UI Live Feedback
+The web interface provides several tools for monitoring the stock ticker in real-time.
+
+*   **Live Marquee Preview**: A preview of the text currently scrolling on the physical display is shown directly in the web UI. This allows you to see what the clock is displaying without having to look at the device itself.
+*   **Tracked Assets List**: This list provides live updates for your assets. You can see the current price and percentage change, which refresh periodically. If there's an error with an asset, it will be shown here.
+*   **API Usage Counter**: The UI displays the number of API calls made to the Financial Modeling Prep service for the current day, helping you stay within the limits of your plan.
+
+##### 5. How It Works: Market Hours & Data
+The stock ticker has several smart features to ensure data is both timely and efficient.
+
+*   **Intelligent Market Hours**: The clock is designed for global assets. When you add a stock or index, it automatically determines its exchange (e.g., NASDAQ, TSX, LSE). It then checks the live open/closed status for **each specific exchange**. Data is only fetched for assets whose markets are currently open. Cryptocurrencies are fetched 24/7.
+*   **Batch API Calls**: To maximize efficiency and stay within API limits, the clock bundles all assets of the same type (e.g., all stocks, all cryptos) into a single API call.
+
+##### 6. MQTT Control
 You can manually cycle through the asset pages using MQTT commands. This is useful for quickly checking a specific data point without waiting for the automatic cycle.
 *   **Next Page**: Publish any message to `bttf-time-circuits/[DEVICE_ID]/stock/next/command`
 *   **Previous Page**: Publish any message to `bttf-time-circuits/[DEVICE_ID]/stock/previous/command`
