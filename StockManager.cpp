@@ -384,9 +384,8 @@ struct StockFetchParams {
 };
 
 void StockManager::fetchData() {
-    if (!isMarketOpen()) {
-        Log_printf(LOG_LEVEL_INFO, "Market is closed. Skipping stock data fetch.");
-        _last_fetch_time = millis();
+    if (_assets.empty()) {
+        _is_fetching = false;
         return;
     }
 
@@ -394,12 +393,19 @@ void StockManager::fetchData() {
     _is_fetching = true;
     _last_fetch_time = millis();
 
-    std::map<String, std::vector<String>> assets_by_tz;
+    std::map<String, std::vector<String>> stocks_by_tz;
+    std::vector<String> cryptos;
+
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
-        const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
-        if (isStockMarketOpen(tz)) {
-            assets_by_tz[tz].push_back(asset.symbol);
+        // Simple heuristic to distinguish crypto from stocks
+        if (asset.symbol.indexOf("-USD") != -1 || asset.symbol.indexOf("-EUR") != -1) {
+            cryptos.push_back(asset.symbol);
+        } else {
+            const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
+            if (isStockMarketOpen(tz)) {
+                stocks_by_tz[tz].push_back(asset.symbol);
+            }
         }
     }
     xSemaphoreGive(_assets_mutex);
@@ -407,14 +413,28 @@ void StockManager::fetchData() {
     xSemaphoreTake(_task_mutex, portMAX_DELAY);
     _running_tasks = 0;
 
-    // Create tasks for assets, grouped by timezone
-    for (auto const& pair : assets_by_tz) {
+    // Create a task for all cryptos (they trade 24/7)
+    if (!cryptos.empty()) {
+        StockFetchParams* params = new StockFetchParams{cryptos, this};
+        if (xTaskCreate(fetchStockDataBatchTask, "cryptoFetch", 8192, params, 1, NULL) == pdPASS) {
+            _running_tasks++;
+            Log_printf(LOG_LEVEL_INFO, "Created task to fetch %d crypto assets.", cryptos.size());
+        } else {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to create crypto fetch task.");
+            delete params;
+        }
+    }
+
+    // Create tasks for stocks, grouped by timezone
+    for (auto const& pair : stocks_by_tz) {
         const std::vector<String>& symbols = pair.second;
         if (!symbols.empty()) {
             StockFetchParams* params = new StockFetchParams{symbols, this};
             if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
-                _running_tasks += 1;
+                _running_tasks++;
+                Log_printf(LOG_LEVEL_INFO, "Created task to fetch %d stock assets for TZ %s.", symbols.size(), pair.first.c_str());
             } else {
+                Log_printf(LOG_LEVEL_ERROR, "Failed to create stock fetch task for TZ %s.", pair.first.c_str());
                 delete params;
             }
         }
@@ -424,6 +444,7 @@ void StockManager::fetchData() {
 
     if (_running_tasks == 0) {
         _is_fetching = false;
+        Log_printf(LOG_LEVEL_INFO, "No assets to fetch at this time.");
     }
 }
 
@@ -715,7 +736,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
             });
             if (it != _assets.end()) {
                 it->data_valid = false;
-                it->error_reason = "INVALID";
+                it->error_reason = "INVALID SYMBOL";
                 Log_printf(LOG_LEVEL_WARN, "Symbol %s requested but not found in API response. Marked as invalid.", req_sym.c_str());
             }
         }
@@ -786,32 +807,38 @@ String StockManager::getMarqueeLine() {
     char buffer[128]; // Buffer for formatting the string
     String currency_symbol_str = getCurrencySymbol(current_asset.currency);
     const char* currency_symbol = currency_symbol_str.c_str();
-
-    // Format: NAME $PRICE +/-CHANGE% VOL:VOLUME
-    // Example: TESLA $250.00 +1.23% VOL:1.5M
-
-    // Abbreviate volume for display
-    String vol_str;
-    if (current_asset.volume > 1000000000) { // Billions
-        vol_str = String(current_asset.volume / 1000000000.0, 1) + "B";
-    } else if (current_asset.volume > 1000000) { // Millions
-        vol_str = String(current_asset.volume / 1000000.0, 1) + "M";
-    } else if (current_asset.volume > 1000) { // Thousands
-        vol_str = String(current_asset.volume / 1000.0, 1) + "K";
-    } else {
-        vol_str = String(current_asset.volume);
-    }
-
-    // Use asset name if available, otherwise symbol
     const char* name_to_display = current_asset.name.isEmpty() ? current_asset.symbol.c_str() : current_asset.name.c_str();
 
-    snprintf(buffer, sizeof(buffer), "%s %s%.2f %s%.2f%% VOL:%s",
-             name_to_display,
-             currency_symbol,
-             current_asset.price,
-             current_asset.change_percent >= 0 ? "+" : "",
-             current_asset.change_percent,
-             vol_str.c_str());
+    // Page 0: Price, Change, Volume
+    if (_current_page_index == 0) {
+        String vol_str;
+        if (current_asset.volume > 1000000000) { // Billions
+            vol_str = String(current_asset.volume / 1000000000.0, 1) + "B";
+        } else if (current_asset.volume > 1000000) { // Millions
+            vol_str = String(current_asset.volume / 1000000.0, 1) + "M";
+        } else if (current_asset.volume > 1000) { // Thousands
+            vol_str = String(current_asset.volume / 1000.0, 1) + "K";
+        } else {
+            vol_str = String(current_asset.volume);
+        }
+
+        snprintf(buffer, sizeof(buffer), "%s %s%.2f %s%.2f%% VOL:%s",
+                name_to_display,
+                currency_symbol,
+                current_asset.price,
+                current_asset.change_percent >= 0 ? "+" : "",
+                current_asset.change_percent,
+                vol_str.c_str());
+    }
+    // Page 1: Day's High and Low
+    else {
+        snprintf(buffer, sizeof(buffer), "%s HIGH %s%.2f LOW %s%.2f",
+                name_to_display,
+                currency_symbol,
+                current_asset.day_high,
+                currency_symbol,
+                current_asset.day_low);
+    }
 
     xSemaphoreGive(_assets_mutex);
     return String(buffer);
@@ -832,11 +859,19 @@ void StockManager::nextPage() {
         return;
     }
 
-    _current_asset_index++;
-    if (_current_asset_index >= _assets.size()) {
-        _current_asset_index = 0;
+    const int NUM_PAGES_PER_ASSET = 2; // Page 0: Price, Page 1: High/Low
+
+    _current_page_index++;
+    if (_current_page_index >= NUM_PAGES_PER_ASSET) {
+        _current_page_index = 0;
+        _current_asset_index++;
+        if (_current_asset_index >= _assets.size()) {
+            _current_asset_index = 0;
+        }
+        Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Next Asset (%d)", _current_asset_index);
+    } else {
+        Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Next Page (%d) for Asset %d", _current_page_index, _current_asset_index);
     }
-    Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Next Asset (%d)", _current_asset_index);
     xSemaphoreGive(_assets_mutex);
 }
 
@@ -847,11 +882,20 @@ void StockManager::previousPage() {
         return;
     }
 
-    _current_asset_index--;
-    if (_current_asset_index < 0) {
-        _current_asset_index = _assets.size() - 1;
+    const int NUM_PAGES_PER_ASSET = 2;
+
+    _current_page_index--;
+    if (_current_page_index < 0) {
+        _current_page_index = NUM_PAGES_PER_ASSET - 1;
+        _current_asset_index--;
+        if (_current_asset_index < 0) {
+            // If we were at the first asset, wrap around to the last page of the last asset
+            _current_asset_index = _assets.size() - 1;
+        }
+        Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Previous Asset (%d)", _current_asset_index);
+    } else {
+        Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Previous Page (%d) for Asset %d", _current_page_index, _current_asset_index);
     }
-    Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Previous Asset (%d)", _current_asset_index);
     xSemaphoreGive(_assets_mutex);
 }
 
