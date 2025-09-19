@@ -685,40 +685,57 @@ void StockManager::fetchBatchData(const std::vector<String>& symbols, AssetType 
 
 void StockManager::parseJsonResponse(JsonDocument& doc, AssetType type, const std::vector<String>& requested_symbols) {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    JsonArray array = doc.as<JsonArray>();
 
     // Create a temporary list of received symbols for efficient lookup.
     std::vector<String> received_symbols;
-    if (!array.isNull()) {
-        for (JsonObject quote : array) {
-            String symbol = quote["symbol"];
-            if (symbol.isEmpty()) {
-                continue;
-            }
-            received_symbols.push_back(symbol);
 
-            auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
-                return asset.symbol.equalsIgnoreCase(symbol);
-            });
-
-            if (it != _assets.end()) {
-                it->price = quote["price"].as<float>();
-                it->change_percent = quote["changesPercentage"].as<float>();
-                it->day_high = quote["dayHigh"].as<float>();
-                it->day_low = quote["dayLow"].as<float>();
-                it->volume = quote["volume"].as<unsigned long>();
-                it->name = quote["name"].as<String>();
-                it->currency = quote["currency"].as<String>();
-                it->last_update = millis();
-                it->data_valid = true;
-                it->error_reason = ""; // Clear previous error
-                Log_printf(LOG_LEVEL_INFO, "Updated data for %s", symbol.c_str());
-            } else {
-                Log_printf(LOG_LEVEL_WARN, "Received data for untracked symbol: %s", symbol.c_str());
-            }
+    // Lambda to process a single JSON object from the API response.
+    auto process_quote = [&](JsonObject quote) {
+        if (quote.isNull()) {
+            return;
         }
+
+        String symbol = quote["symbol"];
+        if (symbol.isEmpty()) {
+            // If the object is an error message, it might not have a symbol.
+            // Example: { "Error Message" : "Invalid API KEY..." }
+            // This case is implicitly handled by the logic that marks non-updated assets as invalid.
+            return;
+        }
+        received_symbols.push_back(symbol);
+
+        auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
+            return asset.symbol.equalsIgnoreCase(symbol);
+        });
+
+        if (it != _assets.end()) {
+            it->price = quote["price"].as<float>();
+            it->change_percent = quote["changesPercentage"].as<float>();
+            it->day_high = quote["dayHigh"].as<float>();
+            it->day_low = quote["dayLow"].as<float>();
+            it->volume = quote["volume"].as<unsigned long>();
+            it->name = quote["name"].as<String>();
+            it->currency = quote["currency"].as<String>();
+            it->last_update = millis();
+            it->data_valid = true;
+            it->error_reason = ""; // Clear previous error
+            Log_printf(LOG_LEVEL_INFO, "Updated data for %s", symbol.c_str());
+        } else {
+            Log_printf(LOG_LEVEL_WARN, "Received data for untracked symbol: %s", symbol.c_str());
+        }
+    };
+
+    if (doc.is<JsonArray>()) {
+        // Response is an array of quotes (multiple symbols)
+        JsonArray array = doc.as<JsonArray>();
+        for (JsonObject quote : array) {
+            process_quote(quote);
+        }
+    } else if (doc.is<JsonObject>()) {
+        // Response is a single quote object (e.g. single symbol lookup, or an error object)
+        process_quote(doc.as<JsonObject>());
     } else {
-        Log_printf(LOG_LEVEL_WARN, "JSON response was null or not an array. Assuming all requested symbols are invalid.");
+        Log_printf(LOG_LEVEL_WARN, "JSON response was not a valid array or object. Assuming all requested symbols are invalid.");
     }
 
     // Now, iterate through the originally requested symbols and mark any that were not in the response as invalid.
