@@ -2060,9 +2060,11 @@ async function updateStockMarqueePreview() {
         previewSpan.textContent = text;
         previewSpan.classList.remove('scrolling-text');
 
-        // The number 13 is a magic number representing the approximate number of characters
-        // that fit in the preview box without scrolling.
-        if (text.length > 13) {
+        // Check if the text overflows the container by comparing its scroll width to its client width.
+        // This is a more robust method than checking the text length.
+        const isOverflowing = previewSpan.scrollWidth > previewSpan.clientWidth;
+
+        if (isOverflowing) {
             // A scroll speed of 150ms per character is used as a baseline.
             const scrollSpeed = 150;
             const duration = (text.length * scrollSpeed) / 1000;
