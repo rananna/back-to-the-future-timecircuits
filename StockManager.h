@@ -63,6 +63,7 @@ public:
 
     // Configuration
     void setApiKey(const String& key);
+    String getApiKey() const;
     void setRefreshInterval(unsigned long interval); // in minutes
     void setEnabled(bool enabled);
 
