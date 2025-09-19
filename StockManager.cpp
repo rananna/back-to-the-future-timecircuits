@@ -270,7 +270,8 @@ StockManager::StockManager() :
     _current_asset_index(0),
     _current_page_index(0),
     _api_usage_count(0),
-    _running_tasks(0) {
+    _running_tasks(0),
+    _data_updated(false) {
     _task_mutex = xSemaphoreCreateMutex();
     _assets_mutex = xSemaphoreCreateMutex();
 }
@@ -678,6 +679,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
             it->last_update = millis();
             it->data_valid = true;
             it->error_reason = ""; // Clear previous error
+            _data_updated = true; // Flag that data has changed
             Log_printf(LOG_LEVEL_INFO, "Updated data for %s", symbol.c_str());
         } else {
             Log_printf(LOG_LEVEL_WARN, "Received data for untracked symbol: %s", symbol.c_str());
@@ -813,6 +815,14 @@ String StockManager::getMarqueeLine() {
 
     xSemaphoreGive(_assets_mutex);
     return String(buffer);
+}
+
+bool StockManager::hasDataBeenUpdated() {
+    return _data_updated;
+}
+
+void StockManager::clearDataUpdatedFlag() {
+    _data_updated = false;
 }
 
 void StockManager::nextPage() {
