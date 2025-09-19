@@ -80,6 +80,7 @@ public:
     // Status
     int getApiUsage() const;
     bool isMarketOpen() const;
+    bool isTimeSynchronized() const;
     bool hasDataBeenUpdated();
     void clearDataUpdatedFlag();
 
