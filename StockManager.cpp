@@ -640,7 +640,7 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
             JsonArray array = doc.as<JsonArray>();
             if (array.size() > 0) {
                 JsonObject obj = array[0];
-                exchange = obj["exchangeShortName"].as<String>();
+                exchange = obj["exchange"].as<String>();
                 Log_printf(LOG_LEVEL_INFO, "Found exchange '%s' for symbol '%s'", exchange.c_str(), symbol.c_str());
             } else {
                 Log_printf(LOG_LEVEL_WARN, "No exchange found for symbol '%s'", symbol.c_str());
