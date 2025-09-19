@@ -1,5 +1,6 @@
 // Global state for the animation preview interval
 let animationPreviewInterval = null;
+let timezoneOptions = [];
 
 /**
  * Initializes the UI when the DOM is fully loaded.
@@ -164,21 +165,51 @@ async function initializeUI() {
  * @param {object} data The timezone data from the server.
  */
 function populateTimezoneSelects(data) {
+    // Clear the global array and selectors
     timezoneOptions = [];
-    const selects = [document.getElementById('presentTimezoneSelect'), document.getElementById('destinationTimezoneSelect')];
-    selects.forEach(s => s.innerHTML = '');
-    // Group the timezones by region
-    for (const country in data) {
-        const optgroup = document.createElement('optgroup');
-        optgroup.label = country;
-        data[country].forEach(tz => {
-            const option = document.createElement('option');
-            option.value = tz.value;
-            option.textContent = tz.text;
-            optgroup.appendChild(option);
+    const presentSelect = document.getElementById('presentTimezoneSelect');
+    const destSelect = document.getElementById('destinationTimezoneSelect');
+    const stockSelect = document.getElementById('addAssetTimezone');
+
+    if (presentSelect) presentSelect.innerHTML = '';
+    if (destSelect) destSelect.innerHTML = '';
+    if (stockSelect) stockSelect.innerHTML = '';
+
+    // First, populate the global timezoneOptions array. This is used by other functions
+    // like formatDateTimeInTimezone to look up timezone data by index.
+    for (const region in data) {
+        data[region].forEach(tz => {
             timezoneOptions[tz.value] = tz;
         });
-        selects.forEach(s => s.appendChild(optgroup.cloneNode(true)));
+    }
+
+    // Populate Present and Destination dropdowns. They use the index as the value.
+    for (const region in data) {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = region;
+        data[region].forEach(tz => {
+            const option = document.createElement('option');
+            option.value = tz.value; // Use the index
+            option.textContent = tz.text;
+            optgroup.appendChild(option);
+        });
+        if (presentSelect) presentSelect.appendChild(optgroup.cloneNode(true));
+        if (destSelect) destSelect.appendChild(optgroup.cloneNode(true));
+    }
+
+    // Populate Stock Asset timezone dropdown. It uses the full tzString as the value.
+    if (stockSelect) {
+        for (const region in data) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = region;
+            data[region].forEach(tz => {
+                const option = document.createElement('option');
+                option.value = tz.tzString; // Use the POSIX string
+                option.textContent = tz.text;
+                optgroup.appendChild(option);
+            });
+            stockSelect.appendChild(optgroup);
+        }
     }
 }
 
@@ -1947,11 +1978,16 @@ async function addStockAsset() {
     const symbol = input.value.trim().toUpperCase();
     if (!symbol) return;
 
+    const timezoneSelect = document.getElementById('addAssetTimezone');
+    const timezone = timezoneSelect.value;
+    const typeSelect = document.getElementById('addAssetType');
+    const type = typeSelect.value;
+
     try {
         const response = await fetch('/api/stocks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol })
+            body: JSON.stringify({ symbol, type, timezone })
         });
 
         const result = await response.json();
