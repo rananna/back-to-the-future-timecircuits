@@ -35,8 +35,18 @@ enum FetchStatus {
     FETCH_FAILED
 };
 
+// Forward declaration of the class
+class StockManager;
+
+// Struct to pass parameters to the FreeRTOS task
+struct StockFetchParams {
+    std::vector<String> symbols;
+    StockManager* manager;
+};
+
 class StockManager {
     friend void fetchStockDataBatchTask(void* p);
+    friend void fetchSingleStockTask(void* p);
 public:
     StockManager();
 
