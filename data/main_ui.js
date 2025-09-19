@@ -1908,15 +1908,27 @@ async function addStockAsset() {
         const url = `/api/stocks/search?q=${symbol}&apikey=${apiKey}`;
         console.log(`Validating symbol '${symbol}' with URL: ${url}`);
         const testResponse = await fetch(url);
+
+        if (!testResponse.ok) {
+            const errorText = await testResponse.text();
+            throw new Error(`Symbol validation failed: ${errorText}`);
+        }
+
         const testResult = await testResponse.json();
 
         let isValid = false;
-        if (testResponse.ok && Array.isArray(testResult) && testResult.length > 0) {
-            isValid = testResult.some(r => r.symbol === symbol);
+        // Handle case where API returns an array of results (e.g., from a search)
+        if (Array.isArray(testResult)) {
+            if (testResult.length > 0) {
+                isValid = testResult.some(r => r.symbol === symbol);
+            }
+        // Handle case where API returns a single object result (e.g., from a direct quote)
+        } else if (testResult && typeof testResult === 'object' && testResult.symbol) {
+            isValid = testResult.symbol === symbol;
         }
 
         if (!isValid) {
-             throw new Error(`Symbol '${symbol}' not found or invalid.`);
+             throw new Error(`Symbol '${symbol}' not found or invalid in API response.`);
         }
 
         const response = await fetch('/api/stocks', {
