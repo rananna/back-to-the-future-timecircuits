@@ -463,6 +463,39 @@ void setupWebRoutes() {
     request->send(200, "application/json", jsonString);
   });
 
+  server.on("/api/stocks/search", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Log_printf(LOG_LEVEL_WARN, "Handling /api/stocks/search request");
+    if (!request->hasParam("q") || !request->hasParam("apikey")) {
+        request->send(400, "text/plain", "Missing query or apikey parameter");
+        return;
+    }
+    String query = request->getParam("q")->value();
+    String apiKey = request->getParam("apikey")->value();
+
+    WiFiClientSecure client;
+    client.setInsecure(); // For simplicity, though not recommended for production
+    HTTPClient http;
+    String url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=" + apiKey;
+    String log_url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=REDACTED";
+    Log_printf(LOG_LEVEL_WARN, "Proxying stock search to: %s", log_url.c_str());
+
+    if (http.begin(client, url)) {
+        int httpCode = http.GET();
+        if (httpCode > 0) {
+            if (httpCode == HTTP_CODE_OK) {
+                request->send(200, "application/json", http.getString());
+            } else {
+                request->send(httpCode, "text/plain", http.getString());
+            }
+        } else {
+            request->send(500, "text/plain", "Request failed");
+        }
+        http.end();
+    } else {
+        request->send(500, "text/plain", "Unable to connect");
+    }
+  });
+
   AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
     if (obj["symbol"].isNull()) {
@@ -525,39 +558,6 @@ void setupWebRoutes() {
     request->send(200, "application/json", "{\"status\":\"success\"}");
   });
   server.addHandler(reorderStockHandler);
-
-  server.on("/api/stocks/search", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Log_printf(LOG_LEVEL_WARN, "Handling /api/stocks/search request");
-    if (!request->hasParam("q") || !request->hasParam("apikey")) {
-        request->send(400, "text/plain", "Missing query or apikey parameter");
-        return;
-    }
-    String query = request->getParam("q")->value();
-    String apiKey = request->getParam("apikey")->value();
-
-    WiFiClientSecure client;
-    client.setInsecure(); // For simplicity, though not recommended for production
-    HTTPClient http;
-    String url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=" + apiKey;
-    String log_url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=REDACTED";
-    Log_printf(LOG_LEVEL_WARN, "Proxying stock search to: %s", log_url.c_str());
-
-    if (http.begin(client, url)) {
-        int httpCode = http.GET();
-        if (httpCode > 0) {
-            if (httpCode == HTTP_CODE_OK) {
-                request->send(200, "application/json", http.getString());
-            } else {
-                request->send(httpCode, "text/plain", http.getString());
-            }
-        } else {
-            request->send(500, "text/plain", "Request failed");
-        }
-        http.end();
-    } else {
-        request->send(500, "text/plain", "Unable to connect");
-    }
-  });
 
   server.on("/api/stocks/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!currentSettings.stockTickerModeEnabled) {
