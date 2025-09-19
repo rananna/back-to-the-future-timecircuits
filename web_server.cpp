@@ -465,15 +465,14 @@ void setupWebRoutes() {
 
   AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
-    if (obj["symbol"].isNull() || obj["timezone"].isNull()) {
-        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol or timezone.\"}");
+    if (obj["symbol"].isNull()) {
+        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol.\"}");
         return;
     }
 
     String symbol = obj["symbol"];
-    String timezone = obj["timezone"];
 
-    if (stockManager.addAsset(symbol, timezone)) {
+    if (stockManager.addAsset(symbol)) {
         stockManager.saveAssets();
 
         JsonDocument doc;
@@ -486,7 +485,6 @@ void setupWebRoutes() {
             assetObj["price"] = asset.price;
             assetObj["change_percent"] = asset.change_percent;
             assetObj["data_valid"] = asset.data_valid;
-            assetObj["timezone"] = asset.timezone;
         }
         String jsonString;
         serializeJson(doc, jsonString);
@@ -778,16 +776,13 @@ void setupWebRoutes() {
         // Reorder the existing assets to match the new list
         stockManager.reorderAssets(symbols);
 
-        // Now, update timezones and add any new assets
+        // Now, add any new assets
         for (JsonVariant v : assets) {
             JsonObject assetObj = v.as<JsonObject>();
             String symbol = assetObj["symbol"];
-            String timezone = assetObj["timezone"];
             if (!symbol.isEmpty()) {
                 // addAsset will safely ignore existing assets.
-                // We then call setAssetTimezone to ensure the timezone is up to date.
-                stockManager.addAsset(symbol, timezone);
-                stockManager.setAssetTimezone(symbol, timezone);
+                stockManager.addAsset(symbol);
             }
         }
 
@@ -966,7 +961,6 @@ void setupWebRoutes() {
         assetObj["price"] = asset.price;
         assetObj["change_percent"] = asset.change_percent;
         assetObj["data_valid"] = asset.data_valid;
-        assetObj["timezone"] = asset.timezone;
     }
     String jsonString;
     serializeJson(doc, jsonString);

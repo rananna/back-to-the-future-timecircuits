@@ -292,7 +292,7 @@ void StockManager::loop() {
     }
 }
 
-bool StockManager::addAsset(const String& symbol, const String& timezone) {
+bool StockManager::addAsset(const String& symbol) {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
         if (asset.symbol.equalsIgnoreCase(symbol)) {
@@ -304,7 +304,6 @@ bool StockManager::addAsset(const String& symbol, const String& timezone) {
 
     Asset newAsset;
     newAsset.symbol = symbol;
-    newAsset.timezone = timezone;
 
     // Release the mutex before making a network call
     xSemaphoreGive(_assets_mutex);
@@ -320,7 +319,7 @@ bool StockManager::addAsset(const String& symbol, const String& timezone) {
     _assets.push_back(newAsset);
     xSemaphoreGive(_assets_mutex);
 
-    Log_printf(LOG_LEVEL_INFO, "Added asset: %s on exchange %s with timezone %s", symbol.c_str(), newAsset.exchange.c_str(), timezone.c_str());
+    Log_printf(LOG_LEVEL_INFO, "Added asset: %s on exchange %s", symbol.c_str(), newAsset.exchange.c_str());
     saveAssets();
     return true;
 }
@@ -381,19 +380,6 @@ const std::vector<Asset>& StockManager::getAssets() const {
     // this is much more efficient than copying the vector.
     // The caller should not attempt to modify the returned vector.
     return _assets;
-}
-
-void StockManager::setAssetTimezone(const String& symbol, const String& timezone) {
-    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    for (auto& asset : _assets) {
-        if (asset.symbol.equalsIgnoreCase(symbol)) {
-            asset.timezone = timezone;
-            Log_printf(LOG_LEVEL_INFO, "Set timezone for %s to %s", symbol.c_str(), timezone.c_str());
-            saveAssets();
-            break;
-        }
-    }
-    xSemaphoreGive(_assets_mutex);
 }
 
 // Forward declaration for the FreeRTOS task
@@ -1248,7 +1234,6 @@ void StockManager::updateAssetsFromJson(const String& jsonString) {
     for (JsonObject assetObj : assetsArray) {
         Asset newAsset;
         newAsset.symbol = assetObj["symbol"].as<String>();
-        newAsset.timezone = assetObj["timezone"].as<String>();
         newAsset.exchange = assetObj["exchange"].as<String>();
         _assets.push_back(newAsset);
     }
@@ -1265,7 +1250,6 @@ void StockManager::saveAssets() {
     for (const auto& asset : _assets) {
         JsonObject assetObj = assetsArray.add<JsonObject>();
         assetObj["symbol"] = asset.symbol;
-        assetObj["timezone"] = asset.timezone;
         assetObj["exchange"] = asset.exchange;
     }
     xSemaphoreGive(_assets_mutex);
