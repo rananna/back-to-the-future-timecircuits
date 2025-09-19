@@ -743,20 +743,7 @@ void loadSettings() {
 		currentSettings.financialModelingPrepApiKey = tempString.c_str();
 
         // Load stock assets from JSON
-        stockManager.clearAssets();
-        currentSettings.stockAssetsJson = preferences.getString("stockAssets", "[]").c_str();
-        JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, currentSettings.stockAssetsJson);
-        if (!error) {
-            JsonArray assets = doc.as<JsonArray>();
-            for (JsonObject assetObj : assets) {
-                String symbol = assetObj["symbol"];
-                AssetType type = static_cast<AssetType>(assetObj["type"].as<int>());
-                String timezone = assetObj["timezone"];
-                stockManager.addAsset(symbol, type);
-                stockManager.setAssetTimezone(symbol, timezone);
-            }
-        }
+        stockManager.loadAssets();
 
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
