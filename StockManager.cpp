@@ -290,7 +290,7 @@ void StockManager::loop() {
     }
 }
 
-bool StockManager::addAsset(const String& symbol, AssetType type) {
+bool StockManager::addAsset(const String& symbol, const String& timezone) {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
         if (asset.symbol.equalsIgnoreCase(symbol)) {
@@ -302,10 +302,10 @@ bool StockManager::addAsset(const String& symbol, AssetType type) {
 
     Asset newAsset;
     newAsset.symbol = symbol;
-    newAsset.type = type;
+    newAsset.timezone = timezone;
     _assets.push_back(newAsset);
     xSemaphoreGive(_assets_mutex);
-    Log_printf(LOG_LEVEL_INFO, "Added asset: %s", symbol.c_str());
+    Log_printf(LOG_LEVEL_INFO, "Added asset: %s with timezone %s", symbol.c_str(), timezone.c_str());
     return true;
 }
 
@@ -379,7 +379,6 @@ void fetchStockDataBatchTask(void* p);
 
 struct StockFetchParams {
     std::vector<String> symbols;
-    AssetType type;
     StockManager* manager;
 };
 
@@ -394,31 +393,12 @@ void StockManager::fetchData() {
     _is_fetching = true;
     _last_fetch_time = millis();
 
-    std::map<String, std::vector<String>> stocks_by_tz;
-    std::vector<String> cryptos;
-    std::map<String, std::vector<String>> indices_by_tz;
-
+    std::map<String, std::vector<String>> assets_by_tz;
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
-        switch (asset.type) {
-            case STOCK: {
-                const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
-                if (isStockMarketOpen(tz)) {
-                    stocks_by_tz[tz].push_back(asset.symbol);
-                }
-                break;
-            }
-            case CRYPTO:
-                // Crypto market is always open, so no check needed here.
-                cryptos.push_back(asset.symbol);
-                break;
-            case INDEX: {
-                const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
-                if (isStockMarketOpen(tz)) {
-                    indices_by_tz[tz].push_back(asset.symbol);
-                }
-                break;
-            }
+        const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
+        if (isStockMarketOpen(tz)) {
+            assets_by_tz[tz].push_back(asset.symbol);
         }
     }
     xSemaphoreGive(_assets_mutex);
@@ -426,35 +406,12 @@ void StockManager::fetchData() {
     xSemaphoreTake(_task_mutex, portMAX_DELAY);
     _running_tasks = 0;
 
-    // Create tasks for stocks, grouped by timezone
-    for (auto const& pair : stocks_by_tz) {
+    // Create tasks for assets, grouped by timezone
+    for (auto const& pair : assets_by_tz) {
         const std::vector<String>& symbols = pair.second;
         if (!symbols.empty()) {
-            StockFetchParams* params = new StockFetchParams{symbols, STOCK, this};
+            StockFetchParams* params = new StockFetchParams{symbols, this};
             if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
-                _running_tasks += 1;
-            } else {
-                delete params;
-            }
-        }
-    }
-
-    // Create task for cryptos
-    if (!cryptos.empty()) {
-        StockFetchParams* params = new StockFetchParams{cryptos, CRYPTO, this};
-        if (xTaskCreate(fetchStockDataBatchTask, "cryptoFetch", 8192, params, 1, NULL) == pdPASS) {
-            _running_tasks += 1;
-        } else {
-            delete params;
-        }
-    }
-
-    // Create tasks for indices, grouped by timezone
-    for (auto const& pair : indices_by_tz) {
-        const std::vector<String>& symbols = pair.second;
-        if (!symbols.empty()) {
-            StockFetchParams* params = new StockFetchParams{symbols, INDEX, this};
-            if (xTaskCreate(fetchStockDataBatchTask, "indexFetch", 8192, params, 1, NULL) == pdPASS) {
                 _running_tasks += 1;
             } else {
                 delete params;
@@ -469,7 +426,7 @@ void StockManager::fetchData() {
     }
 }
 
-FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbols, AssetType type) {
+FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbols) {
     esp_tls_t *tls_stock = esp_tls_init();
     if (!tls_stock) {
         Log_printf(LOG_LEVEL_ERROR, "Failed to allocate stock TLS handle.");
@@ -635,7 +592,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         }
 
         if (error == DeserializationError::Ok) {
-            parseJsonResponse(doc, type, symbols);
+            parseJsonResponse(doc, symbols);
             status = FETCH_SUCCESS;
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock JSON for %s: %s", symbols_str.c_str(), error.c_str());
@@ -649,7 +606,7 @@ cleanup:
     return status;
 }
 
-void StockManager::fetchBatchData(const std::vector<String>& symbols, AssetType type) {
+void StockManager::fetchBatchData(const std::vector<String>& symbols) {
     FetchStatus status = FETCH_FAILED;
     int attempt = 0;
     const int maxAttempts = 3;
@@ -657,7 +614,7 @@ void StockManager::fetchBatchData(const std::vector<String>& symbols, AssetType 
     while (attempt < maxAttempts) {
         attempt++;
         Log_printf(LOG_LEVEL_INFO, "Stock fetch attempt %d of %d...", attempt, maxAttempts);
-        status = fetchBatchDataFromApi(symbols, type);
+        status = fetchBatchDataFromApi(symbols);
 
         if (status == FETCH_SUCCESS) {
             Log_printf(LOG_LEVEL_INFO, "Successfully fetched stock data on attempt %d.", attempt);
@@ -683,7 +640,7 @@ void StockManager::fetchBatchData(const std::vector<String>& symbols, AssetType 
     Log_printf(LOG_LEVEL_ERROR, "Stock fetch failed after all attempts.");
 }
 
-void StockManager::parseJsonResponse(JsonDocument& doc, AssetType type, const std::vector<String>& requested_symbols) {
+void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String>& requested_symbols) {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
 
     // Create a temporary list of received symbols for efficient lookup.
@@ -764,7 +721,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, AssetType type, const st
 
 void fetchStockDataBatchTask(void* p) {
     StockFetchParams* params = (StockFetchParams*)p;
-    params->manager->fetchBatchData(params->symbols, params->type);
+    params->manager->fetchBatchData(params->symbols);
 
     xSemaphoreTake(params->manager->_task_mutex, portMAX_DELAY);
     params->manager->_running_tasks -= 1;
@@ -802,7 +759,7 @@ String StockManager::getMarqueeLine() {
 
     if (_assets.empty()) {
         xSemaphoreGive(_assets_mutex);
-        return "ADD ASSETS IN UI";
+        return "ADD SYMBOLS IN UI";
     }
 
     if (_current_asset_index >= _assets.size()) {
@@ -822,51 +779,35 @@ String StockManager::getMarqueeLine() {
         return error_msg;
     }
 
-    char buffer[64]; // Increased buffer size for safety
+    char buffer[128]; // Buffer for formatting the string
     String currency_symbol_str = getCurrencySymbol(current_asset.currency);
     const char* currency_symbol = currency_symbol_str.c_str();
 
-    switch (_current_page_index) {
-        case 0: // Price and Percentage Change
-            if (current_asset.currency.isEmpty()) {
-                snprintf(buffer, sizeof(buffer), "%s %.2f %.2f%%",
-                         current_asset.symbol.c_str(),
-                         current_asset.price,
-                         current_asset.change_percent);
-            } else {
-                snprintf(buffer, sizeof(buffer), "%s %s%.2f %.2f%%",
-                         current_asset.symbol.c_str(),
-                         currency_symbol,
-                         current_asset.price,
-                         current_asset.change_percent);
-            }
-            break;
-        case 1: // Day's High and Low
-            if (current_asset.currency.isEmpty()) {
-                snprintf(buffer, sizeof(buffer), "%s H:%.2f L:%.2f",
-                         current_asset.symbol.c_str(),
-                         current_asset.day_high,
-                         current_asset.day_low);
-            } else {
-                snprintf(buffer, sizeof(buffer), "%s H:%s%.2f L:%s%.2f",
-                         current_asset.symbol.c_str(),
-                         currency_symbol,
-                         current_asset.day_high,
-                         currency_symbol,
-                         current_asset.day_low);
-            }
-            break;
-        case 2: // Trading Volume
-            snprintf(buffer, sizeof(buffer), "%s VOL: %lu",
-                     current_asset.symbol.c_str(),
-                     current_asset.volume);
-            break;
-        default:
-            _current_page_index = 0;
-            // We need to release the mutex before the recursive call
-            xSemaphoreGive(_assets_mutex);
-            return getMarqueeLine();
+    // Format: NAME $PRICE +/-CHANGE% VOL:VOLUME
+    // Example: TESLA $250.00 +1.23% VOL:1.5M
+
+    // Abbreviate volume for display
+    String vol_str;
+    if (current_asset.volume > 1000000000) { // Billions
+        vol_str = String(current_asset.volume / 1000000000.0, 1) + "B";
+    } else if (current_asset.volume > 1000000) { // Millions
+        vol_str = String(current_asset.volume / 1000000.0, 1) + "M";
+    } else if (current_asset.volume > 1000) { // Thousands
+        vol_str = String(current_asset.volume / 1000.0, 1) + "K";
+    } else {
+        vol_str = String(current_asset.volume);
     }
+
+    // Use asset name if available, otherwise symbol
+    const char* name_to_display = current_asset.name.isEmpty() ? current_asset.symbol.c_str() : current_asset.name.c_str();
+
+    snprintf(buffer, sizeof(buffer), "%s %s%.2f %s%.2f%% VOL:%s",
+             name_to_display,
+             currency_symbol,
+             current_asset.price,
+             current_asset.change_percent >= 0 ? "+" : "",
+             current_asset.change_percent,
+             vol_str.c_str());
 
     xSemaphoreGive(_assets_mutex);
     return String(buffer);
@@ -879,15 +820,11 @@ void StockManager::nextPage() {
         return;
     }
 
-    _current_page_index++;
-    if (_current_page_index > 2) { // 3 pages: Price, High/Low, Volume
-        _current_page_index = 0;
-        _current_asset_index++;
-        if (_current_asset_index >= _assets.size()) {
-            _current_asset_index = 0;
-        }
+    _current_asset_index++;
+    if (_current_asset_index >= _assets.size()) {
+        _current_asset_index = 0;
     }
-    Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Next Page (Asset: %d, Page: %d)", _current_asset_index, _current_page_index);
+    Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Next Asset (%d)", _current_asset_index);
     xSemaphoreGive(_assets_mutex);
 }
 
@@ -898,15 +835,11 @@ void StockManager::previousPage() {
         return;
     }
 
-    _current_page_index--;
-    if (_current_page_index < 0) {
-        _current_page_index = 2;
-        _current_asset_index--;
-        if (_current_asset_index < 0) {
-            _current_asset_index = _assets.size() - 1;
-        }
+    _current_asset_index--;
+    if (_current_asset_index < 0) {
+        _current_asset_index = _assets.size() - 1;
     }
-    Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Previous Page (Asset: %d, Page: %d)", _current_asset_index, _current_page_index);
+    Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Previous Asset (%d)", _current_asset_index);
     xSemaphoreGive(_assets_mutex);
 }
 
@@ -930,23 +863,17 @@ int StockManager::getApiUsage() const {
 }
 
 bool StockManager::isMarketOpen() const {
-    bool crypto_market_open = isCryptoMarketOpen();
-
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    if (_assets.empty()) {
+        xSemaphoreGive(_assets_mutex);
+        return false;
+    }
+
     for (const auto& asset : _assets) {
-        if (asset.type == CRYPTO && crypto_market_open) {
+        const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
+        if (isStockMarketOpen(tz)) {
             xSemaphoreGive(_assets_mutex);
             return true;
-        }
-        // For stocks and indices, check their specific market hours.
-        // If an asset has no timezone set, we can default to US market hours or assume it's closed.
-        // For now, we'll default to US hours if the timezone string is empty.
-        if (asset.type == STOCK || asset.type == INDEX) {
-            const char* tz = asset.timezone.isEmpty() ? "EST5EDT,M3.2.0,M11.1.0" : asset.timezone.c_str();
-            if (isStockMarketOpen(tz)) {
-                xSemaphoreGive(_assets_mutex);
-                return true;
-            }
         }
     }
     xSemaphoreGive(_assets_mutex);
@@ -980,10 +907,6 @@ bool isStockMarketOpen(const char* tz_string) {
     return false;
 }
 
-bool StockManager::isCryptoMarketOpen() const {
-    return true; // Crypto market is 24/7
-}
-
 void StockManager::updateAssetsFromJson(const String& jsonString) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, jsonString);
@@ -999,11 +922,39 @@ void StockManager::updateAssetsFromJson(const String& jsonString) {
     for (JsonObject assetObj : assetsArray) {
         Asset newAsset;
         newAsset.symbol = assetObj["symbol"].as<String>();
-        newAsset.type = (AssetType)assetObj["type"].as<int>();
         newAsset.timezone = assetObj["timezone"].as<String>();
         _assets.push_back(newAsset);
     }
     int numLoaded = _assets.size();
     xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "Loaded %d stock assets from JSON.", numLoaded);
+}
+
+void StockManager::saveAssets() {
+    JsonDocument doc;
+    JsonArray assetsArray = doc.to<JsonArray>();
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    for (const auto& asset : _assets) {
+        JsonObject assetObj = assetsArray.add<JsonObject>();
+        assetObj["symbol"] = asset.symbol;
+        assetObj["timezone"] = asset.timezone;
+    }
+    xSemaphoreGive(_assets_mutex);
+
+    String jsonString;
+    serializeJson(doc, jsonString);
+
+    Preferences preferences;
+    preferences.begin("stocks", false);
+    preferences.putString("assets", jsonString);
+    preferences.end();
+    Log_printf(LOG_LEVEL_INFO, "Saved %d stock assets to flash.", doc.size());
+}
+
+void StockManager::loadAssets() {
+    Preferences preferences;
+    preferences.begin("bttf-clock", true); // read-only
+    String assetsJson = preferences.getString("stockAssets", "[]");
+    preferences.end();
+    updateAssetsFromJson(assetsJson);
 }

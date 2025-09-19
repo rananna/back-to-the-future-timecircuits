@@ -231,33 +231,23 @@
                   <input type="text" id="financialModelingPrepApiKey" placeholder="Enter your free FMP API key">
 
                   <div id="stockApiStatus" class="api-status">
-                      <span id="stockApiUsage">API Calls Today: --</span>
+                      <span class="stockApiUsage">API Calls Today: --</span>
                   </div>
 
                   <label for="stockRefreshInterval">Refresh Interval (minutes):</label>
                   <input type="number" id="stockRefreshInterval" value="2" min="1" style="width: 100px;">
 
-                  <div id="stockApiStatus" class="api-status">
-                      <span id="stockApiUsage">API Calls Today: --</span>
-                  </div>
-
                   <hr>
 
-                  <h4>Tracked Assets</h4>
+                  <h4>Tracked Symbols</h4>
                   <div id="stockAssetList" class="asset-list">
                       <!-- Assets will be dynamically inserted here -->
                   </div>
 
                   <div class="add-asset-container">
                       <input type="text" id="addAssetInput" placeholder="e.g., AAPL, BTC-USD, ^GSPC">
-                      <select id="addAssetType">
-                          <option value="0">Stock</option>
-                          <option value="1">Crypto</option>
-                          <option value="2">Index</option>
-                      </select>
                       <select id="addAssetTimezone"></select>
-                      <button id="lookupAssetBtn" class="action-button">Lookup</button>
-                      <button id="addAssetBtn" class="action-button">Add Asset</button>
+                      <button id="addAssetBtn" class="action-button">Add</button>
                   </div>
                   <div id="assetLookupPreview" class="lookup-preview"></div>
                    <div id="symbolAutocompleteContainer" class="autocomplete-container"></div>
