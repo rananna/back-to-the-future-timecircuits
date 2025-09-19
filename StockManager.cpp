@@ -544,6 +544,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
             Log_printf(LOG_LEVEL_WARN, "Stock HTTP request failed with code %d.", http_status);
             if (http_status == 401 || http_status == 403) {
                 // Mark all assets as invalid due to API key error
+                xSemaphoreTake(_assets_mutex, portMAX_DELAY);
                 for (const auto& symbol : symbols) {
                     auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
                         return asset.symbol.equalsIgnoreCase(symbol);
@@ -553,6 +554,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
                         it->error_reason = "INVALID API KEY";
                     }
                 }
+                xSemaphoreGive(_assets_mutex);
             }
             if (http_status == 429) {
                 status = FETCH_RATE_LIMITED;
