@@ -2031,32 +2031,49 @@ async function removeStockAsset(event) {
 
 async function updateStockMarqueePreview() {
     const previewEl = document.getElementById('stockMarqueePreview');
+    if (!previewEl) return;
+
     const stockTickerEnabled = document.getElementById('stockTickerModeEnabled').checked;
     const apiKey = document.getElementById('financialModelingPrepApiKey').value;
 
     if (!stockTickerEnabled || !apiKey) {
-        if (previewEl) {
-            previewEl.textContent = 'Stock Ticker Mode is disabled or API key is not set.';
-        }
+        previewEl.innerHTML = '<span>Stock Ticker Mode is disabled or API key is not set.</span>';
         return;
     }
 
     try {
         const response = await fetch('/api/stocks/marquee');
         const data = await response.json();
+
         if (!response.ok) {
-            if (previewEl) {
-                previewEl.textContent = data.error || 'Error fetching marquee data.';
-            }
+            previewEl.innerHTML = `<span>${data.error || 'Error fetching marquee data.'}</span>`;
             return;
         }
-        if (previewEl) {
-            previewEl.textContent = data.marqueeText;
+
+        const text = data.marqueeText;
+        // Ensure the preview element has a span inside
+        if (!previewEl.firstChild || previewEl.firstChild.nodeName !== 'SPAN') {
+             previewEl.innerHTML = '<span class="preview-scrolling-text"></span>';
+        }
+        const previewSpan = previewEl.firstChild;
+
+        previewSpan.textContent = text;
+        previewSpan.classList.remove('scrolling-text');
+
+        // The number 13 is a magic number representing the approximate number of characters
+        // that fit in the preview box without scrolling.
+        if (text.length > 13) {
+            // A scroll speed of 150ms per character is used as a baseline.
+            const scrollSpeed = 150;
+            const duration = (text.length * scrollSpeed) / 1000;
+            previewSpan.style.animationDuration = `${duration}s`;
+            // Use requestAnimationFrame to ensure the class is added after the style update
+            requestAnimationFrame(() => {
+                previewSpan.classList.add('scrolling-text');
+            });
         }
     } catch (error) {
-        if (previewEl) {
-            previewEl.textContent = 'Device is offline.';
-        }
+        previewEl.innerHTML = '<span>Device is offline.</span>';
     }
 }
 
