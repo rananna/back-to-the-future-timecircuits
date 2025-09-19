@@ -168,11 +168,9 @@ function populateTimezoneSelects(data) {
     timezoneOptions = [];
     const presentSelect = document.getElementById('presentTimezoneSelect');
     const destSelect = document.getElementById('destinationTimezoneSelect');
-    const stockSelect = document.getElementById('addAssetTimezone');
 
     if (presentSelect) presentSelect.innerHTML = '';
     if (destSelect) destSelect.innerHTML = '';
-    if (stockSelect) stockSelect.innerHTML = '';
 
     // First, populate the global timezoneOptions array. This is used by other functions
     // like formatDateTimeInTimezone to look up timezone data by index.
@@ -196,20 +194,6 @@ function populateTimezoneSelects(data) {
         if (destSelect) destSelect.appendChild(optgroup.cloneNode(true));
     }
 
-    // Populate Stock Asset timezone dropdown. It uses the full tzString as the value.
-    if (stockSelect) {
-        for (const region in data) {
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = region;
-            data[region].forEach(tz => {
-                const option = document.createElement('option');
-                option.value = tz.tzString; // Use the POSIX string
-                option.textContent = tz.text;
-                optgroup.appendChild(option);
-            });
-            stockSelect.appendChild(optgroup);
-        }
-    }
 }
 
 /**
@@ -1914,9 +1898,6 @@ async function addStockAsset() {
     const symbol = input.value.trim().toUpperCase();
     if (!symbol) return;
 
-    const timezoneSelect = document.getElementById('addAssetTimezone');
-    const timezone = timezoneSelect.value;
-
     try {
         const apiKey = document.getElementById('financialModelingPrepApiKey').value;
         if (!apiKey) {
@@ -1941,7 +1922,7 @@ async function addStockAsset() {
         const response = await fetch('/api/stocks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol, timezone })
+            body: JSON.stringify({ symbol })
         });
 
         const result = await response.json();

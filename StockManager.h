@@ -20,7 +20,6 @@ struct Asset {
     bool data_valid;
     String currency; // e.g., "USD"
     String exchange; // e.g., "NASDAQ"
-    String timezone; // e.g., "EST5EDT,M3.2.0,M11.1.0"
     String error_reason; // To store specific error messages
 
     // Default constructor
@@ -45,12 +44,11 @@ public:
     void loop();
 
     // Asset Management
-    bool addAsset(const String& symbol, const String& timezone);
+    bool addAsset(const String& symbol);
     bool removeAsset(const String& symbol);
     void reorderAssets(const std::vector<String>& symbols);
     void clearAssets();
     const std::vector<Asset>& getAssets() const;
-    void setAssetTimezone(const String& symbol, const String& timezone);
     void updateAssetsFromJson(const String& jsonString);
     void saveAssets();
     void loadAssets();
