@@ -527,6 +527,7 @@ void setupWebRoutes() {
   server.addHandler(reorderStockHandler);
 
   server.on("/api/stocks/search", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Log_printf(LOG_LEVEL_WARN, "Handling /api/stocks/search request");
     if (!request->hasParam("q") || !request->hasParam("apikey")) {
         request->send(400, "text/plain", "Missing query or apikey parameter");
         return;
@@ -539,7 +540,7 @@ void setupWebRoutes() {
     HTTPClient http;
     String url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=" + apiKey;
     String log_url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=REDACTED";
-    Log_printf(LOG_LEVEL_INFO, "Proxying stock search to: %s", log_url.c_str());
+    Log_printf(LOG_LEVEL_WARN, "Proxying stock search to: %s", log_url.c_str());
 
     if (http.begin(client, url)) {
         int httpCode = http.GET();
