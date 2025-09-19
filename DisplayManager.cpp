@@ -221,6 +221,24 @@ void updateStockTickerDisplay() {
     updateNormalClockDisplay_internal(true, true, false);
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        // --- START MODIFICATION: Check for time sync ---
+        if (!stockManager.isTimeSynchronized()) {
+            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                printToDisplay(lastRow.month, " ", 0);
+                printToDisplay(lastRow.day, " ", 0);
+                printToDisplay(lastRow.year, "CONNECTING", 0);
+                printToDisplay(lastRow.time, "....", 0);
+                lastRow.month.writeDisplay();
+                lastRow.day.writeDisplay();
+                lastRow.year.writeDisplay();
+                lastRow.time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
+                xSemaphoreGive(xDisplayHardwareMutex);
+            }
+            xSemaphoreGive(xDisplayDataMutex);
+            return;
+        }
+        // --- END MODIFICATION ---
         static std::string stockMarqueeBuffer;
         static bool isBufferDirty = true;
         static int scrollPosition = 0;
@@ -251,7 +269,12 @@ void updateStockTickerDisplay() {
                 // Center the text if it fits
                 int padding = (13 - marqueeLine.length()) / 2;
                 String paddedLine = "";
-                for(int i=0; i<padding; i++) paddedLine += " ";
+                if (marqueeLine == "MARKET CLOSED") {
+                    // Manual adjustment for "MARKET CLOSED" to shift it right by one character.
+                    paddedLine = " ";
+                } else {
+                    for(int i=0; i<padding; i++) paddedLine += " ";
+                }
                 paddedLine += marqueeLine;
                 stockMarqueeBuffer = paddedLine.c_str();
             }

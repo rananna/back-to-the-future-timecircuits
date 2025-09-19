@@ -403,6 +403,11 @@ const std::vector<Asset>& StockManager::getAssets() const {
 void fetchStockDataBatchTask(void* p);
 
 void StockManager::fetchData() {
+    if (!timeSynchronized) {
+        // Log_printf(LOG_LEVEL_WARN, "fetchData: Waiting for NTP time sync.");
+        return;
+    }
+
     if (_assets.empty() || _api_key.isEmpty()) {
         _is_fetching = false;
         return;
@@ -1214,6 +1219,11 @@ int StockManager::getApiUsage() const {
 }
 
 bool StockManager::isMarketOpen() const {
+    if (!timeSynchronized) {
+        // Log_printf(LOG_LEVEL_WARN, "isMarketOpen: Waiting for NTP time sync.");
+        return false; // Markets are closed until we know what time it is.
+    }
+
     const unsigned long CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
     unsigned long now = millis();
 
@@ -1309,4 +1319,8 @@ void StockManager::loadAssets() {
     String assetsJson = preferences.getString("assets", "[]");
     preferences.end();
     updateAssetsFromJson(assetsJson);
+}
+
+bool StockManager::isTimeSynchronized() const {
+    return timeSynchronized;
 }
