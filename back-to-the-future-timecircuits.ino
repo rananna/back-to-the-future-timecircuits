@@ -96,6 +96,7 @@ const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;     // Maximum time in ms fo
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000;      // Delay in ms after connecting to WiFi before the first NTP sync.
 const unsigned long DISPLAY_UPDATE_INTERVAL = 250;      // Milliseconds between display updates for the main clock.
 const unsigned long HARDWARE_INIT_RETRY_INTERVAL = 30000; // Time in ms to wait before retrying hardware init.
+const unsigned long STOCK_MANAGER_RESET_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
 
 // --- WIFI STATE MANAGEMENT ---
 // Manages the asynchronous, non-blocking WiFi connection process.
@@ -1101,6 +1102,24 @@ void loop() {
             }
             
             stockManager.loop();
+
+            // --- START: MODIFICATION - Periodic Stock Manager Reset ---
+            static unsigned long lastStockManagerReset = 0;
+            if (currentSettings.stockTickerModeEnabled) {
+                if (lastStockManagerReset == 0) {
+                    lastStockManagerReset = millis();
+                }
+                unsigned long now = millis();
+                if (now - lastStockManagerReset > STOCK_MANAGER_RESET_INTERVAL) {
+                    Log_printf(LOG_LEVEL_INFO, "Performing periodic reset of StockManager.");
+                    stockManager.clearAssets();
+                    stockManager.loadAssets();
+                    lastStockManagerReset = now;
+                }
+            } else {
+                lastStockManagerReset = 0; // Reset the timer if stock ticker mode is disabled
+            }
+            // --- END: MODIFICATION ---
 
             handleScheduledAnimation();
             static unsigned long lastNtpUpdate = 0;
