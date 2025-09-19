@@ -344,6 +344,10 @@ void updateStockTickerDisplay() {
                     vTaskDelay(pdMS_TO_TICKS(2));
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
+                // After displaying the message, transition to the PAUSING state
+                // so the ticker can continue to the next item after a delay.
+                stockState = SD_PAUSING;
+                lastStockUpdate = millis(); // Set the timer for the pause
                 break;
             }
         }
