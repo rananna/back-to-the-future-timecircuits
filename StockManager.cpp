@@ -7,6 +7,9 @@
 
 extern bool timeSynchronized;
 
+// Forward declaration for the task function
+void fetchSingleStockTask(void* p);
+
 // A simple Stream implementation for esp_tls
 class TlsStream : public Stream {
 private:
@@ -398,11 +401,6 @@ const std::vector<Asset>& StockManager::getAssets() const {
 
 // Forward declaration for the FreeRTOS task
 void fetchStockDataBatchTask(void* p);
-
-struct StockFetchParams {
-    std::vector<String> symbols;
-    StockManager* manager;
-};
 
 void StockManager::fetchData() {
     if (_assets.empty() || _api_key.isEmpty()) {
