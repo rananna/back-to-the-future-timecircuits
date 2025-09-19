@@ -1862,7 +1862,7 @@ function renderStockAssets(assets) {
     container.innerHTML = ''; // Clear existing list
 
     if (assets.length === 0) {
-        container.innerHTML = '<p>No assets are being tracked.</p>';
+        container.innerHTML = '<p>(None)</p>';
         return;
     }
 
