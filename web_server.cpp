@@ -765,28 +765,66 @@ void setupWebRoutes() {
   server.addHandler(refreshWeatherHandler);
 
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    // This handler is now asynchronous. It just captures the settings and flags
-    // the main loop to perform the save, then immediately responds to the client.
-    
-    // --- START: Stock Asset Handling ---
+    JsonObject obj = json.as<JsonObject>();
+
     // The main save logic is in the main loop, but we need to update the
     // stock manager's state immediately so the UI feels responsive.
-    JsonObject obj = json.as<JsonObject>();
     if (!obj["stockAssets"].isNull()) {
         JsonArray assets = obj["stockAssets"].as<JsonArray>();
-        stockManager.clearAssets(); // Clear the existing list
+        std::vector<String> symbols;
+
+        // First, build a list of symbols in the new order
+        for (JsonVariant v : assets) {
+            JsonObject assetObj = v.as<JsonObject>();
+            String symbol = assetObj["symbol"];
+            if (!symbol.isEmpty()) {
+                symbols.push_back(symbol);
+            }
+        }
+
+        // Reorder the existing assets to match the new list
+        stockManager.reorderAssets(symbols);
+
+        // Now, update timezones and add any new assets
         for (JsonVariant v : assets) {
             JsonObject assetObj = v.as<JsonObject>();
             String symbol = assetObj["symbol"];
             AssetType type = (AssetType)assetObj["type"].as<int>();
             String timezone = assetObj["timezone"];
             if (!symbol.isEmpty()) {
+                // addAsset will safely ignore existing assets
                 stockManager.addAsset(symbol, type);
                 stockManager.setAssetTimezone(symbol, timezone);
             }
         }
+
+        // Remove assets that are no longer in the list
+        auto& current_assets = stockManager.getAssets();
+        std::vector<String> to_remove;
+        for (const auto& asset : current_assets) {
+            bool found = false;
+            for (const auto& symbol : symbols) {
+                if (asset.symbol.equalsIgnoreCase(symbol)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                to_remove.push_back(asset.symbol);
+            }
+        }
+        for(const auto& symbol : to_remove) {
+            stockManager.removeAsset(symbol);
+        }
     }
-    // --- END: Stock Asset Handling ---
+
+    // After updating the live state, save it to NVS
+    stockManager.saveAssets();
+
+    // Explicitly update the stock manager's API key.
+    if (!obj["financialModelingPrepApiKey"].isNull()) {
+        stockManager.setApiKey(obj["financialModelingPrepApiKey"].as<String>());
+    }
 
     // Re-serialize the parsed JSON from the request back into our global string buffer.
     settingsToSaveJson = ""; // Clear any previous data.
@@ -797,15 +835,6 @@ void setupWebRoutes() {
 
     // Immediately send a response to the client to unblock the UI.
     request->send(200, "text/plain", "Settings Save Queued!");
-
-    // The actual saving and animation trigger now happens in the main loop.
-    // --- START: MODIFICATION - Set Stock Manager API Key ---
-    // Explicitly update the stock manager's API key.
-    if (!obj["financialModelingPrepApiKey"].isNull()) {
-        stockManager.setApiKey(obj["financialModelingPrepApiKey"].as<String>());
-        stockManager.saveAssets();
-    }
-    // --- END: MODIFICATION ---
   });
   server.addHandler(saveSettingsHandler);
 

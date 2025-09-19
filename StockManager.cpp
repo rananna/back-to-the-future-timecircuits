@@ -352,11 +352,15 @@ void StockManager::clearAssets() {
     Log_printf(LOG_LEVEL_INFO, "All assets cleared.");
 }
 
-std::vector<Asset> StockManager::getAssets() const {
-    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    std::vector<Asset> assets_copy = _assets;
-    xSemaphoreGive(_assets_mutex);
-    return assets_copy;
+const std::vector<Asset>& StockManager::getAssets() const {
+    // Note: This method returns a const reference.
+    // The caller must not hold onto this reference for a long time
+    // and must be aware that it's only safe to use as long as
+    // the StockManager instance is valid and not being modified
+    // by another thread. For simple, short-lived operations,
+    // this is much more efficient than copying the vector.
+    // The caller should not attempt to modify the returned vector.
+    return _assets;
 }
 
 void StockManager::setAssetTimezone(const String& symbol, const String& timezone) {
