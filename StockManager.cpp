@@ -1291,3 +1291,27 @@ void StockManager::loadAssets() {
 bool StockManager::isTimeSynchronized() const {
     return timeSynchronized;
 }
+
+void StockManager::resetTicker() {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    _current_asset_index = 0;
+    _current_page_index = 0;
+    xSemaphoreGive(_assets_mutex);
+    Log_printf(LOG_LEVEL_INFO, "Stock ticker reset to initial state.");
+}
+
+Asset StockManager::getCurrentStockInfo() const {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    if (_assets.empty()) {
+        xSemaphoreGive(_assets_mutex);
+        return Asset(); // Return an empty/default asset
+    }
+    // Ensure index is within bounds
+    size_t index = _current_asset_index;
+    if (index >= _assets.size()) {
+        index = 0;
+    }
+    Asset current_asset = _assets[index];
+    xSemaphoreGive(_assets_mutex);
+    return current_asset;
+}
