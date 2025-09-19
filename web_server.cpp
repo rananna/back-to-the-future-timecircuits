@@ -521,6 +521,9 @@ void setupWebRoutes() {
         symbols.push_back(v.as<String>());
     }
     stockManager.reorderAssets(symbols);
+    // --- START: MODIFICATION - Persist asset order ---
+    stockManager.saveAssets();
+    // --- END: MODIFICATION ---
     request->send(200, "application/json", "{\"status\":\"success\"}");
   });
   server.addHandler(reorderStockHandler);
