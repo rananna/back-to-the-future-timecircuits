@@ -637,15 +637,18 @@ async function updateStockStatus() {
                 if (assetDiv) {
                     const priceEl = assetDiv.querySelector('.asset-price');
                     const changeEl = assetDiv.querySelector('.asset-change');
+                    const errorEl = assetDiv.querySelector('.asset-error');
 
                     if (asset.data_valid) {
                         priceEl.textContent = `$${asset.price.toFixed(2)}`;
                         changeEl.textContent = `${asset.change_percent.toFixed(2)}%`;
                         changeEl.className = 'asset-change ' + (asset.change_percent >= 0 ? 'positive' : 'negative');
+                        if(errorEl) errorEl.textContent = '';
                     } else {
                         priceEl.textContent = '--';
                         changeEl.textContent = '--';
                         changeEl.className = 'asset-change';
+                        if(errorEl) errorEl.textContent = asset.error_reason || 'INVALID';
                     }
                 }
             });
@@ -1943,6 +1946,7 @@ function renderStockAssets(assets) {
             <span class="asset-name">${asset.name || ''}</span>
             <span class="asset-price">${price}</span>
             <span class="asset-change ${changeClass}">${change}</span>
+            <span class="asset-error"></span>
             <button class="remove-asset-btn" data-symbol="${asset.symbol}">×</button>
         `;
         container.appendChild(assetDiv);
