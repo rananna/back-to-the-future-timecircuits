@@ -259,7 +259,11 @@ void makeApiRequestTask(void* p) {
                 }
             } else {
                 responseJson["status"] = "error";
-                responseJson["payload"] = "HTTP Error: " + String(httpCode);
+                // --- START: MODIFICATION ---
+                // Grab the response body to provide a more detailed error message.
+                String responseBody = http.getString();
+                responseJson["payload"] = "HTTP Error: " + String(httpCode) + " - " + responseBody;
+                // --- END: MODIFICATION ---
             }
         } else {
             responseJson["status"] = "error";
