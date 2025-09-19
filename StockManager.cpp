@@ -307,6 +307,7 @@ bool StockManager::addAsset(const String& symbol, const String& timezone) {
     _assets.push_back(newAsset);
     xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "Added asset: %s with timezone %s", symbol.c_str(), timezone.c_str());
+    saveAssets();
     return true;
 }
 
@@ -326,6 +327,9 @@ bool StockManager::removeAsset(const String& symbol) {
         removed = true;
     }
     xSemaphoreGive(_assets_mutex);
+    if (removed) {
+        saveAssets();
+    }
     return removed;
 }
 
@@ -343,6 +347,7 @@ void StockManager::reorderAssets(const std::vector<String>& symbols) {
     _assets = reordered_assets;
     xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "Assets reordered.");
+    saveAssets();
 }
 
 void StockManager::clearAssets() {
@@ -350,6 +355,7 @@ void StockManager::clearAssets() {
     _assets.clear();
     xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "All assets cleared.");
+    saveAssets();
 }
 
 const std::vector<Asset>& StockManager::getAssets() const {
@@ -369,6 +375,7 @@ void StockManager::setAssetTimezone(const String& symbol, const String& timezone
         if (asset.symbol.equalsIgnoreCase(symbol)) {
             asset.timezone = timezone;
             Log_printf(LOG_LEVEL_INFO, "Set timezone for %s to %s", symbol.c_str(), timezone.c_str());
+            saveAssets();
             break;
         }
     }
@@ -984,6 +991,7 @@ void StockManager::updateAssetsFromJson(const String& jsonString) {
     int numLoaded = _assets.size();
     xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "Loaded %d stock assets from JSON.", numLoaded);
+    saveAssets();
 }
 
 void StockManager::saveAssets() {
