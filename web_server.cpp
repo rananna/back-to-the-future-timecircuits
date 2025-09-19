@@ -465,21 +465,17 @@ void setupWebRoutes() {
 
   AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
-    if (obj["symbol"].isNull()) {
-        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol.\"}");
+    if (obj["symbol"].isNull() || obj["timezone"].isNull()) {
+        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol or timezone.\"}");
         return;
     }
 
     String symbol = obj["symbol"];
-    AssetType type = obj["type"].as<int>(); // Assuming type is provided.
-    String timezone = obj["timezone"].as<String>();
+    String timezone = obj["timezone"];
 
-    if (stockManager.addAsset(symbol, type)) {
-        if (!timezone.isEmpty()) {
-            stockManager.setAssetTimezone(symbol, timezone);
-        }
+    if (stockManager.addAsset(symbol, timezone)) {
+        stockManager.saveAssets();
 
-        // Instead of just success, send back the updated list of assets
         JsonDocument doc;
         doc["status"] = "success";
         JsonArray assetsArray = doc["assets"].to<JsonArray>();
@@ -490,7 +486,6 @@ void setupWebRoutes() {
             assetObj["price"] = asset.price;
             assetObj["change_percent"] = asset.change_percent;
             assetObj["data_valid"] = asset.data_valid;
-            assetObj["type"] = (int)asset.type;
             assetObj["timezone"] = asset.timezone;
         }
         String jsonString;
@@ -508,6 +503,7 @@ void setupWebRoutes() {
     if (!obj["symbol"].isNull()) {
         String symbol = obj["symbol"];
         if (stockManager.removeAsset(symbol)) {
+            stockManager.saveAssets();
             request->send(200, "application/json", "{\"status\":\"success\"}");
         } else {
             request->send(404, "application/json", "{\"status\":\"error\", \"message\":\"Asset not found.\"}");
@@ -530,14 +526,32 @@ void setupWebRoutes() {
   server.addHandler(reorderStockHandler);
 
   server.on("/api/stocks/search", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (request->hasParam("q")) {
-        String query = request->getParam("q")->value();
-        // Placeholder for symbol search. In a real implementation, this would
-        // call an external API and return a list of matching symbols.
-        String jsonResponse = "[{\"symbol\":\"" + query + "\",\"name\":\"" + query + " Inc.\"}]";
-        request->send(200, "application/json", jsonResponse);
+    if (!request->hasParam("q") || !request->hasParam("apikey")) {
+        request->send(400, "text/plain", "Missing query or apikey parameter");
+        return;
+    }
+    String query = request->getParam("q")->value();
+    String apiKey = request->getParam("apikey")->value();
+
+    WiFiClientSecure client;
+    client.setInsecure(); // For simplicity, though not recommended for production
+    HTTPClient http;
+    String url = "https://financialmodelingprep.com/api/v3/search-name?query=" + query + "&limit=10&apikey=" + apiKey;
+
+    if (http.begin(client, url)) {
+        int httpCode = http.GET();
+        if (httpCode > 0) {
+            if (httpCode == HTTP_CODE_OK) {
+                request->send(200, "application/json", http.getString());
+            } else {
+                request->send(httpCode, "text/plain", http.getString());
+            }
+        } else {
+            request->send(500, "text/plain", "Request failed");
+        }
+        http.end();
     } else {
-        request->send(400, "text/plain", "Missing query parameter 'q'");
+        request->send(500, "text/plain", "Unable to connect");
     }
   });
 
@@ -948,7 +962,6 @@ void setupWebRoutes() {
         assetObj["price"] = asset.price;
         assetObj["change_percent"] = asset.change_percent;
         assetObj["data_valid"] = asset.data_valid;
-        assetObj["type"] = (int)asset.type;
         assetObj["timezone"] = asset.timezone;
     }
     String jsonString;

@@ -7,17 +7,9 @@
 #include <map>
 #include <ArduinoJson.h>
 
-// Enum to define the type of financial asset
-enum AssetType {
-    STOCK,
-    CRYPTO,
-    INDEX
-};
-
 // Struct to hold all data for a single financial asset
 struct Asset {
     String symbol;
-    AssetType type;
     String name;
     float price;
     float change_percent;
@@ -52,13 +44,15 @@ public:
     void loop();
 
     // Asset Management
-    bool addAsset(const String& symbol, AssetType type);
+    bool addAsset(const String& symbol, const String& timezone);
     bool removeAsset(const String& symbol);
     void reorderAssets(const std::vector<String>& symbols);
     void clearAssets();
     const std::vector<Asset>& getAssets() const;
     void setAssetTimezone(const String& symbol, const String& timezone);
     void updateAssetsFromJson(const String& jsonString);
+    void saveAssets();
+    void loadAssets();
 
     // Data Fetching
     void fetchData();
@@ -95,10 +89,9 @@ private:
     volatile int _running_tasks;
 
     // Private methods
-    FetchStatus fetchBatchDataFromApi(const std::vector<String>& symbols, AssetType type);
-    void fetchBatchData(const std::vector<String>& symbols, AssetType type);
-    void parseJsonResponse(JsonDocument& doc, AssetType type, const std::vector<String>& requested_symbols);
-    bool isCryptoMarketOpen() const;
+    FetchStatus fetchBatchDataFromApi(const std::vector<String>& symbols);
+    void fetchBatchData(const std::vector<String>& symbols);
+    void parseJsonResponse(JsonDocument& doc, const std::vector<String>& requested_symbols);
 };
 
 bool isStockMarketOpen(const char* tz_string);

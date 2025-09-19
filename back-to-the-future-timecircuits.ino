@@ -863,7 +863,7 @@ void setup() {
 
     Log_printf(LOG_LEVEL_INFO, "Loading settings...");
     loadSettings();
-    stockManager.updateAssetsFromJson(currentSettings.stockAssetsJson.c_str());
+    stockManager.loadAssets();
     Log_printf(LOG_LEVEL_INFO, "Settings loaded... OK");
 
     xDisplayDataMutex = xSemaphoreCreateMutex();

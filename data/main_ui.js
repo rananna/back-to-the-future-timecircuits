@@ -499,7 +499,6 @@ function attachEventListeners() {
     // Use event delegation for the stock fetch buttons. This ensures the click event
     // is handled even if the buttons are added to the DOM after the initial page load.
     document.getElementById('addAssetBtn').onclick = addStockAsset;
-    document.getElementById('lookupAssetBtn').onclick = lookupStockAsset;
     document.getElementById('addAssetInput').addEventListener('input', handleSymbolAutocomplete);
 
     // Number of data points slider
@@ -620,19 +619,18 @@ async function updateStockStatus() {
     if (!document.getElementById('stockTickerModeEnabled').checked) {
         return;
     }
-
     try {
         const response = await fetch('/api/stocks/status');
         if (!response.ok) {
-            throw new Error('Failed to fetch stock status');
+            throw new Error(`Failed to fetch stock status: ${response.status}`);
         }
         const status = await response.json();
 
-        document.getElementById('stockApiUsage').textContent = `API Calls Today: ${status.api_usage}`;
+        const stockApiUsageElements = document.querySelectorAll('.stockApiUsage');
+        stockApiUsageElements.forEach(element => {
+            element.textContent = `API Calls Today: ${status.api_usage}`;
+        });
 
-        // --- START: MODIFICATION - Gracefully handle missing assets array ---
-        // If the API call fails (e.g., invalid key), the 'assets' property might not exist.
-        // This check prevents a TypeError from crashing the update loop.
         if (status.assets && Array.isArray(status.assets)) {
             status.assets.forEach(asset => {
                 const assetDiv = document.querySelector(`.asset-item[data-symbol="${asset.symbol}"]`);
@@ -652,27 +650,6 @@ async function updateStockStatus() {
                 }
             });
         }
-        // --- END: MODIFICATION ---
-
-    } catch (error) {
-        console.error('Error updating stock status:', error);
-    }
-}
-                const priceEl = assetDiv.querySelector('.asset-price');
-                const changeEl = assetDiv.querySelector('.asset-change');
-
-                if (asset.data_valid) {
-                    priceEl.textContent = `$${asset.price.toFixed(2)}`;
-                    changeEl.textContent = `${asset.change_percent.toFixed(2)}%`;
-                    changeEl.className = 'asset-change ' + (asset.change_percent >= 0 ? 'positive' : 'negative');
-                } else {
-                    priceEl.textContent = '--';
-                    changeEl.textContent = '--';
-                    changeEl.className = 'asset-change';
-                }
-            }
-        });
-
     } catch (error) {
         console.error('Error updating stock status:', error);
     }
@@ -687,8 +664,13 @@ async function handleSymbolAutocomplete(e) {
         return;
     }
 
+    const apiKey = document.getElementById('financialModelingPrepApiKey').value;
+    if (!apiKey) {
+        return;
+    }
+
     try {
-        const response = await fetch(`/api/stocks/search?q=${query}`);
+        const response = await fetch(`/api/stocks/search?q=${query}&apikey=${apiKey}`);
         if (!response.ok) {
             throw new Error('Symbol search failed');
         }
@@ -722,7 +704,6 @@ function renderAutocompleteResults(results) {
 
 /**
  * Handles the change event of the preset select dropdown.
- * @param {Event} event The change event.
  */
 function handlePresetSelectionChange(event) {
     applySelectedPreset(event);
@@ -1980,21 +1961,41 @@ async function addStockAsset() {
 
     const timezoneSelect = document.getElementById('addAssetTimezone');
     const timezone = timezoneSelect.value;
-    const typeSelect = document.getElementById('addAssetType');
-    const type = typeSelect.value;
 
     try {
+        const apiKey = document.getElementById('financialModelingPrepApiKey').value;
+        if (!apiKey) {
+            showMessage('Please enter your Financial Modeling Prep API key.', 'error');
+            return;
+        }
+
+        const testResponse = await fetch(`/api/stocks/search?q=${symbol}&apikey=${apiKey}`);
+        const testResult = await testResponse.json();
+
+        let isValid = false;
+        if (testResponse.ok && Array.isArray(testResult) && testResult.length > 0) {
+            isValid = testResult.some(r => r.symbol === symbol);
+        }
+
+        if (!isValid) {
+             throw new Error(`Symbol '${symbol}' not found or invalid.`);
+        }
+
         const response = await fetch('/api/stocks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol, type, timezone })
+            body: JSON.stringify({ symbol, timezone })
         });
 
         const result = await response.json();
         if (result.status === 'success') {
             input.value = '';
+            const container = document.getElementById('symbolAutocompleteContainer');
+            container.innerHTML = '';
+            container.style.display = 'none';
             showMessage(`Asset ${symbol} added.`, 'success');
-            await loadStockAssets();
+            renderStockAssets(result.assets); // Use the returned assets
+            updateStockMarqueePreview(); // Update the marquee
         } else {
             throw new Error(result.message || 'Failed to add asset.');
         }
@@ -2025,6 +2026,37 @@ async function removeStockAsset(event) {
     } catch (error) {
         console.error('Error removing asset:', error);
         showMessage(`Error: ${error.message}`, 'error');
+    }
+}
+
+async function updateStockMarqueePreview() {
+    const previewEl = document.getElementById('stockMarqueePreview');
+    const stockTickerEnabled = document.getElementById('stockTickerModeEnabled').checked;
+    const apiKey = document.getElementById('financialModelingPrepApiKey').value;
+
+    if (!stockTickerEnabled || !apiKey) {
+        if (previewEl) {
+            previewEl.textContent = 'Stock Ticker Mode is disabled or API key is not set.';
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/stocks/marquee');
+        const data = await response.json();
+        if (!response.ok) {
+            if (previewEl) {
+                previewEl.textContent = data.error || 'Error fetching marquee data.';
+            }
+            return;
+        }
+        if (previewEl) {
+            previewEl.textContent = data.marqueeText;
+        }
+    } catch (error) {
+        if (previewEl) {
+            previewEl.textContent = 'Device is offline.';
+        }
     }
 }
 
