@@ -1029,10 +1029,6 @@ String StockManager::getMarqueeLine() {
         return "";
     }
 
-    if (!isMarketOpen()) {
-        return "MARKET CLOSED";
-    }
-
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
 
     if (_assets.empty()) {
