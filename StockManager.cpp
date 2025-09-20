@@ -550,24 +550,22 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
         }
 
         if (error == DeserializationError::Ok) {
-            JsonObject obj;
-            if (doc.is<JsonArray>()) {
-                JsonArray array = doc.as<JsonArray>();
-                if (array.size() > 0) {
-                    obj = array[0];
-                }
-            } else if (doc.is<JsonObject>()) {
-                obj = doc.as<JsonObject>();
-            }
-
-            if (obj) {
+            // The API is expected to return a single JSON object for a valid symbol.
+            if (doc.is<JsonObject>()) {
+                JsonObject obj = doc.as<JsonObject>();
                 exchange = obj["exchange"].as<String>();
-                Log_printf(LOG_LEVEL_INFO, "Found exchange '%s' for symbol '%s'", exchange.c_str(), symbol.c_str());
+                if (!exchange.isEmpty()) {
+                    Log_printf(LOG_LEVEL_INFO, "Found exchange '%s' for symbol '%s'", exchange.c_str(), symbol.c_str());
+                } else {
+                    Log_printf(LOG_LEVEL_WARN, "Exchange field is empty for symbol '%s'", symbol.c_str());
+                }
             } else {
-                Log_printf(LOG_LEVEL_WARN, "No exchange found for symbol '%s'", symbol.c_str());
+                // This can happen for invalid symbols, where the API returns an empty array `[]`
+                // or an error object like `{ "Error Message": "..." }`.
+                Log_printf(LOG_LEVEL_WARN, "Response for symbol '%s' was not a JSON object. It might be an invalid symbol.", symbol.c_str());
             }
         } else {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to parse search JSON: %s", error.c_str());
+            Log_printf(LOG_LEVEL_ERROR, "Failed to parse search JSON for '%s': %s", symbol.c_str(), error.c_str());
         }
     }
 
@@ -576,8 +574,8 @@ cleanup:
     return exchange;
 }
 
-FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbols) {
-    if (symbols.empty()) {
+FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& symbol_vec) {
+    if (symbol_vec.empty()) {
         return FETCH_SUCCESS; // Nothing to fetch
     }
 
@@ -611,10 +609,10 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         char url_log[512];
         char* symbols_str_buf = NULL; // This is no longer used but kept to avoid breaking cleanup logic.
 
-        // All symbols must be capitalized.
+        // The vector should contain exactly one symbol. It must be capitalized for the API.
         std::vector<String> upper_symbols;
-        upper_symbols.reserve(symbols.size());
-        for (const auto& s : symbols) {
+        upper_symbols.reserve(symbol_vec.size());
+        for (const auto& s : symbol_vec) {
             String upper_s = s;
             upper_s.toUpperCase();
             upper_symbols.push_back(upper_s);
@@ -698,7 +696,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
             Log_printf(LOG_LEVEL_WARN, "Stock HTTP request failed with code %d.", http_status);
             if (http_status == 401 || http_status == 403) {
                 xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-                for (const auto& symbol : symbols) {
+                for (const auto& symbol : symbol_vec) {
                     auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
                         return asset.symbol.equalsIgnoreCase(symbol);
                     });
@@ -725,22 +723,11 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
 
         bool is_chunked = (strcasestr(header_buf, "Transfer-Encoding: chunked") != NULL);
 
-        JsonDocument filter;
-        filter[0]["symbol"] = true;
-        filter[0]["name"] = true;
-        filter[0]["price"] = true;
-        filter[0]["changePercentage"] = true;
-        filter[0]["dayLow"] = true;
-        filter[0]["dayHigh"] = true;
-        filter[0]["volume"] = true;
-        filter[0]["currency"] = true;
-
         JsonDocument doc;
         DeserializationError error;
 
-        // For single symbol lookups, the response is an array with one object.
-        // For batch lookups, it's an array of objects.
-        // The existing parseJsonResponse handles both cases correctly.
+        // For single symbol lookups, the API returns a single JSON object.
+        // The parseJsonResponse function is designed to handle this.
 
         // Stream the response directly to the JSON parser to conserve memory.
         if (is_chunked) {
@@ -751,7 +738,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         }
 
         if (error == DeserializationError::Ok) {
-            parseJsonResponse(doc, symbols);
+            parseJsonResponse(doc, symbol_vec);
             status = FETCH_SUCCESS;
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock JSON: %s", error.c_str());
@@ -765,7 +752,7 @@ cleanup:
     return status;
 }
 
-void StockManager::fetchBatchData(const std::vector<String>& symbols) {
+void StockManager::fetchDataForMultipleSymbols(const std::vector<String>& symbols) {
     for (const auto& symbol : symbols) {
         FetchStatus status = FETCH_FAILED;
         int attempt = 0;
@@ -778,7 +765,7 @@ void StockManager::fetchBatchData(const std::vector<String>& symbols) {
         while (attempt < maxAttempts) {
             attempt++;
             Log_printf(LOG_LEVEL_INFO, "Stock fetch for %s, attempt %d of %d...", symbol.c_str(), attempt, maxAttempts);
-            status = fetchBatchDataFromApi(single_symbol_vec);
+            status = fetchDataForSingleSymbol(single_symbol_vec);
 
             if (status == FETCH_SUCCESS) {
                 // Log_printf(LOG_LEVEL_INFO, "Successfully fetched stock data for %s on attempt %d.", symbol.c_str(), attempt);
@@ -853,17 +840,14 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
         }
     };
 
-    if (doc.is<JsonArray>()) {
-        // Response is an array of quotes (multiple symbols)
-        JsonArray array = doc.as<JsonArray>();
-        for (JsonObject quote : array) {
-            process_quote(quote);
-        }
-    } else if (doc.is<JsonObject>()) {
-        // Response is a single quote object (e.g. single symbol lookup, or an error object)
+    // The API is expected to return a single quote object for a single symbol lookup,
+    // or an error object. An invalid symbol might return an empty array `[]`.
+    if (doc.is<JsonObject>()) {
         process_quote(doc.as<JsonObject>());
     } else {
-        Log_printf(LOG_LEVEL_WARN, "JSON response was not a valid array or object. Assuming all requested symbols are invalid.");
+        // This handles cases like an empty array `[]` for an invalid symbol,
+        // or other unexpected response types.
+        Log_printf(LOG_LEVEL_WARN, "JSON response was not a valid object. Assuming all requested symbols are invalid.");
     }
 
     // Now, iterate through the originally requested symbols and mark any that were not in the response as invalid.
@@ -892,7 +876,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
 
 void fetchStockDataBatchTask(void* p) {
     StockFetchParams* params = (StockFetchParams*)p;
-    params->manager->fetchBatchData(params->symbols);
+    params->manager->fetchDataForMultipleSymbols(params->symbols);
 
     xSemaphoreTake(params->manager->_task_mutex, portMAX_DELAY);
     params->manager->_running_tasks -= 1;
@@ -911,7 +895,7 @@ void fetchStockDataBatchTask(void* p) {
 void fetchSingleStockTask(void* p) {
     StockFetchParams* params = (StockFetchParams*)p;
     Log_printf(LOG_LEVEL_INFO, "Single stock fetch task started for %s.", params->symbols[0].c_str());
-    params->manager->fetchBatchData(params->symbols);
+    params->manager->fetchDataForMultipleSymbols(params->symbols);
     Log_printf(LOG_LEVEL_INFO, "Single stock fetch task finished for %s.", params->symbols[0].c_str());
     delete params;
     vTaskDelete(NULL);

@@ -106,8 +106,8 @@ private:
 
     // Private methods
     String fetchExchangeForSymbol(const String& symbol) const;
-    FetchStatus fetchBatchDataFromApi(const std::vector<String>& symbols);
-    void fetchBatchData(const std::vector<String>& symbols);
+    FetchStatus fetchDataForSingleSymbol(const std::vector<String>& symbol);
+    void fetchDataForMultipleSymbols(const std::vector<String>& symbols);
     void parseJsonResponse(JsonDocument& doc, const std::vector<String>& requested_symbols);
 };
 
