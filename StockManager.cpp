@@ -841,7 +841,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
     // First, check for a global API error before processing symbols.
     if (doc.is<JsonObject>()) {
         JsonObject obj = doc.as<JsonObject>();
-        if (obj.containsKey("Error Message")) {
+        if (!obj["Error Message"].isNull()) {
             String error_msg = obj["Error Message"];
             Log_printf(LOG_LEVEL_ERROR, "API Error: %s", error_msg.c_str());
 
@@ -1221,17 +1221,12 @@ void StockManager::saveAssets() {
         return;
     }
 
-    // Calculate the required size for the JSON document.
-    // See ArduinoJson Assistant: https://arduinojson.org/v6/assistant/
-    size_t required_size = JSON_ARRAY_SIZE(assets_copy.size());
-    for (const auto& asset : assets_copy) {
-        required_size += JSON_OBJECT_SIZE(2);          // Two members: "symbol", "exchange"
-        required_size += asset.symbol.length() + 1;     // +1 for null-terminator
-        required_size += asset.exchange.length() + 1;   // +1 for null-terminator
-    }
+    // In ArduinoJson v7, we no longer need to calculate the size beforehand.
+    // The JsonDocument will grow automatically.
 
-    // Use DynamicJsonDocument because the size is determined at runtime.
-    DynamicJsonDocument doc(required_size);
+    // In ArduinoJson v7, DynamicJsonDocument is deprecated. Use JsonDocument instead.
+    // It will automatically allocate memory as needed.
+    JsonDocument doc;
 
     JsonArray assetsArray = doc.to<JsonArray>();
     for (const auto& asset : assets_copy) {
@@ -1241,7 +1236,7 @@ void StockManager::saveAssets() {
     }
 
     if (doc.overflowed()) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to serialize assets JSON: document overflowed. Capacity: %u, Usage: %u", doc.capacity(), doc.memoryUsage());
+        Log_printf(LOG_LEVEL_ERROR, "Failed to serialize assets JSON: document overflowed.");
         // We should not save a partial file.
         return;
     }
@@ -1254,7 +1249,7 @@ void StockManager::saveAssets() {
         return;
     }
 
-    Log_printf(LOG_LEVEL_INFO, "Saving assets. Calculated size: %u, Actual size: %u, Num assets: %d", required_size, actual_size, assetsArray.size());
+    Log_printf(LOG_LEVEL_INFO, "Saving assets. Actual size: %u, Num assets: %d", actual_size, assetsArray.size());
 
     Preferences preferences;
     preferences.begin("stocks", false);
