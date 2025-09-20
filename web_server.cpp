@@ -790,8 +790,6 @@ void setupWebRoutes() {
     if (!obj["stockAssets"].isNull()) {
         JsonArray assets = obj["stockAssets"].as<JsonArray>();
         std::vector<String> symbols;
-
-        // First, build a list of symbols in the new order
         for (JsonVariant v : assets) {
             JsonObject assetObj = v.as<JsonObject>();
             String symbol = assetObj["symbol"];
@@ -799,42 +797,9 @@ void setupWebRoutes() {
                 symbols.push_back(symbol);
             }
         }
-
-        // Reorder the existing assets to match the new list
-        stockManager.reorderAssets(symbols);
-
-        // Now, add any new assets
-        for (JsonVariant v : assets) {
-            JsonObject assetObj = v.as<JsonObject>();
-            String symbol = assetObj["symbol"];
-            if (!symbol.isEmpty()) {
-                // addAsset will safely ignore existing assets.
-                stockManager.addAsset(symbol);
-            }
-        }
-
-        // Remove assets that are no longer in the list
-        auto& current_assets = stockManager.getAssets();
-        std::vector<String> to_remove;
-        for (const auto& asset : current_assets) {
-            bool found = false;
-            for (const auto& symbol : symbols) {
-                if (asset.symbol.equalsIgnoreCase(symbol)) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                to_remove.push_back(asset.symbol);
-            }
-        }
-        for(const auto& symbol : to_remove) {
-            stockManager.removeAsset(symbol);
-        }
+        // This single call now handles adding, removing, reordering, and saving.
+        stockManager.updateAndSaveAssets(symbols);
     }
-
-    // After updating the live state, save it to NVS
-    stockManager.saveAssets();
 
     // Explicitly update the stock manager's API key.
     if (!obj["financialModelingPrepApiKey"].isNull()) {
