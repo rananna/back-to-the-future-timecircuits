@@ -104,13 +104,7 @@ private:
     volatile int _running_tasks;
     bool _data_updated;
 
-    // Market open cache
-    mutable std::map<String, bool> _market_open_cache;
-    mutable unsigned long _last_market_open_check;
-
-
     // Private methods
-    bool fetchMarketStatusForExchange(const String& exchange) const;
     String fetchExchangeForSymbol(const String& symbol) const;
     FetchStatus fetchBatchDataFromApi(const std::vector<String>& symbols);
     void fetchBatchData(const std::vector<String>& symbols);

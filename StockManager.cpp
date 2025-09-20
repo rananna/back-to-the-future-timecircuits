@@ -265,7 +265,7 @@ static const char *fmp_root_ca = \
 
 StockManager::StockManager() :
     _api_key(""),
-    _refresh_interval_ms(2 * 60 * 1000), // Default 2 minutes
+    _refresh_interval_ms(20 * 60 * 1000), // Default 20 minutes
     _last_fetch_time(0),
     _enabled(false),
     _is_fetching(false),
@@ -273,8 +273,7 @@ StockManager::StockManager() :
     _current_page_index(0),
     _api_usage_count(0),
     _running_tasks(0),
-    _data_updated(false),
-    _last_market_open_check(0) {
+    _data_updated(false) {
     _task_mutex = xSemaphoreCreateMutex();
     _assets_mutex = xSemaphoreCreateMutex();
 }
@@ -465,112 +464,6 @@ void StockManager::fetchData() {
     }
 }
 
-bool StockManager::fetchMarketStatusForExchange(const String& exchange) const {
-    Log_printf(LOG_LEVEL_INFO, "Fetching market status for exchange: %s", exchange.c_str());
-
-    esp_tls_t *tls_market = esp_tls_init();
-    if (!tls_market) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to allocate market status TLS handle.");
-        return false;
-    }
-
-    bool is_open = false;
-    char header_buf[2048];
-    char* body_start_ptr = NULL;
-    size_t header_len = 0;
-
-    {
-        esp_tls_cfg_t cfg = {};
-        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
-        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
-        cfg.timeout_ms = 10000;
-
-        const char *hostname = "financialmodelingprep.com";
-        if (esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls_market) < 0) {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to create market status TLS connection.");
-            goto cleanup;
-        }
-
-        char request[512];
-        snprintf(request, sizeof(request),
-                 "GET /stable/exchange-market-hours?exchange=%s&apikey=%s HTTP/1.1\r\n"
-                 "Host: financialmodelingprep.com\r\n"
-                 "Connection: close\r\n"
-                 "\r\n",
-                 exchange.c_str(), _api_key.c_str());
-
-        if (esp_tls_conn_write(tls_market, request, strlen(request)) < 0) {
-            Log_printf(LOG_LEVEL_ERROR, "Market status esp_tls_conn_write failed.");
-            goto cleanup;
-        }
-
-        unsigned long header_read_start_time = millis();
-        const unsigned long HEADER_TIMEOUT_MS = 10000;
-
-        while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
-            int ret = esp_tls_conn_read(tls_market, (unsigned char *)header_buf + header_len, sizeof(header_buf) - header_len - 1);
-            if (ret < 0) {
-                if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-                    Log_printf(LOG_LEVEL_ERROR, "Market status esp_tls_conn_read failed: -0x%x", -ret);
-                    goto cleanup;
-                }
-                vTaskDelay(pdMS_TO_TICKS(20));
-                continue;
-            }
-            if (ret == 0) {
-                Log_printf(LOG_LEVEL_WARN, "Market status connection closed by peer during header read.");
-                goto cleanup;
-            }
-            header_len += ret;
-            header_buf[header_len] = '\0';
-            body_start_ptr = strstr(header_buf, "\r\n\r\n");
-            if (body_start_ptr) break;
-        }
-
-        if (!body_start_ptr) {
-            Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for market status HTTP headers.");
-            goto cleanup;
-        }
-
-        body_start_ptr += 4;
-        size_t body_part_len = header_len - (body_start_ptr - header_buf);
-
-        TlsStream tls_stream(tls_market);
-        CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
-
-        bool is_chunked = (strcasestr(header_buf, "Transfer-Encoding: chunked") != NULL);
-
-        JsonDocument filter;
-        filter[0]["symbol"] = true;
-        filter[0]["exchange"] = true;
-
-        JsonDocument doc;
-        DeserializationError error;
-        if (is_chunked) {
-            DechunkingStream dechunking_stream(combined_stream);
-            error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
-        } else {
-            error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
-        }
-
-        if (error == DeserializationError::Ok) {
-            JsonArray array = doc.as<JsonArray>();
-            if (array.size() > 0) {
-                JsonObject obj = array[0];
-                is_open = obj["isTheStockMarketOpen"].as<bool>();
-                Log_printf(LOG_LEVEL_INFO, "Market status for %s is %s", exchange.c_str(), is_open ? "OPEN" : "CLOSED");
-            } else {
-                Log_printf(LOG_LEVEL_WARN, "No market status found for exchange '%s'", exchange.c_str());
-            }
-        } else {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to parse market status JSON: %s", error.c_str());
-        }
-    }
-
-cleanup:
-    esp_tls_conn_destroy(tls_market);
-    return is_open;
-}
 
 String StockManager::fetchExchangeForSymbol(const String& symbol) const {
     Log_printf(LOG_LEVEL_INFO, "Fetching exchange for symbol: %s", symbol.c_str());
@@ -1077,21 +970,26 @@ String StockManager::getMarqueeLine() {
         char change_str[10];
         snprintf(change_str, sizeof(change_str), "%+.2f%%", current_asset.change_percent);
 
-        snprintf(buffer, sizeof(buffer), "%s %s%.2f %s VOL:%s",
+        char price_buf[32];
+        snprintf(price_buf, sizeof(price_buf), "%s%.2f", currency_symbol, current_asset.price);
+
+        snprintf(buffer, sizeof(buffer), "%s %s %s VOL:%s",
                 name_to_display,
-                currency_symbol,
-                current_asset.price,
+                price_buf,
                 change_str,
                 vol_str.c_str());
     }
     // Page 1: Day's High and Low
     else {
-        snprintf(buffer, sizeof(buffer), "%s HIGH %s%.2f LOW %s%.2f",
+        char high_buf[32];
+        snprintf(high_buf, sizeof(high_buf), "%s%.2f", currency_symbol, current_asset.day_high);
+        char low_buf[32];
+        snprintf(low_buf, sizeof(low_buf), "%s%.2f", currency_symbol, current_asset.day_low);
+
+        snprintf(buffer, sizeof(buffer), "%s HIGH %s LOW %s",
                 name_to_display,
-                currency_symbol,
-                current_asset.day_high,
-                currency_symbol,
-                current_asset.day_low);
+                high_buf,
+                low_buf);
     }
 
     xSemaphoreGive(_assets_mutex);
@@ -1177,53 +1075,8 @@ int StockManager::getApiUsage() const {
 }
 
 bool StockManager::isMarketOpen() const {
-    if (!timeSynchronized) {
-        // Log_printf(LOG_LEVEL_WARN, "isMarketOpen: Waiting for NTP time sync.");
-        return false; // Markets are closed until we know what time it is.
-    }
-
-    const unsigned long CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-    unsigned long now = millis();
-
-    if (now - _last_market_open_check < CACHE_DURATION_MS) {
-        // Return cached result
-        for (auto const& [exchange, is_open] : _market_open_cache) {
-            if (is_open) return true;
-        }
-        return false;
-    }
-
-    Log_printf(LOG_LEVEL_INFO, "Market open cache expired. Re-fetching status.");
-    _last_market_open_check = now;
-    _market_open_cache.clear();
-
-    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    if (_assets.empty()) {
-        xSemaphoreGive(_assets_mutex);
-        return false;
-    }
-
-    // Get unique exchanges
-    std::map<String, bool> unique_exchanges;
-    for (const auto& asset : _assets) {
-        if (!asset.exchange.isEmpty()) {
-            unique_exchanges[asset.exchange] = false; // Value doesn't matter here
-        }
-    }
-    xSemaphoreGive(_assets_mutex);
-
-    // Fetch status for each unique exchange
-    bool any_market_is_open = false;
-    for (auto& pair : unique_exchanges) {
-        String exchange = pair.first;
-        bool is_open = fetchMarketStatusForExchange(exchange);
-        _market_open_cache[exchange] = is_open;
-        if (is_open) {
-            any_market_is_open = true;
-        }
-    }
-
-    return any_market_is_open;
+    // Market status check is disabled to stay within free API limits.
+    return true;
 }
 
 void StockManager::updateAssetsFromJson(const String& jsonString) {
