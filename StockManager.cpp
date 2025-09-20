@@ -797,6 +797,21 @@ void StockManager::fetchDataForMultipleSymbols(const std::vector<String>& symbol
 
         if (status != FETCH_SUCCESS) {
             Log_printf(LOG_LEVEL_ERROR, "Stock fetch for %s failed after all attempts.", symbol.c_str());
+            xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+            auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
+                return asset.symbol.equalsIgnoreCase(symbol);
+            });
+            if (it != _assets.end()) {
+                it->data_valid = false;
+                if (status == FETCH_CONNECTION_FAILED) {
+                    it->error_reason = "CONNECTION FAILED";
+                } else if (status == FETCH_RATE_LIMITED) {
+                    it->error_reason = "RATE LIMITED";
+                } else {
+                    it->error_reason = "FETCH FAILED";
+                }
+            }
+            xSemaphoreGive(_assets_mutex);
         }
 
         // Small delay between API calls to be nice to the server.
