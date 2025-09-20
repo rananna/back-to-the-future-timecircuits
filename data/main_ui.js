@@ -321,6 +321,12 @@ async function applyDataLinkSettings(datalink) {
 
     document.getElementById('financialModelingPrepApiKey').value = datalink.financialModelingPrepApiKey || '';
     document.getElementById('stockRefreshInterval').value = datalink.stockRefreshInterval || 2;
+
+    if (datalink.stockTickerModeEnabled) {
+        loadStockAssets();
+        updateStockStatus();
+        updateStockMarqueePreview();
+    }
     
     document.getElementById('dataLinkRefreshInterval').value = datalink.dataLinkRefreshInterval;
     document.getElementById('dataLinkRefreshIntervalValue').textContent = datalink.dataLinkRefreshInterval;
