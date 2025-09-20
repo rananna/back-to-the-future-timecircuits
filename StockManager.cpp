@@ -700,20 +700,21 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
         }
 
         if (http_status != 200) {
-            Log_printf(LOG_LEVEL_WARN, "Stock HTTP request failed with code %d.", http_status);
-            if (http_status == 401 || http_status == 403) {
-                xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-                for (const auto& symbol : symbol_vec) {
-                    auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
-                        return asset.symbol.equalsIgnoreCase(symbol);
-                    });
-                    if (it != _assets.end()) {
-                        it->data_valid = false;
-                        it->error_reason = "INVALID API KEY";
-                    }
+            Log_printf(LOG_LEVEL_WARN, "Stock HTTP request for %s failed with code %d.", symbol_vec[0].c_str(), http_status);
+            xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+            auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
+                return asset.symbol.equalsIgnoreCase(symbol_vec[0]);
+            });
+            if (it != _assets.end()) {
+                it->data_valid = false;
+                if (http_status == 401 || http_status == 403) {
+                    it->error_reason = "INVALID API KEY";
+                } else {
+                    it->error_reason = String("HTTP_ERR: ") + http_status;
                 }
-                xSemaphoreGive(_assets_mutex);
             }
+            xSemaphoreGive(_assets_mutex);
+
             if (http_status == 429) {
                 status = FETCH_RATE_LIMITED;
             } else {
@@ -748,8 +749,20 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
             parseJsonResponse(doc, symbol_vec);
             status = FETCH_SUCCESS;
         } else {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock JSON: %s", error.c_str());
+            const char* error_str = error.c_str();
+            Log_printf(LOG_LEVEL_ERROR, "Failed to parse stock JSON for %s: %s", symbol_vec[0].c_str(), error_str);
             status = FETCH_FAILED;
+
+            // --- NEW ---
+            xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+            auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
+                return asset.symbol.equalsIgnoreCase(symbol_vec[0]);
+            });
+            if (it != _assets.end()) {
+                it->data_valid = false;
+                it->error_reason = String("JSON_ERR: ") + error_str;
+            }
+            xSemaphoreGive(_assets_mutex);
         }
     }
 
@@ -803,12 +816,15 @@ void StockManager::fetchDataForMultipleSymbols(const std::vector<String>& symbol
             });
             if (it != _assets.end()) {
                 it->data_valid = false;
-                if (status == FETCH_CONNECTION_FAILED) {
-                    it->error_reason = "CONNECTION FAILED";
-                } else if (status == FETCH_RATE_LIMITED) {
-                    it->error_reason = "RATE LIMITED";
-                } else {
-                    it->error_reason = "FETCH FAILED";
+                // Only set a generic error if a specific one wasn't already set.
+                if (it->error_reason.isEmpty()) {
+                    if (status == FETCH_CONNECTION_FAILED) {
+                        it->error_reason = "CONNECTION FAILED";
+                    } else if (status == FETCH_RATE_LIMITED) {
+                        it->error_reason = "RATE LIMITED";
+                    } else {
+                        it->error_reason = "FETCH FAILED";
+                    }
                 }
             }
             xSemaphoreGive(_assets_mutex);
