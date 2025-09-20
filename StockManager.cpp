@@ -838,23 +838,13 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         // For batch lookups, it's an array of objects.
         // The existing parseJsonResponse handles both cases correctly.
 
-        // --- START: MODIFICATION - Log raw JSON response ---
-        // WARNING: This reads the entire response into a String, which can consume
-        // significant memory. This is intended for debugging only. The original code
-        // streamed the response directly to the JSON parser to conserve memory.
-        String responseBody;
+        // Stream the response directly to the JSON parser to conserve memory.
         if (is_chunked) {
             DechunkingStream dechunking_stream(combined_stream);
-            responseBody = dechunking_stream.readString();
+            error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
         } else {
-            responseBody = combined_stream.readString();
+            error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
         }
-
-        Log_printf(LOG_LEVEL_DEBUG, "Stock API Response Body: %s", responseBody.c_str());
-
-        // Now parse the response body we captured
-        error = deserializeJson(doc, responseBody, DeserializationOption::Filter(filter));
-        // --- END: MODIFICATION ---
 
         if (error == DeserializationError::Ok) {
             parseJsonResponse(doc, symbols);
