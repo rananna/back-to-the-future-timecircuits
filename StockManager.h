@@ -7,6 +7,14 @@
 #include <map>
 #include <ArduinoJson.h>
 
+// Enum to represent the result of adding an asset
+enum AssetAddResult {
+    SUCCESS,
+    ALREADY_EXISTS,
+    INVALID_SYMBOL,
+    ADD_ERROR
+};
+
 // Struct to hold all data for a single financial asset
 struct Asset {
     String symbol;
@@ -54,7 +62,7 @@ public:
     void loop();
 
     // Asset Management
-    bool addAsset(const String& symbol);
+    AssetAddResult addAsset(const String& symbol);
     bool removeAsset(const String& symbol);
     void reorderAssets(const std::vector<String>& symbols);
     void clearAssets();

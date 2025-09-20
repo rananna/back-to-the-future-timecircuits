@@ -518,27 +518,26 @@ void setupWebRoutes() {
     }
 
     String symbol = obj["symbol"];
+    AssetAddResult result = stockManager.addAsset(symbol);
 
-    if (stockManager.addAsset(symbol)) {
-        stockManager.saveAssets();
-
-        JsonDocument doc;
-        doc["status"] = "success";
-        JsonArray assetsArray = doc["assets"].to<JsonArray>();
-        for (const auto& asset : stockManager.getAssets()) {
-            JsonObject assetObj = assetsArray.add<JsonObject>();
-            assetObj["symbol"] = asset.symbol;
-            assetObj["name"] = asset.name;
-            assetObj["price"] = asset.price;
-            assetObj["change_percent"] = asset.change_percent;
-            assetObj["data_valid"] = asset.data_valid;
+    switch (result) {
+        case SUCCESS: {
+            stockManager.saveAssets();
+            // --- START: MODIFICATION - Send a success message on add ---
+            request->send(200, "application/json", "{\"status\":\"success\"}");
+            // --- END: MODIFICATION ---
+            break;
         }
-        String jsonString;
-        serializeJson(doc, jsonString);
-        request->send(200, "application/json", jsonString);
-
-    } else {
-        request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Asset already exists or invalid.\"}");
+        case ALREADY_EXISTS:
+            request->send(409, "application/json", "{\"status\":\"error\", \"message\":\"Asset already exists.\"}");
+            break;
+        case INVALID_SYMBOL:
+            request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Invalid symbol or symbol not found.\"}");
+            break;
+        case ADD_ERROR:
+        default:
+            request->send(500, "application/json", "{\"status\":\"error\", \"message\":\"An unexpected error occurred.\"}");
+            break;
     }
   });
   server.addHandler(addStockHandler);
