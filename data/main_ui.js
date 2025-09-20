@@ -2018,7 +2018,7 @@ async function removeStockAsset(event) {
     if (!confirm(`Are you sure you want to remove ${symbol}?`)) return;
 
     try {
-        const response = await fetch('/api/stocks/delete', {
+        const response = await fetch('/api/stock/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol })
