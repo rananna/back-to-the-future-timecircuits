@@ -864,7 +864,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
             it->data_valid = true;
             it->error_reason = ""; // Clear previous error
             _data_updated = true; // Flag that data has changed
-            Log_printf(LOG_LEVEL_INFO, "Updated data for %s", symbol.c_str());
+            Log_printf(LOG_LEVEL_INFO, "Updated data for %s: Price=%.2f, Change=%.2f%%", symbol.c_str(), it->price, it->change_percent);
         } else {
             Log_printf(LOG_LEVEL_WARN, "Received data for untracked symbol: %s", symbol.c_str());
         }
@@ -1247,6 +1247,10 @@ void StockManager::loadAssets() {
 
 bool StockManager::isTimeSynchronized() const {
     return timeSynchronized;
+}
+
+bool StockManager::isFetching() const {
+    return _is_fetching;
 }
 
 void StockManager::resetTicker() {

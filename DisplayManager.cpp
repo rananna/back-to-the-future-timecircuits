@@ -237,9 +237,8 @@ void updateStockTickerDisplay() {
         // State machine for stock ticker display
         switch (stockState) {
             case SD_CONNECTING:
-                if (stockManager.isTimeSynchronized()) {
-                    stockState = SD_START_PAGE; // Time is synced, proceed
-                } else {
+                if (!stockManager.isTimeSynchronized()) {
+                    // Still waiting for time sync
                     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                         printToDisplay(lastRow.month, " ", 0);
                         printToDisplay(lastRow.day, " ", 0);
@@ -249,6 +248,20 @@ void updateStockTickerDisplay() {
                         vTaskDelay(pdMS_TO_TICKS(2));
                         xSemaphoreGive(xDisplayHardwareMutex);
                     }
+                } else if (stockManager.isFetching()) {
+                    // Time is synced, now waiting for data
+                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        printToDisplay(lastRow.month, " ", 0);
+                        printToDisplay(lastRow.day, " ", 0);
+                        printToDisplay(lastRow.year, "LOADING", 0);
+                        printToDisplay(lastRow.time, "STOCKS", 0);
+                        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+                        vTaskDelay(pdMS_TO_TICKS(2));
+                        xSemaphoreGive(xDisplayHardwareMutex);
+                    }
+                } else {
+                    // Both conditions met, proceed
+                    stockState = SD_START_PAGE;
                 }
                 break;
 
