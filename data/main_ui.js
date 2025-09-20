@@ -2068,9 +2068,8 @@ async function updateStockMarqueePreview() {
         previewSpan.textContent = text;
         previewSpan.classList.remove('scrolling-text');
 
-        // Check if the text overflows the container by comparing its scroll width to its client width.
-        // This is a more robust method than checking the text length.
-        const isOverflowing = previewSpan.scrollWidth > previewSpan.clientWidth;
+        // Check if the text length exceeds the 13-character display width.
+        const isOverflowing = text.length > 13;
 
         if (isOverflowing) {
             // A scroll speed of 150ms per character is used as a baseline.
