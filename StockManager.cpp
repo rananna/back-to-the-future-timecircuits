@@ -550,19 +550,30 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
         }
 
         if (error == DeserializationError::Ok) {
-            // The API is expected to return a single JSON object for a valid symbol.
+            // The API can return a single quote object, an array with a single quote object, or an empty array.
+            JsonObject quote_obj;
             if (doc.is<JsonObject>()) {
-                JsonObject obj = doc.as<JsonObject>();
-                exchange = obj["exchange"].as<String>();
+                quote_obj = doc.as<JsonObject>();
+            } else if (doc.is<JsonArray>()) {
+                JsonArray array = doc.as<JsonArray>();
+                if (array.size() > 0) {
+                    quote_obj = array[0].as<JsonObject>();
+                } else {
+                    Log_printf(LOG_LEVEL_WARN, "Search response for '%s' was an empty array.", symbol.c_str());
+                }
+            }
+
+            if (!quote_obj.isNull()) {
+                exchange = quote_obj["exchange"].as<String>();
                 if (!exchange.isEmpty()) {
                     Log_printf(LOG_LEVEL_INFO, "Found exchange '%s' for symbol '%s'", exchange.c_str(), symbol.c_str());
                 } else {
-                    Log_printf(LOG_LEVEL_WARN, "Exchange field is empty for symbol '%s'", symbol.c_str());
+                    // This can happen for invalid symbols, which might return a valid object but with no exchange.
+                    Log_printf(LOG_LEVEL_WARN, "Exchange field is empty for symbol '%s'. It may be an invalid symbol.", symbol.c_str());
                 }
             } else {
-                // This can happen for invalid symbols, where the API returns an empty array `[]`
-                // or an error object like `{ "Error Message": "..." }`.
-                Log_printf(LOG_LEVEL_WARN, "Response for symbol '%s' was not a JSON object. It might be an invalid symbol.", symbol.c_str());
+                // This handles cases where the response was not an object or a non-empty array.
+                Log_printf(LOG_LEVEL_WARN, "Response for symbol '%s' did not contain a valid quote object.", symbol.c_str());
             }
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Failed to parse search JSON for '%s': %s", symbol.c_str(), error.c_str());
@@ -840,14 +851,24 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
         }
     };
 
-    // The API is expected to return a single quote object for a single symbol lookup,
+    // The API can return a single quote object, an array with a single quote object,
     // or an error object. An invalid symbol might return an empty array `[]`.
     if (doc.is<JsonObject>()) {
+        // Handle single object response
         process_quote(doc.as<JsonObject>());
+    } else if (doc.is<JsonArray>()) {
+        // Handle array response
+        JsonArray array = doc.as<JsonArray>();
+        if (array.size() > 0) {
+            // Process the first element of the array, as that's the expected format for single symbol lookups.
+            process_quote(array[0].as<JsonObject>());
+        } else {
+            // Handle empty array `[]` for an invalid symbol
+            Log_printf(LOG_LEVEL_WARN, "JSON response was an empty array. Assuming requested symbol is invalid.");
+        }
     } else {
-        // This handles cases like an empty array `[]` for an invalid symbol,
-        // or other unexpected response types.
-        Log_printf(LOG_LEVEL_WARN, "JSON response was not a valid object. Assuming all requested symbols are invalid.");
+        // This handles other unexpected response types.
+        Log_printf(LOG_LEVEL_WARN, "JSON response was not a valid object or array. Assuming all requested symbols are invalid.");
     }
 
     // Now, iterate through the originally requested symbols and mark any that were not in the response as invalid.
