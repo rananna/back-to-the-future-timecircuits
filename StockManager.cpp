@@ -550,9 +550,17 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
         }
 
         if (error == DeserializationError::Ok) {
-            JsonArray array = doc.as<JsonArray>();
-            if (array.size() > 0) {
-                JsonObject obj = array[0];
+            JsonObject obj;
+            if (doc.is<JsonArray>()) {
+                JsonArray array = doc.as<JsonArray>();
+                if (array.size() > 0) {
+                    obj = array[0];
+                }
+            } else if (doc.is<JsonObject>()) {
+                obj = doc.as<JsonObject>();
+            }
+
+            if (obj) {
                 exchange = obj["exchange"].as<String>();
                 Log_printf(LOG_LEVEL_INFO, "Found exchange '%s' for symbol '%s'", exchange.c_str(), symbol.c_str());
             } else {
@@ -737,9 +745,9 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         // Stream the response directly to the JSON parser to conserve memory.
         if (is_chunked) {
             DechunkingStream dechunking_stream(combined_stream);
-            error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
+            error = deserializeJson(doc, dechunking_stream);
         } else {
-            error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
+            error = deserializeJson(doc, combined_stream);
         }
 
         if (error == DeserializationError::Ok) {
@@ -910,7 +918,7 @@ void fetchSingleStockTask(void* p) {
 }
 
 String getCurrencySymbol(const String& currency_code) {
-    if (currency_code == "USD") return "$";
+    if (currency_code.isEmpty() || currency_code == "USD" || currency_code.equalsIgnoreCase("null")) return "$";
     if (currency_code == "EUR") return "€";
     if (currency_code == "GBP") return "£";
     if (currency_code == "JPY") return "¥";
