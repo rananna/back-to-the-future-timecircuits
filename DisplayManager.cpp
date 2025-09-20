@@ -234,6 +234,8 @@ void updateStockTickerDisplay() {
         const unsigned long pauseDuration = 2000; // 2-second pause between tickers
         static char stockMarqueeBuffer[256]; // Buffer for the full text
 
+        static int marqueeLineLength = 0;
+
         // State machine for stock ticker display
         switch (stockState) {
             case SD_CONNECTING:
@@ -279,6 +281,7 @@ void updateStockTickerDisplay() {
 
                 String marqueeLine = stockManager.getMarqueeLine();
                 marqueeLine.toUpperCase();
+                marqueeLineLength = marqueeLine.length(); // Store the length
 
                 // All messages (data, errors, status) will now scroll.
                 // We prepare the buffer with padding and transition to the scrolling state.
@@ -293,7 +296,8 @@ void updateStockTickerDisplay() {
                 if (millis() - lastStockUpdate > scrollSpeed) {
                     lastStockUpdate = millis();
 
-                    if (stockScrollPosition > strlen(stockMarqueeBuffer)) {
+                    // The scroll is "done" when the viewport has moved past the actual text plus the left padding.
+                    if (stockScrollPosition >= (13 + marqueeLineLength)) {
                         stockState = SD_PAUSING;
                         lastStockUpdate = millis();
                     } else {

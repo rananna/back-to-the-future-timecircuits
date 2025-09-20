@@ -993,6 +993,21 @@ String getCurrencySymbol(const String& currency_code) {
     return currency_code; // Fallback to the code itself
 }
 
+// Helper function to format large volume numbers into a compact string
+String formatVolume(unsigned long volume) {
+    char buffer[16];
+    if (volume >= 1000000000) {
+        snprintf(buffer, sizeof(buffer), "%.2fB", (float)volume / 1000000000.0f);
+    } else if (volume >= 1000000) {
+        snprintf(buffer, sizeof(buffer), "%.2fM", (float)volume / 1000000.0f);
+    } else if (volume >= 1000) {
+        snprintf(buffer, sizeof(buffer), "%.2fK", (float)volume / 1000.0f);
+    } else {
+        snprintf(buffer, sizeof(buffer), "%lu", volume);
+    }
+    return String(buffer);
+}
+
 String StockManager::getMarqueeLine() {
     if (!_enabled) {
         return "";
@@ -1026,17 +1041,35 @@ String StockManager::getMarqueeLine() {
     String currency_symbol_str = getCurrencySymbol(current_asset.currency);
     const char* currency_symbol = currency_symbol_str.c_str();
 
-    // Always display a simplified line with symbol, price, and change.
-    char change_str[10];
-    snprintf(change_str, sizeof(change_str), "%+.2f%%", current_asset.change_percent);
+    if (_current_page_index == 0) {
+        // Page 0: Symbol, Price, Change%, Volume
+        char change_str[12];
+        snprintf(change_str, sizeof(change_str), "%+.2f%%", current_asset.change_percent);
 
-    char price_buf[32];
-    snprintf(price_buf, sizeof(price_buf), "%s%.2f", currency_symbol, current_asset.price);
+        char price_buf[20];
+        snprintf(price_buf, sizeof(price_buf), "%s%.2f", currency_symbol, current_asset.price);
 
-    snprintf(buffer, sizeof(buffer), "%s %s %s",
-            current_asset.symbol.c_str(),
-            price_buf,
-            change_str);
+        String vol_str = formatVolume(current_asset.volume);
+
+        snprintf(buffer, sizeof(buffer), "%s %s %s VOL:%s",
+                current_asset.symbol.c_str(),
+                price_buf,
+                change_str,
+                vol_str.c_str());
+
+    } else {
+        // Page 1: Symbol, High, Low
+        char high_buf[20];
+        snprintf(high_buf, sizeof(high_buf), "HIGH %s%.2f", currency_symbol, current_asset.day_high);
+
+        char low_buf[20];
+        snprintf(low_buf, sizeof(low_buf), "LOW %s%.2f", currency_symbol, current_asset.day_low);
+
+        snprintf(buffer, sizeof(buffer), "%s %s %s",
+                current_asset.symbol.c_str(),
+                high_buf,
+                low_buf);
+    }
 
     xSemaphoreGive(_assets_mutex);
     return String(buffer);
