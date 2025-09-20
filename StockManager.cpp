@@ -1173,28 +1173,68 @@ void StockManager::updateAssetsFromJson(const String& jsonString) {
     int numLoaded = _assets.size();
     xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "Loaded %d stock assets from JSON.", numLoaded);
-    saveAssets();
 }
 
 void StockManager::saveAssets() {
-    JsonDocument doc;
-    JsonArray assetsArray = doc.to<JsonArray>();
+    std::vector<Asset> assets_copy;
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    for (const auto& asset : _assets) {
+    assets_copy = _assets;
+    xSemaphoreGive(_assets_mutex);
+
+    if (assets_copy.empty()) {
+        Preferences preferences;
+        preferences.begin("stocks", false);
+        preferences.putString("assets", "[]");
+        preferences.end();
+        Log_printf(LOG_LEVEL_INFO, "No assets to save. Ensured assets in flash are cleared.");
+        return;
+    }
+
+    // Calculate the required size for the JSON document.
+    // See ArduinoJson Assistant: https://arduinojson.org/v6/assistant/
+    size_t required_size = JSON_ARRAY_SIZE(assets_copy.size());
+    for (const auto& asset : assets_copy) {
+        required_size += JSON_OBJECT_SIZE(2);          // Two members: "symbol", "exchange"
+        required_size += asset.symbol.length() + 1;     // +1 for null-terminator
+        required_size += asset.exchange.length() + 1;   // +1 for null-terminator
+    }
+
+    // Use DynamicJsonDocument because the size is determined at runtime.
+    DynamicJsonDocument doc(required_size);
+
+    JsonArray assetsArray = doc.to<JsonArray>();
+    for (const auto& asset : assets_copy) {
         JsonObject assetObj = assetsArray.add<JsonObject>();
         assetObj["symbol"] = asset.symbol;
         assetObj["exchange"] = asset.exchange;
     }
-    xSemaphoreGive(_assets_mutex);
+
+    if (doc.overflowed()) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to serialize assets JSON: document overflowed. Capacity: %u, Usage: %u", doc.capacity(), doc.memoryUsage());
+        // We should not save a partial file.
+        return;
+    }
 
     String jsonString;
-    serializeJson(doc, jsonString);
+    size_t actual_size = serializeJson(doc, jsonString);
+
+    if (actual_size == 0 && !assets_copy.empty()) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to serialize assets JSON: serializeJson returned 0.");
+        return;
+    }
+
+    Log_printf(LOG_LEVEL_INFO, "Saving assets. Calculated size: %u, Actual size: %u, Num assets: %d", required_size, actual_size, assetsArray.size());
 
     Preferences preferences;
     preferences.begin("stocks", false);
-    preferences.putString("assets", jsonString);
+    size_t bytes_written = preferences.putString("assets", jsonString);
     preferences.end();
-    Log_printf(LOG_LEVEL_INFO, "Saved %d stock assets to flash.", doc.size());
+
+    if (bytes_written == 0) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to save assets to flash: putString returned 0.");
+    } else {
+        Log_printf(LOG_LEVEL_INFO, "Saved %d stock assets to flash. (%d bytes written)", assetsArray.size(), bytes_written);
+    }
 }
 
 void StockManager::loadAssets() {
