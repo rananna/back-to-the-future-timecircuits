@@ -2002,8 +2002,7 @@ async function addStockAsset() {
             container.innerHTML = '';
             container.style.display = 'none';
             showMessage(`Asset ${symbol} added.`, 'success');
-            renderStockAssets(result.assets); // Use the returned assets
-            updateStockMarqueePreview(); // Update the marquee
+            await loadStockAssets(); // Fetch the updated list from the server
         } else {
             throw new Error(result.message || 'Failed to add asset.');
         }

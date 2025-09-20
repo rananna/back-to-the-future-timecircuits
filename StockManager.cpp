@@ -7,6 +7,8 @@
 
 extern bool timeSynchronized;
 
+void broadcastStockUpdate(); // Forward declaration
+
 // Forward declaration for the task function
 void fetchSingleStockTask(void* p);
 
@@ -912,6 +914,7 @@ void fetchSingleStockTask(void* p) {
     Log_printf(LOG_LEVEL_INFO, "Single stock fetch task started for %s.", params->symbols[0].c_str());
     params->manager->fetchDataForMultipleSymbols(params->symbols);
     Log_printf(LOG_LEVEL_INFO, "Single stock fetch task finished for %s.", params->symbols[0].c_str());
+    broadcastStockUpdate();
     delete params;
     vTaskDelete(NULL);
 }
@@ -939,7 +942,7 @@ String StockManager::getMarqueeLine() {
         return "ADD SYMBOLS IN UI";
     }
 
-    if (_current_asset_index >= _assets.size()) {
+    if (_current_asset_index >= _assets.size() || _current_asset_index < 0) {
         _current_asset_index = 0;
     }
 

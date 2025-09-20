@@ -136,6 +136,9 @@ function initWebSocket() {
         } else if (msg.action === 'animationComplete') {
             console.log("CLIENT_DEBUG: Animation complete message received. Re-enabling save button.");
             showLoading('saveSettingsBtn', false);
+        } else if (msg.action === 'stockUpdate') {
+            console.log('CLIENT_DEBUG: Received stock update from server. Refreshing status.');
+            updateStockStatus();
         }
     };
 

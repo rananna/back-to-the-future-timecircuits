@@ -187,6 +187,22 @@ void broadcastWeatherUpdate() {
 }
 
 /**
+ * @brief Broadcasts a stock update notification to all connected WebSocket clients.
+ * @details This function is called after a newly added stock has its data fetched,
+ * prompting the UI to refresh its stock information display.
+ */
+void broadcastStockUpdate() {
+    if (ws.count() > 0) {
+        JsonDocument doc;
+        doc["action"] = "stockUpdate";
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
+        Log_printf(LOG_LEVEL_INFO, "Broadcasted stock update to %d clients.", ws.count());
+    }
+}
+
+/**
  * @brief Overloaded function to broadcast an integer state update via WebSocket.
  */
 void broadcastWsStateUpdate(const char* key, int value) {
