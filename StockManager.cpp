@@ -312,8 +312,7 @@ bool StockManager::addAsset(const String& symbol) {
 
     newAsset.exchange = fetchExchangeForSymbol(symbol);
     if (newAsset.exchange.isEmpty()) {
-        Log_printf(LOG_LEVEL_WARN, "Could not determine exchange for %s. Asset not added.", symbol.c_str());
-        return false; // Or handle this case as you see fit
+        Log_printf(LOG_LEVEL_WARN, "Could not determine exchange for %s. Adding asset with empty exchange.", symbol.c_str());
     }
 
     // Re-acquire the mutex to add the new asset to the vector
@@ -541,13 +540,17 @@ bool StockManager::fetchMarketStatusForExchange(const String& exchange) const {
 
         bool is_chunked = (strcasestr(header_buf, "Transfer-Encoding: chunked") != NULL);
 
+        JsonDocument filter;
+        filter[0]["symbol"] = true;
+        filter[0]["exchange"] = true;
+
         JsonDocument doc;
         DeserializationError error;
         if (is_chunked) {
             DechunkingStream dechunking_stream(combined_stream);
-            error = deserializeJson(doc, dechunking_stream);
+            error = deserializeJson(doc, dechunking_stream, DeserializationOption::Filter(filter));
         } else {
-            error = deserializeJson(doc, combined_stream);
+            error = deserializeJson(doc, combined_stream, DeserializationOption::Filter(filter));
         }
 
         if (error == DeserializationError::Ok) {
@@ -825,7 +828,7 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         filter[0]["symbol"] = true;
         filter[0]["name"] = true;
         filter[0]["price"] = true;
-        filter[0]["changesPercentage"] = true;
+        filter[0]["changePercentage"] = true;
         filter[0]["dayLow"] = true;
         filter[0]["dayHigh"] = true;
         filter[0]["volume"] = true;
@@ -933,7 +936,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
 
         if (it != _assets.end()) {
             it->price = quote["price"].as<float>();
-            it->change_percent = quote["changesPercentage"].as<float>();
+            it->change_percent = quote["changePercentage"].as<float>();
             it->day_high = quote["dayHigh"].as<float>();
             it->day_low = quote["dayLow"].as<float>();
             it->volume = quote["volume"].as<unsigned long>();
@@ -1071,12 +1074,14 @@ String StockManager::getMarqueeLine() {
             vol_str = String(current_asset.volume);
         }
 
-        snprintf(buffer, sizeof(buffer), "%s %s%.2f %s%.2f%% VOL:%s",
+        char change_str[10];
+        snprintf(change_str, sizeof(change_str), "%+.2f%%", current_asset.change_percent);
+
+        snprintf(buffer, sizeof(buffer), "%s %s%.2f %s VOL:%s",
                 name_to_display,
                 currency_symbol,
                 current_asset.price,
-                current_asset.change_percent >= 0 ? "+" : "",
-                current_asset.change_percent,
+                change_str,
                 vol_str.c_str());
     }
     // Page 1: Day's High and Low

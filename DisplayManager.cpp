@@ -264,6 +264,7 @@ void updateStockTickerDisplay() {
                 }
 
                 String marqueeLine = stockManager.getMarqueeLine();
+                marqueeLine.toUpperCase();
 
                 if (marqueeLine == "MARKET CLOSED") {
                     snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "MARKET CLOSED");
