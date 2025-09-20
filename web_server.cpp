@@ -337,7 +337,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String apiKey = doc["data"]["apiKey"];
                 int rowIndex = doc["data"]["rowIndex"];
                 
-                String url = "https://financialmodelingprep.com/stable/quote/" + symbol + "?apikey=" + apiKey;
+                String url = "https://financialmodelingprep.com/stable/quote?symbol=" + symbol + "&apikey=" + apiKey;
                 Log_printf(LOG_LEVEL_DEBUG, "Stock URL created: %s", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", String(rowIndex)};
@@ -389,7 +389,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String apiKey = doc["data"]["apiKey"];
                 String rowIndex = doc["data"]["rowIndex"];
 
-                String url = "https://financialmodelingprep.com/stable/quote/" + symbol + "?apikey=" + apiKey;
+                String url = "https://financialmodelingprep.com/stable/quote?symbol=" + symbol + "&apikey=" + apiKey;
                 Log_printf(LOG_LEVEL_DEBUG, "Stock URL created: %s", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex};
