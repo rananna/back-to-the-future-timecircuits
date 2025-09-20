@@ -201,6 +201,12 @@ int marqueeScrollPosition = 0;
 int marqueeScrollPositionYear = 0;
 volatile bool isFetchingData = false;
 volatile bool isFetchingWeather = false;
+
+// Flags to track the completion of the very first stock data fetch at boot.
+// This allows us to log a confirmation message once the initial data is ready.
+bool initialStockFetchTriggered = false;
+bool initialStockFetchCompletedLogged = false;
+
 int dataPointFetchFailures[5] = {0, 0, 0, 0, 0};
 const int MAX_FETCH_FAILURES = 3;
 volatile int requestsCompleted = 0;
@@ -875,6 +881,7 @@ void setup() {
     if (currentSettings.stockTickerModeEnabled) {
         Log_printf(LOG_LEVEL_INFO, "Stock ticker mode is enabled, triggering initial data fetch.");
         stockManager.fetchData();
+        initialStockFetchTriggered = true; // Mark that the first fetch has started.
     }
     Log_printf(LOG_LEVEL_INFO, "Settings loaded... OK");
 
@@ -1130,6 +1137,29 @@ void loop() {
             }
             
             stockManager.loop();
+
+            // --- START: MODIFICATION - Log initial stock fetch completion ---
+            if (initialStockFetchTriggered && !initialStockFetchCompletedLogged && !stockManager.isFetching()) {
+                initialStockFetchCompletedLogged = true; // Set flag immediately to prevent re-entry
+                Log_printf(LOG_LEVEL_INFO, "Initial asynchronous stock data fetch has completed. Checking results...");
+
+                const auto& assets = stockManager.getAssets();
+                if (assets.empty()) {
+                    Log_printf(LOG_LEVEL_INFO, "  -> No stock assets are configured.");
+                } else {
+                    int success_count = 0;
+                    for (const auto& asset : assets) {
+                        if (asset.data_valid) {
+                            Log_printf(LOG_LEVEL_INFO, "  - %s: OK", asset.symbol.c_str());
+                            success_count++;
+                        } else {
+                            Log_printf(LOG_LEVEL_WARN, "  - %s: FAILED (%s)", asset.symbol.c_str(), asset.error_reason.c_str());
+                        }
+                    }
+                    Log_printf(LOG_LEVEL_INFO, "  -> Fetch result: %d of %d assets updated successfully.", success_count, assets.size());
+                }
+            }
+            // --- END: MODIFICATION ---
 
             // --- START: MODIFICATION - Periodic Stock Manager Reset ---
             static unsigned long lastStockManagerReset = 0;
