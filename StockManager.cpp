@@ -989,45 +989,18 @@ String StockManager::getMarqueeLine() {
     char buffer[128]; // Buffer for formatting the string
     String currency_symbol_str = getCurrencySymbol(current_asset.currency);
     const char* currency_symbol = currency_symbol_str.c_str();
-    const char* name_to_display = current_asset.name.isEmpty() ? current_asset.symbol.c_str() : current_asset.name.c_str();
 
-    // Page 0: Price, Change, Volume
-    if (_current_page_index == 0) {
-        String vol_str;
-        if (current_asset.volume > 1000000000) { // Billions
-            vol_str = String(current_asset.volume / 1000000000.0, 1) + "B";
-        } else if (current_asset.volume > 1000000) { // Millions
-            vol_str = String(current_asset.volume / 1000000.0, 1) + "M";
-        } else if (current_asset.volume > 1000) { // Thousands
-            vol_str = String(current_asset.volume / 1000.0, 1) + "K";
-        } else {
-            vol_str = String(current_asset.volume);
-        }
+    // Always display a simplified line with symbol, price, and change.
+    char change_str[10];
+    snprintf(change_str, sizeof(change_str), "%+.2f%%", current_asset.change_percent);
 
-        char change_str[10];
-        snprintf(change_str, sizeof(change_str), "%+.2f%%", current_asset.change_percent);
+    char price_buf[32];
+    snprintf(price_buf, sizeof(price_buf), "%s%.2f", currency_symbol, current_asset.price);
 
-        char price_buf[32];
-        snprintf(price_buf, sizeof(price_buf), "%s%.2f", currency_symbol, current_asset.price);
-
-        snprintf(buffer, sizeof(buffer), "%s %s %s VOL:%s",
-                name_to_display,
-                price_buf,
-                change_str,
-                vol_str.c_str());
-    }
-    // Page 1: Day's High and Low
-    else {
-        char high_buf[32];
-        snprintf(high_buf, sizeof(high_buf), "%s%.2f", currency_symbol, current_asset.day_high);
-        char low_buf[32];
-        snprintf(low_buf, sizeof(low_buf), "%s%.2f", currency_symbol, current_asset.day_low);
-
-        snprintf(buffer, sizeof(buffer), "%s HIGH %s LOW %s",
-                name_to_display,
-                high_buf,
-                low_buf);
-    }
+    snprintf(buffer, sizeof(buffer), "%s %s %s",
+            current_asset.symbol.c_str(),
+            price_buf,
+            change_str);
 
     xSemaphoreGive(_assets_mutex);
     return String(buffer);
