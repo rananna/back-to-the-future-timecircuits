@@ -84,6 +84,7 @@ public:
     int getApiUsage() const;
     bool isMarketOpen() const;
     bool isTimeSynchronized() const;
+    bool isFetching() const;
     bool hasDataBeenUpdated();
     void clearDataUpdatedFlag();
 
