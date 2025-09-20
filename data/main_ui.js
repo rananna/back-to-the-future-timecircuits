@@ -649,28 +649,6 @@ async function updateStockStatus() {
     }
 }
 
-function updateStockRefreshGuidance(numAssets) {
-    const FMP_FREE_API_LIMIT = 250; // Daily limit
-    const TRADING_HOURS_PER_DAY = 8; // Assume 8 hours of trading
-    const guidanceEl = document.getElementById('stockRefreshGuidance');
-
-    if (!guidanceEl) return;
-
-    if (numAssets === 0) {
-        guidanceEl.textContent = '';
-        return;
-    }
-
-    // Calculate how many times we can refresh all assets in a day
-    const refreshesPerDay = FMP_FREE_API_LIMIT / numAssets;
-
-    // Calculate the interval in minutes, assuming trading hours
-    const tradingMinutes = TRADING_HOURS_PER_DAY * 60;
-    const suggestedInterval = Math.ceil(tradingMinutes / refreshesPerDay);
-
-    guidanceEl.innerHTML = `With ${numAssets} asset(s), the suggested refresh interval to stay within the free daily limit of ${FMP_FREE_API_LIMIT} calls is <b>~${suggestedInterval} minutes</b>.`;
-}
-
 /**
  * Handles the change event of the preset select dropdown.
  */
@@ -1963,32 +1941,6 @@ async function addStockAsset() {
             return;
         }
 
-        const url = `/api/stocks/search?q=${symbol}&apikey=${apiKey}`;
-        console.log(`Validating symbol '${symbol}' with URL: ${url}`);
-        const testResponse = await fetch(url);
-
-        if (!testResponse.ok) {
-            const errorText = await testResponse.text();
-            throw new Error(`Symbol validation failed: ${errorText}`);
-        }
-
-        const testResult = await testResponse.json();
-
-        let isValid = false;
-        // Handle case where API returns an array of results (e.g., from a search)
-        if (Array.isArray(testResult)) {
-            if (testResult.length > 0) {
-                isValid = testResult.some(r => r.symbol === symbol);
-            }
-        // Handle case where API returns a single object result (e.g., from a direct quote)
-        } else if (testResult && typeof testResult === 'object' && testResult.symbol) {
-            isValid = testResult.symbol === symbol;
-        }
-
-        if (!isValid) {
-             throw new Error(`Symbol '${symbol}' not found or invalid in API response.`);
-        }
-
         const response = await fetch('/api/stocks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1996,12 +1948,9 @@ async function addStockAsset() {
         });
 
         const result = await response.json();
-        if (result.status === 'success') {
+        if (response.ok && result.status === 'success') {
             input.value = '';
-            const container = document.getElementById('symbolAutocompleteContainer');
-            container.innerHTML = '';
-            container.style.display = 'none';
-            showMessage(`Asset ${symbol} added.`, 'success');
+            showMessage(`Asset ${symbol} added successfully. Fetching data...`, 'success');
             await loadStockAssets(); // Fetch the updated list from the server
         } else {
             throw new Error(result.message || 'Failed to add asset.');
