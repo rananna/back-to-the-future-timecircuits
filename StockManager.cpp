@@ -295,26 +295,28 @@ void StockManager::loop() {
     }
 }
 
-bool StockManager::addAsset(const String& symbol) {
+AssetAddResult StockManager::addAsset(const String& symbol) {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
         if (asset.symbol.equalsIgnoreCase(symbol)) {
             Log_printf(LOG_LEVEL_WARN, "Asset %s already exists.", symbol.c_str());
             xSemaphoreGive(_assets_mutex);
-            return false;
+            return ALREADY_EXISTS;
         }
+    }
+    xSemaphoreGive(_assets_mutex);
+
+    // Fetch the exchange to validate the symbol *before* adding it.
+    // This is a blocking network call, so the mutex is not held.
+    String exchange = fetchExchangeForSymbol(symbol);
+    if (exchange.isEmpty()) {
+        Log_printf(LOG_LEVEL_WARN, "Could not determine exchange for %s. Symbol is likely invalid.", symbol.c_str());
+        return INVALID_SYMBOL;
     }
 
     Asset newAsset;
     newAsset.symbol = symbol;
-
-    // Release the mutex before making a network call
-    xSemaphoreGive(_assets_mutex);
-
-    newAsset.exchange = fetchExchangeForSymbol(symbol);
-    if (newAsset.exchange.isEmpty()) {
-        Log_printf(LOG_LEVEL_WARN, "Could not determine exchange for %s. Adding asset with empty exchange.", symbol.c_str());
-    }
+    newAsset.exchange = exchange;
 
     // Re-acquire the mutex to add the new asset to the vector
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
@@ -331,13 +333,16 @@ bool StockManager::addAsset(const String& symbol) {
 
     // This runs the fetch in a separate task so it doesn't block the UI response.
     StockFetchParams* params = new StockFetchParams{symbols_to_fetch, this};
-    // Note: A new task function `fetchSingleStockTask` is used to avoid interfering with batch updates.
     if (xTaskCreate(fetchSingleStockTask, "singleStockFetch", 8192, params, 1, NULL) != pdPASS) {
         Log_printf(LOG_LEVEL_ERROR, "Failed to create single stock fetch task for %s.", symbol.c_str());
         delete params; // Clean up if task creation fails
+        // If the task creation fails, we should probably remove the asset we just added
+        // or at least report an error.
+        removeAsset(symbol); // Attempt to clean up
+        return ADD_ERROR;
     }
 
-    return true;
+    return SUCCESS;
 }
 
 bool StockManager::removeAsset(const String& symbol) {
