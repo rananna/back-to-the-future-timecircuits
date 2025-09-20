@@ -807,6 +807,31 @@ void StockManager::fetchDataForMultipleSymbols(const std::vector<String>& symbol
 void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String>& requested_symbols) {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
 
+    // First, check for a global API error before processing symbols.
+    if (doc.is<JsonObject>()) {
+        JsonObject obj = doc.as<JsonObject>();
+        if (obj.containsKey("Error Message")) {
+            String error_msg = obj["Error Message"];
+            Log_printf(LOG_LEVEL_ERROR, "API Error: %s", error_msg.c_str());
+
+            // Check if the error is about the API key.
+            if (error_msg.indexOf("Invalid API KEY") != -1) {
+                // Mark all requested symbols with this error.
+                for (const auto& req_sym : requested_symbols) {
+                    auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
+                        return asset.symbol.equalsIgnoreCase(req_sym);
+                    });
+                    if (it != _assets.end()) {
+                        it->data_valid = false;
+                        it->error_reason = "INVALID API KEY";
+                    }
+                }
+                xSemaphoreGive(_assets_mutex);
+                return; // Stop further processing
+            }
+        }
+    }
+
     // Create a temporary list of received symbols for efficient lookup.
     std::vector<String> received_symbols;
 
@@ -818,9 +843,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
 
         String symbol = quote["symbol"];
         if (symbol.isEmpty()) {
-            // If the object is an error message, it might not have a symbol.
-            // Example: { "Error Message" : "Invalid API KEY..." }
-            // This case is implicitly handled by the logic that marks non-updated assets as invalid.
+            // This case is now handled by the global error check above, but we keep this as a safeguard.
             return;
         }
         received_symbols.push_back(symbol);
@@ -882,9 +905,13 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
                 return asset.symbol.equalsIgnoreCase(req_sym);
             });
             if (it != _assets.end()) {
-                it->data_valid = false;
-                it->error_reason = "INVALID SYMBOL";
-                Log_printf(LOG_LEVEL_WARN, "Symbol %s requested but not found in API response. Marked as invalid.", req_sym.c_str());
+                // Only mark as invalid symbol if no other error has been set. This prevents
+                // overwriting a more specific error (like "INVALID API KEY" from the HTTP status check).
+                if (it->error_reason.isEmpty()) {
+                    it->data_valid = false;
+                    it->error_reason = "INVALID SYMBOL";
+                    Log_printf(LOG_LEVEL_WARN, "Symbol %s requested but not found in API response. Marked as invalid.", req_sym.c_str());
+                }
             }
         }
     }
