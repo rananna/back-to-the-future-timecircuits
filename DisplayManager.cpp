@@ -255,6 +255,7 @@ void updateStockTickerDisplay() {
             case SD_START_PAGE: {
                 stockManager.nextPage();
 
+                // Clear display before showing new text
                 if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                     printToDisplay(lastRow.month, "   ", 0); printToDisplay(lastRow.day, "  ", 0);
                     printToDisplay(lastRow.year, "    ", 0); printToDisplay(lastRow.time, "    ", 0);
@@ -266,17 +267,8 @@ void updateStockTickerDisplay() {
                 String marqueeLine = stockManager.getMarqueeLine();
                 marqueeLine.toUpperCase();
 
-                if (marqueeLine == "MARKET CLOSED") {
-                    snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "MARKET CLOSED");
-                    stockState = SD_MARKET_CLOSED;
-                    break;
-                }
-                if (marqueeLine == "ADD SYMBOLS IN UI" || marqueeLine.indexOf("NO DATA") != -1 || marqueeLine.indexOf("INVALID") != -1) {
-                    snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "%s", marqueeLine.c_str());
-                    stockState = SD_ERROR;
-                    break;
-                }
-
+                // All messages (data, errors, status) will now scroll.
+                // We prepare the buffer with padding and transition to the scrolling state.
                 snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s             ", marqueeLine.c_str());
                 stockScrollPosition = 0;
                 stockState = SD_SCROLLING;
@@ -308,10 +300,11 @@ void updateStockTickerDisplay() {
                         strncpy(segment_time, viewport + 9, 4); segment_time[4] = '\0';
 
                         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                            printToDisplay(lastRow.month, segment_month, 0);
-                            printToDisplay(lastRow.day, segment_day, 0);
-                            printToDisplay(lastRow.year, segment_year, 0);
-                            printToDisplay(lastRow.time, segment_time, 0);
+                            // Apply correct justification to match physical display constraints
+                            printToDisplay(lastRow.month, segment_month, 1); // Right justified
+                            printToDisplay(lastRow.day, segment_day, 2);   // Center justified
+                            printToDisplay(lastRow.year, segment_year, 0);  // Left justified
+                            printToDisplay(lastRow.time, segment_time, 0);  // Left justified
                             lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
                             vTaskDelay(pdMS_TO_TICKS(2));
                             xSemaphoreGive(xDisplayHardwareMutex);
@@ -329,28 +322,8 @@ void updateStockTickerDisplay() {
                 break;
             }
 
-            case SD_MARKET_CLOSED:
-            case SD_ERROR: {
-                int padding = (13 - strlen(stockMarqueeBuffer)) / 2;
-                char paddedLine[14] = "";
-                for(int i=0; i<padding; i++) strcat(paddedLine, " ");
-                strcat(paddedLine, stockMarqueeBuffer);
-
-                if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                    printToDisplay(lastRow.month, std::string(paddedLine).substr(0, 3).c_str(), 0);
-                    printToDisplay(lastRow.day, std::string(paddedLine).substr(3, 2).c_str(), 0);
-                    printToDisplay(lastRow.year, std::string(paddedLine).substr(5, 4).c_str(), 0);
-                    printToDisplay(lastRow.time, std::string(paddedLine).substr(9, 4).c_str(), 0);
-                    lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-                    vTaskDelay(pdMS_TO_TICKS(2));
-                    xSemaphoreGive(xDisplayHardwareMutex);
-                }
-                // After displaying the message, transition to the PAUSING state
-                // so the ticker can continue to the next item after a delay.
-                stockState = SD_PAUSING;
-                lastStockUpdate = millis(); // Set the timer for the pause
-                break;
-            }
+            // The SD_MARKET_CLOSED and SD_ERROR states are now removed.
+            // All messages are handled by the scrolling logic above.
         }
         xSemaphoreGive(xDisplayDataMutex);
     }
