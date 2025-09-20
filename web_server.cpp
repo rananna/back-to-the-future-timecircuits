@@ -337,34 +337,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
             }
 
             String action = doc["action"];
-             if (action == "testStock") {
-                Log_printf(LOG_LEVEL_DEBUG, "'testStock' action received.");
-                 if (!timeSynchronized) {
-                    String responseString;
-                    JsonDocument responseJson;
-                    responseJson["action"] = "stockTestResult";
-                    responseJson["status"] = "error";
-                    responseJson["payload"] = "Time not sync'd. Go to System->Sync Time.";
-                    serializeJson(responseJson, responseString);
-                    ws.text(client->id(), responseString);
-                    return;
-                }
-                String symbol = doc["data"]["symbol"];
-                String apiKey = doc["data"]["apiKey"];
-                int rowIndex = doc["data"]["rowIndex"];
-                
-                String url = "https://financialmodelingprep.com/stable/quote?symbol=" + symbol + "&apikey=" + apiKey;
-                Log_printf(LOG_LEVEL_DEBUG, "Stock URL created: %s", url.c_str());
-
-                ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", String(rowIndex)};
-                BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
-                if (taskCreated != pdPASS) {
-                    delete params;
-                    Log_printf(LOG_LEVEL_ERROR, "Failed to create stock test task!");
-                } else {
-                    Log_printf(LOG_LEVEL_DEBUG, "Stock test task created successfully.");
-                }
-            } else if (action == "testApi") {
+             if (action == "testApi") {
                 Log_printf(LOG_LEVEL_DEBUG, "'testApi' action received.");
                 if (!timeSynchronized) {
                     String responseString;
@@ -570,7 +543,7 @@ void setupWebRoutes() {
   });
   server.addHandler(addStockHandler);
 
-  AsyncCallbackJsonWebHandler* deleteStockHandler = new AsyncCallbackJsonWebHandler("/api/stock/delete", [](AsyncWebServerRequest *request, JsonVariant &json) {
+  AsyncCallbackJsonWebHandler* deleteStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks/delete", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
     if (!obj["symbol"].isNull()) {
         String symbol = obj["symbol"];
