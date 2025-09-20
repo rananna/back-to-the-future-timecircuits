@@ -494,7 +494,7 @@ bool StockManager::fetchMarketStatusForExchange(const String& exchange) const {
 
         char request[512];
         snprintf(request, sizeof(request),
-                 "GET /api/v3/exchange-market-hours/%s?apikey=%s HTTP/1.1\r\n"
+                 "GET /stable/exchange-market-hours?exchange=%s&apikey=%s HTTP/1.1\r\n"
                  "Host: financialmodelingprep.com\r\n"
                  "Connection: close\r\n"
                  "\r\n",
@@ -719,13 +719,13 @@ FetchStatus StockManager::fetchBatchDataFromApi(const std::vector<String>& symbo
         // All fetches are now for a single symbol, so we removed the batch logic.
         const char* symbol_cstr = upper_symbols[0].c_str();
         snprintf(request, sizeof(request),
-                    "GET /api/v3/quote/%s?apikey=%s HTTP/1.1\r\n"
+                    "GET /stable/quote/%s?apikey=%s HTTP/1.1\r\n"
                     "Host: financialmodelingprep.com\r\n"
                     "Connection: close\r\n"
                     "\r\n",
                     symbol_cstr, _api_key.c_str());
 
-        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/api/v3/quote/%s?apikey=REDACTED", symbol_cstr);
+        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/quote/%s?apikey=REDACTED", symbol_cstr);
 
         Log_printf(LOG_LEVEL_INFO, "Fetching stock data from URL: %s", url_log);
 
