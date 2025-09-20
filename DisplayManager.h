@@ -19,6 +19,7 @@ enum StockDisplayState {
     SD_MARKET_CLOSED
 };
 
+extern StockDisplayState stockState;
 extern bool weatherDataUpdated;
 extern bool isRowInManualMode[3];
 extern std::string manualDisplayText[3][4];
