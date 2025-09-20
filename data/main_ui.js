@@ -2082,7 +2082,7 @@ async function updateStockMarqueePreview() {
             });
         }
     } catch (error) {
-        previewEl.innerHTML = '<span>Device is offline.</span>';
+        previewEl.innerHTML = '<span>Error updating preview. Check device connection.</span>';
     }
 }
 
