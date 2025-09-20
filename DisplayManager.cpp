@@ -328,7 +328,25 @@ void updateStockTickerDisplay() {
                 break;
             }
 
-            case SD_MARKET_CLOSED:
+            case SD_MARKET_CLOSED: {
+                int padding = (13 - strlen(stockMarqueeBuffer)) / 2;
+                char paddedLine[14] = "";
+                for(int i=0; i<padding; i++) strcat(paddedLine, " ");
+                strcat(paddedLine, stockMarqueeBuffer);
+
+                if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                    printToDisplay(lastRow.month, std::string(paddedLine).substr(0, 3).c_str(), 0);
+                    printToDisplay(lastRow.day, std::string(paddedLine).substr(3, 2).c_str(), 0);
+                    printToDisplay(lastRow.year, std::string(paddedLine).substr(5, 4).c_str(), 0);
+                    printToDisplay(lastRow.time, std::string(paddedLine).substr(9, 4).c_str(), 0);
+                    lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
+                    xSemaphoreGive(xDisplayHardwareMutex);
+                }
+                // This is a terminal state. The message will be displayed until the
+                // main loop detects that the market has opened again.
+                break;
+            }
             case SD_ERROR: {
                 int padding = (13 - strlen(stockMarqueeBuffer)) / 2;
                 char paddedLine[14] = "";
