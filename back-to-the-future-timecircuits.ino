@@ -445,9 +445,13 @@ void applySettingsFromJson(const JsonObject& obj) {
         currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
         stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
     }
-    if (!obj["stockAssetsJson"].isNull()) {
-        currentSettings.stockAssetsJson = obj["stockAssetsJson"].as<std::string>();
-        stockManager.updateAssetsFromJson(currentSettings.stockAssetsJson.c_str());
+    if (!obj["stockAssets"].isNull()) {
+        JsonArray arr = obj["stockAssets"].as<JsonArray>();
+        std::vector<String> symbols;
+        for (JsonVariant v : arr) {
+            symbols.push_back(v.as<String>());
+        }
+        stockManager.updateAndSaveAssets(symbols);
     }
 
     int numPoints = obj["numDataPoints"] | 0;
@@ -608,7 +612,6 @@ void saveSettings() {
     }
 
     SAVE_STRING_IF_CHANGED("fmpApiKey", currentSettings.financialModelingPrepApiKey);
-    SAVE_STRING_IF_CHANGED("stockAssets", currentSettings.stockAssetsJson);
 
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
@@ -693,7 +696,6 @@ void loadSettings() {
 		currentSettings.longitude = -74.0060;
 		currentSettings.stockTickerModeEnabled = false;
 		currentSettings.financialModelingPrepApiKey = "";
-        currentSettings.stockAssetsJson = "[]";
         stockManager.clearAssets();
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
@@ -745,8 +747,6 @@ void loadSettings() {
 		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
 		tempString = preferences.getString("fmpApiKey", "");
 		currentSettings.financialModelingPrepApiKey = tempString.c_str();
-        tempString = preferences.getString("stockAssets", "[]");
-        currentSettings.stockAssetsJson = tempString.c_str();
 
 
 		for (int i = 0; i < 5; i++) {
@@ -777,7 +777,6 @@ void loadSettings() {
 
     // Initialize the StockManager with the loaded settings
     stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
-    stockManager.updateAssetsFromJson(currentSettings.stockAssetsJson.c_str());
     stockManager.setEnabled(currentSettings.stockTickerModeEnabled);
 
 	Log_printf(LOG_LEVEL_INFO, "--- Settings Loaded ---");
@@ -1139,7 +1138,7 @@ void loop() {
                     Log_printf(LOG_LEVEL_INFO, "Performing periodic reset of StockManager to prevent heap fragmentation.");
                     // Re-initialize the stock manager from the master settings object.
                     stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
-                    stockManager.updateAssetsFromJson(currentSettings.stockAssetsJson.c_str());
+                    stockManager.loadAssets();
                     stockManager.setEnabled(true); // Re-enable the manager after reset
                     lastStockManagerReset = now;
                 }
