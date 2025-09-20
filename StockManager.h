@@ -60,6 +60,7 @@ public:
     void clearAssets();
     const std::vector<Asset>& getAssets() const;
     void updateAssetsFromJson(const String& jsonString);
+    void updateAndSaveAssets(const std::vector<String>& symbols);
     void saveAssets();
     void loadAssets();
 

@@ -320,7 +320,6 @@ bool StockManager::addAsset(const String& symbol) {
     xSemaphoreGive(_assets_mutex);
 
     Log_printf(LOG_LEVEL_INFO, "Added asset: %s on exchange %s", symbol.c_str(), newAsset.exchange.c_str());
-    saveAssets();
 
     // After adding, trigger an immediate fetch for this new asset
     // so the UI can be populated with fresh data right away.
@@ -355,9 +354,6 @@ bool StockManager::removeAsset(const String& symbol) {
         removed = true;
     }
     xSemaphoreGive(_assets_mutex);
-    if (removed) {
-        saveAssets();
-    }
     return removed;
 }
 
@@ -375,7 +371,6 @@ void StockManager::reorderAssets(const std::vector<String>& symbols) {
     _assets = reordered_assets;
     xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "Assets reordered.");
-    saveAssets();
 }
 
 void StockManager::clearAssets() {
@@ -383,7 +378,6 @@ void StockManager::clearAssets() {
     _assets.clear();
     xSemaphoreGive(_assets_mutex);
     Log_printf(LOG_LEVEL_INFO, "All assets cleared.");
-    saveAssets();
 }
 
 const std::vector<Asset>& StockManager::getAssets() const {
@@ -1090,6 +1084,69 @@ int StockManager::getApiUsage() const {
 bool StockManager::isMarketOpen() const {
     // Market status check is disabled to stay within free API limits.
     return true;
+}
+
+void StockManager::updateAndSaveAssets(const std::vector<String>& symbols) {
+    Log_printf(LOG_LEVEL_INFO, "Updating and saving assets.");
+
+    // Create a new vector to hold the updated and ordered assets.
+    std::vector<Asset> new_assets;
+
+    // To preserve existing asset data, create a temporary map of the current assets.
+    std::map<String, Asset> current_assets_map;
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    for (const auto& asset : _assets) {
+        current_assets_map[asset.symbol] = asset;
+    }
+    xSemaphoreGive(_assets_mutex);
+
+    // Iterate through the desired list of symbols.
+    for (const auto& symbol : symbols) {
+        if (symbol.isEmpty()) continue;
+
+        // Check if the asset already exists in our map.
+        auto it = current_assets_map.find(symbol);
+        if (it != current_assets_map.end()) {
+            // Asset exists, so we move it to the new list.
+            new_assets.push_back(it->second);
+        } else {
+            // This is a new asset. We need to create it and fetch its exchange.
+            Log_printf(LOG_LEVEL_INFO, "Found new asset to add: %s", symbol.c_str());
+            Asset newAsset;
+            newAsset.symbol = symbol;
+            newAsset.exchange = fetchExchangeForSymbol(symbol); // This is a blocking network call.
+
+            if (newAsset.exchange.isEmpty()) {
+                Log_printf(LOG_LEVEL_WARN, "Could not determine exchange for %s. Adding asset with empty exchange.", symbol.c_str());
+            }
+            new_assets.push_back(newAsset);
+
+            // Trigger an immediate data fetch for this new asset in a background task.
+            Log_printf(LOG_LEVEL_INFO, "Triggering immediate fetch for new asset: %s", symbol.c_str());
+            std::vector<String> symbols_to_fetch;
+            symbols_to_fetch.push_back(symbol);
+            StockFetchParams* params = new StockFetchParams{symbols_to_fetch, this};
+            if (xTaskCreate(fetchSingleStockTask, "singleStockFetch", 8192, params, 1, NULL) != pdPASS) {
+                Log_printf(LOG_LEVEL_ERROR, "Failed to create single stock fetch task for %s.", symbol.c_str());
+                delete params;
+            }
+        }
+    }
+
+    // Now, replace the old assets vector with the newly constructed one.
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    _assets = new_assets;
+    // Reset the ticker if the current index is now out of bounds.
+    if (_current_asset_index >= _assets.size() && !_assets.empty()) {
+        _current_asset_index = 0;
+    } else if (_assets.empty()) {
+        _current_asset_index = 0;
+    }
+    xSemaphoreGive(_assets_mutex);
+
+    // Finally, save the new state to flash.
+    saveAssets();
+    Log_printf(LOG_LEVEL_INFO, "Finished updating and saving assets.");
 }
 
 void StockManager::updateAssetsFromJson(const String& jsonString) {
