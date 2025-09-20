@@ -47,7 +47,7 @@ static int weatherScrollPosition = 0;
 static unsigned long lastWeatherUpdate = 0;
 
 // File-scoped state variables for the stock ticker display state machine
-static StockDisplayState stockState = SD_START_PAGE;
+StockDisplayState stockState = SD_START_PAGE;
 static int stockScrollPosition = 0;
 static unsigned long lastStockUpdate = 0;
 

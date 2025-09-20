@@ -235,7 +235,6 @@ enum DisplayState {
     STATE_WEATHER
 };
 DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
-extern StockDisplayState stockState;
 
 
 // --- Callback function to handle audio events ---
