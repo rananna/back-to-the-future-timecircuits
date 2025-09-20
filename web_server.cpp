@@ -554,7 +554,7 @@ void setupWebRoutes() {
   });
   server.addHandler(addStockHandler);
 
-  AsyncCallbackJsonWebHandler* deleteStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks/delete", [](AsyncWebServerRequest *request, JsonVariant &json) {
+  AsyncCallbackJsonWebHandler* deleteStockHandler = new AsyncCallbackJsonWebHandler("/api/stock/delete", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
     if (!obj["symbol"].isNull()) {
         String symbol = obj["symbol"];
