@@ -290,7 +290,8 @@ void StockManager::loop() {
     }
 
     unsigned long now = millis();
-    if (now - _last_fetch_time > _refresh_interval_ms) {
+    // If _last_fetch_time is 0, it means we've never fetched, so fetch now.
+    if ((_last_fetch_time == 0) || (now - _last_fetch_time > _refresh_interval_ms)) {
         fetchData();
     }
 }
@@ -1135,9 +1136,6 @@ void StockManager::setRefreshInterval(unsigned long interval) {
 
 void StockManager::setEnabled(bool enabled) {
     _enabled = enabled;
-    if (_enabled) {
-        _last_fetch_time = 0; // Force fetch on enable
-    }
 }
 
 int StockManager::getApiUsage() const {
