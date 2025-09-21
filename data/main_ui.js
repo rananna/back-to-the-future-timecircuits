@@ -659,7 +659,7 @@ function scrollToSettings(tabName, elementId) {
  * @param {Event} evt The click event from the tab button.
  * @param {string} tabName The name of the tab to open.
  */
-function openTab(evt, tabName) {
+window.openTab = function(evt, tabName) {
     document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = "none");
     document.querySelectorAll('.tab-link').forEach(tl => tl.classList.remove('active'));
     document.getElementById(tabName).style.display = "block";
