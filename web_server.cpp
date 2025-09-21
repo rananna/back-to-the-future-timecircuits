@@ -558,21 +558,6 @@ void setupWebRoutes() {
   });
   server.addHandler(deleteStockHandler);
 
-  AsyncCallbackJsonWebHandler* reorderStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks/reorder", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    JsonArray arr = json.as<JsonArray>();
-    std::vector<String> symbols;
-    for (JsonVariant v : arr) {
-        symbols.push_back(v.as<String>());
-    }
-    stockManager.reorderAssets(symbols);
-    // --- START: MODIFICATION - Persist asset order ---
-    stockManager.saveAssets();
-    // --- END: MODIFICATION ---
-    request->send(200, "application/json", "{\"status\":\"success\"}");
-  });
-  reorderStockHandler->setMethod(HTTP_PUT);
-  server.addHandler(reorderStockHandler);
-
   server.on("/api/stocks/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!currentSettings.stockTickerModeEnabled) {
         request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled.\"}");

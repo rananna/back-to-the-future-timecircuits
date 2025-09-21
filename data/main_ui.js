@@ -555,54 +555,6 @@ function attachEventListeners() {
     // Firmware upload form
     document.getElementById('firmware-upload-form').onsubmit = handleFirmwareUpload;
 
-    const assetList = document.getElementById('stockAssetList');
-    let draggedItem = null;
-
-    assetList.addEventListener('dragstart', (e) => {
-        draggedItem = e.target;
-        setTimeout(() => {
-            e.target.style.opacity = '0.5';
-        }, 0);
-    });
-
-    assetList.addEventListener('dragend', (e) => {
-        setTimeout(() => {
-            e.target.style.opacity = '1';
-            draggedItem = null;
-        }, 0);
-
-        const symbols = [...assetList.querySelectorAll('.asset-item')].map(item => item.dataset.symbol);
-        fetch('/api/stocks/reorder', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(symbols)
-        });
-    });
-
-    assetList.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const afterElement = getDragAfterElement(assetList, e.clientY);
-        const dragging = document.querySelector('.dragging');
-        if (afterElement == null) {
-            assetList.appendChild(draggedItem);
-        } else {
-            assetList.insertBefore(draggedItem, afterElement);
-        }
-    });
-}
-
-function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('.asset-item:not(.dragging)')];
-
-    return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-            return { offset: offset, element: child };
-        } else {
-            return closest;
-        }
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
 async function updateStockStatus() {
@@ -1912,7 +1864,6 @@ function renderStockAssets(assets) {
         const assetDiv = document.createElement('div');
         assetDiv.className = 'asset-item';
         assetDiv.dataset.symbol = asset.symbol;
-        assetDiv.setAttribute('draggable', 'true');
 
         const changeClass = asset.change_percent >= 0 ? 'positive' : 'negative';
         const price = asset.data_valid ? `$${asset.price.toFixed(2)}` : '--';
