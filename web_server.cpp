@@ -27,8 +27,8 @@
 
 // --- Mutex and shared HTTP client for thread-safe API requests ---
 static std::mutex httpClientMutex;
-static WiFiClientSecure client;
-static HTTPClient http;
+// static WiFiClientSecure client; // No longer global
+// static HTTPClient http; // No longer global
 
 // --- Extern Global Variables ---
 // These are defined in the main .ino file and are made available here.
@@ -253,6 +253,8 @@ void makeApiRequestTask(void* p) {
 
     std::lock_guard<std::mutex> lock(httpClientMutex);
     
+    WiFiClientSecure client;
+    HTTPClient http;
     client.setInsecure();
 
     if (http.begin(client, urlStr)) {

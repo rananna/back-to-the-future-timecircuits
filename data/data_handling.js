@@ -1143,32 +1143,46 @@ async function addStockAsset() {
 
 async function updateStockMarqueePreview() {
     const previewEl = document.getElementById('stockMarqueePreview');
+    if (!previewEl) return;
+
     const stockTickerEnabled = document.getElementById('stockTickerModeEnabled').checked;
     const apiKey = document.getElementById('financialModelingPrepApiKey').value;
 
     if (!stockTickerEnabled || !apiKey) {
-        if (previewEl) {
-            previewEl.textContent = 'Stock Ticker Mode is disabled or API key is not set.';
-        }
+        previewEl.innerHTML = '<span>Stock Ticker Mode is disabled or API key is not set.</span>';
         return;
     }
 
     try {
         const response = await fetch('/api/stocks/marquee');
         const data = await response.json();
+
+        let text = '...';
         if (!response.ok) {
-            if (previewEl) {
-                previewEl.textContent = data.error || 'Error fetching marquee data.';
-            }
-            return;
+            text = data.error || 'Error fetching marquee data.';
+        } else {
+            text = data.marqueeText;
         }
-        if (previewEl) {
-            previewEl.textContent = data.marqueeText;
+
+        // Always set the content inside a span
+        previewEl.innerHTML = `<span class="preview-scrolling-text">${text}</span>`;
+        const span = previewEl.querySelector('.preview-scrolling-text');
+
+        // Add scrolling class only if text is longer than 13 characters
+        if (text.length > 13) {
+            // The animation duration can be calculated based on text length and a desired speed
+            // For simplicity, we'll use a fixed duration, but a dynamic one is better.
+            const scrollSpeed = 150; // ms per character, similar to data link marquee
+            const duration = (text.length * scrollSpeed) / 1000;
+            span.style.animationDuration = `${duration}s`;
+            // Use requestAnimationFrame to ensure the class is added after the element is in the DOM
+            requestAnimationFrame(() => {
+                span.classList.add('scrolling-text');
+            });
         }
+
     } catch (error) {
-        if (previewEl) {
-            previewEl.textContent = 'Device is offline.';
-        }
+        previewEl.innerHTML = '<span>Device is offline.</span>';
     }
 }
 
