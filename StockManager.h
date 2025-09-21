@@ -64,7 +64,6 @@ public:
     // Asset Management
     AssetAddResult addAsset(const String& symbol);
     bool removeAsset(const String& symbol);
-    void reorderAssets(const std::vector<String>& symbols);
     void clearAssets();
     const std::vector<Asset>& getAssets() const;
     void updateAssetsFromJson(const String& jsonString);

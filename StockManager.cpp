@@ -364,22 +364,6 @@ bool StockManager::removeAsset(const String& symbol) {
     return removed;
 }
 
-void StockManager::reorderAssets(const std::vector<String>& symbols) {
-    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    std::vector<Asset> reordered_assets;
-    for (const auto& symbol : symbols) {
-        for (const auto& asset : _assets) {
-            if (asset.symbol.equalsIgnoreCase(symbol)) {
-                reordered_assets.push_back(asset);
-                break;
-            }
-        }
-    }
-    _assets = reordered_assets;
-    xSemaphoreGive(_assets_mutex);
-    Log_printf(LOG_LEVEL_INFO, "Assets reordered.");
-}
-
 void StockManager::clearAssets() {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     _assets.clear();
