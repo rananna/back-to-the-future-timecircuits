@@ -106,15 +106,6 @@ function initWebSocket() {
                 el.dispatchEvent(new Event('input'));
                 el.dispatchEvent(new Event('change'));
             }
-        } else if (msg.action === 'stockTestResult') {
-            console.log("CLIENT_DEBUG: Received stockTestResult:", msg);
-            const button = document.querySelector(`.test-asset-btn[data-index="${msg.rowIndex}"].analyzing`);
-             if (button) {
-                 button.disabled = false;
-                 button.classList.remove('analyzing');
-                 button.textContent = 'Test';
-             }
-            updateStockPreview(msg.status, msg.payload, msg.rowIndex);
         } else if (msg.action === 'weatherUpdate') {
             console.log("CLIENT_DEBUG: Received weatherUpdate:", msg.data);
             updateWeatherUI(msg.data);
@@ -1068,45 +1059,6 @@ function renderStockAssets(assets) {
     document.querySelectorAll('.remove-asset-btn').forEach(btn => {
         btn.onclick = removeStockAsset;
     });
-    document.querySelectorAll('.test-asset-btn').forEach(btn => {
-        btn.onclick = testStockAsset;
-    });
-}
-
-/**
- * Sends a WebSocket message to test a specific stock asset.
- * @param {Event} event The click event from the "Test" button.
- */
-function testStockAsset(event) {
-    const symbol = event.target.dataset.symbol;
-    const index = event.target.dataset.index;
-    const apiKey = document.getElementById('financialModelingPrepApiKey').value;
-    const button = event.target;
-
-    if (!apiKey) {
-        showMessage('Please enter your Financial Modeling Prep API key first.', 'error');
-        return;
-    }
-
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-        showMessage('Data Link channel is not open. Please wait.', 'error');
-        return;
-    }
-
-    // Show loading state
-    button.disabled = true;
-    button.classList.add('analyzing');
-    button.innerHTML = '<span class="loading-spinner"></span>';
-
-    const message = {
-        action: "testStock",
-        data: {
-            symbol: symbol,
-            apiKey: apiKey,
-            rowIndex: index
-        }
-    };
-    ws.send(JSON.stringify(message));
 }
 
 async function addStockAsset() {

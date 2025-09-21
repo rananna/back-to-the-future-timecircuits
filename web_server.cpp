@@ -28,8 +28,6 @@
 
 // --- Mutexes and state for thread-safe operations ---
 static std::mutex httpClientMutex;
-static std::mutex stockTestMutex;
-static std::set<String> testingSymbols;
 
 // --- Extern Global Variables ---
 // These are defined in the main .ino file and are made available here.
@@ -311,13 +309,6 @@ void makeApiRequestTask(void* p) {
         // --- END: MODIFICATION ---
     }
 
-    // If this was a stock test, remove the symbol from the in-progress set
-    if (!symbol.isEmpty()) {
-        std::lock_guard<std::mutex> lock(stockTestMutex);
-        testingSymbols.erase(symbol);
-        Log_printf(LOG_LEVEL_INFO, "Test for symbol '%s' completed. Removed from tracking set.", symbol.c_str());
-    }
-
     vTaskDelete(NULL); // End the task
 }
 
@@ -377,55 +368,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 if (taskCreated != pdPASS) {
                     delete params;
                      Log_printf(LOG_LEVEL_ERROR, "Failed to create API test task!");
-                }
-            } else if (action == "testStock") {
-                Log_printf(LOG_LEVEL_DEBUG, "'testStock' action received.");
-                 if (!timeSynchronized) {
-                    String responseString;
-                    JsonDocument responseJson;
-                    responseJson["action"] = "stockTestResult";
-                    responseJson["status"] = "error";
-                    responseJson["payload"] = "Time not sync'd. Go to System->Sync Time.";
-                    serializeJson(responseJson, responseString);
-                    ws.text(client->id(), responseString);
-                    return;
-                }
-                String symbol;
-                JsonVariant symbolVar = doc["data"]["symbol"];
-                if (symbolVar.is<JsonObject>()) {
-                    symbol = symbolVar["symbol"].as<String>();
-                } else {
-                    symbol = symbolVar.as<String>();
-                }
-                String apiKey = doc["data"]["apiKey"];
-                String rowIndex = doc["data"]["rowIndex"];
-
-                String url = "https://financialmodelingprep.com/stable/quote?symbol=" + symbol + "&apikey=" + apiKey;
-                Log_printf(LOG_LEVEL_DEBUG, "Stock URL created: %s", url.c_str());
-
-                // --- START: MODIFICATION - Race Condition Fix ---
-                std::lock_guard<std::mutex> lock(stockTestMutex);
-                if (testingSymbols.find(symbol) != testingSymbols.end()) {
-                    // If the symbol is already in the set, it's being tested. Ignore this request.
-                    Log_printf(LOG_LEVEL_WARN, "Duplicate test request for symbol '%s'. Ignoring.", symbol.c_str());
-                    return; // Don't create a new task
-                }
-
-                // If not already being tested, add it to the set and create the task.
-                testingSymbols.insert(symbol);
-                Log_printf(LOG_LEVEL_INFO, "Starting test for symbol '%s'. Added to tracking set.", symbol.c_str());
-                // --- END: MODIFICATION ---
-
-                ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex, symbol};
-                BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
-                if (taskCreated != pdPASS) {
-                    delete params;
-                    // If task creation fails, we must remove the symbol from the set
-                    std::lock_guard<std::mutex> lock(stockTestMutex);
-                    testingSymbols.erase(symbol);
-                    Log_printf(LOG_LEVEL_ERROR, "Failed to create stock test task! Removed '%s' from tracking set.", symbol.c_str());
-                } else {
-                    Log_printf(LOG_LEVEL_DEBUG, "Stock test task created successfully for symbol '%s'.", symbol.c_str());
                 }
             }
         }
