@@ -1278,12 +1278,28 @@ async function updateStockStatus() {
             throw new Error(errorData.error || 'Failed to fetch stock status');
         }
         const status = await response.json();
+        const guidanceEl = document.getElementById('stockRefreshGuidance');
+        const apiUsageEl = document.querySelector('.stockApiUsage');
+        const API_CALL_LIMIT = 250;
 
-        // Update API usage count
-        const apiUsageEl = document.getElementById('stockApiUsage');
+        // Update API usage count and guidance text
         if (apiUsageEl) {
-            apiUsageEl.textContent = `API Calls Today: ${status.api_usage}`;
+            apiUsageEl.textContent = `API Calls Today: ${status.api_usage} / ${API_CALL_LIMIT}`;
         }
+
+        if (guidanceEl) {
+            const numAssets = status.assets ? status.assets.length : 0;
+            if (numAssets > 0) {
+                // Each asset refresh consumes 1 API call.
+                // Recommended interval = (Total minutes in a day) / (Number of calls per day)
+                // Number of calls per day = API_CALL_LIMIT / numAssets
+                const recommendedInterval = Math.ceil((1440 * numAssets) / API_CALL_LIMIT);
+                guidanceEl.textContent = `With ${numAssets} asset(s), to stay under the ${API_CALL_LIMIT}/day free limit, a refresh interval of ~${recommendedInterval} minutes is recommended.`;
+            } else {
+                guidanceEl.textContent = `Add assets to see refresh interval guidance. The free API limit is ${API_CALL_LIMIT} calls per day.`;
+            }
+        }
+
 
         // Update individual asset display
         status.assets.forEach(asset => {
