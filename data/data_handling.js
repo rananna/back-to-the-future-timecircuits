@@ -1051,7 +1051,7 @@ function renderStockAssets(assets) {
             <span class="asset-price">${price}</span>
             <span class="asset-change ${changeClass}">${change}</span>
             <button class="test-asset-btn action-button" data-symbol="${asset.symbol}" data-index="${index}">Test</button>
-            <button class="remove-asset-btn" data-symbol="${asset.symbol}">×</button>
+            <button class="remove-asset-btn" data-symbol="${asset.symbol}">DELETE</button>
         `;
         assetContainerDiv.appendChild(assetDiv);
 
