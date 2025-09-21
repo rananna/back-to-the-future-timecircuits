@@ -293,8 +293,6 @@ StockManager::StockManager() :
     _last_fetch_time(0),
     _enabled(false),
     _is_fetching(false),
-    _current_asset_index(0),
-    _current_page_index(0),
     _api_usage_count(0),
     _running_tasks(0),
     _data_updated(false) {
@@ -380,9 +378,6 @@ bool StockManager::removeAsset(const String& symbol) {
     if (it != _assets.end()) {
         _assets.erase(it, _assets.end());
         Log_printf(LOG_LEVEL_INFO, "Removed asset: %s", symbol.c_str());
-        if (_current_asset_index >= _assets.size() && !_assets.empty()) {
-            _current_asset_index = _assets.size() - 1;
-        }
         removed = true;
     }
     xSemaphoreGive(_assets_mutex);
@@ -1019,133 +1014,12 @@ String formatVolume(unsigned long volume) {
     return String(buffer);
 }
 
-String StockManager::getMarqueeLine() {
-    if (!_enabled) {
-        return "";
-    }
-
-    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-
-    if (_assets.empty()) {
-        xSemaphoreGive(_assets_mutex);
-        return "ADD SYMBOLS IN UI";
-    }
-
-    if (_current_asset_index >= _assets.size() || _current_asset_index < 0) {
-        _current_asset_index = 0;
-        _current_page_index = 0; // Reset page index if asset index is invalid
-    }
-
-    const Asset& current_asset = _assets[_current_asset_index];
-
-    if (!current_asset.data_valid) {
-        String error_msg;
-        if (!current_asset.error_reason.isEmpty()) {
-            error_msg = current_asset.symbol + " " + current_asset.error_reason;
-        } else {
-            error_msg = current_asset.symbol + " NO DATA";
-        }
-        xSemaphoreGive(_assets_mutex);
-        return error_msg;
-    }
-
-    char buffer[128];
-    String currency_symbol_str = getCurrencySymbol(current_asset.currency);
-    const char* currency_symbol = currency_symbol_str.c_str();
-
-    switch (_current_page_index) {
-        case 0: { // Page 0: Symbol, Price, Change %
-            char change_str[10];
-            snprintf(change_str, sizeof(change_str), "%+.2f%%", current_asset.change_percent);
-
-            char price_buf[32];
-            snprintf(price_buf, sizeof(price_buf), "%s%.2f", currency_symbol, current_asset.price);
-
-            snprintf(buffer, sizeof(buffer), "%s %s %s",
-                     current_asset.symbol.c_str(),
-                     price_buf,
-                     change_str);
-            break;
-        }
-        case 1: { // Page 1: High, Low, Volume
-            char high_buf[20], low_buf[20];
-            snprintf(high_buf, sizeof(high_buf), "HI %s%.2f", currency_symbol, current_asset.day_high);
-            snprintf(low_buf, sizeof(low_buf), "LO %s%.2f", currency_symbol, current_asset.day_low);
-
-            String vol_str = formatVolume(current_asset.volume);
-
-            snprintf(buffer, sizeof(buffer), "%s %s %s VOL %s",
-                     current_asset.symbol.c_str(),
-                     high_buf,
-                     low_buf,
-                     vol_str.c_str());
-            break;
-        }
-        default: {
-            // Fallback to page 0 if index is out of bounds for some reason
-            _current_page_index = 0;
-            snprintf(buffer, sizeof(buffer), "INVALID PAGE");
-            break;
-        }
-    }
-
-    xSemaphoreGive(_assets_mutex);
-    return String(buffer);
-}
-
 bool StockManager::hasDataBeenUpdated() {
     return _data_updated;
 }
 
 void StockManager::clearDataUpdatedFlag() {
     _data_updated = false;
-}
-
-void StockManager::nextPage() {
-    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    if (_assets.empty()) {
-        xSemaphoreGive(_assets_mutex);
-        return;
-    }
-
-    const int NUM_PAGES_PER_ASSET = 2; // Page 0: Price, Page 1: High/Low
-
-    _current_page_index++;
-    if (_current_page_index >= NUM_PAGES_PER_ASSET) {
-        _current_page_index = 0;
-        _current_asset_index++;
-        if (_current_asset_index >= _assets.size()) {
-            _current_asset_index = 0;
-        }
-        Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Next Asset (%d)", _current_asset_index);
-    } else {
-        Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Next Page (%d) for Asset %d", _current_page_index, _current_asset_index);
-    }
-    xSemaphoreGive(_assets_mutex);
-}
-
-void StockManager::previousPage() {
-    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    if (_assets.empty()) {
-        xSemaphoreGive(_assets_mutex);
-        return;
-    }
-
-    const int NUM_PAGES_PER_ASSET = 2;
-
-    _current_page_index--;
-    if (_current_page_index < 0) {
-        _current_page_index = NUM_PAGES_PER_ASSET - 1;
-        _current_asset_index--;
-        if (_current_asset_index < 0) {
-            // If we were at the first asset, wrap around to the last page of the last asset
-            _current_asset_index = _assets.size() - 1;
-        }
-        Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Previous Asset (%d)", _current_asset_index);
-    } else {
-        Log_printf(LOG_LEVEL_INFO, "Stock Ticker: Previous Page (%d) for Asset %d", _current_page_index, _current_asset_index);
-    }
-    xSemaphoreGive(_assets_mutex);
 }
 
 void StockManager::setApiKey(const String& key) {
@@ -1220,12 +1094,6 @@ void StockManager::updateAndSaveAssets(const std::vector<String>& symbols) {
     // Now, replace the old assets vector with the newly constructed one.
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     _assets = new_assets;
-    // Reset the ticker if the current index is now out of bounds.
-    if (_current_asset_index >= _assets.size() && !_assets.empty()) {
-        _current_asset_index = 0;
-    } else if (_assets.empty()) {
-        _current_asset_index = 0;
-    }
     xSemaphoreGive(_assets_mutex);
 
     // Finally, save the new state to flash.
@@ -1329,14 +1197,6 @@ bool StockManager::isFetching() const {
     return _is_fetching;
 }
 
-void StockManager::resetTicker() {
-    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
-    _current_asset_index = 0;
-    _current_page_index = 0;
-    xSemaphoreGive(_assets_mutex);
-    Log_printf(LOG_LEVEL_INFO, "Stock ticker reset to initial state.");
-}
-
 Asset StockManager::getCurrentStockInfo() const {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     if (_assets.empty()) {
@@ -1344,7 +1204,7 @@ Asset StockManager::getCurrentStockInfo() const {
         return Asset(); // Return an empty/default asset
     }
     // Ensure index is within bounds
-    size_t index = _current_asset_index;
+    size_t index = 0;
     if (index >= _assets.size()) {
         index = 0;
     }

@@ -495,40 +495,7 @@ void setupWebRoutes() {
     request->send(200, "application/json", jsonString);
   });
 
-  server.on("/api/stocks/marquee", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!currentSettings.stockTickerModeEnabled) {
-        request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled.\"}");
-        return;
-    }
-    if (stockManager.getApiKey().isEmpty()) {
-        request->send(400, "application/json", "{\"error\":\"API key is not set.\"}");
-        return;
-    }
-    String marqueeLine = stockManager.getMarqueeLine();
-    JsonDocument doc;
-    doc["marqueeText"] = marqueeLine;
-    String jsonString;
-    serializeJson(doc, jsonString);
-    request->send(200, "application/json", jsonString);
-  });
 
-  server.on("/api/stocks/marquee/next", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!currentSettings.stockTickerModeEnabled) {
-        request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled.\"}");
-        return;
-    }
-    if (stockManager.getApiKey().isEmpty()) {
-        request->send(400, "application/json", "{\"error\":\"API key is not set.\"}");
-        return;
-    }
-    stockManager.nextPage();
-    String marqueeLine = stockManager.getMarqueeLine();
-    JsonDocument doc;
-    doc["marqueeText"] = marqueeLine;
-    String jsonString;
-    serializeJson(doc, jsonString);
-    request->send(200, "application/json", jsonString);
-  });
 
   server.on("/api/stocks", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!currentSettings.stockTickerModeEnabled || stockManager.getAssets().empty()) {
