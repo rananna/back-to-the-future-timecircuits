@@ -573,7 +573,7 @@ function attachEventListeners() {
 
         const symbols = [...assetList.querySelectorAll('.asset-item')].map(item => item.dataset.symbol);
         fetch('/api/stocks/reorder', {
-            method: 'POST',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(symbols)
         });
@@ -1973,7 +1973,7 @@ async function removeStockAsset(event) {
 
     try {
         const response = await fetch('/api/stocks/delete', {
-            method: 'DELETE',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol })
         });
