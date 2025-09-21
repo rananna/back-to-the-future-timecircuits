@@ -1754,7 +1754,8 @@ body.time-travel-active {
 .asset-item {
     display: flex;
     align-items: center;
-    padding: 8px;
+    gap: 15px; /* Add space between elements */
+    padding: 12px 8px; /* Increase vertical padding */
     border-bottom: 1px dashed #555;
     cursor: grab;
 }
@@ -1767,7 +1768,7 @@ body.time-travel-active {
 }
 
 .asset-symbol {
-    flex-basis: 25%;
+    flex-basis: 20%; /* Adjust basis */
     font-weight: bold;
     color: var(--highlight-text-color);
 }
@@ -1779,13 +1780,14 @@ body.time-travel-active {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-align: left; /* Ensure alignment */
 }
 .asset-price {
-    flex-basis: 20%;
+    flex-basis: 25%; /* Adjust basis */
     text-align: right;
 }
 .asset-change {
-    flex-basis: 20%;
+    flex-basis: 25%; /* Adjust basis */
     text-align: right;
     font-weight: bold;
 }
@@ -1801,13 +1803,20 @@ body.time-travel-active {
 }
 
 .remove-asset-btn {
-    background: none;
-    border: none;
-    color: #ff0000;
-    font-size: 1.5em;
+    background: #5a1e1e;
+    border: 1px solid #ff0000;
+    color: #ffaaaa;
+    font-size: 0.8em; /* Smaller font */
+    font-weight: bold;
     cursor: pointer;
-    padding: 0 10px;
+    padding: 4px 8px; /* Smaller padding */
     margin-left: 10px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+.remove-asset-btn:hover {
+    background: #8b2d2d;
+    color: #ffffff;
 }
 
 .add-asset-container {

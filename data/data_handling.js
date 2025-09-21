@@ -1052,7 +1052,7 @@ function renderStockAssets(assets) {
             <span class="asset-price">${price}</span>
             <span class="asset-change ${changeClass}">${change}</span>
             <button class="test-asset-btn action-button" data-symbol="${simpleSymbol}" data-index="${index}">Test</button>
-            <button class="remove-asset-btn" data-symbol="${simpleSymbol}">DELETE</button>
+            <button class="remove-asset-btn" data-symbol="${simpleSymbol}">X</button>
         `;
         assetContainerDiv.appendChild(assetDiv);
 
@@ -1180,9 +1180,6 @@ async function updateStockMarqueePreview() {
 
     } catch (error) {
         previewEl.innerHTML = '<span>Device is offline.</span>';
-    } finally {
-        // After an attempt, schedule the next one. This creates the self-managed loop.
-        setTimeout(updateStockMarqueePreview, 2000);
     }
 }
 
