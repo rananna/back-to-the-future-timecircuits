@@ -591,6 +591,7 @@ void setupWebRoutes() {
         String symbol = obj["symbol"];
         if (stockManager.removeAsset(symbol)) {
             stockManager.saveAssets();
+            stockManager.fetchData();
             request->send(200, "application/json", "{\"status\":\"success\"}");
         } else {
             request->send(404, "application/json", "{\"status\":\"error\", \"message\":\"Asset not found.\"}");
