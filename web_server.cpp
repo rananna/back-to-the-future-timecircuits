@@ -381,7 +381,13 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                     ws.text(client->id(), responseString);
                     return;
                 }
-                String symbol = doc["data"]["symbol"];
+                String symbol;
+                JsonVariant symbolVar = doc["data"]["symbol"];
+                if (symbolVar.is<JsonObject>()) {
+                    symbol = symbolVar["symbol"].as<String>();
+                } else {
+                    symbol = symbolVar.as<String>();
+                }
                 String apiKey = doc["data"]["apiKey"];
                 String rowIndex = doc["data"]["rowIndex"];
 
@@ -567,7 +573,12 @@ void setupWebRoutes() {
         return;
     }
 
-    String symbol = obj["symbol"];
+    String symbol;
+    if (obj["symbol"].is<JsonObject>()) {
+        symbol = obj["symbol"]["symbol"].as<String>();
+    } else {
+        symbol = obj["symbol"].as<String>();
+    }
     AssetAddResult result = stockManager.addAsset(symbol);
 
     switch (result) {
@@ -774,7 +785,15 @@ void setupWebRoutes() {
         std::vector<String> symbols;
         for (JsonVariant v : assets) {
             JsonObject assetObj = v.as<JsonObject>();
-            String symbol = assetObj["symbol"];
+            String symbol;
+            if (assetObj["symbol"].is<JsonObject>()) {
+                // Handle {"symbol": {"symbol": "MSFT", ...}}
+                symbol = assetObj["symbol"]["symbol"].as<String>();
+            } else {
+                // Handle {"symbol": "MSFT"}
+                symbol = assetObj["symbol"].as<String>();
+            }
+
             if (!symbol.isEmpty()) {
                 symbols.push_back(symbol);
             }
