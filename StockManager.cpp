@@ -875,6 +875,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
             it->volume = quote["volume"].as<unsigned long>();
             it->name = quote["name"].as<String>();
             it->currency = quote["currency"].as<String>();
+            it->exchange = quote["exchange"].as<String>(); // --- NEW ---
             it->last_update = millis();
             it->data_valid = true;
             it->error_reason = ""; // Clear previous error
@@ -1128,25 +1129,22 @@ void StockManager::updateAndSaveAssets(const std::vector<String>& symbols) {
             // Asset exists, so we move it to the new list.
             new_assets.push_back(it->second);
         } else {
-            // This is a new asset. We need to create it and fetch its exchange.
-            Log_printf(LOG_LEVEL_INFO, "Found new asset to add: %s", symbol.c_str());
+            // This is a new asset. Add it without fetching the exchange here.
+            // The exchange will be populated by the background fetch task.
+            Log_printf(LOG_LEVEL_INFO, "Found new asset to add: %s. Queueing for background fetch.", symbol.c_str());
             Asset newAsset;
             newAsset.symbol = symbol;
-            newAsset.exchange = fetchExchangeForSymbol(symbol); // This is a blocking network call.
-
-            if (newAsset.exchange.isEmpty()) {
-                Log_printf(LOG_LEVEL_WARN, "Could not determine exchange for %s. Adding asset with empty exchange.", symbol.c_str());
-            }
+            newAsset.data_valid = false; // Mark as invalid until fetch completes
+            newAsset.error_reason = "PENDING"; // Indicate that it's waiting for fetch
             new_assets.push_back(newAsset);
 
             // Trigger an immediate data fetch for this new asset in a background task.
-            Log_printf(LOG_LEVEL_INFO, "Triggering immediate fetch for new asset: %s", symbol.c_str());
             std::vector<String> symbols_to_fetch;
             symbols_to_fetch.push_back(symbol);
             StockFetchParams* params = new StockFetchParams{symbols_to_fetch, this};
             if (xTaskCreate(fetchSingleStockTask, "singleStockFetch", 8192, params, 1, NULL) != pdPASS) {
                 Log_printf(LOG_LEVEL_ERROR, "Failed to create single stock fetch task for %s.", symbol.c_str());
-                delete params;
+                delete params; // Avoid memory leak if task creation fails
             }
         }
     }
