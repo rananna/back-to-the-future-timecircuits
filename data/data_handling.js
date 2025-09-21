@@ -1109,31 +1109,28 @@ function testStockAsset(event) {
 }
 
 async function addStockAsset() {
-    const symbolInput = document.getElementById('addAssetInput');
-    const typeInput = document.getElementById('addAssetType');
-    const timezoneInput = document.getElementById('addAssetTimezone');
-
-    const symbol = symbolInput.value.trim().toUpperCase();
-    const type = parseInt(typeInput.value, 10);
-    const timezone = timezoneInput.value.trim();
-
-    if (!symbol) {
-        showMessage('Asset symbol is required.', 'error');
-        return;
-    }
+    const input = document.getElementById('addAssetInput');
+    const symbol = input.value.trim().toUpperCase();
+    if (!symbol) return;
 
     try {
-        const response = await fetch('/api/stocks', {
+        const apiKey = document.getElementById('financialModelingPrepApiKey').value;
+        if (!apiKey) {
+            showMessage('Please enter your Financial Modeling Prep API key.', 'error');
+            return;
+        }
+
+        const response = await fetch('/api/stocks/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol, type, timezone })
+            body: JSON.stringify({ symbol })
         });
 
         const result = await response.json();
-        if (result.status === 'success') {
-            symbolInput.value = '';
-            showMessage(`Asset ${symbol} added.`, 'success');
-            renderStockAssets(result.assets); // Directly render the returned list
+        if (response.ok && result.status === 'success') {
+            input.value = '';
+            showMessage(`Asset ${symbol} added successfully. Fetching data...`, 'success');
+            await loadStockAssets(); // Fetch the updated list from the server
         } else {
             throw new Error(result.message || 'Failed to add asset.');
         }
@@ -1186,7 +1183,7 @@ async function removeStockAsset(event) {
         });
 
         const result = await response.json();
-        if (result.status === 'success') {
+        if (response.ok && result.status === 'success') {
             showMessage(`Asset ${symbol} removed.`, 'success');
             await loadStockAssets();
         } else {
@@ -1194,7 +1191,7 @@ async function removeStockAsset(event) {
         }
     } catch (error) {
         console.error('Error removing asset:', error);
-        showMessage(`Error: ${error.message}`, 'error');
+        showMessage(`Error removing asset: ${error.message}`, 'error');
     }
 }
 
