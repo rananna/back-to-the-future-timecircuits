@@ -231,7 +231,7 @@ void updateStockTickerDisplay() {
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         const unsigned long scrollSpeed = 250;
-        const unsigned long pauseDuration = 2000; // 2-second pause between tickers
+        const unsigned long pauseDuration = 1000; // 1-second pause between tickers
         static char stockMarqueeBuffer[256]; // Buffer for the full text
 
         // State machine for stock ticker display
