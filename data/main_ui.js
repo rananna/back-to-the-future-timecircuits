@@ -1973,13 +1973,13 @@ async function removeStockAsset(event) {
 
     try {
         const response = await fetch('/api/stocks/delete', {
-            method: 'POST',
+            method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol })
         });
 
         const result = await response.json();
-        if (result.status === 'success') {
+        if (response.ok && result.status === 'success') {
             showMessage(`Asset ${symbol} removed.`, 'success');
             await loadStockAssets();
         } else {
@@ -1987,7 +1987,7 @@ async function removeStockAsset(event) {
         }
     } catch (error) {
         console.error('Error removing asset:', error);
-        showMessage(`Error: ${error.message}`, 'error');
+        showMessage(`Error removing asset: ${error.message}`, 'error');
     }
 }
 
