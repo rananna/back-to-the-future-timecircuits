@@ -916,9 +916,9 @@ function updateStockPreview(status, payload, rowIndex) {
         
         priceEl.textContent = `$${price}`;
         
-        if (quote.changesPercentage !== undefined) {
-            const change = parseFloat(quote.changesPercentage).toFixed(2);
-            changeEl.textContent = `${change}%`;
+        if (quote.changesPercentage !== undefined && !isNaN(parseFloat(quote.changesPercentage))) {
+            const change = parseFloat(quote.changesPercentage);
+            changeEl.textContent = `${change.toFixed(2)}%`;
             changeEl.classList.remove('positive', 'negative', 'error-text');
             if (change > 0) {
                 changeEl.classList.add('positive');
