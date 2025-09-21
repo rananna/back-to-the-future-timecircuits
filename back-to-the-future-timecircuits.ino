@@ -878,11 +878,6 @@ void setup() {
     Log_printf(LOG_LEVEL_INFO, "Loading settings...");
     loadSettings();
     stockManager.loadAssets();
-    if (currentSettings.stockTickerModeEnabled) {
-        Log_printf(LOG_LEVEL_INFO, "Stock ticker mode is enabled, triggering initial data fetch.");
-        stockManager.fetchData();
-        initialStockFetchTriggered = true; // Mark that the first fetch has started.
-    }
     Log_printf(LOG_LEVEL_INFO, "Settings loaded... OK");
 
     xDisplayDataMutex = xSemaphoreCreateMutex();
@@ -959,6 +954,13 @@ void setup() {
         for (int j = 0; j < 4; ++j) {
             updateDisplaySegment(i, j, "");
         }
+    }
+
+    // Now that WiFi and all services are initialized, trigger the initial stock fetch if enabled.
+    if (currentSettings.stockTickerModeEnabled) {
+        Log_printf(LOG_LEVEL_INFO, "Stock ticker mode is enabled, triggering initial data fetch at end of setup.");
+        stockManager.fetchData();
+        initialStockFetchTriggered = true; // Mark that the first fetch has started.
     }
 
     Log_printf(LOG_LEVEL_INFO, "--- BOOT COMPLETE ---");
