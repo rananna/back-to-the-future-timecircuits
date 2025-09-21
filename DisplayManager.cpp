@@ -231,7 +231,7 @@ void updateStockTickerDisplay() {
 
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         const unsigned long scrollSpeed = 250;
-        const unsigned long pauseDuration = 1000; // 1-second pause between tickers
+        const unsigned long pauseDuration = 250; // 0.25-second pause between tickers
         static char stockMarqueeBuffer[256]; // Buffer for the full text
 
         // State machine for stock ticker display
@@ -266,8 +266,6 @@ void updateStockTickerDisplay() {
                 break;
 
             case SD_START_PAGE: {
-                stockManager.nextPage();
-
                 // Clear display before showing new text
                 if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                     printToDisplay(lastRow.month, "   ", 0); printToDisplay(lastRow.day, "  ", 0);
@@ -330,6 +328,7 @@ void updateStockTickerDisplay() {
 
             case SD_PAUSING: {
                 if (millis() - lastStockUpdate > pauseDuration) {
+                    stockManager.nextPage();
                     stockState = SD_START_PAGE;
                 }
                 break;
