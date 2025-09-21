@@ -12,6 +12,28 @@ void broadcastStockUpdate(); // Forward declaration
 // Forward declaration for the task function
 void fetchSingleStockTask(void* p);
 
+/**
+ * @brief Normalizes a stock symbol to a simple string.
+ * @details The symbol can be a plain string (e.g., "AAPL") or a JSON string
+ * (e.g., '{"symbol":"AAPL",...}'). This function ensures a clean, simple
+ * symbol string is returned.
+ * @param symbol The stock symbol string, which might be malformed as a JSON object.
+ * @return The simple symbol string (e.g., "AAPL").
+ */
+String getSimpleSymbolFromString(const String& symbol) {
+    if (symbol.startsWith("{")) {
+        JsonDocument doc;
+        // Use a smaller document since we are only parsing a small object.
+        // This prevents excessive memory allocation if the string is very large.
+        DeserializationError error = deserializeJson(doc, symbol);
+        if (!error && doc.is<JsonObject>() && !doc["symbol"].isNull()) {
+            return doc["symbol"].as<String>();
+        }
+    }
+    // If it's not a JSON string or parsing fails, return the original string.
+    return symbol;
+}
+
 // A simple Stream implementation for esp_tls
 class TlsStream : public Stream {
 private:
@@ -297,10 +319,12 @@ void StockManager::loop() {
 }
 
 AssetAddResult StockManager::addAsset(const String& symbol) {
+    String clean_symbol = getSimpleSymbolFromString(symbol);
+
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {
-        if (asset.symbol.equalsIgnoreCase(symbol)) {
-            Log_printf(LOG_LEVEL_WARN, "Asset %s already exists.", symbol.c_str());
+        if (asset.symbol.equalsIgnoreCase(clean_symbol)) {
+            Log_printf(LOG_LEVEL_WARN, "Asset %s already exists.", clean_symbol.c_str());
             xSemaphoreGive(_assets_mutex);
             return ALREADY_EXISTS;
         }
@@ -309,14 +333,14 @@ AssetAddResult StockManager::addAsset(const String& symbol) {
 
     // Fetch the exchange to validate the symbol *before* adding it.
     // This is a blocking network call, so the mutex is not held.
-    String exchange = fetchExchangeForSymbol(symbol);
+    String exchange = fetchExchangeForSymbol(clean_symbol);
     if (exchange.isEmpty()) {
-        Log_printf(LOG_LEVEL_WARN, "Could not determine exchange for %s. Symbol is likely invalid.", symbol.c_str());
+        Log_printf(LOG_LEVEL_WARN, "Could not determine exchange for %s. Symbol is likely invalid.", clean_symbol.c_str());
         return INVALID_SYMBOL;
     }
 
     Asset newAsset;
-    newAsset.symbol = symbol;
+    newAsset.symbol = clean_symbol;
     newAsset.exchange = exchange;
 
     // Re-acquire the mutex to add the new asset to the vector
@@ -324,22 +348,22 @@ AssetAddResult StockManager::addAsset(const String& symbol) {
     _assets.push_back(newAsset);
     xSemaphoreGive(_assets_mutex);
 
-    Log_printf(LOG_LEVEL_INFO, "Added asset: %s on exchange %s", symbol.c_str(), newAsset.exchange.c_str());
+    Log_printf(LOG_LEVEL_INFO, "Added asset: %s on exchange %s", clean_symbol.c_str(), newAsset.exchange.c_str());
 
     // After adding, trigger an immediate fetch for this new asset
     // so the UI can be populated with fresh data right away.
-    Log_printf(LOG_LEVEL_INFO, "Triggering immediate fetch for new asset: %s", symbol.c_str());
+    Log_printf(LOG_LEVEL_INFO, "Triggering immediate fetch for new asset: %s", clean_symbol.c_str());
     std::vector<String> symbols_to_fetch;
-    symbols_to_fetch.push_back(symbol);
+    symbols_to_fetch.push_back(clean_symbol);
 
     // This runs the fetch in a separate task so it doesn't block the UI response.
     StockFetchParams* params = new StockFetchParams{symbols_to_fetch, this};
     if (xTaskCreate(fetchSingleStockTask, "singleStockFetch", 8192, params, 1, NULL) != pdPASS) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to create single stock fetch task for %s.", symbol.c_str());
+        Log_printf(LOG_LEVEL_ERROR, "Failed to create single stock fetch task for %s.", clean_symbol.c_str());
         delete params; // Clean up if task creation fails
         // If the task creation fails, we should probably remove the asset we just added
         // or at least report an error.
-        removeAsset(symbol); // Attempt to clean up
+        removeAsset(clean_symbol); // Attempt to clean up
         return ADD_ERROR;
     }
 
@@ -473,12 +497,13 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
         }
 
         char request[512];
+        String clean_symbol = getSimpleSymbolFromString(symbol);
         snprintf(request, sizeof(request),
                  "GET /stable/quote?symbol=%s&apikey=%s HTTP/1.1\r\n"
                  "Host: financialmodelingprep.com\r\n"
                  "Connection: close\r\n"
                  "\r\n",
-                 symbol.c_str(), _api_key.c_str());
+                 clean_symbol.c_str(), _api_key.c_str());
 
         if (esp_tls_conn_write(tls_search, request, strlen(request)) < 0) {
             Log_printf(LOG_LEVEL_ERROR, "Search esp_tls_conn_write failed.");
@@ -611,7 +636,8 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
         }
 
         // All fetches are now for a single symbol, so we removed the batch logic.
-        const char* symbol_cstr = upper_symbols[0].c_str();
+        String clean_symbol_str = getSimpleSymbolFromString(upper_symbols[0]);
+        const char* symbol_cstr = clean_symbol_str.c_str();
         snprintf(request, sizeof(request),
                     "GET /stable/quote?symbol=%s&apikey=%s HTTP/1.1\r\n"
                     "Host: financialmodelingprep.com\r\n"
@@ -1221,7 +1247,7 @@ void StockManager::updateAssetsFromJson(const String& jsonString) {
     JsonArray assetsArray = doc.as<JsonArray>();
     for (JsonObject assetObj : assetsArray) {
         Asset newAsset;
-        newAsset.symbol = assetObj["symbol"].as<String>();
+        newAsset.symbol = getSimpleSymbolFromString(assetObj["symbol"].as<String>());
         newAsset.exchange = assetObj["exchange"].as<String>();
         _assets.push_back(newAsset);
     }
