@@ -499,6 +499,7 @@ async function saveSettings() {
     
     settings.stockTickerModeEnabled = getChecked('stockTickerModeEnabled');
     settings.financialModelingPrepApiKey = getValue('financialModelingPrepApiKey');
+    settings.stockRefreshInterval = getIntValue('stockRefreshInterval', 2);
 
     if (settings.stockTickerModeEnabled && !settings.financialModelingPrepApiKey) {
         showMessage('FMP API Key is required for Stock Ticker Mode.', 'error');
