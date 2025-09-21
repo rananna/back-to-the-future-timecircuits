@@ -956,13 +956,6 @@ void setup() {
         }
     }
 
-    // Now that WiFi and all services are initialized, trigger the initial stock fetch if enabled.
-    if (currentSettings.stockTickerModeEnabled) {
-        Log_printf(LOG_LEVEL_INFO, "Stock ticker mode is enabled, triggering initial data fetch at end of setup.");
-        stockManager.fetchData();
-        initialStockFetchTriggered = true; // Mark that the first fetch has started.
-    }
-
     Log_printf(LOG_LEVEL_INFO, "--- BOOT COMPLETE ---");
     bootTimestamp = millis();
 }
@@ -1115,6 +1108,14 @@ void loop() {
                 if (MDNS.begin("timecircuits")) {
                     MDNS.addService("http", "tcp", 80);
                 }
+
+                // Now that WiFi is connected, trigger the initial stock fetch if enabled.
+                if (currentSettings.stockTickerModeEnabled) {
+                    Log_printf(LOG_LEVEL_INFO, "Stock ticker mode is enabled, triggering initial data fetch.");
+                    stockManager.fetchData();
+                    initialStockFetchTriggered = true; // Mark that the first fetch has started.
+                }
+
                 ntpSyncRequested = true;
                 runBootSequence();
             }
