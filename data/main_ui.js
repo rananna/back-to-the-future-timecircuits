@@ -136,10 +136,9 @@ async function initializeUI() {
         fetchSystemStatus();
         setInterval(fetchSystemStatus, 5000); // Fetch system status every 5 seconds
         setInterval(updateStockStatus, 60000); // Update stock status every minute
+        setInterval(updateStockMarqueePreview, 2000); // Update stock marquee every 2 seconds
         // Attach all the event listeners to the UI elements
         attachEventListeners();
-        // Start the marquee preview loop
-        updateStockMarqueePreview();
         // Dynamically create the UI uploader
         // createUiUploader();
 
@@ -417,9 +416,6 @@ function attachEventListeners() {
             showMessage('Please lookup a city to get coordinates first.', 'error');
         }
     };
-    // Test all data points button
-    document.getElementById('testAllDataPointsBtn').onclick = testAllDataPoints;
-
     // 24-hour format toggle
     document.getElementById('displayFormat24h').addEventListener('change', () => {
         const year = document.getElementById('lastTimeDepartedYear').textContent;
@@ -483,7 +479,6 @@ function attachEventListeners() {
             document.getElementById('stockTickerGroup').classList.remove('disabled');
             loadStockAssets();
             updateStockStatus();
-            updateStockMarqueePreview();
         }
         if (!isLoading) setSettingsChanged(true);
     };
@@ -1793,30 +1788,6 @@ async function testDataPoint(event) {
         // Restore the button to its original state
         button.innerHTML = originalText;
         button.disabled = false;
-    }
-}
-
-/**
- * Tests all the configured data points.
- */
-function testAllDataPoints() {
-    const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
-    if (numDataPoints === 0) {
-        showMessage('No data points to test.', 'info');
-        return;
-    }
-
-    showMessage(`Starting test for ${numDataPoints} data point(s)...`, 'info');
-
-    for (let i = 0; i < numDataPoints; i++) {
-        const testButton = document.querySelector(`.dp-test-btn[data-index="${i}"]`);
-        if (testButton) {
-            // Create a synthetic event object to pass to the testDataPoint function
-            const syntheticEvent = {
-                target: testButton
-            };
-            testDataPoint(syntheticEvent);
-        }
     }
 }
 
