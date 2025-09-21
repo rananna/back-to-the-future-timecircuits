@@ -570,6 +570,7 @@ void setupWebRoutes() {
     // --- END: MODIFICATION ---
     request->send(200, "application/json", "{\"status\":\"success\"}");
   });
+  reorderStockHandler->setMethod(HTTP_PUT);
   server.addHandler(reorderStockHandler);
 
   server.on("/api/stocks/status", HTTP_GET, [](AsyncWebServerRequest *request) {
