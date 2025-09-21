@@ -136,17 +136,10 @@ async function initializeUI() {
         fetchSystemStatus();
         setInterval(fetchSystemStatus, 5000); // Fetch system status every 5 seconds
         setInterval(updateStockStatus, 60000); // Update stock status every minute
-        setInterval(updateStockMarqueePreview, 2000); // Update stock marquee every 2 seconds
         // Attach all the event listeners to the UI elements
         attachEventListeners();
         // Dynamically create the UI uploader
         // createUiUploader();
-
-        const stockSettingsContainer = document.getElementById('stockTickerSettingsContainer');
-        const previewDiv = document.createElement('div');
-        previewDiv.id = 'stockMarqueePreview';
-        previewDiv.className = 'marquee-preview-13';
-        stockSettingsContainer.appendChild(previewDiv);
         
         showMessage('System Online', 'success');
 
@@ -325,7 +318,6 @@ async function applyDataLinkSettings(datalink) {
     if (datalink.stockTickerModeEnabled) {
         loadStockAssets();
         updateStockStatus();
-        updateStockMarqueePreview();
     }
     
     document.getElementById('dataLinkRefreshInterval').value = datalink.dataLinkRefreshInterval;

@@ -275,8 +275,7 @@ void updateStockTickerDisplay() {
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
 
-                String marqueeLine = stockManager.getMarqueeLine();
-                marqueeLine.toUpperCase();
+                String marqueeLine = "";
 
                 // All messages (data, errors, status) will now scroll.
                 // We prepare the buffer with padding on the *left* only, to allow it to scroll into view.
@@ -331,7 +330,6 @@ void updateStockTickerDisplay() {
 
             case SD_PAUSING: {
                 if (millis() - lastStockUpdate > pauseDuration) {
-                    stockManager.nextPage();
                     stockState = SD_START_PAGE;
                 }
                 break;

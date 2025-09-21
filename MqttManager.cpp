@@ -913,12 +913,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             currentSettings.financialModelingPrepApiKey = message.c_str();
             settingsChanged = true;
         }
-        else if (component == "stock" && topicStr.endsWith("/next/command")) {
-            stockManager.nextPage();
-        }
-        else if (component == "stock" && topicStr.endsWith("/previous/command")) {
-            stockManager.previousPage();
-        }
         else if (topicStr == base_topic + "tts/play") {
             JsonDocument doc;
             DeserializationError error = deserializeJson(doc, message);
