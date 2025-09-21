@@ -19,16 +19,17 @@
 #include <HTTPClient.h>
 #include <string>
 #include <mutex>
+#include <set>
 #include <WiFi.h>
 #include <Update.h>
 #include <ArduinoOTA.h>
 #include "FS.h"
 #include <LITTLEFS.h>
 
-// --- Mutex and shared HTTP client for thread-safe API requests ---
+// --- Mutexes and state for thread-safe operations ---
 static std::mutex httpClientMutex;
-// static WiFiClientSecure client; // No longer global
-// static HTTPClient http; // No longer global
+static std::mutex stockTestMutex;
+static std::set<String> testingSymbols;
 
 // --- Extern Global Variables ---
 // These are defined in the main .ino file and are made available here.
@@ -248,7 +249,8 @@ void makeApiRequestTask(void* p) {
     String authValue = params->authValue;
     uint32_t clientId = params->clientId;
     String action = params->action;
-    String rowIndex = params->rowIndex; // Changed to String
+    String rowIndex = params->rowIndex;
+    String symbol = params->symbol; // Retrieve symbol
     delete params; // Clean up the params object immediately
 
     std::lock_guard<std::mutex> lock(httpClientMutex);
@@ -307,6 +309,13 @@ void makeApiRequestTask(void* p) {
         serializeJson(responseJson, responseString);
         ws.text(clientId, responseString);
         // --- END: MODIFICATION ---
+    }
+
+    // If this was a stock test, remove the symbol from the in-progress set
+    if (!symbol.isEmpty()) {
+        std::lock_guard<std::mutex> lock(stockTestMutex);
+        testingSymbols.erase(symbol);
+        Log_printf(LOG_LEVEL_INFO, "Test for symbol '%s' completed. Removed from tracking set.", symbol.c_str());
     }
 
     vTaskDelete(NULL); // End the task
@@ -394,13 +403,29 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String url = "https://financialmodelingprep.com/stable/quote?symbol=" + symbol + "&apikey=" + apiKey;
                 Log_printf(LOG_LEVEL_DEBUG, "Stock URL created: %s", url.c_str());
 
-                ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex};
+                // --- START: MODIFICATION - Race Condition Fix ---
+                std::lock_guard<std::mutex> lock(stockTestMutex);
+                if (testingSymbols.find(symbol) != testingSymbols.end()) {
+                    // If the symbol is already in the set, it's being tested. Ignore this request.
+                    Log_printf(LOG_LEVEL_WARN, "Duplicate test request for symbol '%s'. Ignoring.", symbol.c_str());
+                    return; // Don't create a new task
+                }
+
+                // If not already being tested, add it to the set and create the task.
+                testingSymbols.insert(symbol);
+                Log_printf(LOG_LEVEL_INFO, "Starting test for symbol '%s'. Added to tracking set.", symbol.c_str());
+                // --- END: MODIFICATION ---
+
+                ApiTestParams* params = new ApiTestParams{url, "", "", client->id(), "stockTestResult", rowIndex, symbol};
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
                     delete params;
-                    Log_printf(LOG_LEVEL_ERROR, "Failed to create stock test task!");
+                    // If task creation fails, we must remove the symbol from the set
+                    std::lock_guard<std::mutex> lock(stockTestMutex);
+                    testingSymbols.erase(symbol);
+                    Log_printf(LOG_LEVEL_ERROR, "Failed to create stock test task! Removed '%s' from tracking set.", symbol.c_str());
                 } else {
-                    Log_printf(LOG_LEVEL_DEBUG, "Stock test task created successfully.");
+                    Log_printf(LOG_LEVEL_DEBUG, "Stock test task created successfully for symbol '%s'.", symbol.c_str());
                 }
             }
         }
@@ -537,6 +562,24 @@ void setupWebRoutes() {
         request->send(400, "application/json", "{\"error\":\"API key is not set.\"}");
         return;
     }
+    String marqueeLine = stockManager.getMarqueeLine();
+    JsonDocument doc;
+    doc["marqueeText"] = marqueeLine;
+    String jsonString;
+    serializeJson(doc, jsonString);
+    request->send(200, "application/json", jsonString);
+  });
+
+  server.on("/api/stocks/marquee/next", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!currentSettings.stockTickerModeEnabled) {
+        request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled.\"}");
+        return;
+    }
+    if (stockManager.getApiKey().isEmpty()) {
+        request->send(400, "application/json", "{\"error\":\"API key is not set.\"}");
+        return;
+    }
+    stockManager.nextPage();
     String marqueeLine = stockManager.getMarqueeLine();
     JsonDocument doc;
     doc["marqueeText"] = marqueeLine;

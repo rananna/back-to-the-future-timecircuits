@@ -1151,11 +1151,12 @@ async function updateStockMarqueePreview() {
 
     if (!stockTickerEnabled || !apiKey) {
         previewEl.innerHTML = '<span>Stock Ticker Mode is disabled or API key is not set.</span>';
+        // If the mode is disabled, don't reschedule the function.
         return;
     }
 
     try {
-        const response = await fetch('/api/stocks/marquee');
+        const response = await fetch('/api/stocks/marquee/next');
         const data = await response.json();
 
         let text = '...';
@@ -1165,18 +1166,13 @@ async function updateStockMarqueePreview() {
             text = data.marqueeText;
         }
 
-        // Always set the content inside a span
         previewEl.innerHTML = `<span class="preview-scrolling-text">${text}</span>`;
         const span = previewEl.querySelector('.preview-scrolling-text');
 
-        // Add scrolling class only if text is longer than 13 characters
         if (text.length > 13) {
-            // The animation duration can be calculated based on text length and a desired speed
-            // For simplicity, we'll use a fixed duration, but a dynamic one is better.
-            const scrollSpeed = 150; // ms per character, similar to data link marquee
+            const scrollSpeed = 150;
             const duration = (text.length * scrollSpeed) / 1000;
             span.style.animationDuration = `${duration}s`;
-            // Use requestAnimationFrame to ensure the class is added after the element is in the DOM
             requestAnimationFrame(() => {
                 span.classList.add('scrolling-text');
             });
@@ -1184,6 +1180,9 @@ async function updateStockMarqueePreview() {
 
     } catch (error) {
         previewEl.innerHTML = '<span>Device is offline.</span>';
+    } finally {
+        // After an attempt, schedule the next one. This creates the self-managed loop.
+        setTimeout(updateStockMarqueePreview, 2000);
     }
 }
 
