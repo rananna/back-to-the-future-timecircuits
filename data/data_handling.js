@@ -1033,12 +1033,13 @@ function renderStockAssets(assets) {
     }
 
     assets.forEach((asset, index) => {
+        const simpleSymbol = getSimpleSymbol(asset.symbol);
         const assetContainerDiv = document.createElement('div');
         assetContainerDiv.className = 'asset-item-container';
 
         const assetDiv = document.createElement('div');
         assetDiv.className = 'asset-item';
-        assetDiv.dataset.symbol = asset.symbol;
+        assetDiv.dataset.symbol = simpleSymbol;
         assetDiv.setAttribute('draggable', 'true');
 
         const changeClass = asset.change_percent >= 0 ? 'positive' : 'negative';
@@ -1046,12 +1047,12 @@ function renderStockAssets(assets) {
         const change = asset.data_valid ? `${asset.change_percent.toFixed(2)}%` : '--';
 
         assetDiv.innerHTML = `
-            <span class="asset-symbol">${asset.symbol}</span>
+            <span class="asset-symbol">${simpleSymbol}</span>
             <span class="asset-name">${asset.name || ''}</span>
             <span class="asset-price">${price}</span>
             <span class="asset-change ${changeClass}">${change}</span>
-            <button class="test-asset-btn action-button" data-symbol="${asset.symbol}" data-index="${index}">Test</button>
-            <button class="remove-asset-btn" data-symbol="${asset.symbol}">DELETE</button>
+            <button class="test-asset-btn action-button" data-symbol="${simpleSymbol}" data-index="${index}">Test</button>
+            <button class="remove-asset-btn" data-symbol="${simpleSymbol}">DELETE</button>
         `;
         assetContainerDiv.appendChild(assetDiv);
 
@@ -1224,6 +1225,32 @@ function getDragAfterElement(container, y) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
+/**
+ * Normalizes a stock symbol to a simple string.
+ * The symbol can be a plain string (e.g., "AAPL") or a JSON string
+ * (e.g., '{"symbol":"AAPL",...}').
+ * @param {string} symbol The stock symbol string.
+ * @returns {string} The simple symbol string (e.g., "AAPL").
+ */
+function getSimpleSymbol(symbol) {
+    // If it's not a string or is empty, return it as is.
+    if (typeof symbol !== 'string' || !symbol) {
+        return symbol;
+    }
+    // If it starts with '{', assume it's a JSON string.
+    if (symbol.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(symbol);
+            return parsed.symbol || symbol; // Fallback to original string if parsing works but .symbol is missing
+        } catch (e) {
+            // If parsing fails, it's a malformed string, but we can't do much.
+            return symbol;
+        }
+    }
+    // Otherwise, it's a simple symbol string.
+    return symbol;
+}
+
 async function handleSymbolAutocomplete(e) {
     const query = e.target.value;
     const container = document.getElementById('symbolAutocompleteContainer');
@@ -1303,7 +1330,8 @@ async function updateStockStatus() {
 
         // Update individual asset display
         status.assets.forEach(asset => {
-            const assetDiv = document.querySelector(`.asset-item[data-symbol="${asset.symbol}"]`);
+            const simpleSymbol = getSimpleSymbol(asset.symbol);
+            const assetDiv = document.querySelector(`.asset-item[data-symbol="${simpleSymbol}"]`);
             if (assetDiv) {
                 const priceEl = assetDiv.querySelector('.asset-price');
                 const changeEl = assetDiv.querySelector('.asset-change');
