@@ -18,11 +18,17 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <string>
+#include <mutex>
 #include <WiFi.h>
 #include <Update.h>
 #include <ArduinoOTA.h>
 #include "FS.h"
 #include <LITTLEFS.h>
+
+// --- Mutex and shared HTTP client for thread-safe API requests ---
+static std::mutex httpClientMutex;
+static WiFiClientSecure client;
+static HTTPClient http;
 
 // --- Extern Global Variables ---
 // These are defined in the main .ino file and are made available here.
@@ -245,8 +251,7 @@ void makeApiRequestTask(void* p) {
     String rowIndex = params->rowIndex; // Changed to String
     delete params; // Clean up the params object immediately
 
-    HTTPClient http;
-    WiFiClientSecure client;
+    std::lock_guard<std::mutex> lock(httpClientMutex);
     
     client.setInsecure();
 
