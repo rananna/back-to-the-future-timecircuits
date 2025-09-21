@@ -1898,7 +1898,7 @@ async function addStockAsset() {
             return;
         }
 
-        const response = await fetch('/api/stocks', {
+        const response = await fetch('/api/stocks/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol })

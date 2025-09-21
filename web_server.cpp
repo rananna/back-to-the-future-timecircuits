@@ -553,7 +553,7 @@ void setupWebRoutes() {
     request->send(200, "application/json", jsonString);
   });
 
-  AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks", [](AsyncWebServerRequest *request, JsonVariant &json) {
+  AsyncCallbackJsonWebHandler* addStockHandler = new AsyncCallbackJsonWebHandler("/api/stocks/add", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
     if (obj["symbol"].isNull()) {
         request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing symbol.\"}");
