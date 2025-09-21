@@ -1701,6 +1701,101 @@ function previewAnimationStyle(isRandomized = false) {
 }
 
 /**
+ * Gathers all the UI input values for a given data point.
+ * @param {number} index The index of the data point.
+ * @returns {object} An object containing the data point's configuration.
+ */
+function getDataPointFromUI(index) {
+    const getElValue = (id) => document.getElementById(id)?.value || '';
+
+    const dataSourceTypeStr = getElValue(`dp_dataSourceType_${index}`);
+    let dataSourceType;
+    if (dataSourceTypeStr === 'mqtt') {
+        dataSourceType = 1;
+    } else if (dataSourceTypeStr === 'ha') {
+        dataSourceType = 2;
+    } else {
+        dataSourceType = 0; // api
+    }
+
+    return {
+        dataSourceType: dataSourceType,
+        displayMode: parseInt(getElValue(`dp_displayMode_${index}`), 10),
+        url: getElValue(`dp_url_${index}`),
+        monthPath: getElValue(`dp_monthPath_${index}`),
+        dayPath: getElValue(`dp_dayPath_${index}`),
+        yearPath: getElValue(`dp_yearPath_${index}`),
+        timePath: getElValue(`dp_timePath_${index}`),
+        prefix: getElValue(`dp_prefix_${index}`),
+        suffix: getElValue(`dp_suffix_${index}`),
+        icon: getElValue(`dp_icon_${index}`),
+        scrollSpeed: parseInt(getElValue(`dp_scrollSpeed_${index}`), 10),
+        mqttTopic: getElValue(`dp_mqttTopic_${index}`),
+        yearPrefix: getElValue(`dp_yearPrefix_${index}`),
+        yearSuffix: getElValue(`dp_yearSuffix_${index}`),
+        scrollingText: getElValue(`dp_scrollingText_${index}`),
+        authHeaderKey: getElValue(`dp_authHeaderKey_${index}`),
+        authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
+        apiExampleKey: getElValue(`api_example_${index}`)
+    };
+}
+
+/**
+ * Tests a single data point.
+ * @param {Event} event The click event from the "Test" button.
+ */
+async function testDataPoint(event) {
+    const button = event.target;
+    const index = button.dataset.index;
+
+    // Show loading state on the button
+    const originalText = button.textContent;
+    button.innerHTML = '<span class="loading-spinner"></span>';
+    button.disabled = true;
+
+    try {
+        // Gather the data for the data point
+        const dataPoint = getDataPointFromUI(index);
+
+        // Send the data to the test endpoint
+        const response = await fetch('/api/testDataPoint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dataPoint)
+        });
+
+        const result = await response.json();
+
+        // Update the status indicator based on the result
+        updateDataPointStatus(index, result.success);
+
+        // Display the result in the wizard results area
+        const container = document.getElementById(`wizard_results_${index}`);
+        if (result.success) {
+            showMessage(`Data Point ${parseInt(index, 10) + 1} test successful!`, 'success');
+            displayApiWizardResults(index, result.data);
+            analyzedDataCache[index] = result.data;
+        } else {
+            showMessage(`Data Point ${parseInt(index, 10) + 1} test failed: ${result.error}`, 'error', 8000);
+            container.innerHTML = `<p class="error-message">Error: ${result.error}</p>`;
+            analyzedDataCache[index] = null;
+        }
+        updateMarqueePreview(index);
+    } catch (error) {
+        // Handle network errors
+        console.error('CLIENT_DEBUG: Error testing data point:', error);
+        showMessage(`Error testing data point: ${error.message}`, 'error');
+        updateDataPointStatus(index, false);
+        const container = document.getElementById(`wizard_results_${index}`);
+        container.innerHTML = `<p class="error-message">Network or server error. Check console for details.</p>`;
+    } finally {
+        // Restore the button to its original state
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+}
+
+/**
  * Tests all the configured data points.
  */
 function testAllDataPoints() {
