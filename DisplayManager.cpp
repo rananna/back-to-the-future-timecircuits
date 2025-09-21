@@ -279,8 +279,8 @@ void updateStockTickerDisplay() {
                 marqueeLine.toUpperCase();
 
                 // All messages (data, errors, status) will now scroll.
-                // We prepare the buffer with padding and transition to the scrolling state.
-                snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s             ", marqueeLine.c_str());
+                // We prepare the buffer with padding on the *left* only, to allow it to scroll into view.
+                snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", marqueeLine.c_str());
                 stockScrollPosition = 0;
                 stockState = SD_SCROLLING;
                 lastStockUpdate = millis();
@@ -291,6 +291,8 @@ void updateStockTickerDisplay() {
                 if (millis() - lastStockUpdate > scrollSpeed) {
                     lastStockUpdate = millis();
 
+                    // The scroll is finished once the scroll position has exceeded the length of the entire message.
+                    // Since there is no right-side padding, this happens as soon as the last character disappears.
                     if (stockScrollPosition > strlen(stockMarqueeBuffer)) {
                         stockState = SD_PAUSING;
                         lastStockUpdate = millis();
@@ -299,6 +301,7 @@ void updateStockTickerDisplay() {
                         int text_len = strlen(stockMarqueeBuffer);
                         for (int i = 0; i < 13; i++) {
                             int source_idx = stockScrollPosition + i;
+                            // We now pad with spaces on the right *dynamically* if the source index is out of bounds.
                             if (source_idx < text_len) viewport[i] = stockMarqueeBuffer[source_idx];
                             else viewport[i] = ' ';
                         }

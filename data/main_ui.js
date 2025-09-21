@@ -136,9 +136,10 @@ async function initializeUI() {
         fetchSystemStatus();
         setInterval(fetchSystemStatus, 5000); // Fetch system status every 5 seconds
         setInterval(updateStockStatus, 60000); // Update stock status every minute
-        setInterval(updateStockMarqueePreview, 2000); // Update marquee preview every 2 seconds
         // Attach all the event listeners to the UI elements
         attachEventListeners();
+        // Start the marquee preview loop
+        updateStockMarqueePreview();
         // Dynamically create the UI uploader
         // createUiUploader();
 
