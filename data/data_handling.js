@@ -1051,8 +1051,7 @@ function renderStockAssets(assets) {
             <span class="asset-name">${asset.name || ''}</span>
             <span class="asset-price">${price}</span>
             <span class="asset-change ${changeClass}">${change}</span>
-            <button class="test-asset-btn action-button" data-symbol="${simpleSymbol}" data-index="${index}">Test</button>
-            <button class="remove-asset-btn" data-symbol="${simpleSymbol}">X</button>
+            <button class="remove-asset-btn" data-symbol="${simpleSymbol}">DELETE</button>
         `;
         assetContainerDiv.appendChild(assetDiv);
 
@@ -1151,7 +1150,6 @@ async function updateStockMarqueePreview() {
 
     if (!stockTickerEnabled || !apiKey) {
         previewEl.innerHTML = '<span>Stock Ticker Mode is disabled or API key is not set.</span>';
-        // If the mode is disabled, don't reschedule the function.
         return;
     }
 
@@ -1166,15 +1164,22 @@ async function updateStockMarqueePreview() {
             text = data.marqueeText;
         }
 
-        previewEl.innerHTML = `<span class="preview-scrolling-text">${text}</span>`;
         const span = previewEl.querySelector('.preview-scrolling-text');
+        if (span) {
+            span.textContent = text;
+        } else {
+            previewEl.innerHTML = `<span class="preview-scrolling-text">${text}</span>`;
+        }
+
+        const newSpan = previewEl.querySelector('.preview-scrolling-text');
+        newSpan.classList.remove('scrolling-text');
 
         if (text.length > 13) {
             const scrollSpeed = 150;
             const duration = (text.length * scrollSpeed) / 1000;
-            span.style.animationDuration = `${duration}s`;
+            newSpan.style.animationDuration = `${duration}s`;
             requestAnimationFrame(() => {
-                span.classList.add('scrolling-text');
+                newSpan.classList.add('scrolling-text');
             });
         }
 
