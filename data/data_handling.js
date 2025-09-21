@@ -1331,7 +1331,7 @@ async function updateStockStatus() {
         // Update individual asset display
         status.assets.forEach(asset => {
             const simpleSymbol = getSimpleSymbol(asset.symbol);
-            const assetDiv = document.querySelector(`.asset-item[data-symbol="${simpleSymbol}"]`);
+            const assetDiv = document.querySelector(`.asset-item[data-symbol='${simpleSymbol}']`);
             if (assetDiv) {
                 const priceEl = assetDiv.querySelector('.asset-price');
                 const changeEl = assetDiv.querySelector('.asset-change');
