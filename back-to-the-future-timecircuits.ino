@@ -784,6 +784,7 @@ void loadSettings() {
     // Initialize the StockManager with the loaded settings
     stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
     stockManager.setEnabled(currentSettings.stockTickerModeEnabled);
+    stockManager.loadAssets();
 
 	Log_printf(LOG_LEVEL_INFO, "--- Settings Loaded ---");
 	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
@@ -877,7 +878,6 @@ void setup() {
 
     Log_printf(LOG_LEVEL_INFO, "Loading settings...");
     loadSettings();
-    stockManager.loadAssets();
     Log_printf(LOG_LEVEL_INFO, "Settings loaded... OK");
 
     xDisplayDataMutex = xSemaphoreCreateMutex();
