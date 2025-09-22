@@ -142,7 +142,6 @@ void startAudioStream(const char* url, bool is_tts);
 void stopAudioStream();
 void wifiManagerTask(void *pvParameters);
 void updateDisplaySegment(int row, int segment, const std::string& text);
-void testDecimalPointFlashing();
 void handleScheduledAnimation();
 
 // --- GLOBAL DATA STRUCTURES & SETTINGS ---
@@ -801,19 +800,6 @@ void loadSettings() {
 	}
 	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
 	tzset();
-}
-
-void listAllFiles() {
-	Log_printf(LOG_LEVEL_INFO, "--- Listing all files in LittleFS ---");
-	File root = LittleFS.open("/");
-	File file = root.openNextFile();
-	while (file) {
-		Log_printf(LOG_LEVEL_INFO, "  FILE: %s\tSIZE: %d", file.name(), file.size());
-		file.close();
-		file = root.openNextFile();
-	}
-	Log_printf(LOG_LEVEL_INFO, "--- End of file list ---");
-	root.close();
 }
 
 bool attemptHardwareInit() {
