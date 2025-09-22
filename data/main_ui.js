@@ -258,23 +258,12 @@ async function applyDataLinkSettings(datalink) {
                 dataSourceValue = 'static';
             }
             document.getElementById(`dp_dataSourceType_${i}`).value = dataSourceValue;
-            document.getElementById(`dp_displayMode_${i}`).value = point.displayMode || 0;
-            document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
-            document.getElementById(`dp_dayPath_${i}`).value = point.dayPath || '';
-            document.getElementById(`dp_yearPath_${i}`).value = point.yearPath || '';
-            document.getElementById(`dp_timePath_${i}`).value = point.timePath || '';
-            document.getElementById(`dp_prefix_${i}`).value = point.prefix || '';
-            document.getElementById(`dp_suffix_${i}`).value = point.suffix || '';
-            document.getElementById(`dp_icon_${i}`).value = point.icon || '';
             document.getElementById(`dp_scrollSpeed_${i}`).value = point.scrollSpeed || 150;
             document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
-            document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
-            document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
             document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
 
             // Trigger change events to update the UI
             document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
-            document.getElementById(`dp_displayMode_${i}`).dispatchEvent(new Event('change'));
             updateMarqueePreview(i);
         });
     }
@@ -720,83 +709,7 @@ function updateDataPointsUI(numPoints) {
                         <input type="text" id="dp_mqttTopic_${i}" placeholder="e.g., /home/livingroom/temperature">
                     </div>
 
-                    <label for="dp_displayMode_${i}" style="margin-top: 20px;">Display Mode:</label>
-                    <select id="dp_displayMode_${i}" class="display-mode-select" data-index="${i}">
-                        <option value="0">Four Column Data</option>
-                        <option value="1">Scrolling Text</option>
-                    </select>
-
-                    <div class="display-mode-container" id="four_column_container_${i}">
-                        <div class="time-circuit-row">
-                            <label for="dp_monthPath_${i}" class="time-circuit-label">MONTH</label>
-                            <input type="text" id="dp_monthPath_${i}" class="time-circuit-input wizard-target-input" maxlength="3">
-                        </div>
-                        <div class="time-circuit-row">
-                            <label for="dp_dayPath_${i}" class="time-circuit-label">DAY</label>
-                            <input type="text" id="dp_dayPath_${i}" class="time-circuit-input wizard-target-input" maxlength="2">
-                            <select id="dp_icon_${i}" class="icon-select" data-index="${i}" style="width: 100px; margin-left: 10px;">
-                                <option value="">No Icon</option>
-                                <option value="SU">Sun</option>
-                                <option value="CL">Cloud</option>
-                                <option value="RN">Rain</option>
-                                <option value="SN">Snow</option>
-                                <option value="ST">Storm</option>
-                                <option value="WD">Wind</option>
-                                <option value="^">Up Arrow</option>
-                                <option value="v">Down Arrow</option>
-                                <option value="==">Equal</option>
-                                <option value="WF">WiFi</option>
-                                <option value="HM">Home</option>
-                                <option value="WK">Work</option>
-                                <option value="CR">Car</option>
-                                <option value="BK">Bike</option>
-                                <option value="RN">Run</option>
-                                <option value="<3">Heart</option>
-                                <option value="$$">Money</option>
-                                <option value="TM">Clock</option>
-                                <option value="DT">Calendar</option>
-                            </select>
-                        </div>
-                        <div class="time-format-group">
-                            <div class="time-circuit-row">
-                                <label for="dp_yearPath_${i}" class="time-circuit-label">YEAR</label>
-                                <input type="text" id="dp_yearPath_${i}" class="time-circuit-input wizard-target-input">
-                            </div>
-                            <div class="time-circuit-row">
-                                <label for="dp_yearPrefix_${i}" class="time-circuit-label">[PREFIX]</label>
-                                <input type="text" id="dp_yearPrefix_${i}" class="time-circuit-input" maxlength="15">
-                            </div>
-                            <div class="time-circuit-row">
-                                <label for="dp_yearSuffix_${i}" class="time-circuit-label">[SUFFIX]</label>
-                                <input type="text" id="dp_yearSuffix_${i}" class="time-circuit-input" maxlength="15">
-                            </div>
-                        </div>
-                        <div class="time-format-group">
-                            <div class="time-circuit-row">
-                                <label for="dp_timePath_${i}" class="time-circuit-label">TIME</label>
-                                <input type="text" id="dp_timePath_${i}" class="time-circuit-input wizard-target-input">
-                            </div>
-                            <div class="time-circuit-row">
-                                <label for="dp_prefix_${i}" class="time-circuit-label">[PREFIX]</label>
-                                <input type="text" id="dp_prefix_${i}" class="time-circuit-input" maxlength="15">
-                            </div>
-                            <div class="time-circuit-row">
-                                <label for="dp_suffix_${i}" class="time-circuit-label">[SUFFIX]</label>
-                                <input type="text" id="dp_suffix_${i}" class="time-circuit-input" maxlength="15">
-                            </div>
-                        </div>
-                        <div class="marquee-preview-container">
-                            <label>Live Preview:</label>
-                            <div class="marquee-preview" id="marquee_preview_${i}">
-                                <span class="preview-month">MON</span>
-                                <span class="preview-day">DAY</span>
-                                <div class="preview-year-container"><span class="preview-year">YEAR</span></div>
-                                <div class="preview-time-container"><span class="preview-time">TIME</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="display-mode-container" id="scrolling_text_container_${i}" style="display: none;">
+                    <div class="display-mode-container" id="scrolling_text_container_${i}">
                         <label for="dp_scrollingText_${i}" style="margin-top: 15px;">Scrolling Text:</label>
                         <input type="text" id="dp_scrollingText_${i}" class="wizard-target-input" placeholder="Enter text or map a value...">
                         <div class="marquee-preview-container">
@@ -845,67 +758,19 @@ function getDisplayValue(path, placeholder, index) {
  * @param {number} index The index of the data point.
  */
 function updateMarqueePreview(index) {
-    const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
+    const scrollingPath = document.getElementById(`dp_scrollingText_${index}`).value;
+    const text = getDisplayValue(scrollingPath, 'PREVIEW', index);
+    const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
+    previewSpan.textContent = text;
+    previewSpan.classList.remove('scrolling-text');
 
-    if (displayMode === '0') { // Four Column Data
-        const monthPath = document.getElementById(`dp_monthPath_${index}`).value;
-        const dayPath = document.getElementById(`dp_dayPath_${index}`).value;
-        const yearPath = document.getElementById(`dp_yearPath_${index}`).value;
-        const timePath = document.getElementById(`dp_timePath_${index}`).value;
-        const icon = document.getElementById(`dp_icon_${index}`).value;
-
-        let monthValue = getDisplayValue(monthPath, 'MON', index);
-        let dayValue = getDisplayValue(dayPath, 'DAY', index);
-        let yearValue = getDisplayValue(yearPath, 'YEAR', index);
-        let timeValue = getDisplayValue(timePath, 'TIME', index);
-
-        const yearPrefix = document.getElementById(`dp_yearPrefix_${index}`).value;
-        const yearSuffix = document.getElementById(`dp_yearSuffix_${index}`).value;
-        const yearFinalValue = `${yearPrefix}${yearValue}${yearSuffix}`;
-
-        const prefix = document.getElementById(`dp_prefix_${index}`).value;
-        const suffix = document.getElementById(`dp_suffix_${index}`).value;
-        const timeFinalValue = `${prefix}${timeValue}${suffix}`;
-
-        document.querySelector(`#marquee_preview_${index} .preview-month`).textContent = String(monthValue).substring(0, 3).toUpperCase();
-
-        const dayPreview = document.querySelector(`#marquee_preview_${index} .preview-day`);
-        if (icon) {
-            dayPreview.textContent = icon;
-        } else {
-            dayPreview.textContent = String(dayValue).substring(0, 2).toUpperCase();
-        }
-        
-        // Helper function to set up scrolling for long text
-        const setupScrolling = (text, valueSpan) => {
-            valueSpan.textContent = text;
-            valueSpan.classList.remove('scrolling-text');
-            if (text.length > 4) {
-                const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
-                const duration = (text.length + 4) * (scrollSpeed / 1000);
-                valueSpan.style.animationDuration = `${duration}s`;
-                requestAnimationFrame(() => { valueSpan.classList.add('scrolling-text'); });
-            }
-        };
-
-        setupScrolling(yearFinalValue, document.querySelector(`#marquee_preview_${index} .preview-year`));
-        setupScrolling(timeFinalValue, document.querySelector(`#marquee_preview_${index} .preview-time`));
-
-    } else { // Scrolling Text
-        const scrollingPath = document.getElementById(`dp_scrollingText_${index}`).value;
-        const text = getDisplayValue(scrollingPath, 'PREVIEW', index);
-        const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
-        previewSpan.textContent = text;
-        previewSpan.classList.remove('scrolling-text');
-        
-        if (text.length > 13) {
-            const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
-            const duration = (text.length) * (scrollSpeed / 100);
-            previewSpan.style.animationDuration = `${duration}s`;
-            requestAnimationFrame(() => {
-                previewSpan.classList.add('scrolling-text');
-            });
-        }
+    if (text.length > 13) {
+        const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
+        const duration = (text.length) * (scrollSpeed / 100);
+        previewSpan.style.animationDuration = `${duration}s`;
+        requestAnimationFrame(() => {
+            previewSpan.classList.add('scrolling-text');
+        });
     }
 }
 
@@ -914,21 +779,15 @@ function updateMarqueePreview(index) {
  */
 function attachDataPointEventListeners() {
     // Data source and display mode selectors
-    document.querySelectorAll('.data-source-select, .display-mode-select').forEach(select => {
+    document.querySelectorAll('.data-source-select').forEach(select => {
         select.onchange = (e) => {
             const index = e.target.dataset.index;
             const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
-            const displayModeSelect = document.getElementById(`dp_displayMode_${index}`);
-            const displayModeLabel = document.querySelector(`label[for="dp_displayMode_${index}"]`);
             const scrollingTextInput = document.getElementById(`dp_scrollingText_${index}`);
 
             // Hide all source-specific containers first
             document.getElementById(`dp_api_container_${index}`).style.display = 'none';
             document.getElementById(`dp_mqtt_container_${index}`).style.display = 'none';
-
-            // Default visibility for display mode
-            displayModeSelect.style.display = 'block';
-            displayModeLabel.style.display = 'block';
 
             // Show the relevant container and adjust UI elements
             if (dataSource === 'mqtt') {
@@ -937,32 +796,10 @@ function attachDataPointEventListeners() {
             } else if (dataSource === 'ha') {
                 scrollingTextInput.placeholder = "Enter text or map a value...";
             } else if (dataSource === 'static') {
-                // For static text, we force scrolling mode and hide the display mode selector
-                displayModeSelect.value = '1';
-                displayModeSelect.style.display = 'none';
-                displayModeLabel.style.display = 'none';
                 scrollingTextInput.placeholder = "e.g., 'MEETING AT 10' or 'GO TEAM'";
             }
-
-            const displayMode = displayModeSelect.value;
-            document.getElementById(`four_column_container_${index}`).style.display = displayMode === '0' ? 'block' : 'none';
-            document.getElementById(`scrolling_text_container_${index}`).style.display = displayMode === '1' ? 'block' : 'none';
             
             updateMarqueePreview(index);
-        };
-    });
-
-    // Icon selector
-    document.querySelectorAll('.icon-select').forEach(select => {
-        select.onchange = (e) => {
-            const index = e.target.dataset.index;
-            const dayInput = document.getElementById(`dp_dayPath_${index}`);
-            if (e.target.value) {
-                dayInput.value = '';
-                dayInput.disabled = true;
-            } else {
-                dayInput.disabled = false;
-            }
         };
     });
 
@@ -1469,18 +1306,8 @@ function getDataPointFromUI(index) {
 
     return {
         dataSourceType: dataSourceType,
-        displayMode: parseInt(getElValue(`dp_displayMode_${index}`), 10),
-        monthPath: getElValue(`dp_monthPath_${index}`),
-        dayPath: getElValue(`dp_dayPath_${index}`),
-        yearPath: getElValue(`dp_yearPath_${index}`),
-        timePath: getElValue(`dp_timePath_${index}`),
-        prefix: getElValue(`dp_prefix_${index}`),
-        suffix: getElValue(`dp_suffix_${index}`),
-        icon: getElValue(`dp_icon_${index}`),
         scrollSpeed: parseInt(getElValue(`dp_scrollSpeed_${index}`), 10),
         mqttTopic: getElValue(`dp_mqttTopic_${index}`),
-        yearPrefix: getElValue(`dp_yearPrefix_${index}`),
-        yearSuffix: getElValue(`dp_yearSuffix_${index}`),
         scrollingText: getElValue(`dp_scrollingText_${index}`)
     };
 }
