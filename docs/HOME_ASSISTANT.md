@@ -79,10 +79,13 @@ Entities are grouped by function to make them easy to find.
 #### **Core Controls**
 *   **`number.time_circuits_display_destination_year`**: Sets the destination year.
 *   **`select.time_circuits_display_last_departed_preset`**: Choose from movie-based or your custom presets.
+*   **`number.time_circuits_display_preset_cycle_interval`**: How often the "Last Time Departed" display cycles through presets (in minutes, 0=off).
 *   **`number.time_circuits_display_brightness`**: Controls the display brightness (0-7).
-*   **`number.time_circuits_display_volume`**: Adjusts the sound effect volume (0-30).
+*   **`number.time_circuits_display_volume`**: Adjusts the sound effect volume (0-21).
 *   **`switch.time_circuits_display_24h_format`**: Toggles 24-hour time format.
 *   **`select.time_circuits_display_profile`**: A powerful feature that applies a pre-configured bundle of settings at once. Profiles include `Standard`, `Cinematic`, `Silent Night`, and `Unstable`.
+*   **`time.time_circuits_display_sleep_time`**: Sets the time for the display to turn off automatically.
+*   **`time.time_circuits_display_wake_time`**: Sets the time for the display to turn on automatically.
 
 #### **Animation & Effects**
 *   **`button.time_circuits_display_trigger_animation`**: Starts the full time travel sequence.
@@ -97,12 +100,16 @@ Entities are grouped by function to make them easy to find.
 *   **`select.time_circuits_display_datapoint_0_source`**: Sets the data source for marquee slot 1 (and 4 others).
 
 #### **Stock Ticker Mode**
-*   **`switch.time_circuits_display_stock_ticker_mode`**: Activates the 3-row stock ticker display.
-*   **`text.time_circuits_display_stock_row_1`**: Sets the symbol for the top display row (e.g., `AAPL`).
-*   **`text.time_circuits_display_stock_row_2`**: Sets the symbol for the middle display row (e.g., `^GSPC`).
-*   **`text.time_circuits_display_stock_row_3`**: Sets the symbol for the bottom display row.
-*   **`text.time_circuits_display_alpha_vantage_api_key`**: Sets the API key for the stock data provider.
-    > ⚠️ **Important Note:** The stock data is sourced from **Financial Modeling Prep (FMP)**, not Alpha Vantage. Please register for a free API key at the [FMP website](https://site.financialmodelingprep.com/developer/docs).
+The Stock Ticker mode transforms the bottom "Last Time Departed" display into a scrolling marquee of financial data.
+
+> ⚠️ **Important Note on Configuration:** The stock ticker feature is configured entirely through the **Web Interface**. You must use the web UI to enable the mode, provide your **Financial Modeling Prep (FMP) API key**, and manage your list of tracked assets.
+>
+> While Home Assistant will discover several entities related to the stock ticker (e.g., `text.time_circuits_display_stock_row_1`), these are part of a legacy implementation and **are not functional**. They should be ignored.
+
+The only functional Home Assistant entities for this feature are:
+*   **`switch.time_circuits_display_stock_ticker_mode`**: Activates or deactivates the Stock Ticker display mode.
+*   **`button.time_circuits_display_stock_next`**: Manually advances to the next page of the current asset.
+*   **`button.time_circuits_display_stock_previous`**: Manually goes back to the previous page of the current asset.
 
 #### **Live Weather Mode**
 The clock's weather display can also be controlled from Home Assistant. This allows you to toggle the weather display, change the city, and force a refresh directly from your dashboard or automations. The following entities are automatically discovered when you connect the clock to your MQTT broker:
@@ -143,39 +150,36 @@ To make the most powerful features easy to use, this project includes several Ho
 ## **Guide to Blueprints**
 
 ### **1. Advanced Notifier Blueprint**
-> **Purpose:** To create sophisticated, multi-step audio-visual alerts on the clock using the on-device sequencer, without writing any code.
+> **Purpose:** To display a temporary, multi-line message on the clock, with an optional sound effect.
 
 * **How to Use:**
     1.  Create a new automation and select the "Advanced Notifier" blueprint.
     2.  **Trigger:** Define what event should trigger this notification (e.g., a door opening, a weather alert).
-    3.  **Time Circuits Display:** Select your `Time Circuits Display` device from the dropdown.
-    4.  **Notification Steps (1-3):** The blueprint provides three optional steps. For each step, you can define:
-        * **Text:** The message to display on one of the three rows.
-        * **Sound Effect:** An optional sound to play with the text.
-        * **Flash Effect:** An optional effect to flash the text for emphasis.
-        * **Delay:** A pause (in milliseconds) before the next step executes.
+    3.  **Time Circuits Display:** Select your `Time Circuits Display` device.
+    4.  **Message:** Enter the text to display. Use `\n` to separate lines, which will be shown on the Destination, Present, and Last Departed rows respectively.
+    5.  **Display Duration:** Set how long the message should stay on screen.
+    6.  **Sound Effect:** Optionally choose a sound to play with the message.
 * **Example Scenario: "Mailbox Alert"**
     * **Trigger:** The `binary_sensor.mailbox_sensor` changes to `on`.
-    * **Step 1:**
-        * **Text (Present Time Row):** `MAIL`
-        * **Sound Effect:** `CONFIRM_ON`
-        * **Flash Effect:** Enabled
-    * **Result:** When the mailbox is opened, the middle row of the clock will flash the word "MAIL" while playing a confirmation chime.
+    * **Message:** `\nMAIL\n` (The `\n` ensures the message appears on the middle row).
+    * **Sound Effect:** `CONFIRM_ON`
+    * **Result:** When the mailbox is opened, the middle row of the clock will display "MAIL" while playing a confirmation chime. The message will disappear after the configured duration.
 
 ### **2. Dynamic Data Display Blueprint**
-> **Purpose:** To easily display the state of any Home Assistant sensor on one of the five DataLink marquee slots.
+> **Purpose:** To display the state of Home Assistant entities on the clock, either across all three main rows or on a single DataLink marquee slot.
 
 * **How to Use:**
     1.  Create a new automation and select the "Dynamic Data Display" blueprint.
-    2.  **Trigger:** Choose a trigger that determines when the display should update (e.g., a specific sensor changing state, or a time pattern).
-    3.  **Time Circuits Display:** Select your clock device.
-    4.  **Marquee Slot:** Choose which of the five DataLink slots you want to control.
-    5.  **Display Text:** Enter the text you want to display. You can use templates to dynamically insert sensor states.
-* **Example Scenario: "Display Current Power Usage"**
-    * **Trigger:** The state of `sensor.home_power_usage` changes.
+    2.  **Display Mode:**
+        *   **Full Time Circuits**: Allows you to map up to 12 different entities to the individual segments of the three main display rows (e.g., `dest_month`, `dest_day`, `dest_year`, etc.). The blueprint will trigger whenever any of these entities change state.
+        *   **Marquee Data Slot**: Pushes data to one of the five marquee slots. For this to work, the corresponding **Data Point Source** must be set to **"Home Assistant Push"** in the clock's web UI.
+    3.  **Configure Entities/Text:** Fill in the entity IDs or template text you want to display.
+* **Example Scenario: "Display Power and Temp"**
+    * **Mode:** Marquee Data Slot
     * **Marquee Slot:** Slot 1
-    * **Display Text:** `POWER {{ states('sensor.home_power_usage') }} W`
-    * **Result:** Whenever your home's power consumption changes, the first marquee slot on the clock will automatically update to show the new value (e.g., `POWER 1210 W`).
+    * **Marquee Time Text:** `PWR {{ states('sensor.home_power_usage') }} W`
+    * **Trigger:** The state of `sensor.home_power_usage` changes.
+    * **Result:** The first marquee slot will show the current power usage (e.g., `PWR 1210 W`).
 
 ### **3. Cinematic Scene Trigger Blueprint**
 > **Purpose:** A simple way to create an automation that sets a destination year and immediately triggers the full time travel animation sequence.
@@ -318,9 +322,11 @@ text(dest_year, " "); text(pres_year, " ");
 <details>
 <summary><strong>Advanced: MQTT Topic Reference</strong></summary>
 
-> For debugging or use in other applications (like Node-RED), you can interact with the clock's MQTT topics directly. The base topic is `bttf-clock/bttf_timecircuits_01/`.
+> For debugging or use in other applications (like Node-RED), you can interact with the clock's MQTT topics directly. The device's command and state topics are under `timecircuits/<UNIQUE_ID>/`. For example, `timecircuits/BTTF_TC_.../destination_year/command`.
 >
-> | Topic Suffix | Type | Description |
+> The auto-discovery configuration topics are published under `homeassistant/`.
+>
+> | Topic Suffix (under `timecircuits/<UNIQUE_ID>/`) | Type | Description |
 > | :--- | :--- | :--- |
 > | `status` | State | Publishes `online` or `offline`. Used for availability. |
 > | `status/state` | State | Publishes the clock's current state (e.g., `Idle`, `Animating`). |
@@ -357,7 +363,7 @@ If you encounter issues, here are some common solutions:
 
 > ⚠️ **Entities are 'Unavailable'?**
 > * Check the clock's Wi-Fi connection from its web UI or your router.
-> * In MQTT Explorer, check the `bttf-clock/bttf_timecircuits_01/status` topic. It should have a retained message of `online`. If it says `offline`, the clock has disconnected.
+> * In MQTT Explorer, check the `timecircuits/<UNIQUE_ID>/status` topic (e.g., `timecircuits/BTTF_TC_.../status`). It should have a retained message of `online`. If it says `offline`, the clock has disconnected.
 
 > ⚠️ **Commands Not Working?**
 > * Ensure the clock is `online` and the entities are available in Home Assistant.

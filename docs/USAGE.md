@@ -308,11 +308,12 @@ The following string would display "HELLO" on the destination year, wait half a 
 
 The large **"Engage Time Circuits"** button at the bottom of the page is your primary way to save settings and trigger the clock's signature animation.
 
-💡 **What it Does:** This button performs two actions at once:
-1.  **Saves All Settings:** It saves every configuration option from all tabs.
-2.  **Triggers Animation:** It immediately starts the full time travel sequence on the hardware.
+💡 **What it Does:** This button triggers a smart, asynchronous save-and-animate sequence:
+1.  **Requests a Save:** It sends all configuration options from all tabs to the device.
+2.  **Saves in Background:** The device saves the settings in the background. It intelligently checks which settings have actually been changed and only writes the new values to its memory to minimize wear on the hardware.
+3.  **Triggers Animation on Success:** Once the save is successfully completed, the device immediately starts the full time travel sequence.
 
-Even though it saves all settings, the device is designed for longevity. It intelligently checks which settings have actually been changed and only writes the new values to its memory. This "smart saving" process is extremely fast and minimizes wear on the hardware.
+This "smart saving" process is extremely fast and reliable, ensuring that an animation only confirms a successful save.
 
 > ⚡ **Tip for Quick Configuration**
 > Because every press of the button triggers the full 17-second animation, it's most efficient to **make all of your desired changes across all tabs first**, and then press the save button only once when you are finished.
