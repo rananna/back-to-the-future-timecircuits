@@ -1421,3 +1421,15 @@ Asset StockManager::getCurrentStockInfo() const {
     xSemaphoreGive(_assets_mutex);
     return current_asset;
 }
+
+bool StockManager::hasAnyValidData() const {
+    xSemaphoreTake(_assets_mutex, portMAX_DELAY);
+    for (const auto& asset : _assets) {
+        if (asset.data_valid) {
+            xSemaphoreGive(_assets_mutex);
+            return true;
+        }
+    }
+    xSemaphoreGive(_assets_mutex);
+    return false;
+}

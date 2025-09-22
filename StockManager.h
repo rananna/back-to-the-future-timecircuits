@@ -94,6 +94,7 @@ public:
     bool isFetching() const;
     bool hasDataBeenUpdated();
     void clearDataUpdatedFlag();
+    bool hasAnyValidData() const;
 
 private:
     std::vector<Asset> _assets;
