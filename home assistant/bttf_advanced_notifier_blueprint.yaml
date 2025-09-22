@@ -37,16 +37,16 @@ trigger: []
 action:
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/run_sequence/command"
+      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/run_sequence/command"
       payload_template: >-
         {% set lines = message.split('\n') %}
-        text(dest,,{{ lines[0] | default('') }});
-        text(pres,,{{ lines[1] | default('') }});
-        text(last,,{{ lines[2] | default('') }});
-        sound({{ sound_effect if sound_effect != 'None' else '' }});
+        text(dest,{{ lines[0] | default(' ') }});
+        text(pres,{{ lines[1] | default(' ') }});
+        text(last,{{ lines[2] | default(' ') }});
+        {% if sound_effect != 'None' %}sound({{ sound_effect }});{% endif %}
   - delay:
       seconds: "{{ duration }}"
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
+      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
       payload: "OFF"
