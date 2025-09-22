@@ -4,6 +4,7 @@
 #include <HTTPClient.h>
 #include "timezone.h"
 #include <esp_tls.h>
+#include <time.h>
 
 extern bool timeSynchronized;
 
@@ -296,6 +297,7 @@ StockManager::StockManager() :
     _current_asset_index(0),
     _current_page_index(0),
     _api_usage_count(0),
+    _last_reset_day(0),
     _running_tasks(0),
     _data_updated(false) {
     _task_mutex = xSemaphoreCreateMutex();
@@ -303,10 +305,12 @@ StockManager::StockManager() :
 }
 
 void StockManager::begin() {
+    loadApiUsage();
     Log_printf(LOG_LEVEL_INFO, "StockManager initialized.");
 }
 
 void StockManager::loop() {
+    resetApiUsageIfNecessary();
     if (!_enabled || _is_fetching || _api_key.isEmpty()) {
         return;
     }
@@ -449,8 +453,8 @@ void StockManager::fetchData() {
         }
     }
 
-    // Create a single task for all stocks
-    if (!stocks.empty()) {
+    // Create a single task for all stocks if the market is open
+    if (!stocks.empty() && isMarketOpen()) {
         StockFetchParams* params = new StockFetchParams{stocks, this};
         if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
             _running_tasks = _running_tasks + 1;
@@ -655,6 +659,7 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
             goto cleanup;
         }
         _api_usage_count++;
+        saveApiUsage();
 
         unsigned long header_read_start_time = millis();
         const unsigned long HEADER_TIMEOUT_MS = 10000;
@@ -1172,8 +1177,66 @@ int StockManager::getApiUsage() const {
 }
 
 bool StockManager::isMarketOpen() const {
-    // Market status check is disabled to stay within free API limits.
-    return true;
+    if (!timeSynchronized) {
+        return false; // Cannot check market status if time is not synced
+    }
+
+    // Get current time
+    time_t now;
+    time(&now);
+
+    // Set timezone to Eastern Time
+    setenv("TZ", "EST5EDT,M3.2.0,M11.1.0", 1);
+    tzset();
+
+    struct tm *tm_info = localtime(&now);
+
+    // Check if it's a weekday (Sunday=0, Saturday=6)
+    if (tm_info->tm_wday > 0 && tm_info->tm_wday < 6) {
+        // Convert current time to minutes since midnight
+        int total_minutes = tm_info->tm_hour * 60 + tm_info->tm_min;
+        // Market open: 9:30 AM = 570 minutes. Market close: 4:00 PM = 960 minutes.
+        if (total_minutes >= 570 && total_minutes <= 960) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void StockManager::loadApiUsage() {
+    Preferences preferences;
+    preferences.begin("stocks", true);
+    _api_usage_count = preferences.getInt("api_usage", 0);
+    _last_reset_day = preferences.getInt("last_reset", 0);
+    preferences.end();
+    Log_printf(LOG_LEVEL_INFO, "Loaded API usage count: %d, last reset day: %d", _api_usage_count, _last_reset_day);
+}
+
+void StockManager::saveApiUsage() {
+    Preferences preferences;
+    preferences.begin("stocks", false);
+    preferences.putInt("api_usage", _api_usage_count);
+    preferences.putInt("last_reset", _last_reset_day);
+    preferences.end();
+}
+
+void StockManager::resetApiUsageIfNecessary() {
+    if (!timeSynchronized) {
+        return; // Cannot check the date if time is not synced
+    }
+    time_t now;
+    time(&now);
+    struct tm * timeinfo;
+    timeinfo = localtime(&now);
+    int current_day = timeinfo->tm_yday;
+
+    if (_last_reset_day != current_day) {
+        Log_printf(LOG_LEVEL_INFO, "New day detected. Resetting API usage count.");
+        _api_usage_count = 0;
+        _last_reset_day = current_day;
+        saveApiUsage();
+    }
 }
 
 void StockManager::updateAndSaveAssets(const std::vector<String>& symbols) {
