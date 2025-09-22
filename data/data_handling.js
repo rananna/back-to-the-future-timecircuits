@@ -1297,13 +1297,41 @@ async function updateStockStatus() {
         }
 
         if (guidanceEl) {
-            const numAssets = status.assets ? status.assets.length : 0;
+            const assets = status.assets || [];
+            const numAssets = assets.length;
             if (numAssets > 0) {
-                // Each asset refresh consumes 1 API call.
-                // Recommended interval = (Total minutes in a day) / (Number of calls per day)
-                // Number of calls per day = API_CALL_LIMIT / numAssets
-                const recommendedInterval = Math.ceil((1440 * numAssets) / API_CALL_LIMIT);
-                guidanceEl.textContent = `With ${numAssets} asset(s), to stay under the ${API_CALL_LIMIT}/day free limit, a refresh interval of ~${recommendedInterval} minutes is recommended.`;
+                const TRADING_MINUTES_STOCK = 390; // 6.5 hours for NYSE (9:30am to 4:00pm)
+                const TRADING_MINUTES_CRYPTO = 1440; // 24 hours
+
+                let stockCount = 0;
+                let cryptoCount = 0;
+
+                assets.forEach(asset => {
+                    const symbol = getSimpleSymbol(asset.symbol).toUpperCase();
+                    if (symbol.endsWith('-USD') || symbol.endsWith('-EUR')) {
+                        cryptoCount++;
+                    } else {
+                        stockCount++;
+                    }
+                });
+
+                // Total weighted minutes = (number of stocks * stock trading minutes) + (number of cryptos * crypto trading minutes)
+                const totalWeightedMinutes = (stockCount * TRADING_MINUTES_STOCK) + (cryptoCount * TRADING_MINUTES_CRYPTO);
+
+                // Recommended interval = (Total weighted minutes) / (API call limit)
+                // This ensures that over the course of a day, the total calls for all assets stay within the limit.
+                const recommendedInterval = Math.ceil(totalWeightedMinutes / API_CALL_LIMIT);
+
+                let guidanceText = `With ${stockCount} stock(s) and ${cryptoCount} crypto(s), a refresh interval of ~${recommendedInterval} minutes is recommended to stay under the ${API_CALL_LIMIT}/day limit.`;
+                if (stockCount > 0 && cryptoCount > 0) {
+                    guidanceText += ` (Calculated with ~6.5hr market days for stocks and 24hr for crypto.)`;
+                } else if (stockCount > 0) {
+                    guidanceText += ` (Calculated with ~6.5hr market days for stocks.)`;
+                } else if (cryptoCount > 0) {
+                    guidanceText += ` (Calculated with 24hr trading for crypto.)`;
+                }
+                guidanceEl.textContent = guidanceText;
+
             } else {
                 guidanceEl.textContent = `Add assets to see refresh interval guidance. The free API limit is ${API_CALL_LIMIT} calls per day.`;
             }
