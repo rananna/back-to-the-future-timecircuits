@@ -947,7 +947,7 @@ void updateMarqueeDisplay() {
                     lastMarqueeStateChange = millis();
 
                     if (marqueeScrollPosition > strlen(marqueePageBuffer)) {
-                        marqueeState = M_PAUSING; // End of scroll, move to pausing
+                        marqueeState = M_PAUSED; // End of scroll, move to pausing
                         lastMarqueeStateChange = millis();
                     } else {
                         char viewport[14];
@@ -986,7 +986,7 @@ void updateMarqueeDisplay() {
                 }
                 break;
             }
-            case M_PAUSING: {
+            case M_PAUSED: {
                 if (millis() - lastMarqueeStateChange > pauseDuration) {
                     currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
                     marqueeState = M_START_PAGE;
