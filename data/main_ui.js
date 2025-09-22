@@ -673,6 +673,18 @@ function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) 
 function updateDataPointsUI(numPoints) {
     return new Promise((resolve) => {
         const container = document.getElementById('dataPointsConfigContainer');
+
+        // --- START: MODIFICATION - Preserve existing data before rebuilding UI ---
+        // 1. Store existing data from the UI
+        const existingData = [];
+        const existingPointElements = container.querySelectorAll('.data-point-block');
+        for (let i = 0; i < existingPointElements.length; i++) {
+            // The getDataPointFromUI function is used here to read the current state
+            // of each data point's form fields before they are destroyed.
+            existingData.push(getDataPointFromUI(i));
+        }
+        // --- END: MODIFICATION ---
+
         container.innerHTML = '';
         if (numPoints > 0) {
             for (let i = 0; i < numPoints; i++) {
@@ -720,6 +732,30 @@ function updateDataPointsUI(numPoints) {
             }
             // attach event listeners
             attachDataPointEventListeners();
+
+            // --- START: MODIFICATION - Restore data after rebuilding UI ---
+            // 2. Restore the stored data into the new UI elements
+            existingData.forEach((data, i) => {
+                if (i < numPoints) { // Only restore if the data point element still exists
+                    let dataSourceValue = 'mqtt';
+                    if (data.dataSourceType === 1) {
+                        dataSourceValue = 'ha';
+                    } else if (data.dataSourceType === 2) {
+                        dataSourceValue = 'static';
+                    }
+                    document.getElementById(`dp_dataSourceType_${i}`).value = dataSourceValue;
+                    document.getElementById(`dp_scrollSpeed_${i}`).value = data.scrollSpeed || 150;
+                    document.getElementById(`dp_scrollSpeed_${i}Value`).textContent = data.scrollSpeed || 150;
+                    document.getElementById(`dp_mqttTopic_${i}`).value = data.mqttTopic || '';
+                    document.getElementById(`dp_scrollingText_${i}`).value = data.scrollingText || '';
+
+                    // Trigger a 'change' event on the data source dropdown. This is crucial
+                    // to ensure that the correct input fields (e.g., MQTT topic) are shown or hidden
+                    // based on the restored data source type.
+                    document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
+                }
+            });
+            // --- END: MODIFICATION ---
         }
         resolve();
     });
