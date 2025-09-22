@@ -847,59 +847,53 @@ void checkDataFetchStatusTask(void* p) {
 }
 
 void fetchDataLink() {
-	if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) != pdTRUE) {
-		return;
-	}
+    if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) != pdTRUE) {
+        return;
+    }
 
-	if (!currentSettings.dataLinkEnabled || isFetchingData) {
-		xSemaphoreGive(xDisplayDataMutex);
-		return;
-	}
+    if (!currentSettings.dataLinkEnabled) {
+        xSemaphoreGive(xDisplayDataMutex);
+        return;
+    }
 
+    // This function now primarily handles static text updates.
+    // MQTT and HA data are updated reactively via the mqttCallback.
+    // We will still iterate through all points to ensure static text is displayed.
+
+    bool needsUpdate = false;
+    for (int i = 0; i < currentSettings.numDataPoints; i++) {
+        if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_STATIC) {
+            needsUpdate = true;
+            break;
+        }
+    }
+
+    if (!needsUpdate) {
+        xSemaphoreGive(xDisplayDataMutex);
+        return;
+    }
+
+    // Since this function is now lighter, we can run it more frequently
+    // without the need for the isFetchingData flag, but we'll keep a simple timer.
 	unsigned long now = millis();
-	if (now - lastDataLinkFetch > (unsigned long)currentSettings.dataLinkRefreshInterval * 60000) {
-		lastDataLinkFetch = now;
-		isFetchingData = true;
-        Log_printf(LOG_LEVEL_INFO, "Starting data link fetch for %d data points.", currentSettings.numDataPoints);
-		xSemaphoreGive(xDisplayDataMutex);
+	if (now - lastDataLinkFetch > 5000) { // Check every 5 seconds for static text
+        lastDataLinkFetch = now;
+        Log_printf(LOG_LEVEL_INFO, "Updating static text for Data Link marquee.");
         
-		requestsCompleted = 0;
-        int tasksCreated = 0;
+        for (int i = 0; i < currentSettings.numDataPoints; i++) {
+            if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_STATIC) {
+                DataPoint point = currentSettings.dataPoints[i];
 
-		for (int i = 0; i < currentSettings.numDataPoints; i++) {
-			if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_STATIC) {
-                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    // For static data, we just copy the values directly.
-                    DataPoint point = currentSettings.dataPoints[i];
-                    if (point.displayMode == SCROLLING_TEXT) {
-                        displayPages[i].year = point.scrollingText;
-                        displayPages[i].month = "";
-                        displayPages[i].day = "";
-                        displayPages[i].time = "";
-                    } else { // FOUR_COLUMN
-                        // In four column mode, the paths are treated as the static text.
-                        displayPages[i].month = point.monthPath;
-                        displayPages[i].day = point.dayPath;
-                        displayPages[i].year = point.yearPath;
-                        displayPages[i].time = point.timePath;
-                    }
-                    lastGoodDisplayPages[i] = displayPages[i];
-                    isMarqueeBufferDirty = true;
-                    xSemaphoreGive(xDisplayDataMutex);
-                }
-            }
-		}
-        if (tasksCreated > 0) {
-            Log_printf(LOG_LEVEL_DEBUG, "Created %d data fetch tasks. Starting status checker.", tasksCreated);
-            xTaskCreatePinnedToCore(checkDataFetchStatusTask, "checkDataFetchStatusTask", 2048, (void*)tasksCreated, 1, NULL, 0);
-        } else {
-            Log_printf(LOG_LEVEL_INFO, "No async data points to fetch.");
-            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                isFetchingData = false;
-                xSemaphoreGive(xDisplayDataMutex);
+                // Always treat as scrolling text as per new simplified logic
+                displayPages[i].year = point.scrollingText;
+                displayPages[i].month = "";
+                displayPages[i].day = "";
+                displayPages[i].time = "";
+
+                lastGoodDisplayPages[i] = displayPages[i];
+                isMarqueeBufferDirty = true;
             }
         }
-	} else {
-		xSemaphoreGive(xDisplayDataMutex);
-	}
+    }
+    xSemaphoreGive(xDisplayDataMutex);
 }
