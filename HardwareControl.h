@@ -145,6 +145,7 @@ struct ClockSettings {
     float latitude;
     float longitude;
     bool stockTickerModeEnabled;
+    int stockRefreshInterval; // in minutes
     std::string financialModelingPrepApiKey;
     DataPoint dataPoints[5];
     int theme;

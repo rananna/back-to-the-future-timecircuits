@@ -442,6 +442,13 @@ void applySettingsFromJson(const JsonObject& obj) {
     currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
     currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
     stockManager.setEnabled(currentSettings.stockTickerModeEnabled);
+    if (!obj["stockRefreshInterval"].isNull()) {
+        int newInterval = obj["stockRefreshInterval"].as<int>();
+        if (newInterval > 0) { // Basic validation
+            currentSettings.stockRefreshInterval = newInterval;
+            stockManager.setRefreshInterval(newInterval);
+        }
+    }
     if (!obj["financialModelingPrepApiKey"].isNull()) {
         currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
         stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
@@ -611,6 +618,7 @@ void saveSettings() {
         preferences.putBool("stModeEnabled", currentSettings.stockTickerModeEnabled);
         Log_printf(LOG_LEVEL_DEBUG, "SAVING: stModeEnabled -> %s", currentSettings.stockTickerModeEnabled ? "true" : "false");
     }
+    SAVE_IF_CHANGED("stockRefresh", Int, currentSettings.stockRefreshInterval);
 
     SAVE_STRING_IF_CHANGED("fmpApiKey", currentSettings.financialModelingPrepApiKey);
 
@@ -696,6 +704,7 @@ void loadSettings() {
 		currentSettings.latitude = 40.7128;
 		currentSettings.longitude = -74.0060;
 		currentSettings.stockTickerModeEnabled = false;
+		currentSettings.stockRefreshInterval = 20; // Default to 20 minutes
 		currentSettings.financialModelingPrepApiKey = "";
         stockManager.clearAssets();
 		for (int i = 0; i < 5; i++) {
@@ -746,6 +755,7 @@ void loadSettings() {
 		currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
 		currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
 		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
+		currentSettings.stockRefreshInterval = preferences.getInt("stockRefresh", 20);
 		tempString = preferences.getString("fmpApiKey", "");
 		currentSettings.financialModelingPrepApiKey = tempString.c_str();
 
@@ -779,6 +789,7 @@ void loadSettings() {
     // Initialize the StockManager with the loaded settings
     stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
     stockManager.setEnabled(currentSettings.stockTickerModeEnabled);
+    stockManager.setRefreshInterval(currentSettings.stockRefreshInterval);
     stockManager.loadAssets();
 
 	Log_printf(LOG_LEVEL_INFO, "--- Settings Loaded ---");
