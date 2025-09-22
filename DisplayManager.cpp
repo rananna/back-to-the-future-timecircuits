@@ -260,7 +260,7 @@ void updateStockTickerDisplay() {
                 } else {
                     // Not fetching, but no data yet. This can happen right after startup
                     // before the first fetch is triggered by the interval timer.
-                    msg_year = "STAND BY";
+                    msg_year = "WAIT";
                     msg_time = "....";
                 }
 

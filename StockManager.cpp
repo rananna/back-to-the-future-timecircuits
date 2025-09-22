@@ -315,6 +315,17 @@ void StockManager::loop() {
         return;
     }
 
+    // Do not attempt any fetch until time is synchronized.
+    if (!isTimeSynchronized()) {
+        // Log this only once to avoid spamming
+        static bool time_sync_logged = false;
+        if (!time_sync_logged) {
+            Log_printf(LOG_LEVEL_INFO, "StockManager waiting for NTP time synchronization...");
+            time_sync_logged = true;
+        }
+        return;
+    }
+
     unsigned long now = millis();
     // If _last_fetch_time is 0, it means we've never fetched, so fetch now.
     if ((_last_fetch_time == 0) || (now - _last_fetch_time > _refresh_interval_ms)) {
