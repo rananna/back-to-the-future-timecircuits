@@ -225,14 +225,11 @@ You can configure up to 5 independent data points. Each one has its own set of o
     *   **Static Text**: Display a fixed string of text.
 
 *   **Display Mode**:
-    *   **Four Column Data**: This mode mimics the standard time circuits display, allowing you to map incoming data to the `MONTH`, `DAY`, `YEAR`, and `TIME` segments. This is ideal for structured data.
     *   **Scrolling Text**: This mode displays a single, continuous line of text that scrolls across the entire display row. This is best for long strings or simple messages.
 
 *   **Formatting & Display**:
-    *   **Prefix/Suffix**: Add static text before or after the values in the `YEAR` and `TIME` fields (or the main `Scrolling Text` field).
-    *   **Icon**: In "Four Column Data" mode, you can replace the `DAY` segment with a pre-defined icon (e.g., Sun, Cloud, Heart). This is useful for at-a-glance information.
-
-*   **Scroll Speed**: Controls how fast the text scrolls in the `YEAR` and `TIME` fields (if the text is too long) or the main `Scrolling Text` field.
+    *   **Prefix/Suffix**: Add static text before or after the main scrolling text.
+    *   **Scroll Speed**: Controls how fast the text scrolls.
 
 ### Network & System Tab
 This tab provides information about the device's status and allows you to perform system-level actions.
