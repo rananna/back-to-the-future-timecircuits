@@ -207,7 +207,7 @@ void publishHaAutoDiscovery() {
     const char* number_configs[][5] = {
         {"animation_interval", "Animation Interval", "mdi:clock-in", "min", "0,120,1"},
         {"animation_duration", "Animation Duration", "mdi:movie-filter", "ms", "1000,10000,100"},
-        {"datalink_refresh", "DataLink Refresh", "mdi:api", "min", "1,60,1"}
+        {"stock_refresh", "Stock Refresh", "mdi:chart-line", "min", "1,60,1"}
     };
     for (auto const& cfg : number_configs) {
         doc.clear();
@@ -748,10 +748,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             currentSettings.timeTravelAnimationDuration = message.toInt();
             settingsChanged = true;
             broadcastWsStateUpdate("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration);
-        } else if (topicStr == base_topic + "datalink_refresh/command") {
-            currentSettings.dataLinkRefreshInterval = message.toInt();
+        } else if (topicStr == base_topic + "stock_refresh/command") {
+            currentSettings.stockRefreshInterval = message.toInt();
             settingsChanged = true;
-            broadcastWsStateUpdate("dataLinkRefreshInterval", currentSettings.dataLinkRefreshInterval);
+            broadcastWsStateUpdate("stockRefreshInterval", currentSettings.stockRefreshInterval);
         }
         else if (topicStr == base_topic + "marquee_temp_override/command") {
             JsonDocument doc;
@@ -1027,8 +1027,8 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/animation_interval/state").c_str(), payload, true);
     itoa(currentSettings.timeTravelAnimationDuration, payload, 10);
     mqttClient.publish((base_topic + "/animation_duration/state").c_str(), payload, true);
-    itoa(currentSettings.dataLinkRefreshInterval, payload, 10);
-    mqttClient.publish((base_topic + "/datalink_refresh/state").c_str(), payload, true);
+    itoa(currentSettings.stockRefreshInterval, payload, 10);
+    mqttClient.publish((base_topic + "/stock_refresh/state").c_str(), payload, true);
     
     mqttClient.publish((base_topic + "/temporal_echo/state").c_str(), isEchoEffectActive ? "ON" : "OFF", true);
 
