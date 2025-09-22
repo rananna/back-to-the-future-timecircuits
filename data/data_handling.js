@@ -4,11 +4,6 @@ let timezoneOptions = []; // Stores the available timezone options fetched from 
 let isDataLinkLoaded = false; // Flag to check if the Data Link settings have been loaded
 let isManualRefresh = false; // Flag to track if a manual weather refresh is in progress
 let anyInputInvalid = false; // Flag to track if there are any invalid inputs in the forms
-let analyzedDataCache = {}; // Caches the JSON data analyzed from API responses
-let apiExamples = {}; // Stores the API example templates fetched from the server
-let dataPointStateCache = {}; // Caches the state of individual data points, like modified URLs
-let lastFocusedApiExample = {}; // Tracks the last focused API example to manage URL modifications
-let activeWizardTarget = null; // The currently active target for the API wizard mapping
 let dataPointStatus = {}; // Stores the success/error status of each data point
 let ws; // The WebSocket object for real-time communication
 let weatherInterval; // The interval ID for fetching weather data periodically
@@ -38,43 +33,7 @@ function initWebSocket() {
         console.log("CLIENT_DEBUG: WebSocket message received:", event.data);
         const msg = JSON.parse(event.data);
 
-        // If the message is an API result, handle it
-        if (msg.action === 'apiResult') {
-            // Find the button that triggered the API analysis
-            const button = document.querySelector('.analyze-api-btn.analyzing, .dp-test-btn.analyzing');
-            if (button) {
-                 // Re-enable the button and remove the analyzing state
-                 button.disabled = false;
-                 button.classList.remove('analyzing');
-                 button.textContent = button.classList.contains('dp-test-btn') ? 'Test' : 'Analyze API';
-                 const index = button.dataset.index;
-                 // Update the status indicator for the data point
-                 updateDataPointStatus(index, msg.status === 'success');
-
-                 // If the API call was successful
-                 if (msg.status === 'success') {
-                    // Cache the response payload
-                    analyzedDataCache[index] = msg.payload;
-                    if (button.classList.contains('analyze-api-btn')) {
-                        // Display the API wizard results
-                        const resultsContainer = document.getElementById(`wizard_results_${index}`);
-                        displayApiWizardResults(index, msg.payload);
-                    } else {
-                        // Show a success message for the test
-                        showMessage(`Data Point ${parseInt(index) + 1} test successful.`, 'success');
-                    }
-                    // Update the marquee preview with the new data
-                    updateMarqueePreview(index);
-                 } else {
-                    // If there was an error, show an error message
-                    const errorMsg = `API Error: ${msg.payload}`;
-                    showMessage(errorMsg, 'error');
-                    if (button.classList.contains('analyze-api-btn')) {
-                        document.getElementById(`wizard_results_${index}`).innerHTML = `<span class="error-text">${errorMsg}</span>`;
-                    }
-                 }
-            }
-        } else if (msg.action === 'presetUpdate') {
+        if (msg.action === 'presetUpdate') {
             const presetSelect = document.getElementById('presetDateSelect');
             if (presetSelect) {
                 let optionFound = false;
@@ -295,54 +254,6 @@ function deletePreset() {
 }
 
 /**
- * Starts the API wizard to analyze a URL.
- * @param {Event} event The click event from the "Analyze API" button.
- */
-function startApiWizard(event) {
-    // Get the index of the data point
-    const index = event.target.getAttribute('data-index');
-    // Get the processed URL for the data point
-    const apiUrl = getProcessedUrl(index);
-    // Get the authentication headers
-    const authKey = document.getElementById(`dp_authHeaderKey_${index}`).value;
-    const authValue = document.getElementById(`dp_authHeaderValue_${index}`).value;
-    const button = event.target;
-
-    console.log(`CLIENT_DEBUG: Starting API Wizard for index ${index}. URL: ${apiUrl}`);
-
-    // Validate the URL
-    if (!apiUrl) {
-        showMessage('Please enter an API URL first.', 'error');
-        return;
-    }
-
-    // Check if the WebSocket is open
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-        showMessage('Data Link channel is not open. Please wait.', 'error');
-        return;
-    }
-
-    // Show a loading indicator
-    const resultsContainer = document.getElementById(`wizard_results_${index}`);
-    resultsContainer.innerHTML = '<span class="loading-spinner"></span> Analyzing...';
-    button.disabled = true;
-    button.classList.add('analyzing');
-
-    // Create the message to send to the server
-    const message = {
-        action: "testApi",
-        data: {
-            url: apiUrl,
-            authKey: authKey,
-            authValue: authValue
-        }
-    };
-
-    // Send the message via WebSocket
-    ws.send(JSON.stringify(message));
-}
-
-/**
  * Asynchronously performs geocoding for a city name if it has changed.
  * @param {string} cityName The name of the city to geocode.
  * @returns {Promise<object|null>} A promise that resolves with an object containing latitude and longitude, or null if geocoding fails.
@@ -516,10 +427,15 @@ async function saveSettings() {
         settings.dataPoints = [];
         for (let i = 0; i < numDataPoints; i++) {
             const point = {};
-            const sourceValue = getValue(`dp_dataSourceType_${i}`, 'api');
-            point.dataSourceType = sourceValue === 'mqtt' ? 1 : (sourceValue === 'ha' ? 2 : 0);
+            const sourceValue = getValue(`dp_dataSourceType_${i}`, 'mqtt');
+            if (sourceValue === 'ha') {
+                point.dataSourceType = 1;
+            } else if (sourceValue === 'static') {
+                point.dataSourceType = 2;
+            } else { // mqtt
+                point.dataSourceType = 0;
+            }
             point.displayMode = getIntValue(`dp_displayMode_${i}`, 0);
-            point.url = getValue(`dp_url_${i}`);
             point.monthPath = getValue(`dp_monthPath_${i}`);
             point.dayPath = getValue(`dp_dayPath_${i}`);
             point.yearPath = getValue(`dp_yearPath_${i}`);
@@ -532,9 +448,6 @@ async function saveSettings() {
             point.yearPrefix = getValue(`dp_yearPrefix_${i}`);
             point.yearSuffix = getValue(`dp_yearSuffix_${i}`);
             point.scrollingText = getValue(`dp_scrollingText_${i}`);
-            point.authHeaderKey = getValue(`dp_authHeaderKey_${i}`);
-            point.authHeaderValue = getValue(`dp_authHeaderValue_${i}`);
-            point.apiExampleKey = getValue(`api_example_${i}`);
             settings.dataPoints.push(point);
         }
     } else {
@@ -816,20 +729,6 @@ function getValueFromPath(obj, path) {
     } catch (e) {
         return null;
     }
-}
-
-/**
- * Gets the processed URL for a data point, replacing "YOUR_API_KEY" if necessary.
- * @param {number} index The index of the data point.
- * @returns {string} The processed URL.
- */
-function getProcessedUrl(index) {
-    let apiUrl = document.getElementById(`dp_url_${index}`).value;
-    const authValue = document.getElementById(`dp_authHeaderValue_${index}`).value;
-    if (apiUrl.includes('YOUR_API_KEY') && authValue) {
-        return apiUrl.replace('YOUR_API_KEY', authValue);
-    }
-    return apiUrl;
 }
 
 function updateStockPreview(status, payload, rowIndex) {

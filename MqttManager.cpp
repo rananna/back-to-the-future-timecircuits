@@ -341,9 +341,9 @@ void publishHaAutoDiscovery() {
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         JsonArray sources = doc["options"].to<JsonArray>();
-        sources.add("API");
         sources.add("MQTT");
         sources.add("Home Assistant Push");
+        sources.add("Static Text");
         doc["icon"] = "mdi:database-arrow-down";
         doc["entity_category"] = "config";
         doc["device"] = device;
@@ -810,9 +810,9 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             
             if (dp_index >= 0 && dp_index < 5) {
                 DataSourceType newSource;
-                if (message == "MQTT") newSource = DATA_SOURCE_MQTT;
-                else if (message == "Home Assistant Push") newSource = DATA_SOURCE_HA;
-                else newSource = DATA_SOURCE_API;
+                if (message == "Home Assistant Push") newSource = DATA_SOURCE_HA;
+                else if (message == "Static Text") newSource = DATA_SOURCE_STATIC;
+                else newSource = DATA_SOURCE_MQTT; // Default to MQTT
 
                 if (currentSettings.dataPoints[dp_index].dataSourceType != newSource) {
                     currentSettings.dataPoints[dp_index].dataSourceType = newSource;
@@ -1032,7 +1032,7 @@ void publishAllHaStates() {
     
     mqttClient.publish((base_topic + "/temporal_echo/state").c_str(), isEchoEffectActive ? "ON" : "OFF", true);
 
-    const char* sources[] = {"API", "MQTT", "Home Assistant Push"};
+    const char* sources[] = {"MQTT", "Home Assistant Push", "Static Text"};
     for(int i=0; i<5; ++i) {
         int source_index = (int)currentSettings.dataPoints[i].dataSourceType;
         if (source_index >= 0 && source_index < 3) {

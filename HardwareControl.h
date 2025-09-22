@@ -84,12 +84,10 @@ enum Theme {
   THEME_PLUTONIUM_GLOW, THEME_MR_FUSION, THEME_CLOCK_TOWER
 };
 
-enum DataSourceType { DATA_SOURCE_API, DATA_SOURCE_MQTT, DATA_SOURCE_HA, DATA_SOURCE_STATIC };
+enum DataSourceType { DATA_SOURCE_MQTT, DATA_SOURCE_HA, DATA_SOURCE_STATIC };
 enum DisplayMode { FOUR_COLUMN, SCROLLING_TEXT };
-enum HttpMethod { METHOD_GET, METHOD_POST };
 
 struct DataPoint {
-  std::string url;
   std::string monthPath;
   std::string dayPath;
   std::string yearPath;
@@ -104,11 +102,6 @@ struct DataPoint {
   std::string yearSuffix;
   DisplayMode displayMode;
   std::string scrollingText;
-  std::string authHeaderKey;
-  std::string authHeaderValue;
-  HttpMethod httpMethod;
-  std::string requestBody;
-  std::string apiExampleKey;
 };
 
 struct ClockSettings {

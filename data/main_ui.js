@@ -25,7 +25,7 @@ async function initializeUI() {
         const initialEndpoints = [
             '/api/settings/timecircuits', '/api/settings/temporal',
             '/api/settings/datalink', '/api/timezones',
-            '/api/getPresets', '/api/getTheme', '/api/api_examples'
+            '/api/getPresets', '/api/getTheme'
         ];
         // Fetch all the initial data in parallel
         const promises = initialEndpoints.map(url => fetch(url).then(res => {
@@ -34,10 +34,7 @@ async function initializeUI() {
         }));
 
         // Wait for all promises to resolve
-        const [timecircuits, temporal, datalink, timezones, presets, theme, examples] = await Promise.all(promises);
-
-        // Store the API examples globally
-        window.apiExamples = examples;
+        const [timecircuits, temporal, datalink, timezones, presets, theme] = await Promise.all(promises);
 
         // Apply the fetched theme to the UI
         document.body.className = theme.trim();
@@ -254,17 +251,14 @@ async function applyDataLinkSettings(datalink) {
     await updateDataPointsUI(datalink.numDataPoints);
     if (datalink.dataPoints) {
         datalink.dataPoints.forEach((point, i) => {
-            let dataSourceValue = 'api'; // Default
+            let dataSourceValue = 'mqtt'; // Default
             if (point.dataSourceType === 1) {
-                dataSourceValue = 'mqtt';
-            } else if (point.dataSourceType === 2) {
                 dataSourceValue = 'ha';
-            } else if (point.dataSourceType === 3) {
+            } else if (point.dataSourceType === 2) {
                 dataSourceValue = 'static';
             }
             document.getElementById(`dp_dataSourceType_${i}`).value = dataSourceValue;
             document.getElementById(`dp_displayMode_${i}`).value = point.displayMode || 0;
-            document.getElementById(`dp_url_${i}`).value = point.url || '';
             document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
             document.getElementById(`dp_dayPath_${i}`).value = point.dayPath || '';
             document.getElementById(`dp_yearPath_${i}`).value = point.yearPath || '';
@@ -277,9 +271,6 @@ async function applyDataLinkSettings(datalink) {
             document.getElementById(`dp_yearPrefix_${i}`).value = point.yearPrefix || '';
             document.getElementById(`dp_yearSuffix_${i}`).value = point.yearSuffix || '';
             document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
-            document.getElementById(`dp_authHeaderKey_${i}`).value = point.authHeaderKey || '';
-            document.getElementById(`dp_authHeaderValue_${i}`).value = point.authHeaderValue || '';
-            document.getElementById(`api_example_${i}`).value = point.apiExampleKey || '';
 
             // Trigger change events to update the UI
             document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
@@ -712,28 +703,16 @@ function updateDataPointsUI(numPoints) {
                         <div class="dp-action-bar">
                             <button class="action-button dp-clear-btn" data-index="${i}">Clear</button>
                             <button class="action-button dp-dup-btn" data-index="${i}">Duplicate</button>
-                            <button class="action-button dp-test-btn" data-index="${i}">Test</button>
                         </div>
                     </div>
                     <label for="dp_dataSourceType_${i}">Data Source:</label>
                     <select id="dp_dataSourceType_${i}" class="data-source-select" data-index="${i}">
-                        <option value="api">Web API (HTTP)</option>
                         <option value="mqtt">MQTT Broker</option>
                         <option value="ha">Home Assistant Push</option>
                         <option value="static">Static Text</option>
                     </select>
 
-                    <div id="dp_api_container_${i}">
-                        <label for="api_example_${i}">API Examples (optional):</label>
-                        <select id="api_example_${i}" class="api-example-select" data-index="${i}"></select>
-                        <label for="dp_url_${i}">API URL:</label>
-                        <input type="text" id="dp_url_${i}" placeholder="http://api.example.com/data.json">
-                        <label for="dp_authHeaderKey_${i}">Auth Header Key (optional):</label>
-                        <input type="text" id="dp_authHeaderKey_${i}" placeholder="e.g., X-API-Key">
-                        <label for="dp_authHeaderValue_${i}">Auth Header Value (optional):</label>
-                        <input type="text" id="dp_authHeaderValue_${i}" placeholder="e.g., your-api-key">
-                        <button class="analyze-api-btn" data-index="${i}">Analyze API</button>
-                        <div class="api-wizard-results" id="wizard_results_${i}"></div>
+                    <div id="dp_api_container_${i}" style="display: none;">
                     </div>
 
                     <div id="dp_mqtt_container_${i}" style="display: none;">
@@ -833,8 +812,7 @@ function updateDataPointsUI(numPoints) {
                 `;
                 container.appendChild(block);
             }
-            // Populate the API example dropdowns and attach event listeners
-            populateApiExampleDropdowns();
+            // attach event listeners
             attachDataPointEventListeners();
             for (let i = 0; i < numPoints; i++) {
                 updateMarqueePreview(i);
@@ -854,14 +832,6 @@ function updateDataPointsUI(numPoints) {
 function getDisplayValue(path, placeholder, index) {
     if (!path) return placeholder;
 
-    // If there is cached analyzed data, try to resolve the path
-    if (analyzedDataCache[index] !== undefined) {
-        const resolvedValue = getValueFromPath(analyzedDataCache[index], path);
-        if (resolvedValue !== null && resolvedValue !== undefined) {
-            return resolvedValue;
-        }
-    }
-    
     // If the path is not a path, return it as a static value
     if (path.includes('.') || path.includes('[')) {
         return placeholder;
@@ -940,27 +910,6 @@ function updateMarqueePreview(index) {
 }
 
 /**
- * Populates the API example dropdowns with data from the server.
- */
-function populateApiExampleDropdowns() {
-    document.querySelectorAll('.api-example-select').forEach(select => {
-        select.innerHTML = '';
-
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = '-- Select an Example --';
-        select.appendChild(defaultOption);
-
-        for (const key in window.apiExamples) {
-            const option = document.createElement('option');
-            option.value = key;
-            option.textContent = window.apiExamples[key].name;
-            select.appendChild(option);
-        }
-    });
-}
-
-/**
  * Attaches event listeners to the data point UI elements.
  */
 function attachDataPointEventListeners() {
@@ -982,10 +931,7 @@ function attachDataPointEventListeners() {
             displayModeLabel.style.display = 'block';
 
             // Show the relevant container and adjust UI elements
-            if (dataSource === 'api') {
-                document.getElementById(`dp_api_container_${index}`).style.display = 'block';
-                scrollingTextInput.placeholder = "Enter text or map a value...";
-            } else if (dataSource === 'mqtt') {
+            if (dataSource === 'mqtt') {
                 document.getElementById(`dp_mqtt_container_${index}`).style.display = 'block';
                 scrollingTextInput.placeholder = "Enter text or map a value...";
             } else if (dataSource === 'ha') {
@@ -1021,36 +967,8 @@ function attachDataPointEventListeners() {
     });
 
     // Data point action buttons
-    document.querySelectorAll('.analyze-api-btn').forEach(btn => btn.onclick = startApiWizard);
     document.querySelectorAll('.dp-clear-btn').forEach(btn => btn.onclick = clearDataPointFields);
     document.querySelectorAll('.dp-dup-btn').forEach(btn => btn.onclick = duplicateDataPoint);
-    document.querySelectorAll('.dp-test-btn').forEach(btn => btn.onclick = testDataPoint);
-
-    // API example selector
-    document.querySelectorAll('.api-example-select').forEach(select => {
-        select.addEventListener('focus', (e) => {
-            const index = e.target.dataset.index;
-            lastFocusedApiExample[index] = e.target.value;
-        });
-
-        select.addEventListener('change', (e) => {
-            const index = e.target.dataset.index;
-            const urlInput = document.getElementById(`dp_url_${index}`);
-            const previousKey = lastFocusedApiExample[index];
-            if (previousKey) {
-                dataPointStateCache[index].modifiedUrls[previousKey] = urlInput.value;
-            }
-            const newKey = e.target.value;
-            const cachedUrl = dataPointStateCache[index].modifiedUrls[newKey];
-
-            if (cachedUrl) {
-                urlInput.value = cachedUrl;
-            } else {
-                const templateUrl = window.apiExamples[newKey]?.url;
-                urlInput.value = templateUrl || '';
-            }
-        });
-    });
 
     // General input change listeners for data points
     document.querySelectorAll('.data-point-block input, .data-point-block select, .data-point-block textarea').forEach(input => {
@@ -1067,24 +985,6 @@ function attachDataPointEventListeners() {
                 validateJson(e.target);
             }
             updateMarqueePreview(index);
-        });
-    });
-
-    // Wizard target input click listener
-    document.querySelectorAll('.wizard-target-input').forEach(input => {
-        input.addEventListener('click', (e) => {
-            const clickedTarget = e.target;
-
-            if (activeWizardTarget === clickedTarget) {
-                activeWizardTarget.classList.remove('is-wizard-target');
-                activeWizardTarget = null;
-            } else {
-                if (activeWizardTarget) {
-                    activeWizardTarget.classList.remove('is-wizard-target');
-                }
-                activeWizardTarget = clickedTarget;
-                activeWizardTarget.classList.add('is-wizard-target');
-            }
         });
     });
 
@@ -1118,89 +1018,6 @@ function validateJson(textarea) {
         validationMessage.textContent = e.message;
         return false;
     }
-}
-
-/**
- * Displays the results of the API wizard.
- * @param {number} index The index of the data point.
- * @param {object} jsonData The JSON data from the API.
- */
-function displayApiWizardResults(index, jsonData) {
-    const container = document.getElementById(`wizard_results_${index}`);
-    const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
-
-    let instructions = '';
-    if (displayMode === '0') {
-        instructions = 'Click a form field (Month, Day, etc.), then click a value below to map it.';
-    } else {
-        instructions = 'Click the "Scrolling Text" field, then click a value below to map it.';
-    }
-    container.innerHTML = `<strong>${instructions}</strong>`;
-
-    const mainList = document.createElement('ul');
-    mainList.className = 'wizard-list';
-
-    // Helper function to recursively build the list of JSON keys and values
-    const buildListRecursive = (data, parentPath = '') => {
-        const elements = [];
-
-        if (Array.isArray(data)) {
-            data.forEach((item, i) => {
-                const currentPath = `${parentPath}[${i}]`;
-                const li = document.createElement('li');
-                
-                if (typeof item === 'object' && item !== null) {
-                    li.innerHTML = `<span class="wizard-key">[${i}]:</span>`;
-                    const subList = document.createElement('ul');
-                    const childElements = buildListRecursive(item, currentPath);
-                    childElements.forEach(el => subList.appendChild(el));
-                    li.appendChild(subList);
-                } else {
-                     li.innerHTML = `<span class="wizard-clickable-item" data-path="${currentPath}"><span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(item)}"</span></span>`;
-                }
-                elements.push(li);
-            });
-        } else if (typeof data === 'object' && data !== null) {
-            for (const key in data) {
-                const currentPath = parentPath ? `${parentPath}.${key}` : key;
-                const value = data[key];
-                const li = document.createElement('li');
-
-                if (typeof value === 'object' && value !== null) {
-                    li.innerHTML = `<span class="wizard-key">${key}:</span>`;
-                    const subList = document.createElement('ul');
-                    const childElements = buildListRecursive(value, currentPath);
-                    childElements.forEach(el => subList.appendChild(el));
-                    li.appendChild(subList);
-                } else {
-                    li.innerHTML = `<span class="wizard-clickable-item" data-path="${currentPath}"><span class="wizard-key">${currentPath}:</span> <span class="wizard-value">"${String(value)}"</span></span>`;
-                }
-                elements.push(li);
-            }
-        }
-        return elements;
-    };
-
-    const allElements = buildListRecursive(jsonData);
-    allElements.forEach(el => mainList.appendChild(el));
-    container.appendChild(mainList);
-
-    // Attach click listeners to the wizard results
-    container.querySelectorAll('.wizard-clickable-item').forEach(item => {
-        item.onclick = (e) => {
-            if (activeWizardTarget) {
-                const path = e.currentTarget.dataset.path;
-                activeWizardTarget.value = path;
-                activeWizardTarget.dispatchEvent(new Event('input')); 
-                showMessage(`Mapped "${path}" to the selected field.`, 'success', 2000);
-
-                activeWizardTarget.classList.remove('is-wizard-target');
-                activeWizardTarget = null;
-            } else {
-                showMessage('Click a form field first to select it as the target.', 'error');
-            }
-        };
-    });
 }
 
 /**
@@ -1298,14 +1115,12 @@ function updateDataPointStatus(index, isSuccess) {
  */
 function clearDataPointFields(event) {
     const index = event.target.dataset.index;
-    const fields = ['url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'requestBody'];
+    const fields = ['monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'requestBody'];
     fields.forEach(field => {
         const el = document.getElementById(`dp_${field}_${index}`);
         if (el) el.value = '';
     });
     
-    document.getElementById(`wizard_results_${index}`).innerHTML = '';
-    delete analyzedDataCache[index];
     updateMarqueePreview(index);
     showMessage(`Data Point ${parseInt(index) + 1} fields cleared.`, 'info');
     if (!isLoading) setSettingsChanged(true);
@@ -1644,20 +1459,17 @@ function getDataPointFromUI(index) {
 
     const dataSourceTypeStr = getElValue(`dp_dataSourceType_${index}`);
     let dataSourceType;
-    if (dataSourceTypeStr === 'mqtt') {
+    if (dataSourceTypeStr === 'ha') {
         dataSourceType = 1;
-    } else if (dataSourceTypeStr === 'ha') {
-        dataSourceType = 2;
     } else if (dataSourceTypeStr === 'static') {
-        dataSourceType = 3;
-    } else {
-        dataSourceType = 0; // api
+        dataSourceType = 2;
+    } else { // mqtt
+        dataSourceType = 0;
     }
 
     return {
         dataSourceType: dataSourceType,
         displayMode: parseInt(getElValue(`dp_displayMode_${index}`), 10),
-        url: getElValue(`dp_url_${index}`),
         monthPath: getElValue(`dp_monthPath_${index}`),
         dayPath: getElValue(`dp_dayPath_${index}`),
         yearPath: getElValue(`dp_yearPath_${index}`),
@@ -1669,66 +1481,8 @@ function getDataPointFromUI(index) {
         mqttTopic: getElValue(`dp_mqttTopic_${index}`),
         yearPrefix: getElValue(`dp_yearPrefix_${index}`),
         yearSuffix: getElValue(`dp_yearSuffix_${index}`),
-        scrollingText: getElValue(`dp_scrollingText_${index}`),
-        authHeaderKey: getElValue(`dp_authHeaderKey_${index}`),
-        authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
-        apiExampleKey: getElValue(`api_example_${index}`)
+        scrollingText: getElValue(`dp_scrollingText_${index}`)
     };
-}
-
-/**
- * Tests a single data point.
- * @param {Event} event The click event from the "Test" button.
- */
-async function testDataPoint(event) {
-    const button = event.target;
-    const index = button.dataset.index;
-
-    // Show loading state on the button
-    const originalText = button.textContent;
-    button.innerHTML = '<span class="loading-spinner"></span>';
-    button.disabled = true;
-
-    try {
-        // Gather the data for the data point
-        const dataPoint = getDataPointFromUI(index);
-
-        // Send the data to the test endpoint
-        const response = await fetch('/api/testDataPoint', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dataPoint)
-        });
-
-        const result = await response.json();
-
-        // Update the status indicator based on the result
-        updateDataPointStatus(index, result.success);
-
-        // Display the result in the wizard results area
-        const container = document.getElementById(`wizard_results_${index}`);
-        if (result.success) {
-            showMessage(`Data Point ${parseInt(index, 10) + 1} test successful!`, 'success');
-            displayApiWizardResults(index, result.data);
-            analyzedDataCache[index] = result.data;
-        } else {
-            showMessage(`Data Point ${parseInt(index, 10) + 1} test failed: ${result.error}`, 'error', 8000);
-            container.innerHTML = `<p class="error-message">Error: ${result.error}</p>`;
-            analyzedDataCache[index] = null;
-        }
-        updateMarqueePreview(index);
-    } catch (error) {
-        // Handle network errors
-        console.error('CLIENT_DEBUG: Error testing data point:', error);
-        showMessage(`Error testing data point: ${error.message}`, 'error');
-        updateDataPointStatus(index, false);
-        const container = document.getElementById(`wizard_results_${index}`);
-        container.innerHTML = `<p class="error-message">Network or server error. Check console for details.</p>`;
-    } finally {
-        // Restore the button to its original state
-        button.innerHTML = originalText;
-        button.disabled = false;
-    }
 }
 
 /**
