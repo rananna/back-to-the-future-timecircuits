@@ -90,6 +90,12 @@ function initWebSocket() {
         } else if (msg.action === 'stockUpdate') {
             console.log('CLIENT_DEBUG: Received stock update from server. Refreshing status.');
             updateStockStatus();
+        } else if (msg.action === 'fullSettings') {
+            console.log("CLIENT_DEBUG: Received full settings object from server.");
+            // The 'fullSettings' message contains all settings in one object.
+            // The applySettings function can handle this unified object.
+            applySettings(msg, msg, msg);
+            showMessage('All settings synchronized with device.', 'success');
         }
     };
 
