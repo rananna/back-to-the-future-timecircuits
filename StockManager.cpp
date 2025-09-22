@@ -858,7 +858,8 @@ void StockManager::fetchDataForMultipleSymbols(const std::vector<String>& symbol
         }
 
         // Small delay between API calls to be nice to the server.
-        vTaskDelay(pdMS_TO_TICKS(250));
+        // Increased from 250ms to 1500ms to avoid hitting free API rate limits.
+        vTaskDelay(pdMS_TO_TICKS(1500));
     }
 }
 
