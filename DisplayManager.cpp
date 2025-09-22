@@ -901,6 +901,10 @@ void updateMarqueeDisplay() {
     DisplayRow* targetRow = &lastRow;
     static char marqueePageBuffer[256];
 
+    // Turn off AM/PM LEDs for the last row, as they are not used in this mode.
+    digitalWrite(LAST_AM_PIN, LOW);
+    digitalWrite(LAST_PM_PIN, LOW);
+
     if (currentSettings.numDataPoints == 0) {
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
             printToDisplay(targetRow->month, "NO");
@@ -969,10 +973,11 @@ void updateMarqueeDisplay() {
                         strncpy(segment_time, viewport + 9, 4); segment_time[4] = '\0';
 
                         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                            printToDisplay(targetRow->month, segment_month, 0);
-                            printToDisplay(targetRow->day, segment_day, 0);
-                            printToDisplay(targetRow->year, segment_year, 0);
-                            printToDisplay(targetRow->time, segment_time, 0);
+                            // Apply correct justification to match physical display constraints
+                            printToDisplay(targetRow->month, segment_month, 1); // Right justified
+                            printToDisplay(targetRow->day, segment_day, 2);   // Center justified
+                            printToDisplay(targetRow->year, segment_year, 0);  // Left justified
+                            printToDisplay(targetRow->time, segment_time, 0);  // Left justified
 
                             targetRow->month.writeDisplay();
                             targetRow->day.writeDisplay();
