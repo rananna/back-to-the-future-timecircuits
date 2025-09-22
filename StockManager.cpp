@@ -1191,28 +1191,31 @@ void StockManager::updateAndSaveAssets(const std::vector<String>& symbols) {
     for (const auto& symbol : symbols) {
         if (symbol.isEmpty()) continue;
 
+        // Clean the symbol first, as it might be a JSON string from the UI.
+        String clean_symbol = getSimpleSymbolFromString(symbol);
+
         // Check if the asset already exists in our map.
-        auto it = current_assets_map.find(symbol);
+        auto it = current_assets_map.find(clean_symbol);
         if (it != current_assets_map.end()) {
             // Asset exists, so we move it to the new list.
             new_assets.push_back(it->second);
         } else {
-            // This is a new asset. Add it without fetching the exchange here.
-            // The exchange will be populated by the background fetch task.
-            Log_printf(LOG_LEVEL_INFO, "Found new asset to add: %s. Queueing for background fetch.", symbol.c_str());
-            Asset newAsset;
-            newAsset.symbol = symbol;
-            newAsset.data_valid = false; // Mark as invalid until fetch completes
-            newAsset.error_reason = "PENDING"; // Indicate that it's waiting for fetch
-            new_assets.push_back(newAsset);
-
-            // Trigger an immediate data fetch for this new asset in a background task.
-            std::vector<String> symbols_to_fetch;
-            symbols_to_fetch.push_back(symbol);
-            StockFetchParams* params = new StockFetchParams{symbols_to_fetch, this};
-            if (xTaskCreate(fetchSingleStockTask, "singleStockFetch", 8192, params, 1, NULL) != pdPASS) {
-                Log_printf(LOG_LEVEL_ERROR, "Failed to create single stock fetch task for %s.", symbol.c_str());
-                delete params; // Avoid memory leak if task creation fails
+            // This is a new asset. We must validate it by fetching its exchange
+            // before adding it. This is a blocking call.
+            String exchange = fetchExchangeForSymbol(clean_symbol);
+            if (!exchange.isEmpty()) {
+                // Symbol is valid, create and add the new asset.
+                Log_printf(LOG_LEVEL_INFO, "Validated new asset %s on exchange %s. Adding to list.", clean_symbol.c_str(), exchange.c_str());
+                Asset newAsset;
+                newAsset.symbol = clean_symbol;
+                newAsset.exchange = exchange;
+                newAsset.data_valid = false; // Mark as invalid until first fetch completes
+                newAsset.error_reason = "PENDING"; // Indicate that it's waiting for fetch
+                new_assets.push_back(newAsset);
+                // No need to trigger a background fetch here; the main `fetchData` loop will get it.
+            } else {
+                // Symbol is invalid, log it and do not add it.
+                Log_printf(LOG_LEVEL_ERROR, "Symbol %s could not be validated and will not be added.", clean_symbol.c_str());
             }
         }
     }
