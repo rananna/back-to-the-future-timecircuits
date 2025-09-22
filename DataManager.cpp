@@ -829,99 +829,6 @@ void forceFetchWeatherDataTask(void* p) {
     vTaskDelete(NULL);
 }
 
-void fetchApiDataTask(void* p) {
-	FetchDataParams* params = (FetchDataParams*)p;
-	int index = params->pointIndex;
-	delete params;
-
-    Log_printf(LOG_LEVEL_INFO, "Fetching API data for data point %d", index);
-
-	if (index < 0 || index >= currentSettings.numDataPoints) {
-		vTaskDelete(NULL);
-		return;
-	}
-
-	DataPoint point = currentSettings.dataPoints[index];
-	HTTPClient http;
-	WiFiClientSecure client;
-	client.setInsecure();
-
-	if (http.begin(client, point.url.c_str())) {
-		if (!point.authHeaderKey.empty() && !point.authHeaderValue.empty()) {
-			http.addHeader(point.authHeaderKey.c_str(), point.authHeaderValue.c_str());
-		}
-
-		Log_printf(LOG_LEVEL_DEBUG, "API URL for data point %d: %s", index, point.url.c_str());
-		int httpCode = http.GET();
-		Log_printf(LOG_LEVEL_DEBUG, "API HTTP Code for data point %d: %d", index, httpCode);
-		if (httpCode == HTTP_CODE_OK) {
-			JsonDocument doc;
-            if (http.getStreamPtr()) {
-			    DeserializationError error = deserializeJson(doc, http.getStream());
-			    if (error == DeserializationError::Ok) {
-				    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-					    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed API JSON for data point %d", index);
-                        if (point.displayMode == FOUR_COLUMN) {
-					        JsonVariant monthVar = getJsonVariant(doc.as<JsonVariant>(), point.monthPath.c_str());
-					        JsonVariant dayVar = getJsonVariant(doc.as<JsonVariant>(), point.dayPath.c_str());
-					        JsonVariant yearVar = getJsonVariant(doc.as<JsonVariant>(), point.yearPath.c_str());
-					        JsonVariant timeVar = getJsonVariant(doc.as<JsonVariant>(), point.timePath.c_str());
-
-					        if (!monthVar.isNull()) displayPages[index].month = monthVar.as<String>().c_str();
-					        if (!dayVar.isNull()) displayPages[index].day = dayVar.as<String>().c_str();
-					        if (!yearVar.isNull()) displayPages[index].year = yearVar.as<String>().c_str();
-					        if (!timeVar.isNull()) displayPages[index].time = timeVar.as<String>().c_str();
-                        } else { // SCROLLING_TEXT
-                            JsonVariant textVar = getJsonVariant(doc.as<JsonVariant>(), point.scrollingText.c_str());
-                            if (!textVar.isNull()) {
-                                // For scrolling text mode, we'll store the entire text in the 'year' field
-                                // and clear the others. The DisplayManager will handle it from there.
-                                displayPages[index].year = textVar.as<String>().c_str();
-                                displayPages[index].month = "";
-                                displayPages[index].day = "";
-                                displayPages[index].time = "";
-                            }
-                        }
-					    lastGoodDisplayPages[index] = displayPages[index];
-					    dataPointFetchFailures[index] = 0;
-                        isMarqueeBufferDirty = true; // Mark the buffer as dirty
-					    xSemaphoreGive(xDisplayDataMutex);
-                    }
-			    } else {
-                    Log_printf(LOG_LEVEL_WARN, "Failed to parse API JSON for data point %d. Error: %s", index, error.c_str());
-				    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                        dataPointFetchFailures[index]++;
-                        xSemaphoreGive(xDisplayDataMutex);
-                    }
-			    }
-            }
-		} else {
-            Log_printf(LOG_LEVEL_WARN, "API request for data point %d failed with HTTP code %d", index, httpCode);
-			if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                dataPointFetchFailures[index]++;
-                xSemaphoreGive(xDisplayDataMutex);
-            }
-		}
-		http.end();
-	} else {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to begin HTTP client for data point %d", index);
-		if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-            dataPointFetchFailures[index]++;
-            xSemaphoreGive(xDisplayDataMutex);
-        }
-	}
-
-	if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        if (dataPointFetchFailures[index] > MAX_FETCH_FAILURES) {
-            displayPages[index] = lastGoodDisplayPages[index];
-        }
-        xSemaphoreGive(xDisplayDataMutex);
-    }
-	
-	__atomic_add_fetch(&requestsCompleted, 1, __ATOMIC_SEQ_CST);
-	vTaskDelete(NULL);
-}
-
 void checkDataFetchStatusTask(void* p) {
     int tasksCreated = (int)p;
     Log_printf(LOG_LEVEL_DEBUG, "Data fetch status checker task started, waiting for %d tasks.", tasksCreated);
@@ -960,16 +867,7 @@ void fetchDataLink() {
         int tasksCreated = 0;
 
 		for (int i = 0; i < currentSettings.numDataPoints; i++) {
-			if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_API && !currentSettings.dataPoints[i].url.empty()) {
-				FetchDataParams* params = new FetchDataParams{ i, 0 };
-				if (xTaskCreatePinnedToCore(fetchApiDataTask, "fetchApiDataTask", 8192, params, 1, NULL, 0) == pdPASS) {
-					tasksCreated++;
-				}
-				else {
-                    Log_printf(LOG_LEVEL_ERROR, "Failed to create fetchApiDataTask for data point %d", i);
-					delete params;
-				}
-			} else if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_STATIC) {
+			if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_STATIC) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                     // For static data, we just copy the values directly.
                     DataPoint point = currentSettings.dataPoints[i];
@@ -995,7 +893,7 @@ void fetchDataLink() {
             Log_printf(LOG_LEVEL_DEBUG, "Created %d data fetch tasks. Starting status checker.", tasksCreated);
             xTaskCreatePinnedToCore(checkDataFetchStatusTask, "checkDataFetchStatusTask", 2048, (void*)tasksCreated, 1, NULL, 0);
         } else {
-            Log_printf(LOG_LEVEL_INFO, "No API data points to fetch.");
+            Log_printf(LOG_LEVEL_INFO, "No async data points to fetch.");
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                 isFetchingData = false;
                 xSemaphoreGive(xDisplayDataMutex);

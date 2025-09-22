@@ -214,29 +214,19 @@ This is a fully configurable marquee for displaying custom data from almost any 
 
 ##### Global Settings
 *   **MQTT Broker Settings**: If you plan to use MQTT or Home Assistant Push as a data source for any data point, you must configure your MQTT broker address, port, and credentials here.
-*   **Refresh All Data Every (min)**: Sets a global interval for how often the clock will re-fetch data for all API-based data points.
+*   **Refresh All Data Every (min)**: Sets a global interval for how often the clock will re-fetch data for all data points.
 
 ##### Configuring Data Points
 You can configure up to 5 independent data points. Each one has its own set of options:
 
 *   **Data Source**:
-    *   **Web API (HTTP)**: Fetch data from any public or private API endpoint.
     *   **MQTT Broker**: Subscribe to an MQTT topic and display the message payload.
     *   **Home Assistant Push**: A special mode for use with the Home Assistant integration, allowing HA to push data directly to a specific display segment.
+    *   **Static Text**: Display a fixed string of text.
 
 *   **Display Mode**:
     *   **Four Column Data**: This mode mimics the standard time circuits display, allowing you to map incoming data to the `MONTH`, `DAY`, `YEAR`, and `TIME` segments. This is ideal for structured data.
     *   **Scrolling Text**: This mode displays a single, continuous line of text that scrolls across the entire display row. This is best for long strings or simple messages.
-
-*   **API Wizard & Advanced Settings**: This section provides tools for connecting to nearly any web API.
-    *   **API Examples**: This dropdown contains pre-configured URLs for common public APIs (e.g., weather, crypto prices) to help you get started quickly.
-    *   **API URL**: The full URL of the API endpoint you want to fetch data from.
-    *   **Auth Header Key / Value**: These optional fields allow you to connect to APIs that require authentication. Enter the header name (e.g., `X-API-Key`) and your secret key or token.
-    *   **Analyze API (Button)**: This is the easiest way to configure an API data point.
-        1.  Enter the URL for your API endpoint (and auth headers, if needed).
-        2.  Click **Analyze API**. The clock will fetch the data and display the resulting JSON structure below.
-        3.  Click on a form field you want to populate (e.g., the `YEAR` input). The field will be highlighted.
-        4.  Click on a value from the JSON results. The tool will automatically generate the correct JSON path (e.g., `results[0].user.name`) and map it to the highlighted field.
 
 *   **Formatting & Display**:
     *   **Prefix/Suffix**: Add static text before or after the values in the `YEAR` and `TIME` fields (or the main `Scrolling Text` field).
