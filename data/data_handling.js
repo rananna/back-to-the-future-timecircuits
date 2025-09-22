@@ -1018,7 +1018,7 @@ function renderStockAssets(assets) {
     const container = document.getElementById('stockAssetList');
     container.innerHTML = ''; // Clear existing list
 
-    if (assets.length === 0) {
+    if (!assets || assets.length === 0) {
         container.innerHTML = '<p>No assets are being tracked.</p>';
         return;
     }
@@ -1031,6 +1031,14 @@ function renderStockAssets(assets) {
         const assetDiv = document.createElement('div');
         assetDiv.className = 'asset-item';
         assetDiv.dataset.symbol = simpleSymbol;
+        assetDiv.dataset.exchange = asset.exchange || '';
+        assetDiv.dataset.name = asset.name || '';
+        // --- START: MODIFICATION - Add default type and timezone to prevent undefined issues ---
+        // These attributes are expected by the save function but not consistently provided by the backend.
+        // Providing defaults ensures that saving doesn't fail due to undefined values.
+        assetDiv.dataset.type = asset.type || 'stock';
+        assetDiv.dataset.timezone = asset.timezone || 'America/New_York';
+        // --- END: MODIFICATION ---
         assetDiv.setAttribute('draggable', 'true');
 
         const changeClass = asset.change_percent >= 0 ? 'positive' : 'negative';
@@ -1061,15 +1069,76 @@ function renderStockAssets(assets) {
     });
 }
 
+function addAssetToDOM(asset) {
+    const container = document.getElementById('stockAssetList');
+    const placeholder = container.querySelector('p');
+    if (placeholder) {
+        placeholder.remove();
+    }
+
+    const simpleSymbol = getSimpleSymbol(asset.symbol);
+    const assetContainerDiv = document.createElement('div');
+    assetContainerDiv.className = 'asset-item-container';
+
+    const assetDiv = document.createElement('div');
+    assetDiv.className = 'asset-item';
+    assetDiv.dataset.symbol = simpleSymbol;
+    assetDiv.dataset.exchange = asset.exchange || '';
+    assetDiv.dataset.name = asset.name || '';
+    assetDiv.dataset.type = asset.type || 'stock';
+    assetDiv.dataset.timezone = asset.timezone || 'America/New_York';
+    assetDiv.setAttribute('draggable', 'true');
+
+    const price = asset.price ? `$${asset.price.toFixed(2)}` : '--';
+    const change = asset.change_percent ? `${asset.change_percent.toFixed(2)}%` : '--';
+    const changeClass = asset.change_percent >= 0 ? 'positive' : 'negative';
+
+    assetDiv.innerHTML = `
+        <span class="asset-symbol">${simpleSymbol}</span>
+        <span class="asset-name">${asset.name || 'Loading...'}</span>
+        <span class="asset-price">${price}</span>
+        <span class="asset-change ${changeClass}">${change}</span>
+        <button class="remove-asset-btn" data-symbol="${simpleSymbol}">DELETE</button>
+    `;
+    assetContainerDiv.appendChild(assetDiv);
+
+    const previewDiv = document.createElement('div');
+    previewDiv.id = `stock_preview_${container.children.length}`;
+    previewDiv.className = 'stock-preview';
+    previewDiv.innerHTML = `<span class="stock-price"></span><span class="stock-change"></span>`;
+    assetContainerDiv.appendChild(previewDiv);
+
+    container.appendChild(assetContainerDiv);
+
+    // Re-attach event listener for the new remove button
+    assetDiv.querySelector('.remove-asset-btn').onclick = removeStockAsset;
+}
+
 async function addStockAsset() {
     const input = document.getElementById('addAssetInput');
     const symbol = input.value.trim().toUpperCase();
     if (!symbol) return;
 
+    // --- START: MODIFICATION - Optimistic UI Update ---
+    // Add the asset to the DOM immediately with a "Loading..." state.
+    const tempAsset = {
+        symbol: symbol,
+        name: 'Loading...',
+        price: 0,
+        change_percent: 0,
+        data_valid: false
+    };
+    addAssetToDOM(tempAsset);
+    input.value = '';
+    // --- END: MODIFICATION ---
+
     try {
         const apiKey = document.getElementById('financialModelingPrepApiKey').value;
         if (!apiKey) {
             showMessage('Please enter your Financial Modeling Prep API key.', 'error');
+            // If API key is missing, remove the temporary element.
+            const tempElement = document.querySelector(`.asset-item[data-symbol='${symbol}']`);
+            if (tempElement) tempElement.parentElement.remove();
             return;
         }
 
@@ -1081,15 +1150,22 @@ async function addStockAsset() {
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            input.value = '';
             showMessage(`Asset ${symbol} added successfully. Fetching data...`, 'success');
-            await loadStockAssets(); // Fetch the updated list from the server
+            // Now, load the full list from the server to get all details.
+            // This will replace the temporary element with the real one.
+            await loadStockAssets();
         } else {
+            // If adding fails, remove the temporary element and show error.
+            const tempElement = document.querySelector(`.asset-item[data-symbol='${symbol}']`);
+            if (tempElement) tempElement.parentElement.remove();
             throw new Error(result.message || 'Failed to add asset.');
         }
     } catch (error) {
         console.error('Error adding asset:', error);
         showMessage(`Error: ${error.message}`, 'error');
+        // Ensure the temporary element is removed on any kind of error.
+        const tempElement = document.querySelector(`.asset-item[data-symbol='${symbol}']`);
+        if (tempElement) tempElement.parentElement.remove();
     }
 }
 
