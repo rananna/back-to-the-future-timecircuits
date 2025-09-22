@@ -832,58 +832,6 @@ function getProcessedUrl(index) {
     return apiUrl;
 }
 
-/**
- * Tests a single data point.
- * @param {Event} event The click event from the "Test" button.
- */
-function testDataPoint(event) {
-    // Get the index of the data point
-    const index = event.target.dataset.index;
-    const button = event.target;
-
-    // Only test API data points
-    const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
-    if (dataSource !== 'api') {
-        showMessage('Test is only available for API data points.', 'error');
-        return;
-    }
-
-    // Get the URL and auth headers
-    const apiUrl = getProcessedUrl(index);
-    const authKey = document.getElementById(`dp_authHeaderKey_${index}`).value;
-    const authValue = document.getElementById(`dp_authHeaderValue_${index}`).value;
-
-    // Validate the URL
-    if (!apiUrl) {
-        showMessage('Please enter an API URL first.', 'error');
-        return;
-    }
-
-    // Check if the WebSocket is open
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-        showMessage('Data Link channel is not open. Please wait.', 'error');
-        return;
-    }
-
-    // Show a loading indicator on the button
-    button.disabled = true;
-    button.classList.add('analyzing');
-    button.innerHTML = '<span class="loading-spinner"></span>';
-
-    // Create the message to send to the server
-    const message = {
-        action: "testApi",
-        data: {
-            url: apiUrl,
-            authKey: authKey,
-            authValue: authValue
-        }
-    };
-    // Send the message via WebSocket
-    ws.send(JSON.stringify(message));
-}
-
-
 function updateStockPreview(status, payload, rowIndex) {
     console.log(`CLIENT_DEBUG: updateStockPreview - Status: ${status}, RowIndex: ${rowIndex}`, payload);
     const previewContainer = document.getElementById(`stock_preview_${rowIndex}`);
@@ -1441,57 +1389,4 @@ function handleLocationSelection(event) {
 
     // Trigger the weather refresh with the selected location's coordinates
     triggerWeatherRefresh(location.latitude, location.longitude);
-}
-
-/**
- * Handles the UI file upload.
- * @param {Event} event The submit event from the UI upload form.
- */
-function handleUiUpload(event) {
-    event.preventDefault();
-    const form = event.target;
-    const fileInput = form.querySelector('input[type="file"]');
-    const files = fileInput.files;
-    if (files.length === 0) {
-        showMessage('Please select UI files to upload.', 'error');
-        return;
-    }
-
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-        formData.append(files[i].name, files[i]);
-    }
-    
-    const progressBar = document.getElementById('ui-progress-bar');
-    const statusMessage = document.getElementById('ui-status-message');
-    progressBar.style.width = '0%';
-    statusMessage.textContent = 'Uploading UI files...';
-
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload-ui', true);
-
-    xhr.upload.onprogress = function(event) {
-        if (event.lengthComputable) {
-            const percentComplete = (event.loaded / event.total) * 100;
-            progressBar.style.width = percentComplete + '%';
-            statusMessage.textContent = `Uploading UI files... ${Math.round(percentComplete)}%`;
-        }
-    };
-
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            statusMessage.textContent = 'UI files uploaded successfully! Please refresh the page.';
-            showMessage('UI files uploaded successfully! Please refresh the page.', 'success', 5000);
-        } else {
-            statusMessage.textContent = 'UI file upload failed.';
-            showMessage('UI file upload failed.', 'error');
-        }
-    };
-
-    xhr.onerror = function() {
-        statusMessage.textContent = 'UI file upload error.';
-        showMessage('UI file upload error.', 'error');
-    };
-
-    xhr.send(formData);
 }
