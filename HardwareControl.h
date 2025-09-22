@@ -91,6 +91,11 @@ enum HttpMethod {
     POST
 };
 
+enum DisplayMode {
+    FOUR_COLUMN,
+    SCROLLING_TEXT
+};
+
 struct DataPoint {
   int scrollSpeed;
   DataSourceType dataSourceType;
@@ -102,6 +107,11 @@ struct DataPoint {
   std::string authHeaderKey;
   std::string authHeaderValue;
   std::string apiExampleKey;
+  DisplayMode displayMode;
+  std::string monthPath;
+  std::string dayPath;
+  std::string yearPath;
+  std::string timePath;
 };
 
 struct ClockSettings {
