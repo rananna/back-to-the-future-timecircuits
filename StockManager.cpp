@@ -1157,7 +1157,10 @@ String StockManager::getApiKey() const {
 }
 
 void StockManager::setRefreshInterval(unsigned long interval) {
-    _refresh_interval_ms = interval * 60 * 1000;
+    if (interval > 0) {
+        _refresh_interval_ms = interval * 60 * 1000;
+        Log_printf(LOG_LEVEL_INFO, "StockManager refresh interval set to %lu minutes.", interval);
+    }
 }
 
 void StockManager::setEnabled(bool enabled) {
