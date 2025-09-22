@@ -75,6 +75,10 @@ public:
     void fetchData();
 
     // Display
+    String getMarqueeLine();
+    void nextPage();
+    void previousPage();
+    void resetTicker();
     Asset getCurrentStockInfo() const;
 
     // Configuration
@@ -98,6 +102,9 @@ private:
     unsigned long _last_fetch_time;
     bool _enabled;
     bool _is_fetching;
+
+    int _current_asset_index;
+    int _current_page_index;
 
     int _api_usage_count;
 

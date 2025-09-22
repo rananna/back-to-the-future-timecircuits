@@ -1029,6 +1029,34 @@ body.time-travel-active {
     line-height: 1.5em;
 }
 
+.scrolling-text {
+    animation-name: scroll-left;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+
+.marquee-preview-13 {
+    background-color: #000;
+    border: 2px solid #555;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    color: #00ff00;
+    font-size: 1.2em;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.preview-scrolling-text {
+    display: inline-block;
+}
+
+
+@keyframes scroll-left {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+}
 
 @media (max-width: 768px) {
     body {
