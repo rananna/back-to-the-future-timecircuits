@@ -30,13 +30,6 @@ blueprint:
         datetime:
 
 trigger:
-  - platform: template
-    value_template: >-
-      {% if not destination_date_time %}
-        true
-      {% else %}
-        false
-      {% endif %}
   - platform: time
     at: !input destination_date_time
 
@@ -47,7 +40,7 @@ variables:
   trigger_anim_entity: >
     {{ device_entities(target_device_id) | select('search', 'trigger_animation') | first }}
   ack_topic: >
-    "bttf-clock/{{ device_attr(target_device_id, 'identifiers')[0][1] }}/destination_year/state"
+    "timecircuits/{{ device_attr(target_device_id, 'identifiers')[0][1] }}/destination_year/state"
 
 action:
   - service: number.set_value

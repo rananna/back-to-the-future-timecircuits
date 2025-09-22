@@ -49,7 +49,7 @@ action:
   # 1. Enter Notification Mode
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ clock_id }}/notification/command"
+      topic: "timecircuits/{{ clock_id }}/notification/command"
       payload: "START"
   - delay:
       seconds: 1 # Brief pause for the intro animation
@@ -62,15 +62,15 @@ action:
               lines: "{{ display_text.split('||') }}"
           - service: mqtt.publish
             data:
-              topic: "bttf-clock/{{ clock_id }}/dest_month/command"
+              topic: "timecircuits/{{ clock_id }}/dest_month/command"
               payload: "{{ lines[0] | default('') }}"
           - service: mqtt.publish
             data:
-              topic: "bttf-clock/{{ clock_id }}/pres_month/command"
+              topic: "timecircuits/{{ clock_id }}/pres_month/command"
               payload: "{{ lines[1] | default('') }}"
           - service: mqtt.publish
             data:
-              topic: "bttf-clock/{{ clock_id }}/last_month/command"
+              topic: "timecircuits/{{ clock_id }}/last_month/command"
               payload: "{{ lines[2] | default('') }}"
 
   # 3. Generate the TTS audio URL from Home Assistant
@@ -83,18 +83,18 @@ action:
   # 4. Send the URL and dynamic volume to the clock
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ clock_id }}/tts/play"
+      topic: "timecircuits/{{ clock_id }}/tts/play"
       payload: '{"url": "{{ tts_response.url }}", "volume": {{ volume }} }'
 
   # 5. Wait for the audio to finish playing
   - wait_for_trigger:
       - platform: mqtt
-        topic: "bttf-clock/{{ clock_id }}/audio/state"
+        topic: "timecircuits/{{ clock_id }}/audio/state"
         payload: "IDLE"
     timeout: "00:01:00"
 
   # 6. Exit Notification Mode
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ clock_id }}/notification/command"
+      topic: "timecircuits/{{ clock_id }}/notification/command"
       payload: "END"
