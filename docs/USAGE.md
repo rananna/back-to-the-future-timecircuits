@@ -165,7 +165,7 @@ The physical display provides a rich, multi-page view of your assets.
 
 *   **Currency Symbols**: The clock automatically converts currency codes (e.g., `USD`, `EUR`, `GBP`) into their common symbols (`$`, `€`, `£`) on the display.
 
-*   **Market Closed Message**: When the markets for your tracked stock/ETF assets are closed, the display will show a static "MARKET CLOSED" message. This does not apply to cryptocurrencies, which trade 24/7.
+*   **Market Closed Behavior**: When the markets for your tracked stock/ETF assets are closed, the clock will not fetch new data. It will continue to display the last available data until the market re-opens. This does not apply to cryptocurrencies, which trade 24/7.
 
 *   **Error Messages**: If the clock encounters a problem, it will display a specific error message on the marquee to help you diagnose the issue. Common errors include:
     *   `[SYMBOL] INVALID SYMBOL`: The ticker symbol could not be found or is not supported.
@@ -321,7 +321,7 @@ Even though it saves all settings, the device is designed for longevity. It inte
 
 ## Cinematic Save Sequence
 
-Pressing the "Engage Time Circuits" button triggers a cinematic 17-second animation on the physical display, complete with synchronized sound effects and feedback in the web interface.
+Pressing the "Engage Time Circuits" button triggers a cinematic animation on the physical display, complete with synchronized sound effects and feedback in the web interface.
 
 ### Web Interface Feedback
 
@@ -338,7 +338,6 @@ This table details the sequence of events on the physical clock.
 | Phase | Duration | Visuals | Sound Effect |
 | :--- | :--- | :--- | :--- |
 | | | | (All sounds are controlled by the **"Time Travel Sound FX"** toggle under the "Temporal Controls" tab) |
-| **1. Power Up** | 2 seconds | The displays flicker with random characters, simulating a power surge. | A low hum builds in intensity with the sound of crackling electricity and mechanical relays (**SAVE\_POWER\_UP.mp3**). |
-| **2. Acceleration**| 10 seconds | The bottom row displays a speedometer ramping up to 88 MPH while the other rows continue to flicker. | A futuristic engine whine increases in pitch and volume, conveying a sense of immense speed (**SAVE\_ACCELERATION.mp3**). |
-| **3. Time Travel**| 4 seconds | At 88 MPH, all displays flash brightly, then show a "time blur" effect where the years rapidly skim forward or backward. | A loud "sonic boom" transitions into a chaotic whoosh of temporal winds (**SAVE\_TIME\_TRAVEL.mp3**). |
-| **4. Landing** | 1 second | The displays flicker one last time before settling on the new destination and present times. | A deep "thud" combined with a final crackle of electricity confirms the arrival (**SAVE\_LANDING.mp3**). |
+| **1. Power Up** | 1 second | The displays begin to flicker and glitch, simulating a power surge. | The sound of crackling electricity and power surges (**electric_sparks.mp3**). |
+| **2. Animation**| 10 seconds | The displays perform the animation selected in the "Animation Style" dropdown. This can range from a simple flicker to complex patterns. | The initial sound effect continues to play. |
+| **3. Cool Down**| 1 second | The displays flicker one last time before settling on the new destination and present times. | The sound fades out. |
