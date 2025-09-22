@@ -700,7 +700,7 @@ void loadSettings() {
 		currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
 		currentSettings.dataLinkEnabled = false;
 		currentSettings.dataLinkTargetRow = 2;
-		currentSettings.dataLinkRefreshInterval = 10;
+		currentSettings.stockRefreshInterval = 10;
 		currentSettings.numDataPoints = 0;
 		currentSettings.mqttBroker = "broker.emqx.io";
 		currentSettings.mqttPort = 1883;
