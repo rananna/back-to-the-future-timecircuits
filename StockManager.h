@@ -107,6 +107,7 @@ private:
     int _current_page_index;
 
     int _api_usage_count;
+    int _last_reset_day;
 
     SemaphoreHandle_t _task_mutex;
     SemaphoreHandle_t _assets_mutex;
@@ -118,6 +119,9 @@ private:
     FetchStatus fetchDataForSingleSymbol(const std::vector<String>& symbol);
     void fetchDataForMultipleSymbols(const std::vector<String>& symbols);
     void parseJsonResponse(JsonDocument& doc, const std::vector<String>& requested_symbols);
+    void resetApiUsageIfNecessary();
+    void loadApiUsage();
+    void saveApiUsage();
 };
 
 #endif // STOCK_MANAGER_H
