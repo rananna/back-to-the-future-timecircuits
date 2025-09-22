@@ -329,6 +329,8 @@ void makeApiRequestTask(void* p) {
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
         Log_printf(LOG_LEVEL_INFO, "WebSocket client #%u connected from %s", client->id(), client->remoteIP().toString().c_str());
+        // Send the full settings object to the newly connected client
+        sendFullSettingsToClient(client->id());
     } else if (type == WS_EVT_DISCONNECT) {
         Log_printf(LOG_LEVEL_INFO, "WebSocket client #%u disconnected", client->id());
     } else if (type == WS_EVT_DATA) {
@@ -374,6 +376,90 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     }
 }
 
+
+// Forward declaration
+void sendFullSettingsToClient(uint32_t clientId);
+
+/**
+ * @brief Sends a comprehensive JSON object of all current settings to a specific WebSocket client.
+ * @details This function is called when a new UI client connects. It gathers all settings
+ * from the `currentSettings` global object, serializes them into a single JSON message,
+ * and pushes it directly to the connecting client. This ensures the UI is immediately
+ * synchronized with the device's state without needing to make multiple API calls.
+ * @param clientId The unique ID of the WebSocket client to send the settings to.
+ */
+void sendFullSettingsToClient(uint32_t clientId) {
+    JsonDocument doc;
+    doc["action"] = "fullSettings";
+
+    // --- Add Time Circuits settings ---
+    doc["destinationYear"] = currentSettings.destinationYear;
+    doc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;
+    doc["lastTimeDepartedYear"] = currentSettings.lastTimeDepartedYear;
+    doc["lastTimeDepartedMonth"] = currentSettings.lastTimeDepartedMonth;
+    doc["lastTimeDepartedDay"] = currentSettings.lastTimeDepartedDay;
+    doc["lastTimeDepartedHour"] = currentSettings.lastTimeDepartedHour;
+    doc["lastTimeDepartedMinute"] = currentSettings.lastTimeDepartedMinute;
+    doc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
+
+    // --- Add Temporal settings ---
+    doc["departureHour"] = currentSettings.departureHour;
+    doc["departureMinute"] = currentSettings.departureMinute;
+    doc["arrivalHour"] = currentSettings.arrivalHour;
+    doc["arrivalMinute"] = currentSettings.arrivalMinute;
+    doc["brightness"] = currentSettings.brightness;
+    doc["notificationVolume"] = currentSettings.notificationVolume;
+    doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
+    doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
+    doc["animationStyle"] = currentSettings.animationStyle;
+    doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
+    doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
+    doc["displayFormat24h"] = currentSettings.displayFormat24h;
+
+    // --- Add Data Link and other settings ---
+    doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
+    doc["numDataPoints"] = currentSettings.numDataPoints;
+    doc["mqttBroker"] = currentSettings.mqttBroker.c_str();
+    doc["mqttPort"] = currentSettings.mqttPort;
+    doc["mqttUser"] = currentSettings.mqttUser.c_str();
+    doc["mqttPassword"] = currentSettings.mqttPassword.c_str();
+    doc["weatherModeEnabled"] = currentSettings.weatherModeEnabled;
+    doc["cityName"] = currentSettings.cityName.c_str();
+    doc["useMetricUnits"] = currentSettings.useMetricUnits;
+    doc["latitude"] = currentSettings.latitude;
+    doc["longitude"] = currentSettings.longitude;
+    doc["stockTickerModeEnabled"] = currentSettings.stockTickerModeEnabled;
+    doc["stockRefreshInterval"] = currentSettings.stockRefreshInterval;
+    doc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
+    doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
+    doc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
+    doc["stockRow3_symbol"] = currentSettings.stockRow3_symbol.c_str();
+
+    JsonArray dataPoints = doc["dataPoints"].to<JsonArray>();
+    for (int i = 0; i < 5; i++) {
+        JsonObject dp = dataPoints.add<JsonObject>();
+        dp["dataSourceType"] = (int)currentSettings.dataPoints[i].dataSourceType;
+        dp["mqttTopic"] = currentSettings.dataPoints[i].mqttTopic.c_str();
+        dp["scrollingText"] = currentSettings.dataPoints[i].scrollingText.c_str();
+        dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
+        dp["url"] = currentSettings.dataPoints[i].url.c_str();
+        dp["httpMethod"] = (int)currentSettings.dataPoints[i].httpMethod;
+        dp["requestBody"] = currentSettings.dataPoints[i].requestBody.c_str();
+        dp["authHeaderKey"] = currentSettings.dataPoints[i].authHeaderKey.c_str();
+        dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue.c_str();
+        dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey.c_str();
+        dp["displayMode"] = (int)currentSettings.dataPoints[i].displayMode;
+        dp["monthPath"] = currentSettings.dataPoints[i].monthPath.c_str();
+        dp["dayPath"] = currentSettings.dataPoints[i].dayPath.c_str();
+        dp["yearPath"] = currentSettings.dataPoints[i].yearPath.c_str();
+        dp["timePath"] = currentSettings.dataPoints[i].timePath.c_str();
+    }
+
+    String response;
+    serializeJson(doc, response);
+    ws.text(clientId, response);
+    Log_printf(LOG_LEVEL_INFO, "Pushed full settings to client #%u.", clientId);
+}
 
 /**
  * @brief Configures and attaches all web server and WebSocket routes.
