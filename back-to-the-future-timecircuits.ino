@@ -444,6 +444,7 @@ void applySettingsFromJson(const JsonObject& obj) {
     if (!obj["stockRefreshInterval"].isNull()) {
         int newInterval = obj["stockRefreshInterval"].as<int>();
         if (newInterval > 0) { // Basic validation
+            Log_printf(LOG_LEVEL_INFO, "Applying stockRefreshInterval from UI: %d", newInterval);
             currentSettings.stockRefreshInterval = newInterval;
             stockManager.setRefreshInterval(newInterval);
         }
@@ -626,7 +627,15 @@ void saveSettings() {
         preferences.putBool("stModeEnabled", currentSettings.stockTickerModeEnabled);
         Log_printf(LOG_LEVEL_DEBUG, "SAVING: stModeEnabled -> %s", currentSettings.stockTickerModeEnabled ? "true" : "false");
     }
-    SAVE_IF_CHANGED("stockRefresh", Int, currentSettings.stockRefreshInterval);
+
+    // --- START: MODIFICATION - Explicitly save stockRefreshInterval ---
+    // Using explicit code instead of the macro to make this critical setting's save process more robust and clear.
+    int savedStockRefresh = preferences.getInt("stockRefresh", -1);
+    if (savedStockRefresh != currentSettings.stockRefreshInterval) {
+        preferences.putInt("stockRefresh", currentSettings.stockRefreshInterval);
+        Log_printf(LOG_LEVEL_INFO, "Saving changed stockRefresh. Old: %d, New: %d", savedStockRefresh, currentSettings.stockRefreshInterval);
+    }
+    // --- END: MODIFICATION ---
 
     SAVE_STRING_IF_CHANGED("fmpApiKey", currentSettings.financialModelingPrepApiKey);
     SAVE_STRING_IF_CHANGED("stockRow1Symbol", currentSettings.stockRow1_symbol);
@@ -767,6 +776,7 @@ void loadSettings() {
 		currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
 		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
 		currentSettings.stockRefreshInterval = preferences.getInt("stockRefresh", 20);
+        Log_printf(LOG_LEVEL_INFO, "Loaded stockRefreshInterval from NVS: %d", currentSettings.stockRefreshInterval);
 		tempString = preferences.getString("fmpApiKey", "");
 		currentSettings.financialModelingPrepApiKey = tempString.c_str();
         tempString = preferences.getString("stockRow1Symbol", "");
@@ -1155,6 +1165,8 @@ void loop() {
                     Log_printf(LOG_LEVEL_INFO, "Performing periodic reset of StockManager to prevent heap fragmentation.");
                     // Re-initialize the stock manager from the master settings object.
                     stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
+                    stockManager.setRefreshInterval(currentSettings.stockRefreshInterval);
+                    Log_printf(LOG_LEVEL_INFO, "Re-applying stockRefreshInterval during periodic reset: %d", currentSettings.stockRefreshInterval);
                     stockManager.loadAssets();
                     stockManager.setEnabled(true); // Re-enable the manager after reset
                     lastStockManagerReset = now;
