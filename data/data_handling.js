@@ -1093,53 +1093,6 @@ async function addStockAsset() {
     }
 }
 
-async function updateStockMarqueePreview() {
-    const previewEl = document.getElementById('stockMarqueePreview');
-    if (!previewEl) return;
-
-    const stockTickerEnabled = document.getElementById('stockTickerModeEnabled').checked;
-    const apiKey = document.getElementById('financialModelingPrepApiKey').value;
-
-    if (!stockTickerEnabled || !apiKey) {
-        previewEl.innerHTML = '<span>Stock Ticker Mode is disabled or API key is not set.</span>';
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/stocks/marquee/next');
-        const data = await response.json();
-
-        let text = '...';
-        if (!response.ok) {
-            text = data.error || 'Error fetching marquee data.';
-        } else {
-            text = data.marqueeText;
-        }
-
-        const span = previewEl.querySelector('.preview-scrolling-text');
-        if (span) {
-            span.textContent = text;
-        } else {
-            previewEl.innerHTML = `<span class="preview-scrolling-text">${text}</span>`;
-        }
-
-        const newSpan = previewEl.querySelector('.preview-scrolling-text');
-        newSpan.classList.remove('scrolling-text');
-
-        if (text.length > 13) {
-            const scrollSpeed = 150;
-            const duration = (text.length * scrollSpeed) / 1000;
-            newSpan.style.animationDuration = `${duration}s`;
-            requestAnimationFrame(() => {
-                newSpan.classList.add('scrolling-text');
-            });
-        }
-
-    } catch (error) {
-        previewEl.innerHTML = '<span>Device is offline.</span>';
-    }
-}
-
 async function removeStockAsset(event) {
     const symbol = event.target.dataset.symbol;
     if (!confirm(`Are you sure you want to remove ${symbol}?`)) return;
