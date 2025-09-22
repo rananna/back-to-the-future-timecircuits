@@ -23,9 +23,7 @@ This guide covers the day-to-day use and configuration of your Time Circuits dis
 
 Once connected, you can access the web UI by navigating to the device's IP address in your browser. You can find the IP address in your router's client list or by monitoring the Serial Monitor in the Arduino IDE during boot.
 
-<p align="center">
-  <img src="../images/webui.png" alt="Web UI Screenshot" width="800">
-</p>
+![Web UI Screenshot](../images/webui.png)
 
 ***
 
@@ -336,9 +334,10 @@ When you press the button, you will see the following changes in the web UI:
 
 This table details the sequence of events on the physical clock.
 
+> (All sounds are controlled by the **"Time Travel Sound FX"** toggle under the "Temporal Controls" tab)
+
 | Phase | Duration | Visuals | Sound Effect |
 | :--- | :--- | :--- | :--- |
-| | | | (All sounds are controlled by the **"Time Travel Sound FX"** toggle under the "Temporal Controls" tab) |
 | **1. Power Up** | 1 second | The displays begin to flicker and glitch, simulating a power surge. | The sound of crackling electricity and power surges (**electric_sparks.mp3**). |
 | **2. Animation**| 10 seconds | The displays perform the animation selected in the "Animation Style" dropdown. This can range from a simple flicker to complex patterns. | The initial sound effect continues to play. |
 | **3. Cool Down**| 1 second | The displays flicker one last time before settling on the new destination and present times. | The sound fades out. |
