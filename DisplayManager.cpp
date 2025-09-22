@@ -27,9 +27,72 @@ std::string marqueeBuffer;
 char weatherBuffer[512]; // Increased size for safety, changed to char array
 std::string marqueeOverrideBuffer;
 #include "HardwareControl.h"
+#include <cmath> // For std::isnan and std::isinf
 
 // Forward declaration for the timeout handler in the main .ino file
 void handleWeatherTimeout();
+
+/**
+ * @brief Performs a sanity check on the contents of the weather data structure.
+ * @details This function acts as a final line of defense to prevent displaying
+ * nonsensical or potentially crashing data that might have been parsed correctly
+ * but is logically invalid (e.g., extreme temperatures, invalid humidity).
+ * @param data A const reference to the WeatherData object to be checked.
+ * @return `true` if the data is plausible, `false` otherwise.
+ */
+bool isWeatherDataSane(const WeatherData& data) {
+    // Check for NaN or infinity in float values, which can cause crashes or weird display artifacts.
+    if (std::isnan(data.temperature) || std::isinf(data.temperature) ||
+        std::isnan(data.apparentTemperature) || std::isinf(data.apparentTemperature) ||
+        std::isnan(data.windSpeed) || std::isinf(data.windSpeed) ||
+        std::isnan(data.dailyHigh) || std::isinf(data.dailyHigh) ||
+        std::isnan(data.dailyLow) || std::isinf(data.dailyLow) ||
+        std::isnan(data.tomorrowHigh) || std::isinf(data.tomorrowHigh) ||
+        std::isnan(data.tomorrowLow) || std::isinf(data.tomorrowLow) ||
+        std::isnan(data.maxWindSpeed) || std::isinf(data.maxWindSpeed)) {
+        Log_printf(LOG_LEVEL_WARN, "Weather data sanity check failed: NaN or Inf value detected.");
+        return false;
+    }
+    for (int i = 0; i < 3; ++i) {
+        if (std::isnan(data.hourlyTemp[i]) || std::isinf(data.hourlyTemp[i])) {
+            Log_printf(LOG_LEVEL_WARN, "Weather data sanity check failed: NaN or Inf in hourly temp.");
+            return false;
+        }
+    }
+
+    // Check for plausible temperature ranges. Using a wide range to be safe.
+    // Assuming units are either Celsius or Fahrenheit, -200 to 200 should cover all realistic scenarios.
+    if (data.temperature < -200 || data.temperature > 200 ||
+        data.apparentTemperature < -200 || data.apparentTemperature > 200 ||
+        data.dailyHigh < -200 || data.dailyHigh > 200 ||
+        data.dailyLow < -200 || data.dailyLow > 200 ||
+        data.tomorrowHigh < -200 || data.tomorrowHigh > 200 ||
+        data.tomorrowLow < -200 || data.tomorrowLow > 200) {
+        Log_printf(LOG_LEVEL_WARN, "Weather data sanity check failed: Unrealistic temperature value.");
+        return false;
+    }
+
+    // Check humidity range
+    if (data.humidity < 0 || data.humidity > 100) {
+        Log_printf(LOG_LEVEL_WARN, "Weather data sanity check failed: Humidity out of range (0-100).");
+        return false;
+    }
+
+    // Check for negative wind speed
+    if (data.windSpeed < 0 || data.maxWindSpeed < 0) {
+        Log_printf(LOG_LEVEL_WARN, "Weather data sanity check failed: Negative wind speed.");
+        return false;
+    }
+
+    // Check for valid (non-zero) timestamps for sunrise/sunset
+    if (data.sunrise <= 0 || data.sunset <= 0) {
+        Log_printf(LOG_LEVEL_WARN, "Weather data sanity check failed: Invalid sunrise/sunset timestamp.");
+        return false;
+    }
+
+    return true; // All checks passed
+}
+
 
 // File-scoped state variables for the weather fetch process
 static bool initialFetchTriggered = false;
@@ -576,30 +639,42 @@ void handleWeatherDisplay() {
             initialFetchStartTime = 0;
             initialFetchTimedOut = false;
 
-            if (lastWeatherFetchTime == 0) {
-                lastWeatherFetchTime = millis();
+            // --- NEW: Sanity check the data before using it ---
+            if (!isWeatherDataSane(currentWeatherData)) {
+                currentWeatherData.dataValid = false;
+                currentWeatherData.errorReason = "INVALID WEATHER DATA";
+                // By setting dataValid to false, the logic will now fall through to the
+                // error handling part of the state machine on the next iteration.
             }
 
-            if ((millis() - lastWeatherFetchTime > WEATHER_REFRESH_INTERVAL) && !isFetchingWeather) {
-                Log_printf(LOG_LEVEL_INFO, "Periodic weather refresh triggered.");
-                lastWeatherFetchTime = millis();
-                isFetchingWeather = true;
-                initialFetchTriggered = true;
-                initialFetchStartTime = millis();
-                if (weatherTaskHandle != NULL) {
-                    vTaskDelete(weatherTaskHandle);
+            // The rest of this block will now only execute if the data is *still* considered valid
+            // after the sanity check.
+            if(currentWeatherData.dataValid) {
+                if (lastWeatherFetchTime == 0) {
+                    lastWeatherFetchTime = millis();
                 }
-                xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, &weatherTaskHandle);
-            }
 
-            if (weatherDataUpdated || isWeatherBufferDirty) {
-                Log_printf(LOG_LEVEL_DEBUG, "Weather data updated, resetting state to WD_START_PAGE");
-                weatherState = WD_START_PAGE;
-                weatherPage = 0;
-                weatherDataUpdated = false;
-                isWeatherBufferDirty = false;
-                if (weatherTaskHandle != NULL) {
-                    weatherTaskHandle = NULL;
+                if ((millis() - lastWeatherFetchTime > WEATHER_REFRESH_INTERVAL) && !isFetchingWeather) {
+                    Log_printf(LOG_LEVEL_INFO, "Periodic weather refresh triggered.");
+                    lastWeatherFetchTime = millis();
+                    isFetchingWeather = true;
+                    initialFetchTriggered = true;
+                    initialFetchStartTime = millis();
+                    if (weatherTaskHandle != NULL) {
+                        vTaskDelete(weatherTaskHandle);
+                    }
+                    xTaskCreate(fetchWeatherDataTask, "fetchWeatherDataTask", WEATHER_TASK_STACK_SIZE, NULL, 1, &weatherTaskHandle);
+                }
+
+                if (weatherDataUpdated || isWeatherBufferDirty) {
+                    Log_printf(LOG_LEVEL_DEBUG, "Weather data updated, resetting state to WD_START_PAGE");
+                    weatherState = WD_START_PAGE;
+                    weatherPage = 0;
+                    weatherDataUpdated = false;
+                    isWeatherBufferDirty = false;
+                    if (weatherTaskHandle != NULL) {
+                        weatherTaskHandle = NULL;
+                    }
                 }
             }
 

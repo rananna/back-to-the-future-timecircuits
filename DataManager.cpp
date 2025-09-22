@@ -383,6 +383,17 @@ static bool fetchWeatherDataFromApi() {
             esp_err_t err = esp_tls_get_and_clear_last_error(esp_tls_error_handle, &esp_tls_code, &esp_tls_flags);
             if (err == ESP_OK) {
                 Log_printf(LOG_LEVEL_ERROR, "Last ESP-TLS error: 0x%x, Last mbedTLS error: 0x%x", esp_tls_code, esp_tls_flags);
+                // Check if the mbedTLS error flags indicate a certificate validation problem.
+                // Certificate errors in mbedTLS are represented by flags with the BADCERT_ prefix.
+                // These typically have higher-order bits set. A simple check for non-zero is a good start,
+                // but a more specific check for certificate issues is better.
+                // MBEDTLS_X509_BADCERT_EXPIRED = 0x2000, MBEDTLS_X509_BADCERT_NOT_TRUSTED = 0x2800
+                if (esp_tls_flags & 0b0010000000000000) { // Check for the BADCERT bit range
+                    if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+                        currentWeatherData.errorReason = "CERT_ERROR";
+                        xSemaphoreGive(xDisplayDataMutex);
+                    }
+                }
             }
             break;
         }
@@ -763,7 +774,8 @@ void fetchWeatherData(WeatherTaskParams* params) {
                     [](unsigned char c){ return std::tolower(c); });
 
                 if (reason_lower.find("invalid") != std::string::npos ||
-                    reason_lower.find("out of range") != std::string::npos) {
+                    reason_lower.find("out of range") != std::string::npos ||
+                    reason_lower.find("cert_error") != std::string::npos) {
                     Log_printf(LOG_LEVEL_ERROR, "Unrecoverable API error: %s. Aborting retries.", currentWeatherData.errorReason.c_str());
                     xSemaphoreGive(xDisplayDataMutex);
                     break; // Exit the retry loop immediately.
