@@ -848,69 +848,94 @@ void updateMarqueeDisplay() {
             currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
             marqueeScrollPosition = 0;
             marqueeScrollPositionYear = 0;
-            isMarqueeBufferDirty = true; // Force a rebuild for the new page
+            isMarqueeBufferDirty = true;
             marqueeState = M_PAUSED;
             lastMarqueeStateChange = millis();
         }
 
         DataPoint point = currentSettings.dataPoints[currentPageIndex];
-        static std::string yearBuffer, timeBuffer;
 
-        if (isMarqueeBufferDirty) {
-            std::string yearContent = point.yearPrefix + displayPages[currentPageIndex].year + point.yearSuffix;
-            std::string timeContent = point.prefix + displayPages[currentPageIndex].time + point.suffix;
-            yearBuffer = "   " + yearContent + "   ";
-            timeBuffer = "   " + timeContent + "   ";
-            isMarqueeBufferDirty = false;
-        }
-
-        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            printToDisplay(targetRow->month, displayPages[currentPageIndex].month.c_str());
-            if (!point.icon.empty()) {
-                printToDisplay(targetRow->day, point.icon.c_str(), 2);
-            } else {
-                printToDisplay(targetRow->day, displayPages[currentPageIndex].day.c_str(), 2);
+        if (point.displayMode == SCROLLING_TEXT) {
+            static std::string scrollingMarqueeBuffer;
+            if (isMarqueeBufferDirty) {
+                scrollingMarqueeBuffer = "             " + displayPages[currentPageIndex].year + " ";
+                marqueeScrollPosition = 0;
+                isMarqueeBufferDirty = false;
             }
 
-            std::string yearViewport = yearBuffer.substr(marqueeScrollPositionYear, 4);
-            printToDisplay(targetRow->year, yearViewport.c_str());
+            if (millis() - lastMarqueeStateChange > (unsigned long)point.scrollSpeed) {
+                lastMarqueeStateChange = millis();
+                if ((size_t)marqueeScrollPosition > scrollingMarqueeBuffer.length()) {
+                    marqueeState = M_IDLE;
+                } else {
+                    char viewport[14];
+                    strncpy(viewport, scrollingMarqueeBuffer.c_str() + marqueeScrollPosition, 13);
+                    viewport[13] = '\0';
 
-            std::string timeViewport = timeBuffer.substr(marqueeScrollPosition, 4);
-            printToDisplay(targetRow->time, timeViewport.c_str());
+                    char segment_month[4], segment_day[3], segment_year[5], segment_time[5];
+                    strncpy(segment_month, viewport, 3); segment_month[3] = '\0';
+                    strncpy(segment_day, viewport + 3, 2); segment_day[2] = '\0';
+                    strncpy(segment_year, viewport + 5, 4); segment_year[4] = '\0';
+                    strncpy(segment_time, viewport + 9, 4); segment_time[4] = '\0';
 
-            xSemaphoreGive(xDisplayHardwareMutex);
-        }
-
-        if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 2000) {
-            marqueeState = M_SCROLLING;
-            lastMarqueeStateChange = millis();
-        }
-
-        if (marqueeState == M_SCROLLING && millis() - lastMarqueeStateChange > (unsigned long)point.scrollSpeed) {
-            lastMarqueeStateChange = millis();
-            bool timeDone = false;
-            bool yearDone = false;
-
-            if (timeBuffer.length() > 4) {
-                marqueeScrollPosition++;
-                if (marqueeScrollPosition > timeBuffer.length() - 4) {
-                    timeDone = true;
+                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        printToDisplay(targetRow->month, segment_month, 0);
+                        printToDisplay(targetRow->day, segment_day, 0);
+                        printToDisplay(targetRow->year, segment_year, 0);
+                        printToDisplay(targetRow->time, segment_time, 0);
+                        xSemaphoreGive(xDisplayHardwareMutex);
+                    }
+                    marqueeScrollPosition++;
                 }
-            } else {
-                timeDone = true;
+            }
+        } else { // FOUR_COLUMN
+            static std::string yearBuffer, timeBuffer;
+
+            if (isMarqueeBufferDirty) {
+                std::string yearContent = point.yearPrefix + displayPages[currentPageIndex].year + point.yearSuffix;
+                std::string timeContent = point.prefix + displayPages[currentPageIndex].time + point.suffix;
+                yearBuffer = "   " + yearContent + "   ";
+                timeBuffer = "   " + timeContent + "   ";
+                isMarqueeBufferDirty = false;
             }
 
-            if (yearBuffer.length() > 4) {
-                marqueeScrollPositionYear++;
-                if (marqueeScrollPositionYear > yearBuffer.length() - 4) {
-                    yearDone = true;
+            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                printToDisplay(targetRow->month, displayPages[currentPageIndex].month.c_str(), 1);
+                if (!point.icon.empty()) {
+                    printToDisplay(targetRow->day, point.icon.c_str(), 2);
+                } else {
+                    printToDisplay(targetRow->day, displayPages[currentPageIndex].day.c_str(), 2);
                 }
-            } else {
-                yearDone = true;
+
+                std::string yearViewport = yearBuffer.substr(marqueeScrollPositionYear, 4);
+                printToDisplay(targetRow->year, yearViewport.c_str());
+
+                std::string timeViewport = timeBuffer.substr(marqueeScrollPosition, 4);
+                printToDisplay(targetRow->time, timeViewport.c_str());
+
+                xSemaphoreGive(xDisplayHardwareMutex);
             }
 
-            if (timeDone && yearDone) {
-                marqueeState = M_IDLE;
+            if (marqueeState == M_PAUSED && millis() - lastMarqueeStateChange > 2000) {
+                marqueeState = M_SCROLLING;
+                lastMarqueeStateChange = millis();
+            }
+
+            if (marqueeState == M_SCROLLING && millis() - lastMarqueeStateChange > (unsigned long)point.scrollSpeed) {
+                lastMarqueeStateChange = millis();
+                bool timeDone = false, yearDone = false;
+
+                if (timeBuffer.length() > 4) {
+                    marqueeScrollPosition++;
+                    if ((size_t)marqueeScrollPosition > timeBuffer.length() - 4) timeDone = true;
+                } else { timeDone = true; }
+
+                if (yearBuffer.length() > 4) {
+                    marqueeScrollPositionYear++;
+                    if ((size_t)marqueeScrollPositionYear > yearBuffer.length() - 4) yearDone = true;
+                } else { yearDone = true; }
+
+                if (timeDone && yearDone) marqueeState = M_IDLE;
             }
         }
 
