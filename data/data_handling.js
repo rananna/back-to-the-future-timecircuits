@@ -5,6 +5,7 @@ let isDataLinkLoaded = false; // Flag to check if the Data Link settings have be
 let isManualRefresh = false; // Flag to track if a manual weather refresh is in progress
 let anyInputInvalid = false; // Flag to track if there are any invalid inputs in the forms
 let dataPointStatus = {}; // Stores the success/error status of each data point
+let dataPointStateCache = {}; // Cache for data point UI state to prevent re-rendering
 let ws; // The WebSocket object for real-time communication
 let weatherInterval; // The interval ID for fetching weather data periodically
 let isLoading = true; // Flag to indicate if the initial data is still loading
