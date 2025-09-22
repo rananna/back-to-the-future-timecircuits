@@ -849,15 +849,27 @@ void fetchApiDataTask(void* p) {
 			    if (error == DeserializationError::Ok) {
 				    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
 					    Log_printf(LOG_LEVEL_DEBUG, "Successfully parsed API JSON for data point %d", index);
-					    JsonVariant monthVar = getJsonVariant(doc.as<JsonVariant>(), point.monthPath.c_str());
-					    JsonVariant dayVar = getJsonVariant(doc.as<JsonVariant>(), point.dayPath.c_str());
-					    JsonVariant yearVar = getJsonVariant(doc.as<JsonVariant>(), point.yearPath.c_str());
-					    JsonVariant timeVar = getJsonVariant(doc.as<JsonVariant>(), point.timePath.c_str());
+                        if (point.displayMode == FOUR_COLUMN) {
+					        JsonVariant monthVar = getJsonVariant(doc.as<JsonVariant>(), point.monthPath.c_str());
+					        JsonVariant dayVar = getJsonVariant(doc.as<JsonVariant>(), point.dayPath.c_str());
+					        JsonVariant yearVar = getJsonVariant(doc.as<JsonVariant>(), point.yearPath.c_str());
+					        JsonVariant timeVar = getJsonVariant(doc.as<JsonVariant>(), point.timePath.c_str());
 
-					    if (!monthVar.isNull()) displayPages[index].month = monthVar.as<String>().c_str();
-					    if (!dayVar.isNull()) displayPages[index].day = dayVar.as<String>().c_str();
-					    if (!yearVar.isNull()) displayPages[index].year = yearVar.as<String>().c_str();
-					    if (!timeVar.isNull()) displayPages[index].time = timeVar.as<String>().c_str();
+					        if (!monthVar.isNull()) displayPages[index].month = monthVar.as<String>().c_str();
+					        if (!dayVar.isNull()) displayPages[index].day = dayVar.as<String>().c_str();
+					        if (!yearVar.isNull()) displayPages[index].year = yearVar.as<String>().c_str();
+					        if (!timeVar.isNull()) displayPages[index].time = timeVar.as<String>().c_str();
+                        } else { // SCROLLING_TEXT
+                            JsonVariant textVar = getJsonVariant(doc.as<JsonVariant>(), point.scrollingText.c_str());
+                            if (!textVar.isNull()) {
+                                // For scrolling text mode, we'll store the entire text in the 'year' field
+                                // and clear the others. The DisplayManager will handle it from there.
+                                displayPages[index].year = textVar.as<String>().c_str();
+                                displayPages[index].month = "";
+                                displayPages[index].day = "";
+                                displayPages[index].time = "";
+                            }
+                        }
 					    lastGoodDisplayPages[index] = displayPages[index];
 					    dataPointFetchFailures[index] = 0;
                         isMarqueeBufferDirty = true; // Mark the buffer as dirty
@@ -945,7 +957,27 @@ void fetchDataLink() {
                     Log_printf(LOG_LEVEL_ERROR, "Failed to create fetchApiDataTask for data point %d", i);
 					delete params;
 				}
-			}
+			} else if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_STATIC) {
+                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                    // For static data, we just copy the values directly.
+                    DataPoint point = currentSettings.dataPoints[i];
+                    if (point.displayMode == SCROLLING_TEXT) {
+                        displayPages[i].year = point.scrollingText;
+                        displayPages[i].month = "";
+                        displayPages[i].day = "";
+                        displayPages[i].time = "";
+                    } else { // FOUR_COLUMN
+                        // In four column mode, the paths are treated as the static text.
+                        displayPages[i].month = point.monthPath;
+                        displayPages[i].day = point.dayPath;
+                        displayPages[i].year = point.yearPath;
+                        displayPages[i].time = point.timePath;
+                    }
+                    lastGoodDisplayPages[i] = displayPages[i];
+                    isMarqueeBufferDirty = true;
+                    xSemaphoreGive(xDisplayDataMutex);
+                }
+            }
 		}
         if (tasksCreated > 0) {
             Log_printf(LOG_LEVEL_DEBUG, "Created %d data fetch tasks. Starting status checker.", tasksCreated);

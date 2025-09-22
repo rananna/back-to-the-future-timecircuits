@@ -254,13 +254,15 @@ async function applyDataLinkSettings(datalink) {
     await updateDataPointsUI(datalink.numDataPoints);
     if (datalink.dataPoints) {
         datalink.dataPoints.forEach((point, i) => {
+            let dataSourceValue = 'api'; // Default
             if (point.dataSourceType === 1) {
-                document.getElementById(`dp_dataSourceType_${i}`).value = 'mqtt';
+                dataSourceValue = 'mqtt';
             } else if (point.dataSourceType === 2) {
-                document.getElementById(`dp_dataSourceType_${i}`).value = 'ha';
-            } else {
-                document.getElementById(`dp_dataSourceType_${i}`).value = 'api';
+                dataSourceValue = 'ha';
+            } else if (point.dataSourceType === 3) {
+                dataSourceValue = 'static';
             }
+            document.getElementById(`dp_dataSourceType_${i}`).value = dataSourceValue;
             document.getElementById(`dp_displayMode_${i}`).value = point.displayMode || 0;
             document.getElementById(`dp_url_${i}`).value = point.url || '';
             document.getElementById(`dp_monthPath_${i}`).value = point.monthPath || '';
@@ -718,6 +720,7 @@ function updateDataPointsUI(numPoints) {
                         <option value="api">Web API (HTTP)</option>
                         <option value="mqtt">MQTT Broker</option>
                         <option value="ha">Home Assistant Push</option>
+                        <option value="static">Static Text</option>
                     </select>
 
                     <div id="dp_api_container_${i}">
@@ -966,15 +969,36 @@ function attachDataPointEventListeners() {
         select.onchange = (e) => {
             const index = e.target.dataset.index;
             const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
-            const displayMode = document.getElementById(`dp_displayMode_${index}`).value;
+            const displayModeSelect = document.getElementById(`dp_displayMode_${index}`);
+            const displayModeLabel = document.querySelector(`label[for="dp_displayMode_${index}"]`);
+            const scrollingTextInput = document.getElementById(`dp_scrollingText_${index}`);
 
-            document.getElementById(`dp_api_container_${index}`).style.display = dataSource === 'api' ? 'block' : 'none';
-            document.getElementById(`dp_mqtt_container_${index}`).style.display = dataSource === 'mqtt' ? 'block' : 'none';
-            if (dataSource === 'ha') {
-                document.getElementById(`dp_api_container_${index}`).style.display = 'none';
-                document.getElementById(`dp_mqtt_container_${index}`).style.display = 'none';
+            // Hide all source-specific containers first
+            document.getElementById(`dp_api_container_${index}`).style.display = 'none';
+            document.getElementById(`dp_mqtt_container_${index}`).style.display = 'none';
+
+            // Default visibility for display mode
+            displayModeSelect.style.display = 'block';
+            displayModeLabel.style.display = 'block';
+
+            // Show the relevant container and adjust UI elements
+            if (dataSource === 'api') {
+                document.getElementById(`dp_api_container_${index}`).style.display = 'block';
+                scrollingTextInput.placeholder = "Enter text or map a value...";
+            } else if (dataSource === 'mqtt') {
+                document.getElementById(`dp_mqtt_container_${index}`).style.display = 'block';
+                scrollingTextInput.placeholder = "Enter text or map a value...";
+            } else if (dataSource === 'ha') {
+                scrollingTextInput.placeholder = "Enter text or map a value...";
+            } else if (dataSource === 'static') {
+                // For static text, we force scrolling mode and hide the display mode selector
+                displayModeSelect.value = '1';
+                displayModeSelect.style.display = 'none';
+                displayModeLabel.style.display = 'none';
+                scrollingTextInput.placeholder = "e.g., 'MEETING AT 10' or 'GO TEAM'";
             }
 
+            const displayMode = displayModeSelect.value;
             document.getElementById(`four_column_container_${index}`).style.display = displayMode === '0' ? 'block' : 'none';
             document.getElementById(`scrolling_text_container_${index}`).style.display = displayMode === '1' ? 'block' : 'none';
             
@@ -1624,6 +1648,8 @@ function getDataPointFromUI(index) {
         dataSourceType = 1;
     } else if (dataSourceTypeStr === 'ha') {
         dataSourceType = 2;
+    } else if (dataSourceTypeStr === 'static') {
+        dataSourceType = 3;
     } else {
         dataSourceType = 0; // api
     }
