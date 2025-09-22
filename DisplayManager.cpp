@@ -899,7 +899,7 @@ void handleWeatherDisplay() {
 void updateMarqueeDisplay() {
 #if ENABLE_HARDWARE
     DisplayRow* targetRow = &lastRow;
-    static int marqueeScrollPosition = 0;
+    static char marqueePageBuffer[256];
 
     if (currentSettings.numDataPoints == 0) {
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
@@ -920,38 +920,35 @@ void updateMarqueeDisplay() {
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         DataPoint point = currentSettings.dataPoints[currentPageIndex];
         const unsigned long scrollSpeed = point.scrollSpeed > 0 ? point.scrollSpeed : 150;
-        const unsigned long pauseDuration = 2000; // 2-second pause between pages
+        const unsigned long pauseDuration = 250; // 0.25-second pause between pages
 
         switch (marqueeState) {
-            case M_IDLE: {
-                currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
-                isMarqueeBufferDirty = true; // Signal that the buffer needs to be rebuilt
-                marqueeState = M_PAUSED;
+            case M_START_PAGE: {
+                // Clear display before showing new text
+                if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                    printToDisplay(targetRow->month, "   ", 0); printToDisplay(targetRow->day, "  ", 0);
+                    printToDisplay(targetRow->year, "    ", 0); printToDisplay(targetRow->time, "    ", 0);
+                    targetRow->month.writeDisplay(); targetRow->day.writeDisplay();
+                    targetRow->year.writeDisplay(); targetRow->time.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
+                    xSemaphoreGive(xDisplayHardwareMutex);
+                }
+
+                // Build the full string for the current page
+                snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", displayPages[currentPageIndex].year.c_str());
+                marqueeScrollPosition = 0;
+
+                marqueeState = M_SCROLLING;
                 lastMarqueeStateChange = millis();
                 break;
             }
-            case M_PAUSED: {
-                if (millis() - lastMarqueeStateChange > pauseDuration) {
-                    marqueeState = M_SCROLLING;
-                    lastMarqueeStateChange = millis();
-                }
-                break;
-            }
             case M_SCROLLING: {
-                static char marqueePageBuffer[256];
-
-                if (isMarqueeBufferDirty) {
-                    // Build the full string for the current page
-                    snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", displayPages[currentPageIndex].year.c_str());
-                    marqueeScrollPosition = 0;
-                    isMarqueeBufferDirty = false;
-                }
-
                 if (millis() - lastMarqueeStateChange > scrollSpeed) {
                     lastMarqueeStateChange = millis();
 
                     if (marqueeScrollPosition > strlen(marqueePageBuffer)) {
-                        marqueeState = M_IDLE; // End of scroll, move to next page
+                        marqueeState = M_PAUSING; // End of scroll, move to pausing
+                        lastMarqueeStateChange = millis();
                     } else {
                         char viewport[14];
                         int text_len = strlen(marqueePageBuffer);
@@ -986,6 +983,13 @@ void updateMarqueeDisplay() {
                         }
                         marqueeScrollPosition++;
                     }
+                }
+                break;
+            }
+            case M_PAUSING: {
+                if (millis() - lastMarqueeStateChange > pauseDuration) {
+                    currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
+                    marqueeState = M_START_PAGE;
                 }
                 break;
             }
