@@ -17,82 +17,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Dynamically creates and injects the UI file uploader into the DOM.
- */
-function createUiUploader() {
-    const container = document.getElementById('ui-upload-container');
-    if (!container) {
-        console.error("UI Upload container not found!");
-        return;
-    }
-
-    // Create elements
-    const form = document.createElement('form');
-    const hiddenInput = document.createElement('input');
-    const visibleButton = document.createElement('button');
-    const fileListP = document.createElement('p');
-
-    // Configure hidden file input
-    hiddenInput.type = 'file';
-    hiddenInput.id = 'ui-file-input';
-    hiddenInput.name = 'ui-file';
-    hiddenInput.accept = '.html,.css,.js,.mp3';
-    hiddenInput.multiple = true;
-    hiddenInput.style.display = 'none';
-
-    // Configure visible button
-    visibleButton.type = 'button'; // Prevents form submission
-    visibleButton.id = 'ui-upload-button';
-    visibleButton.className = 'action-button';
-    visibleButton.textContent = 'Choose UI Files';
-
-    // Configure file list paragraph
-    fileListP.id = 'ui-file-list';
-    fileListP.style.marginTop = '10px';
-    fileListP.style.fontStyle = 'italic';
-
-    // Assemble elements
-    form.appendChild(hiddenInput);
-    form.appendChild(visibleButton);
-    form.appendChild(fileListP);
-    container.appendChild(form);
-
-    // --- Attach Event Listeners ---
-    visibleButton.addEventListener('click', () => {
-        hiddenInput.click();
-    });
-
-    hiddenInput.addEventListener('change', () => {
-        if (hiddenInput.files.length > 0) {
-            fileListP.textContent = `${hiddenInput.files.length} file(s) selected. Uploading...`;
-            const formData = new FormData();
-            for (const file of hiddenInput.files) {
-                formData.append('ui-file', file, file.name);
-            }
-
-            fetch('/upload-ui', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.text())
-            .then(result => {
-                console.log('Success:', result);
-                fileListP.textContent = result;
-                showMessage(result, 'success');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                fileListP.textContent = 'Upload failed.';
-                showMessage('Upload failed.', 'error');
-            });
-        } else {
-            fileListP.textContent = '';
-        }
-    });
-}
-
-
-/**
  * Initializes the main UI components and fetches initial data.
  */
 async function initializeUI() {
@@ -138,8 +62,6 @@ async function initializeUI() {
         setInterval(updateStockStatus, 60000); // Update stock status every minute
         // Attach all the event listeners to the UI elements
         attachEventListeners();
-        // Dynamically create the UI uploader
-        // createUiUploader();
         
         showMessage('System Online', 'success');
 
