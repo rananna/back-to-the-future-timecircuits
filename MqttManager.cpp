@@ -380,41 +380,27 @@ void publishHaAutoDiscovery() {
     serializeJson(doc, payload);
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
-    const char* stock_rows[][2] = {
-        {"stock_row_1", "Stock Ticker Row 1 (Dest)"},
-        {"stock_row_2", "Stock Ticker Row 2 (Pres)"},
-        {"stock_row_3", "Stock Ticker Row 3 (Last)"}
+    // --- START: Add Next/Previous buttons for Stock Ticker ---
+    const char* stock_buttons[][3] = {
+        {"stock_next", "Stock Next", "mdi:arrow-right-circle-outline"},
+        {"stock_previous", "Stock Previous", "mdi:arrow-left-circle-outline"}
     };
-    for (auto const& cfg : stock_rows) {
+    for (auto const& cfg : stock_buttons) {
         doc.clear();
         doc["name"] = cfg[1];
         String id_suffix = cfg[0];
         doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
         doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
-        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = "mdi:alpha-t-box-outline";
+        doc["command_topic"] = device_base_topic + "/stock/" + (String(cfg[0]).endsWith("next") ? "next" : "previous") + "/command";
+        doc["icon"] = cfg[2];
         doc["entity_category"] = "config";
         doc["device"] = device;
         doc["availability"] = availability;
-        topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
+        topic = String(MQTT_BASE_TOPIC) + "/button/" + doc["object_id"].as<String>() + "/config";
         serializeJson(doc, payload);
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
-
-    doc.clear();
-    doc["name"] = "Alpha Vantage API Key";
-    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_alpha_vantage_api_key";
-    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_alpha_vantage_api_key";
-    doc["command_topic"] = device_base_topic + "/alpha_vantage_api_key/command";
-    doc["state_topic"] = device_base_topic + "/alpha_vantage_api_key/state";
-    doc["icon"] = "mdi:key-variant";
-    doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
-    topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    // --- END: Add Next/Previous buttons for Stock Ticker ---
 
     // --- Live Weather Mode Entities ---
     doc.clear();
@@ -897,22 +883,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             settingsChanged = true;
             broadcastWsStateUpdate("stockTickerModeEnabled", currentSettings.stockTickerModeEnabled);
         }
-        else if (component == "stock_row_1") {
-            currentSettings.stockRow1_symbol = message.c_str();
-            settingsChanged = true;
-        }
-        else if (component == "stock_row_2") {
-            currentSettings.stockRow2_symbol = message.c_str();
-            settingsChanged = true;
-        }
-        else if (component == "stock_row_3") {
-            currentSettings.stockRow3_symbol = message.c_str();
-            settingsChanged = true;
-        }
-        else if (component == "alpha_vantage_api_key") {
-            currentSettings.financialModelingPrepApiKey = message.c_str();
-            settingsChanged = true;
-        }
         else if (component == "stock" && topicStr.endsWith("/next/command")) {
             stockManager.nextPage();
         }
@@ -1072,10 +1042,6 @@ void publishAllHaStates() {
     }
 
     mqttClient.publish((base_topic + "/stock_ticker_mode/state").c_str(), currentSettings.stockTickerModeEnabled ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/stock_row_1/state").c_str(), currentSettings.stockRow1_symbol.c_str(), true);
-    mqttClient.publish((base_topic + "/stock_row_2/state").c_str(), currentSettings.stockRow2_symbol.c_str(), true);
-    mqttClient.publish((base_topic + "/stock_row_3/state").c_str(), currentSettings.stockRow3_symbol.c_str(), true);
-    mqttClient.publish((base_topic + "/alpha_vantage_api_key/state").c_str(), currentSettings.financialModelingPrepApiKey.c_str(), true);
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
 
     publishTimeSensors();
