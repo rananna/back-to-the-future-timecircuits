@@ -236,35 +236,48 @@ void updateStockTickerDisplay() {
 
         // State machine for stock ticker display
         switch (stockState) {
-            case SD_CONNECTING:
-                if (!stockManager.isTimeSynchronized()) {
-                    // Still waiting for time sync
-                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                        printToDisplay(lastRow.month, " ", 0);
-                        printToDisplay(lastRow.day, " ", 0);
-                        printToDisplay(lastRow.year, "CONNECTING", 0);
-                        printToDisplay(lastRow.time, "....", 0);
-                        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-                        vTaskDelay(pdMS_TO_TICKS(2));
-                        xSemaphoreGive(xDisplayHardwareMutex);
-                    }
+            case SD_CONNECTING: {
+                // Determine the status and display the appropriate message.
+                // The state will only transition away from SD_CONNECTING when data is ready.
+                const char* msg_year = "          ";
+                const char* msg_time = "          ";
+
+                if (stockManager.getAssets().empty()) {
+                    msg_year = "ADD STOCKS";
+                    msg_time = "IN UI";
+                } else if (!stockManager.isTimeSynchronized()) {
+                    msg_year = "CONNECTING";
+                    msg_time = "....";
                 } else if (stockManager.isFetching()) {
-                    // Time is synced, now waiting for data
+                    msg_year = "LOADING";
+                    msg_time = "STOCKS";
+                } else if (stockManager.hasDataBeenUpdated() || stockManager.hasAnyValidData()) {
+                    // Data is ready. Clear the flag and transition to the display state.
+                    if (stockManager.hasDataBeenUpdated()) {
+                        stockManager.clearDataUpdatedFlag();
+                    }
+                    stockState = SD_START_PAGE;
+                } else {
+                    // Not fetching, but no data yet. This can happen right after startup
+                    // before the first fetch is triggered by the interval timer.
+                    msg_year = "STAND BY";
+                    msg_time = "....";
+                }
+
+                // If we are still in the connecting state, display the message.
+                if (stockState == SD_CONNECTING) {
                     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                        printToDisplay(lastRow.month, " ", 0);
-                        printToDisplay(lastRow.day, " ", 0);
-                        printToDisplay(lastRow.year, "LOADING", 0);
-                        printToDisplay(lastRow.time, "STOCKS", 0);
+                        printToDisplay(lastRow.month, "   ", 0);
+                        printToDisplay(lastRow.day, "  ", 0);
+                        printToDisplay(lastRow.year, msg_year, 0);
+                        printToDisplay(lastRow.time, msg_time, 0);
                         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
                         vTaskDelay(pdMS_TO_TICKS(2));
                         xSemaphoreGive(xDisplayHardwareMutex);
                     }
-                } else {
-                    // Both conditions met, proceed
-                    stockState = SD_START_PAGE;
                 }
                 break;
-
+            }
             case SD_START_PAGE: {
                 // Clear display before showing new text
                 if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
