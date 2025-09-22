@@ -480,18 +480,8 @@ void applySettingsFromJson(const JsonObject& obj) {
                 JsonObject dp = dataPoints[i];
                 if (!dp["dataSourceType"].isNull()) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
                 if (!dp["url"].isNull()) currentSettings.dataPoints[i].url = dp["url"].as<std::string>();
-                if (!dp["monthPath"].isNull()) currentSettings.dataPoints[i].monthPath = dp["monthPath"].as<std::string>();
-                if (!dp["dayPath"].isNull()) currentSettings.dataPoints[i].dayPath = dp["dayPath"].as<std::string>();
-                if (!dp["yearPath"].isNull()) currentSettings.dataPoints[i].yearPath = dp["yearPath"].as<std::string>();
-                if (!dp["timePath"].isNull()) currentSettings.dataPoints[i].timePath = dp["timePath"].as<std::string>();
-                if (!dp["prefix"].isNull()) currentSettings.dataPoints[i].prefix = dp["prefix"].as<std::string>();
-                if (!dp["suffix"].isNull()) currentSettings.dataPoints[i].suffix = dp["suffix"].as<std::string>();
-                if (!dp["icon"].isNull()) currentSettings.dataPoints[i].icon = dp["icon"].as<std::string>();
                 currentSettings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
                 if (!dp["mqttTopic"].isNull()) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
-                if (!dp["yearPrefix"].isNull()) currentSettings.dataPoints[i].yearPrefix = dp["yearPrefix"].as<std::string>();
-                if (!dp["yearSuffix"].isNull()) currentSettings.dataPoints[i].yearSuffix = dp["yearSuffix"].as<std::string>();
-                if (!dp["displayMode"].isNull()) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
                 if (!dp["scrollingText"].isNull()) currentSettings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
                 if (!dp["authHeaderKey"].isNull()) currentSettings.dataPoints[i].authHeaderKey = dp["authHeaderKey"].as<std::string>();
                 if (!dp["authHeaderValue"].isNull()) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
@@ -645,19 +635,9 @@ void saveSettings() {
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
         SAVE_STRING_IF_CHANGED((prefix + "url").c_str(), currentSettings.dataPoints[i].url);
-		SAVE_STRING_IF_CHANGED((prefix + "monthPath").c_str(), currentSettings.dataPoints[i].monthPath);
-		SAVE_STRING_IF_CHANGED((prefix + "dayPath").c_str(), currentSettings.dataPoints[i].dayPath);
-		SAVE_STRING_IF_CHANGED((prefix + "yearPath").c_str(), currentSettings.dataPoints[i].yearPath);
-		SAVE_STRING_IF_CHANGED((prefix + "timePath").c_str(), currentSettings.dataPoints[i].timePath);
-        SAVE_STRING_IF_CHANGED((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefix);
-		SAVE_STRING_IF_CHANGED((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffix);
-		SAVE_STRING_IF_CHANGED((prefix + "icon").c_str(), currentSettings.dataPoints[i].icon);
 		SAVE_IF_CHANGED((prefix + "scroll").c_str(), Int, currentSettings.dataPoints[i].scrollSpeed);
         SAVE_IF_CHANGED((prefix + "srcType").c_str(), Int, (int)currentSettings.dataPoints[i].dataSourceType);
 		SAVE_STRING_IF_CHANGED((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
-		SAVE_STRING_IF_CHANGED((prefix + "yearPrefix").c_str(), currentSettings.dataPoints[i].yearPrefix);
-		SAVE_STRING_IF_CHANGED((prefix + "yearSuffix").c_str(), currentSettings.dataPoints[i].yearSuffix);
-        SAVE_IF_CHANGED((prefix + "dispMode").c_str(), Int, (int)currentSettings.dataPoints[i].displayMode);
 		SAVE_STRING_IF_CHANGED((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText);
 		SAVE_STRING_IF_CHANGED((prefix + "authKey").c_str(), currentSettings.dataPoints[i].authHeaderKey);
 		SAVE_STRING_IF_CHANGED((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue);
@@ -790,19 +770,9 @@ void loadSettings() {
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
 			if(preferences.isKey((prefix + "url").c_str())) currentSettings.dataPoints[i].url = preferences.getString((prefix + "url").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "monthPath").c_str())) currentSettings.dataPoints[i].monthPath = preferences.getString((prefix + "monthPath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "dayPath").c_str())) currentSettings.dataPoints[i].dayPath = preferences.getString((prefix + "dayPath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "yearPath").c_str())) currentSettings.dataPoints[i].yearPath = preferences.getString((prefix + "yearPath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "timePath").c_str())) currentSettings.dataPoints[i].timePath = preferences.getString((prefix + "timePath").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "prefix").c_str())) currentSettings.dataPoints[i].prefix = preferences.getString((prefix + "prefix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "suffix").c_str())) currentSettings.dataPoints[i].suffix = preferences.getString((prefix + "suffix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "icon").c_str())) currentSettings.dataPoints[i].icon = preferences.getString((prefix + "icon").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "scroll").c_str())) currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str());
 			if(preferences.isKey((prefix + "srcType").c_str())) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str());
 			if(preferences.isKey((prefix + "topic").c_str())) currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "yearPrefix").c_str())) currentSettings.dataPoints[i].yearPrefix = preferences.getString((prefix + "yearPrefix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "yearSuffix").c_str())) currentSettings.dataPoints[i].yearSuffix = preferences.getString((prefix + "yearSuffix").c_str(), "").c_str();
-			if(preferences.isKey((prefix + "dispMode").c_str())) currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
 			if(preferences.isKey((prefix + "scrollTxt").c_str())) currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "authKey").c_str())) currentSettings.dataPoints[i].authHeaderKey = preferences.getString((prefix + "authKey").c_str(), "").c_str();
 			if(preferences.isKey((prefix + "authVal").c_str())) currentSettings.dataPoints[i].authHeaderValue = preferences.getString((prefix + "authVal").c_str(), "").c_str();

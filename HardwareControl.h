@@ -85,7 +85,6 @@ enum Theme {
 };
 
 enum DataSourceType { DATA_SOURCE_MQTT, DATA_SOURCE_HA, DATA_SOURCE_STATIC };
-enum DisplayMode { FOUR_COLUMN, SCROLLING_TEXT };
 
 enum HttpMethod {
     GET,
@@ -93,19 +92,9 @@ enum HttpMethod {
 };
 
 struct DataPoint {
-  std::string monthPath;
-  std::string dayPath;
-  std::string yearPath;
-  std::string timePath;
-  std::string prefix;
-  std::string suffix;
-  std::string icon;
   int scrollSpeed;
   DataSourceType dataSourceType;
   std::string mqttTopic;
-  std::string yearPrefix;
-  std::string yearSuffix;
-  DisplayMode displayMode;
   std::string scrollingText;
   std::string url;
   HttpMethod httpMethod;
