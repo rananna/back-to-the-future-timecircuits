@@ -621,6 +621,7 @@ void setupWebRoutes() {
     doc["latitude"] = currentSettings.latitude;
     doc["longitude"] = currentSettings.longitude;
     doc["stockTickerModeEnabled"] = currentSettings.stockTickerModeEnabled;
+    doc["stockRefreshInterval"] = currentSettings.stockRefreshInterval;
     doc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
     doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
     doc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
