@@ -264,7 +264,7 @@ async function applyDataLinkSettings(datalink) {
 
             // Trigger change events to update the UI
             document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
-            updateMarqueePreview(i);
+            // Marquee preview is disabled, so no call to updateMarqueePreview is needed.
         });
     }
 }
@@ -712,12 +712,6 @@ function updateDataPointsUI(numPoints) {
                     <div class="display-mode-container" id="scrolling_text_container_${i}">
                         <label for="dp_scrollingText_${i}" style="margin-top: 15px;">Scrolling Text:</label>
                         <input type="text" id="dp_scrollingText_${i}" class="wizard-target-input" placeholder="Enter text or map a value...">
-                        <div class="marquee-preview-container">
-                            <label>Live Preview (13 Chars):</label>
-                            <div class="marquee-preview-13" id="marquee_preview_13_${i}">
-                                <span class="preview-scrolling-text">PREVIEW</span>
-                            </div>
-                        </div>
                     </div>
 
                     <label for="dp_scrollSpeed_${i}" style="margin-top: 20px;">Scroll Speed (ms/char): <span id="dp_scrollSpeed_${i}Value">150</span></label>
@@ -727,9 +721,6 @@ function updateDataPointsUI(numPoints) {
             }
             // attach event listeners
             attachDataPointEventListeners();
-            for (let i = 0; i < numPoints; i++) {
-                updateMarqueePreview(i);
-            }
         }
         resolve();
     });
@@ -742,38 +733,6 @@ function updateDataPointsUI(numPoints) {
  * @param {number} index The index of the data point.
  * @returns {string} The resolved value or placeholder.
  */
-function getDisplayValue(path, placeholder, index) {
-    if (!path) return placeholder;
-
-    // If the path is not a path, return it as a static value
-    if (path.includes('.') || path.includes('[')) {
-        return placeholder;
-    } else {
-        return path;
-    }
-}
-
-/**
- * Updates the marquee preview for a data point.
- * @param {number} index The index of the data point.
- */
-function updateMarqueePreview(index) {
-    const scrollingPath = document.getElementById(`dp_scrollingText_${index}`).value;
-    const text = getDisplayValue(scrollingPath, 'PREVIEW', index);
-    const previewSpan = document.querySelector(`#marquee_preview_13_${index} .preview-scrolling-text`);
-    previewSpan.textContent = text;
-    previewSpan.classList.remove('scrolling-text');
-
-    if (text.length > 13) {
-        const scrollSpeed = document.getElementById(`dp_scrollSpeed_${index}`).value;
-        const duration = (text.length) * (scrollSpeed / 100);
-        previewSpan.style.animationDuration = `${duration}s`;
-        requestAnimationFrame(() => {
-            previewSpan.classList.add('scrolling-text');
-        });
-    }
-}
-
 /**
  * Attaches event listeners to the data point UI elements.
  */
@@ -798,8 +757,6 @@ function attachDataPointEventListeners() {
             } else if (dataSource === 'static') {
                 scrollingTextInput.placeholder = "e.g., 'MEETING AT 10' or 'GO TEAM'";
             }
-            
-            updateMarqueePreview(index);
         };
     });
 
@@ -821,7 +778,6 @@ function attachDataPointEventListeners() {
             if (e.target.id.includes('requestBody')) {
                 validateJson(e.target);
             }
-            updateMarqueePreview(index);
         });
     });
 
@@ -958,7 +914,6 @@ function clearDataPointFields(event) {
         if (el) el.value = '';
     });
     
-    updateMarqueePreview(index);
     showMessage(`Data Point ${parseInt(index) + 1} fields cleared.`, 'info');
     if (!isLoading) setSettingsChanged(true);
 }
@@ -1308,7 +1263,7 @@ function getDataPointFromUI(index) {
         dataSourceType: dataSourceType,
         scrollSpeed: parseInt(getElValue(`dp_scrollSpeed_${index}`), 10),
         mqttTopic: getElValue(`dp_mqttTopic_${index}`),
-        scrollingText: getElValue(`dp_scrollingText_${index}`)
+        scrollingText: getElValue(`dp_scrollingText_${index}`).toUpperCase()
     };
 }
 
