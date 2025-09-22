@@ -147,6 +147,9 @@ struct ClockSettings {
     bool stockTickerModeEnabled;
     int stockRefreshInterval; // in minutes
     std::string financialModelingPrepApiKey;
+    std::string stockRow1_symbol;
+    std::string stockRow2_symbol;
+    std::string stockRow3_symbol;
     DataPoint dataPoints[5];
     int theme;
     int dataLinkTargetRow;
