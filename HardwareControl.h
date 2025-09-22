@@ -134,7 +134,6 @@ struct ClockSettings {
     int presetCycleInterval;
     bool displayFormat24h;
     bool dataLinkEnabled;
-    int dataLinkRefreshInterval;
     int numDataPoints;
     std::string mqttBroker;
     int mqttPort;
