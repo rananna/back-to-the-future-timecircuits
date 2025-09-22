@@ -72,8 +72,6 @@ enum AnimationPhase {
 // The BootSequenceState enum has been REMOVED from this file to fix the multiple definition error.
 // It is now defined solely in AnimationManager.h.
 
-enum MarqueeState { M_IDLE, M_PAUSED, M_SCROLLING };
-
 struct FetchDataParams {
     int pointIndex;
     int totalRequests;

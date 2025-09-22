@@ -4,9 +4,10 @@
 #include <string>
 
 enum MarqueeState {
-    M_START_PAGE,
+    M_IDLE,
+    M_PAUSED,
     M_SCROLLING,
-    M_PAUSING
+    M_START_PAGE
 };
 
 enum WeatherDisplayState {

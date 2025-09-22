@@ -5,6 +5,7 @@
 #include <string>
 #include <PubSubClient.h>
 #include "HardwareControl.h"
+#include "DisplayManager.h"
 #include "AnimationManager.h"
 #include "Audio.h"
 
