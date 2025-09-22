@@ -389,7 +389,6 @@ async function saveSettings() {
 
     // Data Link, Weather & Stock Ticker Settings
     settings.dataLinkEnabled = getChecked('dataLinkEnabled');
-    settings.dataLinkRefreshInterval = getIntValue('dataLinkRefreshInterval', 10);
     settings.mqttBroker = getValue('mqttBroker');
     settings.mqttUser = getValue('mqttUser');
     settings.mqttPassword = getValue('mqttPassword');

@@ -415,7 +415,6 @@ void applySettingsFromJson(const JsonObject& obj) {
     validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
     if (!obj["displayFormat24h"].isNull()) currentSettings.displayFormat24h = obj["displayFormat24h"];
     if (!obj["dataLinkEnabled"].isNull()) currentSettings.dataLinkEnabled = obj["dataLinkEnabled"];
-    currentSettings.dataLinkRefreshInterval = obj["dataLinkRefreshInterval"] | currentSettings.dataLinkRefreshInterval;
     if (!obj["mqttBroker"].isNull()) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
     currentSettings.mqttPort = obj["mqttPort"] | 1883;
     if (!obj["mqttUser"].isNull()) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
@@ -589,7 +588,6 @@ void saveSettings() {
     }
 
     SAVE_IF_CHANGED("dlTargetRow", Int, currentSettings.dataLinkTargetRow);
-    SAVE_IF_CHANGED("dlRefresh", Int, currentSettings.dataLinkRefreshInterval);
     SAVE_IF_CHANGED("numDataPoints", Int, currentSettings.numDataPoints);
 
     SAVE_STRING_IF_CHANGED("mqttBroker", currentSettings.mqttBroker);
@@ -746,7 +744,6 @@ void loadSettings() {
 		currentSettings.animationStyle = preferences.getInt("animStyle");
 		currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
 		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
-		currentSettings.dataLinkRefreshInterval = preferences.getInt("dlRefresh");
 		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
         String brokerStr = preferences.getString("mqttBroker", "");
         currentSettings.mqttBroker = brokerStr.c_str();

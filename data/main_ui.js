@@ -239,8 +239,6 @@ async function applyDataLinkSettings(datalink) {
         updateStockStatus();
     }
     
-    document.getElementById('dataLinkRefreshInterval').value = datalink.dataLinkRefreshInterval;
-    document.getElementById('dataLinkRefreshIntervalValue').textContent = datalink.dataLinkRefreshInterval;
     document.getElementById('mqttBroker').value = datalink.mqttBroker || '';
     document.getElementById('mqttPort').value = datalink.mqttPort || 1883;
     document.getElementById('mqttUser').value = datalink.mqttUser || '';
@@ -259,6 +257,7 @@ async function applyDataLinkSettings(datalink) {
             }
             document.getElementById(`dp_dataSourceType_${i}`).value = dataSourceValue;
             document.getElementById(`dp_scrollSpeed_${i}`).value = point.scrollSpeed || 150;
+            document.getElementById(`dp_scrollSpeed_${i}Value`).textContent = point.scrollSpeed || 150;
             document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
             document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
 
@@ -771,6 +770,14 @@ function attachDataPointEventListeners() {
             if (!indexMatch) return;
             const index = indexMatch[1];
             
+            // Handle the scroll speed slider value update
+            if (e.target.id.startsWith('dp_scrollSpeed_')) {
+                const valueSpan = document.getElementById(`dp_scrollSpeed_${index}Value`);
+                if (valueSpan) {
+                    valueSpan.textContent = e.target.value;
+                }
+            }
+
             if (e.target.id.startsWith('dp_dayPath_')) {
                 document.getElementById(`dp_icon_${index}`).value = '';
             }

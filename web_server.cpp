@@ -609,7 +609,6 @@ void setupWebRoutes() {
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
     JsonDocument doc;
     doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
-    doc["dataLinkRefreshInterval"] = currentSettings.dataLinkRefreshInterval;
     doc["numDataPoints"] = currentSettings.numDataPoints;
     doc["mqttBroker"] = currentSettings.mqttBroker.c_str();
     doc["mqttPort"] = currentSettings.mqttPort;
