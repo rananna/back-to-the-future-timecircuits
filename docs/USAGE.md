@@ -126,14 +126,15 @@ While fetching data, the display will show `WEA TH ER ----`. Once loaded, it wil
 ---
 
 #### Stock Ticker Mode
-This mode transforms the bottom display row into a scrolling, multi-page financial ticker. It supports stocks, indices, and cryptocurrencies from around the world, allowing you to track your portfolio at a glance.
+This mode transforms the bottom display row into a scrolling, multi-page financial ticker. It supports stocks, ETFs, and cryptocurrencies from around the world, allowing you to track your portfolio at a glance.
 
 ##### 1. Activation & API Key
 First, you need to enable and configure the mode in the "Data Link" tab of the web interface.
 
 *   **Enable the Mode**: Toggle on "Stock Ticker Mode". This will reveal the settings panel.
 *   **API Key**: You must provide a valid API key from the **Financial Modeling Prep** service. Without this key, the device cannot fetch any data. A free tier is available and is sufficient for this feature.
-*   **Refresh Interval**: Set how often the data should be refreshed, in minutes. The default is 2 minutes. Note that the free API tier has a limit of 250 calls per day.
+    > ⚠️ **Security Note:** Your API key is a secret credential. Treat it like a password and do not share it publicly.
+*   **Refresh Interval**: Set how often the data should be refreshed, in minutes. The default is 20 minutes. Note that the free API tier has a daily call limit, so a very short interval may exhaust your quota quickly.
 
 To get your API key:
 1.  **Navigate to the Registration Page**: Open a web browser and go to the [Financial Modeling Prep registration page](https://site.financialmodelingprep.com/register).
@@ -145,47 +146,68 @@ To get your API key:
 This section allows you to build and manage your list of tracked assets.
 
 *   **Add an Asset**:
-    1.  **Symbol**: Start typing a stock symbol (e.g., `AAPL`, `MSFT`), index (e.g., `^GSPC`), or cryptocurrency (e.g., `BTCUSD`) into the "Add Asset" input field. The field features an **autocomplete** function that will suggest matching symbols as you type, making it easy to find the correct one.
-    2.  **Timezone**: Select a timezone for the asset. While the clock automatically determines the correct market hours based on the asset's exchange, setting a timezone can be useful for display consistency.
-    3.  **Click "Add Asset"**: The asset will be added to the "Tracked Assets" list below. The clock will automatically look up the asset's name and exchange.
+    1.  **Symbol Validation**: When you enter a stock, ETF, or crypto symbol (e.g., `AAPL`, `SPY`, `BTCUSD`) and click "Add Asset," the clock first performs a validation check. It contacts the API to verify the symbol is valid and to retrieve its exchange information. If the symbol cannot be found, it will not be added.
+    2.  **Immediate Fetch**: Upon successful validation, the asset is added to the "Tracked Assets" list, and the clock immediately triggers a background fetch to retrieve its price data. This ensures the asset's information appears on the display and in the UI almost instantly.
 
 *   **Manage Assets**:
     *   **Reorder**: Click and drag any asset in the list to change the order in which they are displayed on the clock.
     *   **Remove**: Click the red **'×'** button next to an asset to remove it from your list.
+    *   **Saving Changes**: All changes to the asset list (adding, removing, reordering) are saved automatically when you press the main **"Engage Time Circuits"** button at the bottom of the page.
 
 ##### 3. The Display
 The physical display provides a rich, multi-page view of your assets.
 
 *   **Display Cycle**: The clock automatically cycles through each of your tracked assets. For each asset, it displays **two pages** of information:
-    1.  **Page 1: Price & Volume**: Shows the asset's name, current price, percentage change for the day, and trading volume. Volume is automatically abbreviated (K for thousands, M for millions, B for billions).
-        *   *Example: `TESLA $250.00 +1.23% VOL:1.5M`*
-    2.  **Page 2: Day's High & Low**: Shows the asset's name along with the highest and lowest price for the current trading day.
-        *   *Example: `TESLA HIGH $255.50 LOW $248.75`*
+    1.  **Page 1: Price & Change**: Shows the asset's symbol, current price, and percentage change for the day.
+        *   *Example: `AAPL $175.30 +1.23%`*
+    2.  **Page 2: High, Low & Volume**: Shows the asset's symbol along with the highest and lowest price for the current trading day and the trading volume. Volume is automatically abbreviated (K for thousands, M for millions, B for billions).
+        *   *Example: `AAPL HI $176.10 LO $173.80 VOL 52.5M`*
 
 *   **Currency Symbols**: The clock automatically converts currency codes (e.g., `USD`, `EUR`, `GBP`) into their common symbols (`$`, `€`, `£`) on the display.
 
-*   **Market Closed Message**: When all the markets for your tracked assets are closed, the display will show a static "MARKET CLOSED" message.
+*   **Market Closed Message**: When the markets for your tracked stock/ETF assets are closed, the display will show a static "MARKET CLOSED" message. This does not apply to cryptocurrencies, which trade 24/7.
 
-*   **Error Messages**: If the clock encounters a problem with a specific asset (e.g., an invalid symbol or an API key issue), it will display an informative error message on the marquee.
-    *   *Example: `GOOGL INVALID SYMBOL` or `TSLA INVALID API KEY`*
+*   **Error Messages**: If the clock encounters a problem, it will display a specific error message on the marquee to help you diagnose the issue. Common errors include:
+    *   `[SYMBOL] INVALID SYMBOL`: The ticker symbol could not be found or is not supported.
+    *   `[SYMBOL] INVALID API KEY`: Your API key is incorrect, has expired, or has been disabled.
+    *   `[SYMBOL] RATE LIMITED`: You have exceeded your daily API call limit. The system will automatically try again later.
+    *   `[SYMBOL] CONNECTION FAILED`: The clock was unable to reach the API server. This is often a temporary network issue.
+    *   `[SYMBOL] PENDING`: The asset has been added but the first data fetch is still in progress.
 
 ##### 4. Web UI Live Feedback
 The web interface provides several tools for monitoring the stock ticker in real-time.
 
-*   **Live Marquee Preview**: A preview of the text currently scrolling on the physical display is shown directly in the web UI. This allows you to see what the clock is displaying without having to look at the device itself.
+*   **Live Marquee Preview**: A preview of the text currently scrolling on the physical display is shown directly in the web UI.
 *   **Tracked Assets List**: This list provides live updates for your assets. You can see the current price and percentage change, which refresh periodically. If there's an error with an asset, it will be shown here.
-*   **API Usage Counter**: The UI displays the number of API calls made to the Financial Modeling Prep service for the current day, helping you stay within the limits of your plan.
+*   **API Usage Counter**: The UI displays the number of API calls made for the current day. This counter automatically resets to zero at midnight (based on your clock's time zone).
 
-##### 5. How It Works: Market Hours & Data
+##### 5. How It Works: Data Fetching & Reliability
 The stock ticker has several smart features to ensure data is both timely and efficient.
 
-*   **Intelligent Market Hours**: The clock is designed for global assets. When you add a stock or index, it automatically determines its exchange (e.g., NASDAQ, TSX, LSE). It then checks the live open/closed status for **each specific exchange**. Data is only fetched for assets whose markets are currently open. Cryptocurrencies are fetched 24/7.
-*   **Batch API Calls**: To maximize efficiency and stay within API limits, the clock bundles all assets of the same type (e.g., all stocks, all cryptos) into a single API call.
+*   **Market Hours**: The system uses a general-purpose check for North American market hours (**9:30 AM to 4:00 PM Eastern Time, Mon-Fri**) to decide when to fetch data for stocks and ETFs. Data is not fetched outside of these hours to conserve API calls.
+    *   **Cryptocurrencies**, which trade continuously, are fetched 24/7.
+*   **Individual Asset Fetching**: To improve reliability, the clock fetches data for each asset in your list with a separate API call. This prevents a single invalid symbol from causing the entire update to fail.
+*   **Automatic Retries**: If an API call for an asset fails due to a temporary issue (like a network error or rate limiting), the system will automatically retry the request up to two more times before marking it as failed.
 
 ##### 6. MQTT Control
 You can manually cycle through the asset pages using MQTT commands. This is useful for quickly checking a specific data point without waiting for the automatic cycle.
 *   **Next Page**: Publish any message to `bttf-time-circuits/[DEVICE_ID]/stock/next/command`
 *   **Previous Page**: Publish any message to `bttf-time-circuits/[DEVICE_ID]/stock/previous/command`
+
+##### 7. Limitations & Tracking Indices
+*   **Free API Plan**: The free tier of the Financial Modeling Prep API is powerful but has limitations. Most importantly, it **does not support direct tracking of major market indices** like the S&P 500 (`^GSPC`) or the NASDAQ Composite (`^IXIC`). Attempting to add these symbols will result in an `INVALID SYMBOL` error.
+
+*   **Using ETFs as a Proxy**: A great way to track these indices is by using **Exchange-Traded Funds (ETFs)**. These are funds that trade on stock exchanges, just like regular stocks, and are designed to mirror the performance of a specific index. Since they have regular ticker symbols, the clock can track them easily.
+
+Here are some popular ETFs for major North American indices that you can use:
+
+| Index | ETF Ticker | Description |
+| :--- | :--- | :--- |
+| **S&P 500** | `SPY` | Tracks the 500 largest U.S. publicly traded companies. |
+| **Nasdaq-100**| `QQQ` | Tracks the 100 largest non-financial companies on the Nasdaq exchange. |
+| **Dow Jones** | `DIA` | Tracks the 30 large, publicly-owned companies in the Dow Jones Industrial Average. |
+| **Russell 2000**| `IWM` | Tracks an index of 2,000 small-cap U.S. companies. |
+| **S&P/TSX 60**| `XIU.TO` | Tracks the 60 largest companies on the Toronto Stock Exchange (Canada). |
 
 ---
 
