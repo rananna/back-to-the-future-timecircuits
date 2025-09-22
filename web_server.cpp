@@ -774,6 +774,19 @@ void setupWebRoutes() {
         stockManager.setApiKey(obj["financialModelingPrepApiKey"].as<String>());
     }
 
+    // --- START: MODIFICATION - Explicitly update stock refresh interval ---
+    // The stock refresh interval is also updated here immediately to ensure
+    // that any changes are applied, even if the main settings save process
+    // is delayed or interrupted.
+    if (!obj["stockRefreshInterval"].isNull()) {
+        int newInterval = obj["stockRefreshInterval"].as<int>();
+        if (newInterval > 0) {
+            currentSettings.stockRefreshInterval = newInterval;
+            stockManager.setRefreshInterval(newInterval);
+        }
+    }
+    // --- END: MODIFICATION ---
+
     // Re-serialize the parsed JSON from the request back into our global string buffer.
     settingsToSaveJson = ""; // Clear any previous data.
     serializeJson(json, settingsToSaveJson);
