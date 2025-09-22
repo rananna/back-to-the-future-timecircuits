@@ -3,6 +3,12 @@
 
 #include <string>
 
+enum MarqueeState {
+    M_START_PAGE,
+    M_SCROLLING,
+    M_PAUSING
+};
+
 enum WeatherDisplayState {
     WD_START_PAGE,
     WD_SCROLLING,
@@ -19,6 +25,8 @@ enum StockDisplayState {
     SD_MARKET_CLOSED
 };
 
+extern MarqueeState marqueeState;
+extern int marqueeScrollPosition;
 extern StockDisplayState stockState;
 extern bool weatherDataUpdated;
 extern bool isRowInManualMode[3];
