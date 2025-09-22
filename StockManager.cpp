@@ -918,7 +918,7 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
             it->day_low = quote["dayLow"].as<float>();
             it->volume = quote["volume"].as<unsigned long>();
             it->name = quote["name"].as<String>();
-            if (quote.containsKey("currency") && !quote["currency"].isNull()) {
+            if (quote["currency"].is<String>()) {
                 it->currency = quote["currency"].as<String>();
             } else {
                 it->currency = "USD"; // Default to USD if not provided
