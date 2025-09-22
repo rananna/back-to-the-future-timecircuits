@@ -452,6 +452,15 @@ void applySettingsFromJson(const JsonObject& obj) {
         currentSettings.financialModelingPrepApiKey = obj["financialModelingPrepApiKey"].as<std::string>();
         stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
     }
+    if (!obj["stockRow1_symbol"].isNull()) {
+        currentSettings.stockRow1_symbol = obj["stockRow1_symbol"].as<std::string>();
+    }
+    if (!obj["stockRow2_symbol"].isNull()) {
+        currentSettings.stockRow2_symbol = obj["stockRow2_symbol"].as<std::string>();
+    }
+    if (!obj["stockRow3_symbol"].isNull()) {
+        currentSettings.stockRow3_symbol = obj["stockRow3_symbol"].as<std::string>();
+    }
     if (!obj["stockAssets"].isNull()) {
         JsonArray arr = obj["stockAssets"].as<JsonArray>();
         std::vector<String> symbols;
@@ -620,6 +629,9 @@ void saveSettings() {
     SAVE_IF_CHANGED("stockRefresh", Int, currentSettings.stockRefreshInterval);
 
     SAVE_STRING_IF_CHANGED("fmpApiKey", currentSettings.financialModelingPrepApiKey);
+    SAVE_STRING_IF_CHANGED("stockRow1Symbol", currentSettings.stockRow1_symbol);
+    SAVE_STRING_IF_CHANGED("stockRow2Symbol", currentSettings.stockRow2_symbol);
+    SAVE_STRING_IF_CHANGED("stockRow3Symbol", currentSettings.stockRow3_symbol);
 
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
@@ -757,6 +769,12 @@ void loadSettings() {
 		currentSettings.stockRefreshInterval = preferences.getInt("stockRefresh", 20);
 		tempString = preferences.getString("fmpApiKey", "");
 		currentSettings.financialModelingPrepApiKey = tempString.c_str();
+        tempString = preferences.getString("stockRow1Symbol", "");
+        currentSettings.stockRow1_symbol = tempString.c_str();
+        tempString = preferences.getString("stockRow2Symbol", "");
+        currentSettings.stockRow2_symbol = tempString.c_str();
+        tempString = preferences.getString("stockRow3Symbol", "");
+        currentSettings.stockRow3_symbol = tempString.c_str();
 
 
 		for (int i = 0; i < 5; i++) {

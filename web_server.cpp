@@ -887,7 +887,7 @@ void setupWebRoutes() {
       request->send(200, "text/plain", themeName);
   });
   server.on("/api/api_examples", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "application/json", apiTemplates);
+    request->send(200, "application/json", apiTemplates);
   });
   server.on("/api/setTheme", HTTP_POST, [](AsyncWebServerRequest *request){
     String theme = request->getParam("theme", true)->value();
