@@ -788,7 +788,6 @@ const DP_HTML_TEMPLATE = (i) => `
     </div>
     <label for="dp_dataSourceType_${i}">Data Source:</label>
     <select id="dp_dataSourceType_${i}" class="data-source-select" data-index="${i}">
-        <option value="api">Web API</option>
         <option value="mqtt">MQTT Broker</option>
         <option value="ha">Home Assistant Push</option>
         <option value="static">Static Text</option>
