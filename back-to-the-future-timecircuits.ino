@@ -486,10 +486,6 @@ void applySettingsFromJson(const JsonObject& obj) {
                 if (!dp["authHeaderValue"].isNull()) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
                 if (!dp["apiExampleKey"].isNull()) currentSettings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
                 if (!dp["displayMode"].isNull()) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
-                if (!dp["monthPath"].isNull()) currentSettings.dataPoints[i].monthPath = dp["monthPath"].as<std::string>();
-                if (!dp["dayPath"].isNull()) currentSettings.dataPoints[i].dayPath = dp["dayPath"].as<std::string>();
-                if (!dp["yearPath"].isNull()) currentSettings.dataPoints[i].yearPath = dp["yearPath"].as<std::string>();
-                if (!dp["timePath"].isNull()) currentSettings.dataPoints[i].timePath = dp["timePath"].as<std::string>();
             } else {
                 currentSettings.dataPoints[i] = {}; // Clear unused data points
             }
@@ -649,10 +645,6 @@ void saveSettings() {
 		SAVE_STRING_IF_CHANGED((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue);
 		SAVE_STRING_IF_CHANGED((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey);
 		SAVE_IF_CHANGED((prefix + "dispMode").c_str(), Int, (int)currentSettings.dataPoints[i].displayMode);
-		SAVE_STRING_IF_CHANGED((prefix + "monthP").c_str(), currentSettings.dataPoints[i].monthPath);
-		SAVE_STRING_IF_CHANGED((prefix + "dayP").c_str(), currentSettings.dataPoints[i].dayPath);
-		SAVE_STRING_IF_CHANGED((prefix + "yearP").c_str(), currentSettings.dataPoints[i].yearPath);
-		SAVE_STRING_IF_CHANGED((prefix + "timeP").c_str(), currentSettings.dataPoints[i].timePath);
 	}
 	preferences.end();
     Log_printf(LOG_LEVEL_INFO, "--- Settings Saved ---");
@@ -788,10 +780,6 @@ void loadSettings() {
 			currentSettings.dataPoints[i].authHeaderValue = preferences.getString((prefix + "authVal").c_str(), "").c_str();
 			currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
 			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
-			currentSettings.dataPoints[i].monthPath = preferences.getString((prefix + "monthP").c_str(), "").c_str();
-			currentSettings.dataPoints[i].dayPath = preferences.getString((prefix + "dayP").c_str(), "").c_str();
-			currentSettings.dataPoints[i].yearPath = preferences.getString((prefix + "yearP").c_str(), "").c_str();
-			currentSettings.dataPoints[i].timePath = preferences.getString((prefix + "timeP").c_str(), "").c_str();
 		}
 	}
 	preferences.end();

@@ -684,7 +684,6 @@ function getUIDataPoint(index, forSave = false) {
     }
 
     const dataSourceTypeStr = getElValue(`dp_dataSourceType_${index}`);
-    const displayModeStr = getElValue(`dp_displayMode_${index}`);
 
     if (forSave) {
         // Format for the C++ backend
@@ -694,17 +693,13 @@ function getUIDataPoint(index, forSave = false) {
         else if (dataSourceTypeStr === 'api') dataSourceType = 3;
         else dataSourceType = 0; // mqtt
 
-        let displayMode;
-        if (displayModeStr === 'scrolling') displayMode = 1;
-        else displayMode = 0; // date
-
         let httpMethod;
         if (getElValue(`dp_httpMethod_${index}`) === 'post') httpMethod = 1;
         else httpMethod = 0; // get
 
         return {
             dataSourceType: dataSourceType,
-            displayMode: displayMode,
+            displayMode: 1, // Always scrolling
             httpMethod: httpMethod,
             scrollSpeed: parseInt(getElValue(`dp_scrollSpeed_${index}`), 10) || 150,
             url: getElValue(`dp_url_${index}`),
@@ -719,7 +714,7 @@ function getUIDataPoint(index, forSave = false) {
         // Raw values for UI state preservation
         return {
             dataSourceType: dataSourceTypeStr,
-            displayMode: displayModeStr,
+            displayMode: 'scrolling',
             httpMethod: getElValue(`dp_httpMethod_${index}`),
             scrollSpeed: getElValue(`dp_scrollSpeed_${index}`),
             url: getElValue(`dp_url_${index}`),
@@ -752,7 +747,6 @@ function applyDataPointToUI(index, data) {
 
     // Restore the state of all UI fields from the provided data object.
     setElValue(`dp_dataSourceType_${index}`, data.dataSourceType || 'mqtt');
-    setElValue(`dp_displayMode_${index}`, data.displayMode || 'date');
     setElValue(`dp_httpMethod_${index}`, data.httpMethod || 'get');
     setElValue(`dp_scrollSpeed_${index}`, data.scrollSpeed || 150);
     setElValue(`dp_url_${index}`, data.url || '');
@@ -762,6 +756,9 @@ function applyDataPointToUI(index, data) {
     setElValue(`dp_api_example_${index}`, data.apiExampleKey || '');
     setElValue(`dp_mqttTopic_${index}`, data.mqttTopic || '');
     setElValue(`dp_scrollingText_${index}`, data.scrollingText || '');
+
+    // Manually trigger a change event to ensure the correct containers are shown/hidden
+    document.getElementById(`dp_dataSourceType_${index}`).dispatchEvent(new Event('change'));
 }
 
 
@@ -815,12 +812,7 @@ const DP_HTML_TEMPLATE = (i) => `
         <input type="text" id="dp_mqttTopic_${i}" placeholder="e.g., /home/livingroom/temperature">
     </div>
 
-    <label for="dp_displayMode_${i}">Display Mode:</label>
-    <select id="dp_displayMode_${i}" class="display-mode-select" data-index="${i}">
-        <option value="date">Month/Day/Year/Time</option>
-        <option value="scrolling">Scrolling Text</option>
-    </select>
-
+    <input type="hidden" id="dp_displayMode_${i}" value="scrolling">
 
     <div id="scrolling_text_container_${i}" class="dp-container">
         <label for="dp_scrollingText_${i}">Scrolling Text:</label>
@@ -1060,7 +1052,7 @@ function updateDataPointStatus(index, isSuccess) {
  */
 function clearDataPointFields(event) {
     const index = event.target.dataset.index;
-    const fields = ['prefix', 'suffix', 'icon', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'requestBody'];
+    const fields = ['mqttTopic', 'scrollingText', 'requestBody', 'url', 'authHeaderKey', 'authHeaderValue'];
     fields.forEach(field => {
         const el = document.getElementById(`dp_${field}_${index}`);
         if (el) el.value = '';
@@ -1088,7 +1080,7 @@ function duplicateDataPoint(event) {
     document.getElementById('numDataPoints').value = targetIndex + 1;
     document.getElementById('numDataPointsValue').textContent = targetIndex + 1;
     updateDataPointsUI(targetIndex + 1).then(() => {
-        const fields = ['dataSourceType', 'displayMode', 'url', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'api_example'];
+        const fields = ['dataSourceType', 'url', 'scrollSpeed', 'mqttTopic', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'api_example'];
         fields.forEach(field => {
             const sourceEl = document.getElementById(`dp_${field}_${sourceIndex}`);
             const targetEl = document.getElementById(`dp_${field}_${targetIndex}`);

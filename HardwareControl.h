@@ -106,10 +106,6 @@ struct DataPoint {
   std::string authHeaderValue;
   std::string apiExampleKey;
   DisplayMode displayMode;
-  std::string monthPath;
-  std::string dayPath;
-  std::string yearPath;
-  std::string timePath;
 };
 
 struct ClockSettings {
