@@ -939,6 +939,15 @@ void updateMarqueeDisplay() {
                     fullText += point.suffixText;
                 }
 
+                // --- FIX: Check for and skip empty pages ---
+                if (fullText.empty()) {
+                    // This page has no content, so skip it immediately.
+                    currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
+                    marqueeState = M_START_PAGE; // Go back to the start state for the *next* page
+                    xSemaphoreGive(xDisplayDataMutex); // Release the mutex before we return
+                    return; // Exit the function for this cycle
+                }
+
                 // Build the full string for the current page, with padding for scrolling effect
                 snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", fullText.c_str());
                 marqueeScrollPosition = 0;
