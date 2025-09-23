@@ -670,75 +670,224 @@ function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) 
  * @param {number} numPoints The number of data points to show.
  * @returns {Promise<void>} A promise that resolves when the UI is updated.
  */
-function updateDataPointsUI(numPoints) {
-    return new Promise((resolve) => {
-        const container = document.getElementById('dataPointsConfigContainer');
-        const existingPointElements = container.querySelectorAll('.data-point-block');
-        const currentNumPoints = existingPointElements.length;
+/**
+ * A single, comprehensive function to get the state of a data point from the UI.
+ * This is the single source of truth for reading data point form data.
+ * @param {number} index The index of the data point.
+ * @param {boolean} forSave If true, formats the data for the backend (e.g., converts strings to numbers).
+ * @returns {object|null} An object with the data point's data, or null if the point doesn't exist.
+ */
+function getUIDataPoint(index, forSave = false) {
+    const getElValue = (id) => document.getElementById(id)?.value || '';
+    if (!document.getElementById(`dp_dataSourceType_${index}`)) {
+        return null; // Don't try to read data from a non-existent element
+    }
 
-        if (numPoints > currentNumPoints) {
-            // Add new data points
-            for (let i = currentNumPoints; i < numPoints; i++) {
-                if (!dataPointStateCache[i]) {
-                    dataPointStateCache[i] = { modifiedUrls: {} };
-                }
-                const block = document.createElement('div');
-                block.className = 'setting-group data-point-block collapsed';
-                block.innerHTML = `
-                    <div class="dp-header">
-                        <div class="dp-title-group">
-                            <span class="dp-status-indicator" id="dp_status_${i}"></span>
-                            <h4>Data Point ${i + 1}</h4>
-                        </div>
-                        <div class="dp-action-bar">
-                            <button class="action-button dp-clear-btn" data-index="${i}">Clear</button>
-                            <button class="action-button dp-dup-btn" data-index="${i}">Duplicate</button>
-                        </div>
-                    </div>
-                    <label for="dp_dataSourceType_${i}">Data Source:</label>
-                    <select id="dp_dataSourceType_${i}" class="data-source-select" data-index="${i}">
-                        <option value="mqtt">MQTT Broker</option>
-                        <option value="ha">Home Assistant Push</option>
-                        <option value="static">Static Text</option>
-                    </select>
+    const dataSourceTypeStr = getElValue(`dp_dataSourceType_${index}`);
+    const displayModeStr = getElValue(`dp_displayMode_${index}`);
 
-                    <div id="dp_api_container_${i}" style="display: none;">
-                    </div>
+    if (forSave) {
+        // Format for the C++ backend
+        let dataSourceType;
+        if (dataSourceTypeStr === 'ha') dataSourceType = 1;
+        else if (dataSourceTypeStr === 'static') dataSourceType = 2;
+        else if (dataSourceTypeStr === 'api') dataSourceType = 3;
+        else dataSourceType = 0; // mqtt
 
-                    <div id="dp_mqtt_container_${i}" style="display: none;">
-                        <label for="dp_mqttTopic_${i}">MQTT Topic:</label>
-                        <input type="text" id="dp_mqttTopic_${i}" placeholder="e.g., /home/livingroom/temperature">
-                    </div>
+        let displayMode;
+        if (displayModeStr === 'scrolling') displayMode = 1;
+        else displayMode = 0; // date
 
-                    <div class="display-mode-container" id="scrolling_text_container_${i}">
-                        <label for="dp_scrollingText_${i}" style="margin-top: 15px;">Scrolling Text:</label>
-                        <input type="text" id="dp_scrollingText_${i}" class="wizard-target-input" placeholder="Enter text or map a value...">
-                    </div>
+        let httpMethod;
+        if (getElValue(`dp_httpMethod_${index}`) === 'post') httpMethod = 1;
+        else httpMethod = 0; // get
 
-                    <label for="dp_scrollSpeed_${i}" style="margin-top: 20px;">Scroll Speed (ms/char): <span id="dp_scrollSpeed_${i}Value">150</span></label>
-                    <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150">
-                `;
-                container.appendChild(block);
-                // Attach listeners only to the new block
-                attachDataPointEventListeners(block);
-            }
-        } else if (numPoints < currentNumPoints) {
-            // Remove excess data points from the end
-            for (let i = currentNumPoints - 1; i >= numPoints; i--) {
-                existingPointElements[i].remove();
-            }
+        return {
+            dataSourceType: dataSourceType,
+            displayMode: displayMode,
+            httpMethod: httpMethod,
+            scrollSpeed: parseInt(getElValue(`dp_scrollSpeed_${index}`), 10) || 150,
+            url: getElValue(`dp_url_${index}`),
+            requestBody: getElValue(`dp_requestBody_${index}`),
+            authHeaderKey: getElValue(`dp_authHeaderKey_${index}`),
+            authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
+            apiExampleKey: getElValue(`dp_api_example_${index}`),
+            monthPath: getElValue(`dp_monthPath_${index}`),
+            dayPath: getElValue(`dp_dayPath_${index}`),
+            yearPath: getElValue(`dp_yearPath_${index}`),
+            timePath: getElValue(`dp_timePath_${index}`),
+            mqttTopic: getElValue(`dp_mqttTopic_${index}`),
+            scrollingText: getElValue(`dp_scrollingText_${index}`).toUpperCase()
+        };
+    } else {
+        // Raw values for UI state preservation
+        return {
+            dataSourceType: dataSourceTypeStr,
+            displayMode: displayModeStr,
+            httpMethod: getElValue(`dp_httpMethod_${index}`),
+            scrollSpeed: getElValue(`dp_scrollSpeed_${index}`),
+            url: getElValue(`dp_url_${index}`),
+            requestBody: getElValue(`dp_requestBody_${index}`),
+            authHeaderKey: getElValue(`dp_authHeaderKey_${index}`),
+            authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
+            apiExampleKey: getElValue(`dp_api_example_${index}`),
+            monthPath: getElValue(`dp_monthPath_${index}`),
+            dayPath: getElValue(`dp_dayPath_${index}`),
+            yearPath: getElValue(`dp_yearPath_${index}`),
+            timePath: getElValue(`dp_timePath_${index}`),
+            mqttTopic: getElValue(`dp_mqttTopic_${index}`),
+            scrollingText: getElValue(`dp_scrollingText_${index}`)
+        };
+    }
+}
+
+/**
+ * Applies a data object to the UI fields for a specific data point.
+ * @param {number} index The index of the data point.
+ * @param {object} data The data object to apply.
+ */
+function applyDataPointToUI(index, data) {
+    if (!data) return;
+
+    const setElValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = value;
+            const valueSpan = document.getElementById(`${id}Value`);
+            if (valueSpan) valueSpan.textContent = value;
         }
+    };
 
-        // After adding or removing, get the updated list of elements and refresh their UI
-        const allPointElements = container.querySelectorAll('.data-point-block');
-        allPointElements.forEach(block => {
-            const select = block.querySelector('.data-source-select');
-            if (select) {
-                select.dispatchEvent(new Event('change'));
-            }
-        });
+    // Restore the state of all UI fields from the provided data object.
+    setElValue(`dp_dataSourceType_${index}`, data.dataSourceType || 'mqtt');
+    setElValue(`dp_displayMode_${index}`, data.displayMode || 'date');
+    setElValue(`dp_httpMethod_${index}`, data.httpMethod || 'get');
+    setElValue(`dp_scrollSpeed_${index}`, data.scrollSpeed || 150);
+    setElValue(`dp_url_${index}`, data.url || '');
+    setElValue(`dp_requestBody_${index}`, data.requestBody || '');
+    setElValue(`dp_authHeaderKey_${index}`, data.authHeaderKey || '');
+    setElValue(`dp_authHeaderValue_${index}`, data.authHeaderValue || '');
+    setElValue(`dp_api_example_${index}`, data.apiExampleKey || '');
+    setElValue(`dp_monthPath_${index}`, data.monthPath || '');
+    setElValue(`dp_dayPath_${index}`, data.dayPath || '');
+    setElValue(`dp_yearPath_${index}`, data.yearPath || '');
+    setElValue(`dp_timePath_${index}`, data.timePath || '');
+    setElValue(`dp_mqttTopic_${index}`, data.mqttTopic || '');
+    setElValue(`dp_scrollingText_${index}`, data.scrollingText || '');
+}
 
-        resolve();
+
+/**
+ * Updates the UI to show the specified number of data points using a "tear down and rebuild" strategy.
+ * This approach guarantees UI consistency by avoiding complex DOM manipulations.
+ * @param {number} numPoints The number of data points to show.
+ */
+const DP_HTML_TEMPLATE = (i) => `
+    <div class="dp-header">
+        <div class="dp-title-group">
+            <span class="dp-status-indicator" id="dp_status_${i}"></span>
+            <h4>Data Point ${i + 1}</h4>
+        </div>
+        <div class="dp-action-bar">
+            <button type="button" class="action-button dp-clear-btn" data-index="${i}">Clear</button>
+            <button type="button" class="action-button dp-dup-btn" data-index="${i}">Duplicate</button>
+        </div>
+    </div>
+    <label for="dp_dataSourceType_${i}">Data Source:</label>
+    <select id="dp_dataSourceType_${i}" class="data-source-select" data-index="${i}">
+        <option value="api">Web API</option>
+        <option value="mqtt">MQTT Broker</option>
+        <option value="ha">Home Assistant Push</option>
+        <option value="static">Static Text</option>
+    </select>
+
+    <div id="dp_api_container_${i}" class="dp-container">
+        <label for="dp_url_${i}">API URL:</label>
+        <input type="text" id="dp_url_${i}" class="wizard-target-input" placeholder="Enter API URL...">
+
+        <label for="dp_httpMethod_${i}">HTTP Method:</label>
+        <select id="dp_httpMethod_${i}" data-index="${i}">
+            <option value="get">GET</option>
+            <option value="post">POST</option>
+        </select>
+        <div id="dp_post_body_container_${i}" class="dp-container">
+            <label for="dp_requestBody_${i}">POST Body:</label>
+            <textarea id="dp_requestBody_${i}" rows="3" placeholder='e.g., {"id": "123"}'></textarea>
+        </div>
+
+        <label>Authentication:</label>
+        <div class="dp-auth-container">
+            <input type="text" id="dp_authHeaderKey_${i}" placeholder="Header Name (e.g., Authorization)">
+            <input type="text" id="dp_authHeaderValue_${i}" placeholder="Header Value (e.g., Bearer your_token)">
+        </div>
+    </div>
+
+    <div id="dp_mqtt_container_${i}" class="dp-container">
+        <label for="dp_mqttTopic_${i}">MQTT Topic:</label>
+        <input type="text" id="dp_mqttTopic_${i}" placeholder="e.g., /home/livingroom/temperature">
+    </div>
+
+    <label for="dp_displayMode_${i}">Display Mode:</label>
+    <select id="dp_displayMode_${i}" class="display-mode-select" data-index="${i}">
+        <option value="date">Month/Day/Year/Time</option>
+        <option value="scrolling">Scrolling Text</option>
+    </select>
+
+    <div id="dp_date_fields_${i}" class="dp-container">
+        <label for="dp_monthPath_${i}">Month Path:</label>
+        <input type="text" id="dp_monthPath_${i}" placeholder="e.g., results[0].month">
+        <label for="dp_dayPath_${i}">Day Path:</label>
+        <input type="text" id="dp_dayPath_${i}" placeholder="e.g., results[0].day">
+        <label for="dp_yearPath_${i}">Year Path:</label>
+        <input type="text" id="dp_yearPath_${i}" placeholder="e.g., results[0].year">
+        <label for="dp_timePath_${i}">Time Path:</label>
+        <input type="text" id="dp_timePath_${i}" placeholder="e.g., results[0].time">
+    </div>
+
+    <div id="scrolling_text_container_${i}" class="dp-container">
+        <label for="dp_scrollingText_${i}">Scrolling Text:</label>
+        <input type="text" id="dp_scrollingText_${i}" placeholder="Enter text or map a value...">
+    </div>
+
+    <label for="dp_scrollSpeed_${i}">Scroll Speed (ms/char): <span id="dp_scrollSpeed_${i}Value">150</span></label>
+    <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150">
+    <input type="hidden" id="dp_api_example_${i}">
+`;
+
+function updateDataPointsUI(numPoints) {
+    const container = document.getElementById('dataPointsConfigContainer');
+
+    const currentState = [];
+    const existingPointElements = container.querySelectorAll('.data-point-block');
+    existingPointElements.forEach((block, i) => {
+        const data = getUIDataPoint(i, false); // Get raw UI state
+        if (data) {
+            currentState.push(data);
+        }
+    });
+
+    container.innerHTML = '';
+
+    for (let i = 0; i < numPoints; i++) {
+        const block = document.createElement('div');
+        block.className = 'setting-group data-point-block collapsed';
+        block.innerHTML = DP_HTML_TEMPLATE(i);
+        container.appendChild(block);
+    }
+
+    attachDataPointEventListeners(container);
+
+    for (let i = 0; i < numPoints; i++) {
+        if (currentState[i]) {
+            applyDataPointToUI(i, currentState[i]);
+        }
+    }
+
+    // Trigger change events to ensure correct UI visibility
+    container.querySelectorAll('.data-source-select, .display-mode-select, #dp_httpMethod_').forEach(select => {
+        if (select) {
+            select.dispatchEvent(new Event('change', { 'bubbles': true }));
+        }
     });
 }
 
@@ -1266,31 +1415,16 @@ function previewAnimationStyle(isRandomized = false) {
     animationPreviewInterval = setInterval(runPreview, 50);
 }
 
+// The old getDataPointFromUI function is now replaced by the more comprehensive one above.
+// This new version is used for saving state, while the one at the end of the file
+// is used for preparing data to be sent to the backend. I will consolidate them.
+
 /**
- * Gathers all the UI input values for a given data point.
+ * Gathers all the UI input values for a given data point for backend submission.
  * @param {number} index The index of the data point.
- * @returns {object} An object containing the data point's configuration.
+ * @returns {object} An object containing the data point's configuration formatted for the backend.
  */
-function getDataPointFromUI(index) {
-    const getElValue = (id) => document.getElementById(id)?.value || '';
-
-    const dataSourceTypeStr = getElValue(`dp_dataSourceType_${index}`);
-    let dataSourceType;
-    if (dataSourceTypeStr === 'ha') {
-        dataSourceType = 1;
-    } else if (dataSourceTypeStr === 'static') {
-        dataSourceType = 2;
-    } else { // mqtt
-        dataSourceType = 0;
-    }
-
-    return {
-        dataSourceType: dataSourceType,
-        scrollSpeed: parseInt(getElValue(`dp_scrollSpeed_${index}`), 10),
-        mqttTopic: getElValue(`dp_mqttTopic_${index}`),
-        scrollingText: getElValue(`dp_scrollingText_${index}`).toUpperCase()
-    };
-}
+// This function is no longer needed as its logic has been consolidated into getUIDataPoint
 
 /**
  * Fetches the system status from the server.

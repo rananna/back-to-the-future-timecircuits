@@ -432,29 +432,11 @@ async function saveSettings() {
         settings.numDataPoints = numDataPoints;
         settings.dataPoints = [];
         for (let i = 0; i < numDataPoints; i++) {
-            const point = {};
-            const sourceValue = getValue(`dp_dataSourceType_${i}`, 'mqtt');
-            if (sourceValue === 'ha') {
-                point.dataSourceType = 1;
-            } else if (sourceValue === 'static') {
-                point.dataSourceType = 2;
-            } else { // mqtt
-                point.dataSourceType = 0;
+            // Use the new, consolidated helper function from main_ui.js to ensure all fields are captured correctly.
+            const point = getUIDataPoint(i, true); // `true` formats the data for the backend.
+            if (point) {
+                settings.dataPoints.push(point);
             }
-            point.displayMode = getIntValue(`dp_displayMode_${i}`, 0);
-            point.monthPath = getValue(`dp_monthPath_${i}`);
-            point.dayPath = getValue(`dp_dayPath_${i}`);
-            point.yearPath = getValue(`dp_yearPath_${i}`);
-            point.timePath = getValue(`dp_timePath_${i}`);
-            point.prefix = getValue(`dp_prefix_${i}`);
-            point.suffix = getValue(`dp_suffix_${i}`);
-            point.icon = getValue(`dp_icon_${i}`);
-            point.scrollSpeed = getIntValue(`dp_scrollSpeed_${i}`, 150);
-            point.mqttTopic = getValue(`dp_mqttTopic_${i}`);
-            point.yearPrefix = getValue(`dp_yearPrefix_${i}`);
-            point.yearSuffix = getValue(`dp_yearSuffix_${i}`);
-            point.scrollingText = getValue(`dp_scrollingText_${i}`);
-            settings.dataPoints.push(point);
         }
     } else {
         settings.numDataPoints = 0;
