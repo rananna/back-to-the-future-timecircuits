@@ -721,8 +721,6 @@ function updateDataPointsUI(numPoints) {
                 container.appendChild(block);
                 // Attach listeners only to the new block
                 attachDataPointEventListeners(block);
-                // Manually trigger change to set initial visibility of containers
-                block.querySelector('.data-source-select').dispatchEvent(new Event('change'));
             }
         } else if (numPoints < currentNumPoints) {
             // Remove excess data points from the end
@@ -730,6 +728,16 @@ function updateDataPointsUI(numPoints) {
                 existingPointElements[i].remove();
             }
         }
+
+        // After adding or removing, get the updated list of elements and refresh their UI
+        const allPointElements = container.querySelectorAll('.data-point-block');
+        allPointElements.forEach(block => {
+            const select = block.querySelector('.data-source-select');
+            if (select) {
+                select.dispatchEvent(new Event('change'));
+            }
+        });
+
         resolve();
     });
 }
