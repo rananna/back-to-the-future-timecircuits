@@ -5,6 +5,7 @@
 #include "timezone.h"
 #include <esp_tls.h>
 #include <time.h>
+#include "SslManager.h"
 
 extern bool timeSynchronized;
 
@@ -257,35 +258,6 @@ public:
     }
 };
 
-// Root CA certificate for financialmodelingprep.com (Amazon RSA 2048 M04)
-static const char *fmp_root_ca = \
-"-----BEGIN CERTIFICATE-----\n" \
-"MIIEXjCCA0agAwIBAgITB3MSTyqVLj7Rili9uF0bwM5fJzANBgkqhkiG9w0BAQsF\n" \
-"ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n" \
-"b24gUm9vdCBDQSAxMB4XDTIyMDgyMzIyMjYzNVoXDTMwMDgyMzIyMjYzNVowPDEL\n" \
-"MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEcMBoGA1UEAxMTQW1hem9uIFJT\n" \
-"QSAyMDQ4IE0wNDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM3pVR6A\n" \
-"lQOp4xe776FdePXyejgA38mYx1ou9/jrpV6Sfn+/oqBKgwhY6ePsQHHQayWBJdBn\n" \
-"v4Wz363qRI4XUh9swBFJ11TnZ3LqOMvHmWq2+loA0QPtOfXdJ2fHBLrBrngtJ/GB\n" \
-"0p5olAVYrSZgvQGP16Rf8ddtNyxEEhYm3HuhmNi+vSeAq1tLYJPAvRCXonTpWdSD\n" \
-"xY6hvdmxlqTYi82AtBXSfpGQ58HHM0hw0C6aQakghrwWi5fGslLOqzpimNMIsT7c\n" \
-"qa0GJx6JfKqJqmQQNplO2h8n9ZsFJgBowof01ppdoLAWg6caMOM0om/VILKaa30F\n" \
-"9W/r8Qjah7ltGVkCAwEAAaOCAVowggFWMBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYD\n" \
-"VR0PAQH/BAQDAgGGMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAdBgNV\n" \
-"HQ4EFgQUH1KSYVaCVH+BZtgdPQqqMlyH3QgwHwYDVR0jBBgwFoAUhBjMhTTsvAyU\n" \
-"lC4IWZzHshBOCggwewYIKwYBBQUHAQEEbzBtMC8GCCsGAQUFBzABhiNodHRwOi8v\n" \
-"b2NzcC5yb290Y2ExLmFtYXpvbnRydXN0LmNvbTA6BggrBgEFBQcwAoYuaHR0cDov\n" \
-"L2NydC5yb290Y2ExLmFtYXpvbnRydXN0LmNvbS9yb290Y2ExLmNlcjA/BgNVHR8E\n" \
-"ODA2MDSgMqAwhi5odHRwOi8vY3JsLnJvb3RjYTEuYW1hem9udHJ1c3QuY29tL3Jv\n" \
-"b3RjYTEuY3JsMBMGA1UdIAQMMAowCAYGZ4EMAQIBMA0GCSqGSIb3DQEBCwUAA4IB\n" \
-"AQA+1O5UsAaNuW3lHzJtpNGwBnZd9QEYFtxpiAnIaV4qApnGS9OCw5ZPwie7YSlD\n" \
-"ZF5yyFPsFhUC2Q9uJHY/CRV1b5hIiGH0+6+w5PgKiY1MWuWT8VAaJjFxvuhM7a/e\n" \
-"fN2TIw1Wd6WCl6YRisunjQOrSP+unqC8A540JNyZ1JOE3jVqat3OZBGgMvihdj2w\n" \
-"Y23EpwesrKiQzkHzmvSH67PVW4ycbPy08HVZnBxZ5NrlGG9bwXR3fNTaz+c+Ej6c\n" \
-"5AnwI3qkOFgSkg3Y75cdFz6pO/olK+e3AqygAcv0WjzmkDPuBjssuZjCHMC56oH3\n" \
-"GJkV29Di2j5prHJbwZjG1inU\n" \
-"-----END CERTIFICATE-----\n";
-
 #include <Preferences.h>
 
 StockManager::StockManager() :
@@ -501,8 +473,13 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
 
     {
         esp_tls_cfg_t cfg = {};
-        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
-        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+        const char* ca_bundle = SslManager::getCaCertBundle();
+        if (ca_bundle != nullptr) {
+            cfg.cacert_buf = (const unsigned char *)ca_bundle;
+            cfg.cacert_bytes = SslManager::getCaCertBundleSize();
+        } else {
+            Log_printf(LOG_LEVEL_WARN, "No CA bundle loaded. Stock API request will likely fail validation.");
+        }
         cfg.timeout_ms = 10000;
 
         const char *hostname = "financialmodelingprep.com";
@@ -624,8 +601,13 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
 
     {
         esp_tls_cfg_t cfg = {};
-        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
-        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+        const char* ca_bundle = SslManager::getCaCertBundle();
+        if (ca_bundle != nullptr) {
+            cfg.cacert_buf = (const unsigned char *)ca_bundle;
+            cfg.cacert_bytes = SslManager::getCaCertBundleSize();
+        } else {
+            Log_printf(LOG_LEVEL_WARN, "No CA bundle loaded. Stock API request will likely fail validation.");
+        }
         cfg.timeout_ms = 10000;
 
         const char *hostname = "financialmodelingprep.com";

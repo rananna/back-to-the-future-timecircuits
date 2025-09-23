@@ -13,10 +13,11 @@
 #include "DataManager.h"
 #include "EventManager.h"
 #include "DisplayManager.h"
-#include "web_server.h"
+#include "web_server.hh"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "SslManager.h"
 extern bool weatherDataUpdated;
 #include <WiFiClientSecure.h>
 #include <time.h>
@@ -321,38 +322,6 @@ public:
     }
 };
 
-// Root CA certificate for api.open-meteo.com (Let's Encrypt R13)
-static const char *open_meteo_com_root_ca = \
-"-----BEGIN CERTIFICATE-----\n" \
-"MIIFBTCCAu2gAwIBAgIQWgDyEtjUtIDzkkFX6imDBTANBgkqhkiG9w0BAQsFADBP\n" \
-"MQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJuZXQgU2VjdXJpdHkgUmVzZWFy\n" \
-"Y2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBYMTAeFw0yNDAzMTMwMDAwMDBa\n" \
-"Fw0yNzAzMTIyMzU5NTlaMDMxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBF\n" \
-"bmNyeXB0MQwwCgYDVQQDEwNSMTMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\n" \
-"AoIBAQClZ3CN0FaBZBUXYc25BtStGZCMJlA3mBZjklTb2cyEBZPs0+wIG6BgUUNI\n" \
-"fSvHSJaetC3ancgnO1ehn6vw1g7UDjDKb5ux0daknTI+WE41b0VYaHEX/D7YXYKg\n" \
-"L7JRbLAaXbhZzjVlyIuhrxA3/+OcXcJJFzT/jCuLjfC8cSyTDB0FxLrHzarJXnzR\n" \
-"yQH3nAP2/Apd9Np75tt2QnDr9E0i2gB3b9bJXxf92nUupVcM9upctuBzpWjPoXTi\n" \
-"dYJ+EJ/B9aLrAek4sQpEzNPCifVJNYIKNLMc6YjCR06CDgo28EdPivEpBHXazeGa\n" \
-"XP9enZiVuppD0EqiFwUBBDDTMrOPAgMBAAGjgfgwgfUwDgYDVR0PAQH/BAQDAgGG\n" \
-"MB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcDATASBgNVHRMBAf8ECDAGAQH/\n" \
-"AgEAMB0GA1UdDgQWBBTnq58PLDOgU9NeT3jIsoQOO9aSMzAfBgNVHSMEGDAWgBR5\n" \
-"tFnme7bl5AFzgAiIyBpY9umbbjAyBggrBgEFBQcBAQQmMCQwIgYIKwYBBQUHMAKG\n" \
-"Fmh0dHA6Ly94MS5pLmxlbmNyLm9yZy8wEwYDVR0gBAwwCjAIBgZngQwBAgEwJwYD\n" \
-"VR0fBCAwHjAcoBqgGIYWaHR0cDovL3gxLmMubGVuY3Iub3JnLzANBgkqhkiG9w0B\n" \
-"AQsFAAOCAgEAUTdYUqEimzW7TbrOypLqCfL7VOwYf/Q79OH5cHLCZeggfQhDconl\n" \
-"k7Kgh8b0vi+/XuWu7CN8n/UPeg1vo3G+taXirrytthQinAHGwc/UdbOygJa9zuBc\n" \
-"VyqoH3CXTXDInT+8a+c3aEVMJ2St+pSn4ed+WkDp8ijsijvEyFwE47hulW0Ltzjg\n" \
-"9fOV5Pmrg/zxWbRuL+k0DBDHEJennCsAen7c35Pmx7jpmJ/HtgRhcnz0yjSBvyIw\n" \
-"6L1QIupkCv2SBODT/xDD3gfQQyKv6roV4G2EhfEyAsWpmojxjCUCGiyg97FvDtm/\n" \
-"NK2LSc9lybKxB73I2+P2G3CaWpvvpAiHCVu30jW8GCxKdfhsXtnIy2imskQqVZ2m\n" \
-"0Pmxobb28Tucr7xBK7CtwvPrb79os7u2XP3O5f9b/H66GNyRrglRXlrYjI1oGYL/\n" \
-"f4I1n/Sgusda6WvA6C190kxjU15Y12mHU4+BxyR9cx2hhGS9fAjMZKJss28qxvz6\n" \
-"Axu4CaDmRNZpK/pQrXF17yXCXkmEWgvSOEZy6Z9pcbLIVEGckV/iVeq0AOo2pkg9\n" \
-"p4QRIy0tK2diRENLSF2KysFwbY6B26BFeFs3v1sYVRhFW9nLkOrQVporCS0KyZmf\n" \
-"wVD89qSTlnctLcZnIavjKsKUu1nA1iU0yYMdYepKR7lWbnwhdx3ewok=\n" \
-"-----END CERTIFICATE-----\n";
-
 // This new function is responsible for fetching all weather data (current, daily, and hourly) in a single API call.
 // It performs one atomic attempt. Retries are handled by the calling function.
 static bool fetchWeatherDataFromApi() {
@@ -369,8 +338,16 @@ static bool fetchWeatherDataFromApi() {
     // "crosses initialization" errors. This is a safer pattern for resource management.
     do {
         esp_tls_cfg_t cfg = {};
-        cfg.cacert_buf = (const unsigned char *)open_meteo_com_root_ca;
-        cfg.cacert_bytes = strlen(open_meteo_com_root_ca) + 1;
+        const char* ca_bundle = SslManager::getCaCertBundle();
+        if (ca_bundle != nullptr) {
+            cfg.cacert_buf = (const unsigned char *)ca_bundle;
+            cfg.cacert_bytes = SslManager::getCaCertBundleSize();
+        } else {
+            // If no CA bundle is loaded, we proceed without one.
+            // This will cause certificate validation to fail if the server's cert is not otherwise trusted.
+            // This is the desired secure behavior. The UI will be notified of the failure.
+            Log_printf(LOG_LEVEL_WARN, "No CA bundle loaded. Weather API request will likely fail validation.");
+        }
         cfg.timeout_ms = 10000; // 10 second timeout for TLS handshake and read/write operations
 
         const char *hostname = "api.open-meteo.com";

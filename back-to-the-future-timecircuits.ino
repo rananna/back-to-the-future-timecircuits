@@ -44,6 +44,7 @@
 #include "DataManager.h"
 #include "MqttManager.h"
 #include "StockManager.h"
+#include "SslManager.h"
 #include "timezone.h"
 
 #include <vector>
@@ -849,6 +850,9 @@ void setup() {
         ESP.restart();
     }
     Log_printf(LOG_LEVEL_INFO, "LittleFS mount... OK");
+
+    // Initialize the SSL Manager to load the CA cert bundle
+    SslManager::begin();
 
     Log_printf(LOG_LEVEL_INFO, "Loading settings...");
     loadSettings();
