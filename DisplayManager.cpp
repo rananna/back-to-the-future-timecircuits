@@ -850,6 +850,12 @@ void updateMarqueeDisplay() {
     DisplayRow* targetRow = &lastRow;
     static char marqueePageBuffer[256];
 
+    if (isMarqueeBufferDirty) {
+        Log_printf(LOG_LEVEL_DEBUG, "Marquee buffer is dirty, forcing state to M_START_PAGE");
+        marqueeState = M_START_PAGE;
+        isMarqueeBufferDirty = false;
+    }
+
     // Turn off AM/PM LEDs for the last row, as they are not used in this mode.
     digitalWrite(LAST_AM_PIN, LOW);
     digitalWrite(LAST_PM_PIN, LOW);

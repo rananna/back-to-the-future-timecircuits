@@ -474,14 +474,9 @@ void applySettingsFromJson(const JsonObject& obj) {
             if (i < currentSettings.numDataPoints && i < dataPoints.size()) {
                 JsonObject dp = dataPoints[i];
                 if (!dp["dataSourceType"].isNull()) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
-                if (!dp["url"].isNull()) currentSettings.dataPoints[i].url = dp["url"].as<std::string>();
                 currentSettings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
                 if (!dp["mqttTopic"].isNull()) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
                 if (!dp["scrollingText"].isNull()) currentSettings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
-                if (!dp["authHeaderKey"].isNull()) currentSettings.dataPoints[i].authHeaderKey = dp["authHeaderKey"].as<std::string>();
-                if (!dp["authHeaderValue"].isNull()) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
-                if (!dp["apiExampleKey"].isNull()) currentSettings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
-                if (!dp["displayMode"].isNull()) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
                 if (!dp["prefixText"].isNull()) currentSettings.dataPoints[i].prefixText = dp["prefixText"].as<std::string>();
                 if (!dp["suffixText"].isNull()) currentSettings.dataPoints[i].suffixText = dp["suffixText"].as<std::string>();
             } else {
@@ -636,13 +631,6 @@ void saveSettings() {
 		SAVE_STRING_IF_CHANGED((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
 		SAVE_STRING_IF_CHANGED((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText);
 		SAVE_IF_CHANGED((prefix + "scroll").c_str(), Int, currentSettings.dataPoints[i].scrollSpeed);
-		SAVE_STRING_IF_CHANGED((prefix + "url").c_str(), currentSettings.dataPoints[i].url);
-		SAVE_IF_CHANGED((prefix + "httpMethod").c_str(), Int, (int)currentSettings.dataPoints[i].httpMethod);
-		SAVE_STRING_IF_CHANGED((prefix + "reqBody").c_str(), currentSettings.dataPoints[i].requestBody);
-		SAVE_STRING_IF_CHANGED((prefix + "authKey").c_str(), currentSettings.dataPoints[i].authHeaderKey);
-		SAVE_STRING_IF_CHANGED((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue);
-		SAVE_STRING_IF_CHANGED((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey);
-		SAVE_IF_CHANGED((prefix + "dispMode").c_str(), Int, (int)currentSettings.dataPoints[i].displayMode);
         SAVE_STRING_IF_CHANGED((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefixText);
         SAVE_STRING_IF_CHANGED((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffixText);
 	}
@@ -773,13 +761,6 @@ void loadSettings() {
 			currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
 			currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
 			currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str(), 150);
-			currentSettings.dataPoints[i].url = preferences.getString((prefix + "url").c_str(), "").c_str();
-			currentSettings.dataPoints[i].httpMethod = (HttpMethod)preferences.getInt((prefix + "httpMethod").c_str(), 0);
-			currentSettings.dataPoints[i].requestBody = preferences.getString((prefix + "reqBody").c_str(), "").c_str();
-			currentSettings.dataPoints[i].authHeaderKey = preferences.getString((prefix + "authKey").c_str(), "").c_str();
-			currentSettings.dataPoints[i].authHeaderValue = preferences.getString((prefix + "authVal").c_str(), "").c_str();
-			currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
-			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
             currentSettings.dataPoints[i].prefixText = preferences.getString((prefix + "prefix").c_str(), "").c_str();
             currentSettings.dataPoints[i].suffixText = preferences.getString((prefix + "suffix").c_str(), "").c_str();
 		}

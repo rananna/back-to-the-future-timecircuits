@@ -439,13 +439,6 @@ void sendFullSettingsToClient(uint32_t clientId) {
         dp["mqttTopic"] = currentSettings.dataPoints[i].mqttTopic.c_str();
         dp["scrollingText"] = currentSettings.dataPoints[i].scrollingText.c_str();
         dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
-        dp["url"] = currentSettings.dataPoints[i].url.c_str();
-        dp["httpMethod"] = (int)currentSettings.dataPoints[i].httpMethod;
-        dp["requestBody"] = currentSettings.dataPoints[i].requestBody.c_str();
-        dp["authHeaderKey"] = currentSettings.dataPoints[i].authHeaderKey.c_str();
-        dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue.c_str();
-        dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey.c_str();
-        dp["displayMode"] = (int)currentSettings.dataPoints[i].displayMode;
         dp["prefixText"] = currentSettings.dataPoints[i].prefixText.c_str();
         dp["suffixText"] = currentSettings.dataPoints[i].suffixText.c_str();
     }
@@ -710,14 +703,10 @@ void setupWebRoutes() {
     JsonArray dataPoints = doc["dataPoints"].to<JsonArray>();
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
         JsonObject dp = dataPoints.add<JsonObject>();
-        dp["url"] = currentSettings.dataPoints[i].url.c_str();
         dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
         dp["dataSourceType"] = (int)currentSettings.dataPoints[i].dataSourceType;
         dp["mqttTopic"] = currentSettings.dataPoints[i].mqttTopic.c_str();
         dp["scrollingText"] = currentSettings.dataPoints[i].scrollingText.c_str();
-        dp["authHeaderKey"] = currentSettings.dataPoints[i].authHeaderKey.c_str();
-        dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue.c_str();
-        dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey.c_str();
         dp["prefixText"] = currentSettings.dataPoints[i].prefixText.c_str();
         dp["suffixText"] = currentSettings.dataPoints[i].suffixText.c_str();
     }
