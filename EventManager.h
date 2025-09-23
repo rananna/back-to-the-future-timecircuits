@@ -49,10 +49,6 @@ extern String overrideMessageLine1;
 extern String overrideMessageLine2;
 extern String overrideMessageLine3;
 
-extern bool isMarqueeOverrideActive;
-extern String marqueeOverrideMessage;
-extern unsigned long marqueeOverrideEndTime;
-
 extern SemaphoreHandle_t xDisplayDataMutex;
 extern std::string lastCityName;
 

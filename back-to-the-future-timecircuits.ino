@@ -209,9 +209,6 @@ bool isMessageOverrideActive = false;
 String overrideMessageLine1 = "";
 String overrideMessageLine2 = "";
 String overrideMessageLine3 = "";
-bool isMarqueeOverrideActive = false;
-String marqueeOverrideMessage = "";
-unsigned long marqueeOverrideEndTime = 0;
 SemaphoreHandle_t xDisplayDataMutex;
 SemaphoreHandle_t xAnimationStartMutex;
 SemaphoreHandle_t xTimeLibMutex;
@@ -230,7 +227,6 @@ enum DisplayState {
     STATE_MESSAGE_OVERRIDE,
     STATE_ANIMATING,
     STATE_STOCK_TICKER,
-    STATE_MARQUEE_OVERRIDE,
     STATE_DATA_LINK,
     STATE_WEATHER
 };
@@ -960,8 +956,6 @@ void updateDisplayState() {
         newDisplayState = STATE_MESSAGE_OVERRIDE;
     } else if (isAnimating) {
         newDisplayState = STATE_ANIMATING;
-    } else if (isMarqueeOverrideActive) {
-        newDisplayState = STATE_MARQUEE_OVERRIDE;
     } else if (currentSettings.stockTickerModeEnabled) {
         newDisplayState = STATE_STOCK_TICKER;
     } else if (currentSettings.dataLinkEnabled) {
@@ -1006,9 +1000,6 @@ void handleDisplay() {
             break;
         case STATE_ANIMATING:
             handleDisplayAnimation();
-            break;
-        case STATE_MARQUEE_OVERRIDE:
-            displayMarqueeOverride();
             break;
         case STATE_STOCK_TICKER:
             updateStockTickerDisplay();

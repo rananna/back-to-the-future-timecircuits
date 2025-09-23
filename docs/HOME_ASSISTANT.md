@@ -95,7 +95,6 @@ Entities are grouped by function to make them easy to find.
 *   **`switch.time_circuits_display_temporal_echo`**: A fun, experimental feature that creates a "ghosting" effect on the displays.
 
 #### **Marquee & DataLink**
-*   **`text.time_circuits_display_marquee_temp_override`**: Sends a temporary scrolling message. Use plain text or JSON for a timed message: `{"text": "ALERT", "duration": 60}`.
 *   **`number.time_circuits_display_datalink_refresh`**: Sets the refresh interval for all API-based DataLink points.
 *   **`select.time_circuits_display_datapoint_0_source`**: Sets the data source for marquee slot 1 (and 4 others).
 

@@ -212,38 +212,6 @@ Here are some popular ETFs for major North American indices that you can use:
 #### Data Link Marquee
 This is a fully configurable marquee for displaying custom data from almost any source. It works by cycling through up to 5 "Data Points" on the "Last Time Departed" display row.
 
-##### Controlling the Marquee via MQTT
-For ultimate flexibility, you can directly control the marquee text from any MQTT client. This is perfect for displaying temporary notifications or alerts from a home automation system like Home Assistant, Node-RED, or any other MQTT-enabled platform.
-
-This functionality uses a special "temporary override" topic. When you publish a message to this topic, it will immediately replace the currently displayed data point on the marquee. When the override is cleared (either after a set duration or manually), the marquee will return to its normal data rotation.
-
-*   **Topic**: `timecircuits/<DEVICE_ID>/marquee_temp_override/command`
-    *   You must replace `<DEVICE_ID>` with the unique ID of your clock, which can be found in the "Network & System" tab of the web interface.
-
-There are two ways to send a message:
-
-**1. Simple Text Message**
-
-You can send a plain text string as the payload. The marquee will display this text indefinitely, until you send an empty message to the same topic to clear it.
-
-*   **Example**:
-    *   **Topic**: `timecircuits/bttf-clock-123456/marquee_temp_override/command`
-    *   **Payload**: `WARNING: REACTOR OVERLOAD`
-
-**2. JSON Message for Timed Display**
-
-For more control, you can send a JSON-formatted string. This allows you to specify both the text and a duration (in seconds) for how long the message should be displayed. After the duration expires, the override is automatically cleared.
-
-*   **JSON Fields**:
-    *   `text`: The string to be displayed on the marquee.
-    *   `duration`: The number of seconds to display the message.
-
-*   **Example**:
-    *   **Topic**: `timecircuits/bttf-clock-123456/marquee_temp_override/command`
-    *   **Payload**: `{"text": "MAIL HAS ARRIVED", "duration": 30}`
-
-This command will display "MAIL HAS ARRIVED" for 30 seconds, and then the marquee will revert to its standard display.
-
 ##### Global Settings
 *   **MQTT Broker Settings**: If you plan to use MQTT or Home Assistant Push as a data source for any data point, you must configure your MQTT broker address, port, and credentials here.
 *   **Refresh All Data Every (min)**: Sets a global interval for how often the clock will re-fetch data for all data points.
@@ -255,6 +223,16 @@ You can configure up to 5 independent data points. Each one has its own set of o
     *   **MQTT Broker**: Subscribe to an MQTT topic and display the message payload.
     *   **Home Assistant Push**: A special mode for use with the Home Assistant integration, allowing HA to push data directly to a specific display segment.
     *   **Static Text**: Display a fixed string of text.
+
+##### Controlling a Data Point via MQTT
+To send data to a specific data point, you need to configure the data point in the web UI to use the "MQTT Broker" data source and specify a unique MQTT topic for it.
+
+*   **Example**:
+    1.  In the "Data Link" tab, select "Data Link Marquee".
+    2.  For "Data Point 1", set the "Data Source" to "MQTT Broker".
+    3.  In the "MQTT Topic" field for Data Point 1, enter a topic like `timecircuits/bttf-clock-123456/datapoint/1`.
+    4.  Save the settings.
+    5.  Now, you can publish a message to the topic `timecircuits/bttf-clock-123456/datapoint/1` from any MQTT client, and the payload of the message will be displayed on the marquee.
 
 *   **Display Mode**:
     *   **Scrolling Text**: This mode displays a single, continuous line of text that scrolls across the entire display row. This is best for long strings or simple messages.

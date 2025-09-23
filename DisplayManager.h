@@ -36,7 +36,6 @@ extern std::string manualDisplayText[3][4];
 // Dirty flags and buffers for scrolling text
 extern bool isMarqueeBufferDirty;
 extern bool isWeatherBufferDirty;
-extern bool isMarqueeOverrideBufferDirty;
 
 extern std::string marqueeBuffer;
 extern char weatherBuffer[512];

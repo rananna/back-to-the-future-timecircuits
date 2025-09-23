@@ -263,19 +263,6 @@ void publishHaAutoDiscovery() {
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
     
-    doc.clear();
-    doc["name"] = "Temporary Marquee Override";
-    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_marquee_temp_override";
-    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_marquee_temp_override";
-    doc["command_topic"] = device_base_topic + "/marquee_temp_override/command";
-    doc["icon"] = "mdi:label-outline";
-    doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
-    topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
-
     const char* button_configs[][3] = {
         {"reboot_device", "Reboot Device", "mdi:restart"},
         {"force_ntp_sync", "Force NTP Sync", "mdi:timer-sync-outline"},
@@ -753,21 +740,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             settingsChanged = true;
             broadcastWsStateUpdate("stockRefreshInterval", currentSettings.stockRefreshInterval);
         }
-        else if (topicStr == base_topic + "marquee_temp_override/command") {
-            JsonDocument doc;
-            if (deserializeJson(doc, message) == DeserializationError::Ok) {
-                marqueeOverrideMessage = doc["text"].as<String>();
-                unsigned long duration = doc["duration"] | 0;
-                isMarqueeOverrideActive = true;
-                marqueeOverrideEndTime = (duration > 0) ? millis() + (duration * 1000) : 0;
-            } else {
-                marqueeOverrideMessage = message;
-                isMarqueeOverrideActive = true;
-                marqueeOverrideEndTime = 0;
-            }
-            isMarqueeOverrideBufferDirty = true;
-            stateChanged = true;
-        }
         else if (topicStr == base_topic + "reboot_device/command" && message == "PRESS") {
             ESP.restart();
         } else if (topicStr == base_topic + "force_ntp_sync/command" && message == "PRESS") {
@@ -974,7 +946,6 @@ void publishAllHaStates() {
     if (overrideMessageLine3.length() > 0) overrideMessage += "\n" + overrideMessageLine3;
     mqttClient.publish((base_topic + "/override_text/state").c_str(), overrideMessage.c_str(), true);
 
-    mqttClient.publish((base_topic + "/marquee/state").c_str(), marqueeOverrideMessage.c_str(), true);
     mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
     
     itoa(currentSettings.brightness, payload, 10);

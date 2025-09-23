@@ -935,7 +935,6 @@ void handleBootSequence() {
 void resetDisplayToNormal() {
     // Clear any active override message flags
     isMessageOverrideActive = false;
-    isMarqueeOverrideActive = false;
 
     // Reset manual text override for all display segments
     for (int r = 0; r < 3; ++r) {
@@ -960,7 +959,6 @@ void resetDisplayToNormal() {
 static void comprehensiveAnimationCleanup() {
     // Reset all override and manual mode flags
     isMessageOverrideActive = false;
-    isMarqueeOverrideActive = false;
     for (int r = 0; r < 3; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
