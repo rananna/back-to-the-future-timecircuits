@@ -51,5 +51,5 @@ trigger: []
 action:
   - service: mqtt.publish
     data:
-      topic: "timecircuits/{{ clock_id }}/run_sequence/command"
-      payload: "text(last_time, \"{{ text }}\")"
+      topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/year/set"
+      payload: "{{ text }}"
