@@ -260,6 +260,8 @@ async function applyDataLinkSettings(datalink) {
             document.getElementById(`dp_scrollSpeed_${i}Value`).textContent = point.scrollSpeed || 150;
             document.getElementById(`dp_mqttTopic_${i}`).value = point.mqttTopic || '';
             document.getElementById(`dp_scrollingText_${i}`).value = point.scrollingText || '';
+            document.getElementById(`dp_prefixText_${i}`).value = point.prefixText || '';
+            document.getElementById(`dp_suffixText_${i}`).value = point.suffixText || '';
 
             // Trigger change events to update the UI
             document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
@@ -708,7 +710,9 @@ function getUIDataPoint(index, forSave = false) {
             authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
             apiExampleKey: getElValue(`dp_api_example_${index}`),
             mqttTopic: getElValue(`dp_mqttTopic_${index}`),
-            scrollingText: getElValue(`dp_scrollingText_${index}`).toUpperCase()
+            scrollingText: getElValue(`dp_scrollingText_${index}`).toUpperCase(),
+            prefixText: getElValue(`dp_prefixText_${index}`),
+            suffixText: getElValue(`dp_suffixText_${index}`)
         };
     } else {
         // Raw values for UI state preservation
@@ -723,7 +727,9 @@ function getUIDataPoint(index, forSave = false) {
             authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
             apiExampleKey: getElValue(`dp_api_example_${index}`),
             mqttTopic: getElValue(`dp_mqttTopic_${index}`),
-            scrollingText: getElValue(`dp_scrollingText_${index}`)
+            scrollingText: getElValue(`dp_scrollingText_${index}`),
+            prefixText: getElValue(`dp_prefixText_${index}`),
+            suffixText: getElValue(`dp_suffixText_${index}`)
         };
     }
 }
@@ -756,6 +762,8 @@ function applyDataPointToUI(index, data) {
     setElValue(`dp_api_example_${index}`, data.apiExampleKey || '');
     setElValue(`dp_mqttTopic_${index}`, data.mqttTopic || '');
     setElValue(`dp_scrollingText_${index}`, data.scrollingText || '');
+    setElValue(`dp_prefixText_${index}`, data.prefixText || '');
+    setElValue(`dp_suffixText_${index}`, data.suffixText || '');
 
     // Manually trigger a change event to ensure the correct containers are shown/hidden
     document.getElementById(`dp_dataSourceType_${index}`).dispatchEvent(new Event('change'));
@@ -810,6 +818,13 @@ const DP_HTML_TEMPLATE = (i) => `
     <div id="dp_mqtt_container_${i}" class="dp-container">
         <label for="dp_mqttTopic_${i}">MQTT Topic:</label>
         <input type="text" id="dp_mqttTopic_${i}" placeholder="e.g., /home/livingroom/temperature">
+    </div>
+
+    <div id="dp_prefix_suffix_container_${i}" class="dp-container" style="display:none;">
+        <label for="dp_prefixText_${i}">Prefix Text:</label>
+        <input type="text" id="dp_prefixText_${i}" placeholder="e.g., TEMP:">
+        <label for="dp_suffixText_${i}">Suffix Text:</label>
+        <input type="text" id="dp_suffixText_${i}" placeholder="e.g., °C">
     </div>
 
     <input type="hidden" id="dp_displayMode_${i}" value="scrolling">
@@ -883,10 +898,12 @@ function attachDataPointEventListeners(rootElement = document) {
             // Hide all source-specific containers first
             document.getElementById(`dp_api_container_${index}`).style.display = 'none';
             document.getElementById(`dp_mqtt_container_${index}`).style.display = 'none';
+            document.getElementById(`dp_prefix_suffix_container_${index}`).style.display = 'none';
 
             // Show the relevant container and adjust UI elements
             if (dataSource === 'mqtt') {
                 document.getElementById(`dp_mqtt_container_${index}`).style.display = 'block';
+                document.getElementById(`dp_prefix_suffix_container_${index}`).style.display = 'block';
                 scrollingTextInput.placeholder = "Enter text or map a value...";
             } else if (dataSource === 'ha') {
                 scrollingTextInput.placeholder = "Enter text or map a value...";

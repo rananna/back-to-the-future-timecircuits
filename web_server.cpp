@@ -446,6 +446,8 @@ void sendFullSettingsToClient(uint32_t clientId) {
         dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue.c_str();
         dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey.c_str();
         dp["displayMode"] = (int)currentSettings.dataPoints[i].displayMode;
+        dp["prefixText"] = currentSettings.dataPoints[i].prefixText.c_str();
+        dp["suffixText"] = currentSettings.dataPoints[i].suffixText.c_str();
     }
 
     String response;
@@ -716,6 +718,8 @@ void setupWebRoutes() {
         dp["authHeaderKey"] = currentSettings.dataPoints[i].authHeaderKey.c_str();
         dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue.c_str();
         dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey.c_str();
+        dp["prefixText"] = currentSettings.dataPoints[i].prefixText.c_str();
+        dp["suffixText"] = currentSettings.dataPoints[i].suffixText.c_str();
     }
 
     String response;

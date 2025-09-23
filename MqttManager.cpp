@@ -899,7 +899,16 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
             if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    displayPages[i].time = message.c_str();
+                    std::string displayText = currentSettings.dataPoints[i].prefixText;
+                    if (!displayText.empty()) {
+                        displayText += " ";
+                    }
+                    displayText += message.c_str();
+                    if (!currentSettings.dataPoints[i].suffixText.empty()) {
+                        displayText += " ";
+                        displayText += currentSettings.dataPoints[i].suffixText;
+                    }
+                    displayPages[i].time = displayText;
                     xSemaphoreGive(xDisplayDataMutex);
                 }
                 break;

@@ -482,6 +482,8 @@ void applySettingsFromJson(const JsonObject& obj) {
                 if (!dp["authHeaderValue"].isNull()) currentSettings.dataPoints[i].authHeaderValue = dp["authHeaderValue"].as<std::string>();
                 if (!dp["apiExampleKey"].isNull()) currentSettings.dataPoints[i].apiExampleKey = dp["apiExampleKey"].as<std::string>();
                 if (!dp["displayMode"].isNull()) currentSettings.dataPoints[i].displayMode = (DisplayMode)(dp["displayMode"].as<int>());
+                if (!dp["prefixText"].isNull()) currentSettings.dataPoints[i].prefixText = dp["prefixText"].as<std::string>();
+                if (!dp["suffixText"].isNull()) currentSettings.dataPoints[i].suffixText = dp["suffixText"].as<std::string>();
             } else {
                 currentSettings.dataPoints[i] = {}; // Clear unused data points
             }
@@ -641,6 +643,8 @@ void saveSettings() {
 		SAVE_STRING_IF_CHANGED((prefix + "authVal").c_str(), currentSettings.dataPoints[i].authHeaderValue);
 		SAVE_STRING_IF_CHANGED((prefix + "apiKey").c_str(), currentSettings.dataPoints[i].apiExampleKey);
 		SAVE_IF_CHANGED((prefix + "dispMode").c_str(), Int, (int)currentSettings.dataPoints[i].displayMode);
+        SAVE_STRING_IF_CHANGED((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefixText);
+        SAVE_STRING_IF_CHANGED((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffixText);
 	}
 	preferences.end();
     Log_printf(LOG_LEVEL_INFO, "--- Settings Saved ---");
@@ -776,6 +780,8 @@ void loadSettings() {
 			currentSettings.dataPoints[i].authHeaderValue = preferences.getString((prefix + "authVal").c_str(), "").c_str();
 			currentSettings.dataPoints[i].apiExampleKey = preferences.getString((prefix + "apiKey").c_str(), "").c_str();
 			currentSettings.dataPoints[i].displayMode = (DisplayMode)preferences.getInt((prefix + "dispMode").c_str(), 0);
+            currentSettings.dataPoints[i].prefixText = preferences.getString((prefix + "prefix").c_str(), "").c_str();
+            currentSettings.dataPoints[i].suffixText = preferences.getString((prefix + "suffix").c_str(), "").c_str();
 		}
 	}
 	preferences.end();
