@@ -210,39 +210,62 @@ Here are some popular ETFs for major North American indices that you can use:
 ---
 
 #### Data Link Marquee
-This is a fully configurable marquee for displaying custom data from almost any source. It works by cycling through up to 5 "Data Points" on the "Last Time Departed" display row.
+This is the most powerful and flexible data display mode. It transforms the "Last Time Departed" row into a fully configurable marquee that can display custom data from multiple sources like MQTT, Home Assistant, or just static text. It works by cycling through up to 5 independent "Data Points," each with its own source and formatting.
 
-##### Global Settings
-*   **MQTT Broker Settings**: If you plan to use MQTT or Home Assistant Push as a data source for any data point, you must configure your MQTT broker address, port, and credentials here.
-*   **Refresh All Data Every (min)**: Sets a global interval for how often the clock will re-fetch data for all data points.
+##### 1. Activating the Marquee
+To begin, you must first enable the Data Link Marquee mode.
+1.  Navigate to the **Data Link** tab.
+2.  Toggle on the **"Enable Data Link Marquee"** switch.
+This will disable the Weather and Stock Ticker modes and reveal the marquee configuration panel.
 
-##### Configuring Data Points
-You can configure up to 5 independent data points. Each one has its own set of options:
+##### 2. Global Settings
+These settings apply to all data points that use MQTT.
+*   **Global MQTT Broker Settings**: If you plan to use `MQTT Push` or `Home Assistant Push` as a data source for any data point, you **must** configure your MQTT broker's address, port, and credentials here. If you only use the `Static Text` data source, these settings can be left blank.
 
-*   **Data Source**:
-    *   **MQTT Broker**: Subscribe to an MQTT topic and display the message payload.
-    *   **Home Assistant Push**: A special mode for use with the Home Assistant integration, allowing HA to push data directly to a specific display segment.
-    *   **Static Text**: Display a fixed string of text.
+##### 3. Configuring Data Points
+This is where you define what data to show on the display.
 
-*   **Prefix/Suffix Text**: When using the "MQTT Broker" data source, you can add static text that will appear before (prefix) and after (suffix) the text received from the MQTT topic. This is useful for adding labels or units to your data.
-    *   *Example*: If your MQTT topic sends the number `23.5`, you could set the prefix to `TEMP:` and the suffix to `C` to display `TEMP: 23.5 C`.
+*   **Number of Data Points**: Use this slider to select how many data points you want to display, from 1 to 5. The clock will cycle through them in order. For each number you select, a new configuration block will appear below.
 
-##### Controlling a Data Point via MQTT
-To send data to a specific data point, you need to configure the data point in the web UI to use the "MQTT Broker" data source and specify a unique MQTT topic for it.
+*   **Data Point Header**: Each data point has a header with its title (e.g., "Data Point 1") and two helper buttons:
+    *   **Clear**: Resets all fields for that data point to their default values.
+    *   **Duplicate**: Copies the configuration of the current data point to a new data point at the end of the list. This is useful for creating several similar data points without re-entering all the settings.
 
-*   **Example**:
-    1.  In the "Data Link" tab, select "Data Link Marquee".
-    2.  For "Data Point 1", set the "Data Source" to "MQTT Broker".
-    3.  In the "MQTT Topic" field for Data Point 1, enter a topic like `timecircuits/bttf-clock-123456/datapoint/1`.
-    4.  Save the settings.
-    5.  Now, you can publish a message to the topic `timecircuits/bttf-clock-123456/datapoint/1` from any MQTT client, and the payload of the message will be displayed on the marquee.
+*   **Data Source**: This dropdown determines where the data for this point comes from.
+    *   **`MQTT Push`**: The most common option. The clock will subscribe to the MQTT topic you specify and display the payload of any message it receives. This is perfect for showing real-time data from sensors or other smart home devices.
+        *   When you select this, the **MQTT Topic**, **Prefix Text**, and **Suffix Text** fields will become visible.
+    *   **`Home Assistant Push`**: A special mode for seamless integration with Home Assistant. In this mode, Home Assistant can directly push data to the display without needing a specific MQTT topic configured on the clock.
+    *   **`Static Text`**: The simplest option. The clock will display a fixed string of text that you enter. This is great for reminders, labels, or decorative messages.
+        *   When you select this, the **Scrolling Text** field becomes visible.
 
-*   **Display Mode**:
-    *   **Scrolling Text**: This mode displays a single, continuous line of text that scrolls across the entire display row. This is best for long strings or simple messages.
+*   **Configuration Fields**:
+    *   **MQTT Topic**: (Visible for `MQTT Push` only) Enter the full MQTT topic the clock should listen to for this data point's value.
+    *   **Prefix Text**: (Visible for `MQTT Push` only) Static text that will always be displayed *before* the value received from MQTT. Useful for adding labels (e.g., `TEMP: `).
+    *   **Suffix Text**: (Visible for `MQTT Push` only) Static text that will always be displayed *after* the value received from MQTT. Useful for adding units (e.g., `°C`).
+    *   **Scrolling Text**: (Visible for `Static Text` only) The exact text you want to be displayed on the marquee.
+    *   **Scroll Speed**: A slider that controls how fast the text for this data point scrolls across the display. Faster speeds have a lower `ms/char` value.
 
-*   **Formatting & Display**:
-    *   **Prefix/Suffix**: Add static text before or after the main scrolling text.
-    *   **Scroll Speed**: Controls how fast the text scrolls.
+##### 4. Examples
+
+**Example 1: Displaying a Temperature from MQTT**
+You have a temperature sensor in your living room that publishes the temperature to the MQTT topic `home/livingroom/temp`. You want the clock to display `LIVING ROOM: 72.5°F`.
+
+1.  Set **Number of Data Points** to 1.
+2.  In the "Data Point 1" block:
+    *   Set **Data Source** to `MQTT Push`.
+    *   Set **MQTT Topic** to `home/livingroom/temp`.
+    *   Set **Prefix Text** to `LIVING ROOM: `.
+    *   Set **Suffix Text** to `°F`.
+3.  Now, when your sensor publishes `72.5` to the topic, the display will automatically show `LIVING ROOM: 72.5°F`.
+
+**Example 2: Displaying a Static Reminder**
+You want to create a simple reminder to take out the trash.
+
+1.  Set **Number of Data Points** to 2 (or another empty slot).
+2.  In the new "Data Point" block:
+    *   Set **Data Source** to `Static Text`.
+    *   Set **Scrolling Text** to `TAKE OUT THE TRASH`.
+3.  This message will now appear in the display rotation.
 
 ### Network & System Tab
 This tab provides information about the device's status and allows you to perform system-level actions.
