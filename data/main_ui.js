@@ -252,12 +252,10 @@ async function applyDataLinkSettings(datalink) {
     // Update the UI for each data point
     await updateDataPointsUI(numPoints);
     if (datalink.dataPoints) {
-        datalink.dataPoints.forEach((point, i) => {
-            // Guard against iterating beyond the number of UI elements created.
-            if (i >= numPoints) {
-                console.warn(`Data point index ${i} is out of bounds (numDataPoints: ${numPoints}). Skipping.`);
-                return;
-            }
+        for (let i = 0; i < numPoints; i++) {
+            const point = datalink.dataPoints[i];
+            if (!point) continue;
+
             let dataSourceValue = 'mqtt'; // Default
             if (point.dataSourceType === 1) {
                 dataSourceValue = 'ha';
@@ -275,7 +273,7 @@ async function applyDataLinkSettings(datalink) {
             // Trigger change events to update the UI
             document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
             // Marquee preview is disabled, so no call to updateMarqueePreview is needed.
-        });
+        }
     }
 }
 
