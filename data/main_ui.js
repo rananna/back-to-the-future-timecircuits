@@ -666,34 +666,24 @@ function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) 
 }
 
 /**
- * Updates the UI to show the specified number of data points.
+ * Updates the UI to show the specified number of data points without destroying existing ones.
  * @param {number} numPoints The number of data points to show.
  * @returns {Promise<void>} A promise that resolves when the UI is updated.
  */
 function updateDataPointsUI(numPoints) {
     return new Promise((resolve) => {
         const container = document.getElementById('dataPointsConfigContainer');
-
-        // --- START: MODIFICATION - Preserve existing data before rebuilding UI ---
-        // 1. Store existing data from the UI
-        const existingData = [];
         const existingPointElements = container.querySelectorAll('.data-point-block');
-        for (let i = 0; i < existingPointElements.length; i++) {
-            // The getDataPointFromUI function is used here to read the current state
-            // of each data point's form fields before they are destroyed.
-            existingData.push(getDataPointFromUI(i));
-        }
-        // --- END: MODIFICATION ---
+        const currentNumPoints = existingPointElements.length;
 
-        container.innerHTML = '';
-        if (numPoints > 0) {
-            for (let i = 0; i < numPoints; i++) {
+        if (numPoints > currentNumPoints) {
+            // Add new data points
+            for (let i = currentNumPoints; i < numPoints; i++) {
                 if (!dataPointStateCache[i]) {
                     dataPointStateCache[i] = { modifiedUrls: {} };
                 }
-                // Create the HTML for the data point block
                 const block = document.createElement('div');
-                block.className = 'setting-group data-point-block collapsed'; // Start collapsed
+                block.className = 'setting-group data-point-block collapsed';
                 block.innerHTML = `
                     <div class="dp-header">
                         <div class="dp-title-group">
@@ -729,33 +719,16 @@ function updateDataPointsUI(numPoints) {
                     <input type="range" id="dp_scrollSpeed_${i}" min="50" max="500" step="10" value="150">
                 `;
                 container.appendChild(block);
+                // Attach listeners only to the new block
+                attachDataPointEventListeners(block);
+                // Manually trigger change to set initial visibility of containers
+                block.querySelector('.data-source-select').dispatchEvent(new Event('change'));
             }
-            // attach event listeners
-            attachDataPointEventListeners();
-
-            // --- START: MODIFICATION - Restore data after rebuilding UI ---
-            // 2. Restore the stored data into the new UI elements
-            existingData.forEach((data, i) => {
-                if (i < numPoints) { // Only restore if the data point element still exists
-                    let dataSourceValue = 'mqtt';
-                    if (data.dataSourceType === 1) {
-                        dataSourceValue = 'ha';
-                    } else if (data.dataSourceType === 2) {
-                        dataSourceValue = 'static';
-                    }
-                    document.getElementById(`dp_dataSourceType_${i}`).value = dataSourceValue;
-                    document.getElementById(`dp_scrollSpeed_${i}`).value = data.scrollSpeed || 150;
-                    document.getElementById(`dp_scrollSpeed_${i}Value`).textContent = data.scrollSpeed || 150;
-                    document.getElementById(`dp_mqttTopic_${i}`).value = data.mqttTopic || '';
-                    document.getElementById(`dp_scrollingText_${i}`).value = data.scrollingText || '';
-
-                    // Trigger a 'change' event on the data source dropdown. This is crucial
-                    // to ensure that the correct input fields (e.g., MQTT topic) are shown or hidden
-                    // based on the restored data source type.
-                    document.getElementById(`dp_dataSourceType_${i}`).dispatchEvent(new Event('change'));
-                }
-            });
-            // --- END: MODIFICATION ---
+        } else if (numPoints < currentNumPoints) {
+            // Remove excess data points from the end
+            for (let i = currentNumPoints - 1; i >= numPoints; i--) {
+                existingPointElements[i].remove();
+            }
         }
         resolve();
     });
@@ -770,10 +743,11 @@ function updateDataPointsUI(numPoints) {
  */
 /**
  * Attaches event listeners to the data point UI elements.
+ * @param {Element} rootElement The root element to search for data point elements within.
  */
-function attachDataPointEventListeners() {
+function attachDataPointEventListeners(rootElement = document) {
     // Data source and display mode selectors
-    document.querySelectorAll('.data-source-select').forEach(select => {
+    rootElement.querySelectorAll('.data-source-select').forEach(select => {
         select.onchange = (e) => {
             const index = e.target.dataset.index;
             const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
@@ -796,11 +770,11 @@ function attachDataPointEventListeners() {
     });
 
     // Data point action buttons
-    document.querySelectorAll('.dp-clear-btn').forEach(btn => btn.onclick = clearDataPointFields);
-    document.querySelectorAll('.dp-dup-btn').forEach(btn => btn.onclick = duplicateDataPoint);
+    rootElement.querySelectorAll('.dp-clear-btn').forEach(btn => btn.onclick = clearDataPointFields);
+    rootElement.querySelectorAll('.dp-dup-btn').forEach(btn => btn.onclick = duplicateDataPoint);
 
     // General input change listeners for data points
-    document.querySelectorAll('.data-point-block input, .data-point-block select, .data-point-block textarea').forEach(input => {
+    rootElement.querySelectorAll('.data-point-block input, .data-point-block select, .data-point-block textarea').forEach(input => {
         input.addEventListener('input', (e) => {
             const indexMatch = e.target.id.match(/_(\d+)$/);
             if (!indexMatch) return;
@@ -825,7 +799,7 @@ function attachDataPointEventListeners() {
     });
 
     // Accordion logic for data point blocks
-    document.querySelectorAll('.dp-header').forEach(header => {
+    rootElement.querySelectorAll('.dp-header').forEach(header => {
         header.onclick = (e) => {
             // Don't collapse if a button inside the header was clicked
             if (e.target.tagName === 'BUTTON') return;
