@@ -106,6 +106,8 @@ struct DataPoint {
   std::string authHeaderValue;
   std::string apiExampleKey;
   DisplayMode displayMode;
+  std::string prefixText;
+  std::string suffixText;
 };
 
 struct ClockSettings {

@@ -224,6 +224,9 @@ You can configure up to 5 independent data points. Each one has its own set of o
     *   **Home Assistant Push**: A special mode for use with the Home Assistant integration, allowing HA to push data directly to a specific display segment.
     *   **Static Text**: Display a fixed string of text.
 
+*   **Prefix/Suffix Text**: When using the "MQTT Broker" data source, you can add static text that will appear before (prefix) and after (suffix) the text received from the MQTT topic. This is useful for adding labels or units to your data.
+    *   *Example*: If your MQTT topic sends the number `23.5`, you could set the prefix to `TEMP:` and the suffix to `C` to display `TEMP: 23.5 C`.
+
 ##### Controlling a Data Point via MQTT
 To send data to a specific data point, you need to configure the data point in the web UI to use the "MQTT Broker" data source and specify a unique MQTT topic for it.
 
