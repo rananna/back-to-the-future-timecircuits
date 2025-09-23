@@ -1,9 +1,12 @@
 blueprint:
-  name: BTTF Time Circuits - Marquee Data Slot Display
+  name: BTTF Time Circuits - Dynamic Marquee Text
   description: >-
-    Display the state of a Home Assistant entity on the clock's marquee
-    data slot. The clock's Data Point Source must be set to "Home Assistant Push"
-    for this to work.
+    Display a single, scrolling line of text on the bottom display.
+    You choose one of five "data slots" and provide the TEXT THAT YOU WANT TO DISPLAY.
+    Use Home Assistant's templating engine to create dynamic messages.
+    FOR EXAMPLE, THE TEXT COULD BE "Outside temp is {{ states('sensor.outside_temperature') }} DEGREES CELCIUS"
+    THIS TEXT IS SENT BY HOME ASSISTANT USING MQTT TO THE DATA SLOT, SUBSTITUTING THE TEMPERATURE FOR {{ states('sensor.outside_temperature') }}.
+    The clock's Data Point Source must be set to "Home Assistant Push" for this to work.
   domain: automation
   input:
     target_device:
@@ -30,36 +33,11 @@ blueprint:
               value: "3"
             - label: "Data Point 5"
               value: "4"
-    marquee_month:
-      name: Marquee Month Text (3 Chars)
-      description: Static text or a template for the MONTH display in marquee mode.
-      default: "DATA"
+    text:
+      name: Marquee Text
+      description: The text to display. Supports templates.
       selector:
         text:
-    marquee_day:
-      name: Marquee Day Text (2 Chars)
-      description: Static text or a template for the DAY display in marquee mode.
-      default: ""
-      selector:
-        text:
-    marquee_year:
-      name: Marquee Year Text (4 Chars)
-      description: Static text or a template for the YEAR display in marquee mode.
-      default: ""
-      selector:
-        text:
-    marquee_time:
-      name: Marquee Time Text (4 Chars)
-      description: Static text or a template for the TIME display in marquee mode.
-      default: "{{ states(marquee_target_entity) }}"
-      selector:
-        text:
-    marquee_target_entity:
-      name: Marquee Target Entity
-      description: The entity whose state you want to show in marquee mode.
-      default: ""
-      selector:
-        entity: {}
 
 variables:
   device_id: !input target_device
@@ -67,24 +45,23 @@ variables:
   clock_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
   slot: !input data_point_slot
 
-trigger:
-  - platform: state
-    entity_id: !input marquee_target_entity
+# This automation has no trigger, it is meant to be called from a script or another automation.
+trigger: []
 
 action:
   - service: mqtt.publish
     data:
       topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/month/set"
-      payload: "{{ marquee_month }}"
+      payload: ""
   - service: mqtt.publish
     data:
       topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/day/set"
-      payload: "{{ marquee_day }}"
+      payload: ""
   - service: mqtt.publish
     data:
       topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/year/set"
-      payload: "{{ marquee_year }}"
+      payload: ""
   - service: mqtt.publish
     data:
       topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/time/set"
-      payload: "{{ marquee_time }}"
+      payload: "{{ text }}"
