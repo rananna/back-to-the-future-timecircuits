@@ -908,7 +908,16 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                         displayText += " ";
                         displayText += currentSettings.dataPoints[i].suffixText;
                     }
-                    displayPages[i].time = displayText;
+
+                    // To ensure the text scrolls across the entire marquee, place it in the 'year'
+                    // field and clear the others, mimicking how static text is handled.
+                    displayPages[i].year = displayText;
+                    displayPages[i].month = "";
+                    displayPages[i].day = "";
+                    displayPages[i].time = "";
+
+                    isMarqueeBufferDirty = true; // Signal to the DisplayManager that new data is ready
+
                     xSemaphoreGive(xDisplayDataMutex);
                 }
                 break;

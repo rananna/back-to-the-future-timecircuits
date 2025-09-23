@@ -692,23 +692,12 @@ function getUIDataPoint(index, forSave = false) {
         let dataSourceType;
         if (dataSourceTypeStr === 'ha') dataSourceType = 1;
         else if (dataSourceTypeStr === 'static') dataSourceType = 2;
-        else if (dataSourceTypeStr === 'api') dataSourceType = 3;
         else dataSourceType = 0; // mqtt
-
-        let httpMethod;
-        if (getElValue(`dp_httpMethod_${index}`) === 'post') httpMethod = 1;
-        else httpMethod = 0; // get
 
         return {
             dataSourceType: dataSourceType,
             displayMode: 1, // Always scrolling
-            httpMethod: httpMethod,
             scrollSpeed: parseInt(getElValue(`dp_scrollSpeed_${index}`), 10) || 150,
-            url: getElValue(`dp_url_${index}`),
-            requestBody: getElValue(`dp_requestBody_${index}`),
-            authHeaderKey: getElValue(`dp_authHeaderKey_${index}`),
-            authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
-            apiExampleKey: getElValue(`dp_api_example_${index}`),
             mqttTopic: getElValue(`dp_mqttTopic_${index}`),
             scrollingText: getElValue(`dp_scrollingText_${index}`).toUpperCase(),
             prefixText: getElValue(`dp_prefixText_${index}`),
@@ -719,13 +708,7 @@ function getUIDataPoint(index, forSave = false) {
         return {
             dataSourceType: dataSourceTypeStr,
             displayMode: 'scrolling',
-            httpMethod: getElValue(`dp_httpMethod_${index}`),
             scrollSpeed: getElValue(`dp_scrollSpeed_${index}`),
-            url: getElValue(`dp_url_${index}`),
-            requestBody: getElValue(`dp_requestBody_${index}`),
-            authHeaderKey: getElValue(`dp_authHeaderKey_${index}`),
-            authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
-            apiExampleKey: getElValue(`dp_api_example_${index}`),
             mqttTopic: getElValue(`dp_mqttTopic_${index}`),
             scrollingText: getElValue(`dp_scrollingText_${index}`),
             prefixText: getElValue(`dp_prefixText_${index}`),
@@ -753,13 +736,7 @@ function applyDataPointToUI(index, data) {
 
     // Restore the state of all UI fields from the provided data object.
     setElValue(`dp_dataSourceType_${index}`, data.dataSourceType || 'mqtt');
-    setElValue(`dp_httpMethod_${index}`, data.httpMethod || 'get');
     setElValue(`dp_scrollSpeed_${index}`, data.scrollSpeed || 150);
-    setElValue(`dp_url_${index}`, data.url || '');
-    setElValue(`dp_requestBody_${index}`, data.requestBody || '');
-    setElValue(`dp_authHeaderKey_${index}`, data.authHeaderKey || '');
-    setElValue(`dp_authHeaderValue_${index}`, data.authHeaderValue || '');
-    setElValue(`dp_api_example_${index}`, data.apiExampleKey || '');
     setElValue(`dp_mqttTopic_${index}`, data.mqttTopic || '');
     setElValue(`dp_scrollingText_${index}`, data.scrollingText || '');
     setElValue(`dp_prefixText_${index}`, data.prefixText || '');
@@ -792,27 +769,6 @@ const DP_HTML_TEMPLATE = (i) => `
         <option value="ha">Home Assistant Push</option>
         <option value="static">Static Text</option>
     </select>
-
-    <div id="dp_api_container_${i}" class="dp-container">
-        <label for="dp_url_${i}">API URL:</label>
-        <input type="text" id="dp_url_${i}" class="wizard-target-input" placeholder="Enter API URL...">
-
-        <label for="dp_httpMethod_${i}">HTTP Method:</label>
-        <select id="dp_httpMethod_${i}" data-index="${i}">
-            <option value="get">GET</option>
-            <option value="post">POST</option>
-        </select>
-        <div id="dp_post_body_container_${i}" class="dp-container">
-            <label for="dp_requestBody_${i}">POST Body:</label>
-            <textarea id="dp_requestBody_${i}" rows="3" placeholder='e.g., {"id": "123"}'></textarea>
-        </div>
-
-        <label>Authentication:</label>
-        <div class="dp-auth-container">
-            <input type="text" id="dp_authHeaderKey_${i}" placeholder="Header Name (e.g., Authorization)">
-            <input type="text" id="dp_authHeaderValue_${i}" placeholder="Header Value (e.g., Bearer your_token)">
-        </div>
-    </div>
 
     <div id="dp_mqtt_container_${i}" class="dp-container">
         <label for="dp_mqttTopic_${i}">MQTT Topic:</label>
@@ -868,7 +824,7 @@ function updateDataPointsUI(numPoints) {
     }
 
     // Trigger change events to ensure correct UI visibility
-    container.querySelectorAll('.data-source-select, .display-mode-select, #dp_httpMethod_').forEach(select => {
+    container.querySelectorAll('.data-source-select, .display-mode-select').forEach(select => {
         if (select) {
             select.dispatchEvent(new Event('change', { 'bubbles': true }));
         }
@@ -895,7 +851,6 @@ function attachDataPointEventListeners(rootElement = document) {
             const scrollingTextInput = document.getElementById(`dp_scrollingText_${index}`);
 
             // Hide all source-specific containers first
-            document.getElementById(`dp_api_container_${index}`).style.display = 'none';
             document.getElementById(`dp_mqtt_container_${index}`).style.display = 'none';
             document.getElementById(`dp_prefix_suffix_container_${index}`).style.display = 'none';
 

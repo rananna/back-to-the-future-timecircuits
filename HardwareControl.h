@@ -99,13 +99,6 @@ struct DataPoint {
   DataSourceType dataSourceType;
   std::string mqttTopic;
   std::string scrollingText;
-  std::string url;
-  HttpMethod httpMethod;
-  std::string requestBody;
-  std::string authHeaderKey;
-  std::string authHeaderValue;
-  std::string apiExampleKey;
-  DisplayMode displayMode;
   std::string prefixText;
   std::string suffixText;
 };
