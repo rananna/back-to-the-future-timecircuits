@@ -228,17 +228,17 @@ action:
         sequence:
           - service: mqtt.publish
             data:
-              topic: "timecircuits/{{ clock_id }}/datapoint_{{ slot }}_month/command"
+              topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/month/set"
               payload: "{{ marquee_month }}"
           - service: mqtt.publish
             data:
-              topic: "timecircuits/{{ clock_id }}/datapoint_{{ slot }}_day/command"
+              topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/day/set"
               payload: "{{ marquee_day }}"
           - service: mqtt.publish
             data:
-              topic: "timecircuits/{{ clock_id }}/datapoint_{{ slot }}_year/command"
+              topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/year/set"
               payload: "{{ marquee_year }}"
           - service: mqtt.publish
             data:
-              topic: "timecircuits/{{ clock_id }}/datapoint_{{ slot }}_time/command"
+              topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/time/set"
               payload: "{{ marquee_time }}"

@@ -284,6 +284,48 @@ The "Dynamic Data Display" blueprint can be made even more powerful with templat
 > BUS IN {{ (as_timestamp(states.sensor.next_bus.state) - as_timestamp(now())) | timestamp_custom('%M') }} MIN
 > ```
 
+### **Deep Dive: How the Marquee Push Works**
+The "Home Assistant Push" feature for the DataLink marquee is a powerful way to display any information from your smart home directly on your clock. Here’s a detailed breakdown of how it works, from your Home Assistant automation to the pixels on the display.
+
+1.  **User Configuration (The "Address Label")**
+    *   **In the Web UI**: You start by going to the **Data Link** tab on the clock's web interface. For one of the five data points, you select **"Home Assistant Push"** as the **Data Source**. This tells the clock that this specific marquee slot should listen for messages from Home Assistant.
+    *   **In Home Assistant**: You use the **"Dynamic Data Display"** blueprint to create an automation. In this automation, you select the same **Marquee Data Slot** you configured in the web UI. This is like putting the correct address on your letter.
+
+2.  **The Blueprint (Packaging the Data)**
+    When the entity you are monitoring in Home Assistant changes its state, the blueprint automation triggers. It packages the text you defined (e.g., `PWR: {{ states('sensor.power_meter') }} W`) into four separate MQTT messages, one for each segment of the marquee row (`month`, `day`, `year`, `time`).
+
+    *Code Snippet (`bttf_dynamic_display_blueprint.yaml`):*
+    ```yaml
+    - service: mqtt.publish
+      data:
+        topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/year/set"
+        payload: "{{ marquee_year }}"
+    ```
+    This sends the content for the "YEAR" segment to a unique MQTT topic for that specific clock and that specific marquee slot.
+
+3.  **MQTT (The Postal Service)**
+    The blueprint sends these four messages to your MQTT broker. The broker acts as a central hub, immediately forwarding the messages to any device that has subscribed to these exact topics.
+
+4.  **The Firmware (Receiving the Mail)**
+    When your clock connects to the MQTT broker, it checks the configuration for each data point. If a data point is set to "Home Assistant Push", the firmware subscribes to the four corresponding MQTT topics for that slot.
+
+    *Code Snippet (`MqttManager.cpp`):*
+    ```cpp
+    if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_HA) {
+      String base_dp_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/datapoint/" + String(i);
+      mqttClient.subscribe((base_dp_topic + "/year/set").c_str());
+      // ...and for month, day, time
+    }
+    ```
+
+5.  **The Callback (Opening the Letter)**
+    When a message arrives, the `mqttCallback` function in the firmware is executed. It parses the topic to determine which data point (e.g., `0` for slot 1) and which segment (`year`) the message is for.
+
+6.  **Storing and Displaying the Data**
+    The function then places the text from the message payload into the correct position in a global array called `displayPages`. Another part of the firmware, the `DisplayManager`, constantly monitors this array. When it detects a change, it takes the new text, applies any scrolling or formatting, and sends it to be rendered on the physical LED marquee.
+
+This entire process happens in milliseconds, resulting in a near-instantaneous update on your clock's display whenever the data changes in Home Assistant.
+
 ### **Deep Dive: The "Run Sequence" Command**
 The `run_sequence` entity is the most powerful feature in the integration, allowing you to create custom, perfectly timed audio-visual alerts. You send it a single string containing a script of commands separated by semicolons.
 
