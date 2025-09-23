@@ -712,10 +712,6 @@ function getUIDataPoint(index, forSave = false) {
             authHeaderKey: getElValue(`dp_authHeaderKey_${index}`),
             authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
             apiExampleKey: getElValue(`dp_api_example_${index}`),
-            monthPath: getElValue(`dp_monthPath_${index}`),
-            dayPath: getElValue(`dp_dayPath_${index}`),
-            yearPath: getElValue(`dp_yearPath_${index}`),
-            timePath: getElValue(`dp_timePath_${index}`),
             mqttTopic: getElValue(`dp_mqttTopic_${index}`),
             scrollingText: getElValue(`dp_scrollingText_${index}`).toUpperCase()
         };
@@ -731,10 +727,6 @@ function getUIDataPoint(index, forSave = false) {
             authHeaderKey: getElValue(`dp_authHeaderKey_${index}`),
             authHeaderValue: getElValue(`dp_authHeaderValue_${index}`),
             apiExampleKey: getElValue(`dp_api_example_${index}`),
-            monthPath: getElValue(`dp_monthPath_${index}`),
-            dayPath: getElValue(`dp_dayPath_${index}`),
-            yearPath: getElValue(`dp_yearPath_${index}`),
-            timePath: getElValue(`dp_timePath_${index}`),
             mqttTopic: getElValue(`dp_mqttTopic_${index}`),
             scrollingText: getElValue(`dp_scrollingText_${index}`)
         };
@@ -768,10 +760,6 @@ function applyDataPointToUI(index, data) {
     setElValue(`dp_authHeaderKey_${index}`, data.authHeaderKey || '');
     setElValue(`dp_authHeaderValue_${index}`, data.authHeaderValue || '');
     setElValue(`dp_api_example_${index}`, data.apiExampleKey || '');
-    setElValue(`dp_monthPath_${index}`, data.monthPath || '');
-    setElValue(`dp_dayPath_${index}`, data.dayPath || '');
-    setElValue(`dp_yearPath_${index}`, data.yearPath || '');
-    setElValue(`dp_timePath_${index}`, data.timePath || '');
     setElValue(`dp_mqttTopic_${index}`, data.mqttTopic || '');
     setElValue(`dp_scrollingText_${index}`, data.scrollingText || '');
 }
@@ -833,16 +821,6 @@ const DP_HTML_TEMPLATE = (i) => `
         <option value="scrolling">Scrolling Text</option>
     </select>
 
-    <div id="dp_date_fields_${i}" class="dp-container">
-        <label for="dp_monthPath_${i}">Month Path:</label>
-        <input type="text" id="dp_monthPath_${i}" placeholder="e.g., results[0].month">
-        <label for="dp_dayPath_${i}">Day Path:</label>
-        <input type="text" id="dp_dayPath_${i}" placeholder="e.g., results[0].day">
-        <label for="dp_yearPath_${i}">Year Path:</label>
-        <input type="text" id="dp_yearPath_${i}" placeholder="e.g., results[0].year">
-        <label for="dp_timePath_${i}">Time Path:</label>
-        <input type="text" id="dp_timePath_${i}" placeholder="e.g., results[0].time">
-    </div>
 
     <div id="scrolling_text_container_${i}" class="dp-container">
         <label for="dp_scrollingText_${i}">Scrolling Text:</label>
@@ -1082,7 +1060,7 @@ function updateDataPointStatus(index, isSuccess) {
  */
 function clearDataPointFields(event) {
     const index = event.target.dataset.index;
-    const fields = ['monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'requestBody'];
+    const fields = ['prefix', 'suffix', 'icon', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'requestBody'];
     fields.forEach(field => {
         const el = document.getElementById(`dp_${field}_${index}`);
         if (el) el.value = '';
@@ -1110,7 +1088,7 @@ function duplicateDataPoint(event) {
     document.getElementById('numDataPoints').value = targetIndex + 1;
     document.getElementById('numDataPointsValue').textContent = targetIndex + 1;
     updateDataPointsUI(targetIndex + 1).then(() => {
-        const fields = ['dataSourceType', 'displayMode', 'url', 'monthPath', 'dayPath', 'yearPath', 'timePath', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'api_example'];
+        const fields = ['dataSourceType', 'displayMode', 'url', 'prefix', 'suffix', 'icon', 'scrollSpeed', 'mqttTopic', 'yearPrefix', 'yearSuffix', 'scrollingText', 'authHeaderKey', 'authHeaderValue', 'api_example'];
         fields.forEach(field => {
             const sourceEl = document.getElementById(`dp_${field}_${sourceIndex}`);
             const targetEl = document.getElementById(`dp_${field}_${targetIndex}`);
