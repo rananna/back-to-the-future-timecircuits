@@ -412,23 +412,6 @@
                 </form>
             </div>
             <div class="setting-group">
-                <h3>SSL Certificate Management</h3>
-                <p>Upload a new CA certificate bundle (cacert.pem) to ensure secure connections to external APIs.</p>
-                <div class="cert-status">
-                    <span>Status:</span>
-                    <span id="cert-status-indicator" class="status-dot-grey"></span>
-                    <span id="cert-status-text">Checking...</span>
-                </div>
-                <form id="cacert-upload-form">
-                    <input type="file" name="cacert" id="cacert-file-input" accept=".pem">
-                    <button type="submit">Upload Certificate</button>
-                    <div class="progress-bar-container">
-                        <div id="cacert-progress-bar" class="progress-bar"></div>
-                    </div>
-                    <p id="cacert-status-message" class="status-message"></p>
-                </form>
-            </div>
-            <div class="setting-group">
                 <h3>UI Theme</h3>
                 <div id="themeSelector" class="theme-selector">
                     <div class="theme-option" data-theme="theme-time-circuits">

@@ -1794,35 +1794,3 @@ body.time-travel-active {
 .autocomplete-item:hover {
     background-color: var(--tab-active-bg);
 }
-
-.cert-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px;
-    background-color: rgba(0,0,0,0.2);
-    border: 1px dashed var(--input-border);
-    border-radius: 5px;
-    margin-bottom: 15px;
-}
-
-.status-dot-grey, .status-dot-green, .status-dot-red {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.status-dot-grey {
-    background-color: #888;
-}
-
-.status-dot-green {
-    background-color: #00ff00;
-    box-shadow: 0 0 8px #00ff00;
-}
-
-.status-dot-red {
-    background-color: #ff0000;
-    box-shadow: 0 0 8px #ff0000;
-}
