@@ -377,9 +377,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 }
 
 
-// Forward declaration
-void sendFullSettingsToClient(uint32_t clientId);
-
 /**
  * @brief Sends a comprehensive JSON object of all current settings to a specific WebSocket client.
  * @details This function is called when a new UI client connects. It gathers all settings
