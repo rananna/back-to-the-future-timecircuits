@@ -55,6 +55,7 @@ void broadcastWsStateUpdate(const char* key, const JsonVariant& value);
 void broadcastWsStateUpdate(const char* key, int value);
 void broadcastWsStateUpdate(const char* key, bool value);
 void broadcastWeatherUpdate();
+void sendFullSettingsToClient(uint32_t clientId);
 
 
 #endif // WEB_SERVER_H
