@@ -772,7 +772,7 @@ const DP_HTML_TEMPLATE = (i) => `
     </div>
     <label for="dp_dataSourceType_${i}">Data Source:</label>
     <select id="dp_dataSourceType_${i}" class="data-source-select" data-index="${i}">
-        <option value="mqtt">MQTT Broker</option>
+        <option value="mqtt">MQTT Push</option>
         <option value="ha">Home Assistant Push</option>
         <option value="static">Static Text</option>
     </select>
@@ -857,22 +857,23 @@ function attachDataPointEventListeners(rootElement = document) {
             const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
             const scrollingTextInput = document.getElementById(`dp_scrollingText_${index}`);
             const scrollingTextContainer = document.getElementById(`scrolling_text_container_${index}`);
+            const mqttContainer = document.getElementById(`dp_mqtt_container_${index}`);
+            const prefixSuffixContainer = document.getElementById(`dp_prefix_suffix_container_${index}`);
 
-            // Hide all source-specific containers first
-            document.getElementById(`dp_mqtt_container_${index}`).style.display = 'none';
-            document.getElementById(`dp_prefix_suffix_container_${index}`).style.display = 'none';
+            // Hide all by default
+            mqttContainer.style.display = 'none';
+            prefixSuffixContainer.style.display = 'none';
+            scrollingTextContainer.style.display = 'none';
 
-            // Show/hide scrolling text container based on data source
-            scrollingTextContainer.classList.toggle('hidden', dataSource === 'mqtt' || dataSource === 'ha');
-
-            // Show the relevant container and adjust UI elements
             if (dataSource === 'mqtt') {
-                document.getElementById(`dp_mqtt_container_${index}`).style.display = 'block';
-                document.getElementById(`dp_prefix_suffix_container_${index}`).style.display = 'block';
+                mqttContainer.style.display = 'block';
+                prefixSuffixContainer.style.display = 'block';
                 scrollingTextInput.placeholder = "Enter text or map a value...";
             } else if (dataSource === 'ha') {
+                // For 'ha', all optional containers remain hidden
                 scrollingTextInput.placeholder = "Enter text or map a value...";
             } else if (dataSource === 'static') {
+                scrollingTextContainer.style.display = 'block';
                 scrollingTextInput.placeholder = "e.g., 'MEETING AT 10' or 'GO TEAM'";
             }
         };
