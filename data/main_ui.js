@@ -856,10 +856,14 @@ function attachDataPointEventListeners(rootElement = document) {
             const index = e.target.dataset.index;
             const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
             const scrollingTextInput = document.getElementById(`dp_scrollingText_${index}`);
+            const scrollingTextContainer = document.getElementById(`scrolling_text_container_${index}`);
 
             // Hide all source-specific containers first
             document.getElementById(`dp_mqtt_container_${index}`).style.display = 'none';
             document.getElementById(`dp_prefix_suffix_container_${index}`).style.display = 'none';
+
+            // Show/hide scrolling text container based on data source
+            scrollingTextContainer.classList.toggle('hidden', dataSource === 'mqtt' || dataSource === 'ha');
 
             // Show the relevant container and adjust UI elements
             if (dataSource === 'mqtt') {
