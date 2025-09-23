@@ -856,44 +856,9 @@ void fetchDataLink() {
         return;
     }
 
-    // This function now primarily handles static text updates.
+    // This function is now a placeholder.
     // MQTT and HA data are updated reactively via the mqttCallback.
-    // We will still iterate through all points to ensure static text is displayed.
-
-    bool needsUpdate = false;
-    for (int i = 0; i < currentSettings.numDataPoints; i++) {
-        if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_STATIC) {
-            needsUpdate = true;
-            break;
-        }
-    }
-
-    if (!needsUpdate) {
-        xSemaphoreGive(xDisplayDataMutex);
-        return;
-    }
-
-    // Since this function is now lighter, we can run it more frequently
-    // without the need for the isFetchingData flag, but we'll keep a simple timer.
-	unsigned long now = millis();
-	if (now - lastDataLinkFetch > 5000) { // Check every 5 seconds for static text
-        lastDataLinkFetch = now;
-        Log_printf(LOG_LEVEL_INFO, "Updating static text for Data Link marquee.");
-        
-        for (int i = 0; i < currentSettings.numDataPoints; i++) {
-            if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_STATIC) {
-                DataPoint point = currentSettings.dataPoints[i];
-
-                // Always treat as scrolling text as per new simplified logic
-                displayPages[i].year = point.scrollingText;
-                displayPages[i].month = "";
-                displayPages[i].day = "";
-                displayPages[i].time = "";
-
-                lastGoodDisplayPages[i] = displayPages[i];
-                isMarqueeBufferDirty = true;
-            }
-        }
-    }
+    // Static text is handled directly by the DisplayManager.
+    // This function could be used in the future for other pull-based data sources.
     xSemaphoreGive(xDisplayDataMutex);
 }
