@@ -243,12 +243,21 @@ async function applyDataLinkSettings(datalink) {
     document.getElementById('mqttPort').value = datalink.mqttPort || 1883;
     document.getElementById('mqttUser').value = datalink.mqttUser || '';
     document.getElementById('mqttPassword').value = datalink.mqttPassword || '';
-    document.getElementById('numDataPoints').value = datalink.numDataPoints;
-    document.getElementById('numDataPointsValue').textContent = datalink.numDataPoints;
+
+    // Sanitize numDataPoints to prevent errors from invalid server data
+    const numPoints = Number(datalink.numDataPoints) || 0;
+    document.getElementById('numDataPoints').value = numPoints;
+    document.getElementById('numDataPointsValue').textContent = numPoints;
+
     // Update the UI for each data point
-    await updateDataPointsUI(datalink.numDataPoints);
+    await updateDataPointsUI(numPoints);
     if (datalink.dataPoints) {
         datalink.dataPoints.forEach((point, i) => {
+            // Guard against iterating beyond the number of UI elements created.
+            if (i >= numPoints) {
+                console.warn(`Data point index ${i} is out of bounds (numDataPoints: ${numPoints}). Skipping.`);
+                return;
+            }
             let dataSourceValue = 'mqtt'; // Default
             if (point.dataSourceType === 1) {
                 dataSourceValue = 'ha';
