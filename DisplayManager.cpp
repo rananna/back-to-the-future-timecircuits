@@ -896,35 +896,45 @@ void updateMarqueeDisplay() {
                 // Get the configuration and data for the current page
                 DataPoint point = currentSettings.dataPoints[currentPageIndex];
 
-                // --- Build the content string from all available data fields ---
+                // --- Build the content string based on the data source type ---
                 std::string content_text;
-                if (point.dataSourceType == DATA_SOURCE_STATIC) {
-                    // For static sources, the text comes directly from the settings.
-                    content_text = point.scrollingText;
-                } else {
-                    // For dynamic sources (MQTT/HA), assemble the text from the updated displayPages.
-                    content_text = displayPages[currentPageIndex].month;
-                    if (!displayPages[currentPageIndex].day.empty()) {
-                        if (!content_text.empty()) content_text += " ";
-                        content_text += displayPages[currentPageIndex].day;
-                    }
-                    if (!displayPages[currentPageIndex].year.empty()) {
-                        if (!content_text.empty()) content_text += " ";
-                        content_text += displayPages[currentPageIndex].year;
-                    }
-                    if (!displayPages[currentPageIndex].time.empty()) {
-                        if (!content_text.empty()) content_text += " ";
-                        content_text += displayPages[currentPageIndex].time;
-                    }
+                switch (point.dataSourceType) {
+                    case DATA_SOURCE_STATIC:
+                        content_text = point.scrollingText;
+                        break;
+                    case DATA_SOURCE_MQTT:
+                        // For MQTT, the raw data is in the 'year' field.
+                        content_text = displayPages[currentPageIndex].year;
+                        break;
+                    case DATA_SOURCE_HA:
+                        // For Home Assistant, assemble the text from the four separate fields.
+                        content_text = displayPages[currentPageIndex].month;
+                        if (!displayPages[currentPageIndex].day.empty()) {
+                            if (!content_text.empty()) content_text += " ";
+                            content_text += displayPages[currentPageIndex].day;
+                        }
+                        if (!displayPages[currentPageIndex].year.empty()) {
+                            if (!content_text.empty()) content_text += " ";
+                            content_text += displayPages[currentPageIndex].year;
+                        }
+                        if (!displayPages[currentPageIndex].time.empty()) {
+                            if (!content_text.empty()) content_text += " ";
+                            content_text += displayPages[currentPageIndex].time;
+                        }
+                        break;
                 }
 
                 // --- Assemble the final string with prefix and suffix ---
-                std::string fullText = point.prefixText;
-                if (!point.prefixText.empty() && !content_text.empty()) {
-                    fullText += " ";
+                // This logic is now centralized and works correctly for all data source types.
+                std::string fullText;
+                if (!point.prefixText.empty()) {
+                    fullText += point.prefixText;
                 }
-                fullText += content_text;
-                if (!point.suffixText.empty() && !content_text.empty()) {
+                if (!content_text.empty()) {
+                    if (!fullText.empty()) fullText += " ";
+                    fullText += content_text;
+                }
+                if (!point.suffixText.empty()) {
                     if (!fullText.empty()) fullText += " ";
                     fullText += point.suffixText;
                 }
