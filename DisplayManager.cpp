@@ -887,8 +887,45 @@ void updateMarqueeDisplay() {
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
 
-                // Build the full string for the current page
-                snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", displayPages[currentPageIndex].year.c_str());
+                // Get the configuration and data for the current page
+                DataPoint point = currentSettings.dataPoints[currentPageIndex];
+
+                // --- Build the content string from all available data fields ---
+                std::string content_text;
+                // For STATIC source, the text is pre-loaded into the .year field.
+                // For MQTT/HA, the text can be in any of the four fields.
+                if (point.dataSourceType == DATA_SOURCE_STATIC) {
+                    content_text = displayPages[currentPageIndex].year;
+                } else {
+                    // Assemble the string from parts, adding spaces only where needed.
+                    content_text = displayPages[currentPageIndex].month;
+                    if (!displayPages[currentPageIndex].day.empty()) {
+                        if (!content_text.empty()) content_text += " ";
+                        content_text += displayPages[currentPageIndex].day;
+                    }
+                    if (!displayPages[currentPageIndex].year.empty()) {
+                        if (!content_text.empty()) content_text += " ";
+                        content_text += displayPages[currentPageIndex].year;
+                    }
+                    if (!displayPages[currentPageIndex].time.empty()) {
+                        if (!content_text.empty()) content_text += " ";
+                        content_text += displayPages[currentPageIndex].time;
+                    }
+                }
+
+                // --- Assemble the final string with prefix and suffix ---
+                std::string fullText = point.prefixText;
+                if (!point.prefixText.empty() && !content_text.empty()) {
+                    fullText += " ";
+                }
+                fullText += content_text;
+                if (!point.suffixText.empty() && !content_text.empty()) {
+                    if (!fullText.empty()) fullText += " ";
+                    fullText += point.suffixText;
+                }
+
+                // Build the full string for the current page, with padding for scrolling effect
+                snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", fullText.c_str());
                 marqueeScrollPosition = 0;
 
                 marqueeState = M_SCROLLING;
