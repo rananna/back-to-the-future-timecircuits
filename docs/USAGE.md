@@ -89,7 +89,7 @@ This mode transforms the "Last Time Departed" display row into a comprehensive, 
 4.  **Fetch Weather**: Once the coordinates are found, the clock will automatically use them to fetch the latest weather data from the free [Open-Meteo API](https://open-meteo.com/).
 5.  **Refresh Data**: You can click the **Refresh** button at any time to manually trigger a new weather data fetch using the saved coordinates.
 
-While fetching data, the display will show `WEA TH ER ----`. Once loaded, it will cycle through the following 7 pages of information, with each page scrolling across the display:
+While fetching data, the display will show `WEA TH ER ----`. Once loaded, it will cycle through the following 7 pages of information, with each page scrolling across the display. For readability, all text is automatically converted to uppercase.
 
 1.  **Current Conditions**
     *   Displays the current temperature and a description of the weather (e.g., "Partly Cloudy").
@@ -153,7 +153,7 @@ This section allows you to build and manage your list of tracked assets.
     *   **Saving Changes**: All changes to the asset list (adding, removing, reordering) are saved automatically when you press the main **"Engage Time Circuits"** button at the bottom of the page.
 
 ##### 3. The Display
-The physical display provides a rich, multi-page view of your assets.
+The physical display provides a rich, multi-page view of your assets. For readability, all text is automatically converted to uppercase.
 
 *   **Display Cycle**: The clock automatically cycles through each of your tracked assets. For each asset, it displays **two pages** of information:
     1.  **Page 1: Price & Change**: Shows the asset's symbol, current price, and percentage change for the day.
@@ -210,7 +210,7 @@ Here are some popular ETFs for major North American indices that you can use:
 ---
 
 #### Data Link Marquee
-This is a fully configurable marquee for displaying custom data from almost any source. It works by cycling through up to 5 "Data Points" on the "Last Time Departed" display row.
+This is a fully configurable marquee for displaying custom data from almost any source. It works by cycling through up to 5 "Data Points" on the "Last Time Departed" display row. For readability, all text is automatically converted to uppercase.
 
 ##### Global Settings
 *   **MQTT Broker Settings**: If you plan to use MQTT or Home Assistant Push as a data source for any data point, you must configure your MQTT broker address, port, and credentials here.
