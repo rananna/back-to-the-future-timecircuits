@@ -15,6 +15,8 @@
 #include "EventManager.h"
 #include "StockManager.h"
 #include <string>
+#include <algorithm>
+#include <cctype>
 
 extern StockManager stockManager;
 
@@ -552,6 +554,7 @@ void handleWeatherDisplay() {
             if (!currentWeatherData.errorReason.empty() && weatherState != WD_ERROR) {
                 weatherState = WD_ERROR;
                 snprintf(weatherBuffer, sizeof(weatherBuffer), "             WEATHER ERROR: %s", currentWeatherData.errorReason.c_str());
+                for (int i = 0; weatherBuffer[i]; i++) weatherBuffer[i] = toupper(weatherBuffer[i]);
                 weatherScrollPosition = 0;
                 lastWeatherUpdate = millis();
             } else if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
@@ -773,6 +776,7 @@ void handleWeatherDisplay() {
                                 snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "TODAY HIGH %s%s, LOW %s%s", high_buf, unit, low_buf, unit);
                                 break;
                         }
+                        for (int i = 0; weatherBuffer[i]; i++) weatherBuffer[i] = toupper(weatherBuffer[i]);
                         weatherScrollPosition = 0;
                         weatherState = WD_SCROLLING;
                         lastWeatherUpdate = millis();
@@ -947,6 +951,10 @@ void updateMarqueeDisplay() {
                     xSemaphoreGive(xDisplayDataMutex); // Release the mutex before we return
                     return; // Exit the function for this cycle
                 }
+
+                // Convert the entire marquee text to uppercase for readability
+                std::transform(fullText.begin(), fullText.end(), fullText.begin(),
+                               [](unsigned char c){ return std::toupper(c); });
 
                 // Build the full string for the current page, with padding for scrolling effect
                 snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", fullText.c_str());
