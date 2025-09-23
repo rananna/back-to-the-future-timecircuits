@@ -99,7 +99,7 @@ Entities are grouped by function to make them easy to find.
 *   **`select.time_circuits_display_datapoint_0_source`**: Sets the data source for marquee slot 1 (and 4 others).
 
 #### **Stock Ticker Mode**
-The Stock Ticker mode transforms the bottom "Last Time Departed" display into a scrolling marquee of financial data.
+The Stock Ticker mode transforms the bottom display row into a scrolling marquee of financial data.
 
 > ⚠️ **Important Note on Configuration:** The stock ticker feature is configured entirely through the **Web Interface**. You must use the web UI to enable the mode, provide your **Financial Modeling Prep (FMP) API key**, and manage your list of tracked assets.
 >

@@ -75,12 +75,14 @@ This feature is for energy saving, not for simulating time travel. It allows you
 *   **Time Travel Sound FX**: Toggle the main cinematic sound effects on or off.
 
 ### Data Link Tab
-This is where you configure the display rows to show live, real-time data from the internet or your smart home. The tab is split into three modes, and **only one can be active at a time**. Enabling one will disable the others.
+This is where you configure the clock to show live, real-time data from the internet or your smart home. All of these modes take over the bottom display row, hiding the normal "Last Time Departed" information.
+
+The tab is split into three modes, and **only one can be active at a time**. Enabling one will disable the others.
 
 ---
 
 #### Live Weather Display
-This mode transforms the "Last Time Departed" display row into a comprehensive, multi-page weather station. An internet connection is required, and the data automatically refreshes periodically.
+This mode transforms the bottom display row into a comprehensive, multi-page weather station. An internet connection is required, and the data automatically refreshes periodically.
 
 **Configuration Steps:**
 1.  **Enable Weather Mode**: Toggle on "Enable Live Weather".
@@ -210,7 +212,7 @@ Here are some popular ETFs for major North American indices that you can use:
 ---
 
 #### Data Link Marquee
-This is the most powerful and flexible data display mode. It transforms the "Last Time Departed" row into a fully configurable marquee that can display custom data from multiple sources like MQTT, Home Assistant, or just static text. It works by cycling through up to 5 independent "Data Points," each with its own source and formatting.
+This is the most powerful and flexible data display mode. It transforms the bottom display row into a fully configurable marquee that can display custom data from multiple sources like MQTT, Home Assistant, or just static text. It works by cycling through up to 5 independent "Data Points," each with its own source and formatting.
 
 ##### 1. Activating the Marquee
 To begin, you must first enable the Data Link Marquee mode.
