@@ -30,6 +30,16 @@ std::string marqueeOverrideBuffer;
 #include "HardwareControl.h"
 #include <cmath> // For std::isnan and std::isinf
 
+// Function to trim leading and trailing whitespace from a std::string
+static void trim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
 // Forward declaration for the timeout handler in the main .ino file
 void handleWeatherTimeout();
 
@@ -928,6 +938,9 @@ void updateMarqueeDisplay() {
                         break;
                 }
 
+                // Trim whitespace from the content before assembling the full string
+                trim(content_text);
+
                 // --- Assemble the final string with prefix and suffix ---
                 // This logic is now centralized and works correctly for all data source types.
                 std::string fullText;
@@ -942,6 +955,9 @@ void updateMarqueeDisplay() {
                     if (!fullText.empty()) fullText += " ";
                     fullText += point.suffixText;
                 }
+
+                // Trim the final combined string to handle cases where only whitespace is left
+                trim(fullText);
 
                 // --- FIX: Check for and skip empty pages ---
                 if (fullText.empty()) {
