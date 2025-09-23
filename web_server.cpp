@@ -449,10 +449,6 @@ void sendFullSettingsToClient(uint32_t clientId) {
         dp["authHeaderValue"] = currentSettings.dataPoints[i].authHeaderValue.c_str();
         dp["apiExampleKey"] = currentSettings.dataPoints[i].apiExampleKey.c_str();
         dp["displayMode"] = (int)currentSettings.dataPoints[i].displayMode;
-        dp["monthPath"] = currentSettings.dataPoints[i].monthPath.c_str();
-        dp["dayPath"] = currentSettings.dataPoints[i].dayPath.c_str();
-        dp["yearPath"] = currentSettings.dataPoints[i].yearPath.c_str();
-        dp["timePath"] = currentSettings.dataPoints[i].timePath.c_str();
     }
 
     String response;
