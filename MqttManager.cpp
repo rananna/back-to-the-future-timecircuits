@@ -899,19 +899,16 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
             if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    std::string displayText = currentSettings.dataPoints[i].prefixText;
-                    if (!displayText.empty()) {
-                        displayText += " ";
-                    }
-                    displayText += message.c_str();
-                    if (!currentSettings.dataPoints[i].suffixText.empty()) {
-                        displayText += " ";
-                        displayText += currentSettings.dataPoints[i].suffixText;
-                    }
+                    // OLD LOGIC:
+                    // This logic pre-formatted the string and put it all in the "year" field. This
+                    // was buggy because the DisplayManager would then try to re-format it.
 
-                    // To ensure the text scrolls across the entire marquee, place it in the 'year'
-                    // field and clear the others, mimicking how static text is handled.
-                    displayPages[i].year = displayText;
+                    // NEW LOGIC:
+                    // Simply place the raw payload into one of the data fields. The DisplayManager
+                    // is now responsible for all formatting (prefix, suffix, concatenation).
+                    // We use the "year" field as the designated container for the single,
+                    // unformatted string from a generic MQTT topic.
+                    displayPages[i].year = message.c_str();
                     displayPages[i].month = "";
                     displayPages[i].day = "";
                     displayPages[i].time = "";
