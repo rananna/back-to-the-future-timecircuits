@@ -898,12 +898,11 @@ void updateMarqueeDisplay() {
 
                 // --- Build the content string from all available data fields ---
                 std::string content_text;
-                // For STATIC source, the text is pre-loaded into the .year field.
-                // For MQTT/HA, the text can be in any of the four fields.
                 if (point.dataSourceType == DATA_SOURCE_STATIC) {
-                    content_text = displayPages[currentPageIndex].year;
+                    // For static sources, the text comes directly from the settings.
+                    content_text = point.scrollingText;
                 } else {
-                    // Assemble the string from parts, adding spaces only where needed.
+                    // For dynamic sources (MQTT/HA), assemble the text from the updated displayPages.
                     content_text = displayPages[currentPageIndex].month;
                     if (!displayPages[currentPageIndex].day.empty()) {
                         if (!content_text.empty()) content_text += " ";
