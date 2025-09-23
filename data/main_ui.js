@@ -52,7 +52,6 @@ async function initializeUI() {
         // Start fetching real-time data
         fetchTime();
         setInterval(fetchTime, 1000); // Fetch time every second
-        fetchCertStatus(); // Fetch the SSL certificate status
         fetchWeatherData();
         weatherInterval = setInterval(fetchWeatherData, 300000); // Fetch weather every 5 minutes
         fetchSystemStatus();
@@ -449,8 +448,6 @@ function attachEventListeners() {
     // Firmware upload form
     document.getElementById('firmware-upload-form').onsubmit = handleFirmwareUpload;
 
-    // CA Certificate upload form
-    document.getElementById('cacert-upload-form').onsubmit = handleCaCertUpload;
 }
 
 /**
@@ -984,178 +981,6 @@ function showLoading(buttonId, isLoading) {
         button.textContent = button.dataset.originalText || 'Save & Engage Time Circuits';
         button.disabled = false;
     }
-}
-
-function initWebSocket() {
-    console.log("CLIENT_DEBUG: Initializing WebSocket...");
-    const ws = new WebSocket(`ws://${window.location.host}/ws`);
-    ws.onopen = () => {
-        console.log("CLIENT_DEBUG: WebSocket connection established.");
-        showMessage('Connected to device.', 'success');
-    };
-    ws.onclose = () => {
-        console.log("CLIENT_DEBUG: WebSocket connection closed.");
-        showMessage('Disconnected from device. Attempting to reconnect...', 'error', 10000);
-        setTimeout(initWebSocket, 2000);
-    };
-    ws.onerror = (error) => {
-        console.error("CLIENT_DEBUG: WebSocket error:", error);
-        showMessage('WebSocket error. See console for details.', 'error');
-    };
-    ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
-        if (msg.action === 'uploadProgress') {
-            let progressBar, statusMessage;
-            if (msg.type === 'ui') {
-                progressBar = document.getElementById('firmware-progress-bar');
-                statusMessage = document.getElementById('firmware-status-message');
-            } else if (msg.type === 'cacert') {
-                progressBar = document.getElementById('cacert-progress-bar');
-                statusMessage = document.getElementById('cacert-status-message');
-            }
-            if (progressBar) progressBar.style.width = `${msg.progress}%`;
-            if (statusMessage) statusMessage.textContent = `Uploading ${msg.filename}... ${msg.progress}%`;
-        } else if (msg.action === 'uploadError') {
-            let statusMessage;
-            if (msg.type === 'ui') {
-                statusMessage = document.getElementById('firmware-status-message');
-                if (statusMessage) statusMessage.textContent = `Error: ${msg.message}`;
-                showMessage(`UI Upload Error: ${msg.message}`, 'error');
-            } else if (msg.type === 'cacert') {
-                statusMessage = document.getElementById('cacert-status-message');
-                if (statusMessage) statusMessage.textContent = `Error: ${msg.message}`;
-                showMessage(`CA Cert Upload Error: ${msg.message}`, 'error');
-            }
-        }
-    };
-}
-
-function handleFirmwareUpload(event) {
-    event.preventDefault();
-    const form = event.target;
-    const fileInput = form.querySelector('input[type="file"]');
-    const file = fileInput.files[0];
-    const progressBar = document.getElementById('firmware-progress-bar');
-    const statusMessage = document.getElementById('firmware-status-message');
-
-    if (!file) {
-        showMessage('Please select a file to upload.', 'error');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('update', file, file.name);
-
-    statusMessage.textContent = 'Uploading...';
-    progressBar.style.width = '0%';
-
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/update', true);
-    xhr.setRequestHeader('X-Auth-Password', '1.21gigawatts');
-
-    xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-            const percentComplete = (event.loaded / event.total) * 100;
-            progressBar.style.width = `${percentComplete}%`;
-            statusMessage.textContent = `Uploading firmware... ${Math.round(percentComplete)}%`;
-        }
-    };
-
-    xhr.onload = () => {
-        if (xhr.status === 200 && xhr.responseText === 'OK') {
-            statusMessage.textContent = 'Update successful! Device is restarting...';
-            showMessage('Firmware uploaded successfully! Device will restart.', 'success');
-        } else {
-            statusMessage.textContent = `Upload failed: ${xhr.responseText}`;
-            showMessage(`Upload failed: ${xhr.responseText}`, 'error');
-            progressBar.style.width = '0%';
-        }
-    };
-
-    xhr.onerror = () => {
-        statusMessage.textContent = 'Upload failed due to a network error.';
-        showMessage('Upload failed due to a network error.', 'error');
-        progressBar.style.width = '0%';
-    };
-
-    xhr.send(formData);
-}
-
-function handleCaCertUpload(event) {
-    event.preventDefault();
-    const form = event.target;
-    const fileInput = form.querySelector('input[type="file"]');
-    const file = fileInput.files[0];
-
-    if (!file) {
-        showMessage('Please select a file to upload.', 'error');
-        return;
-    }
-
-    if (file.name !== 'cacert.pem') {
-        showMessage("Invalid filename. The file must be named 'cacert.pem'.", 'error');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('cacert', file, file.name);
-
-    // We don't use the standard fetch here because we want to handle the response
-    // after the server has had time to process the file and restart.
-    // The response from the server will trigger a page reload after restart.
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload-cacert', true);
-
-    xhr.onload = () => {
-        if (xhr.status === 200) {
-            showMessage('CA Cert uploaded. Device is restarting...', 'success');
-            // The server restarts, which will close the connection. We can wait and then reload.
-            setTimeout(() => {
-                document.getElementById('cacert-status-message').textContent = 'Restarting... please wait.';
-                // Start polling to see if the server is back up
-                const interval = setInterval(() => {
-                    fetch('/api/isReady').then(res => {
-                        if (res.ok) {
-                            clearInterval(interval);
-                            window.location.reload();
-                        }
-                    }).catch(() => {});
-                }, 2000);
-            }, 1000);
-        } else {
-            showMessage(`Upload failed: ${xhr.responseText}`, 'error');
-        }
-    };
-
-    xhr.send(formData);
-}
-
-function fetchCertStatus() {
-    fetch('/api/system/cert_status')
-        .then(res => {
-            if (res.ok) {
-                return res.json();
-            }
-            return Promise.reject('Failed to fetch cert status');
-        })
-        .then(data => {
-            const indicator = document.getElementById('cert-status-indicator');
-            const text = document.getElementById('cert-status-text');
-            if (data.loaded && data.size > 0) {
-                indicator.className = 'status-dot-green';
-                text.textContent = `Loaded (${(data.size / 1024).toFixed(1)} KB)`;
-            } else {
-                indicator.className = 'status-dot-red';
-                text.textContent = 'Missing or Invalid';
-            }
-        })
-        .catch(err => {
-            console.warn("CLIENT_DEBUG: Could not fetch cert status:", err);
-            const indicator = document.getElementById('cert-status-indicator');
-            const text = document.getElementById('cert-status-text');
-            indicator.className = 'status-dot-grey';
-            text.textContent = 'Status Unknown';
-        });
 }
 
 /**

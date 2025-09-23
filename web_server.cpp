@@ -25,7 +25,6 @@
 #include <ArduinoOTA.h>
 #include "FS.h"
 #include <LITTLEFS.h>
-#include "SslManager.h"
 
 // --- Mutexes and state for thread-safe operations ---
 static std::mutex httpClientMutex;
@@ -256,16 +255,7 @@ void makeApiRequestTask(void* p) {
     
     WiFiClientSecure client;
     HTTPClient http;
-
-    // Configure the client to use the centralized CA certificate bundle.
-    if (urlStr.startsWith("https")) {
-        const char* ca_bundle = SslManager::getCaCertBundle();
-        if (ca_bundle != nullptr) {
-            client.setCACert(ca_bundle);
-        } else {
-            Log_printf(LOG_LEVEL_WARN, "API Request: No CA bundle loaded. HTTPS connection may fail.");
-        }
-    }
+    client.setInsecure();
 
     if (http.begin(client, urlStr)) {
         if (authKey.length() > 0 && authValue.length() > 0) {
@@ -292,31 +282,31 @@ void makeApiRequestTask(void* p) {
                 }
             } else {
                 responseJson["status"] = "error";
+                // --- START: MODIFICATION ---
+                // Grab the response body to provide a more detailed error message.
                 String responseBody = http.getString();
                 responseJson["payload"] = "HTTP Error: " + String(httpCode) + " - " + responseBody;
+                // --- END: MODIFICATION ---
             }
         } else {
             responseJson["status"] = "error";
-            String error_string = http.errorToString(httpCode).c_str();
-            if (error_string.indexOf("SSL") != -1) {
-                 responseJson["payload"] = "Request Failed: SSL/TLS Handshake Error. Is the CA certificate bundle up to date?";
-            } else {
-                 responseJson["payload"] = "Request Failed: " + error_string;
-            }
+            responseJson["payload"] = "Request Failed: " + http.errorToString(httpCode);
         }
         
         http.end();
         serializeJson(responseJson, responseString);
         ws.text(clientId, responseString);
     } else {
+        // --- START: MODIFICATION - Handle http.begin() failure ---
         String responseString;
         JsonDocument responseJson;
         responseJson["action"] = action;
         responseJson["rowIndex"] = rowIndex; // Pass as String
         responseJson["status"] = "error";
-        responseJson["payload"] = "Connection Failed. Check URL, DNS, or firewall. If using HTTPS, ensure the CA certificate bundle is valid.";
+        responseJson["payload"] = "Connection Failed. Check URL/DNS.";
         serializeJson(responseJson, responseString);
         ws.text(clientId, responseString);
+        // --- END: MODIFICATION ---
     }
 
     vTaskDelete(NULL); // End the task
@@ -526,16 +516,9 @@ void setupWebRoutes() {
     String apiKey = request->getParam("apikey")->value();
 
     WiFiClientSecure client;
+    client.setInsecure(); // For simplicity, though not recommended for production
     HTTPClient http;
     String url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=" + apiKey;
-
-    if (url.startsWith("https")) {
-        const char* ca_bundle = SslManager::getCaCertBundle();
-        if (ca_bundle != nullptr) {
-            client.setCACert(ca_bundle);
-        }
-    }
-
     String log_url = "https://financialmodelingprep.com/stable/quote?symbol=" + query + "&apikey=REDACTED";
     Log_printf(LOG_LEVEL_WARN, "Proxying stock search to: %s", log_url.c_str());
 
@@ -552,11 +535,11 @@ void setupWebRoutes() {
                 request->send(httpCode, "text/plain", errorPayload);
             }
         } else {
-            request->send(500, "text/plain", "Request failed: " + http.errorToString(httpCode));
+            request->send(500, "text/plain", "Request failed");
         }
         http.end();
     } else {
-        request->send(500, "text/plain", "Unable to connect. Check DNS/Firewall or CA Certificate.");
+        request->send(500, "text/plain", "Unable to connect");
     }
   });
 
@@ -998,15 +981,6 @@ void setupWebRoutes() {
     request->send(200, "application/json", jsonString);
   });
 
-  server.on("/api/system/cert_status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    JsonDocument doc;
-    doc["loaded"] = SslManager::isLoaded();
-    doc["size"] = SslManager::getCaCertBundleSize();
-    String jsonString;
-    serializeJson(doc, jsonString);
-    request->send(200, "application/json", jsonString);
-  });
-
   server.onNotFound([](AsyncWebServerRequest *request){
     Log_printf(LOG_LEVEL_WARN, "404 Not Found: %s", request->url().c_str());
     request->send(404, "text/plain", "Not found");
@@ -1047,108 +1021,6 @@ void setupWebRoutes() {
             } else {
                 Update.printError(Serial);
             }
-        }
-    });
-
-    server.on("/upload-cacert", HTTP_POST, [](AsyncWebServerRequest *request) {
-        AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "CA certificate update successful! Device is restarting.");
-        response->addHeader("Connection", "close");
-        request->send(response);
-        ESP.restart();
-    }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-        const char* tmp_path = "/cacert.pem.tmp";
-
-        // On the first chunk, open the temporary file for writing.
-        if (!index) {
-            // Basic validation: filename must be cacert.pem
-            if (filename != "cacert.pem") {
-                // Send an error message back to the client via WebSocket
-                JsonDocument doc;
-                doc["action"] = "uploadError";
-                doc["type"] = "cacert";
-                doc["message"] = "Invalid filename. Must be 'cacert.pem'.";
-                String jsonString;
-                serializeJson(doc, jsonString);
-                ws.textAll(jsonString);
-                return; // Abort the upload
-            }
-            // Check for file size limit
-            if (request->contentLength() > 256 * 1024) { // 256KB limit
-                 JsonDocument doc;
-                doc["action"] = "uploadError";
-                doc["type"] = "cacert";
-                doc["message"] = "File too large. Max size is 256KB.";
-                String jsonString;
-                serializeJson(doc, jsonString);
-                ws.textAll(jsonString);
-                return;
-            }
-            request->_tempFile = LittleFS.open(tmp_path, "w");
-        }
-
-        // Write the current chunk of data to the temporary file.
-        if (len) {
-            request->_tempFile.write(data, len);
-        }
-
-        // On the final chunk, close the file and perform the atomic update.
-        if (final) {
-            request->_tempFile.close();
-
-            // Validate the file content (simple check)
-            File tempFile = LittleFS.open(tmp_path, "r");
-            if (tempFile) {
-                String startOfFile = tempFile.readStringUntil('\n');
-                tempFile.close();
-                startOfFile.trim();
-                if (startOfFile == "-----BEGIN CERTIFICATE-----") {
-                    // Validation passed, perform atomic rename
-                    if (LittleFS.exists("/cacert.pem")) {
-                        LittleFS.remove("/cacert.pem");
-                    }
-                    LittleFS.rename(tmp_path, "/cacert.pem");
-
-                    // Notify client of success
-                    JsonDocument doc;
-                    doc["action"] = "uploadProgress";
-                    doc["type"] = "cacert";
-                    doc["filename"] = filename;
-                    doc["progress"] = 100;
-                    String jsonString;
-                    serializeJson(doc, jsonString);
-                    ws.textAll(jsonString);
-
-                } else {
-                    // Validation failed, clean up and notify client
-                    LittleFS.remove(tmp_path);
-                    JsonDocument doc;
-                    doc["action"] = "uploadError";
-                    doc["type"] = "cacert";
-                    doc["message"] = "Invalid file content. Must be a valid PEM certificate bundle.";
-                    String jsonString;
-                    serializeJson(doc, jsonString);
-                    ws.textAll(jsonString);
-                }
-            } else {
-                // Could not re-open temp file for validation
-                 JsonDocument doc;
-                doc["action"] = "uploadError";
-                doc["type"] = "cacert";
-                doc["message"] = "Internal error during file validation.";
-                String jsonString;
-                serializeJson(doc, jsonString);
-                ws.textAll(jsonString);
-            }
-        } else {
-            // Send progress update
-            JsonDocument doc;
-            doc["action"] = "uploadProgress";
-            doc["type"] = "cacert";
-            doc["filename"] = filename;
-            doc["progress"] = (index + len) * 100 / request->contentLength();
-            String jsonString;
-            serializeJson(doc, jsonString);
-            ws.textAll(jsonString);
         }
     });
 
