@@ -21,7 +21,6 @@ extern StockManager stockManager;
 // Define and initialize the dirty flags and buffers for scrolling text
 bool isMarqueeBufferDirty = true;
 bool isWeatherBufferDirty = true;
-bool isMarqueeOverrideBufferDirty = true;
 
 std::string marqueeBuffer;
 char weatherBuffer[512]; // Increased size for safety, changed to char array
@@ -230,56 +229,6 @@ const char* getIconForWeatherCode(int code) {
         case 95: case 96: case 99: return "ST";
         default: return "--";
     }
-}
-
-void displayMarqueeOverride() {
-    if (!hardwareInitialized) return;
-#if ENABLE_HARDWARE
-    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        static int marqueeOverrideScrollPosition = 0;
-        static unsigned long lastScrollTime = 0;
-
-        // If the data has changed, rebuild the buffer
-        if (isMarqueeOverrideBufferDirty) {
-            String tempBuffer = "  " + marqueeOverrideMessage + "  ";
-            marqueeOverrideBuffer = tempBuffer.c_str();
-            marqueeOverrideScrollPosition = 0;
-            isMarqueeOverrideBufferDirty = false;
-        }
-
-        // Animation logic using the buffer
-        if (millis() - lastScrollTime > 150) { // Using a fixed scroll speed for now
-            lastScrollTime = millis();
-
-            // No need to check length here, substring handles it.
-            std::string viewport_str = marqueeOverrideBuffer.substr(marqueeOverrideScrollPosition, 13);
-            const char* viewport = viewport_str.c_str();
-
-            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                printToDisplay(lastRow.month, std::string(viewport).substr(0, 3).c_str(), 0);
-                printToDisplay(lastRow.day, std::string(viewport).substr(3, 5).c_str(), 0);
-                printToDisplay(lastRow.year, std::string(viewport).substr(5, 9).c_str(), 0);
-                printToDisplay(lastRow.time, std::string(viewport).substr(9, 13).c_str(), 0);
-
-                lastRow.month.writeDisplay();
-                lastRow.day.writeDisplay();
-                lastRow.year.writeDisplay();
-                lastRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(2));
-                xSemaphoreGive(xDisplayHardwareMutex);
-            }
-
-            // Update scroll position
-            if (marqueeOverrideBuffer.length() > 13) {
-                marqueeOverrideScrollPosition++;
-                if (marqueeOverrideScrollPosition > marqueeOverrideBuffer.length() - 13) {
-                    marqueeOverrideScrollPosition = 0;
-                }
-            }
-        }
-        xSemaphoreGive(xDisplayDataMutex);
-    }
-#endif
 }
 
 void updateStockTickerDisplay() {
