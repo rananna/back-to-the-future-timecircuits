@@ -765,8 +765,7 @@ void loadSettings() {
         tempString = preferences.getString("stockRow2Symbol", "");
         currentSettings.stockRow2_symbol = tempString.c_str();
         tempString = preferences.getString("stockRow3Symbol", "");
-        currentSetti
-ngs.stockRow3_symbol = tempString.c_str();
+        currentSettings.stockRow3_symbol = tempString.c_str();
 
         for (int i = 0; i < 5; i++) {
             String prefix = "dp" + String(i) + "_";
