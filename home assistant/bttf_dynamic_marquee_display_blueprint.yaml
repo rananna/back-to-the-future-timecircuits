@@ -16,20 +16,20 @@ blueprint:
     data_point_slot:
       name: Data Point Slot
       description: Which of the five marquee slots to use for this data.
-      default: "0"
+      default: "1"
       selector:
         select:
           options:
             - label: "Data Point 1"
-              value: "0"
-            - label: "Data Point 2"
               value: "1"
-            - label: "Data Point 3"
+            - label: "Data Point 2"
               value: "2"
-            - label: "Data Point 4"
+            - label: "Data Point 3"
               value: "3"
-            - label: "Data Point 5"
+            - label: "Data Point 4"
               value: "4"
+            - label: "Data Point 5"
+              value: "5"
     text:
       name: Marquee Text
       description: The text to display. Supports templates.
@@ -38,7 +38,8 @@ blueprint:
 
 variables:
   device_id: !input target_device
-  slot: !input data_point_slot
+  # The blueprint UI uses 1-based indexing, but the entity is 0-based.
+  slot: "{{ (iif(data_point_slot is string, data_point_slot | int, data_point_slot) - 1) }}"
   unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
 
 # This automation has no trigger, it is meant to be called from a script or another automation.
