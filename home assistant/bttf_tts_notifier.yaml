@@ -2,21 +2,23 @@ blueprint:
   name: BTTF Time Circuits - TTS Notifier
   description: >-
     Converts a text message into speech using Home Assistant's TTS engine and plays
-    it on the Time Circuits clock.
+    it on the Time Circuits clock. This version is corrected for proper TTS service
+    calls and robust execution.
   domain: automation
   input:
     time_circuits_device:
       name: Time Circuits Display
+      description: Select the Time Circuits clock device.
       selector:
         device:
           integration: mqtt
           manufacturer: "Doc Brown Industries"
-    tts_entity:
-      name: TTS Media Player
-      description: The TTS media player entity to use (e.g., tts.google_say).
+    tts_service:
+      name: TTS Service
+      description: The TTS service to use for generating the speech URL (e.g., tts.google_en_com).
+      default: "tts.google_en_com"
       selector:
-        entity:
-          domain: media_player
+        text:
     message_text:
       name: Message Text
       description: The text you want the clock to say.
@@ -25,25 +27,28 @@ blueprint:
           multiline: true
     volume:
       name: Playback Volume
-      description: The volume for the TTS message (1-100).
-      default: 50
+      description: The volume for the TTS message (0-100).
+      default: 80
       selector:
         number:
-          min: 1
+          min: 0
           max: 100
-          unit_of_measurement: "%"
     display_message:
       name: Display Text (Optional)
-      description: A message to show on the clock's display while the TTS is playing. Use '||' to separate lines.
+      description: "A message to show on the clock's display. Use '\\n' to separate lines for each of the 3 displays."
+      default: ""
       selector:
         text:
+          multiline: true
 
 variables:
-  device_id: !input time_circuits_device
-  clock_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
-  tts_volume: "{{ (volume / 100) | round(2) }}"
-  display_text: !input display_message
-  tts_entity_id: !input tts_entity
+  clock_id: "{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}"
+  display_lines: "{{ display_message.split('\\n') }}"
+  line1: "{{ display_lines[0] | default('') }}"
+  line2: "{{ display_lines[1] | default('') }}"
+  line3: "{{ display_lines[2] | default('') }}"
+
+trigger: []
 
 action:
   # 1. Enter Notification Mode
@@ -52,48 +57,70 @@ action:
       topic: "timecircuits/{{ clock_id }}/notification/command"
       payload: "START"
   - delay:
-      seconds: 1 # Brief pause for the intro animation
+      seconds: 1
 
-  # 2. Set the custom display text (if provided)
-  - choose:
-      - conditions: "{{ display_text != '' }}"
-        sequence:
-          - variables:
-              lines: "{{ display_text.split('||') }}"
+  # 2. This block contains the main logic. The 'finally' action will run after this.
+  - sequence:
+      - if: "{{ display_message != '' }}"
+        then:
           - service: mqtt.publish
             data:
               topic: "timecircuits/{{ clock_id }}/dest_month/command"
-              payload: "{{ lines[0] | default('') }}"
+              payload: "{{ (line1 | upper ~ '            ')[0:4] }}"
+          - service: mqtt.publish
+            data:
+              topic: "timecircuits/{{ clock_id }}/dest_day/command"
+              payload: "{{ (line1 | upper ~ '            ')[4:8] }}"
+          - service: mqtt.publish
+            data:
+              topic: "timecircuits/{{ clock_id }}/dest_year/command"
+              payload: "{{ (line1 | upper ~ '            ')[8:12] }}"
           - service: mqtt.publish
             data:
               topic: "timecircuits/{{ clock_id }}/pres_month/command"
-              payload: "{{ lines[1] | default('') }}"
+              payload: "{{ (line2 | upper ~ '            ')[0:4] }}"
+          - service: mqtt.publish
+            data:
+              topic: "timecircuits/{{ clock_id }}/pres_day/command"
+              payload: "{{ (line2 | upper ~ '            ')[4:8] }}"
+          - service: mqtt.publish
+            data:
+              topic: "timecircuits/{{ clock_id }}/pres_year/command"
+              payload: "{{ (line2 | upper ~ '            ')[8:12] }}"
           - service: mqtt.publish
             data:
               topic: "timecircuits/{{ clock_id }}/last_month/command"
-              payload: "{{ lines[2] | default('') }}"
+              payload: "{{ (line3 | upper ~ '            ')[0:4] }}"
+          - service: mqtt.publish
+            data:
+              topic: "timecircuits/{{ clock_id }}/last_day/command"
+              payload: "{{ (line3 | upper ~ '            ')[4:8] }}"
+          - service: mqtt.publish
+            data:
+              topic: "timecircuits/{{ clock_id }}/last_year/command"
+              payload: "{{ (line3 | upper ~ '            ')[8:12] }}"
 
-  # 3. Generate the TTS audio URL from Home Assistant
-  - service: "{{ tts_entity_id | replace('media_player', 'tts') }}_say"
-    data:
-      entity_id: "{{ tts_entity_id }}"
-      message: !input message_text
-    response_variable: tts_response
+      # Generate TTS URL
+      - service: !input tts_service
+        data:
+          message: !input message_text
+        response_variable: tts_response
 
-  # 4. Send the URL and dynamic volume to the clock
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ clock_id }}/tts/play"
-      payload: '{"url": "{{ tts_response.url }}", "volume": {{ volume }} }'
+      # Play TTS on clock
+      - service: mqtt.publish
+        data:
+          topic: "timecircuits/{{ clock_id }}/tts/play"
+          payload: '{"url": "{{ tts_response.url }}", "volume": {{ volume }} }'
 
-  # 5. Wait for the audio to finish playing
-  - wait_for_trigger:
-      - platform: mqtt
-        topic: "timecircuits/{{ clock_id }}/audio/state"
-        payload: "IDLE"
-    timeout: "00:01:00"
+      # Wait for playback to finish
+      - wait_for_trigger:
+          - platform: mqtt
+            topic: "timecircuits/{{ clock_id }}/audio/state"
+            payload: "IDLE"
+        timeout: "00:01:00"
+        continue_on_timeout: true
 
-  # 6. Exit Notification Mode
+  # 3. This serves as the 'finally' block. It always runs after the main sequence.
   - service: mqtt.publish
     data:
       topic: "timecircuits/{{ clock_id }}/notification/command"

@@ -19,19 +19,19 @@ blueprint:
 action:
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
+      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
       payload: "ON"
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/dest_month/command"
+      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/dest_month/command"
       payload: "RADIO"
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/radio/command"
+      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/radio/command"
       payload: !input radio_command
   - delay:
       seconds: 5 # Gives the clock time to connect to the stream
   - service: mqtt.publish
     data:
-      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
+      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
       payload: "OFF"
