@@ -38,10 +38,16 @@ action:
             data:
               topic: "timecircuits/{{ unique_id }}/radio/command"
               payload: "stop"
-          # Turn off the override switch to clear the "RADIO" text.
-          - service: switch.turn_off
-            target:
-              entity_id: "switch.{{ unique_id }}_override_switch"
+          # If the override message is still "RADIO...", turn off the override switch.
+          # This prevents us from incorrectly turning off a different notification
+          # that may have started after the radio was activated.
+          - if:
+              - condition: template
+                value_template: "{{ states('text.' ~ unique_id ~ '_override_message') == '\nRADIO...' }}"
+            then:
+              - service: switch.turn_off
+                target:
+                  entity_id: "switch.{{ unique_id }}_override_switch"
     # Default action: The command is a URL
     default:
       # Set the override message to "RADIO..." on the middle display.
