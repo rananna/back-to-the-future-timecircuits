@@ -127,7 +127,6 @@ The clock's weather display can also be controlled from Home Assistant. This all
 *   **`button.time_circuits_display_force_ntp_sync`**: Manually syncs the clock with time servers.
 *   **`button.time_circuits_display_save_all_settings`**: Manually triggers a save of all current settings to the device's memory.
 *   **`button.time_circuits_display_factory_reset`**: **Use with caution!** Resets all settings to their original factory defaults.
-*   **`text.time_circuits_display_run_sequence`**: The advanced script runner for custom alerts. See the deep dive below.
 
 ### **Device Triggers**
 The integration also creates several "device triggers" in Home Assistant, which are perfect for starting automations based on the clock's activity.
@@ -353,39 +352,47 @@ The "Home Assistant Push" feature for the DataLink marquee is a powerful way to 
 
 This entire process happens in milliseconds, resulting in a near-instantaneous update on your clock's display whenever the data changes in Home Assistant.
 
-### **Deep Dive: The "Run Sequence" Command**
-The `run_sequence` entity is the most powerful feature in the integration, allowing you to create custom, perfectly timed audio-visual alerts. You send it a single string containing a script of commands separated by semicolons.
+### **Deep Dive: Creating Custom Audio-Visual Alerts**
+While the **Advanced Notifier Blueprint** is the easiest way to create custom alerts, you can build them manually in your own automations by publishing directly to the clock's MQTT topics. This gives you maximum flexibility.
 
-<details>
-<summary><strong>Click to view Sequencer Details and Syntax</strong></summary>
+A typical alert sequence involves three steps:
+1.  **Set the Message:** Publish your desired text (using `\n` for new lines) to the `timecircuits/<UNIQUE_ID>/override_text/command` topic.
+2.  **Activate the Display:** Publish `ON` to the `timecircuits/<UNIQUE_ID>/override/command` topic. This tells the clock to show your message.
+3.  **Play a Sound (Optional):** Publish a sound name (e.g., `ARRIVAL_THUD`) to the `timecircuits/<UNIQUE_ID>/play_sound/command` topic.
 
-#### **Syntax**
-The basic syntax is `command(target, parameter); command2(target, parameter); ...`
+The display will remain in override mode until you publish `OFF` to the `timecircuits/<UNIQUE_ID>/override/command` topic.
 
-#### **Command Reference**
+**Example Automation Action:**
+```yaml
+action:
+  # Set the text for the three rows
+  - service: mqtt.publish
+    data:
+      topic: "timecircuits/bttf_123456/override_text/command"
+      payload: "WARNING\nSECURITY ALERT\nGARAGE DOOR"
 
-| Command | Target(s) | Parameter(s) | Example | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `text` | `dest_year`, `pres_month`, `last_time`, etc. | The text to display | `text(dest_year, 2077)` | Sets the text of a specific display segment. |
-| `sound` | N/A | `TIME_TRAVEL`, `ARRIVAL_THUD`, etc. | `sound(ARRIVAL_THUD)` | Plays one of the built-in sound files. |
-| `wait` | N/A | Milliseconds | `wait(1500)` | Pauses the sequence for a set duration. |
-| `flash`| `dest_year`, `pres_month`, etc. | Milliseconds | `flash(last_day, 500)` | Flashes a display segment for a duration. |
+  # Activate the override display
+  - service: mqtt.publish
+    data:
+      topic: "timecircuits/bttf_123456/override/command"
+      payload: "ON"
 
-#### **Advanced Scripting Example**
-Here is an example of a full security alert sequence. The script performs the following actions:
-1.  Displays "ALRT" on the top row and plays the `ARRIVAL_THUD` sound.
-2.  Waits for half a second (500ms).
-3.  Displays "GRGE" on the middle row and flashes it for 1.5 seconds.
-4.  Waits for 2 seconds.
-5.  Clears the text from both rows.
+  # Play an alert sound
+  - service: mqtt.publish
+    data:
+      topic: "timecircuits/bttf_123456/play_sound/command"
+      payload: "ALARM_SOUND" # Assumes you have a sound file named ALARM_SOUND.mp3
 
-<pre><code>text(dest_year, "ALRT"); sound("ARRIVAL_THUD");
-wait(500);
-text(pres_year, "GRGE"); flash(pres_year, 1500);
-wait(2000);
-text(dest_year, " "); text(pres_year, " ");
-</code></pre>
-</details>
+  # Wait 15 seconds
+  - delay:
+      seconds: 15
+
+  # Turn off the override display
+  - service: mqtt.publish
+    data:
+      topic: "timecircuits/bttf_123456/override/command"
+      payload: "OFF"
+```
 
 <details>
 <summary><strong>Advanced: MQTT Topic Reference</strong></summary>
@@ -400,7 +407,6 @@ text(dest_year, " "); text(pres_year, " ");
 > | `status/state` | State | Publishes the clock's current state (e.g., `Idle`, `Animating`). |
 > | `destination_year/command`| Command | Send a 4-digit year to set the destination time. |
 > | `destination_year/state` | State | Publishes the current destination year. |
-> | `run_sequence/command` | Command | Send a script to be executed by the on-device sequencer. |
 > | `...and many more` | | *(Refer to `MqttManager.cpp` for a full list)* |
 
 </details>
