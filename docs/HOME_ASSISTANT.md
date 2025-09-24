@@ -48,6 +48,20 @@ It uses **MQTT auto-discovery** to announce itself to your Home Assistant instan
   <br><em>The Time Circuits device page in Home Assistant, showing all its entities.</em>
 </p>
 
+### **A Note on Entity IDs**
+To ensure that multiple Time Circuits clocks can coexist on the same network, all entities are created with a unique identifier based on the clock's MAC address. This means your entity IDs will look something like this:
+
+*   `switch.bttf_tc_123456_override_switch`
+*   `text.bttf_tc_123456_override_message`
+
+Throughout this document, we will use a placeholder format like `switch.YOUR_CLOCK_ID_override_switch`. **You must replace `YOUR_CLOCK_ID` with the actual ID of your device.**
+
+> **How to Find Your Clock's ID:**
+> 1.  In Home Assistant, go to **Settings > Devices & Services > Devices**.
+> 2.  Find your "Time Circuits Display" device and click on it.
+> 3.  Click on any entity, like the "Status" sensor.
+> 4.  The Entity ID will be shown, revealing your clock's unique ID (e.g., `sensor.bttf_tc_123456_status`).
+
 <details>
 <summary><strong>How it Works: The MQTT Flow</strong></summary>
 This Mermaid diagram visualizes how the clock, the MQTT broker, and Home Assistant communicate.
@@ -67,71 +81,71 @@ graph TD
 Entities are grouped by function to make them easy to find.
 
 #### **Monitoring & Sensors**
-*   **`sensor.time_circuits_display_status`**: The primary sensor reporting the clock's state (`Idle`, `Animating`, `Asleep`).
+*   **`sensor.YOUR_CLOCK_ID_status`**: The primary sensor reporting the clock's state (`Idle`, `Animating`, `Asleep`).
     > **💡 Pro Tip:** This sensor has useful diagnostic attributes like `wifi_rssi`, `free_heap`, and `uptime_seconds` that you can view by clicking on the entity in Home Assistant.
-*   **`sensor.time_circuits_display_audio_stream_status`**: Shows the state of the audio player (`IDLE` or `PLAYING`). Useful for automations involving TTS or radio streams.
-*   **`binary_sensor.time_circuits_display_is_animating`**: `On` when an animation is playing.
-*   **`binary_sensor.time_circuits_display_is_asleep`**: `On` when the clock is in sleep mode.
+*   **`sensor.YOUR_CLOCK_ID_audio_stream_status`**: Shows the state of the audio player (`IDLE` or `PLAYING`). Useful for automations involving TTS or radio streams.
+*   **`binary_sensor.YOUR_CLOCK_ID_is_animating`**: `On` when an animation is playing.
+*   **`binary_sensor.YOUR_CLOCK_ID_is_asleep`**: `On` when the clock is in sleep mode.
 
 #### **Direct Display Control**
 Twelve `text` entities give you direct, granular control over each segment of the three main displays. This is a powerful feature for creating custom information dashboards. You can push any text or template result to these entities.
 
-*   **Destination Display**: `text.time_circuits_display_dest_month`, `text.time_circuits_display_dest_day`, `text.time_circuits_display_dest_year`, `text.time_circuits_display_dest_time`
-*   **Present Display**: `text.time_circuits_display_pres_month`, `text.time_circuits_display_pres_day`, `text.time_circuits_display_pres_year`, `text.time_circuits_display_pres_time`
-*   **Last Departed Display**: `text.time_circuits_display_last_month`, `text.time_circuits_display_last_day`, `text.time_circuits_display_last_year`, `text.time_circuits_display_last_time`
+*   **Destination Display**: `text.YOUR_CLOCK_ID_dest_month`, `text.YOUR_CLOCK_ID_dest_day`, `text.YOUR_CLOCK_ID_dest_year`, `text.YOUR_CLOCK_ID_dest_time`
+*   **Present Display**: `text.YOUR_CLOCK_ID_pres_month`, `text.YOUR_CLOCK_ID_pres_day`, `text.YOUR_CLOCK_ID_pres_year`, `text.YOUR_CLOCK_ID_pres_time`
+*   **Last Departed Display**: `text.YOUR_CLOCK_ID_last_month`, `text.YOUR_CLOCK_ID_last_day`, `text.YOUR_CLOCK_ID_last_year`, `text.YOUR_CLOCK_ID_last_time`
 
 > **💡 Pro Tip:** Use the **BTTF - Home Assistant Status Display** blueprint to easily control these entities without writing any YAML.
 
 #### **Notifications & Alerts**
 These entities are the building blocks for the `Advanced Notifier`, `TTS Notifier`, and other notification-based blueprints. They allow you to temporarily override the main display with a custom message and play a sound.
 
-*   **`switch.time_circuits_display_override_switch`**: A master switch to enable or disable the override mode. When `On`, the `Override Message` is displayed. When `Off`, the clock returns to its normal operation.
-*   **`text.time_circuits_display_override_message`**: A text input for the content of your alert. Use `\n` to separate lines for the three displays.
-*   **`select.time_circuits_display_play_sound`**: A dropdown to play one of the pre-defined sound effects on command. After a sound is selected, it plays immediately and the entity resets to `None`.
+*   **`switch.YOUR_CLOCK_ID_override_switch`**: A master switch to enable or disable the override mode. When `On`, the `Override Message` is displayed. When `Off`, the clock returns to its normal operation.
+*   **`text.YOUR_CLOCK_ID_override_message`**: A text input for the content of your alert. Use `\n` to separate lines for the three displays.
+*   **`select.YOUR_CLOCK_ID_play_sound`**: A dropdown to play one of the pre-defined sound effects on command. After a sound is selected, it plays immediately and the entity resets to `None`.
 
 #### **Core Controls**
-*   **`select.time_circuits_display_last_departed_preset`**: Choose from movie-based or your custom presets.
-*   **`number.time_circuits_display_preset_cycle_interval`**: How often the "Last Time Departed" display cycles through presets (in minutes, 0=off).
-*   **`number.time_circuits_display_brightness`**: Controls the display brightness (0-7).
-*   **`number.time_circuits_display_volume`**: Adjusts the sound effect volume (0-21).
-*   **`switch.time_circuits_display_24h_format`**: Toggles 24-hour time format.
-*   **`select.time_circuits_display_profile`**: A powerful feature that applies a pre-configured bundle of settings at once. Profiles include `Standard`, `Cinematic`, `Silent Night`, and `Unstable`.
-*   **`time.time_circuits_display_sleep_time`**: Sets the time for the display to turn off automatically.
-*   **`time.time_circuits_display_wake_time`**: Sets the time for the display to turn on automatically.
+*   **`select.YOUR_CLOCK_ID_last_departed_preset`**: Choose from movie-based or your custom presets.
+*   **`number.YOUR_CLOCK_ID_preset_cycle_interval`**: How often the "Last Time Departed" display cycles through presets (in minutes, 0=off).
+*   **`number.YOUR_CLOCK_ID_brightness`**: Controls the display brightness (0-7).
+*   **`number.YOUR_CLOCK_ID_volume`**: Adjusts the sound effect volume (0-21).
+*   **`switch.YOUR_CLOCK_ID_24h_format`**: Toggles 24-hour time format.
+*   **`select.YOUR_CLOCK_ID_profile`**: A powerful feature that applies a pre-configured bundle of settings at once. Profiles include `Standard`, `Cinematic`, `Silent Night`, and `Unstable`.
+*   **`time.YOUR_CLOCK_ID_sleep_time`**: Sets the time for the display to turn off automatically.
+*   **`time.YOUR_CLOCK_ID_wake_time`**: Sets the time for the display to turn on automatically.
 
 #### **Animation & Effects**
-*   **`button.time_circuits_display_trigger_animation`**: Starts the full time travel sequence.
-*   **`select.time_circuits_display_animation_style`**: Choose from a curated list of 10 popular animation styles. For the full list of 20+ styles, please use the web interface.
-*   **`number.time_circuits_display_animation_interval`**: How often to auto-play the animation (in minutes, 0=off).
-*   **`number.time_circuits_display_animation_duration`**: Sets the length of the time travel effect (in milliseconds).
-*   **`switch.time_circuits_display_temporal_echo`**: A fun, experimental feature that creates a "ghosting" effect on the displays.
+*   **`button.YOUR_CLOCK_ID_trigger_animation`**: Starts the full time travel sequence.
+*   **`select.YOUR_CLOCK_ID_animation_style`**: Choose from a curated list of 10 popular animation styles. For the full list of 20+ styles, please use the web interface.
+*   **`number.YOUR_CLOCK_ID_animation_interval`**: How often to auto-play the animation (in minutes, 0=off).
+*   **`number.YOUR_CLOCK_ID_animation_duration`**: Sets the length of the time travel effect (in milliseconds).
+*   **`switch.YOUR_CLOCK_ID_temporal_echo`**: A fun, experimental feature that creates a "ghosting" effect on the displays.
 
 #### **Marquee & DataLink**
-*   **`number.time_circuits_display_datalink_refresh`**: Sets the refresh interval for all API-based DataLink points.
-*   **`switch.time_circuits_display_datapoint_0_enabled`**: A switch to enable or disable the marquee in Data Point slot 1. There are 4 others, one for each data point.
-*   **`text.time_circuits_display_datapoint_0_marquee`**: A text input for setting the scrolling marquee message in Data Point slot 1. There are 4 others, one for each data point.
+*   **`number.YOUR_CLOCK_ID_datalink_refresh`**: Sets the refresh interval for all API-based DataLink points.
+*   **`switch.YOUR_CLOCK_ID_datapoint_0_enabled`**: A switch to enable or disable the marquee in Data Point slot 1. There are 4 others, one for each data point.
+*   **`text.YOUR_CLOCK_ID_datapoint_0_marquee`**: A text input for setting the scrolling marquee message in Data Point slot 1. There are 4 others, one for each data point.
 
 #### **Stock Ticker Mode**
 The Stock Ticker mode transforms the bottom display row into a scrolling marquee of financial data.
 
 > **Note on Configuration:** The stock ticker's assets and API key are configured in the clock's Web Interface. The following Home Assistant entities are provided for basic control over the feature.
 
-*   **`switch.time_circuits_display_stock_ticker_mode`**: Activates or deactivates the Stock Ticker display mode.
-*   **`button.time_circuits_display_stock_next`**: Manually advances to the next page of the current asset.
-*   **`button.time_circuits_display_stock_previous`**: Manually goes back to the previous page of the current asset.
+*   **`switch.YOUR_CLOCK_ID_stock_ticker_mode`**: Activates or deactivates the Stock Ticker display mode.
+*   **`button.YOUR_CLOCK_ID_stock_next`**: Manually advances to the next page of the current asset.
+*   **`button.YOUR_CLOCK_ID_stock_previous`**: Manually goes back to the previous page of the current asset.
 
 #### **Live Weather Mode**
 The clock's weather display can also be controlled from Home Assistant. This allows you to toggle the weather display, change the city, and force a refresh directly from your dashboard or automations. The following entities are automatically discovered when you connect the clock to your MQTT broker:
 
-*   **`switch.time_circuits_display_weather_mode`** (Friendly name: `Live Weather Mode`): Toggles the live weather display on or off.
-*   **`text.time_circuits_display_weather_city`** (Friendly name: `Weather City`): Sets the city for which to retrieve weather data. After setting a new city, you may need to press the refresh button to see the change.
-*   **`button.time_circuits_display_refresh_weather_data`** (Friendly name: `Refresh Weather Data`): Forces an immediate refresh of the weather data for the currently configured city. This is only active after a city has been successfully looked up from the web interface at least once.
+*   **`switch.YOUR_CLOCK_ID_weather_mode`** (Friendly name: `Live Weather Mode`): Toggles the live weather display on or off.
+*   **`text.YOUR_CLOCK_ID_weather_city`** (Friendly name: `Weather City`): Sets the city for which to retrieve weather data. After setting a new city, you may need to press the refresh button to see the change.
+*   **`button.YOUR_CLOCK_ID_refresh_weather_data`** (Friendly name: `Refresh Weather Data`): Forces an immediate refresh of the weather data for the currently configured city. This is only active after a city has been successfully looked up from the web interface at least once.
 
 #### **System & Actions**
-*   **`button.time_circuits_display_reboot_device`**: Restarts the ESP32.
-*   **`button.time_circuits_display_force_ntp_sync`**: Manually syncs the clock with time servers.
-*   **`button.time_circuits_display_save_all_settings`**: Manually triggers a save of all current settings to the device's memory.
-*   **`button.time_circuits_display_factory_reset`**: **Use with caution!** Resets all settings to their original factory defaults.
+*   **`button.YOUR_CLOCK_ID_reboot_device`**: Restarts the ESP32.
+*   **`button.YOUR_CLOCK_ID_force_ntp_sync`**: Manually syncs the clock with time servers.
+*   **`button.YOUR_CLOCK_ID_save_all_settings`**: Manually triggers a save of all current settings to the device's memory.
+*   **`button.YOUR_CLOCK_ID_factory_reset`**: **Use with caution!** Resets all settings to their original factory defaults.
 
 ### **Device Triggers**
 The integration also creates several "device triggers" in Home Assistant, which are perfect for starting automations based on the clock's activity.
@@ -267,11 +281,11 @@ cards:
   - type: entities
     title: Time Circuits Status
     entities:
-      - entity: sensor.time_circuits_display_status
+      - entity: sensor.YOUR_CLOCK_ID_status
         name: Current State
-      - entity: sensor.time_circuits_display_destination_time
-      - entity: sensor.time_circuits_display_present_time
-      - entity: sensor.time_circuits_display_last_time_departed
+      - entity: sensor.YOUR_CLOCK_ID_destination_time
+      - entity: sensor.YOUR_CLOCK_ID_present_time
+      - entity: sensor.YOUR_CLOCK_ID_last_time_departed
   - type: grid
     columns: 2
     cards:
@@ -280,7 +294,7 @@ cards:
           action: call-service
           service: button.press
           target:
-            entity_id: button.time_circuits_display_trigger_animation
+            entity_id: button.YOUR_CLOCK_ID_trigger_animation
         name: Trigger Animation
         icon: mdi:movie-play
       - type: button
@@ -288,23 +302,23 @@ cards:
           action: call-service
           service: button.press
           target:
-            entity_id: button.time_circuits_display_reboot_device
+            entity_id: button.YOUR_CLOCK_ID_reboot_device
         name: Reboot Clock
         icon: mdi:restart
   - type: entities
     title: Core Controls
     entities:
-      - entity: text.time_circuits_display_dest_year
-      - entity: select.time_circuits_display_last_departed_preset
-      - entity: number.time_circuits_display_brightness
-      - entity: number.time_circuits_display_volume
+      - entity: text.YOUR_CLOCK_ID_dest_year
+      - entity: select.YOUR_CLOCK_ID_last_departed_preset
+      - entity: number.YOUR_CLOCK_ID_brightness
+      - entity: number.YOUR_CLOCK_ID_volume
 </code></pre>
 </details>
 
 ### **Voice Assistant Integration**
 Trigger the time travel sequence with a voice command to Google Assistant or Alexa.
 
-1.  **Create a Script:** Go to **Settings > Automations & Scenes > Scripts**. Create a new script named "Activate Time Circuits" and set its action to call the `button.press` service on the `button.time_circuits_display_trigger_animation` entity.
+1.  **Create a Script:** Go to **Settings > Automations & Scenes > Scripts**. Create a new script named "Activate Time Circuits" and set its action to call the `button.press` service on the `button.YOUR_CLOCK_ID_trigger_animation` entity.
 2.  **Expose the Script:** If you use the Home Assistant Cloud (Nabu Casa), expose the new "Activate Time Circuits" script to your voice assistants. If you have a manual setup, add the script to your exposed entities.
 3.  **Create a Routine:**
     * **In the Google Home App:** Create a new routine. For the starter, use a voice command like "Activate the time circuits." For the action, choose "Try adding your own" and enter "Activate Time Circuits."
@@ -353,11 +367,11 @@ This simplified, modern approach is more efficient and reliable than the previou
 While the **BTTF - Advanced Notifier** blueprint is the easiest way to create temporary alerts, you can build them manually in your own automations using the dedicated notification entities. This gives you maximum flexibility.
 
 A typical alert sequence involves three service calls:
-1.  **Set the Message:** Use the `text.set_value` service to put your desired message (using `\n` for new lines) into the `text.time_circuits_display_override_message` entity.
-2.  **Activate the Display:** Use the `switch.turn_on` service to enable the `switch.time_circuits_display_override_switch`. This tells the clock to show your message.
-3.  **Play a Sound (Optional):** Use the `select.select_option` service to choose a sound from the `select.time_circuits_display_play_sound` entity.
+1.  **Set the Message:** Use the `text.set_value` service to put your desired message (using `\n` for new lines) into the `text.YOUR_CLOCK_ID_override_message` entity.
+2.  **Activate the Display:** Use the `switch.turn_on` service to enable the `switch.YOUR_CLOCK_ID_override_switch`. This tells the clock to show your message.
+3.  **Play a Sound (Optional):** Use the `select.select_option` service to choose a sound from the `select.YOUR_CLOCK_ID_play_sound` entity.
 
-The display will remain in override mode until you call the `switch.turn_off` service on the `switch.time_circuits_display_override_switch`.
+The display will remain in override mode until you call the `switch.turn_off` service on the `switch.YOUR_CLOCK_ID_override_switch`.
 
 **Example Automation Action:**
 ```yaml
@@ -365,19 +379,19 @@ action:
   # 1. Set the text for the three rows
   - service: text.set_value
     target:
-      entity_id: text.time_circuits_display_override_message
+      entity_id: text.YOUR_CLOCK_ID_override_message
     data:
       value: "WARNING\nSECURITY ALERT\nGARAGE DOOR"
 
   # 2. Activate the override display
   - service: switch.turn_on
     target:
-      entity_id: switch.time_circuits_display_override_switch
+      entity_id: switch.YOUR_CLOCK_ID_override_switch
 
   # 3. Play an alert sound
   - service: select.select_option
     target:
-      entity_id: select.time_circuits_display_play_sound
+      entity_id: select.YOUR_CLOCK_ID_play_sound
     data:
       option: ALARM_SOUND
 
@@ -388,7 +402,7 @@ action:
   # 5. Turn off the override display to return to normal
   - service: switch.turn_off
     target:
-      entity_id: switch.time_circuits_display_override_switch
+      entity_id: switch.YOUR_CLOCK_ID_override_switch
 ```
 
 <details>
