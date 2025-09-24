@@ -1009,7 +1009,7 @@ async function addStockAsset() {
 }
 
 async function removeStockAsset(event) {
-    const symbol = event.target.dataset.symbol;
+    const symbol = event.currentTarget.dataset.symbol;
     if (!confirm(`Are you sure you want to remove ${symbol}?`)) return;
 
     try {

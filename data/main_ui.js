@@ -832,7 +832,7 @@ function attachDataPointEventListeners(rootElement = document) {
     // Data source and display mode selectors
     rootElement.querySelectorAll('.data-source-select').forEach(select => {
         select.onchange = (e) => {
-            const index = e.target.dataset.index;
+            const index = e.currentTarget.dataset.index;
             const dataSource = document.getElementById(`dp_dataSourceType_${index}`).value;
             const scrollingTextInput = document.getElementById(`dp_scrollingText_${index}`);
             const scrollingTextContainer = document.getElementById(`scrolling_text_container_${index}`);
@@ -1013,7 +1013,7 @@ function updateDataPointStatus(index, isSuccess) {
  * @param {Event} event The click event from the "Clear" button.
  */
 function clearDataPointFields(event) {
-    const index = event.target.dataset.index;
+    const index = event.currentTarget.dataset.index;
     const fields = ['mqttTopic', 'scrollingText', 'requestBody', 'url', 'authHeaderKey', 'authHeaderValue'];
     fields.forEach(field => {
         const el = document.getElementById(`dp_${field}_${index}`);
@@ -1029,7 +1029,7 @@ function clearDataPointFields(event) {
  * @param {Event} event The click event from the "Duplicate" button.
  */
 function duplicateDataPoint(event) {
-    const sourceIndex = parseInt(event.target.dataset.index, 10);
+    const sourceIndex = parseInt(event.currentTarget.dataset.index, 10);
     const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
     
     if (numDataPoints >= 5) {
