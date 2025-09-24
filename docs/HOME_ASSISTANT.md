@@ -112,6 +112,8 @@ These entities are the building blocks for the `Advanced Notifier`, `TTS Notifie
 *   **`time.YOUR_CLOCK_ID_sleep_time`**: Sets the time for the display to turn off automatically.
 *   **`time.YOUR_CLOCK_ID_wake_time`**: Sets the time for the display to turn on automatically.
 
+> **Note on Power Control:** This integration does not provide a direct power `switch`. The clock's display is designed to be always on, but you can schedule it to turn off and on at specific times using the `sleep_time` and `wake_time` entities. The `binary_sensor.YOUR_CLOCK_ID_is_asleep` will reflect the display's state.
+
 #### **Animation & Effects**
 *   **`button.YOUR_CLOCK_ID_trigger_animation`**: Starts the full time travel sequence.
 *   **`select.YOUR_CLOCK_ID_animation_style`**: Choose from a curated list of 10 popular animation styles. For the full list of 20+ styles, please use the web interface.
@@ -282,9 +284,9 @@ cards:
     entities:
       - entity: sensor.YOUR_CLOCK_ID_status
         name: Current State
-      - entity: sensor.YOUR_CLOCK_ID_destination_time
-      - entity: sensor.YOUR_CLOCK_ID_present_time
-      - entity: sensor.YOUR_CLOCK_ID_last_time_departed
+      - entity: text.YOUR_CLOCK_ID_dest_time
+      - entity: text.YOUR_CLOCK_ID_pres_time
+      - entity: text.YOUR_CLOCK_ID_last_time
   - type: grid
     columns: 2
     cards:
