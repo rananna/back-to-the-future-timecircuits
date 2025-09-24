@@ -1383,6 +1383,7 @@ function previewAnimationStyle(isRandomized = false) {
  * Fetches the system status from the server.
  */
 function fetchSystemStatus() {
+    if (isLoading) return;
     fetch('/api/system/status')
         .then(res => {
             if (res.ok) {
