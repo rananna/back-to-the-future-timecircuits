@@ -384,19 +384,6 @@ void publishHaAutoDiscovery() {
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
     
     doc.clear();
-    doc["name"] = "Run Sequence";
-    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_run_sequence";
-    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_run_sequence";
-    doc["command_topic"] = device_base_topic + "/run_sequence/command";
-    doc["icon"] = "mdi:play-box-multiple-outline";
-    doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
-    topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
-
-    doc.clear();
     doc["name"] = "Stock Ticker Mode";
     doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_stock_ticker_mode";
     doc["object_id"] = String(MQTT_UNIQUE_ID) + "_stock_ticker_mode";
@@ -754,8 +741,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             }
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;
-        } else if (component == "run_sequence") {
-            // Sequence handling logic remains the same
         } else if (component == "stock_ticker_mode") {
             currentSettings.stockTickerModeEnabled = (message == "ON");
             settingsChanged = true;

@@ -294,37 +294,6 @@ This tab provides information about the device's status and allows you to perfor
 
 Beyond the web interface, many of the clock's features can be controlled programmatically via MQTT or direct API calls, making it highly extensible and easy to integrate into a smart home environment. For a complete list of all available MQTT topics and API endpoints, see the [Home Assistant Guide](HOME_ASSISTANT.md).
 
-### The Sequencer
-
-The Sequencer is a powerful feature that allows you to create custom, scripted animations. You can define a series of steps that will be executed in order, allowing you to build complex visual and audio displays.
-
-**How to Use It:**
-The Sequencer is controlled by sending a single string to the following MQTT topic:
-`bttf-time-circuits/[DEVICE_ID]/run_sequence/command`
-
-The string must be a series of commands separated by semicolons.
-
-**Command Syntax:**
-`command(arg1,arg2,...);command2(arg1);...`
-
-**Available Commands:**
-
-*   `text(target, value)`: Displays a string on a specific segment of the display.
-    *   `target`: The display segment to write to. Examples: `dest_year`, `pres_day`, `last_time`.
-    *   `value`: The text to display.
-*   `flash(target, duration)`: Makes a specific display segment flash for a duration.
-    *   `target`: The display segment to flash.
-    *   `duration`: The duration of the flash effect in milliseconds.
-*   `sound(filename)`: Plays a sound effect from the device's memory.
-    *   `filename`: The name of the sound file (e.g., `arrival_chime`, `flux_capacitor_power_on`). Do not include the `.mp3` extension.
-*   `wait(duration)`: Pauses the sequence for a specific amount of time.
-    *   `duration`: The time to wait in milliseconds.
-
-**Example Sequence:**
-The following string would display "HELLO" on the destination year, wait half a second, play a beep, and then display "WORLD" on the present year.
-
-`text(dest_year,HELLO);wait(500);sound(sys_beep);text(pres_year,WORLD)`
-
 ***
 
 ## The "Engage Time Circuits" Button
