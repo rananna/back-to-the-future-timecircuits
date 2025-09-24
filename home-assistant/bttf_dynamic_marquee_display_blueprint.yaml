@@ -34,8 +34,7 @@ blueprint:
       name: Marquee Text
       description: The text to display. Supports templates.
       selector:
-        text:
-          max: 255
+        text: {}
 
 variables:
   device_id: !input target_device
