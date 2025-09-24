@@ -319,6 +319,7 @@ void publishHaAutoDiscovery() {
     }
     
     const char* button_configs[][3] = {
+        {"trigger_animation", "Trigger Animation", "mdi:movie-play"},
         {"reboot_device", "Reboot Device", "mdi:restart"},
         {"force_ntp_sync", "Force NTP Sync", "mdi:timer-sync-outline"},
         {"factory_reset", "Factory Reset", "mdi:delete-restore"},
@@ -331,6 +332,7 @@ void publishHaAutoDiscovery() {
         doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
         doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["payload_press"] = "PRESS";
         doc["icon"] = cfg[2];
         doc["entity_category"] = "config";
         doc["device"] = device;
@@ -669,7 +671,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 overrideMessageLine3 = "";
             }
             stateChanged = true;
-        } else if (component == "animation" && message == "START") {
+        } else if (component == "trigger_animation" && message == "PRESS") {
             startTimeTravelAnimation();
         } else if (component.startsWith("dest_") || component.startsWith("pres_") || component.startsWith("last_")) {
             int row = -1, segment = -1;
