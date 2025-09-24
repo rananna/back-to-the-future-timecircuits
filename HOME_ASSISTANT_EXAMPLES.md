@@ -1,5 +1,77 @@
 # Back to the Future Time Circuits: Home Assistant Automations
 
+This document provides a list of useful and creative automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `bttf_timecircuits_01` in Home Assistant.
+
+---
+
+### Blueprint-Powered Examples
+
+The easiest way to create powerful automations is by using the provided blueprints. Here are a few examples to get you started.
+
+<details>
+<summary><strong>1. "Weather Station" Display</strong></summary>
+
+*Use the "Home Assistant Status Display" blueprint to turn your clock into a real-time weather dashboard.*
+
+**Automation Setup:**
+1.  **Trigger:** The automation should trigger on any state change of your primary weather sensors (e.g., temperature, humidity, and conditions).
+2.  **Action:** Call the "Home Assistant Status Display" blueprint.
+3.  **Mapping:**
+    *   **Destination Month:** `OUT`
+    *   **Destination Day:** `SIDE`
+    *   **Destination Year:** `TEMP`
+    *   **Destination Time:** `{{ states('sensor.outside_temperature') }}°`
+    *   **Present Month:** `FEELS`
+    *   **Present Day:** `LIKE`
+    *   **Present Year:** `{{ states('sensor.outside_feels_like_temperature') }}°`
+    *   **Last Departed Text:** `{{ states('sensor.weather_conditions') }}` (This will be a single scrolling line on the bottom display)
+
+```yaml
+# automation.yaml
+- alias: "BTTF - Weather Display"
+  trigger:
+    - platform: state
+      entity_id:
+        - sensor.outside_temperature
+        - sensor.outside_feels_like_temperature
+        - sensor.weather_conditions
+  action:
+    - service: automation.trigger
+      target:
+        entity_id: automation.home_assistant_status_display # The automation you created from the blueprint
+      data:
+        # You can pass variables to the blueprint if you configured it to accept them
+        # For this example, we assume the blueprint is configured with the templates directly.
+```
+</details>
+
+<details>
+<summary><strong>2. "Now Playing" Marquee</strong></summary>
+
+*Use the "Dynamic Marquee Display" blueprint to show the currently playing song on your favorite media player.*
+
+**Automation Setup:**
+1.  **Web UI:** In the clock's web interface, set Data Point 5's "Data Source" to "Home Assistant Push".
+2.  **Trigger:** The automation should trigger whenever the `media_title` attribute of your media player changes.
+3.  **Action:** Call the "Dynamic Marquee Display" blueprint.
+4.  **Configuration:**
+    *   **Data Point Slot:** "Data Point 5"
+    *   **Marquee Text:** `♪ {{ state_attr('media_player.spotify', 'media_title') }} - {{ state_attr('media_player.spotify', 'media_artist') }}`
+
+```yaml
+# automation.yaml
+- alias: "BTTF - Now Playing Marquee"
+  trigger:
+    - platform: template
+      value_template: "{{ state_attr('media_player.spotify', 'media_title') }}"
+  action:
+    - service: automation.trigger
+      target:
+        entity_id: automation.dynamic_marquee_display # The automation you created from the blueprint
+```
+</details>
+
+---
 Here are 30 useful and well-thought-out automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `bttf_timecircuits_01` in Home Assistant.
 
 ---

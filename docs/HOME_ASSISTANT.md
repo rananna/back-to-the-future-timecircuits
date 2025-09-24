@@ -70,14 +70,19 @@ Entities are grouped by function to make them easy to find.
 *   **`sensor.time_circuits_display_status`**: The primary sensor reporting the clock's state (`Idle`, `Animating`, `Asleep`).
     > **💡 Pro Tip:** This sensor has useful diagnostic attributes like `wifi_rssi`, `free_heap`, and `uptime_seconds` that you can view by clicking on the entity in Home Assistant.
 *   **`sensor.time_circuits_display_audio_stream_status`**: Shows the state of the audio player (`IDLE` or `PLAYING`). Useful for automations involving TTS or radio streams.
-*   **`sensor.time_circuits_display_destination_time`**: A `timestamp` sensor for the top display row.
-*   **`sensor.time_circuits_display_present_time`**: A `timestamp` sensor for the middle display row.
-*   **`sensor.time_circuits_display_last_time_departed`**: A `timestamp` sensor for the bottom display row.
 *   **`binary_sensor.time_circuits_display_is_animating`**: `On` when an animation is playing.
 *   **`binary_sensor.time_circuits_display_is_asleep`**: `On` when the clock is in sleep mode.
 
+#### **Direct Display Control**
+Twelve `text` entities have been created to give you direct, granular control over each segment of the three main displays. This is a powerful feature for creating custom information dashboards. You can push any text or template result to these entities.
+
+*   **Destination Display**: `text.time_circuits_display_dest_month`, `text.time_circuits_display_dest_day`, `text.time_circuits_display_dest_year`, `text.time_circuits_display_dest_time`
+*   **Present Display**: `text.time_circuits_display_pres_month`, `text.time_circuits_display_pres_day`, `text.time_circuits_display_pres_year`, `text.time_circuits_display_pres_time`
+*   **Last Departed Display**: `text.time_circuits_display_last_month`, `text.time_circuits_display_last_day`, `text.time_circuits_display_last_year`, `text.time_circuits_display_last_time`
+
+> **💡 Pro Tip:** Use the **Home Assistant Status Display Blueprint** to easily control these entities without writing any YAML.
+
 #### **Core Controls**
-*   **`number.time_circuits_display_destination_year`**: Sets the destination year.
 *   **`select.time_circuits_display_last_departed_preset`**: Choose from movie-based or your custom presets.
 *   **`number.time_circuits_display_preset_cycle_interval`**: How often the "Last Time Departed" display cycles through presets (in minutes, 0=off).
 *   **`number.time_circuits_display_brightness`**: Controls the display brightness (0-7).
@@ -164,23 +169,45 @@ To make the most powerful features easy to use, this project includes several Ho
     * **Sound Effect:** `CONFIRM_ON`
     * **Result:** When the mailbox is opened, the middle row of the clock will display "MAIL" while playing a confirmation chime. The message will disappear after the configured duration.
 
-### **2. Dynamic Data Display Blueprint**
-> **Purpose:** To display the state of Home Assistant entities on the clock, either across all three main rows or on a single DataLink marquee slot.
+### **2. Home Assistant Status Display Blueprint**
+> **Purpose:** To use the main displays as a highly customizable, 12-segment status panel for your smart home.
+
+This "callable" blueprint lets you push any entity state or template-driven text to any of the 12 display segments. Because it has no trigger, you call it as an action from your own automations, giving you full control over when the displays update.
 
 * **How to Use:**
-    1.  Create a new automation and select the "Dynamic Data Display" blueprint.
-    2.  **Display Mode:**
-        *   **Full Time Circuits**: Allows you to map up to 12 different entities to the individual segments of the three main display rows (e.g., `dest_month`, `dest_day`, `dest_year`, etc.). The blueprint will trigger whenever any of these entities change state.
-        *   **Marquee Data Slot**: Pushes data to one of the five marquee slots. For this to work, the corresponding **Data Point Source** must be set to **"Home Assistant Push"** in the clock's web UI.
-    3.  **Configure Entities/Text:** Fill in the entity IDs or template text you want to display.
-* **Example Scenario: "Display Power and Temp"**
-    * **Mode:** Marquee Data Slot
-    * **Marquee Slot:** Slot 1
-    * **Marquee Time Text:** `PWR {{ states('sensor.home_power_usage') }} W`
-    * **Trigger:** The state of `sensor.home_power_usage` changes.
-    * **Result:** The first marquee slot will show the current power usage (e.g., `PWR 1210 W`).
+    1.  In your own automation, add an `action` that calls this blueprint.
+    2.  Select your Time Circuits device.
+    3.  For any of the 12 segments (e.g., `Destination Month`, `Present Time`), enter the static text or template you want to display.
+    4.  The blueprint will only update the segments you've filled in.
+* **Example Scenario: "Living Room Dashboard"**
+    * **Automation Trigger:** The state of `sensor.living_room_temperature` or `sensor.living_room_humidity` changes.
+    * **Blueprint Action:**
+        *   **Destination Month:** `LIV`
+        *   **Destination Day:** `ING`
+        *   **Destination Year:** `ROOM`
+        *   **Present Month:** `TEMP`
+        *   **Present Day:** `{{ states('sensor.living_room_temperature') }}`
+        *   **Present Year:** `°F`
+        *   **Last Departed Month:** `HUM`
+        *   **Last Departed Day:** `{{ states('sensor.living_room_humidity') }}`
+        *   **Last Departed Year:** `%`
+    * **Result:** The clock becomes a dedicated information panel for your living room, showing static labels and dynamic sensor values.
 
-### **3. Cinematic Scene Trigger Blueprint**
+### **3. Dynamic Marquee Display Blueprint**
+> **Purpose:** To display a single, scrolling line of text on one of the five DataLink marquee slots.
+
+* **How to Use:**
+    1.  In the clock's web UI, set the **Data Point Source** to **"Home Assistant Push"** for the slot you want to use.
+    2.  Create a new automation using the "Dynamic Marquee Display" blueprint. This blueprint is "callable," meaning you will call it from another automation.
+    3.  Select your Time Circuits device and the correct **Data Point Slot**.
+    4.  Enter the text or template you want to display.
+* **Example Scenario: "Display Power and Temp"**
+    * **Web UI:** Data Point 1 Source is set to "Home Assistant Push".
+    * **Automation Action:** Call the blueprint, targeting Data Point Slot 1.
+    * **Marquee Text:** `PWR {{ states('sensor.home_power_usage') }} W`
+    * **Result:** Whenever you call this action, the first marquee slot will be updated to show the current power usage (e.g., `PWR 1210 W`).
+
+### **4. Cinematic Scene Trigger Blueprint**
 > **Purpose:** A simple way to create an automation that sets a destination year and immediately triggers the full time travel animation sequence.
 
 * **How to Use:**
