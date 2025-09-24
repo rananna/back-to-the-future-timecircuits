@@ -1,12 +1,11 @@
 blueprint:
-  name: BTTF Time Circuits - Dynamic Marquee Text
+  name: Dynamic Marquee Display
   description: >-
-    Display a single, scrolling line of text on the bottom display.
-    You choose one of five "data slots" and provide the TEXT THAT YOU WANT TO DISPLAY.
+    Display a single, scrolling line of text on one of the five data point slots.
     Use Home Assistant's templating engine to create dynamic messages.
-    FOR EXAMPLE, THE TEXT COULD BE "Outside temp is {{ states('sensor.outside_temperature') }} DEGREES CELCIUS"
-    THIS TEXT IS SENT BY HOME ASSISTANT USING MQTT TO THE DATA SLOT, SUBSTITUTING THE TEMPERATURE FOR {{ states('sensor.outside_temperature') }}.
-    The clock's Data Point Source must be set to "Home Assistant Push" for this to work.
+    For example: "Outside temp is {{ states('sensor.outside_temperature') }}°C"
+    This blueprint sends the text via MQTT to the selected data point slot.
+    The clock's Data Point Source for that slot must be set to "Home Assistant Push" for this to work.
   domain: automation
   input:
     target_device:
@@ -41,16 +40,14 @@ blueprint:
 
 variables:
   device_id: !input target_device
-  device_name: "{{ device_attr(device_id, 'name') | lower | replace(' ', '_') }}"
   slot: !input data_point_slot
-  marquee_entity: "text.{{ device_name }}_datapoint_{{ slot }}_marquee"
+  unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
 
 # This automation has no trigger, it is meant to be called from a script or another automation.
 trigger: []
 
 action:
-  - service: text.set_value
-    target:
-      entity_id: "{{ marquee_entity }}"
+  - service: mqtt.publish
     data:
-      value: !input text
+      topic: "timecircuits/{{ unique_id }}/datapoint/{{ slot }}/year/set"
+      payload: !input text
