@@ -289,12 +289,6 @@ function attachEventListeners() {
     document.getElementById('greatScottBtn').onclick = () => fetch('/api/greatScott', { method: 'POST' });
     // "Engage Time Circuits" button
     document.getElementById('saveSettingsBtn').onclick = saveSettings;
-    // Tab navigation
-    document.querySelectorAll('.tab-link').forEach(btn => btn.onclick = (e) => {
-        const tabName = e.target.getAttribute('data-tab');
-        openTab(e, tabName);
-        if (tabName === 'DataLink' && !isDataLinkLoaded) loadDataLinkSettings();
-    });
     // Timezone and destination year inputs
     ['destinationTimezoneSelect', 'presentTimezoneSelect'].forEach(id => {
         document.getElementById(id).onchange = () => {
@@ -554,21 +548,6 @@ function scrollToSettings(tabName, elementId) {
     }
 }
 
-/**
- * Switches to a specific tab.
- * @param {Event} evt The click event from the tab button.
- * @param {string} tabName The name of the tab to open.
- */
-window.openTab = function(evt, tabName) {
-    document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = "none");
-    document.querySelectorAll('.tab-link').forEach(tl => tl.classList.remove('active'));
-    document.getElementById(tabName).style.display = "block";
-    evt.currentTarget.classList.add('active');
-
-    if (tabName === 'DataLink' && document.getElementById('stockTickerModeEnabled').checked) {
-        loadStockAssets();
-    }
-}
 
 /**
  * Sets the `settingsChanged` flag and enables/disables the save button.
