@@ -137,7 +137,7 @@ alias: "BTTF - Sync the Clocks"
 trigger:
   - platform: device
     device_id: YOUR_DEVICE_ID_HERE
-    domain: timecircuits
+    domain: BTTF_TC
     type: animation_started
 action:
   - service: light.turn_on

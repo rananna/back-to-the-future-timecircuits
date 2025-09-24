@@ -23,7 +23,7 @@ async function initializeUI() {
     try {
         // Define the API endpoints to fetch initial data from
         const initialEndpoints = [
-            '/api/settings/timecircuits', '/api/settings/temporal',
+            '/api/settings/BTTF_TC', '/api/settings/temporal',
             '/api/settings/datalink', '/api/timezones',
             '/api/getPresets', '/api/getTheme'
         ];

@@ -6,7 +6,7 @@
 
 // --- MQTT Configuration ---
 #define MQTT_BASE_TOPIC "homeassistant"
-#define MQTT_DEVICE_TYPE "timecircuits"
+#define MQTT_DEVICE_TYPE "BTTF_TC"
 extern char MQTT_UNIQUE_ID[21];
 
 
