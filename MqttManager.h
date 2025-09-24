@@ -7,7 +7,7 @@
 // --- MQTT Configuration ---
 #define MQTT_BASE_TOPIC "homeassistant"
 #define MQTT_DEVICE_TYPE "timecircuits"
-extern char MQTT_UNIQUE_ID[19];
+extern char MQTT_UNIQUE_ID[21];
 
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length);

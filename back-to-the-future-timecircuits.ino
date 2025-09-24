@@ -129,7 +129,7 @@ StockManager stockManager;
 char currentSoundFile[MAX_FILENAME_LENGTH] = ""; // Filename of the audio file currently being played.
 
 // --- DEVICE IDENTIFIERS ---
-char MQTT_UNIQUE_ID[19]; // The unique identifier for this device, derived from its MAC address.
+char MQTT_UNIQUE_ID[21]; // The unique identifier for this device, derived from its MAC address.
 
 // --- FUNCTION PROTOTYPES ---
 // Forward declarations for functions defined later in this file.
