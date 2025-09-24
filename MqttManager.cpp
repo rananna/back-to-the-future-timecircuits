@@ -215,6 +215,9 @@ void publishHaAutoDiscovery() {
     for (int i=0; i < 5; ++i) {
         clearHaEntity("select", "datapoint_" + String(i) + "_source");
     }
+    clearHaEntity("switch", "stock_ticker_mode");
+    clearHaEntity("button", "stock_next");
+    clearHaEntity("button", "stock_previous");
 
     // ADDED: Create Enabled switches for each data point
     for (int i=0; i < 5; ++i) {
@@ -376,42 +379,6 @@ void publishHaAutoDiscovery() {
     serializeJson(doc, payload);
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
     
-    doc.clear();
-    doc["name"] = "Stock Ticker Mode";
-    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_stock_ticker_mode";
-    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_stock_ticker_mode";
-    doc["command_topic"] = device_base_topic + "/stock_ticker_mode/command";
-    doc["state_topic"] = device_base_topic + "/stock_ticker_mode/state";
-    doc["icon"] = "mdi:chart-line";
-    doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
-    topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
-
-    // --- START: Add Next/Previous buttons for Stock Ticker ---
-    const char* stock_buttons[][3] = {
-        {"stock_next", "Stock Next", "mdi:arrow-right-circle-outline"},
-        {"stock_previous", "Stock Previous", "mdi:arrow-left-circle-outline"}
-    };
-    for (auto const& cfg : stock_buttons) {
-        doc.clear();
-        doc["name"] = cfg[1];
-        String id_suffix = cfg[0];
-        doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
-        doc["payload_press"] = "PRESS";
-        doc["icon"] = cfg[2];
-        doc["entity_category"] = "config";
-        doc["device"] = device;
-        doc["availability"] = availability;
-        topic = String(MQTT_BASE_TOPIC) + "/button/" + doc["object_id"].as<String>() + "/config";
-        serializeJson(doc, payload);
-        mqttClient.publish(topic.c_str(), payload.c_str(), true);
-    }
-    // --- END: Add Next/Previous buttons for Stock Ticker ---
 
     // --- Notification & Alert Entities ---
     doc.clear();
@@ -783,13 +750,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             }
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;
-        } else if (component == "stock_ticker_mode") {
-            currentSettings.stockTickerModeEnabled = (message == "ON");
-            settingsChanged = true;
-        } else if (component == "stock_next" && message == "PRESS") {
-            stockManager.nextPage();
-        } else if (component == "stock_previous" && message == "PRESS") {
-            stockManager.previousPage();
         }
     } else if (topicStr == base_topic + "tts/play") {
         JsonDocument doc;
@@ -893,7 +853,6 @@ void publishAllHaStates() {
 
     // This state publishing has been removed as the sensor it belongs to was removed.
 
-    mqttClient.publish((base_topic + "/stock_ticker_mode/state").c_str(), currentSettings.stockTickerModeEnabled ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
 
     for(int i=0; i<5; ++i) {
