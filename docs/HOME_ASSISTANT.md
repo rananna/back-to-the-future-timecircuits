@@ -172,11 +172,11 @@ To make the most powerful features easy to use, this project includes several Ho
 
 ## **Guide to Blueprints**
 
-Many of the included blueprints are **"callable,"** which means they don't have their own trigger. Instead, you use them as a building block inside your own automations. This makes them incredibly flexible.
+Many of the included blueprints are **"callable,"** which means they don't have a trigger built-in. Think of them as on-demand actions that you can "call" from any of your own automations. This approach provides maximum flexibility, allowing you to reuse the same blueprint logic for many different scenarios.
 
 A common pattern is:
-1.  **Your Automation Trigger:** A sensor changes, a time is reached, etc.
-2.  **Your Automation Action:** Call a service, and select "Blueprint" as the action type. Choose one of the BTTF blueprints and fill in its inputs.
+1.  **Your Automation's Trigger:** A sensor changes, a specific time is reached, an event occurs—anything you want.
+2.  **Your Automation's Action:** In the `action` section of your automation, you will call the blueprint. To do this, select the "Call a service" action type and choose the `automation.trigger` service, then select the blueprint-based automation you created. Alternatively, if you are editing in YAML mode, you can use the `blueprint:` key directly.
 
 ### **1. BTTF - Advanced Notifier**
 > **Purpose:** To display a temporary, multi-line message on the clock, with an optional sound effect.
@@ -190,7 +190,7 @@ A common pattern is:
       to: 'on'
   action:
     - blueprint:
-        path: home-assistant/bttf_advanced_notifier_blueprint.yaml
+        path: bttf_advanced_notifier_blueprint.yaml
         input:
           target_device: "YOUR_DEVICE_ID_HERE"
           message: "\nMAIL\n"
@@ -216,7 +216,7 @@ A common pattern is:
         - sensor.living_room_humidity
   action:
     - blueprint:
-        path: home-assistant/bttf_status_display_blueprint.yaml
+        path: bttf_status_display_blueprint.yaml
         input:
           target_device: "YOUR_DEVICE_ID_HERE"
           destination_month: "LIV"
@@ -241,7 +241,7 @@ A common pattern is:
       entity_id: sensor.home_power_usage
   action:
     - blueprint:
-        path: home-assistant/bttf_dynamic_marquee_display_blueprint.yaml
+        path: bttf_dynamic_marquee_display_blueprint.yaml
         input:
           target_device: "YOUR_DEVICE_ID_HERE"
           data_point_slot: "1"
@@ -251,12 +251,12 @@ A common pattern is:
 ### **4. BTTF - Cinematic Scene Trigger**
 > **Purpose:** A simple way to create an automation that sets a destination year and immediately triggers the full time travel animation sequence.
 
-* **How to Use:** This blueprint is self-contained and includes its own trigger, so you can create an automation directly from it without needing to call it from another.
+* **How to Use:** This blueprint is designed to be a complete automation. When you create a new automation from this blueprint, you will define the trigger (e.g., a specific time, a device state change) and configure the action (setting the destination year) all in one place.
 * **Example Scenario: "Lightning Strike at 10:04 PM"**
     1. Go to **Settings > Automations & Scenes** and create a new automation.
     2. Select the "BTTF - Cinematic Scene Trigger" blueprint.
-    3. Set the trigger to be a Time trigger at `22:04:00`.
-    4. Choose your Time Circuits device and set the **Destination Year** to `1955`.
+    3. In the "Triggers" section of the automation editor, add a Time trigger set to `22:04:00`.
+    4. In the "Actions" section, choose your Time Circuits device and set the **Destination Year** to `1955`.
 
 ### 5. BTTF - Radio Streamer
 > **Purpose:** To start or stop an internet radio stream on the clock's speaker.
@@ -270,7 +270,7 @@ A common pattern is:
       entity_id: input_button.play_radio
   action:
     - blueprint:
-        path: home-assistant/bttf_radio_streamer_blueprint.yaml
+        path: bttf_radio_streamer_blueprint.yaml
         input:
           target_device: "YOUR_DEVICE_ID_HERE"
           radio_command: "http://stream.url/your_station"
@@ -288,7 +288,7 @@ A common pattern is:
       to: 'on'
   action:
     - blueprint:
-        path: home-assistant/bttf_tts_notifier_blueprint.yaml
+        path: bttf_tts_notifier_blueprint.yaml
         input:
           target_device: "YOUR_DEVICE_ID_HERE"
           message_text: "Someone is in the driveway."
