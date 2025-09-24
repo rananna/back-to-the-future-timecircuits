@@ -74,13 +74,20 @@ Entities are grouped by function to make them easy to find.
 *   **`binary_sensor.time_circuits_display_is_asleep`**: `On` when the clock is in sleep mode.
 
 #### **Direct Display Control**
-Twelve `text` entities have been created to give you direct, granular control over each segment of the three main displays. This is a powerful feature for creating custom information dashboards. You can push any text or template result to these entities.
+Twelve `text` entities give you direct, granular control over each segment of the three main displays. This is a powerful feature for creating custom information dashboards. You can push any text or template result to these entities.
 
 *   **Destination Display**: `text.time_circuits_display_dest_month`, `text.time_circuits_display_dest_day`, `text.time_circuits_display_dest_year`, `text.time_circuits_display_dest_time`
 *   **Present Display**: `text.time_circuits_display_pres_month`, `text.time_circuits_display_pres_day`, `text.time_circuits_display_pres_year`, `text.time_circuits_display_pres_time`
 *   **Last Departed Display**: `text.time_circuits_display_last_month`, `text.time_circuits_display_last_day`, `text.time_circuits_display_last_year`, `text.time_circuits_display_last_time`
 
 > **💡 Pro Tip:** Use the **BTTF - Home Assistant Status Display** blueprint to easily control these entities without writing any YAML.
+
+#### **Notifications & Alerts**
+These entities are the building blocks for the `Advanced Notifier`, `TTS Notifier`, and other notification-based blueprints. They allow you to temporarily override the main display with a custom message and play a sound.
+
+*   **`switch.time_circuits_display_override_switch`**: A master switch to enable or disable the override mode. When `On`, the `Override Message` is displayed. When `Off`, the clock returns to its normal operation.
+*   **`text.time_circuits_display_override_message`**: A text input for the content of your alert. Use `\n` to separate lines for the three displays.
+*   **`select.time_circuits_display_play_sound`**: A dropdown to play one of the pre-defined sound effects on command. After a sound is selected, it plays immediately and the entity resets to `None`.
 
 #### **Core Controls**
 *   **`select.time_circuits_display_last_departed_preset`**: Choose from movie-based or your custom presets.
@@ -218,34 +225,32 @@ This "callable" blueprint lets you push any entity state or template-driven text
 ### 5. BTTF - Radio Streamer
 > **Purpose:** To start or stop an internet radio stream on the clock's speaker.
 
+This is a "callable" blueprint, designed to be an action in your other automations. It will display "RADIO" on the center display while the stream is active.
+
 * **How to Use:**
-    1.  This is a "callable" blueprint, designed to be an action in your other automations.
-    2.  **Radio Command:** Provide the full URL of an internet radio stream to start playing it. To stop the current stream, simply enter the command `stop`.
-* **Example Scenario: "Play Lo-Fi Radio"**
-    * **Automation Action:** Call the "BTTF - Radio Streamer" blueprint.
-    * **Radio Command:** `http://your-favorite-lofi-stream.com/stream.mp3`
-    * **Result:** The clock will display "RADIO" and begin playing the stream. The text will remain on the display until you call the blueprint again with the command `stop`, which will stop the music and clear the text.
+    1.  Call this blueprint as an action from another automation or script.
+    2.  Provide the full URL of an internet radio stream to start playing it.
+    3.  To stop the current stream, simply enter the command `stop`.
 
 ### 6. BTTF - TTS Notifier
 > **Purpose:** To play audio announcements from Home Assistant's Text-to-Speech (TTS) services on the clock's speaker.
 
-This blueprint makes it easy to use your Time Circuits clock as a voice notification device.
+This "callable" blueprint makes it easy to use your Time Circuits clock as a voice notification device.
 
 * **How to Use:**
-    1.  This is a "callable" blueprint, designed to be an action in your other automations.
-    2.  Select your Time Circuits device.
-    3.  Provide the `tts_service` you want to use (e.g., `tts.google_en_com`).
-    4.  Enter the `message_text` you want the clock to say.
-    5.  Optionally, provide `display_text` to show a message on the clock while the audio is playing. Use `\n` to create new lines.
-    6.  Set a `volume` for the announcement (0-100).
+    1.  Call this blueprint as an action from another automation or script.
+    2.  Provide the `tts_service` (e.g., `tts.google_en_com`), the `message_text` to be spoken, and an optional `display_text` to show on the clock.
+    3.  The display text will automatically clear after the announcement is finished.
+
 * **Example Scenario: "Announce Driveway Alert"**
     * **Automation Trigger:** A motion sensor in the driveway is activated.
     * **Blueprint Action:**
         *   **Message Text:** "Someone is in the driveway."
         *   **Display Text:** `ALERT\nDRIVE\nWAY`
         *   **Volume:** 90
-    * **Result:** The clock's display will show the alert message on its three rows while loudly announcing that someone is in the driveway. The display will return to normal after the message is spoken.
-> **💡 Pro Tip:** For more complex or dynamic visual notifications that change based on sensor states, we recommend using the **BTTF - Home Assistant Status Display** blueprint. You can call that blueprint in your automation right before calling the **BTTF - TTS Notifier** blueprint to create rich, informative alerts.
+    * **Result:** The clock's display will show the alert message on its three rows while loudly announcing that someone is in the driveway.
+
+> **💡 Pro Tip:** For more complex visual alerts that change based on sensor states, we recommend calling the **BTTF - Home Assistant Status Display** blueprint right before calling this one to create rich, informative notifications.
 
 ***
 
@@ -345,45 +350,45 @@ The marquee feature allows you to display any information from your smart home d
 This simplified, modern approach is more efficient and reliable than the previous method, which involved splitting text into multiple small chunks. It leverages Home Assistant's built-in services for a cleaner and more robust integration.
 
 ### **Deep Dive: Creating Custom Audio-Visual Alerts**
-While the **BTTF - Advanced Notifier** blueprint is the easiest way to create custom alerts, you can build them manually in your own automations by publishing directly to the clock's MQTT topics. This gives you maximum flexibility.
+While the **BTTF - Advanced Notifier** blueprint is the easiest way to create temporary alerts, you can build them manually in your own automations using the dedicated notification entities. This gives you maximum flexibility.
 
-A typical alert sequence involves three steps:
-1.  **Set the Message:** Publish your desired text (using `\n` for new lines) to the `timecircuits/<UNIQUE_ID>/override_text/command` topic.
-2.  **Activate the Display:** Publish `ON` to the `timecircuits/<UNIQUE_ID>/override/command` topic. This tells the clock to show your message.
-3.  **Play a Sound (Optional):** Publish a sound name (e.g., `ARRIVAL_THUD`) to the `timecircuits/<UNIQUE_ID>/play_sound/command` topic.
+A typical alert sequence involves three service calls:
+1.  **Set the Message:** Use the `text.set_value` service to put your desired message (using `\n` for new lines) into the `text.time_circuits_display_override_message` entity.
+2.  **Activate the Display:** Use the `switch.turn_on` service to enable the `switch.time_circuits_display_override_switch`. This tells the clock to show your message.
+3.  **Play a Sound (Optional):** Use the `select.select_option` service to choose a sound from the `select.time_circuits_display_play_sound` entity.
 
-The display will remain in override mode until you publish `OFF` to the `timecircuits/<UNIQUE_ID>/override/command` topic.
+The display will remain in override mode until you call the `switch.turn_off` service on the `switch.time_circuits_display_override_switch`.
 
 **Example Automation Action:**
 ```yaml
 action:
-  # Set the text for the three rows
-  - service: mqtt.publish
+  # 1. Set the text for the three rows
+  - service: text.set_value
+    target:
+      entity_id: text.time_circuits_display_override_message
     data:
-      topic: "timecircuits/bttf_123456/override_text/command"
-      payload: "WARNING\nSECURITY ALERT\nGARAGE DOOR"
+      value: "WARNING\nSECURITY ALERT\nGARAGE DOOR"
 
-  # Activate the override display
-  - service: mqtt.publish
+  # 2. Activate the override display
+  - service: switch.turn_on
+    target:
+      entity_id: switch.time_circuits_display_override_switch
+
+  # 3. Play an alert sound
+  - service: select.select_option
+    target:
+      entity_id: select.time_circuits_display_play_sound
     data:
-      topic: "timecircuits/bttf_123456/override/command"
-      payload: "ON"
+      option: ALARM_SOUND
 
-  # Play an alert sound
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/bttf_123456/play_sound/command"
-      payload: "ALARM_SOUND" # Assumes you have a sound file named ALARM_SOUND.mp3
-
-  # Wait 15 seconds
+  # 4. Wait 15 seconds
   - delay:
       seconds: 15
 
-  # Turn off the override display
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/bttf_123456/override/command"
-      payload: "OFF"
+  # 5. Turn off the override display to return to normal
+  - service: switch.turn_off
+    target:
+      entity_id: switch.time_circuits_display_override_switch
 ```
 
 <details>

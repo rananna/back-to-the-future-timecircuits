@@ -411,6 +411,59 @@ void publishHaAutoDiscovery() {
     }
     // --- END: Add Next/Previous buttons for Stock Ticker ---
 
+    // --- Notification & Alert Entities ---
+    doc.clear();
+    doc["name"] = "Override Switch";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_override_switch";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_override_switch";
+    doc["command_topic"] = device_base_topic + "/override/command";
+    doc["state_topic"] = device_base_topic + "/override/state";
+    doc["icon"] = "mdi:message-cog";
+    doc["entity_category"] = "config";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+
+    doc.clear();
+    doc["name"] = "Override Message";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_override_message";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_override_message";
+    doc["command_topic"] = device_base_topic + "/override_text/command";
+    doc["state_topic"] = device_base_topic + "/override_text/state";
+    doc["icon"] = "mdi:message-draw";
+    doc["entity_category"] = "config";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+
+    doc.clear();
+    doc["name"] = "Play Sound";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_play_sound";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_play_sound";
+    doc["command_topic"] = device_base_topic + "/play_sound/command";
+    doc["state_topic"] = device_base_topic + "/play_sound/state";
+    JsonArray sounds = doc["options"].to<JsonArray>();
+    sounds.add("None");
+    sounds.add("ALARM_SOUND");
+    sounds.add("ARRIVAL_THUD");
+    sounds.add("CONFIRM_ON");
+    sounds.add("EASTER_EGG");
+    sounds.add("REBOOT_SOUND");
+    sounds.add("REMINDER_ALERT");
+    sounds.add("TIME_TRAVEL_FAIL");
+    doc["icon"] = "mdi:volume-high";
+    doc["entity_category"] = "config";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/select/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+
+
     // --- Live Weather Mode Entities ---
     doc.clear();
     doc["name"] = "Live Weather Mode";
