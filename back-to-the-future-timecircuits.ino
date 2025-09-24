@@ -526,128 +526,115 @@ void applySettingsFromJson(const JsonObject& obj) {
  * against its previously saved value and only writes if the value has actually changed.
  */
 void saveSettings() {
-    Log_printf(LOG_LEVEL_INFO, "--- Saving Settings (Dirty Flag Check) ---");
-    preferences.begin(PREFERENCES_NAMESPACE, false); // Open preferences in read-write mode.
+    Log_printf(LOG_LEVEL_INFO, "--- Saving Settings ---");
+    preferences.begin(PREFERENCES_NAMESPACE, false);
 
-    // Helper macro to reduce boilerplate code for saving numeric types.
-    // It gets the existing value, compares it to the new value, and puts the new value if different.
-    #define SAVE_IF_CHANGED(key, type, value) \
-        if (preferences.get##type(key, -1) != value) { \
-            preferences.put##type(key, value); \
-            Log_printf(LOG_LEVEL_DEBUG, "SAVING: %s -> %d", #key, value); \
-        }
+    // --- Save each setting directly and log it ---
+    Log_printf(LOG_LEVEL_INFO, "Saving destYear: %d", currentSettings.destinationYear);
+    preferences.putInt("destYear", currentSettings.destinationYear);
 
-    // Helper macro for saving string types. It handles the case where the key might not exist yet.
-    #define SAVE_STRING_IF_CHANGED(key, value) \
-        if (!preferences.isKey(key) || preferences.getString(key, "") != value.c_str()) { \
-            preferences.putString(key, value.c_str()); \
-            Log_printf(LOG_LEVEL_DEBUG, "SAVING: %s -> %s", #key, value.c_str()); \
-        }
+    Log_printf(LOG_LEVEL_INFO, "Saving destTzIndex: %d", currentSettings.destinationTimezoneIndex);
+    preferences.putInt("destTzIndex", currentSettings.destinationTimezoneIndex);
 
-    // --- Save each setting using the helper macros ---
-    SAVE_IF_CHANGED("destYear", Int, currentSettings.destinationYear);
-    SAVE_IF_CHANGED("destTzIndex", Int, currentSettings.destinationTimezoneIndex);
-    SAVE_IF_CHANGED("depHour", Int, currentSettings.departureHour);
-    SAVE_IF_CHANGED("depMinute", Int, currentSettings.departureMinute);
-    SAVE_IF_CHANGED("arrHour", Int, currentSettings.arrivalHour);
-    SAVE_IF_CHANGED("arrMinute", Int, currentSettings.arrivalMinute);
-    SAVE_IF_CHANGED("lastYear", Int, currentSettings.lastTimeDepartedYear);
-    SAVE_IF_CHANGED("lastMonth", Int, currentSettings.lastTimeDepartedMonth);
-    SAVE_IF_CHANGED("lastDay", Int, currentSettings.lastTimeDepartedDay);
-    SAVE_IF_CHANGED("lastHour", Int, currentSettings.lastTimeDepartedHour);
-    SAVE_IF_CHANGED("lastMinute", Int, currentSettings.lastTimeDepartedMinute);
-    SAVE_IF_CHANGED("brightness", UChar, currentSettings.brightness);
-    SAVE_IF_CHANGED("volume", UChar, currentSettings.notificationVolume);
-    if (preferences.getBool("soundToggle", true) != currentSettings.timeTravelSoundToggle) {
-        preferences.putBool("soundToggle", currentSettings.timeTravelSoundToggle);
-        Log_printf(LOG_LEVEL_DEBUG, "SAVING: soundToggle -> %s", currentSettings.timeTravelSoundToggle ? "true" : "false");
-    }
+    Log_printf(LOG_LEVEL_INFO, "Saving lastYear: %d", currentSettings.lastTimeDepartedYear);
+    preferences.putInt("lastYear", currentSettings.lastTimeDepartedYear);
 
-    SAVE_IF_CHANGED("presTzIndex", Int, currentSettings.presentTimezoneIndex);
-    SAVE_IF_CHANGED("presetCycle", Int, currentSettings.presetCycleInterval);
-    if (preferences.getBool("format24h", false) != currentSettings.displayFormat24h) {
-        preferences.putBool("format24h", currentSettings.displayFormat24h);
-        Log_printf(LOG_LEVEL_DEBUG, "SAVING: format24h -> %s", currentSettings.displayFormat24h ? "true" : "false");
-    }
-    
-    SAVE_IF_CHANGED("theme", Int, currentSettings.theme);
-    SAVE_IF_CHANGED("animInterval", Int, currentSettings.timeTravelAnimationInterval);
-    SAVE_IF_CHANGED("animDuration", Int, currentSettings.timeTravelAnimationDuration);
-    SAVE_IF_CHANGED("animStyle", Int, currentSettings.animationStyle);
-    if (preferences.getBool("dlEnabled", false) != currentSettings.dataLinkEnabled) {
-        preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
-        Log_printf(LOG_LEVEL_DEBUG, "SAVING: dlEnabled -> %s", currentSettings.dataLinkEnabled ? "true" : "false");
-    }
+    Log_printf(LOG_LEVEL_INFO, "Saving lastMonth: %d", currentSettings.lastTimeDepartedMonth);
+    preferences.putInt("lastMonth", currentSettings.lastTimeDepartedMonth);
 
-    SAVE_IF_CHANGED("dlTargetRow", Int, currentSettings.dataLinkTargetRow);
-    SAVE_IF_CHANGED("numDataPoints", Int, currentSettings.numDataPoints);
+    Log_printf(LOG_LEVEL_INFO, "Saving lastDay: %d", currentSettings.lastTimeDepartedDay);
+    preferences.putInt("lastDay", currentSettings.lastTimeDepartedDay);
 
-    // --- FIX: Unconditionally save MQTT settings to prevent stale data ---
-    // The previous macro-based save could fail if the NVS already held a default value.
-    // This direct approach ensures the current settings are always persisted.
+    Log_printf(LOG_LEVEL_INFO, "Saving lastHour: %d", currentSettings.lastTimeDepartedHour);
+    preferences.putInt("lastHour", currentSettings.lastTimeDepartedHour);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving lastMinute: %d", currentSettings.lastTimeDepartedMinute);
+    preferences.putInt("lastMinute", currentSettings.lastTimeDepartedMinute);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving brightness: %d", currentSettings.brightness);
+    preferences.putUChar("brightness", currentSettings.brightness);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving volume: %d", currentSettings.notificationVolume);
+    preferences.putUChar("volume", currentSettings.notificationVolume);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving soundToggle: %s", currentSettings.timeTravelSoundToggle ? "true" : "false");
+    preferences.putBool("soundToggle", currentSettings.timeTravelSoundToggle);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving presTzIndex: %d", currentSettings.presentTimezoneIndex);
+    preferences.putInt("presTzIndex", currentSettings.presentTimezoneIndex);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving format24h: %s", currentSettings.displayFormat24h ? "true" : "false");
+    preferences.putBool("format24h", currentSettings.displayFormat24h);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving animInterval: %d", currentSettings.timeTravelAnimationInterval);
+    preferences.putInt("animInterval", currentSettings.timeTravelAnimationInterval);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving mqttBroker: %s", currentSettings.mqttBroker.c_str());
     preferences.putString("mqttBroker", currentSettings.mqttBroker.c_str());
-    Log_printf(LOG_LEVEL_DEBUG, "SAVING: mqttBroker -> %s", currentSettings.mqttBroker.c_str());
+
+    Log_printf(LOG_LEVEL_INFO, "Saving mqttPort: %d", currentSettings.mqttPort);
     preferences.putInt("mqttPort", currentSettings.mqttPort);
-    Log_printf(LOG_LEVEL_DEBUG, "SAVING: mqttPort -> %d", currentSettings.mqttPort);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving mqttUser: %s", currentSettings.mqttUser.c_str());
     preferences.putString("mqttUser", currentSettings.mqttUser.c_str());
-    Log_printf(LOG_LEVEL_DEBUG, "SAVING: mqttUser -> %s", currentSettings.mqttUser.c_str());
+
+    Log_printf(LOG_LEVEL_INFO, "Saving mqttPass: (hidden)");
     preferences.putString("mqttPass", currentSettings.mqttPassword.c_str());
-    // Note: Do not log the password itself for security reasons.
-    Log_printf(LOG_LEVEL_DEBUG, "SAVING: mqttPass -> (hidden)");
-    if (preferences.getBool("weatherMode", false) != currentSettings.weatherModeEnabled) {
-        preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
-        Log_printf(LOG_LEVEL_DEBUG, "SAVING: weatherMode -> %s", currentSettings.weatherModeEnabled ? "true" : "false");
-    }
 
-    SAVE_STRING_IF_CHANGED("cityName", currentSettings.cityName);
-    if (preferences.getBool("useMetric", false) != currentSettings.useMetricUnits) {
-        preferences.putBool("useMetric", currentSettings.useMetricUnits);
-        Log_printf(LOG_LEVEL_DEBUG, "SAVING: useMetric -> %s", currentSettings.useMetricUnits ? "true" : "false");
-    }
-    
-    // Note: Comparing floats can be tricky due to precision.
-    // A small tolerance might be needed for production code, but this is fine for this use case.
-    if (preferences.getFloat("latitude", 0.0) != currentSettings.latitude) {
-        preferences.putFloat("latitude", currentSettings.latitude);
-        Log_printf(LOG_LEVEL_DEBUG, "SAVING: latitude -> %f", currentSettings.latitude);
-    }
-    if (preferences.getFloat("longitude", 0.0) != currentSettings.longitude) {
-        preferences.putFloat("longitude", currentSettings.longitude);
-        Log_printf(LOG_LEVEL_DEBUG, "SAVING: longitude -> %f", currentSettings.longitude);
-    }
-    
-    if (preferences.getBool("stModeEnabled", false) != currentSettings.stockTickerModeEnabled) {
-        preferences.putBool("stModeEnabled", currentSettings.stockTickerModeEnabled);
-        Log_printf(LOG_LEVEL_DEBUG, "SAVING: stModeEnabled -> %s", currentSettings.stockTickerModeEnabled ? "true" : "false");
-    }
+    Log_printf(LOG_LEVEL_INFO, "Saving weatherMode: %s", currentSettings.weatherModeEnabled ? "true" : "false");
+    preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
 
-    // --- START: MODIFICATION - Explicitly save stockRefreshInterval ---
-    // Using explicit code instead of the macro to make this critical setting's save process more robust and clear.
-    int savedStockRefresh = preferences.getInt("stockRefresh", -1);
-    if (savedStockRefresh != currentSettings.stockRefreshInterval) {
-        preferences.putInt("stockRefresh", currentSettings.stockRefreshInterval);
-        Log_printf(LOG_LEVEL_DEBUG, "TRACE: Saving changed stockRefresh. Old: %d, New: %d", savedStockRefresh, currentSettings.stockRefreshInterval);
-    }
-    // --- END: MODIFICATION ---
+    Log_printf(LOG_LEVEL_INFO, "Saving cityName: %s", currentSettings.cityName.c_str());
+    preferences.putString("cityName", currentSettings.cityName.c_str());
 
-    SAVE_STRING_IF_CHANGED("fmpApiKey", currentSettings.financialModelingPrepApiKey);
-    SAVE_STRING_IF_CHANGED("stockRow1Symbol", currentSettings.stockRow1_symbol);
-    SAVE_STRING_IF_CHANGED("stockRow2Symbol", currentSettings.stockRow2_symbol);
-    SAVE_STRING_IF_CHANGED("stockRow3Symbol", currentSettings.stockRow3_symbol);
+    Log_printf(LOG_LEVEL_INFO, "Saving useMetric: %s", currentSettings.useMetricUnits ? "true" : "false");
+    preferences.putBool("useMetric", currentSettings.useMetricUnits);
 
-	for (int i = 0; i < 5; i++) {
-		String prefix = "dp" + String(i) + "_";
-		// --- Save all fields for each data point ---
-        if (preferences.getBool((prefix + "en").c_str(), false) != currentSettings.dataPoints[i].enabled) {
-            preferences.putBool((prefix + "en").c_str(), currentSettings.dataPoints[i].enabled);
-        }
-		SAVE_IF_CHANGED((prefix + "srcType").c_str(), Int, (int)currentSettings.dataPoints[i].dataSourceType);
-		SAVE_STRING_IF_CHANGED((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
-		SAVE_STRING_IF_CHANGED((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText);
-		SAVE_IF_CHANGED((prefix + "scroll").c_str(), Int, currentSettings.dataPoints[i].scrollSpeed);
-        SAVE_STRING_IF_CHANGED((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefixText);
-        SAVE_STRING_IF_CHANGED((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffixText);
-	}
+    Log_printf(LOG_LEVEL_INFO, "Saving latitude: %f", currentSettings.latitude);
+    preferences.putFloat("latitude", currentSettings.latitude);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving longitude: %f", currentSettings.longitude);
+    preferences.putFloat("longitude", currentSettings.longitude);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving departureHour: %d", currentSettings.departureHour);
+    preferences.putInt("depHour", currentSettings.departureHour);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving departureMinute: %d", currentSettings.departureMinute);
+    preferences.putInt("depMinute", currentSettings.departureMinute);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving arrivalHour: %d", currentSettings.arrivalHour);
+    preferences.putInt("arrHour", currentSettings.arrivalHour);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving arrivalMinute: %d", currentSettings.arrivalMinute);
+    preferences.putInt("arrMinute", currentSettings.arrivalMinute);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving presetCycleInterval: %d", currentSettings.presetCycleInterval);
+    preferences.putInt("presetCycle", currentSettings.presetCycleInterval);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving theme: %d", currentSettings.theme);
+    preferences.putInt("theme", currentSettings.theme);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving timeTravelAnimationDuration: %d", currentSettings.timeTravelAnimationDuration);
+    preferences.putInt("animDuration", currentSettings.timeTravelAnimationDuration);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving animationStyle: %d", currentSettings.animationStyle);
+    preferences.putInt("animStyle", currentSettings.animationStyle);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving dataLinkEnabled: %s", currentSettings.dataLinkEnabled ? "true" : "false");
+    preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving dataLinkTargetRow: %d", currentSettings.dataLinkTargetRow);
+    preferences.putInt("dlTargetRow", currentSettings.dataLinkTargetRow);
+
+    Log_printf(LOG_LEVEL_INFO, "Saving stockRow1_symbol: %s", currentSettings.stockRow1_symbol.c_str());
+    preferences.putString("stockRow1Symbol", currentSettings.stockRow1_symbol.c_str());
+
+    Log_printf(LOG_LEVEL_INFO, "Saving stockRow2_symbol: %s", currentSettings.stockRow2_symbol.c_str());
+    preferences.putString("stockRow2Symbol", currentSettings.stockRow2_symbol.c_str());
+
+    Log_printf(LOG_LEVEL_INFO, "Saving stockRow3_symbol: %s", currentSettings.stockRow3_symbol.c_str());
+    preferences.putString("stockRow3Symbol", currentSettings.stockRow3_symbol.c_str());
+
 	preferences.end();
     Log_printf(LOG_LEVEL_INFO, "--- Settings Saved ---");
 
@@ -718,58 +705,131 @@ void loadSettings() {
         saveSettings();
     } else {
         Log_printf(LOG_LEVEL_INFO, "Loading settings from NVS.");
-        currentSettings.destinationYear = preferences.getInt("destYear");
-        currentSettings.destinationTimezoneIndex = preferences.getInt("destTzIndex");
-        currentSettings.departureHour = preferences.getInt("depHour");
-        currentSettings.departureMinute = preferences.getInt("depMinute");
-        currentSettings.arrivalHour = preferences.getInt("arrHour");
-        currentSettings.arrivalMinute = preferences.getInt("arrMinute");
-        currentSettings.lastTimeDepartedYear = preferences.getInt("lastYear");
-        currentSettings.lastTimeDepartedMonth = preferences.getInt("lastMonth");
-        currentSettings.lastTimeDepartedDay = preferences.getInt("lastDay");
-        currentSettings.lastTimeDepartedHour = preferences.getInt("lastHour");
-        currentSettings.lastTimeDepartedMinute = preferences.getInt("lastMinute");
-        currentSettings.brightness = preferences.getUChar("brightness");
-        currentSettings.notificationVolume = preferences.getUChar("volume");
-        currentSettings.timeTravelSoundToggle = preferences.getBool("soundToggle");
-        currentSettings.presentTimezoneIndex = preferences.getInt("presTzIndex");
-        currentSettings.presetCycleInterval = preferences.getInt("presetCycle");
-        currentSettings.displayFormat24h = preferences.getBool("format24h");
-        currentSettings.theme = preferences.getInt("theme", THEME_TIME_CIRCUITS);
-        currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval");
-        currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration");
-        currentSettings.animationStyle = preferences.getInt("animStyle");
-        currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
-        currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
-        currentSettings.numDataPoints = preferences.getInt("numDataPoints");
-        String brokerStr = preferences.getString("mqttBroker", "");
+        currentSettings.destinationYear = preferences.getInt("destYear", 1955);
+        Log_printf(LOG_LEVEL_INFO, "Loaded destYear: %d", currentSettings.destinationYear);
+
+        currentSettings.destinationTimezoneIndex = preferences.getInt("destTzIndex", 4);
+        Log_printf(LOG_LEVEL_INFO, "Loaded destTzIndex: %d", currentSettings.destinationTimezoneIndex);
+
+        currentSettings.lastTimeDepartedYear = preferences.getInt("lastYear", 1985);
+        Log_printf(LOG_LEVEL_INFO, "Loaded lastYear: %d", currentSettings.lastTimeDepartedYear);
+
+        currentSettings.lastTimeDepartedMonth = preferences.getInt("lastMonth", 10);
+        Log_printf(LOG_LEVEL_INFO, "Loaded lastMonth: %d", currentSettings.lastTimeDepartedMonth);
+
+        currentSettings.lastTimeDepartedDay = preferences.getInt("lastDay", 26);
+        Log_printf(LOG_LEVEL_INFO, "Loaded lastDay: %d", currentSettings.lastTimeDepartedDay);
+
+        currentSettings.lastTimeDepartedHour = preferences.getInt("lastHour", 1);
+        Log_printf(LOG_LEVEL_INFO, "Loaded lastHour: %d", currentSettings.lastTimeDepartedHour);
+
+        currentSettings.lastTimeDepartedMinute = preferences.getInt("lastMinute", 21);
+        Log_printf(LOG_LEVEL_INFO, "Loaded lastMinute: %d", currentSettings.lastTimeDepartedMinute);
+
+        currentSettings.brightness = preferences.getUChar("brightness", 5);
+        Log_printf(LOG_LEVEL_INFO, "Loaded brightness: %d", currentSettings.brightness);
+
+        currentSettings.notificationVolume = preferences.getUChar("volume", 15);
+        Log_printf(LOG_LEVEL_INFO, "Loaded volume: %d", currentSettings.notificationVolume);
+
+        currentSettings.timeTravelSoundToggle = preferences.getBool("soundToggle", true);
+        Log_printf(LOG_LEVEL_INFO, "Loaded soundToggle: %s", currentSettings.timeTravelSoundToggle ? "true" : "false");
+
+        currentSettings.presentTimezoneIndex = preferences.getInt("presTzIndex", 1);
+        Log_printf(LOG_LEVEL_INFO, "Loaded presTzIndex: %d", currentSettings.presentTimezoneIndex);
+
+        currentSettings.displayFormat24h = preferences.getBool("format24h", false);
+        Log_printf(LOG_LEVEL_INFO, "Loaded format24h: %s", currentSettings.displayFormat24h ? "true" : "false");
+
+        currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval", 15);
+        Log_printf(LOG_LEVEL_INFO, "Loaded animInterval: %d", currentSettings.timeTravelAnimationInterval);
+
+        String brokerStr = preferences.getString("mqttBroker", "broker.emqx.io");
         currentSettings.mqttBroker = brokerStr.c_str();
-        Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT Broker: [%s]", currentSettings.mqttBroker.c_str());
+        Log_printf(LOG_LEVEL_INFO, "Loaded mqttBroker: %s", currentSettings.mqttBroker.c_str());
+
         currentSettings.mqttPort = preferences.getInt("mqttPort", 1883);
-        Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT Port: [%d]", currentSettings.mqttPort);
+        Log_printf(LOG_LEVEL_INFO, "Loaded mqttPort: %d", currentSettings.mqttPort);
+
         String userStr = preferences.getString("mqttUser", "");
         currentSettings.mqttUser = userStr.c_str();
-        Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT User: [%s]", currentSettings.mqttUser.c_str());
+        Log_printf(LOG_LEVEL_INFO, "Loaded mqttUser: %s", currentSettings.mqttUser.c_str());
+
         String passStr = preferences.getString("mqttPass", "");
         currentSettings.mqttPassword = passStr.c_str();
+        Log_printf(LOG_LEVEL_INFO, "Loaded mqttPass: (hidden)");
+
         currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
+        Log_printf(LOG_LEVEL_INFO, "Loaded weatherMode: %s", currentSettings.weatherModeEnabled ? "true" : "false");
+
         String tempString = preferences.getString("cityName", "New York");
         currentSettings.cityName = tempString.c_str();
+        Log_printf(LOG_LEVEL_INFO, "Loaded cityName: %s", currentSettings.cityName.c_str());
+
         currentSettings.useMetricUnits = preferences.getBool("useMetric", false);
+        Log_printf(LOG_LEVEL_INFO, "Loaded useMetric: %s", currentSettings.useMetricUnits ? "true" : "false");
+
         currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
+        Log_printf(LOG_LEVEL_INFO, "Loaded latitude: %f", currentSettings.latitude);
+
         currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
+        Log_printf(LOG_LEVEL_INFO, "Loaded longitude: %f", currentSettings.longitude);
+
         currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
+        Log_printf(LOG_LEVEL_INFO, "Loaded stModeEnabled: %s", currentSettings.stockTickerModeEnabled ? "true" : "false");
+
         currentSettings.stockRefreshInterval = preferences.getInt("stockRefresh", 20);
-        Log_printf(LOG_LEVEL_DEBUG, "TRACE: Loaded stockRefreshInterval from NVS: %d", currentSettings.stockRefreshInterval);
+        Log_printf(LOG_LEVEL_INFO, "Loaded stockRefresh: %d", currentSettings.stockRefreshInterval);
+
         tempString = preferences.getString("fmpApiKey", "");
         currentSettings.financialModelingPrepApiKey = tempString.c_str();
+        Log_printf(LOG_LEVEL_INFO, "Loaded fmpApiKey: %s", currentSettings.financialModelingPrepApiKey.c_str());
+
+        currentSettings.departureHour = preferences.getInt("depHour", 22);
+        Log_printf(LOG_LEVEL_INFO, "Loaded depHour: %d", currentSettings.departureHour);
+
+        currentSettings.departureMinute = preferences.getInt("depMinute", 0);
+        Log_printf(LOG_LEVEL_INFO, "Loaded depMinute: %d", currentSettings.departureMinute);
+
+        currentSettings.arrivalHour = preferences.getInt("arrHour", 7);
+        Log_printf(LOG_LEVEL_INFO, "Loaded arrHour: %d", currentSettings.arrivalHour);
+
+        currentSettings.arrivalMinute = preferences.getInt("arrMinute", 0);
+        Log_printf(LOG_LEVEL_INFO, "Loaded arrMinute: %d", currentSettings.arrivalMinute);
+
+        currentSettings.presetCycleInterval = preferences.getInt("presetCycle", 10);
+        Log_printf(LOG_LEVEL_INFO, "Loaded presetCycle: %d", currentSettings.presetCycleInterval);
+
+        currentSettings.theme = preferences.getInt("theme", THEME_TIME_CIRCUITS);
+        Log_printf(LOG_LEVEL_INFO, "Loaded theme: %d", currentSettings.theme);
+
+        currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration", 4000);
+        Log_printf(LOG_LEVEL_INFO, "Loaded animDuration: %d", currentSettings.timeTravelAnimationDuration);
+
+        currentSettings.animationStyle = preferences.getInt("animStyle", ANIMATION_SEQUENTIAL_FLICKER);
+        Log_printf(LOG_LEVEL_INFO, "Loaded animStyle: %d", currentSettings.animationStyle);
+
+        currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled", false);
+        Log_printf(LOG_LEVEL_INFO, "Loaded dlEnabled: %s", currentSettings.dataLinkEnabled ? "true" : "false");
+
+        currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow", 2);
+        Log_printf(LOG_LEVEL_INFO, "Loaded dlTargetRow: %d", currentSettings.dataLinkTargetRow);
+
         tempString = preferences.getString("stockRow1Symbol", "");
         currentSettings.stockRow1_symbol = tempString.c_str();
+        Log_printf(LOG_LEVEL_INFO, "Loaded stockRow1Symbol: %s", currentSettings.stockRow1_symbol.c_str());
+
         tempString = preferences.getString("stockRow2Symbol", "");
         currentSettings.stockRow2_symbol = tempString.c_str();
+        Log_printf(LOG_LEVEL_INFO, "Loaded stockRow2Symbol: %s", currentSettings.stockRow2_symbol.c_str());
+
         tempString = preferences.getString("stockRow3Symbol", "");
         currentSettings.stockRow3_symbol = tempString.c_str();
+        Log_printf(LOG_LEVEL_INFO, "Loaded stockRow3Symbol: %s", currentSettings.stockRow3_symbol.c_str());
 
+        // Restore loading data points
+        currentSettings.numDataPoints = preferences.getInt("numDataPoints", 0);
+        Log_printf(LOG_LEVEL_INFO, "Loaded numDataPoints: %d", currentSettings.numDataPoints);
         for (int i = 0; i < 5; i++) {
             String prefix = "dp" + String(i) + "_";
             currentSettings.dataPoints[i].enabled = preferences.getBool((prefix + "en").c_str(), false);
@@ -780,6 +840,7 @@ void loadSettings() {
             currentSettings.dataPoints[i].prefixText = preferences.getString((prefix + "prefix").c_str(), "").c_str();
             currentSettings.dataPoints[i].suffixText = preferences.getString((prefix + "suffix").c_str(), "").c_str();
         }
+
         preferences.end(); // End the read-only session.
     }
 
