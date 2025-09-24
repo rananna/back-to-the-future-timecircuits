@@ -1,5 +1,5 @@
 blueprint:
-  name: Dynamic Marquee Display
+  name: "BTTF - Dynamic Marquee Display"
   description: >-
     Display a single, scrolling line of text on one of the five data point slots.
     Use Home Assistant's templating engine to create dynamic messages.

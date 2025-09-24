@@ -80,7 +80,7 @@ Twelve `text` entities have been created to give you direct, granular control ov
 *   **Present Display**: `text.time_circuits_display_pres_month`, `text.time_circuits_display_pres_day`, `text.time_circuits_display_pres_year`, `text.time_circuits_display_pres_time`
 *   **Last Departed Display**: `text.time_circuits_display_last_month`, `text.time_circuits_display_last_day`, `text.time_circuits_display_last_year`, `text.time_circuits_display_last_time`
 
-> **💡 Pro Tip:** Use the **Home Assistant Status Display Blueprint** to easily control these entities without writing any YAML.
+> **💡 Pro Tip:** Use the **BTTF - Home Assistant Status Display** blueprint to easily control these entities without writing any YAML.
 
 #### **Core Controls**
 *   **`select.time_circuits_display_last_departed_preset`**: Choose from movie-based or your custom presets.
@@ -106,11 +106,8 @@ Twelve `text` entities have been created to give you direct, granular control ov
 #### **Stock Ticker Mode**
 The Stock Ticker mode transforms the bottom display row into a scrolling marquee of financial data.
 
-> ⚠️ **Important Note on Configuration:** The stock ticker feature is configured entirely through the **Web Interface**. You must use the web UI to enable the mode, provide your **Financial Modeling Prep (FMP) API key**, and manage your list of tracked assets.
->
-> While Home Assistant will discover several entities related to the stock ticker (e.g., `text.time_circuits_display_stock_row_1`), these are part of a legacy implementation and **are not functional**. They should be ignored.
+> **Note on Configuration:** The stock ticker's assets and API key are configured in the clock's Web Interface. The following Home Assistant entities are provided for basic control over the feature.
 
-The only functional Home Assistant entities for this feature are:
 *   **`switch.time_circuits_display_stock_ticker_mode`**: Activates or deactivates the Stock Ticker display mode.
 *   **`button.time_circuits_display_stock_next`**: Manually advances to the next page of the current asset.
 *   **`button.time_circuits_display_stock_previous`**: Manually goes back to the previous page of the current asset.
@@ -152,11 +149,11 @@ To make the most powerful features easy to use, this project includes several Ho
 
 ## **Guide to Blueprints**
 
-### **1. Advanced Notifier Blueprint**
+### **1. BTTF - Advanced Notifier**
 > **Purpose:** To display a temporary, multi-line message on the clock, with an optional sound effect.
 
 * **How to Use:**
-    1.  Create a new automation and select the "Advanced Notifier" blueprint.
+    1.  Create a new automation and select the "BTTF - Advanced Notifier" blueprint.
     2.  **Trigger:** Define what event should trigger this notification (e.g., a door opening, a weather alert).
     3.  **Time Circuits Display:** Select your `Time Circuits Display` device.
     4.  **Message:** Enter the text to display. Use `\n` to separate lines, which will be shown on the Destination, Present, and Last Departed rows respectively.
@@ -168,7 +165,7 @@ To make the most powerful features easy to use, this project includes several Ho
     * **Sound Effect:** `CONFIRM_ON`
     * **Result:** When the mailbox is opened, the middle row of the clock will display "MAIL" while playing a confirmation chime. The message will disappear after the configured duration.
 
-### **2. Home Assistant Status Display Blueprint**
+### **2. BTTF - Home Assistant Status Display**
 > **Purpose:** To use the main displays as a highly customizable, 12-segment status panel for your smart home.
 
 This "callable" blueprint lets you push any entity state or template-driven text to any of the 12 display segments. Because it has no trigger, you call it as an action from your own automations, giving you full control over when the displays update.
@@ -192,12 +189,12 @@ This "callable" blueprint lets you push any entity state or template-driven text
         *   **Last Departed Year:** `%`
     * **Result:** The clock becomes a dedicated information panel for your living room, showing static labels and dynamic sensor values.
 
-### **3. Dynamic Marquee Display Blueprint**
+### **3. BTTF - Dynamic Marquee Display**
 > **Purpose:** To display a single, scrolling line of text on one of the five DataLink marquee slots.
 
 * **How to Use:**
     1.  In the clock's web UI, set the **Data Point Source** to **"Home Assistant Push"** for the slot you want to use.
-    2.  Create a new automation using the "Dynamic Marquee Display" blueprint. This blueprint is "callable," meaning you will call it from another automation.
+    2.  Create a new automation using the "BTTF - Dynamic Marquee Display" blueprint. This blueprint is "callable," meaning you will call it from another automation.
     3.  Select your Time Circuits device and the correct **Data Point Slot**.
     4.  Enter the text or template you want to display. The blueprint will use the first 16 characters of your text.
 * **Example Scenario: "Display Power and Temp"**
@@ -206,11 +203,11 @@ This "callable" blueprint lets you push any entity state or template-driven text
     * **Marquee Text:** `PWR {{ states('sensor.home_power_usage') }} W`
     * **Result:** Whenever you call this action, the first marquee slot will be updated to show the current power usage (e.g., `PWR 1210 W`).
 
-### **4. Cinematic Scene Trigger Blueprint**
+### **4. BTTF - Cinematic Scene Trigger**
 > **Purpose:** A simple way to create an automation that sets a destination year and immediately triggers the full time travel animation sequence.
 
 * **How to Use:**
-    1.  Create a new automation and select the "Cinematic Scene Trigger" blueprint.
+    1.  Create a new automation and select the "BTTF - Cinematic Scene Trigger" blueprint.
     2.  **Trigger:** Define the event that should start the scene (e.g., a button press, a specific time).
     3.  **Time Circuits Device:** Select your clock device from the dropdown. The blueprint handles the rest.
     4.  **Destination Year:** Enter the four-digit year you want to travel to.
@@ -219,18 +216,18 @@ This "callable" blueprint lets you push any entity state or template-driven text
     * **Destination Year:** `1955`
     * **Result:** Every night at 10:04 PM, the clock will automatically set its destination to 1955 and play the full, cinematic time travel animation, complete with sound effects.
 
-### 5. Radio Streamer Blueprint
+### 5. BTTF - Radio Streamer
 > **Purpose:** To start or stop an internet radio stream on the clock's speaker.
 
 * **How to Use:**
     1.  This is a "callable" blueprint, designed to be an action in your other automations.
     2.  **Radio Command:** Provide the full URL of an internet radio stream to start playing it. To stop the current stream, simply enter the command `stop`.
 * **Example Scenario: "Play Lo-Fi Radio"**
-    * **Automation Action:** Call the "Radio Streamer" blueprint.
+    * **Automation Action:** Call the "BTTF - Radio Streamer" blueprint.
     * **Radio Command:** `http://your-favorite-lofi-stream.com/stream.mp3`
-    * **Result:** The clock will display "RADIO" on its top row and begin playing the stream. The text will remain on the display until you call the blueprint again with the command `stop`, which will stop the music and clear the text.
+    * **Result:** The clock will display "RADIO" and begin playing the stream. The text will remain on the display until you call the blueprint again with the command `stop`, which will stop the music and clear the text.
 
-### 6. TTS Notifier Blueprint
+### 6. BTTF - TTS Notifier
 > **Purpose:** To play audio announcements from Home Assistant's Text-to-Speech (TTS) services on the clock's speaker.
 
 This blueprint makes it easy to use your Time Circuits clock as a voice notification device.
@@ -249,7 +246,7 @@ This blueprint makes it easy to use your Time Circuits clock as a voice notifica
         *   **Display Text:** `ALERT\nDRIVE\nWAY`
         *   **Volume:** 90
     * **Result:** The clock's display will show the alert message on its three rows while loudly announcing that someone is in the driveway. The display will return to normal after the message is spoken.
-> **💡 Pro Tip:** For more complex or dynamic visual notifications that change based on sensor states, we recommend using the **Home Assistant Status Display** blueprint. You can call that blueprint in your automation right before calling the TTS Notifier blueprint to create rich, informative alerts.
+> **💡 Pro Tip:** For more complex or dynamic visual notifications that change based on sensor states, we recommend using the **BTTF - Home Assistant Status Display** blueprint. You can call that blueprint in your automation right before calling the **BTTF - TTS Notifier** blueprint to create rich, informative alerts.
 
 ***
 
@@ -309,7 +306,7 @@ Trigger the time travel sequence with a voice command to Google Assistant or Ale
     * **In the Google Home App:** Create a new routine. For the starter, use a voice command like "Activate the time circuits." For the action, choose "Try adding your own" and enter "Activate Time Circuits."
     * **In the Alexa App:** Create a new routine. For "When this happens," choose "Voice" and enter a phrase like "Great Scott." For the action, choose "Smart Home" and select the "Activate Time Circuits" script.
 ### **Advanced Templating Examples**
-The "Dynamic Marquee Display" blueprint can be made even more powerful with templates. Here are some examples for the `Display Text` field:
+The "BTTF - Dynamic Marquee Display" blueprint can be made even more powerful with templates. Here are some examples for the `Display Text` field:
 
 > **Combining Multiple Sensors:**
 > ```jinja
@@ -331,7 +328,7 @@ The "Home Assistant Push" feature for the DataLink marquee is a powerful way to 
 
 1.  **User Configuration (The "Address Label")**
     *   **In the Web UI**: You start by going to the **Data Link** tab on the clock's web interface. For one of the five data points, you select **"Home Assistant Push"** as the **Data Source**. This tells the clock that this specific marquee slot should listen for messages from Home Assistant.
-    *   **In Home Assistant**: You use the **"Dynamic Marquee Display"** blueprint to create an automation. In this automation, you select the same **Marquee Data Slot** you configured in the web UI. This is like putting the correct address on your letter.
+    *   **In Home Assistant**: You use the **"BTTF - Dynamic Marquee Display"** blueprint to create an automation. In this automation, you select the same **Marquee Data Slot** you configured in the web UI. This is like putting the correct address on your letter.
 
 2.  **The Blueprint (Packaging the Data)**
     When the entity you are monitoring in Home Assistant changes its state, the blueprint automation triggers. It takes the first 16 characters of the text you defined (e.g., `PWR: 1210 W`) and splits it into four 4-character chunks. It then sends these chunks as four separate MQTT messages to the `month`, `day`, `year`, and `time` topics for the selected marquee slot.
@@ -374,7 +371,7 @@ The "Home Assistant Push" feature for the DataLink marquee is a powerful way to 
 This entire process happens in milliseconds, resulting in a near-instantaneous update on your clock's display whenever the data changes in Home Assistant.
 
 ### **Deep Dive: Creating Custom Audio-Visual Alerts**
-While the **Advanced Notifier Blueprint** is the easiest way to create custom alerts, you can build them manually in your own automations by publishing directly to the clock's MQTT topics. This gives you maximum flexibility.
+While the **BTTF - Advanced Notifier** blueprint is the easiest way to create custom alerts, you can build them manually in your own automations by publishing directly to the clock's MQTT topics. This gives you maximum flexibility.
 
 A typical alert sequence involves three steps:
 1.  **Set the Message:** Publish your desired text (using `\n` for new lines) to the `timecircuits/<UNIQUE_ID>/override_text/command` topic.

@@ -1,5 +1,5 @@
 blueprint:
-  name: BTTF Time Circuits - TTS Notifier
+  name: "BTTF - TTS Notifier"
   description: >-
     Converts a text message into speech and plays it on the clock.
     An optional message can be displayed during playback. For complex display
@@ -13,6 +13,7 @@ blueprint:
         device:
           integration: mqtt
           manufacturer: "Doc Brown Industries"
+          model: "BTTF Clock v1"
     tts_service:
       name: TTS Service
       description: The TTS service to use for generating the speech URL (e.g., tts.google_en_com).
@@ -84,3 +85,7 @@ action:
     data:
       topic: "timecircuits/{{ clock_id }}/override/command"
       payload: "OFF"
+  - service: mqtt.publish
+    data:
+      topic: "timecircuits/{{ clock_id }}/override_text/command"
+      payload: ""

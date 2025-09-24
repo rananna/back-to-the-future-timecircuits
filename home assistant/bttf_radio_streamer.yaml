@@ -1,5 +1,5 @@
 blueprint:
-  name: BTTF Time Circuits - Radio Streamer
+  name: "BTTF - Radio Streamer"
   description: >-
     Starts or stops an internet radio stream on the Time Circuits clock.
     To stop the radio, simply enter the command "stop".
@@ -11,6 +11,7 @@ blueprint:
         device:
           integration: mqtt
           manufacturer: "Doc Brown Industries"
+          model: "BTTF Clock v1"
     radio_command:
       name: Radio Command
       description: The URL of the live radio stream, or "stop" to end streaming.
@@ -37,7 +38,7 @@ action:
           # Clear the "RADIO" text from the display
           - service: mqtt.publish
             data:
-              topic: "timecircuits/{{ unique_id }}/dest_month/command"
+              topic: "timecircuits/{{ unique_id }}/override_text/command"
               payload: ""
           # Turn off override mode
           - service: mqtt.publish
@@ -54,7 +55,7 @@ action:
       # Display "RADIO" on the destination month segment
       - service: mqtt.publish
         data:
-          topic: "timecircuits/{{ unique_id }}/dest_month/command"
+          topic: "timecircuits/{{ unique_id }}/override_text/command"
           payload: "RADIO"
       # Send the radio stream URL to the clock
       - service: mqtt.publish

@@ -1,6 +1,6 @@
 # home-assistant/bttf_advanced_notifier_blueprint.yaml
 blueprint:
-  name: BTTF - Advanced Notifier
+  name: "BTTF - Advanced Notifier"
   description: Displays a temporary message on the Time Circuits with an optional sound.
   domain: automation
   input:
@@ -10,6 +10,7 @@ blueprint:
         device:
           integration: mqtt
           manufacturer: "Doc Brown Industries"
+          model: "BTTF Clock v1"
     message:
       name: Message
       description: "The text to display. Use '\\n' for new lines (e.g., LINE 1\\nLINE 2\\nLINE 3)."

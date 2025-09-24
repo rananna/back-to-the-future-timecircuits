@@ -1,6 +1,6 @@
 # Back to the Future Time Circuits: Home Assistant Automations
 
-This document provides a list of useful and creative automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `timecircuits_01` in Home Assistant.
+This document provides a list of useful and creative automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `time_circuits_display` in Home Assistant.
 
 ---
 
@@ -11,11 +11,11 @@ The easiest way to create powerful automations is by using the provided blueprin
 <details>
 <summary><strong>1. "Weather Station" Display</strong></summary>
 
-*Use the "Home Assistant Status Display" blueprint to turn your clock into a real-time weather dashboard.*
+*Use the "BTTF - Home Assistant Status Display" blueprint to turn your clock into a real-time weather dashboard.*
 
 **Automation Setup:**
 1.  **Trigger:** The automation should trigger on any state change of your primary weather sensors (e.g., temperature, humidity, and conditions).
-2.  **Action:** Call the "Home Assistant Status Display" blueprint.
+2.  **Action:** Call the "BTTF - Home Assistant Status Display" blueprint.
 3.  **Mapping:**
     *   **Destination Month:** `OUT`
     *   **Destination Day:** `SIDE`
@@ -48,12 +48,12 @@ The easiest way to create powerful automations is by using the provided blueprin
 <details>
 <summary><strong>2. "Now Playing" Marquee</strong></summary>
 
-*Use the "Dynamic Marquee Display" blueprint to show the currently playing song on your favorite media player.*
+*Use the "BTTF - Dynamic Marquee Display" blueprint to show the currently playing song on your favorite media player.*
 
 **Automation Setup:**
 1.  **Web UI:** In the clock's web interface, set Data Point 5's "Data Source" to "Home Assistant Push".
 2.  **Trigger:** The automation should trigger whenever the `media_title` attribute of your media player changes.
-3.  **Action:** Call the "Dynamic Marquee Display" blueprint.
+3.  **Action:** Call the "BTTF - Dynamic Marquee Display" blueprint.
 4.  **Configuration:**
     *   **Data Point Slot:** "Data Point 5"
     *   **Marquee Text:** `♪ {{ state_attr('media_player.spotify', 'media_title') }}`
@@ -73,7 +73,7 @@ The easiest way to create powerful automations is by using the provided blueprin
 </details>
 
 ---
-Here are 30 useful and well-thought-out automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `bttf_timecircuits_01` in Home Assistant.
+Here are 30 useful and well-thought-out automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `time_circuits_display` in Home Assistant.
 
 ---
 
@@ -82,10 +82,10 @@ Here are 30 useful and well-thought-out automations to demonstrate how you can i
 <details>
 <summary><strong>1. "It's 10:04 PM!" - The Lightning Strike</strong></summary>
 
-*Triggers the iconic lightning strike scene every night at 10:04 PM. This is a perfect use for the "Cinematic Scene Trigger" blueprint.*
+*Triggers the iconic lightning strike scene every night at 10:04 PM. This is a perfect use for the "BTTF - Cinematic Scene Trigger" blueprint.*
 
 **Automation Setup:**
-1.  Create a new automation and select the "Cinematic Scene Trigger" blueprint.
+1.  Create a new automation and select the "BTTF - Cinematic Scene Trigger" blueprint.
 2.  **Trigger:** Select "Time" as the trigger type and enter `22:04:00`.
 3.  **Time Circuits Device:** Select your clock.
 4.  **Destination Year:** Enter `1985`.
@@ -96,10 +96,10 @@ Here are 30 useful and well-thought-out automations to demonstrate how you can i
 <details>
 <summary><strong>2. "Roads? Where We're Going, We Don't Need Roads."</strong></summary>
 
-*Sets the destination to the future and plays the animation when you start your vacuum cleaner. This is another great use for the "Cinematic Scene Trigger" blueprint.*
+*Sets the destination to the future and plays the animation when you start your vacuum cleaner. This is another great use for the "BTTF - Cinematic Scene Trigger" blueprint.*
 
 **Automation Setup:**
-1.  Create a new automation and select the "Cinematic Scene Trigger" blueprint.
+1.  Create a new automation and select the "BTTF - Cinematic Scene Trigger" blueprint.
 2.  **Trigger:** Select "State" as the trigger type, use `vacuum.roomba` as the entity, and set the "To" state to `cleaning`.
 3.  **Time Circuits Device:** Select your clock.
 4.  **Destination Year:** Enter `2015`.
@@ -177,7 +177,7 @@ trigger:
 action:
   - service: switch.turn_on
     target:
-      entity_id: switch.timecircuits_01_power
+      entity_id: switch.time_circuits_display_power
 ```
 </details>
 
@@ -195,7 +195,7 @@ trigger:
 action:
   - service: switch.turn_off
     target:
-      entity_id: switch.timecircuits_01_power
+      entity_id: switch.time_circuits_display_power
 ```
 </details>
 
@@ -213,10 +213,10 @@ trigger:
 action:
   - service: switch.turn_on
     target:
-      entity_id: switch.timecircuits_01_power
+      entity_id: switch.time_circuits_display_power
   - service: number.set_value
     target:
-      entity_id: number.timecircuits_01_dest_year
+      entity_id: number.time_circuits_display_dest_year
     data:
       value: "{{ now().year }}"
 ```
@@ -236,12 +236,12 @@ trigger:
 action:
   - service: number.set_value
     target:
-      entity_id: number.timecircuits_01_brightness
+      entity_id: number.time_circuits_display_brightness
     data:
       value: "1"
   - service: switch.turn_off
     target:
-      entity_id: switch.timecircuits_01_datapoint_0_enabled
+      entity_id: switch.time_circuits_display_datapoint_0_enabled
 ```
 </details>
 
@@ -259,7 +259,7 @@ trigger:
 action:
   - service: switch.turn_off
     target:
-      entity_id: switch.timecircuits_01_power
+      entity_id: switch.time_circuits_display_power
 ```
 </details>
 
@@ -270,10 +270,10 @@ action:
 <details>
 <summary><strong>11. "The Libyans!" - Security Alert</strong></summary>
 
-*If a door or window is opened while the security system is armed, flash a warning message on the display. This is a perfect use for the "Advanced Notifier" blueprint.*
+*If a door or window is opened while the security system is armed, flash a warning message on the display. This is a perfect use for the "BTTF - Advanced Notifier" blueprint.*
 
 **Automation Setup:**
-1.  Create a new automation and select the "Advanced Notifier" blueprint.
+1.  Create a new automation and select the "BTTF - Advanced Notifier" blueprint.
 2.  **Trigger:** Select "State" as the trigger type, use `binary_sensor.front_door_contact` as the entity, and set the "To" state to `on`.
 3.  **Condition:** Add a "State" condition, use `alarm_control_panel.home_alarm` as the entity, and set the required state to `armed_away`.
 4.  **Time Circuits Display:** Select your clock.
@@ -285,10 +285,10 @@ action:
 <details>
 <summary><strong>12. Severe Weather Warning</strong></summary>
 
-*If a severe weather alert is active, override the display to show the warning. Use the "Advanced Notifier" blueprint for a simple setup.*
+*If a severe weather alert is active, override the display to show the warning. Use the "BTTF - Advanced Notifier" blueprint for a simple setup.*
 
 **Automation Setup:**
-1.  Create a new automation and select the "Advanced Notifier" blueprint.
+1.  Create a new automation and select the "BTTF - Advanced Notifier" blueprint.
 2.  **Trigger:** Select "State" as the trigger type, use `binary_sensor.severe_weather_alert` as the entity, and set the "To" state to `on`.
 3.  **Time Circuits Display:** Select your clock.
 4.  **Message:** `SEVERE\nWEATHER\n{{ states('sensor.weather_alert_type') }}`
@@ -313,7 +313,7 @@ condition:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_2_marquee
+      entity_id: text.time_circuits_display_datapoint_2_marquee
     data:
       value: "TRASH NIGHT"
 ```
@@ -333,7 +333,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_3_marquee
+      entity_id: text.time_circuits_display_datapoint_3_marquee
     data:
       value: "CHARGE PHONE"
 ```
@@ -355,7 +355,7 @@ condition:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_0_marquee
+      entity_id: text.time_circuits_display_datapoint_0_marquee
     data:
       value: "WELCOME {{ trigger.event.data.host_name }}"
 ```
@@ -378,7 +378,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_0_marquee
+      entity_id: text.time_circuits_display_datapoint_0_marquee
     data:
       value: "AAPL ${{ states('sensor.aapl_stock_price') }}"
 ```
@@ -397,7 +397,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_1_marquee
+      entity_id: text.time_circuits_display_datapoint_1_marquee
     data:
       value: "SCORE {{ states('sensor.favorite_team_score') }}"
 ```
@@ -416,7 +416,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_2_marquee
+      entity_id: text.time_circuits_display_datapoint_2_marquee
     data:
       value: "SUBS {{ states('sensor.youtube_subscriber_count') }}"
 ```
@@ -435,7 +435,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_3_marquee
+      entity_id: text.time_circuits_display_datapoint_3_marquee
     data:
       value: "SPACE {{ states('sensor.people_in_space') }}"
 ```
@@ -454,7 +454,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_4_marquee
+      entity_id: text.time_circuits_display_datapoint_4_marquee
     data:
       value: "NET {{ states('sensor.speedtest_download') }} Mbps"
 ```
@@ -474,26 +474,26 @@ alias: "BTTF - Countdown Script"
 sequence:
   - service: switch.turn_on
     target:
-      entity_id: switch.timecircuits_01_override_switch
+      entity_id: switch.time_circuits_display_override_switch
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_override_message
+      entity_id: text.time_circuits_display_override_message
     data:
       value: "COUNTDOWN\n10"
   - delay: "00:00:01"
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_override_message
+      entity_id: text.time_circuits_display_override_message
     data:
       value: "COUNTDOWN\n09"
   # ... (repeat for each number down to 01)
   - delay: "00:00:01"
   - service: switch.turn_off
     target:
-      entity_id: switch.timecircuits_01_override_switch
+      entity_id: switch.time_circuits_display_override_switch
   - service: button.press
     target:
-      entity_id: button.timecircuits_01_trigger_animation
+      entity_id: button.time_circuits_display_trigger_animation
 ```
 </details>
 
@@ -510,7 +510,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_0_marquee
+      entity_id: text.time_circuits_display_datapoint_0_marquee
     data:
       value: "HELP ME DOC"
 ```
@@ -531,7 +531,7 @@ trigger:
 action:
   - service: select.select_option
     target:
-      entity_id: select.timecircuits_01_animation_style
+      entity_id: select.time_circuits_display_animation_style
     data:
       option: >
         {% if trigger.platform == 'sun' and trigger.event == 'sunset' %}
@@ -556,7 +556,7 @@ trigger:
 action:
   - service: button.press
     target:
-      entity_id: button.timecircuits_01_trigger_animation
+      entity_id: button.time_circuits_display_trigger_animation
 ```
 </details>
 
@@ -574,7 +574,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_0_marquee
+      entity_id: text.time_circuits_display_datapoint_0_marquee
     data:
       value: "SLOW DOWN!"
 ```
@@ -586,7 +586,7 @@ action:
 *Monitors the clock's free memory and reboots it if it drops to a critical level.*
 
 **Automation Setup:**
-1.  First, create a "callable" automation using the **Advanced Notifier** blueprint. Set the message to `REBOOTING\nLOW MEMORY` and the duration to 10 seconds.
+1.  First, create a "callable" automation using the **BTTF - Advanced Notifier** blueprint. Set the message to `REBOOTING\nLOW MEMORY` and the duration to 10 seconds.
 2.  Then, create a second automation that triggers when the memory is low, calls the notifier automation, waits 10 seconds, and then presses the reboot button.
 
 ```yaml
@@ -625,7 +625,7 @@ trigger:
 action:
   - service: number.set_value
     target:
-      entity_id: number.timecircuits_01_dest_year
+      entity_id: number.time_circuits_display_dest_year
     data:
       value: "{{ state_attr('calendar.your_calendar', 'start_time').split(' ')[0].split('-')[0] }}"
 ```
@@ -644,7 +644,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_3_marquee
+      entity_id: text.time_circuits_display_datapoint_3_marquee
     data:
       value: >
         GOAL ${{ states('input_number.savings_goal_current') }} / ${{ states('input_number.savings_goal_target') }}
@@ -661,19 +661,19 @@ alias: "BTTF - Rotating Reminders Script"
 sequence:
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_4_marquee
+      entity_id: text.time_circuits_display_datapoint_4_marquee
     data:
       value: "REMINDER: WATER THE PLANTS"
   - delay: "00:01:00"
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_4_marquee
+      entity_id: text.time_circuits_display_datapoint_4_marquee
     data:
       value: "QUOTE: THE FUTURE IS WHATEVER YOU MAKE OF IT"
   - delay: "00:01:00"
   - service: text.set_value
     target:
-      entity_id: text.timecircuits_01_datapoint_4_marquee
+      entity_id: text.time_circuits_display_datapoint_4_marquee
     data:
       value: "TASK: TAKE OUT THE RECYCLING"
 mode: restart

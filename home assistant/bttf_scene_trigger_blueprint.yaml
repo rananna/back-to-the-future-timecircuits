@@ -1,5 +1,5 @@
 blueprint:
-  name: BTTF Time Circuits - Cinematic Scene Trigger
+  name: "BTTF - Cinematic Scene Trigger"
   description: >-
     Set a destination year and trigger the full, cinematic time travel animation.
     Ideal for starting scenes or reacting to events.
@@ -23,21 +23,16 @@ blueprint:
 
 variables:
   device_id: !input target_device
-  # Find the main status sensor entity to derive the base name for other entities.
-  status_entity: "{{ device_entities(device_id) | select('search', '_status') | first }}"
-  device_base_name: "{{ state_attr(status_entity, 'object_id').replace('_status', '') }}"
-  # Construct the full entity IDs from the base name
-  destination_year_entity_id: "number.{{ device_base_name }}_destination_year"
-  trigger_animation_button_id: "button.{{ device_base_name }}_trigger_animation"
+  unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
 
 trigger: []
 
 action:
   - service: number.set_value
     target:
-      entity_id: "{{ destination_year_entity_id }}"
+      entity_id: "number.{{ unique_id }}_destination_year"
     data:
       value: !input destination_year
   - service: button.press
     target:
-      entity_id: "{{ trigger_animation_button_id }}"
+      entity_id: "button.{{ unique_id }}_trigger_animation"
