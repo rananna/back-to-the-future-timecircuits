@@ -665,10 +665,11 @@ void saveSettings() {
  */
 void loadSettings() {
     Log_printf(LOG_LEVEL_INFO, "--- Loading Settings ---");
-    preferences.begin(PREFERENCES_NAMESPACE, true); // Open preferences in read-only mode first.
+    preferences.begin(PREFERENCES_NAMESPACE, true); // Open preferences in read-only mode to check for existence.
 
     bool needsInit = !preferences.isKey("destYear");
     if (needsInit) {
+        preferences.end(); // End the read-only session before writing.
         // --- INITIALIZE WITH DEFAULT VALUES ---
         Log_printf(LOG_LEVEL_INFO, "No settings found. Initializing with defaults.");
         currentSettings.destinationYear = 1955;
@@ -713,6 +714,8 @@ void loadSettings() {
             currentSettings.dataPoints[i] = {};
             currentSettings.dataPoints[i].enabled = false;
         }
+        // Now that defaults are populated in currentSettings, save them.
+        saveSettings();
     } else {
         Log_printf(LOG_LEVEL_INFO, "Loading settings from NVS.");
         currentSettings.destinationYear = preferences.getInt("destYear");
@@ -777,16 +780,10 @@ void loadSettings() {
             currentSettings.dataPoints[i].prefixText = preferences.getString((prefix + "prefix").c_str(), "").c_str();
             currentSettings.dataPoints[i].suffixText = preferences.getString((prefix + "suffix").c_str(), "").c_str();
         }
-    }
-    preferences.end(); // End the read-only session.
-
-    // --- FIX: If this was the first boot, now we can safely save the defaults. ---
-    // This avoids a nested `preferences.begin()` call, which was causing the initial save to fail.
-    if (needsInit) {
-        saveSettings();
+        preferences.end(); // End the read-only session.
     }
 
-    // Initialize the StockManager with the loaded settings
+    // Initialize the StockManager with the loaded/default settings
     stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
     stockManager.setEnabled(currentSettings.stockTickerModeEnabled);
     stockManager.setRefreshInterval(currentSettings.stockRefreshInterval);
