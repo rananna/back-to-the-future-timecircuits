@@ -582,10 +582,18 @@ void saveSettings() {
     SAVE_IF_CHANGED("dlTargetRow", Int, currentSettings.dataLinkTargetRow);
     SAVE_IF_CHANGED("numDataPoints", Int, currentSettings.numDataPoints);
 
-    SAVE_STRING_IF_CHANGED("mqttBroker", currentSettings.mqttBroker);
-    SAVE_IF_CHANGED("mqttPort", Int, currentSettings.mqttPort);
-    SAVE_STRING_IF_CHANGED("mqttUser", currentSettings.mqttUser);
-    SAVE_STRING_IF_CHANGED("mqttPass", currentSettings.mqttPassword);
+    // --- FIX: Unconditionally save MQTT settings to prevent stale data ---
+    // The previous macro-based save could fail if the NVS already held a default value.
+    // This direct approach ensures the current settings are always persisted.
+    preferences.putString("mqttBroker", currentSettings.mqttBroker.c_str());
+    Log_printf(LOG_LEVEL_DEBUG, "SAVING: mqttBroker -> %s", currentSettings.mqttBroker.c_str());
+    preferences.putInt("mqttPort", currentSettings.mqttPort);
+    Log_printf(LOG_LEVEL_DEBUG, "SAVING: mqttPort -> %d", currentSettings.mqttPort);
+    preferences.putString("mqttUser", currentSettings.mqttUser.c_str());
+    Log_printf(LOG_LEVEL_DEBUG, "SAVING: mqttUser -> %s", currentSettings.mqttUser.c_str());
+    preferences.putString("mqttPass", currentSettings.mqttPassword.c_str());
+    // Note: Do not log the password itself for security reasons.
+    Log_printf(LOG_LEVEL_DEBUG, "SAVING: mqttPass -> (hidden)");
     if (preferences.getBool("weatherMode", false) != currentSettings.weatherModeEnabled) {
         preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
         Log_printf(LOG_LEVEL_DEBUG, "SAVING: weatherMode -> %s", currentSettings.weatherModeEnabled ? "true" : "false");
@@ -657,123 +665,127 @@ void saveSettings() {
  */
 void loadSettings() {
     Log_printf(LOG_LEVEL_INFO, "--- Loading Settings ---");
-    preferences.begin(PREFERENCES_NAMESPACE, true); // Open preferences in read-only mode.
+    preferences.begin(PREFERENCES_NAMESPACE, true); // Open preferences in read-only mode first.
 
-    // Check if a key exists. If not, we assume it's the first boot.
-	bool needsInit = !preferences.isKey("destYear");
+    bool needsInit = !preferences.isKey("destYear");
     if (needsInit) {
         // --- INITIALIZE WITH DEFAULT VALUES ---
-		Log_printf(LOG_LEVEL_INFO, "No settings found. Initializing with defaults.");
-		currentSettings.destinationYear = 1955;
-		currentSettings.destinationTimezoneIndex = 4; // Default to Pacific Time
-		currentSettings.departureHour = 22;
-		currentSettings.departureMinute = 0;
-		currentSettings.arrivalHour = 7;
-		currentSettings.arrivalMinute = 0;
-		currentSettings.lastTimeDepartedYear = 1985;
-		currentSettings.lastTimeDepartedMonth = 10;
-		currentSettings.lastTimeDepartedDay = 26;
-		currentSettings.lastTimeDepartedHour = 1;
-		currentSettings.lastTimeDepartedMinute = 21;
-		currentSettings.brightness = 5;
-		currentSettings.notificationVolume = 15;
-		currentSettings.timeTravelSoundToggle = true;
-		currentSettings.presentTimezoneIndex = 1;
-		currentSettings.presetCycleInterval = 10;
-		currentSettings.displayFormat24h = false;
-		currentSettings.theme = THEME_TIME_CIRCUITS;
-		currentSettings.timeTravelAnimationInterval = 15;
-		currentSettings.timeTravelAnimationDuration = 4000;
-		currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
-		currentSettings.dataLinkEnabled = false;
-		currentSettings.dataLinkTargetRow = 2;
-		currentSettings.stockRefreshInterval = 10;
-		currentSettings.numDataPoints = 0;
-		currentSettings.mqttBroker = "broker.emqx.io";
-		currentSettings.mqttPort = 1883;
-		currentSettings.mqttUser = "";
-		currentSettings.mqttPassword = "";
-		currentSettings.weatherModeEnabled = false;
-		currentSettings.cityName = "New York";
-		currentSettings.useMetricUnits = false;
-		currentSettings.latitude = 40.7128;
-		currentSettings.longitude = -74.0060;
-		currentSettings.stockTickerModeEnabled = false;
-		currentSettings.stockRefreshInterval = 20; // Default to 20 minutes
-		currentSettings.financialModelingPrepApiKey = "";
+        Log_printf(LOG_LEVEL_INFO, "No settings found. Initializing with defaults.");
+        currentSettings.destinationYear = 1955;
+        currentSettings.destinationTimezoneIndex = 4; // Default to Pacific Time
+        currentSettings.departureHour = 22;
+        currentSettings.departureMinute = 0;
+        currentSettings.arrivalHour = 7;
+        currentSettings.arrivalMinute = 0;
+        currentSettings.lastTimeDepartedYear = 1985;
+        currentSettings.lastTimeDepartedMonth = 10;
+        currentSettings.lastTimeDepartedDay = 26;
+        currentSettings.lastTimeDepartedHour = 1;
+        currentSettings.lastTimeDepartedMinute = 21;
+        currentSettings.brightness = 5;
+        currentSettings.notificationVolume = 15;
+        currentSettings.timeTravelSoundToggle = true;
+        currentSettings.presentTimezoneIndex = 1;
+        currentSettings.presetCycleInterval = 10;
+        currentSettings.displayFormat24h = false;
+        currentSettings.theme = THEME_TIME_CIRCUITS;
+        currentSettings.timeTravelAnimationInterval = 15;
+        currentSettings.timeTravelAnimationDuration = 4000;
+        currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
+        currentSettings.dataLinkEnabled = false;
+        currentSettings.dataLinkTargetRow = 2;
+        currentSettings.stockRefreshInterval = 10;
+        currentSettings.numDataPoints = 0;
+        currentSettings.mqttBroker = "broker.emqx.io";
+        currentSettings.mqttPort = 1883;
+        currentSettings.mqttUser = "";
+        currentSettings.mqttPassword = "";
+        currentSettings.weatherModeEnabled = false;
+        currentSettings.cityName = "New York";
+        currentSettings.useMetricUnits = false;
+        currentSettings.latitude = 40.7128;
+        currentSettings.longitude = -74.0060;
+        currentSettings.stockTickerModeEnabled = false;
+        currentSettings.stockRefreshInterval = 20; // Default to 20 minutes
+        currentSettings.financialModelingPrepApiKey = "";
         stockManager.clearAssets();
-		for (int i = 0; i < 5; i++) {
-			currentSettings.dataPoints[i] = {};
+        for (int i = 0; i < 5; i++) {
+            currentSettings.dataPoints[i] = {};
             currentSettings.dataPoints[i].enabled = false;
-		}
-		saveSettings();
-	} else {
-		Log_printf(LOG_LEVEL_INFO, "Loading settings from NVS.");
-		currentSettings.destinationYear = preferences.getInt("destYear");
-		currentSettings.destinationTimezoneIndex = preferences.getInt("destTzIndex");
-		currentSettings.departureHour = preferences.getInt("depHour");
-		currentSettings.departureMinute = preferences.getInt("depMinute");
-		currentSettings.arrivalHour = preferences.getInt("arrHour");
-		currentSettings.arrivalMinute = preferences.getInt("arrMinute");
-		currentSettings.lastTimeDepartedYear = preferences.getInt("lastYear");
-		currentSettings.lastTimeDepartedMonth = preferences.getInt("lastMonth");
-		currentSettings.lastTimeDepartedDay = preferences.getInt("lastDay");
-		currentSettings.lastTimeDepartedHour = preferences.getInt("lastHour");
-		currentSettings.lastTimeDepartedMinute = preferences.getInt("lastMinute");
-		currentSettings.brightness = preferences.getUChar("brightness");
-		currentSettings.notificationVolume = preferences.getUChar("volume");
-		currentSettings.timeTravelSoundToggle = preferences.getBool("soundToggle");
-		currentSettings.presentTimezoneIndex = preferences.getInt("presTzIndex");
-		currentSettings.presetCycleInterval = preferences.getInt("presetCycle");
-		currentSettings.displayFormat24h = preferences.getBool("format24h");
-		currentSettings.theme = preferences.getInt("theme", THEME_TIME_CIRCUITS);
-		currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval");
-		currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration");
-		currentSettings.animationStyle = preferences.getInt("animStyle");
-		currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
-		currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
-		currentSettings.numDataPoints = preferences.getInt("numDataPoints");
+        }
+    } else {
+        Log_printf(LOG_LEVEL_INFO, "Loading settings from NVS.");
+        currentSettings.destinationYear = preferences.getInt("destYear");
+        currentSettings.destinationTimezoneIndex = preferences.getInt("destTzIndex");
+        currentSettings.departureHour = preferences.getInt("depHour");
+        currentSettings.departureMinute = preferences.getInt("depMinute");
+        currentSettings.arrivalHour = preferences.getInt("arrHour");
+        currentSettings.arrivalMinute = preferences.getInt("arrMinute");
+        currentSettings.lastTimeDepartedYear = preferences.getInt("lastYear");
+        currentSettings.lastTimeDepartedMonth = preferences.getInt("lastMonth");
+        currentSettings.lastTimeDepartedDay = preferences.getInt("lastDay");
+        currentSettings.lastTimeDepartedHour = preferences.getInt("lastHour");
+        currentSettings.lastTimeDepartedMinute = preferences.getInt("lastMinute");
+        currentSettings.brightness = preferences.getUChar("brightness");
+        currentSettings.notificationVolume = preferences.getUChar("volume");
+        currentSettings.timeTravelSoundToggle = preferences.getBool("soundToggle");
+        currentSettings.presentTimezoneIndex = preferences.getInt("presTzIndex");
+        currentSettings.presetCycleInterval = preferences.getInt("presetCycle");
+        currentSettings.displayFormat24h = preferences.getBool("format24h");
+        currentSettings.theme = preferences.getInt("theme", THEME_TIME_CIRCUITS);
+        currentSettings.timeTravelAnimationInterval = preferences.getInt("animInterval");
+        currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration");
+        currentSettings.animationStyle = preferences.getInt("animStyle");
+        currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled");
+        currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow");
+        currentSettings.numDataPoints = preferences.getInt("numDataPoints");
         String brokerStr = preferences.getString("mqttBroker", "");
         currentSettings.mqttBroker = brokerStr.c_str();
-		Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT Broker: [%s]", currentSettings.mqttBroker.c_str());
-		currentSettings.mqttPort = preferences.getInt("mqttPort", 1883);
-		Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT Port: [%d]", currentSettings.mqttPort);
+        Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT Broker: [%s]", currentSettings.mqttBroker.c_str());
+        currentSettings.mqttPort = preferences.getInt("mqttPort", 1883);
+        Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT Port: [%d]", currentSettings.mqttPort);
         String userStr = preferences.getString("mqttUser", "");
         currentSettings.mqttUser = userStr.c_str();
-		Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT User: [%s]", currentSettings.mqttUser.c_str());
+        Log_printf(LOG_LEVEL_DEBUG, "Loaded MQTT User: [%s]", currentSettings.mqttUser.c_str());
         String passStr = preferences.getString("mqttPass", "");
         currentSettings.mqttPassword = passStr.c_str();
-		currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
-		String tempString = preferences.getString("cityName", "New York");
-		currentSettings.cityName = tempString.c_str();
-		currentSettings.useMetricUnits = preferences.getBool("useMetric", false);
-		currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
-		currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
-		currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
-		currentSettings.stockRefreshInterval = preferences.getInt("stockRefresh", 20);
+        currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
+        String tempString = preferences.getString("cityName", "New York");
+        currentSettings.cityName = tempString.c_str();
+        currentSettings.useMetricUnits = preferences.getBool("useMetric", false);
+        currentSettings.latitude = preferences.getFloat("latitude", 40.7128);
+        currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
+        currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
+        currentSettings.stockRefreshInterval = preferences.getInt("stockRefresh", 20);
         Log_printf(LOG_LEVEL_DEBUG, "TRACE: Loaded stockRefreshInterval from NVS: %d", currentSettings.stockRefreshInterval);
-		tempString = preferences.getString("fmpApiKey", "");
-		currentSettings.financialModelingPrepApiKey = tempString.c_str();
+        tempString = preferences.getString("fmpApiKey", "");
+        currentSettings.financialModelingPrepApiKey = tempString.c_str();
         tempString = preferences.getString("stockRow1Symbol", "");
         currentSettings.stockRow1_symbol = tempString.c_str();
         tempString = preferences.getString("stockRow2Symbol", "");
         currentSettings.stockRow2_symbol = tempString.c_str();
         tempString = preferences.getString("stockRow3Symbol", "");
-        currentSettings.stockRow3_symbol = tempString.c_str();
+        currentSetti
+ngs.stockRow3_symbol = tempString.c_str();
 
-
-		for (int i = 0; i < 5; i++) {
-			String prefix = "dp" + String(i) + "_";
+        for (int i = 0; i < 5; i++) {
+            String prefix = "dp" + String(i) + "_";
             currentSettings.dataPoints[i].enabled = preferences.getBool((prefix + "en").c_str(), false);
-			currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str(), 0);
-			currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
-			currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
-			currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str(), 150);
+            currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str(), 0);
+            currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
+            currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
+            currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str(), 150);
             currentSettings.dataPoints[i].prefixText = preferences.getString((prefix + "prefix").c_str(), "").c_str();
             currentSettings.dataPoints[i].suffixText = preferences.getString((prefix + "suffix").c_str(), "").c_str();
-		}
-	}
-	preferences.end();
+        }
+    }
+    preferences.end(); // End the read-only session.
+
+    // --- FIX: If this was the first boot, now we can safely save the defaults. ---
+    // This avoids a nested `preferences.begin()` call, which was causing the initial save to fail.
+    if (needsInit) {
+        saveSettings();
+    }
 
     // Initialize the StockManager with the loaded settings
     stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
@@ -781,15 +793,15 @@ void loadSettings() {
     stockManager.setRefreshInterval(currentSettings.stockRefreshInterval);
     stockManager.loadAssets();
 
-	Log_printf(LOG_LEVEL_INFO, "--- Settings Loaded ---");
-	if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
-		currentSettings.presentTimezoneIndex = 0;
-	}
-	if (currentSettings.destinationTimezoneIndex < 0 || currentSettings.destinationTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
-		currentSettings.destinationTimezoneIndex = 0;
-	}
-	setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-	tzset();
+    Log_printf(LOG_LEVEL_INFO, "--- Settings Loaded ---");
+    if (currentSettings.presentTimezoneIndex < 0 || currentSettings.presentTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
+        currentSettings.presentTimezoneIndex = 0;
+    }
+    if (currentSettings.destinationTimezoneIndex < 0 || currentSettings.destinationTimezoneIndex >= NUM_TIMEZONE_OPTIONS) {
+        currentSettings.destinationTimezoneIndex = 0;
+    }
+    setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+    tzset();
 }
 
 bool attemptHardwareInit() {
