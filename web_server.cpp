@@ -491,7 +491,7 @@ void setupWebRoutes() {
     request->send(200, "text/plain", "Great Scott!");
   });
 
-  server.on("/api/settings/timecircuits", HTTP_GET, [](AsyncWebServerRequest *request) {
+  server.on("/api/settings/BTTF_TC", HTTP_GET, [](AsyncWebServerRequest *request) {
     JsonDocument doc;
     doc["destinationYear"] = currentSettings.destinationYear;
     doc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;

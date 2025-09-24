@@ -36,7 +36,7 @@ action:
           # Stop the radio stream via MQTT.
           - service: mqtt.publish
             data:
-              topic: "timecircuits/{{ unique_id }}/radio/command"
+              topic: "BTTF_TC/{{ unique_id }}/radio/command"
               payload: "stop"
           # If the override message is still "RADIO...", turn off the override switch.
           # This prevents us from incorrectly turning off a different notification
@@ -64,5 +64,5 @@ action:
       # This is necessary because there is no dedicated Home Assistant entity for this.
       - service: mqtt.publish
         data:
-          topic: "timecircuits/{{ unique_id }}/radio/command"
+          topic: "BTTF_TC/{{ unique_id }}/radio/command"
           payload: "{{ command }}"

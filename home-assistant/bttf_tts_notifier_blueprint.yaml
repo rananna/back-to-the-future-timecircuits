@@ -83,7 +83,7 @@ action:
       # This is necessary because there is no dedicated Home Assistant entity for TTS playback.
       - service: mqtt.publish
         data:
-          topic: "timecircuits/{{ unique_id }}/tts/command"
+          topic: "BTTF_TC/{{ unique_id }}/tts/command"
           payload: '{ "url": "{{ tts_response.url }}", "volume": {{ volume }} }'
 
       # Wait for the audio to finish playing by monitoring the audio sensor.

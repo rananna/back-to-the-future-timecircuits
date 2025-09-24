@@ -906,7 +906,7 @@ void setup() {
 
     Log_printf(LOG_LEVEL_INFO, "Free heap after setup: %u bytes", ESP.getFreeHeap());
 
-    ArduinoOTA.setHostname("time-circuits");
+    ArduinoOTA.setHostname("BTTF_TC");
     ArduinoOTA.setPassword("1.21gigawatts");
     ArduinoOTA.onStart([]() {
         String type;
@@ -1085,7 +1085,7 @@ void loop() {
                 Log_printf(LOG_LEVEL_INFO, "HTTP server started on successful connection.");
 
                 logConnectedPrinted = true;
-                if (MDNS.begin("timecircuits")) {
+                if (MDNS.begin("BTTF_TC")) {
                     MDNS.addService("http", "tcp", 80);
                 }
 

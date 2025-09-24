@@ -13,7 +13,7 @@
 
 
 #define THEME_PREF_KEY "ui_theme"
-#define PREFERENCES_NAMESPACE "timecircuits"
+#define PREFERENCES_NAMESPACE "BTTF_TC"
 
 class StockManager;
 

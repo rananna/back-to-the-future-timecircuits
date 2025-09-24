@@ -425,11 +425,11 @@ This approach ensures that the state is always synchronized and that you can rel
 <details>
 <summary><strong>Advanced: MQTT Topic Reference</strong></summary>
 
-> For debugging or use in other applications (like Node-RED), you can interact with the clock's MQTT topics directly. The device's command and state topics are under `timecircuits/<UNIQUE_ID>/`. For example, `timecircuits/BTTF_TC_.../destination_year/command`.
+> For debugging or use in other applications (like Node-RED), you can interact with the clock's MQTT topics directly. The device's command and state topics are under `BTTF_TC/<UNIQUE_ID>/`. For example, `BTTF_TC/BTTF_TC_.../destination_year/command`.
 >
 > The auto-discovery configuration topics are published under `homeassistant/`.
 >
-> | Topic Suffix (under `timecircuits/<UNIQUE_ID>/`) | Type | Description |
+> | Topic Suffix (under `BTTF_TC/<UNIQUE_ID>/`) | Type | Description |
 > | :--- | :--- | :--- |
 > | `status` | State | Publishes `online` or `offline`. Used for availability. |
 > | `status/state` | State | Publishes the clock's current state (e.g., `Idle`, `Animating`). |
@@ -465,7 +465,7 @@ If you encounter issues, here are some common solutions:
 
 > ⚠️ **Entities are 'Unavailable'?**
 > * Check the clock's Wi-Fi connection from its web UI or your router.
-> * In MQTT Explorer, check the `timecircuits/<UNIQUE_ID>/status` topic (e.g., `timecircuits/BTTF_TC_.../status`). It should have a retained message of `online`. If it says `offline`, the clock has disconnected.
+> * In MQTT Explorer, check the `BTTF_TC/<UNIQUE_ID>/status` topic (e.g., `BTTF_TC/BTTF_TC_.../status`). It should have a retained message of `online`. If it says `offline`, the clock has disconnected.
 
 > ⚠️ **Commands Not Working?**
 > * Ensure the clock is `online` and the entities are available in Home Assistant.
