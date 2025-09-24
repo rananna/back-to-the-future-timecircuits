@@ -1,34 +1,30 @@
 # Back to the Future Time Circuits: Home Assistant Automations
 
-This document provides a list of useful and creative automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `time_circuits_display` in Home Assistant.
+This document provides a list of useful and creative automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `time_circuits_display` in Home Assistant, but your device's name may be different.
 
 ---
 
 ### Blueprint-Powered Examples
 
-The easiest way to create powerful automations is by using the provided blueprints. Here are a few examples to get you started.
+The easiest way to create powerful automations is by using the provided blueprints. These blueprints are "callable," meaning they don't have a trigger themselves. Instead, you create an automation based on the blueprint, and then you call it from another automation or script.
 
 <details>
 <summary><strong>1. "Weather Station" Display</strong></summary>
 
 *Use the "BTTF - Home Assistant Status Display" blueprint to turn your clock into a real-time weather dashboard.*
 
+**How It Works:**
+This automation is triggered whenever your primary weather sensors change. It then calls the blueprint automation you created to update the display segments with the latest data.
+
 **Automation Setup:**
-1.  **Trigger:** The automation should trigger on any state change of your primary weather sensors (e.g., temperature, humidity, and conditions).
-2.  **Action:** Call the "BTTF - Home Assistant Status Display" blueprint.
-3.  **Mapping:**
-    *   **Destination Month:** `OUT`
-    *   **Destination Day:** `SIDE`
-    *   **Destination Year:** `TEMP`
-    *   **Destination Time:** `{{ states('sensor.outside_temperature') }}°`
-    *   **Present Month:** `FEELS`
-    *   **Present Day:** `LIKE`
-    *   **Present Year:** `{{ states('sensor.outside_feels_like_temperature') }}°`
-    *   **Last Departed Text:** `{{ states('sensor.weather_conditions') }}` (This will be a single scrolling line on the bottom display)
+1.  First, create an automation from the **BTTF - Home Assistant Status Display** blueprint. Give it a descriptive name, like "BTTF - Update Weather Display".
+2.  Next, create a separate, standard automation in Home Assistant:
+    *   **Trigger:** The automation should trigger on any state change of your primary weather sensors (e.g., temperature, humidity, and conditions).
+    *   **Action:** Call the `automation.trigger` service and target the blueprint automation you just created. Pass the weather data into the blueprint's input fields using templates.
 
 ```yaml
 # automation.yaml
-- alias: "BTTF - Weather Display"
+- alias: "BTTF - Weather Display Trigger"
   trigger:
     - platform: state
       entity_id:
@@ -38,10 +34,18 @@ The easiest way to create powerful automations is by using the provided blueprin
   action:
     - service: automation.trigger
       target:
-        entity_id: automation.home_assistant_status_display # The automation you created from the blueprint
+        # This should be the name of the automation you created from the blueprint
+        entity_id: automation.bttf_update_weather_display
       data:
-        # You can pass variables to the blueprint if you configured it to accept them
-        # For this example, we assume the blueprint is configured with the templates directly.
+        # Map the sensor data to the blueprint's input fields
+        destination_month: "OUT"
+        destination_day: "SIDE"
+        destination_year: "TEMP"
+        destination_time: "{{ states('sensor.outside_temperature') }}°"
+        present_month: "FEELS"
+        present_day: "LIKE"
+        present_year: "{{ states('sensor.outside_feels_like_temperature') }}°"
+        last_departed_time: "{{ states('sensor.weather_conditions') }}" # Scrolls on the bottom display
 ```
 </details>
 
@@ -50,14 +54,14 @@ The easiest way to create powerful automations is by using the provided blueprin
 
 *Use the "BTTF - Dynamic Marquee Display" blueprint to show the currently playing song on your favorite media player.*
 
+**How It Works:**
+This automation triggers whenever the `media_title` of your media player changes. It then calls the blueprint automation to send the song title to the specified marquee slot.
+
 **Automation Setup:**
-1.  **Web UI:** In the clock's web interface, set Data Point 5's "Data Source" to "Home Assistant Push".
-2.  **Trigger:** The automation should trigger whenever the `media_title` attribute of your media player changes.
-3.  **Action:** Call the "BTTF - Dynamic Marquee Display" blueprint.
-4.  **Configuration:**
-    *   **Data Point Slot:** "Data Point 5"
-    *   **Marquee Text:** `♪ {{ state_attr('media_player.spotify', 'media_title') }}`
-    > **Note:** The marquee text is limited to 16 characters. This example will show the first part of the song title.
+1.  First, create an automation from the **BTTF - Dynamic Marquee Display** blueprint.
+2.  In a separate, standard automation:
+    *   **Trigger:** Use a template trigger to monitor the `media_title` attribute of your media player.
+    *   **Action:** Call the `automation.trigger` service and target your blueprint automation. Pass the song title to the `text` input.
 
 ```yaml
 # automation.yaml
@@ -68,7 +72,46 @@ The easiest way to create powerful automations is by using the provided blueprin
   action:
     - service: automation.trigger
       target:
-        entity_id: automation.dynamic_marquee_display # The automation you created from the blueprint
+        # This should be the name of the automation you created from the blueprint
+        entity_id: automation.bttf_dynamic_marquee_display
+      data:
+        # Set the marquee slot and the text to display
+        data_point_slot: "4" # Corresponds to Data Point 5
+        text: "♪ {{ state_attr('media_player.spotify', 'media_title') }}"
+```
+> **Note:** The marquee text is limited to 16 characters. This example will show the first part of the song title.
+</details>
+
+<details>
+<summary><strong>3. Advanced Notification Example</strong></summary>
+
+*Use the "BTTF - Advanced Notifier" blueprint to show a critical alert with a sound effect.*
+
+**How It Works:**
+This automation triggers when a critical event occurs (like a water leak). It then calls the notifier blueprint to display a prominent, temporary message and play an alarm sound.
+
+**Automation Setup:**
+1.  First, create an automation from the **BTTF - Advanced Notifier** blueprint.
+2.  In a separate, standard automation:
+    *   **Trigger:** Monitor the state of a sensor, like a `binary_sensor` for a water leak.
+    *   **Action:** Call the `automation.trigger` service and target your notifier blueprint automation. Configure the message, duration, and sound effect.
+
+```yaml
+# automation.yaml
+- alias: "BTTF - Water Leak Alert"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.water_leak_detector
+      to: "on"
+  action:
+    - service: automation.trigger
+      target:
+        # This should be the name of the automation you created from the blueprint
+        entity_id: automation.bttf_advanced_notifier
+      data:
+        message: "WATER LEAK\nDETECTED\nCHECK BASEMENT"
+        duration: 300 # Show for 5 minutes
+        sound_effect: "ALARM_SOUND"
 ```
 </details>
 
@@ -273,13 +316,31 @@ action:
 *If a door or window is opened while the security system is armed, flash a warning message on the display. This is a perfect use for the "BTTF - Advanced Notifier" blueprint.*
 
 **Automation Setup:**
-1.  Create a new automation and select the "BTTF - Advanced Notifier" blueprint.
-2.  **Trigger:** Select "State" as the trigger type, use `binary_sensor.front_door_contact` as the entity, and set the "To" state to `on`.
-3.  **Condition:** Add a "State" condition, use `alarm_control_panel.home_alarm` as the entity, and set the required state to `armed_away`.
-4.  **Time Circuits Display:** Select your clock.
-5.  **Message:** `SECURITY\nALERT\nFRONT DOOR`
-6.  **Display Duration:** `30` (seconds)
-7.  **Sound Effect:** `ALARM_SOUND` (or any other you prefer)
+1.  First, create a "callable" automation using the **BTTF - Advanced Notifier** blueprint.
+2.  Create a second automation that triggers when a security sensor is tripped.
+3.  This second automation then calls the first one, passing the specific message and sound.
+
+```yaml
+# automation.yaml
+- alias: "BTTF - Security Alert Trigger"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.front_door_contact
+      to: 'on'
+  condition:
+    - condition: state
+      entity_id: alarm_control_panel.home_alarm
+      state: armed_away
+  action:
+    # Call the blueprint automation
+    - service: automation.trigger
+      target:
+        entity_id: automation.bttf_advanced_notifier
+      data:
+        message: "SECURITY\nALERT\nFRONT DOOR"
+        duration: 30
+        sound_effect: "ALARM_SOUND"
+```
 </details>
 
 <details>
@@ -288,12 +349,26 @@ action:
 *If a severe weather alert is active, override the display to show the warning. Use the "BTTF - Advanced Notifier" blueprint for a simple setup.*
 
 **Automation Setup:**
-1.  Create a new automation and select the "BTTF - Advanced Notifier" blueprint.
-2.  **Trigger:** Select "State" as the trigger type, use `binary_sensor.severe_weather_alert` as the entity, and set the "To" state to `on`.
-3.  **Time Circuits Display:** Select your clock.
-4.  **Message:** `SEVERE\nWEATHER\n{{ states('sensor.weather_alert_type') }}`
-5.  **Display Duration:** `600` (10 minutes)
-6.  **Sound Effect:** `ALARM_SOUND`
+1.  Create a "callable" automation from the **BTTF - Advanced Notifier** blueprint.
+2.  Create a second automation that triggers when the `binary_sensor.severe_weather_alert` turns on.
+3.  This automation will call your blueprint automation and display the alert.
+
+```yaml
+# automation.yaml
+- alias: "BTTF - Severe Weather Alert Trigger"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.severe_weather_alert
+      to: 'on'
+  action:
+    - service: automation.trigger
+      target:
+        entity_id: automation.bttf_advanced_notifier
+      data:
+        message: "SEVERE\nWEATHER\n{{ states('sensor.weather_alert_type') }}"
+        duration: 600 # 10 minutes
+        sound_effect: "ALARM_SOUND"
+```
 </details>
 
 <details>
@@ -586,25 +661,30 @@ action:
 *Monitors the clock's free memory and reboots it if it drops to a critical level.*
 
 **Automation Setup:**
-1.  First, create a "callable" automation using the **BTTF - Advanced Notifier** blueprint. Set the message to `REBOOTING\nLOW MEMORY` and the duration to 10 seconds.
-2.  Then, create a second automation that triggers when the memory is low, calls the notifier automation, waits 10 seconds, and then presses the reboot button.
+1.  First, create a "callable" automation using the **BTTF - Advanced Notifier** blueprint. This will be our reboot warning.
+2.  Then, create a second automation that triggers when the device's `free_heap` attribute drops below a threshold.
+3.  This automation will call the notifier, wait 10 seconds for the message to be seen, and then press the device's reboot button.
 
 ```yaml
 # automation.yaml
-- alias: "BTTF - Low Memory Reboot"
+- alias: "BTTF - Low Memory Reboot Trigger"
   trigger:
-    # The 'free_heap' attribute is part of the main status sensor.
     - platform: numeric_state
       entity_id: sensor.time_circuits_display_status
       attribute: free_heap
       below: 20000  # 20 KB
   action:
-    # Call the notifier automation you created in step 1
+    # 1. Call the notifier blueprint to show a warning
     - service: automation.trigger
       target:
-        entity_id: automation.your_bttf_notifier_automation
+        entity_id: automation.bttf_advanced_notifier
+      data:
+        message: "REBOOTING\nLOW MEMORY\nSTAND BY"
+        duration: 10
+        sound_effect: "REBOOT_SOUND"
+    # 2. Wait for the message to be visible
     - delay: "00:00:10"
-    # Press the actual reboot button on the device
+    # 3. Press the actual reboot button on the device
     - service: button.press
       target:
         entity_id: button.time_circuits_display_reboot_device

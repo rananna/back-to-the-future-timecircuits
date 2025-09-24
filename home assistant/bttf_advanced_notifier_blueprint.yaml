@@ -1,14 +1,14 @@
 # home-assistant/bttf_advanced_notifier_blueprint.yaml
 blueprint:
   name: "BTTF - Advanced Notifier"
-  description: Displays a temporary message on the Time Circuits with an optional sound.
+  description: Displays a temporary message on the Time Circuits with an optional sound. This is a "callable" automation that has no trigger; you call it from another automation or script.
   domain: automation
   input:
-    time_circuits_device:
+    target_device:
       name: Time Circuits Display
+      description: Select the BTTF Time Circuits clock device.
       selector:
         device:
-          integration: mqtt
           manufacturer: "Doc Brown Industries"
           model: "BTTF Clock v1"
     message:
@@ -28,34 +28,55 @@ blueprint:
           unit_of_measurement: seconds
     sound_effect:
       name: Sound Effect
+      description: "Select an optional sound effect to play."
       default: "None"
       selector:
         select:
-          options: ["None", "CONFIRM_ON", "ARRIVAL_THUD", "EASTER_EGG"]
+          options:
+            - "None"
+            - "ALARM_SOUND"
+            - "ARRIVAL_THUD"
+            - "CONFIRM_ON"
+            - "EASTER_EGG"
+            - "REBOOT_SOUND"
+            - "REMINDER_ALERT"
+            - "TIME_TRAVEL_FAIL"
+
+variables:
+  device_id: !input target_device
+  unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
+  message_text: !input message
+  sound: !input sound_effect
+  delay_seconds: !input duration
 
 mode: single
 trigger: []
 action:
-  - service: mqtt.publish
+  # 1. Set the override message text
+  - service: text.set_value
+    target:
+      entity_id: "text.{{ unique_id }}_override_message"
     data:
-      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override_text/command"
-      payload: "{{ message }}"
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
-      payload: "ON"
+      value: "{{ message_text }}"
+  # 2. Turn on the override switch to display the message
+  - service: switch.turn_on
+    target:
+      entity_id: "switch.{{ unique_id }}_override_switch"
+  # 3. Play a sound if one was selected
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ sound_effect != 'None' }}"
+            value_template: "{{ sound != 'None' }}"
         sequence:
-          - service: mqtt.publish
+          - service: select.select_option
+            target:
+              entity_id: "select.{{ unique_id }}_play_sound"
             data:
-              topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/play_sound/command"
-              payload: "{{ sound_effect }}"
+              option: "{{ sound }}"
+  # 4. Wait for the specified duration
   - delay:
-      seconds: "{{ duration }}"
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
-      payload: "OFF"
+      seconds: "{{ delay_seconds }}"
+  # 5. Turn off the override switch to return to normal display
+  - service: switch.turn_off
+    target:
+      entity_id: "switch.{{ unique_id }}_override_switch"
