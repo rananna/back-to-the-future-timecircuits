@@ -213,7 +213,8 @@ void publishHaAutoDiscovery() {
     clearHaEntity("sensor", "last_time_departed");
     clearHaEntity("number", "destination_year");
     for (int i=0; i < 5; ++i) {
-        clearHaEntity("select", "datapoint_" + String(i) + "_source");
+        String unique_id_suffix = "datapoint_" + String(i) + "_source";
+        clearHaEntity("select", unique_id_suffix.c_str());
     }
     clearHaEntity("switch", "stock_ticker_mode");
     clearHaEntity("button", "stock_next");
@@ -258,7 +259,8 @@ void publishHaAutoDiscovery() {
     // This sensor has been replaced by the more specific `..._marquee` text entity and `..._enabled` switch.
     // We will now clear any old entities that may exist from previous versions.
     for (int i=0; i < 5; ++i) {
-        clearHaEntity("sensor", "datapoint_" + String(i));
+        String unique_id_suffix = "datapoint_" + String(i);
+        clearHaEntity("sensor", unique_id_suffix.c_str());
     }
 
 
@@ -579,16 +581,17 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/";
     bool stateChanged = false;
     bool settingsChanged = false;
+    String component;
 
     if (topicStr.endsWith("/command")) {
         String component_topic = topicStr.substring(base_topic.length());
-        String component = component_topic.substring(0, component_topic.indexOf('/'));
+        component = component_topic.substring(0, component_topic.indexOf('/'));
 
         if (component == "power") {
             isDisplayAsleep = (message == "OFF");
             stateChanged = true;
         } else if (component == "brightness") {
-            int brightness = message.toInt();
+            int brightness = std::stoi(message);
             if (brightness >= 0 && brightness <= 7) {
                 currentSettings.brightness = brightness;
                 settingsChanged = true;
@@ -606,10 +609,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 }
             }
         } else if (component == "animation_style") {
-            currentSettings.animationStyle = message.toInt();
+            currentSettings.animationStyle = std::stoi(message);
             settingsChanged = true;
         } else if (component == "volume") {
-            int vol = message.toInt();
+            int vol = std::stoi(message);
             if (vol >= 0 && vol <= 21) {
                 currentSettings.notificationVolume = vol;
                 audio.setVolume(vol);
@@ -619,19 +622,19 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             isMessageOverrideActive = (message == "ON");
             stateChanged = true;
         } else if (component == "override_message") {
-            int first_newline = message.indexOf('\n');
-            int second_newline = message.indexOf('\n', first_newline + 1);
-            if (first_newline != -1) {
-                overrideMessageLine1 = message.substring(0, first_newline);
-                if (second_newline != -1) {
-                    overrideMessageLine2 = message.substring(first_newline + 1, second_newline);
-                    overrideMessageLine3 = message.substring(second_newline + 1);
+            size_t first_newline = message.find('\n');
+            size_t second_newline = message.find('\n', first_newline + 1);
+            if (first_newline != std::string::npos) {
+                overrideMessageLine1 = message.substr(0, first_newline).c_str();
+                if (second_newline != std::string::npos) {
+                    overrideMessageLine2 = message.substr(first_newline + 1, second_newline - (first_newline + 1)).c_str();
+                    overrideMessageLine3 = message.substr(second_newline + 1).c_str();
                 } else {
-                    overrideMessageLine2 = message.substring(first_newline + 1);
+                    overrideMessageLine2 = message.substr(first_newline + 1).c_str();
                     overrideMessageLine3 = "";
                 }
             } else {
-                overrideMessageLine1 = message;
+                overrideMessageLine1 = message.c_str();
                 overrideMessageLine2 = "";
                 overrideMessageLine3 = "";
             }
@@ -658,21 +661,21 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             mqttClient.publish((base_topic + "trigger_effect/state").c_str(), "None", true);
         } else if (component == "flash_command") {
             int row = -1, segment = -1;
-            if (message.startsWith("dest_")) row = 0;
-            else if (message.startsWith("pres_")) row = 1;
-            else if (message.startsWith("last_")) row = 2;
-            if (message.endsWith("_month")) segment = 0;
-            else if (message.endsWith("_day")) segment = 1;
-            else if (message.endsWith("_year")) segment = 2;
-            else if (message.endsWith("_time")) segment = 3;
+            if (message.starts_with("dest_")) row = 0;
+            else if (message.starts_with("pres_")) row = 1;
+            else if (message.starts_with("last_")) row = 2;
+            if (message.ends_with("_month")) segment = 0;
+            else if (message.ends_with("_day")) segment = 1;
+            else if (message.ends_with("_year")) segment = 2;
+            else if (message.ends_with("_time")) segment = 3;
             if (row != -1 && segment != -1) {
                 triggerFlashEffect(row, segment);
             }
         } else if (component == "sleep_time" || component == "wake_time") {
-            int colonPos = message.indexOf(':');
-            if (colonPos != -1) {
-                int hour = message.substring(0, colonPos).toInt();
-                int minute = message.substring(colonPos + 1).toInt();
+            size_t colonPos = message.find(':');
+            if (colonPos != std::string::npos) {
+                int hour = std::stoi(message.substr(0, colonPos));
+                int minute = std::stoi(message.substr(colonPos + 1));
                 if (component == "sleep_time") {
                     currentSettings.departureHour = hour;
                     currentSettings.departureMinute = minute;
@@ -710,13 +713,13 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             currentSettings.displayFormat24h = (message == "ON");
             settingsChanged = true;
         } else if (component == "animation_interval") {
-            currentSettings.timeTravelAnimationInterval = message.toInt();
+            currentSettings.timeTravelAnimationInterval = std::stoi(message);
             settingsChanged = true;
         } else if (component == "animation_duration") {
-            currentSettings.timeTravelAnimationDuration = message.toInt();
+            currentSettings.timeTravelAnimationDuration = std::stoi(message);
             settingsChanged = true;
         } else if (component == "stock_refresh") {
-            currentSettings.stockRefreshInterval = message.toInt();
+            currentSettings.stockRefreshInterval = std::stoi(message);
             settingsChanged = true;
         } else if (component == "reboot_device" && message == "PRESS") {
             ESP.restart();
