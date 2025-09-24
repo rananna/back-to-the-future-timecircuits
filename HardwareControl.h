@@ -95,6 +95,7 @@ enum DisplayMode {
 };
 
 struct DataPoint {
+  bool enabled;
   int scrollSpeed;
   DataSourceType dataSourceType;
   std::string mqttTopic;
