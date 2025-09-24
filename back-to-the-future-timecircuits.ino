@@ -829,7 +829,7 @@ void onHardwareInitialized() {
 
 void wifiManagerTask(void *pvParameters) {
   WiFiManager* wifiManager = (WiFiManager*)pvParameters;
-  wifiManager->autoConnect("BTTF-Clock-Setup");
+  wifiManager->autoConnect("TimeCircuits-Setup");
   vTaskDelete(NULL);
   wifiManagerTaskHandle = NULL;
 }
@@ -849,7 +849,7 @@ void setup() {
     // Get MAC address early for MQTT Unique ID. This is more reliable than WiFi.macAddress().
     uint8_t mac[6];
     esp_efuse_mac_get_default(mac);
-    sprintf(MQTT_UNIQUE_ID, "BTTF_TC_%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    sprintf(MQTT_UNIQUE_ID, "timecircuits_%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
     xSerialMutex = xSemaphoreCreateMutex(); // For thread-safe logging
     Log_printf(LOG_LEVEL_INFO, "--- BOOTING ---");
@@ -905,7 +905,7 @@ void setup() {
 
     Log_printf(LOG_LEVEL_INFO, "Free heap after setup: %u bytes", ESP.getFreeHeap());
 
-    ArduinoOTA.setHostname("bttf-time-circuits");
+    ArduinoOTA.setHostname("time-circuits");
     ArduinoOTA.setPassword("1.21gigawatts");
     ArduinoOTA.onStart([]() {
         String type;
