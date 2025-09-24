@@ -8,7 +8,7 @@ This document provides a list of useful and creative automations to demonstrate 
 
 ### Blueprint-Powered Examples
 
-The easiest way to create powerful automations is by using the provided blueprints. These blueprints are "callable," meaning they don't have a trigger themselves. Instead, you create an automation based on the blueprint, and then you call it from another automation or script.
+The easiest way to create powerful automations is by using the provided blueprints. For "callable" blueprints, you can use them directly as an `action` in your automation.
 
 <details>
 <summary><strong>1. "Weather Station" Display</strong></summary>
@@ -16,17 +16,11 @@ The easiest way to create powerful automations is by using the provided blueprin
 *Use the "BTTF - Home Assistant Status Display" blueprint to turn your clock into a real-time weather dashboard.*
 
 **How It Works:**
-This automation is triggered whenever your primary weather sensors change. It then calls the blueprint automation you created to update the display segments with the latest data.
-
-**Automation Setup:**
-1.  First, create an automation from the **BTTF - Home Assistant Status Display** blueprint. Give it a descriptive name, like "BTTF - Update Weather Display".
-2.  Next, create a separate, standard automation in Home Assistant:
-    *   **Trigger:** The automation should trigger on any state change of your primary weather sensors (e.g., temperature, humidity, and conditions).
-    *   **Action:** Call the `automation.trigger` service and target the blueprint automation you just created. Pass the weather data into the blueprint's input fields using templates.
+This automation is triggered whenever your primary weather sensors change. It then calls the `home_assistant_status_display` blueprint to update the display segments with the latest data.
 
 ```yaml
 # automation.yaml
-- alias: "BTTF - Weather Display Trigger"
+- alias: "BTTF - Weather Display"
   trigger:
     - platform: state
       entity_id:
@@ -34,20 +28,18 @@ This automation is triggered whenever your primary weather sensors change. It th
         - sensor.outside_feels_like_temperature
         - sensor.weather_conditions
   action:
-    - service: automation.trigger
-      target:
-        # This should be the name of the automation you created from the blueprint
-        entity_id: automation.bttf_update_weather_display
-      data:
-        # Map the sensor data to the blueprint's input fields
-        destination_month: "OUT"
-        destination_day: "SIDE"
-        destination_year: "TEMP"
-        destination_time: "{{ states('sensor.outside_temperature') }}°"
-        present_month: "FEELS"
-        present_day: "LIKE"
-        present_year: "{{ states('sensor.outside_feels_like_temperature') }}°"
-        last_departed_time: "{{ states('sensor.weather_conditions') }}" # Scrolls on the bottom display
+    - blueprint:
+        path: home-assistant/bttf_status_display_blueprint.yaml
+        input:
+          target_device: "YOUR_DEVICE_ID_HERE"
+          destination_month: "OUT"
+          destination_day: "SIDE"
+          destination_year: "TEMP"
+          destination_time: "{{ states('sensor.outside_temperature') }}°"
+          present_month: "FEELS"
+          present_day: "LIKE"
+          present_year: "{{ states('sensor.outside_feels_like_temperature') }}°"
+          last_departed_time: "{{ states('sensor.weather_conditions') }}"
 ```
 </details>
 
@@ -57,13 +49,7 @@ This automation is triggered whenever your primary weather sensors change. It th
 *Use the "BTTF - Dynamic Marquee Display" blueprint to show the currently playing song on your favorite media player.*
 
 **How It Works:**
-This automation triggers whenever the `media_title` of your media player changes. It then calls the blueprint automation to send the song title to the specified marquee slot.
-
-**Automation Setup:**
-1.  First, create an automation from the **BTTF - Dynamic Marquee Display** blueprint.
-2.  In a separate, standard automation:
-    *   **Trigger:** Use a template trigger to monitor the `media_title` attribute of your media player.
-    *   **Action:** Call the `automation.trigger` service and target your blueprint automation. Pass the song title to the `text` input.
+This automation triggers whenever the `media_title` of your media player changes. It then calls the `dynamic_marquee_display` blueprint to send the song title to the specified marquee slot.
 
 ```yaml
 # automation.yaml
@@ -72,16 +58,14 @@ This automation triggers whenever the `media_title` of your media player changes
     - platform: template
       value_template: "{{ state_attr('media_player.spotify', 'media_title') }}"
   action:
-    - service: automation.trigger
-      target:
-        # This should be the name of the automation you created from the blueprint
-        entity_id: automation.bttf_dynamic_marquee_display
-      data:
-        # Set the marquee slot (1-5) and the text to display
-        data_point_slot: "5"
-        text: "♪ {{ state_attr('media_player.spotify', 'media_title') }}"
+    - blueprint:
+        path: home-assistant/bttf_dynamic_marquee_display_blueprint.yaml
+        input:
+          target_device: "YOUR_DEVICE_ID_HERE"
+          data_point_slot: "5"
+          text: "♪ {{ state_attr('media_player.spotify', 'media_title') }}"
 ```
-> **Note:** The marquee text is limited to 16 characters. This example will show the first part of the song title.
+> **Note:** The marquee text has a generous 255-character limit, perfect for song titles or detailed notifications.
 </details>
 
 <details>
@@ -90,13 +74,7 @@ This automation triggers whenever the `media_title` of your media player changes
 *Use the "BTTF - Advanced Notifier" blueprint to show a critical alert with a sound effect.*
 
 **How It Works:**
-This automation triggers when a critical event occurs (like a water leak). It then calls the notifier blueprint to display a prominent, temporary message and play an alarm sound. The underlying MQTT topics for this blueprint have been fixed to ensure reliability.
-
-**Automation Setup:**
-1.  First, create an automation from the **BTTF - Advanced Notifier** blueprint.
-2.  In a separate, standard automation:
-    *   **Trigger:** Monitor the state of a sensor, like a `binary_sensor` for a water leak.
-    *   **Action:** Call the `automation.trigger` service and target your notifier blueprint automation. Configure the message, duration, and sound effect.
+This automation triggers when a critical event occurs (like a water leak). It then calls the `advanced_notifier` blueprint to display a prominent, temporary message and play an alarm sound.
 
 ```yaml
 # automation.yaml
@@ -106,14 +84,13 @@ This automation triggers when a critical event occurs (like a water leak). It th
       entity_id: binary_sensor.water_leak_detector
       to: "on"
   action:
-    - service: automation.trigger
-      target:
-        # This should be the name of the automation you created from the blueprint
-        entity_id: automation.bttf_advanced_notifier
-      data:
-        message: "WATER LEAK\nDETECTED\nCHECK BASEMENT"
-        duration: 300 # Show for 5 minutes
-        sound_effect: "ALARM_SOUND"
+    - blueprint:
+        path: home-assistant/bttf_advanced_notifier_blueprint.yaml
+        input:
+          target_device: "YOUR_DEVICE_ID_HERE"
+          message: "WATER LEAK\nDETECTED\nCHECK BASEMENT"
+          duration: 300 # Show for 5 minutes
+          sound_effect: "ALARM_SOUND"
 ```
 </details>
 
