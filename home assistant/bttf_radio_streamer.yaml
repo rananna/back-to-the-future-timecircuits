@@ -2,6 +2,7 @@ blueprint:
   name: BTTF Time Circuits - Radio Streamer
   description: >-
     Starts or stops an internet radio stream on the Time Circuits clock.
+    To stop the radio, simply enter the command "stop".
   domain: automation
   input:
     time_circuits_device:
@@ -16,22 +17,45 @@ blueprint:
       selector:
         text:
 
+variables:
+  device_id: !input time_circuits_device
+  unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
+  command: !input radio_command
+
 action:
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
-      payload: "ON"
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/dest_month/command"
-      payload: "RADIO"
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/radio/command"
-      payload: !input radio_command
-  - delay:
-      seconds: 5 # Gives the clock time to connect to the stream
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
-      payload: "OFF"
+  - choose:
+      # Condition 1: The command is "stop"
+      - conditions:
+          - condition: template
+            value_template: "{{ command == 'stop' }}"
+        sequence:
+          # Stop the radio stream silently
+          - service: mqtt.publish
+            data:
+              topic: "timecircuits/{{ unique_id }}/radio/command"
+              payload: "stop"
+    # Default action: The command is a URL
+    default:
+      # Turn on override mode to show the "RADIO" text
+      - service: mqtt.publish
+        data:
+          topic: "timecircuits/{{ unique_id }}/override/command"
+          payload: "ON"
+      # Display "RADIO" on the destination month segment
+      - service: mqtt.publish
+        data:
+          topic: "timecircuits/{{ unique_id }}/dest_month/command"
+          payload: "RADIO"
+      # Send the radio stream URL to the clock
+      - service: mqtt.publish
+        data:
+          topic: "timecircuits/{{ unique_id }}/radio/command"
+          payload: "{{ command }}"
+      # Wait 5 seconds for the stream to begin
+      - delay:
+          seconds: 5
+      # Turn off override mode to return to the normal display
+      - service: mqtt.publish
+        data:
+          topic: "timecircuits/{{ unique_id }}/override/command"
+          payload: "OFF"

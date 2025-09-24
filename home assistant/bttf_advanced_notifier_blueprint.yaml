@@ -1,4 +1,4 @@
-# home-assistant/bttf_advanced_notifier.yaml
+# home-assistant/bttf_advanced_notifier_blueprint.yaml
 blueprint:
   name: BTTF - Advanced Notifier
   description: Displays a temporary message on the Time Circuits with an optional sound.
