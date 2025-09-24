@@ -15,7 +15,7 @@ blueprint:
           model: "BTTF Clock v1"
     data_point_slot:
       name: Data Point Slot
-      description: Which of the five marquee slots to use for this data.
+      description: "Which of the five marquee slots to use for this data. Note: The slots are numbered 1-5 in the UI for convenience, but are indexed 0-4 in the system."
       default: "1"
       selector:
         select:

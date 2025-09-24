@@ -29,7 +29,7 @@ This automation is triggered whenever your primary weather sensors change. It th
         - sensor.weather_conditions
   action:
     - blueprint:
-        path: home-assistant/bttf_status_display_blueprint.yaml
+        path: bttf_status_display_blueprint.yaml
         input:
           target_device: "YOUR_DEVICE_ID_HERE"
           destination_month: "OUT"
@@ -59,7 +59,7 @@ This automation triggers whenever the `media_title` of your media player changes
       value_template: "{{ state_attr('media_player.spotify', 'media_title') }}"
   action:
     - blueprint:
-        path: home-assistant/bttf_dynamic_marquee_display_blueprint.yaml
+        path: bttf_dynamic_marquee_display_blueprint.yaml
         input:
           target_device: "YOUR_DEVICE_ID_HERE"
           data_point_slot: "5"
@@ -85,7 +85,7 @@ This automation triggers when a critical event occurs (like a water leak). It th
       to: "on"
   action:
     - blueprint:
-        path: home-assistant/bttf_advanced_notifier_blueprint.yaml
+        path: bttf_advanced_notifier_blueprint.yaml
         input:
           target_device: "YOUR_DEVICE_ID_HERE"
           message: "WATER LEAK\nDETECTED\nCHECK BASEMENT"
