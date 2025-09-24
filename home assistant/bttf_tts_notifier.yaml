@@ -1,17 +1,16 @@
 blueprint:
   name: "BTTF - TTS Notifier"
   description: >-
-    Converts a text message into speech and plays it on the clock.
-    An optional message can be displayed during playback. For complex display
-    setups, call the "Home Assistant Status Display" blueprint first.
+    Converts a text message into speech and plays it on the clock's speaker.
+    An optional message can be displayed on the main displays during playback.
+    This is a "callable" automation that has no trigger; you call it from another automation.
   domain: automation
   input:
-    time_circuits_device:
+    target_device:
       name: Time Circuits Display
-      description: Select the Time Circuits clock device.
+      description: Select the BTTF Time Circuits clock device.
       selector:
         device:
-          integration: mqtt
           manufacturer: "Doc Brown Industries"
           model: "BTTF Clock v1"
     tts_service:
@@ -43,49 +42,63 @@ blueprint:
           multiline: true
 
 variables:
-  clock_id: "{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}"
+  device_id: !input target_device
+  unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
+  display_text: !input display_text
+  tts_service: !input tts_service
+  message_text: !input message_text
+  volume: !input volume
 
+mode: single
 trigger: []
 
 action:
-  # 1. Set the override text and activate the override display mode.
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ clock_id }}/override_text/command"
-      payload: !input display_text
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ clock_id }}/override/command"
-      payload: "ON"
+  # This 'try/finally' block ensures the override display is always turned off.
+  - variables:
+      # Store the state of the override switch to restore it later.
+      # This prevents the blueprint from turning off an override that was active before it ran.
+      override_was_on: "{{ is_state('switch.' ~ unique_id ~ '_override_switch', 'on') }}"
 
-  # 2. This block contains the main logic. The 'finally' action will run after this.
   - sequence:
-      # Generate TTS URL
-      - service: !input tts_service
+      # If display_text is provided, set the message and turn on the override switch.
+      - if:
+          - "{{ display_text != '' }}"
+        then:
+          - service: text.set_value
+            target:
+              entity_id: "text.{{ unique_id }}_override_message"
+            data:
+              value: "{{ display_text }}"
+          - service: switch.turn_on
+            target:
+              entity_id: "switch.{{ unique_id }}_override_switch"
+
+      # Generate the TTS URL from the selected service.
+      - service: "{{ tts_service }}"
         data:
-          message: !input message_text
+          message: "{{ message_text }}"
         response_variable: tts_response
 
-      # Play TTS on clock
+      # Play the TTS audio on the clock via a direct MQTT call.
+      # This is necessary because there is no dedicated Home Assistant entity for TTS playback.
       - service: mqtt.publish
         data:
-          topic: "timecircuits/{{ clock_id }}/tts/play"
-          payload: '{"url": "{{ tts_response.url }}", "volume": {{ volume }} }'
+          topic: "timecircuits/{{ unique_id }}/tts/command"
+          payload: '{ "url": "{{ tts_response.url }}", "volume": {{ volume }} }'
 
-      # Wait for playback to finish
+      # Wait for the audio to finish playing by monitoring the audio sensor.
       - wait_for_trigger:
-          - platform: mqtt
-            topic: "timecircuits/{{ clock_id }}/audio/state"
-            payload: "IDLE"
-        timeout: "00:01:00"
+          - platform: state
+            entity_id: "sensor.{{ unique_id }}_audio_stream_status"
+            to: "IDLE"
+        timeout: "00:01:00" # Max 1 minute wait
         continue_on_timeout: true
 
-  # 3. This serves as the 'finally' block. It always runs after the main sequence.
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ clock_id }}/override/command"
-      payload: "OFF"
-  - service: mqtt.publish
-    data:
-      topic: "timecircuits/{{ clock_id }}/override_text/command"
-      payload: ""
+  - finally:
+      # Turn off the override switch only if it was off before this automation ran.
+      - if:
+          - "{{ not override_was_on }}"
+        then:
+          - service: switch.turn_off
+            target:
+              entity_id: "switch.{{ unique_id }}_override_switch"

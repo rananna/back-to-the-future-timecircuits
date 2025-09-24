@@ -2,14 +2,15 @@ blueprint:
   name: "BTTF - Radio Streamer"
   description: >-
     Starts or stops an internet radio stream on the Time Circuits clock.
-    To stop the radio, simply enter the command "stop".
+    To stop the radio, simply provide "stop" as the command.
+    This is a "callable" automation that has no trigger; you call it from another automation.
   domain: automation
   input:
-    time_circuits_device:
+    target_device:
       name: Time Circuits Display
+      description: Select the BTTF Time Circuits clock device.
       selector:
         device:
-          integration: mqtt
           manufacturer: "Doc Brown Industries"
           model: "BTTF Clock v1"
     radio_command:
@@ -19,45 +20,42 @@ blueprint:
         text:
 
 variables:
-  device_id: !input time_circuits_device
+  device_id: !input target_device
   unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
   command: !input radio_command
+
+mode: single
+trigger: []
 
 action:
   - choose:
       # Condition 1: The command is "stop"
       - conditions:
-          - condition: template
-            value_template: "{{ command == 'stop' }}"
+          - "{{ command == 'stop' }}"
         sequence:
-          # Stop the radio stream
+          # Stop the radio stream via MQTT.
           - service: mqtt.publish
             data:
               topic: "timecircuits/{{ unique_id }}/radio/command"
               payload: "stop"
-          # Clear the "RADIO" text from the display
-          - service: mqtt.publish
-            data:
-              topic: "timecircuits/{{ unique_id }}/override_text/command"
-              payload: ""
-          # Turn off override mode
-          - service: mqtt.publish
-            data:
-              topic: "timecircuits/{{ unique_id }}/override/command"
-              payload: "OFF"
+          # Turn off the override switch to clear the "RADIO" text.
+          - service: switch.turn_off
+            target:
+              entity_id: "switch.{{ unique_id }}_override_switch"
     # Default action: The command is a URL
     default:
-      # Turn on override mode to show the "RADIO" text
-      - service: mqtt.publish
+      # Set the override message to "RADIO..." on the middle display.
+      - service: text.set_value
+        target:
+          entity_id: "text.{{ unique_id }}_override_message"
         data:
-          topic: "timecircuits/{{ unique_id }}/override/command"
-          payload: "ON"
-      # Display "RADIO" on the destination month segment
-      - service: mqtt.publish
-        data:
-          topic: "timecircuits/{{ unique_id }}/override_text/command"
-          payload: "RADIO"
-      # Send the radio stream URL to the clock
+          value: "\nRADIO..."
+      # Turn on the override switch to display the message.
+      - service: switch.turn_on
+        target:
+          entity_id: "switch.{{ unique_id }}_override_switch"
+      # Send the radio stream URL to the clock via a direct MQTT call.
+      # This is necessary because there is no dedicated Home Assistant entity for this.
       - service: mqtt.publish
         data:
           topic: "timecircuits/{{ unique_id }}/radio/command"
