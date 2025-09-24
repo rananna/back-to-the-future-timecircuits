@@ -29,6 +29,7 @@
 #include <PubSubClient.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <esp_mac.h>
 #include <freertos/semphr.h>
 #include <freertos/queue.h>
 #include <string>
@@ -839,8 +840,14 @@ void setup() {
     Serial.begin(115200);
     delay(1000); // Wait for serial monitor to connect.
 
+    // Get MAC address early for MQTT Unique ID. This is more reliable than WiFi.macAddress().
+    uint8_t mac[6];
+    esp_efuse_mac_get_default(mac);
+    sprintf(MQTT_UNIQUE_ID, "BTTF_TC_%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
     xSerialMutex = xSemaphoreCreateMutex(); // For thread-safe logging
     Log_printf(LOG_LEVEL_INFO, "--- BOOTING ---");
+    Log_printf(LOG_LEVEL_INFO, "Device ID: %s", MQTT_UNIQUE_ID);
     Log_printf(LOG_LEVEL_INFO, "Initializing Serial... OK");
 
     if (!LittleFS.begin(true, "/spiffs")) {
@@ -861,9 +868,6 @@ void setup() {
     Log_printf(LOG_LEVEL_INFO, "Mutexes created... OK");
     
     WiFi.mode(WIFI_STA);
-    uint8_t mac[6];
-    WiFi.macAddress(mac);
-    sprintf(MQTT_UNIQUE_ID, "BTTF_TC_%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
     // Manually configure DNS servers to fix potential network issues
     IPAddress primaryDNS(8, 8, 8, 8);
