@@ -924,10 +924,20 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             int dp_index = topicStr.substring(base_topic.length() + 10, topicStr.indexOf('/', base_topic.length() + 10)).toInt();
             if (dp_index >= 0 && dp_index < 5) {
                 if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    if (topicStr.endsWith("/month/set")) displayPages[dp_index].month = message.c_str();
-                    else if (topicStr.endsWith("/day/set")) displayPages[dp_index].day = message.c_str();
-                    else if (topicStr.endsWith("/year/set")) displayPages[dp_index].year = message.c_str();
-                    else if (topicStr.endsWith("/time/set")) displayPages[dp_index].time = message.c_str();
+                    if (topicStr.endsWith("/year/set")) {
+                        displayPages[dp_index].year = message.c_str();
+                        // This is the topic used for single-line marquee messages.
+                        // Clear other fields to prevent concatenation with stale data.
+                        displayPages[dp_index].month = "";
+                        displayPages[dp_index].day = "";
+                        displayPages[dp_index].time = "";
+                    } else if (topicStr.endsWith("/month/set")) {
+                        displayPages[dp_index].month = message.c_str();
+                    } else if (topicStr.endsWith("/day/set")) {
+                        displayPages[dp_index].day = message.c_str();
+                    } else if (topicStr.endsWith("/time/set")) {
+                        displayPages[dp_index].time = message.c_str();
+                    }
                     xSemaphoreGive(xDisplayDataMutex);
                 }
             }
