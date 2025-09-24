@@ -5,14 +5,20 @@ blueprint:
     Ideal for starting scenes or reacting to events.
   domain: automation
   input:
-    target_device:
-      name: Time Circuits Device
-      description: Select the BTTF Time Circuits clock device to control.
+    destination_year_entity:
+      name: Destination Year Entity
+      description: The 'number' entity that controls the destination year.
       selector:
-        device:
-          manufacturer: "Doc Brown Industries"
-          model: "BTTF Clock v1"
-
+        entity:
+          domain: number
+          integration: mqtt
+    trigger_animation_button:
+      name: Trigger Animation Button
+      description: The 'button' entity that triggers the time travel animation.
+      selector:
+        entity:
+          domain: button
+          integration: mqtt
     destination_year:
       name: Destination Year
       description: The four-digit year to travel to.
@@ -21,38 +27,15 @@ blueprint:
         number:
           min: 1000
           max: 9999
-          
-    destination_date_time:
-      name: Destination Date and Time
-      description: The exact date and time to trigger the animation. Leave blank to trigger immediately.
-      default: ""
-      selector:
-        datetime:
 
-trigger:
-  - platform: time
-    at: !input destination_date_time
-
-variables:
-  target_device_id: !input target_device
-  dest_year_entity: >
-    {{ device_entities(target_device_id) | select('search', 'destination_year') | first }}
-  trigger_anim_entity: >
-    {{ device_entities(target_device_id) | select('search', 'trigger_animation') | first }}
-  ack_topic: >
-    "timecircuits/{{ device_attr(target_device_id, 'identifiers')[0][1] }}/destination_year/state"
+trigger: []
 
 action:
   - service: number.set_value
     target:
-      entity_id: "{{ dest_year_entity }}"
+      entity_id: !input destination_year_entity
     data:
       value: !input destination_year
-  - wait_for_trigger:
-      - platform: mqtt
-        topic: "{{ ack_topic }}"
-        payload: "{{ destination_year }}"
-    timeout: "00:00:10"
   - service: button.press
     target:
-      entity_id: "{{ trigger_anim_entity }}"
+      entity_id: !input trigger_animation_button

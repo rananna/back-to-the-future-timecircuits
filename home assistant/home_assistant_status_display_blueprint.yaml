@@ -97,7 +97,12 @@ blueprint:
 
 variables:
   device_id: !input target_device
-  device_name: "{{ device_attr(device_id, 'name') | lower | replace(' ', '_') }}"
+  # Find the main status sensor entity associated with the device.
+  status_entity: >
+    {{ device_entities(device_id) | select('search', '_status') | first }}
+  # Extract its object_id (e.g., 'time_circuits_display_status') and remove the '_status' suffix
+  # to get the reliable base name for all other entities (e.g., 'time_circuits_display').
+  device_base_name: "{{ state_attr(status_entity, 'object_id').replace('_status', '') }}"
 
   # Create a dictionary of the inputs to loop through
   segments:
@@ -128,6 +133,6 @@ action:
           then:
             - service: text.set_value
               target:
-                entity_id: "text.{{ device_name }}_{{ repeat.item.key }}"
+                entity_id: "text.{{ device_base_name }}_{{ repeat.item.key }}"
               data:
                 value: "{{ repeat.item.value }}"
