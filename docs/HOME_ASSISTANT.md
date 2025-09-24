@@ -238,12 +238,12 @@ This "callable" blueprint lets you push any entity state or template-driven text
 ### 5. BTTF - Radio Streamer
 > **Purpose:** To start or stop an internet radio stream on the clock's speaker.
 
-This is a "callable" blueprint, designed to be an action in your other automations. It will display "RADIO" on the center display while the stream is active.
+This is a "callable" blueprint, designed to be an action in your other automations. It will display "RADIO..." on the center display while the stream is active.
 
 * **How to Use:**
     1.  Call this blueprint as an action from another automation or script.
     2.  Provide the full URL of an internet radio stream to start playing it.
-    3.  To stop the current stream, simply enter the command `stop`.
+    3.  To stop the current stream, simply provide the command `stop`.
 
 ### 6. BTTF - TTS Notifier
 > **Purpose:** To play audio announcements from Home Assistant's Text-to-Speech (TTS) services on the clock's speaker.
@@ -340,28 +340,6 @@ The "BTTF - Dynamic Marquee Display" blueprint can be made even more powerful wi
 > BUS IN {{ (as_timestamp(states.sensor.next_bus.state) - as_timestamp(now())) | timestamp_custom('%M') }} MIN
 > ```
 
-### **Deep Dive: How the Marquee Push Works**
-The marquee feature allows you to display any information from your smart home directly on your clock. Here’s a detailed breakdown of how it works, from your Home Assistant automation to the pixels on the display.
-
-1.  **The Blueprint (The "Messenger")**
-    *   You use the **"BTTF - Dynamic Marquee Display"** blueprint to create a "callable" automation. In this blueprint, you select your Time Circuits device and the marquee slot you want to control.
-    *   When you call this blueprint from another automation or a script, it takes the text you provide and uses the `text.set_value` service.
-
-2.  **Home Assistant Core (The "Dispatcher")**
-    *   Home Assistant receives the `text.set_value` service call. It knows which device and entity to target based on the blueprint's configuration.
-    *   It then constructs the appropriate MQTT message and publishes it to the command topic for that specific marquee text entity (e.g., `timecircuits/BTTF_TC_123456/datapoint_0_marquee/command`).
-
-3.  **MQTT (The "Postal Service")**
-    *   The MQTT broker receives this single message and immediately forwards it to the Time Circuits clock, which is subscribed to a wildcard topic (`timecircuits/BTTF_TC_123456/+/command`) that catches all commands for the device.
-
-4.  **The Firmware (Receiving and Displaying the Mail)**
-    *   The `mqttCallback` function in the clock's firmware receives the message.
-    *   It parses the topic and sees that the command is for a specific marquee slot.
-    *   It then takes the text from the message payload and stores it in the corresponding `scrollingText` variable for that data point.
-    *   The `DisplayManager` detects this change and immediately begins rendering the new text on the physical LED marquee.
-
-This simplified, modern approach is more efficient and reliable than the previous method, which involved splitting text into multiple small chunks. It leverages Home Assistant's built-in services for a cleaner and more robust integration.
-
 ### **Deep Dive: Creating Custom Audio-Visual Alerts**
 While the **BTTF - Advanced Notifier** blueprint is the easiest way to create temporary alerts, you can build them manually in your own automations using the dedicated notification entities. This gives you maximum flexibility.
 
@@ -403,6 +381,13 @@ action:
     target:
       entity_id: switch.YOUR_CLOCK_ID_override_switch
 ```
+
+### **How the Integration Works**
+This integration uses Home Assistant's MQTT Auto-Discovery protocol. When the clock connects to your MQTT broker, it publishes a special message to a specific topic that tells Home Assistant how to create and configure all the entities (switches, sensors, etc.).
+
+Once discovered, all communication happens through these standard Home Assistant entities. For example, when you change the "Destination Year" in your dashboard, Home Assistant sends a command to the clock via MQTT. The clock then updates its display and reports the new state back to Home Assistant.
+
+This approach ensures that the state is always synchronized and that you can rely on standard Home Assistant services and UI components to control the clock. For more advanced control, such as audio playback, some blueprints may use direct MQTT communication for features that do not yet have a dedicated entity.
 
 <details>
 <summary><strong>Advanced: MQTT Topic Reference</strong></summary>
