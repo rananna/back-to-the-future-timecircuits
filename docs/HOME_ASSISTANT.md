@@ -9,7 +9,7 @@ This guide will walk you through setup, features, troubleshooting, and advanced 
 > Already familiar with MQTT and Home Assistant? Here's the fast track:
 > 1.  **Configure:** Add your MQTT Broker details in the clock's **Data Link** web UI and save the settings.
 > 2.  **Discover:** The clock will auto-discover in Home Assistant under the MQTT integration.
-> 3.  **Control:** Use the `button.time_circuits_display_trigger_animation` entity to test an animation and the `number.time_circuits_display_destination_year` to set the year.
+> 3.  **Control:** Use the `button.time_circuits_display_trigger_animation` entity to test an animation and the `text.time_circuits_display_dest_year` to set the year.
 > 4.  **Automate:** Check out the **[Guide to Blueprints](#guide-to-blueprints)** for the easiest way to create automations.
 
 ***
@@ -101,7 +101,8 @@ Twelve `text` entities have been created to give you direct, granular control ov
 
 #### **Marquee & DataLink**
 *   **`number.time_circuits_display_datalink_refresh`**: Sets the refresh interval for all API-based DataLink points.
-*   **`select.time_circuits_display_datapoint_0_source`**: Sets the data source for marquee slot 1 (and 4 others).
+*   **`switch.time_circuits_display_datapoint_0_enabled`**: A switch to enable or disable the marquee in Data Point slot 1. There are 4 others, one for each data point.
+*   **`text.time_circuits_display_datapoint_0_marquee`**: A text input for setting the scrolling marquee message in Data Point slot 1. There are 4 others, one for each data point.
 
 #### **Stock Ticker Mode**
 The Stock Ticker mode transforms the bottom display row into a scrolling marquee of financial data.
@@ -193,12 +194,10 @@ This "callable" blueprint lets you push any entity state or template-driven text
 > **Purpose:** To display a single, scrolling line of text on one of the five DataLink marquee slots.
 
 * **How to Use:**
-    1.  In the clock's web UI, set the **Data Point Source** to **"Home Assistant Push"** for the slot you want to use.
-    2.  Create a new automation using the "BTTF - Dynamic Marquee Display" blueprint. This blueprint is "callable," meaning you will call it from another automation.
-    3.  Select your Time Circuits device and the correct **Data Point Slot**.
-    4.  Enter the text or template you want to display. The blueprint will use the first 16 characters of your text.
+    1.  Create a new automation using the "BTTF - Dynamic Marquee Display" blueprint. This blueprint is "callable," meaning you will call it from another automation.
+    2.  Select your Time Circuits device and the correct **Data Point Slot**.
+    3.  Enter the text or template you want to display. The blueprint will send this text directly to the device.
 * **Example Scenario: "Display Power and Temp"**
-    * **Web UI:** Data Point 1 Source is set to "Home Assistant Push".
     * **Automation Action:** Call the blueprint, targeting Data Point Slot 1.
     * **Marquee Text:** `PWR {{ states('sensor.home_power_usage') }} W`
     * **Result:** Whenever you call this action, the first marquee slot will be updated to show the current power usage (e.g., `PWR 1210 W`).
@@ -290,7 +289,7 @@ cards:
   - type: entities
     title: Core Controls
     entities:
-      - entity: number.time_circuits_display_destination_year
+      - entity: text.time_circuits_display_dest_year
       - entity: select.time_circuits_display_last_departed_preset
       - entity: number.time_circuits_display_brightness
       - entity: number.time_circuits_display_volume
@@ -324,51 +323,26 @@ The "BTTF - Dynamic Marquee Display" blueprint can be made even more powerful wi
 > ```
 
 ### **Deep Dive: How the Marquee Push Works**
-The "Home Assistant Push" feature for the DataLink marquee is a powerful way to display any information from your smart home directly on your clock. Here’s a detailed breakdown of how it works, from your Home Assistant automation to the pixels on the display.
+The marquee feature allows you to display any information from your smart home directly on your clock. Here’s a detailed breakdown of how it works, from your Home Assistant automation to the pixels on the display.
 
-1.  **User Configuration (The "Address Label")**
-    *   **In the Web UI**: You start by going to the **Data Link** tab on the clock's web interface. For one of the five data points, you select **"Home Assistant Push"** as the **Data Source**. This tells the clock that this specific marquee slot should listen for messages from Home Assistant.
-    *   **In Home Assistant**: You use the **"BTTF - Dynamic Marquee Display"** blueprint to create an automation. In this automation, you select the same **Marquee Data Slot** you configured in the web UI. This is like putting the correct address on your letter.
+1.  **The Blueprint (The "Messenger")**
+    *   You use the **"BTTF - Dynamic Marquee Display"** blueprint to create a "callable" automation. In this blueprint, you select your Time Circuits device and the marquee slot you want to control.
+    *   When you call this blueprint from another automation or a script, it takes the text you provide and uses the `text.set_value` service.
 
-2.  **The Blueprint (Packaging the Data)**
-    When the entity you are monitoring in Home Assistant changes its state, the blueprint automation triggers. It takes the first 16 characters of the text you defined (e.g., `PWR: 1210 W`) and splits it into four 4-character chunks. It then sends these chunks as four separate MQTT messages to the `month`, `day`, `year`, and `time` topics for the selected marquee slot.
+2.  **Home Assistant Core (The "Dispatcher")**
+    *   Home Assistant receives the `text.set_value` service call. It knows which device and entity to target based on the blueprint's configuration.
+    *   It then constructs the appropriate MQTT message and publishes it to the command topic for that specific marquee text entity (e.g., `timecircuits/BTTF_TC_123456/datapoint_0_marquee/command`).
 
-    *Example of the logic in `bttf_dynamic_marquee_display_blueprint.yaml`*:
-    ```yaml
-    action:
-      - service: mqtt.publish
-        data:
-          topic: "timecircuits/{{ ... }}/datapoint/{{ slot }}/month/set"
-          payload: "{{ marquee_month }}" # First 4 chars
-      - service: mqtt.publish
-        data:
-          topic: "timecircuits/{{ ... }}/datapoint/{{ slot }}/day/set"
-          payload: "{{ marquee_day }}" # Next 4 chars
-      # ...and so on for year and time.
-    ```
+3.  **MQTT (The "Postal Service")**
+    *   The MQTT broker receives this single message and immediately forwards it to the Time Circuits clock, which is subscribed to a wildcard topic (`timecircuits/BTTF_TC_123456/+/command`) that catches all commands for the device.
 
-3.  **MQTT (The Postal Service)**
-    The blueprint sends these four messages to your MQTT broker. The broker acts as a central hub, immediately forwarding the messages to any device that has subscribed to these exact topics.
+4.  **The Firmware (Receiving and Displaying the Mail)**
+    *   The `mqttCallback` function in the clock's firmware receives the message.
+    *   It parses the topic and sees that the command is for a specific marquee slot.
+    *   It then takes the text from the message payload and stores it in the corresponding `scrollingText` variable for that data point.
+    *   The `DisplayManager` detects this change and immediately begins rendering the new text on the physical LED marquee.
 
-4.  **The Firmware (Receiving the Mail)**
-    When your clock connects to the MQTT broker, it checks the configuration for each data point. If a data point is set to "Home Assistant Push", the firmware subscribes to the four corresponding MQTT topics for that slot.
-
-    *Code Snippet (`MqttManager.cpp`):*
-    ```cpp
-    if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_HA) {
-      String base_dp_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/datapoint/" + String(i);
-      mqttClient.subscribe((base_dp_topic + "/year/set").c_str());
-      // ...and for month, day, time
-    }
-    ```
-
-5.  **The Callback (Opening the Letter)**
-    When a message arrives, the `mqttCallback` function in the firmware is executed. It parses the topic to determine which data point (e.g., `0` for slot 1) and which segment (`year`) the message is for.
-
-6.  **Storing and Displaying the Data**
-    The function then places the text from the message payload into the correct position in a global array called `displayPages`. Another part of the firmware, the `DisplayManager`, constantly monitors this array. When it detects a change, it takes the new text, applies any scrolling or formatting, and sends it to be rendered on the physical LED marquee.
-
-This entire process happens in milliseconds, resulting in a near-instantaneous update on your clock's display whenever the data changes in Home Assistant.
+This simplified, modern approach is more efficient and reliable than the previous method, which involved splitting text into multiple small chunks. It leverages Home Assistant's built-in services for a cleaner and more robust integration.
 
 ### **Deep Dive: Creating Custom Audio-Visual Alerts**
 While the **BTTF - Advanced Notifier** blueprint is the easiest way to create custom alerts, you can build them manually in your own automations by publishing directly to the clock's MQTT topics. This gives you maximum flexibility.

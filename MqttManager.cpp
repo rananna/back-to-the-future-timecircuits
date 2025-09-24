@@ -252,19 +252,10 @@ void publishHaAutoDiscovery() {
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
 
+    // This sensor has been replaced by the more specific `..._marquee` text entity and `..._enabled` switch.
+    // We will now clear any old entities that may exist from previous versions.
     for (int i=0; i < 5; ++i) {
-        doc.clear();
-        doc["name"] = "Data Point " + String(i + 1);
-        String id_suffix = "datapoint_" + String(i);
-        doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = "mdi:form-textbox";
-        doc["device"] = device;
-        doc["availability"] = availability;
-        topic = String(MQTT_BASE_TOPIC) + "/sensor/" + doc["object_id"].as<String>() + "/config";
-        serializeJson(doc, payload);
-        mqttClient.publish(topic.c_str(), payload.c_str(), true);
+        clearHaEntity("sensor", "datapoint_" + String(i));
     }
 
 
@@ -408,7 +399,8 @@ void publishHaAutoDiscovery() {
         String id_suffix = cfg[0];
         doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
         doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["command_topic"] = device_base_topic + "/stock/" + (String(cfg[0]).endsWith("next") ? "next" : "previous") + "/command";
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["payload_press"] = "PRESS";
         doc["icon"] = cfg[2];
         doc["entity_category"] = "config";
         doc["device"] = device;
@@ -524,14 +516,9 @@ void reconnectMqtt() {
       if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !currentSettings.dataPoints[i].mqttTopic.empty()) {
         mqttClient.subscribe(currentSettings.dataPoints[i].mqttTopic.c_str());
       }
-      if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_HA) {
-        String base_dp_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/datapoint/" + String(i);
-        mqttClient.subscribe((base_dp_topic + "/month/set").c_str());
-        mqttClient.subscribe((base_dp_topic + "/day/set").c_str());
-        mqttClient.subscribe((base_dp_topic + "/year/set").c_str());
-        mqttClient.subscribe((base_dp_topic + "/time/set").c_str());
-        Log_printf(LOG_LEVEL_DEBUG, "Subscribed to HA push topics for data point %d", i);
-      }
+      // The complex, four-part subscription for HA Push has been removed.
+      // All control is now handled via the wildcard command_topic subscription
+      // and the `text.time_circuits_display_datapoint_X_marquee` entities.
     }
   } else {
     const char* error_str = "Unknown";
@@ -744,9 +731,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "stock_ticker_mode") {
             currentSettings.stockTickerModeEnabled = (message == "ON");
             settingsChanged = true;
-        } else if (component == "stock") {
-            if (topicStr.endsWith("/next/command")) stockManager.nextPage();
-            else if (topicStr.endsWith("/previous/command")) stockManager.previousPage();
+        } else if (component == "stock_next" && message == "PRESS") {
+            stockManager.nextPage();
+        } else if (component == "stock_previous" && message == "PRESS") {
+            stockManager.previousPage();
         }
     } else if (topicStr == base_topic + "tts/play") {
         JsonDocument doc;
@@ -758,25 +746,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     } else if (topicStr == base_topic + "radio/command") {
         if (message == "stop") stopAudioStream();
         else startAudioStream(message.c_str(), false);
-    } else if (topicStr.startsWith(base_topic + "datapoint/")) {
-        int dp_index = topicStr.substring(base_topic.length() + 10, topicStr.indexOf('/', base_topic.length() + 10)).toInt();
-        if (dp_index >= 0 && dp_index < 5) {
-            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                if (topicStr.endsWith("/year/set")) {
-                    displayPages[dp_index].year = message.c_str();
-                    displayPages[dp_index].month = "";
-                    displayPages[dp_index].day = "";
-                    displayPages[dp_index].time = "";
-                } else if (topicStr.endsWith("/month/set")) {
-                    displayPages[dp_index].month = message.c_str();
-                } else if (topicStr.endsWith("/day/set")) {
-                    displayPages[dp_index].day = message.c_str();
-                } else if (topicStr.endsWith("/time/set")) {
-                    displayPages[dp_index].time = message.c_str();
-                }
-                xSemaphoreGive(xDisplayDataMutex);
-            }
-        }
     } else {
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
             if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
@@ -867,15 +836,7 @@ void publishAllHaStates() {
     
     mqttClient.publish((base_topic + "/temporal_echo/state").c_str(), isEchoEffectActive ? "ON" : "OFF", true);
 
-    for(int i=0; i<5; ++i) {
-        String topic = base_topic + "/datapoint_" + String(i) + "/state";
-        std::string fullText = "";
-        if (!displayPages[i].month.empty()) fullText += displayPages[i].month;
-        if (!displayPages[i].day.empty()) { if (!fullText.empty()) fullText += " "; fullText += displayPages[i].day; }
-        if (!displayPages[i].year.empty()) { if (!fullText.empty()) fullText += " "; fullText += displayPages[i].year; }
-        if (!displayPages[i].time.empty()) { if (!fullText.empty()) fullText += " "; fullText += displayPages[i].time; }
-        mqttClient.publish(topic.c_str(), fullText.c_str(), true);
-    }
+    // This state publishing has been removed as the sensor it belongs to was removed.
 
     mqttClient.publish((base_topic + "/stock_ticker_mode/state").c_str(), currentSettings.stockTickerModeEnabled ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
