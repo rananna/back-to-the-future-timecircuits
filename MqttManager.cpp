@@ -571,11 +571,9 @@ void reconnectMqtt() {
  * @param length The length of the payload.
  */
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
-    String message = "";
-    message.reserve(length);
-    for (unsigned int i = 0; i < length; i++) {
-        message += (char)payload[i];
-    }
+    // Dynamically allocate a buffer for the message to avoid stack overflow
+    // and accommodate larger payloads (e.g., for long marquee text).
+    std::string message(reinterpret_cast<char*>(payload), length);
 
     String topicStr = String(topic);
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/";

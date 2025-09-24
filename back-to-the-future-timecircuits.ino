@@ -26,6 +26,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
 #include <LittleFS.h>
+#define MQTT_MAX_PACKET_SIZE 1024
 #include <PubSubClient.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>

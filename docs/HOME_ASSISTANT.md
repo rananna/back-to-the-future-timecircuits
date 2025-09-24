@@ -172,98 +172,129 @@ To make the most powerful features easy to use, this project includes several Ho
 
 ## **Guide to Blueprints**
 
+Many of the included blueprints are **"callable,"** which means they don't have their own trigger. Instead, you use them as a building block inside your own automations. This makes them incredibly flexible.
+
+A common pattern is:
+1.  **Your Automation Trigger:** A sensor changes, a time is reached, etc.
+2.  **Your Automation Action:** Call a service, and select "Blueprint" as the action type. Choose one of the BTTF blueprints and fill in its inputs.
+
 ### **1. BTTF - Advanced Notifier**
 > **Purpose:** To display a temporary, multi-line message on the clock, with an optional sound effect.
 
-* **How to Use:**
-    1.  Create a new automation and select the "BTTF - Advanced Notifier" blueprint.
-    2.  **Trigger:** Define what event should trigger this notification (e.g., a door opening, a weather alert).
-    3.  **Time Circuits Display:** Select your `Time Circuits Display` device.
-    4.  **Message:** Enter the text to display. Use `\n` to separate lines, which will be shown on the Destination, Present, and Last Departed rows respectively.
-    5.  **Display Duration:** Set how long the message should stay on screen.
-    6.  **Sound Effect:** Optionally choose a sound to play with the message.
+* **How to Use:** In your automation's `action` section, choose the "BTTF - Advanced Notifier" blueprint and configure its inputs.
 * **Example Scenario: "Mailbox Alert"**
-    * **Trigger:** The `binary_sensor.mailbox_sensor` changes to `on`.
-    * **Message:** `\nMAIL\n` (The `\n` ensures the message appears on the middle row).
-    * **Sound Effect:** `CONFIRM_ON`
-    * **Result:** When the mailbox is opened, the middle row of the clock will display "MAIL" while playing a confirmation chime. The message will disappear after the configured duration.
+  ```yaml
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.mailbox_sensor
+      to: 'on'
+  action:
+    - blueprint:
+        path: home-assistant/bttf_advanced_notifier_blueprint.yaml
+        input:
+          target_device: "YOUR_DEVICE_ID_HERE"
+          message: "\nMAIL\n"
+          sound_effect: "CONFIRM_ON"
+          duration: 60
+  ```
 
 ### **2. BTTF - Home Assistant Status Display**
 > **Purpose:** To use the main displays as a highly customizable, 12-segment status panel for your smart home.
 
-This "callable" blueprint lets you push any entity state or template-driven text to any of the 12 display segments. Because it has no trigger, you call it as an action from your own automations, giving you full control over when the displays update.
-
-* **How to Use:**
-    1.  In your own automation, add an `action` that calls this blueprint.
-    2.  Select your Time Circuits device.
-    3.  For any of the 12 segments (e.g., `Destination Month`, `Present Time`), enter the static text or template you want to display.
-    4.  The blueprint will only update the segments you've filled in.
+* **How to Use:** This is a "callable" blueprint. In your automation's `action` block, call this blueprint and fill in any of the 12 segment fields with static text or templates.
+* **Important Note on Text Length:** The physical displays have character limits for each segment.
+    - **Month:** 3 characters (right-justified)
+    - **Day:** 2 characters (center-justified)
+    - **Year & Time:** 4 characters each
+    If you provide text that exceeds these limits, the entire row will automatically begin to scroll the full text.
 * **Example Scenario: "Living Room Dashboard"**
-    * **Automation Trigger:** The state of `sensor.living_room_temperature` or `sensor.living_room_humidity` changes.
-    * **Blueprint Action:**
-        *   **Destination Month:** `LIV`
-        *   **Destination Day:** `ING`
-        *   **Destination Year:** `ROOM`
-        *   **Present Month:** `TEMP`
-        *   **Present Day:** `{{ states('sensor.living_room_temperature') }}`
-        *   **Present Year:** `°F`
-        *   **Last Departed Month:** `HUM`
-        *   **Last Departed Day:** `{{ states('sensor.living_room_humidity') }}`
-        *   **Last Departed Year:** `%`
-    * **Result:** The clock becomes a dedicated information panel for your living room, showing static labels and dynamic sensor values.
+  ```yaml
+  trigger:
+    - platform: state
+      entity_id:
+        - sensor.living_room_temperature
+        - sensor.living_room_humidity
+  action:
+    - blueprint:
+        path: home-assistant/bttf_status_display_blueprint.yaml
+        input:
+          target_device: "YOUR_DEVICE_ID_HERE"
+          destination_month: "LIV"
+          destination_day: "ING"
+          destination_year: "ROOM"
+          present_month: "TEMP"
+          present_day: "{{ states('sensor.living_room_temperature') }}"
+          present_year: "°F"
+          last_departed_month: "HUM"
+          last_departed_day: "{{ states('sensor.living_room_humidity') }}"
+          last_departed_year: "%"
+  ```
 
 ### **3. BTTF - Dynamic Marquee Display**
 > **Purpose:** To display a single, scrolling line of text on one of the five DataLink marquee slots.
 
-* **How to Use:**
-    1.  Create a new automation using the "BTTF - Dynamic Marquee Display" blueprint. This blueprint is "callable," meaning you will call it from another automation.
-    2.  Select your Time Circuits device and the correct **Data Point Slot**.
-    3.  Enter the text or template you want to display. The blueprint will send this text directly to the device.
+* **How to Use:** Call this "callable" blueprint from your automation's `action` block.
 * **Example Scenario: "Display Power and Temp"**
-    * **Automation Action:** Call the blueprint, targeting Data Point Slot 1.
-    * **Marquee Text:** `PWR {{ states('sensor.home_power_usage') }} W`
-    * **Result:** Whenever you call this action, the first marquee slot will be updated to show the current power usage (e.g., `PWR 1210 W`).
+  ```yaml
+  trigger:
+    - platform: state
+      entity_id: sensor.home_power_usage
+  action:
+    - blueprint:
+        path: home-assistant/bttf_dynamic_marquee_display_blueprint.yaml
+        input:
+          target_device: "YOUR_DEVICE_ID_HERE"
+          data_point_slot: "1"
+          text: "PWR {{ states('sensor.home_power_usage') }} W"
+  ```
 
 ### **4. BTTF - Cinematic Scene Trigger**
 > **Purpose:** A simple way to create an automation that sets a destination year and immediately triggers the full time travel animation sequence.
 
-* **How to Use:**
-    1.  Create a new automation and select the "BTTF - Cinematic Scene Trigger" blueprint.
-    2.  **Trigger:** Define the event that should start the scene (e.g., a button press, a specific time).
-    3.  **Time Circuits Device:** Select your clock device from the dropdown. The blueprint handles the rest.
-    4.  **Destination Year:** Enter the four-digit year you want to travel to.
+* **How to Use:** This blueprint is self-contained and includes its own trigger, so you can create an automation directly from it without needing to call it from another.
 * **Example Scenario: "Lightning Strike at 10:04 PM"**
-    * **Trigger:** Time is `22:04:00`.
-    * **Destination Year:** `1955`
-    * **Result:** Every night at 10:04 PM, the clock will automatically set its destination to 1955 and play the full, cinematic time travel animation, complete with sound effects.
+    1. Go to **Settings > Automations & Scenes** and create a new automation.
+    2. Select the "BTTF - Cinematic Scene Trigger" blueprint.
+    3. Set the trigger to be a Time trigger at `22:04:00`.
+    4. Choose your Time Circuits device and set the **Destination Year** to `1955`.
 
 ### 5. BTTF - Radio Streamer
 > **Purpose:** To start or stop an internet radio stream on the clock's speaker.
 
-This is a "callable" blueprint, designed to be an action in your other automations. It will display "RADIO..." on the center display while the stream is active.
-
-* **How to Use:**
-    1.  Call this blueprint as an action from another automation or script.
-    2.  Provide the full URL of an internet radio stream to start playing it.
-    3.  To stop the current stream, simply provide the command `stop`.
+* **How to Use:** This is a "callable" blueprint. From your automation's `action` block, call this blueprint and provide a radio stream URL or the command `stop`.
+* **Example Scenario: "Play Radio on Demand"**
+  ```yaml
+  trigger:
+    # Triggered by a helper button on our dashboard
+    - platform: state
+      entity_id: input_button.play_radio
+  action:
+    - blueprint:
+        path: home-assistant/bttf_radio_streamer_blueprint.yaml
+        input:
+          target_device: "YOUR_DEVICE_ID_HERE"
+          radio_command: "http://stream.url/your_station"
+  ```
 
 ### 6. BTTF - TTS Notifier
 > **Purpose:** To play audio announcements from Home Assistant's Text-to-Speech (TTS) services on the clock's speaker.
 
-This "callable" blueprint makes it easy to use your Time Circuits clock as a voice notification device.
-
-* **How to Use:**
-    1.  Call this blueprint as an action from another automation or script.
-    2.  Provide the `tts_service` (e.g., `tts.google_en_com`), the `message_text` to be spoken, and an optional `display_text` to show on the clock.
-    3.  The display text will automatically clear after the announcement is finished.
-
+* **How to Use:** This is a "callable" blueprint. Call it from your automation's `action` block to have the clock speak a message.
 * **Example Scenario: "Announce Driveway Alert"**
-    * **Automation Trigger:** A motion sensor in the driveway is activated.
-    * **Blueprint Action:**
-        *   **Message Text:** "Someone is in the driveway."
-        *   **Display Text:** `ALERT\nDRIVE\nWAY`
-        *   **Volume:** 90
-    * **Result:** The clock's display will show the alert message on its three rows while loudly announcing that someone is in the driveway.
+  ```yaml
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.driveway_motion
+      to: 'on'
+  action:
+    - blueprint:
+        path: home-assistant/bttf_tts_notifier_blueprint.yaml
+        input:
+          target_device: "YOUR_DEVICE_ID_HERE"
+          message_text: "Someone is in the driveway."
+          display_text: "ALERT\nDRIVE\nWAY"
+          volume: 90
+  ```
 
 > **💡 Pro Tip:** For more complex visual alerts that change based on sensor states, we recommend calling the **BTTF - Home Assistant Status Display** blueprint right before calling this one to create rich, informative notifications.
 
