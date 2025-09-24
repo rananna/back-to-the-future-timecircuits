@@ -1,6 +1,6 @@
 # Back to the Future Time Circuits: Home Assistant Automations
 
-This document provides a list of useful and creative automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `bttf_timecircuits_01` in Home Assistant.
+This document provides a list of useful and creative automations to demonstrate how you can integrate the Time Circuits display into your smart home. These examples assume your device is named `timecircuits_01` in Home Assistant.
 
 ---
 
@@ -91,13 +91,13 @@ trigger:
 action:
   - service: number.set_value
     target:
-      entity_id: number.bttf_timecircuits_01_dest_year
+      entity_id: number.timecircuits_01_dest_year
     data:
       value: "1985"
   - delay: "00:00:02"
   - service: button.press
     target:
-      entity_id: button.bttf_timecircuits_01_trigger_animation
+      entity_id: button.timecircuits_01_trigger_animation
 ```
 </details>
 
@@ -115,12 +115,12 @@ trigger:
 action:
   - service: number.set_value
     target:
-      entity_id: number.bttf_timecircuits_01_dest_year
+      entity_id: number.timecircuits_01_dest_year
     data:
       value: "2015"
   - service: button.press
     target:
-      entity_id: button.bttf_timecircuits_01_trigger_animation
+      entity_id: button.timecircuits_01_trigger_animation
 ```
 </details>
 
@@ -134,7 +134,7 @@ alias: "BTTF - Sync the Clocks"
 trigger:
   - platform: device
     device_id: YOUR_DEVICE_ID_HERE
-    domain: bttf-clock
+    domain: timecircuits
     type: animation_started
 action:
   - service: light.turn_on
@@ -155,7 +155,7 @@ alias: "BTTF - Paradox Glitch"
 trigger:
   - platform: device
     device_id: YOUR_DEVICE_ID_HERE
-    domain: bttf-clock
+    domain: timecircuits
     type: malfunction_triggered
 action:
   - service: light.turn_on
@@ -179,12 +179,12 @@ trigger:
 action:
   - service: number.set_value
     target:
-      entity_id: number.bttf_timecircuits_01_dest_year
+      entity_id: number.timecircuits_01_dest_year
     data:
       value: "1985" # Your birth year
   - service: button.press
     target:
-      entity_id: button.bttf_timecircuits_01_trigger_animation
+      entity_id: button.timecircuits_01_trigger_animation
 ```
 </details>
 
@@ -206,7 +206,7 @@ trigger:
 action:
   - service: switch.turn_on
     target:
-      entity_id: switch.bttf_timecircuits_01_power
+      entity_id: switch.timecircuits_01_power
 ```
 </details>
 
@@ -224,7 +224,7 @@ trigger:
 action:
   - service: switch.turn_off
     target:
-      entity_id: switch.bttf_timecircuits_01_power
+      entity_id: switch.timecircuits_01_power
 ```
 </details>
 
@@ -242,10 +242,10 @@ trigger:
 action:
   - service: switch.turn_on
     target:
-      entity_id: switch.bttf_timecircuits_01_power
+      entity_id: switch.timecircuits_01_power
   - service: number.set_value
     target:
-      entity_id: number.bttf_timecircuits_01_dest_year
+      entity_id: number.timecircuits_01_dest_year
     data:
       value: "{{ now().year }}"
 ```
@@ -265,12 +265,12 @@ trigger:
 action:
   - service: number.set_value
     target:
-      entity_id: number.bttf_timecircuits_01_brightness
+      entity_id: number.timecircuits_01_brightness
     data:
       value: "1"
   - service: switch.turn_off
     target:
-      entity_id: switch.bttf_timecircuits_01_datapoint_0_enabled
+      entity_id: switch.timecircuits_01_datapoint_0_enabled
 ```
 </details>
 
@@ -288,7 +288,7 @@ trigger:
 action:
   - service: switch.turn_off
     target:
-      entity_id: switch.bttf_timecircuits_01_power
+      entity_id: switch.timecircuits_01_power
 ```
 </details>
 
@@ -314,10 +314,10 @@ condition:
 action:
   - service: switch.turn_on
     target:
-      entity_id: switch.bttf_timecircuits_01_override_switch
+      entity_id: switch.timecircuits_01_override_switch
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_override_message
+      entity_id: text.timecircuits_01_override_message
     data:
       value: "SECURITY\nALERT\nFRONT DOOR"
 ```
@@ -337,10 +337,10 @@ trigger:
 action:
   - service: switch.turn_on
     target:
-      entity_id: switch.bttf_timecircuits_01_override_switch
+      entity_id: switch.timecircuits_01_override_switch
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_override_message
+      entity_id: text.timecircuits_01_override_message
     data:
       value: "SEVERE\nWEATHER\n{{ states('sensor.weather_alert_type') }}"
 ```
@@ -363,7 +363,7 @@ condition:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_2_marquee
+      entity_id: text.timecircuits_01_datapoint_2_marquee
     data:
       value: "TRASH NIGHT"
 ```
@@ -383,7 +383,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_3_marquee
+      entity_id: text.timecircuits_01_datapoint_3_marquee
     data:
       value: "CHARGE PHONE"
 ```
@@ -405,7 +405,7 @@ condition:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_0_marquee
+      entity_id: text.timecircuits_01_datapoint_0_marquee
     data:
       value: "WELCOME {{ trigger.event.data.host_name }}"
 ```
@@ -428,7 +428,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_0_marquee
+      entity_id: text.timecircuits_01_datapoint_0_marquee
     data:
       value: "AAPL ${{ states('sensor.aapl_stock_price') }}"
 ```
@@ -447,7 +447,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_1_marquee
+      entity_id: text.timecircuits_01_datapoint_1_marquee
     data:
       value: "SCORE {{ states('sensor.favorite_team_score') }}"
 ```
@@ -466,7 +466,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_2_marquee
+      entity_id: text.timecircuits_01_datapoint_2_marquee
     data:
       value: "SUBS {{ states('sensor.youtube_subscriber_count') }}"
 ```
@@ -485,7 +485,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_3_marquee
+      entity_id: text.timecircuits_01_datapoint_3_marquee
     data:
       value: "SPACE {{ states('sensor.people_in_space') }}"
 ```
@@ -504,7 +504,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_4_marquee
+      entity_id: text.timecircuits_01_datapoint_4_marquee
     data:
       value: "NET {{ states('sensor.speedtest_download') }} Mbps"
 ```
@@ -524,26 +524,26 @@ alias: "BTTF - Countdown Script"
 sequence:
   - service: switch.turn_on
     target:
-      entity_id: switch.bttf_timecircuits_01_override_switch
+      entity_id: switch.timecircuits_01_override_switch
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_override_message
+      entity_id: text.timecircuits_01_override_message
     data:
       value: "COUNTDOWN\n10"
   - delay: "00:00:01"
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_override_message
+      entity_id: text.timecircuits_01_override_message
     data:
       value: "COUNTDOWN\n09"
   # ... (repeat for each number down to 01)
   - delay: "00:00:01"
   - service: switch.turn_off
     target:
-      entity_id: switch.bttf_timecircuits_01_override_switch
+      entity_id: switch.timecircuits_01_override_switch
   - service: button.press
     target:
-      entity_id: button.bttf_timecircuits_01_trigger_animation
+      entity_id: button.timecircuits_01_trigger_animation
 ```
 </details>
 
@@ -560,7 +560,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_0_marquee
+      entity_id: text.timecircuits_01_datapoint_0_marquee
     data:
       value: "HELP ME DOC"
 ```
@@ -581,7 +581,7 @@ trigger:
 action:
   - service: select.select_option
     target:
-      entity_id: select.bttf_timecircuits_01_animation_style
+      entity_id: select.timecircuits_01_animation_style
     data:
       option: >
         {% if trigger.platform == 'sun' and trigger.event == 'sunset' %}
@@ -606,7 +606,7 @@ trigger:
 action:
   - service: button.press
     target:
-      entity_id: button.bttf_timecircuits_01_trigger_animation
+      entity_id: button.timecircuits_01_trigger_animation
 ```
 </details>
 
@@ -624,7 +624,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_0_marquee
+      entity_id: text.timecircuits_01_datapoint_0_marquee
     data:
       value: "SLOW DOWN!"
 ```
@@ -639,15 +639,15 @@ action:
 alias: "BTTF - Low Memory Reboot"
 trigger:
   - platform: numeric_state
-    entity_id: sensor.bttf_timecircuits_01_free_memory
+    entity_id: sensor.timecircuits_01_free_memory
     below: 20000  # 20 KB
 action:
   - service: switch.turn_on
     target:
-      entity_id: switch.bttf_timecircuits_01_override_switch
+      entity_id: switch.timecircuits_01_override_switch
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_override_message
+      entity_id: text.timecircuits_01_override_message
     data:
       value: "REBOOTING\nLOW MEMORY"
   - delay: "00:00:10"
@@ -671,7 +671,7 @@ trigger:
 action:
   - service: number.set_value
     target:
-      entity_id: number.bttf_timecircuits_01_dest_year
+      entity_id: number.timecircuits_01_dest_year
     data:
       value: "{{ state_attr('calendar.your_calendar', 'start_time').split(' ')[0].split('-')[0] }}"
 ```
@@ -690,7 +690,7 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_3_marquee
+      entity_id: text.timecircuits_01_datapoint_3_marquee
     data:
       value: >
         GOAL ${{ states('input_number.savings_goal_current') }} / ${{ states('input_number.savings_goal_target') }}
@@ -707,19 +707,19 @@ alias: "BTTF - Rotating Reminders Script"
 sequence:
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_4_marquee
+      entity_id: text.timecircuits_01_datapoint_4_marquee
     data:
       value: "REMINDER: WATER THE PLANTS"
   - delay: "00:01:00"
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_4_marquee
+      entity_id: text.timecircuits_01_datapoint_4_marquee
     data:
       value: "QUOTE: THE FUTURE IS WHATEVER YOU MAKE OF IT"
   - delay: "00:01:00"
   - service: text.set_value
     target:
-      entity_id: text.bttf_timecircuits_01_datapoint_4_marquee
+      entity_id: text.timecircuits_01_datapoint_4_marquee
     data:
       value: "TASK: TAKE OUT THE RECYCLING"
 mode: restart
