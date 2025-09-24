@@ -9,7 +9,7 @@ This guide will walk you through setup, features, troubleshooting, and advanced 
 > Already familiar with MQTT and Home Assistant? Here's the fast track:
 > 1.  **Configure:** Add your MQTT Broker details in the clock's **Data Link** web UI and save the settings.
 > 2.  **Discover:** The clock will auto-discover in Home Assistant under the MQTT integration.
-> 3.  **Control:** Use the `button.time_circuits_display_trigger_animation` entity to test an animation and the `text.time_circuits_display_dest_year` to set the year.
+> 3.  **Control:** Use the `button.YOUR_CLOCK_ID_trigger_animation` entity to test an animation and the `text.YOUR_CLOCK_ID_dest_year` to set the year.
 > 4.  **Automate:** Check out the **[Guide to Blueprints](#guide-to-blueprints)** for the easiest way to create automations.
 
 ***
@@ -44,7 +44,6 @@ Setting up the connection is straightforward. Once you enter your MQTT broker's 
 It uses **MQTT auto-discovery** to announce itself to your Home Assistant instance. A new device named "**Time Circuits Display**" will automatically appear in your MQTT integration, ready to be used with all its features and controls.
 
 <p align="center">
-  <img src="../images/ha_screenshot.png" alt="Home Assistant Screenshot" width="800">
   <br><em>The Time Circuits device page in Home Assistant, showing all its entities.</em>
 </p>
 
