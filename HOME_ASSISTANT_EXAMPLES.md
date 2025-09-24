@@ -2,7 +2,7 @@
 
 This document provides a list of useful and creative automations to demonstrate how you can integrate the Time Circuits display into your smart home.
 
-> **Important Note on Entity IDs:** In the examples below, you will see placeholders like `switch.YOUR_CLOCK_ID_power`. You must replace `YOUR_CLOCK_ID` with the unique ID of your clock device. For instructions on how to find this ID, please refer to the main **[Home Assistant Integration Guide](docs/HOME_ASSISTANT.md)**.
+> **Important Note on Entity IDs:** In the examples below, you will see placeholders like `text.YOUR_CLOCK_ID_dest_year`. You must replace `YOUR_CLOCK_ID` with the unique ID of your clock device. For instructions on how to find this ID, please refer to the main **[Home Assistant Integration Guide](docs/HOME_ASSISTANT.md)**.
 
 ---
 
@@ -172,28 +172,7 @@ action:
 </details>
 
 <details>
-<summary><strong>4. "Temporal Paradox" - Glitch Overload</strong></summary>
-
-*If the clock malfunctions, make your smart lights flicker randomly.*
-
-```yaml
-alias: "BTTF - Paradox Glitch"
-trigger:
-  - platform: device
-    device_id: YOUR_DEVICE_ID_HERE
-    domain: timecircuits
-    type: malfunction_triggered
-action:
-  - service: light.turn_on
-    target:
-      entity_id: light.office_lights
-    data:
-      effect: "strobe"
-```
-</details>
-
-<details>
-<summary><strong>5. Birthday Time Jump</strong></summary>
+<summary><strong>4. Birthday Time Jump</strong></summary>
 
 *On your birthday, automatically set the destination year to the year you were born and play the animation. The "Cinematic Scene Trigger" blueprint makes this easy.*
 
@@ -209,7 +188,7 @@ action:
 ### Daily Routines & Practical Uses
 
 <details>
-<summary><strong>6. Good Morning, Hill Valley</strong></summary>
+<summary><strong>5. Good Morning, Hill Valley</strong></summary>
 
 *When you dismiss your morning alarm, the clock wakes from sleep mode and displays the current weather.*
 
@@ -220,34 +199,19 @@ trigger:
     entity_id: input_boolean.morning_alarm_dismissed
     to: "on"
 action:
+  - service: button.press
+    target:
+      entity_id: button.YOUR_CLOCK_ID_force_ntp_sync
   - service: switch.turn_on
     target:
-      entity_id: switch.YOUR_CLOCK_ID_power
+      entity_id: switch.YOUR_CLOCK_ID_weather_mode
 ```
 </details>
 
 <details>
-<summary><strong>7. "OUTATIME" - Leaving Home</strong></summary>
+<summary><strong>6. "Welcome to the Future" - Arriving Home</strong></summary>
 
-*When the last person leaves the house, put the clock into sleep mode to save power.*
-
-```yaml
-alias: "BTTF - Everyone Left"
-trigger:
-  - platform: state
-    entity_id: group.family
-    to: "not_home"
-action:
-  - service: switch.turn_off
-    target:
-      entity_id: switch.YOUR_CLOCK_ID_power
-```
-</details>
-
-<details>
-<summary><strong>8. "Welcome to the Future" - Arriving Home</strong></summary>
-
-*When the first person arrives home, wake the clock up and set the destination to the current year.*
+*When the first person arrives home, set the destination to the current year.*
 
 ```yaml
 alias: "BTTF - Welcome Home"
@@ -256,19 +220,16 @@ trigger:
     entity_id: group.family
     to: "home"
 action:
-  - service: switch.turn_on
+  - service: text.set_value
     target:
-      entity_id: switch.YOUR_CLOCK_ID_power
-  - service: number.set_value
-    target:
-      entity_id: number.YOUR_CLOCK_ID_dest_year
+      entity_id: text.YOUR_CLOCK_ID_dest_year
     data:
       value: "{{ now().year }}"
 ```
 </details>
 
 <details>
-<summary><strong>9. Movie Night Ambiance</strong></summary>
+<summary><strong>7. Movie Night Ambiance</strong></summary>
 
 *When you start a movie, dim the clock's brightness and turn off any distracting marquee messages.*
 
@@ -291,21 +252,9 @@ action:
 </details>
 
 <details>
-<summary><strong>10. "Your Future is Whatever You Make of It" - Bedtime</strong></summary>
+<summary><strong>8. "Your Future is Whatever You Make of It" - Bedtime</strong></summary>
 
-*When you activate your "Goodnight" scene, the clock enters sleep mode.*
-
-```yaml
-alias: "BTTF - Bedtime"
-trigger:
-  - platform: state
-    entity_id: scene.goodnight
-    to: "on"
-action:
-  - service: switch.turn_off
-    target:
-      entity_id: switch.YOUR_CLOCK_ID_power
-```
+*When you activate your "Goodnight" scene, the clock will follow its automatic sleep schedule. To set the sleep time, use the `time.YOUR_CLOCK_ID_sleep_time` entity in Home Assistant.*
 </details>
 
 ---
@@ -313,7 +262,7 @@ action:
 ### Notifications & Alerts
 
 <details>
-<summary><strong>11. "The Libyans!" - Security Alert</strong></summary>
+<summary><strong>9. "The Libyans!" - Security Alert</strong></summary>
 
 *If a door or window is opened while the security system is armed, flash a warning message on the display. This is a perfect use for the "BTTF - Advanced Notifier" blueprint.*
 
@@ -346,7 +295,7 @@ action:
 </details>
 
 <details>
-<summary><strong>12. Severe Weather Warning</strong></summary>
+<summary><strong>10. Severe Weather Warning</strong></summary>
 
 *If a severe weather alert is active, override the display to show the warning. Use the "BTTF - Advanced Notifier" blueprint for a simple setup.*
 
@@ -374,7 +323,7 @@ action:
 </details>
 
 <details>
-<summary><strong>13. Garbage Day Reminder</strong></summary>
+<summary><strong>11. Garbage Day Reminder</strong></summary>
 
 *The night before garbage day, display a persistent reminder on the marquee.*
 
@@ -397,7 +346,7 @@ action:
 </details>
 
 <details>
-<summary><strong>14. "Mr. Fusion" - Low Battery Alert</strong></summary>
+<summary><strong>12. "Mr. Fusion" - Low Battery Alert</strong></summary>
 
 *If your phone's battery is low, display a reminder to charge it.*
 
@@ -417,7 +366,7 @@ action:
 </details>
 
 <details>
-<summary><strong>15. Guest Welcome Message</strong></summary>
+<summary><strong>13. Guest Welcome Message</strong></summary>
 
 *When a new device joins your guest WiFi network, display a welcome message.*
 
@@ -443,7 +392,7 @@ action:
 ### Dynamic Data Display
 
 <details>
-<summary><strong>16. Stock Ticker</strong></summary>
+<summary><strong>14. Stock Ticker</strong></summary>
 
 *Display the current price of a stock on the marquee.*
 
@@ -462,7 +411,7 @@ action:
 </details>
 
 <details>
-<summary><strong>17. "The Sports Almanac" - Live Game Score</strong></summary>
+<summary><strong>15. "The Sports Almanac" - Live Game Score</strong></summary>
 
 *Show the score of your favorite team's game while it's being played.*
 
@@ -481,7 +430,7 @@ action:
 </details>
 
 <details>
-<summary><strong>18. YouTube Subscriber Count</strong></summary>
+<summary><strong>16. YouTube Subscriber Count</strong></summary>
 
 *Display your YouTube subscriber count and update it periodically.*
 
@@ -500,7 +449,7 @@ action:
 </details>
 
 <details>
-<summary><strong>19. "How Many People Are in Space Right Now?"</strong></summary>
+<summary><strong>17. "How Many People Are in Space Right Now?"</strong></summary>
 
 *Display the current number of astronauts in space.*
 
@@ -519,7 +468,7 @@ action:
 </details>
 
 <details>
-<summary><strong>20. Network Status</strong></summary>
+<summary><strong>18. Network Status</strong></summary>
 
 *Show your internet download speed on the marquee.*
 
@@ -542,7 +491,7 @@ action:
 ### Advanced & Creative Scripts
 
 <details>
-<summary><strong>21. "Save the Clock Tower!" - Countdown Script</strong></summary>
+<summary><strong>19. "Save the Clock Tower!" - Countdown Script</strong></summary>
 
 *A script to create a 10-second countdown on the display, ending with a time travel animation.*
 
@@ -575,7 +524,7 @@ sequence:
 </details>
 
 <details>
-<summary><strong>22. "Doc, You're My Only Hope" - NFC Tag Message</strong></summary>
+<summary><strong>20. "Doc, You're My Only Hope" - NFC Tag Message</strong></summary>
 
 *Tap an NFC tag with your phone to send a pre-set message to the display.*
 
@@ -594,7 +543,7 @@ action:
 </details>
 
 <details>
-<summary><strong>23. Change Animation Style Based on Time of Day</strong></summary>
+<summary><strong>21. Change Animation Style Based on Time of Day</strong></summary>
 
 *Use a more subtle animation in the evening and a more energetic one during the day.*
 
@@ -620,7 +569,7 @@ action:
 </details>
 
 <details>
-<summary><strong>24. "Are You Telling Me You Built a Time Machine... Out of a DeLorean?"</strong></summary>
+<summary><strong>22. "Are You Telling Me You Built a Time Machine... Out of a DeLorean?"</strong></summary>
 
 *When your car enters the garage, trigger a welcome animation.*
 
@@ -638,7 +587,7 @@ action:
 </details>
 
 <details>
-<summary><strong>25. "Don't Drive 88!" - Speeding Alert</strong></summary>
+<summary><strong>23. "Don't Drive 88!" - Speeding Alert</strong></summary>
 
 *If your connected car is going over 85 mph, display a warning on the clock.*
 
@@ -658,7 +607,7 @@ action:
 </details>
 
 <details>
-<summary><strong>26. Low Memory Reboot</strong></summary>
+<summary><strong>24. Low Memory Reboot</strong></summary>
 
 *Monitors the clock's free memory and reboots it if it drops to a critical level.*
 
@@ -693,9 +642,8 @@ action:
 ```
 </details>
 
-
 <details>
-<summary><strong>28. Calendar-Driven Destination Time</strong></summary>
+<summary><strong>25. Calendar-Driven Destination Time</strong></summary>
 
 *Automatically sets the "Destination Time" to the date of your next calendar event.*
 
@@ -705,16 +653,16 @@ trigger:
   - platform: state
     entity_id: calendar.your_calendar
 action:
-  - service: number.set_value
+  - service: text.set_value
     target:
-      entity_id: number.YOUR_CLOCK_ID_dest_year
+      entity_id: text.YOUR_CLOCK_ID_dest_year
     data:
       value: "{{ state_attr('calendar.your_calendar', 'start_time').split(' ')[0].split('-')[0] }}"
 ```
 </details>
 
 <details>
-<summary><strong>29. "Save the Clock Tower!" - Fundraising Goal Tracker</strong></summary>
+<summary><strong>26. "Save the Clock Tower!" - Fundraising Goal Tracker</strong></summary>
 
 *Display the progress of a fundraising or savings goal on the marquee.*
 
@@ -734,7 +682,7 @@ action:
 </details>
 
 <details>
-<summary><strong>30. "Doc's Notes" - Rotating Reminders Script</strong></summary>
+<summary><strong>27. "Doc's Notes" - Rotating Reminders Script</strong></summary>
 
 *A script to cycle through a list of reminders or quotes on the marquee.*
 

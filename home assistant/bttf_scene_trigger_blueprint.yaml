@@ -15,24 +15,25 @@ blueprint:
     destination_year:
       name: Destination Year
       description: The four-digit year to travel to.
-      default: 2015
+      default: "2015"
       selector:
-        number:
-          min: 1000
-          max: 9999
+        text:
 
 variables:
   device_id: !input target_device
   unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
+  year_input: !input destination_year
 
 trigger: []
 
 action:
-  - service: number.set_value
+  - service: text.set_value
     target:
-      entity_id: "number.{{ unique_id }}_destination_year"
+      entity_id: "text.{{ unique_id }}_dest_year"
     data:
-      value: !input destination_year
+      value: "{{ year_input }}"
+  - delay:
+      milliseconds: 250
   - service: button.press
     target:
       entity_id: "button.{{ unique_id }}_trigger_animation"
