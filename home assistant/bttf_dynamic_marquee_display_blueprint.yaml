@@ -42,6 +42,11 @@ variables:
   device_id: !input target_device
   slot: !input data_point_slot
   unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
+  marquee_text: !input text
+  marquee_month: "{{ (marquee_text ~ '                ')[0:4] }}"
+  marquee_day:   "{{ (marquee_text ~ '                ')[4:8] }}"
+  marquee_year:  "{{ (marquee_text ~ '                ')[8:12] }}"
+  marquee_time:  "{{ (marquee_text ~ '                ')[12:16] }}"
 
 # This automation has no trigger, it is meant to be called from a script or another automation.
 trigger: []
@@ -49,5 +54,17 @@ trigger: []
 action:
   - service: mqtt.publish
     data:
+      topic: "timecircuits/{{ unique_id }}/datapoint/{{ slot }}/month/set"
+      payload: "{{ marquee_month }}"
+  - service: mqtt.publish
+    data:
+      topic: "timecircuits/{{ unique_id }}/datapoint/{{ slot }}/day/set"
+      payload: "{{ marquee_day }}"
+  - service: mqtt.publish
+    data:
       topic: "timecircuits/{{ unique_id }}/datapoint/{{ slot }}/year/set"
-      payload: !input text
+      payload: "{{ marquee_year }}"
+  - service: mqtt.publish
+    data:
+      topic: "timecircuits/{{ unique_id }}/datapoint/{{ slot }}/time/set"
+      payload: "{{ marquee_time }}"
