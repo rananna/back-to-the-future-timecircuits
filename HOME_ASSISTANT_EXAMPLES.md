@@ -75,8 +75,8 @@ This automation triggers whenever the `media_title` of your media player changes
         # This should be the name of the automation you created from the blueprint
         entity_id: automation.bttf_dynamic_marquee_display
       data:
-        # Set the marquee slot and the text to display
-        data_point_slot: "4" # Corresponds to Data Point 5
+        # Set the marquee slot (1-5) and the text to display
+        data_point_slot: "5"
         text: "♪ {{ state_attr('media_player.spotify', 'media_title') }}"
 ```
 > **Note:** The marquee text is limited to 16 characters. This example will show the first part of the song title.
@@ -88,7 +88,7 @@ This automation triggers whenever the `media_title` of your media player changes
 *Use the "BTTF - Advanced Notifier" blueprint to show a critical alert with a sound effect.*
 
 **How It Works:**
-This automation triggers when a critical event occurs (like a water leak). It then calls the notifier blueprint to display a prominent, temporary message and play an alarm sound.
+This automation triggers when a critical event occurs (like a water leak). It then calls the notifier blueprint to display a prominent, temporary message and play an alarm sound. The underlying MQTT topics for this blueprint have been fixed to ensure reliability.
 
 **Automation Setup:**
 1.  First, create an automation from the **BTTF - Advanced Notifier** blueprint.

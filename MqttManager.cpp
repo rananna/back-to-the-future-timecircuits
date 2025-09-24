@@ -430,8 +430,8 @@ void publishHaAutoDiscovery() {
     doc["name"] = "Override Message";
     doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_override_message";
     doc["object_id"] = String(MQTT_UNIQUE_ID) + "_override_message";
-    doc["command_topic"] = device_base_topic + "/override_text/command";
-    doc["state_topic"] = device_base_topic + "/override_text/state";
+    doc["command_topic"] = device_base_topic + "/override_message/command";
+    doc["state_topic"] = device_base_topic + "/override_message/state";
     doc["icon"] = "mdi:message-draw";
     doc["entity_category"] = "config";
     doc["device"] = device;
@@ -651,7 +651,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "override") {
             isMessageOverrideActive = (message == "ON");
             stateChanged = true;
-        } else if (component == "override_text") {
+        } else if (component == "override_message") {
             int first_newline = message.indexOf('\n');
             int second_newline = message.indexOf('\n', first_newline + 1);
             if (first_newline != -1) {
@@ -838,7 +838,7 @@ void publishAllHaStates() {
     String overrideMessage = overrideMessageLine1;
     if (overrideMessageLine2.length() > 0) overrideMessage += "\n" + overrideMessageLine2;
     if (overrideMessageLine3.length() > 0) overrideMessage += "\n" + overrideMessageLine3;
-    mqttClient.publish((base_topic + "/override_text/state").c_str(), overrideMessage.c_str(), true);
+    mqttClient.publish((base_topic + "/override_message/state").c_str(), overrideMessage.c_str(), true);
 
     mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
     
