@@ -470,6 +470,7 @@ async function saveSettings() {
  * Fetches the current time from the server.
  */
 function fetchTime() {
+    if (isLoading) return;
     fetch('/api/time').then(res => res.json()).then(data => {
         // Update the time sync status and header clocks
         document.getElementById('timeSyncStatus').textContent = data.timeSynchronized ? 'Yes' : 'No';
@@ -664,8 +665,11 @@ function updateWeatherUI(data) {
  * Fetches the current weather data from the server.
  */
 function fetchWeatherData() {
-    if (!document.getElementById('weatherModeEnabled').checked) {
-        document.getElementById('weatherDisplay').style.display = 'none';
+    if (isLoading || !document.getElementById('weatherModeEnabled').checked) {
+        const weatherDisplay = document.getElementById('weatherDisplay');
+        if (weatherDisplay) {
+            weatherDisplay.style.display = 'none';
+        }
         return;
     }
 
@@ -1111,7 +1115,7 @@ function renderAutocompleteResults(results) {
 }
 
 async function updateStockStatus() {
-    if (!document.getElementById('stockTickerModeEnabled').checked) {
+    if (isLoading || !document.getElementById('stockTickerModeEnabled').checked) {
         return;
     }
 
