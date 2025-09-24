@@ -42,14 +42,15 @@ blueprint:
 variables:
   device_id: !input target_device
   device_name: "{{ device_attr(device_id, 'name') | lower | replace(' ', '_') }}"
-  clock_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
   slot: !input data_point_slot
+  marquee_entity: "text.{{ device_name }}_datapoint_{{ slot }}_marquee"
 
 # This automation has no trigger, it is meant to be called from a script or another automation.
 trigger: []
 
 action:
-  - service: mqtt.publish
+  - service: text.set_value
+    target:
+      entity_id: "{{ marquee_entity }}"
     data:
-      topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/year/set"
-      payload: "{{ text }}"
+      value: !input text

@@ -203,6 +203,42 @@ void publishHaAutoDiscovery() {
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
 
+    // ADDED: Create Enabled switches for each data point
+    for (int i=0; i < 5; ++i) {
+        doc.clear();
+        doc["name"] = "Data Point " + String(i + 1) + " Enabled";
+        String id_suffix = "datapoint_" + String(i) + "_enabled";
+        doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = "mdi:toggle-switch";
+        doc["entity_category"] = "config";
+        doc["device"] = device;
+        doc["availability"] = availability;
+        topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
+        serializeJson(doc, payload);
+        mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    }
+
+    // ADDED: Create Marquee text inputs for each data point
+    for (int i=0; i < 5; ++i) {
+        doc.clear();
+        doc["name"] = "Data Point " + String(i + 1) + " Marquee";
+        String id_suffix = "datapoint_" + String(i) + "_marquee";
+        doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = "mdi:text-box-outline";
+        doc["entity_category"] = "config";
+        doc["device"] = device;
+        doc["availability"] = availability;
+        topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
+        serializeJson(doc, payload);
+        mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    }
+
     for (int i=0; i < 5; ++i) {
         doc.clear();
         doc["name"] = "Data Point " + String(i + 1);
@@ -580,12 +616,15 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             }
         }
         else if (component.startsWith("datapoint_")) {
-            int dp_index = component.substring(10).toInt();
+            String id_suffix = component.substring(10);
+            int dp_index = id_suffix.substring(0, id_suffix.indexOf('_')).toInt();
+
             if (dp_index >= 0 && dp_index < 5) {
-                if (topicStr.endsWith("marquee/command")) {
+                if (id_suffix.endsWith("_marquee")) {
                     currentSettings.dataPoints[dp_index].scrollingText = message.c_str();
                     settingsChanged = true;
-                } else if (topicStr.endsWith("enabled/command")) {
+                } else if (id_suffix.endsWith("_enabled")) {
+                    currentSettings.dataPoints[dp_index].enabled = (message == "ON");
                     settingsChanged = true;
                 }
             }
@@ -1075,6 +1114,15 @@ void publishAllHaStates() {
 
     mqttClient.publish((base_topic + "/stock_ticker_mode/state").c_str(), currentSettings.stockTickerModeEnabled ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
+
+    // ADDED: Publish states for new data point entities
+    for(int i=0; i<5; ++i) {
+        String enabled_topic = base_topic + "/datapoint_" + String(i) + "_enabled/state";
+        mqttClient.publish(enabled_topic.c_str(), currentSettings.dataPoints[i].enabled ? "ON" : "OFF", true);
+
+        String marquee_topic = base_topic + "/datapoint_" + String(i) + "_marquee/state";
+        mqttClient.publish(marquee_topic.c_str(), currentSettings.dataPoints[i].scrollingText.c_str(), true);
+    }
 
     publishTimeSensors();
 }

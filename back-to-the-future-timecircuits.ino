@@ -474,6 +474,7 @@ void applySettingsFromJson(const JsonObject& obj) {
         for (int i = 0; i < 5; i++) {
             if (i < currentSettings.numDataPoints && i < dataPoints.size()) {
                 JsonObject dp = dataPoints[i];
+                if (!dp["enabled"].isNull()) currentSettings.dataPoints[i].enabled = dp["enabled"];
                 if (!dp["dataSourceType"].isNull()) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
                 currentSettings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
                 if (!dp["mqttTopic"].isNull()) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
@@ -628,6 +629,9 @@ void saveSettings() {
 	for (int i = 0; i < 5; i++) {
 		String prefix = "dp" + String(i) + "_";
 		// --- Save all fields for each data point ---
+        if (preferences.getBool((prefix + "en").c_str(), false) != currentSettings.dataPoints[i].enabled) {
+            preferences.putBool((prefix + "en").c_str(), currentSettings.dataPoints[i].enabled);
+        }
 		SAVE_IF_CHANGED((prefix + "srcType").c_str(), Int, (int)currentSettings.dataPoints[i].dataSourceType);
 		SAVE_STRING_IF_CHANGED((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic);
 		SAVE_STRING_IF_CHANGED((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText);
@@ -699,6 +703,7 @@ void loadSettings() {
         stockManager.clearAssets();
 		for (int i = 0; i < 5; i++) {
 			currentSettings.dataPoints[i] = {};
+            currentSettings.dataPoints[i].enabled = false;
 		}
 		saveSettings();
 	} else {
@@ -758,6 +763,7 @@ void loadSettings() {
 
 		for (int i = 0; i < 5; i++) {
 			String prefix = "dp" + String(i) + "_";
+            currentSettings.dataPoints[i].enabled = preferences.getBool((prefix + "en").c_str(), false);
 			currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str(), 0);
 			currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
 			currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
