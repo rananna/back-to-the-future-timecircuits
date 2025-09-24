@@ -195,14 +195,11 @@ This "callable" blueprint lets you push any entity state or template-driven text
 ### **3. Dynamic Marquee Display Blueprint**
 > **Purpose:** To display a single, scrolling line of text on one of the five DataLink marquee slots.
 
-> [!WARNING]
-> **Known Issue:** This blueprint is currently not functioning as described in the "Deep Dive" section. It sends the entire message to the `year` segment of the display instead of splitting it. This issue will be addressed in a future update.
-
 * **How to Use:**
     1.  In the clock's web UI, set the **Data Point Source** to **"Home Assistant Push"** for the slot you want to use.
     2.  Create a new automation using the "Dynamic Marquee Display" blueprint. This blueprint is "callable," meaning you will call it from another automation.
     3.  Select your Time Circuits device and the correct **Data Point Slot**.
-    4.  Enter the text or template you want to display.
+    4.  Enter the text or template you want to display. The blueprint will use the first 16 characters of your text.
 * **Example Scenario: "Display Power and Temp"**
     * **Web UI:** Data Point 1 Source is set to "Home Assistant Push".
     * **Automation Action:** Call the blueprint, targeting Data Point Slot 1.
@@ -215,7 +212,7 @@ This "callable" blueprint lets you push any entity state or template-driven text
 * **How to Use:**
     1.  Create a new automation and select the "Cinematic Scene Trigger" blueprint.
     2.  **Trigger:** Define the event that should start the scene (e.g., a button press, a specific time).
-    3.  **Time Circuits Display:** Select your clock device.
+    3.  **Time Circuits Device:** Select your clock device from the dropdown. The blueprint handles the rest.
     4.  **Destination Year:** Enter the four-digit year you want to travel to.
 * **Example Scenario: "Lightning Strike at 10:04 PM"**
     * **Trigger:** Time is `22:04:00`.
@@ -231,23 +228,28 @@ This "callable" blueprint lets you push any entity state or template-driven text
 * **Example Scenario: "Play Lo-Fi Radio"**
     * **Automation Action:** Call the "Radio Streamer" blueprint.
     * **Radio Command:** `http://your-favorite-lofi-stream.com/stream.mp3`
-    * **Result:** The clock will display "RADIO" on its top row and begin playing the stream. To stop it, you would call this blueprint again from another action with the command `stop`.
+    * **Result:** The clock will display "RADIO" on its top row and begin playing the stream. The text will remain on the display until you call the blueprint again with the command `stop`, which will stop the music and clear the text.
 
 ### 6. TTS Notifier Blueprint
-> **Purpose:** To use the clock as a powerful, themed notification device for your smart home, playing audio announcements from Home Assistant's Text-to-Speech (TTS) services.
+> **Purpose:** To play audio announcements from Home Assistant's Text-to-Speech (TTS) services on the clock's speaker.
 
-Recent improvements have made this feature even more dynamic and integrated.
+This blueprint makes it easy to use your Time Circuits clock as a voice notification device.
 
-*   **Dynamic Volume Control**: Each TTS announcement can have its own volume level, set directly in your Home Assistant automation. This allows for context-aware alerts:
-    *   A critical security warning can be set to **100% volume**.
-    *   A routine announcement, like "The laundry is finished," can be set to a quieter **40% volume**.
-*   **Visual Notification Mode**: To make announcements feel more polished, the clock now enters a special "Notification Mode":
-    1.  **Intro**: When a TTS message is triggered, the display will show "INCOMING MESSAGE" for a moment to get your attention.
-    2.  **Custom Message**: Your optional custom text (e.g., a speaker icon `🔊`) is then displayed.
-    3.  **Audio Playback**: The audio message plays at your specified volume.
-    4.  **Outro**: Once finished, the clock automatically returns to its normal display.
-
-This creates a seamless and professional notification experience, turning your clock into a true smart home information hub.
+* **How to Use:**
+    1.  This is a "callable" blueprint, designed to be an action in your other automations.
+    2.  Select your Time Circuits device.
+    3.  Provide the `tts_service` you want to use (e.g., `tts.google_en_com`).
+    4.  Enter the `message_text` you want the clock to say.
+    5.  Optionally, provide `display_text` to show a message on the clock while the audio is playing. Use `\n` to create new lines.
+    6.  Set a `volume` for the announcement (0-100).
+* **Example Scenario: "Announce Driveway Alert"**
+    * **Automation Trigger:** A motion sensor in the driveway is activated.
+    * **Blueprint Action:**
+        *   **Message Text:** "Someone is in the driveway."
+        *   **Display Text:** `ALERT\nDRIVE\nWAY`
+        *   **Volume:** 90
+    * **Result:** The clock's display will show the alert message on its three rows while loudly announcing that someone is in the driveway. The display will return to normal after the message is spoken.
+> **💡 Pro Tip:** For more complex or dynamic visual notifications that change based on sensor states, we recommend using the **Home Assistant Status Display** blueprint. You can call that blueprint in your automation right before calling the TTS Notifier blueprint to create rich, informative alerts.
 
 ***
 
@@ -332,16 +334,21 @@ The "Home Assistant Push" feature for the DataLink marquee is a powerful way to 
     *   **In Home Assistant**: You use the **"Dynamic Marquee Display"** blueprint to create an automation. In this automation, you select the same **Marquee Data Slot** you configured in the web UI. This is like putting the correct address on your letter.
 
 2.  **The Blueprint (Packaging the Data)**
-    When the entity you are monitoring in Home Assistant changes its state, the blueprint automation triggers. It packages the text you defined (e.g., `PWR: {{ states('sensor.power_meter') }} W`) into four separate MQTT messages, one for each segment of the marquee row (`month`, `day`, `year`, `time`).
+    When the entity you are monitoring in Home Assistant changes its state, the blueprint automation triggers. It takes the first 16 characters of the text you defined (e.g., `PWR: 1210 W`) and splits it into four 4-character chunks. It then sends these chunks as four separate MQTT messages to the `month`, `day`, `year`, and `time` topics for the selected marquee slot.
 
-    *Code Snippet (`bttf_dynamic_marquee_display_blueprint.yaml`):*
+    *Example of the logic in `bttf_dynamic_marquee_display_blueprint.yaml`*:
     ```yaml
-    - service: mqtt.publish
-      data:
-        topic: "timecircuits/{{ clock_id }}/datapoint/{{ slot }}/year/set"
-        payload: "{{ marquee_year }}"
+    action:
+      - service: mqtt.publish
+        data:
+          topic: "timecircuits/{{ ... }}/datapoint/{{ slot }}/month/set"
+          payload: "{{ marquee_month }}" # First 4 chars
+      - service: mqtt.publish
+        data:
+          topic: "timecircuits/{{ ... }}/datapoint/{{ slot }}/day/set"
+          payload: "{{ marquee_day }}" # Next 4 chars
+      # ...and so on for year and time.
     ```
-    This sends the content for the "YEAR" segment to a unique MQTT topic for that specific clock and that specific marquee slot.
 
 3.  **MQTT (The Postal Service)**
     The blueprint sends these four messages to your MQTT broker. The broker acts as a central hub, immediately forwarding the messages to any device that has subscribed to these exact topics.

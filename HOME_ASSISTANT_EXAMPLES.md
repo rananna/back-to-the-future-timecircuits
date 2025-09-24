@@ -56,7 +56,8 @@ The easiest way to create powerful automations is by using the provided blueprin
 3.  **Action:** Call the "Dynamic Marquee Display" blueprint.
 4.  **Configuration:**
     *   **Data Point Slot:** "Data Point 5"
-    *   **Marquee Text:** `♪ {{ state_attr('media_player.spotify', 'media_title') }} - {{ state_attr('media_player.spotify', 'media_artist') }}`
+    *   **Marquee Text:** `♪ {{ state_attr('media_player.spotify', 'media_title') }}`
+    > **Note:** The marquee text is limited to 16 characters. This example will show the first part of the song title.
 
 ```yaml
 # automation.yaml
@@ -81,47 +82,27 @@ Here are 30 useful and well-thought-out automations to demonstrate how you can i
 <details>
 <summary><strong>1. "It's 10:04 PM!" - The Lightning Strike</strong></summary>
 
-*Triggers the iconic lightning strike scene every night at 10:04 PM.*
+*Triggers the iconic lightning strike scene every night at 10:04 PM. This is a perfect use for the "Cinematic Scene Trigger" blueprint.*
 
-```yaml
-alias: "BTTF - Lightning Strike"
-trigger:
-  - platform: time
-    at: "22:04:00"
-action:
-  - service: number.set_value
-    target:
-      entity_id: number.timecircuits_01_dest_year
-    data:
-      value: "1985"
-  - delay: "00:00:02"
-  - service: button.press
-    target:
-      entity_id: button.timecircuits_01_trigger_animation
-```
+**Automation Setup:**
+1.  Create a new automation and select the "Cinematic Scene Trigger" blueprint.
+2.  **Trigger:** Select "Time" as the trigger type and enter `22:04:00`.
+3.  **Time Circuits Device:** Select your clock.
+4.  **Destination Year:** Enter `1985`.
+
+*That's it! The blueprint handles setting the year and playing the animation.*
 </details>
 
 <details>
 <summary><strong>2. "Roads? Where We're Going, We Don't Need Roads."</strong></summary>
 
-*Sets the destination to the future and plays the animation when you start your vacuum cleaner.*
+*Sets the destination to the future and plays the animation when you start your vacuum cleaner. This is another great use for the "Cinematic Scene Trigger" blueprint.*
 
-```yaml
-alias: "BTTF - We Don't Need Roads"
-trigger:
-  - platform: state
-    entity_id: vacuum.roomba
-    to: "cleaning"
-action:
-  - service: number.set_value
-    target:
-      entity_id: number.timecircuits_01_dest_year
-    data:
-      value: "2015"
-  - service: button.press
-    target:
-      entity_id: button.timecircuits_01_trigger_animation
-```
+**Automation Setup:**
+1.  Create a new automation and select the "Cinematic Scene Trigger" blueprint.
+2.  **Trigger:** Select "State" as the trigger type, use `vacuum.roomba` as the entity, and set the "To" state to `cleaning`.
+3.  **Time Circuits Device:** Select your clock.
+4.  **Destination Year:** Enter `2015`.
 </details>
 
 <details>
@@ -169,23 +150,13 @@ action:
 <details>
 <summary><strong>5. Birthday Time Jump</strong></summary>
 
-*On your birthday, automatically set the destination year to the year you were born and play the animation.*
+*On your birthday, automatically set the destination year to the year you were born and play the animation. The "Cinematic Scene Trigger" blueprint makes this easy.*
 
-```yaml
-alias: "BTTF - Birthday Time Jump"
-trigger:
-  - platform: template
-    value_template: "{{ now().month == 10 and now().day == 26 }}" # Your birthday
-action:
-  - service: number.set_value
-    target:
-      entity_id: number.timecircuits_01_dest_year
-    data:
-      value: "1985" # Your birth year
-  - service: button.press
-    target:
-      entity_id: button.timecircuits_01_trigger_animation
-```
+**Automation Setup:**
+1.  Create a new automation and select the "Cinematic Scene Trigger" blueprint.
+2.  **Trigger:** Select "Template" as the trigger type and enter `{{ now().month == 10 and now().day == 26 }}` (replace with your birthday).
+3.  **Time Circuits Device:** Select your clock.
+4.  **Destination Year:** Enter your birth year.
 </details>
 
 ---
@@ -299,51 +270,30 @@ action:
 <details>
 <summary><strong>11. "The Libyans!" - Security Alert</strong></summary>
 
-*If a door or window is opened while the security system is armed, flash a warning message on the display.*
+*If a door or window is opened while the security system is armed, flash a warning message on the display. This is a perfect use for the "Advanced Notifier" blueprint.*
 
-```yaml
-alias: "BTTF - Security Alert"
-trigger:
-  - platform: state
-    entity_id: binary_sensor.front_door_contact
-    to: "on"
-condition:
-  - condition: state
-    entity_id: alarm_control_panel.home_alarm
-    state: "armed_away"
-action:
-  - service: switch.turn_on
-    target:
-      entity_id: switch.timecircuits_01_override_switch
-  - service: text.set_value
-    target:
-      entity_id: text.timecircuits_01_override_message
-    data:
-      value: "SECURITY\nALERT\nFRONT DOOR"
-```
+**Automation Setup:**
+1.  Create a new automation and select the "Advanced Notifier" blueprint.
+2.  **Trigger:** Select "State" as the trigger type, use `binary_sensor.front_door_contact` as the entity, and set the "To" state to `on`.
+3.  **Condition:** Add a "State" condition, use `alarm_control_panel.home_alarm` as the entity, and set the required state to `armed_away`.
+4.  **Time Circuits Display:** Select your clock.
+5.  **Message:** `SECURITY\nALERT\nFRONT DOOR`
+6.  **Display Duration:** `30` (seconds)
+7.  **Sound Effect:** `ALARM_SOUND` (or any other you prefer)
 </details>
 
 <details>
 <summary><strong>12. Severe Weather Warning</strong></summary>
 
-*If a severe weather alert is active, override the display to show the warning.*
+*If a severe weather alert is active, override the display to show the warning. Use the "Advanced Notifier" blueprint for a simple setup.*
 
-```yaml
-alias: "BTTF - Weather Alert"
-trigger:
-  - platform: state
-    entity_id: binary_sensor.severe_weather_alert
-    to: "on"
-action:
-  - service: switch.turn_on
-    target:
-      entity_id: switch.timecircuits_01_override_switch
-  - service: text.set_value
-    target:
-      entity_id: text.timecircuits_01_override_message
-    data:
-      value: "SEVERE\nWEATHER\n{{ states('sensor.weather_alert_type') }}"
-```
+**Automation Setup:**
+1.  Create a new automation and select the "Advanced Notifier" blueprint.
+2.  **Trigger:** Select "State" as the trigger type, use `binary_sensor.severe_weather_alert` as the entity, and set the "To" state to `on`.
+3.  **Time Circuits Display:** Select your clock.
+4.  **Message:** `SEVERE\nWEATHER\n{{ states('sensor.weather_alert_type') }}`
+5.  **Display Duration:** `600` (10 minutes)
+6.  **Sound Effect:** `ALARM_SOUND`
 </details>
 
 <details>
@@ -635,25 +585,29 @@ action:
 
 *Monitors the clock's free memory and reboots it if it drops to a critical level.*
 
+**Automation Setup:**
+1.  First, create a "callable" automation using the **Advanced Notifier** blueprint. Set the message to `REBOOTING\nLOW MEMORY` and the duration to 10 seconds.
+2.  Then, create a second automation that triggers when the memory is low, calls the notifier automation, waits 10 seconds, and then presses the reboot button.
+
 ```yaml
-alias: "BTTF - Low Memory Reboot"
-trigger:
-  - platform: numeric_state
-    entity_id: sensor.timecircuits_01_free_memory
-    below: 20000  # 20 KB
-action:
-  - service: switch.turn_on
-    target:
-      entity_id: switch.timecircuits_01_override_switch
-  - service: text.set_value
-    target:
-      entity_id: text.timecircuits_01_override_message
-    data:
-      value: "REBOOTING\nLOW MEMORY"
-  - delay: "00:00:10"
-  - service: homeassistant.restart
-    target:
-      device_id: YOUR_DEVICE_ID_HERE
+# automation.yaml
+- alias: "BTTF - Low Memory Reboot"
+  trigger:
+    # The 'free_heap' attribute is part of the main status sensor.
+    - platform: numeric_state
+      entity_id: sensor.time_circuits_display_status
+      attribute: free_heap
+      below: 20000  # 20 KB
+  action:
+    # Call the notifier automation you created in step 1
+    - service: automation.trigger
+      target:
+        entity_id: automation.your_bttf_notifier_automation
+    - delay: "00:00:10"
+    # Press the actual reboot button on the device
+    - service: button.press
+      target:
+        entity_id: button.time_circuits_display_reboot_device
 ```
 </details>
 

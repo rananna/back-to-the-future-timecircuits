@@ -5,20 +5,13 @@ blueprint:
     Ideal for starting scenes or reacting to events.
   domain: automation
   input:
-    destination_year_entity:
-      name: Destination Year Entity
-      description: The 'number' entity that controls the destination year.
+    target_device:
+      name: Time Circuits Device
+      description: Select the BTTF Time Circuits clock device.
       selector:
-        entity:
-          domain: number
-          integration: mqtt
-    trigger_animation_button:
-      name: Trigger Animation Button
-      description: The 'button' entity that triggers the time travel animation.
-      selector:
-        entity:
-          domain: button
-          integration: mqtt
+        device:
+          manufacturer: "Doc Brown Industries"
+          model: "BTTF Clock v1"
     destination_year:
       name: Destination Year
       description: The four-digit year to travel to.
@@ -28,14 +21,23 @@ blueprint:
           min: 1000
           max: 9999
 
+variables:
+  device_id: !input target_device
+  # Find the main status sensor entity to derive the base name for other entities.
+  status_entity: "{{ device_entities(device_id) | select('search', '_status') | first }}"
+  device_base_name: "{{ state_attr(status_entity, 'object_id').replace('_status', '') }}"
+  # Construct the full entity IDs from the base name
+  destination_year_entity_id: "number.{{ device_base_name }}_destination_year"
+  trigger_animation_button_id: "button.{{ device_base_name }}_trigger_animation"
+
 trigger: []
 
 action:
   - service: number.set_value
     target:
-      entity_id: !input destination_year_entity
+      entity_id: "{{ destination_year_entity_id }}"
     data:
       value: !input destination_year
   - service: button.press
     target:
-      entity_id: !input trigger_animation_button
+      entity_id: "{{ trigger_animation_button_id }}"

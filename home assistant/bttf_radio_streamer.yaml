@@ -29,11 +29,21 @@ action:
           - condition: template
             value_template: "{{ command == 'stop' }}"
         sequence:
-          # Stop the radio stream silently
+          # Stop the radio stream
           - service: mqtt.publish
             data:
               topic: "timecircuits/{{ unique_id }}/radio/command"
               payload: "stop"
+          # Clear the "RADIO" text from the display
+          - service: mqtt.publish
+            data:
+              topic: "timecircuits/{{ unique_id }}/dest_month/command"
+              payload: ""
+          # Turn off override mode
+          - service: mqtt.publish
+            data:
+              topic: "timecircuits/{{ unique_id }}/override/command"
+              payload: "OFF"
     # Default action: The command is a URL
     default:
       # Turn on override mode to show the "RADIO" text
@@ -51,11 +61,3 @@ action:
         data:
           topic: "timecircuits/{{ unique_id }}/radio/command"
           payload: "{{ command }}"
-      # Wait 5 seconds for the stream to begin
-      - delay:
-          seconds: 5
-      # Turn off override mode to return to the normal display
-      - service: mqtt.publish
-        data:
-          topic: "timecircuits/{{ unique_id }}/override/command"
-          payload: "OFF"
