@@ -203,6 +203,21 @@ void publishHaAutoDiscovery() {
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
 
+    for (int i=0; i < 5; ++i) {
+        doc.clear();
+        doc["name"] = "Data Point " + String(i + 1);
+        String id_suffix = "datapoint_" + String(i);
+        doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = "mdi:form-textbox";
+        doc["device"] = device;
+        doc["availability"] = availability;
+        topic = String(MQTT_BASE_TOPIC) + "/sensor/" + doc["object_id"].as<String>() + "/config";
+        serializeJson(doc, payload);
+        mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    }
+
 
     const char* number_configs[][5] = {
         {"animation_interval", "Animation Interval", "mdi:clock-in", "min", "0,120,1"},
@@ -1035,6 +1050,27 @@ void publishAllHaStates() {
             String topic = base_topic + "/datapoint_" + String(i) + "_source/state";
             mqttClient.publish(topic.c_str(), sources[source_index], true);
         }
+    }
+
+    for(int i=0; i<5; ++i) {
+        String topic = base_topic + "/datapoint_" + String(i) + "/state";
+        std::string fullText = "";
+        if (!displayPages[i].month.empty()) {
+            fullText += displayPages[i].month;
+        }
+        if (!displayPages[i].day.empty()) {
+            if (!fullText.empty()) fullText += " ";
+            fullText += displayPages[i].day;
+        }
+        if (!displayPages[i].year.empty()) {
+            if (!fullText.empty()) fullText += " ";
+            fullText += displayPages[i].year;
+        }
+        if (!displayPages[i].time.empty()) {
+            if (!fullText.empty()) fullText += " ";
+            fullText += displayPages[i].time;
+        }
+        mqttClient.publish(topic.c_str(), fullText.c_str(), true);
     }
 
     mqttClient.publish((base_topic + "/stock_ticker_mode/state").c_str(), currentSettings.stockTickerModeEnabled ? "ON" : "OFF", true);
