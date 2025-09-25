@@ -58,16 +58,26 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
 
     serializeJson(doc, payload);
 
-    // Diagnostic check to see *why* serialization might be incorrect.
-    if (doc.is<JsonArray>()) {
-        Log_printf(LOG_LEVEL_WARN, "HA Discovery: JsonDocument is being treated as an Array before serialization for object_id: %s", object_id.c_str());
-    } else if (doc.is<JsonObject>()) {
-        Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: JsonDocument is a JsonObject, as expected.");
-    }
-
-    // Defensive fix for the strange array serialization issue
+    // Defensive fix for a bug where the payload is sometimes serialized as a
+    // JSON array `[{...}]` instead of a JSON object `{...}`.
     if (payload.startsWith("[") && payload.endsWith("]")) {
-        payload = payload.substring(1, payload.length() - 1);
+        Log_printf(LOG_LEVEL_WARN, "HA Discovery: Malformed array-based JSON detected for %s. Attempting recovery.", object_id.c_str());
+        DynamicJsonDocument tempDoc(1024);
+        DeserializationError error = deserializeJson(tempDoc, payload);
+
+        if (error == DeserializationError::Ok && tempDoc.is<JsonArray>()) {
+            JsonArray arr = tempDoc.as<JsonArray>();
+            if (!arr.isNull() && arr.size() > 0 && arr[0].is<JsonObject>()) {
+                JsonObject obj = arr[0];
+                payload = ""; // Clear the old payload
+                serializeJson(obj, payload);
+                Log_printf(LOG_LEVEL_INFO, "HA Discovery: Successfully recovered and re-serialized JSON object for %s.", object_id.c_str());
+            } else {
+                 Log_printf(LOG_LEVEL_ERROR, "HA Discovery: Array was empty or did not contain an object for %s.", object_id.c_str());
+            }
+        } else {
+            Log_printf(LOG_LEVEL_ERROR, "HA Discovery: Failed to parse and recover malformed JSON for %s. Error: %s", object_id.c_str(), error.c_str());
+        }
     }
 
     Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
@@ -118,48 +128,32 @@ void publishHaPresetSelector() {
         }
     }
 
-    topic = String(MQTT_BASE_TOPIC) + "/select/" + doc["object_id"].as<String>() + "/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    publishDiscoveryMessage(doc, "select");
 }
 
 
 void publishDeviceTriggers() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
     JsonDocument doc;
-    String topic;
-    String payload;
 
     JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
 
     doc["automation_type"] = "trigger";
     doc["topic"] = device_base_topic + "/events";
-    doc["type"] = "animation_started";
-    doc["subtype"] = "event";
-    topic = String(MQTT_BASE_TOPIC) + "/device_automation/" + toLowerCase(String(MQTT_UNIQUE_ID)) + "/anim_started/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
-    
-    doc["type"] = "animation_completed";
-    topic = String(MQTT_BASE_TOPIC) + "/device_automation/" + toLowerCase(String(MQTT_UNIQUE_ID)) + "/anim_completed/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
-    doc["type"] = "sleep_mode_entered";
-    topic = String(MQTT_BASE_TOPIC) + "/device_automation/" + toLowerCase(String(MQTT_UNIQUE_ID)) + "/sleep_entered/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    // Define triggers in a loop to reduce repetition
+    const char* trigger_types[] = {"animation_started", "animation_completed", "sleep_mode_entered", "sleep_mode_exited", "preset_changed"};
+    const char* trigger_subtypes[] = {"anim_started", "anim_completed", "sleep_entered", "sleep_exited", "preset_changed"};
 
-    doc["type"] = "sleep_mode_exited";
-    topic = String(MQTT_BASE_TOPIC) + "/device_automation/" + toLowerCase(String(MQTT_UNIQUE_ID)) + "/sleep_exited/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
-
-    doc["type"] = "preset_changed";
-    topic = String(MQTT_BASE_TOPIC) + "/device_automation/" + toLowerCase(String(MQTT_UNIQUE_ID)) + "/preset_changed/config";
-    serializeJson(doc, payload);
-    mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    for(int i = 0; i < sizeof(trigger_types)/sizeof(trigger_types[0]); ++i) {
+        doc["type"] = trigger_types[i];
+        String object_id = toLowerCase(String(MQTT_UNIQUE_ID) + "_" + trigger_subtypes[i]);
+        doc["object_id"] = object_id;
+        doc["unique_id"] = object_id;
+        // No need to set a "name" for device triggers, HA uses "type" and "subtype"
+        publishDiscoveryMessage(doc, "device_automation");
+    }
 }
 
 void publishHaDiagnosticAttributes() {
