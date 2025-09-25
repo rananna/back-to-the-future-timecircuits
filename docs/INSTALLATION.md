@@ -14,7 +14,7 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 
 | Qty | Component | Notes |
 | :-: | :--- | :--- |
-| 1 | [ESP32-S3 Dev Module](https://www.aliexpress.com/item/1005006212080137.html) | A **38-pin** module is required. An S3 model is recommended for its safe pinout, which avoids conflicts with the built-in USB controller. ([Alternate](https://www.sparkfun.com/products/24408)) |
+| 1 | [ESP32-S3 Dev Module](https://www.aliexpress.com/item/1005006212080137.html) | A **38-pin ESP32-S3** module is **required**. This project is not compatible with other ESP32 models due to its specific pinout. ([Alternate](https://www.sparkfun.com/products/24408)) |
 | 1 | [MAX98357A I2S DAC Amplifier](https://www.aliexpress.com/item/1005005929311653.html) | For playing sound effects directly from the ESP32. |
 | 1 | [Small 8 Ohm Speaker](https://www.aliexpress.com/item/1005006682079525.html) | A 0.5W or 1W speaker is sufficient. |
 | 12 | **Adafruit HT16K33 14-Segment Displays** | Ensure they are the **14-segment "Alphanumeric"** type. ([Adafruit](https://www.adafruit.com/product/1910), [Digi-Key](https://www.digikey.com/en/products/detail/adafruit-industries-llc/1910/5354394)) |
@@ -30,8 +30,8 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 
 This project uses two separate I2C buses to manage all 12 displays without address conflicts.
 
-> #### 💡 ESP32-S3 Safe Pinout
-> The following pinout is specifically for ESP32-S3 boards to avoid hardware conflicts with the built-in USB controller.
+> #### ⚠️ ESP32-S3 Required
+> The following pinout is specifically for the **required** ESP32-S3 board. This project is not compatible with other ESP32 models.
 
 | Component | ESP32 Pin | Notes |
 | :--- | :--- | :--- |
