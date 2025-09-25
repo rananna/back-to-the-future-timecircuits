@@ -119,6 +119,7 @@ bool logConnectedPrinted = false;            // Flag to ensure the "Connected" m
 // Handles the exponential backoff strategy for reconnecting to the MQTT broker.
 unsigned long nextMqttReconnectAttempt = 0;  // Timestamp (millis) for the next scheduled reconnect attempt.
 unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL; // Current reconnect interval, increases on failure.
+bool initialMqttConnectionAttempted = false; // Tracks if the first connection attempt has been made.
 
 // --- STATE VARIABLES ---
 BootSequenceState bootState = BOOT_INACTIVE; // Current phase of the cinematic boot sequence.
@@ -1181,15 +1182,20 @@ void loop() {
             if (!currentSettings.mqttBroker.empty()) {
                 if (!mqttClient.connected()) {
                     unsigned long now = millis();
-                    if (now > nextMqttReconnectAttempt) {
+                    // MODIFICATION: Allow the first connection attempt immediately after WiFi is up,
+                    // then use the exponential backoff timer for subsequent retries.
+                    if (!initialMqttConnectionAttempted || now > nextMqttReconnectAttempt) {
                         reconnectMqtt();
+                        initialMqttConnectionAttempted = true; // Mark that the first attempt has been made
                         nextMqttReconnectAttempt = now + mqttReconnectInterval;
                         if (!mqttClient.connected()) {
+                            // If connection failed, double the wait time for the next retry
                             mqttReconnectInterval *= 2;
                             if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
                                 mqttReconnectInterval = MQTT_MAX_RETRY_INTERVAL;
                             }
                         } else {
+                             // If connection succeeded, reset the interval
                              mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
                         }
                     }
