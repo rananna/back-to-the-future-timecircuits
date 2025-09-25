@@ -475,6 +475,10 @@ void setupWebRoutes() {
     Log_printf(LOG_LEVEL_DEBUG, "Client requested /data_handling.js");
     request->send(LittleFS, "/data_handling.js", "application/javascript"); 
   });
+  server.on("/ui_functions.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    Log_printf(LOG_LEVEL_DEBUG, "Client requested /ui_functions.js");
+    request->send(LittleFS, "/ui_functions.js", "application/javascript");
+  });
   server.on("/main_ui.js", HTTP_GET, [](AsyncWebServerRequest *request){ 
     Log_printf(LOG_LEVEL_DEBUG, "Client requested /main_ui.js");
     request->send(LittleFS, "/main_ui.js", "application/javascript"); 
