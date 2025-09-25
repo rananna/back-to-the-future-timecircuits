@@ -635,6 +635,19 @@ void saveSettings() {
     Log_printf(LOG_LEVEL_INFO, "Saving stockRow3_symbol: %s", currentSettings.stockRow3_symbol.c_str());
     preferences.putString("stockRow3Symbol", currentSettings.stockRow3_symbol.c_str());
 
+    Log_printf(LOG_LEVEL_INFO, "Saving numDataPoints: %d", currentSettings.numDataPoints);
+    preferences.putInt("numDataPoints", currentSettings.numDataPoints);
+    for (int i = 0; i < 5; i++) {
+        String prefix = "dp" + String(i) + "_";
+        preferences.putBool((prefix + "en").c_str(), currentSettings.dataPoints[i].enabled);
+        preferences.putInt((prefix + "srcType").c_str(), currentSettings.dataPoints[i].dataSourceType);
+        preferences.putString((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic.c_str());
+        preferences.putString((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText.c_str());
+        preferences.putInt((prefix + "scroll").c_str(), currentSettings.dataPoints[i].scrollSpeed);
+        preferences.putString((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefixText.c_str());
+        preferences.putString((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffixText.c_str());
+    }
+
 	preferences.end();
     Log_printf(LOG_LEVEL_INFO, "--- Settings Saved ---");
 
@@ -781,8 +794,12 @@ void loadSettings() {
         currentSettings.stockRefreshInterval = preferences.getInt("stockRefresh", 20);
         Log_printf(LOG_LEVEL_INFO, "Loaded stockRefresh: %d", currentSettings.stockRefreshInterval);
 
-        tempString = preferences.getString("fmpApiKey", "");
-        currentSettings.financialModelingPrepApiKey = tempString.c_str();
+        if (preferences.isKey("fmpApiKey")) {
+            tempString = preferences.getString("fmpApiKey", "");
+            currentSettings.financialModelingPrepApiKey = tempString.c_str();
+        } else {
+            currentSettings.financialModelingPrepApiKey = "";
+        }
         Log_printf(LOG_LEVEL_INFO, "Loaded fmpApiKey: %s", currentSettings.financialModelingPrepApiKey.c_str());
 
         currentSettings.departureHour = preferences.getInt("depHour", 22);
@@ -831,14 +848,20 @@ void loadSettings() {
         currentSettings.numDataPoints = preferences.getInt("numDataPoints", 0);
         Log_printf(LOG_LEVEL_INFO, "Loaded numDataPoints: %d", currentSettings.numDataPoints);
         for (int i = 0; i < 5; i++) {
-            String prefix = "dp" + String(i) + "_";
-            currentSettings.dataPoints[i].enabled = preferences.getBool((prefix + "en").c_str(), false);
-            currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str(), 0);
-            currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
-            currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
-            currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str(), 150);
-            currentSettings.dataPoints[i].prefixText = preferences.getString((prefix + "prefix").c_str(), "").c_str();
-            currentSettings.dataPoints[i].suffixText = preferences.getString((prefix + "suffix").c_str(), "").c_str();
+            if (i < currentSettings.numDataPoints) {
+                String prefix = "dp" + String(i) + "_";
+                currentSettings.dataPoints[i].enabled = preferences.getBool((prefix + "en").c_str(), false);
+                currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str(), 0);
+                currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
+                currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
+                currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str(), 150);
+                currentSettings.dataPoints[i].prefixText = preferences.getString((prefix + "prefix").c_str(), "").c_str();
+                currentSettings.dataPoints[i].suffixText = preferences.getString((prefix + "suffix").c_str(), "").c_str();
+            } else {
+                // Clear out data for points that are no longer active
+                currentSettings.dataPoints[i] = {};
+                currentSettings.dataPoints[i].enabled = false;
+            }
         }
 
         preferences.end(); // End the read-only session.
