@@ -46,8 +46,8 @@ void clearHaEntity(const char* component, const char* unique_id_suffix) {
 /**
  * @brief Centralized helper to publish a Home Assistant discovery message.
  * @details This function constructs the topic, serializes the JSON payload,
- * applies a defensive fix for malformed array-based JSON, and publishes
- * the configuration message to the appropriate MQTT discovery topic.
+ * and publishes the configuration message to the appropriate MQTT discovery topic.
+ * It now includes enhanced logging to help debug discovery issues.
  * @param doc The JsonDocument containing the entity's configuration.
  * @param component The Home Assistant component type (e.g., "sensor", "switch").
  */
@@ -56,33 +56,27 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
     String object_id = doc["object_id"].as<String>();
     String topic = String(MQTT_BASE_TOPIC) + "/" + component + "/" + object_id + "/config";
 
+    // Serialize the JSON document to a string
     serializeJson(doc, payload);
 
-    // Defensive fix for a bug where the payload is sometimes serialized as a
-    // JSON array `[{...}]` instead of a JSON object `{...}`.
-    if (payload.startsWith("[") && payload.endsWith("]")) {
-        Log_printf(LOG_LEVEL_WARN, "HA Discovery: Malformed array-based JSON detected for %s. Attempting recovery.", object_id.c_str());
-        DynamicJsonDocument tempDoc(1024);
-        DeserializationError error = deserializeJson(tempDoc, payload);
+    // Log the discovery message details for debugging and verification
+    Log_printf(LOG_LEVEL_INFO, "HA Discovery: Publishing to topic [%s]", topic.c_str());
+    Log_printf(LOG_LEVEL_INFO, "HA Discovery: Payload: %s", payload.c_str());
 
-        if (error == DeserializationError::Ok && tempDoc.is<JsonArray>()) {
-            JsonArray arr = tempDoc.as<JsonArray>();
-            if (!arr.isNull() && arr.size() > 0 && arr[0].is<JsonObject>()) {
-                JsonObject obj = arr[0];
-                payload = ""; // Clear the old payload
-                serializeJson(obj, payload);
-                Log_printf(LOG_LEVEL_INFO, "HA Discovery: Successfully recovered and re-serialized JSON object for %s.", object_id.c_str());
-            } else {
-                 Log_printf(LOG_LEVEL_ERROR, "HA Discovery: Array was empty or did not contain an object for %s.", object_id.c_str());
-            }
-        } else {
-            Log_printf(LOG_LEVEL_ERROR, "HA Discovery: Failed to parse and recover malformed JSON for %s. Error: %s", object_id.c_str(), error.c_str());
-        }
-    }
-
-    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     if (mqttClient.connected()) {
-        mqttClient.publish(topic.c_str(), payload.c_str(), true);
+        // This is a blocking loop that will continue until the message is successfully published.
+        // It checks mqttClient.connected() in each iteration to prevent an infinite loop if the connection is lost.
+        while (mqttClient.connected() && !mqttClient.publish(topic.c_str(), payload.c_str(), true)) {
+            Log_printf(LOG_LEVEL_WARN, "HA Discovery: Publish buffer for %s is full. Retrying in 100ms...", object_id.c_str());
+            // Wait and allow the MQTT client to process its outgoing messages
+            delay(100);
+            mqttClient.loop();
+        }
+        // After a successful publish, give the client time to send the message from the buffer.
+        delay(75);
+        mqttClient.loop();
+    } else {
+        Log_printf(LOG_LEVEL_WARN, "HA Discovery: Cannot publish, MQTT client not connected.");
     }
 }
 
@@ -201,8 +195,6 @@ void publishHaAutoDiscovery() {
     availability["payload_not_available"] = "offline";
 
     JsonDocument doc;
-    String topic;
-    String payload;
     
     doc.clear();
     doc["name"] = "Status";
@@ -212,8 +204,8 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/status/state";
     doc["json_attributes_topic"] = device_base_topic + "/status/attributes";
     doc["icon"] = "mdi:clock-outline";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "sensor");
 
     // --- NEW: Create 12 text entities for direct display control ---
@@ -234,8 +226,8 @@ void publishHaAutoDiscovery() {
             doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
             doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
             doc["icon"] = "mdi:form-textbox";
-            doc["device"] = device;
-            doc["availability"] = availability;
+            doc["device"].set(device);
+            doc["availability"].set(availability);
             publishDiscoveryMessage(doc, "text");
         }
     }
@@ -265,8 +257,8 @@ void publishHaAutoDiscovery() {
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = "mdi:toggle-switch";
         doc["entity_category"] = "config";
-        doc["device"] = device;
-        doc["availability"] = availability;
+        doc["device"].set(device);
+        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "switch");
     }
 
@@ -282,8 +274,8 @@ void publishHaAutoDiscovery() {
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = "mdi:text-box-outline";
         doc["entity_category"] = "config";
-        doc["device"] = device;
-        doc["availability"] = availability;
+        doc["device"].set(device);
+        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "text");
     }
 
@@ -328,8 +320,8 @@ void publishHaAutoDiscovery() {
         doc["step"] = step_val;
         
         doc["entity_category"] = "config";
-        doc["device"] = device;
-        doc["availability"] = availability;
+        doc["device"].set(device);
+        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "number");
     }
 
@@ -347,8 +339,8 @@ void publishHaAutoDiscovery() {
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = cfg[2];
         doc["entity_category"] = "config";
-        doc["device"] = device;
-        doc["availability"] = availability;
+        doc["device"].set(device);
+        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "switch");
     }
     
@@ -370,8 +362,8 @@ void publishHaAutoDiscovery() {
         doc["payload_press"] = "PRESS";
         doc["icon"] = cfg[2];
         doc["entity_category"] = "config";
-        doc["device"] = device;
-        doc["availability"] = availability;
+        doc["device"].set(device);
+        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "button");
     }
 
@@ -385,8 +377,8 @@ void publishHaAutoDiscovery() {
     doc["payload_press"] = "PRESS";
     doc["icon"] = "mdi:movie-play-outline";
     doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "button");
     
     doc.clear();
@@ -398,8 +390,8 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/temporal_echo/state";
     doc["icon"] = "mdi:ghost";
     doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "switch");
 
     doc.clear();
@@ -417,8 +409,8 @@ void publishHaAutoDiscovery() {
     profiles.add("Custom");
     doc["icon"] = "mdi:movie-settings";
     doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "select");
     
 
@@ -432,8 +424,8 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/override/state";
     doc["icon"] = "mdi:message-cog";
     doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "switch");
 
     doc.clear();
@@ -445,8 +437,8 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/override_message/state";
     doc["icon"] = "mdi:message-draw";
     doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "text");
 
     doc.clear();
@@ -467,8 +459,8 @@ void publishHaAutoDiscovery() {
     sounds.add("TIME_TRAVEL_FAIL");
     doc["icon"] = "mdi:volume-high";
     doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "select");
 
 
@@ -482,8 +474,8 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/weather_mode/state";
     doc["icon"] = "mdi:weather-cloudy";
     doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "switch");
 
     doc.clear();
@@ -495,8 +487,8 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/weather_city/state";
     doc["icon"] = "mdi:city";
     doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "text");
 
     doc.clear();
@@ -508,8 +500,8 @@ void publishHaAutoDiscovery() {
     doc["payload_press"] = "PRESS";
     doc["icon"] = "mdi:refresh";
     doc["entity_category"] = "config";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "button");
 
     // New Audio sensor for stream state
@@ -520,8 +512,8 @@ void publishHaAutoDiscovery() {
     doc["object_id"] = toLowerCase(audio_status_id);
     doc["state_topic"] = device_base_topic + "/audio/state";
     doc["icon"] = "mdi:waveform";
-    doc["device"] = device;
-    doc["availability"] = availability;
+    doc["device"].set(device);
+    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "sensor");
     
     haDiscoveryPublished = true;
@@ -548,9 +540,13 @@ void reconnectMqtt() {
 
   if (connectResult) {
     Log_printf(LOG_LEVEL_INFO, "SUCCESS! MQTT client connected.");
-    delay(100); 
+    // It's crucial to delay and call loop() here to allow the client to process the CONNACK from the broker.
+    // Without this, the first publish will likely fail as the client is not yet ready.
+    delay(250);
+    mqttClient.loop();
     
     mqttClient.publish(availability_topic.c_str(), "online", true);
+    mqttClient.loop(); // Allow time for the availability message to be sent.
 
     Log_printf(LOG_LEVEL_DEBUG, "Checking if HA discovery needs to be published (haDiscoveryPublished: %s).", haDiscoveryPublished ? "true" : "false");
     if (!haDiscoveryPublished) {
@@ -1045,6 +1041,11 @@ void setupMqtt() {
   if (currentSettings.mqttBroker.empty()) {
     Log_printf(LOG_LEVEL_INFO, "No broker configured. MQTT setup skipped.");
     return;
+  }
+  // Programmatically set the buffer size to ensure it's large enough for HA discovery payloads.
+  // This is more reliable than using the #define directive.
+  if (!mqttClient.setBufferSize(1500)) {
+    Log_printf(LOG_LEVEL_ERROR, "CRITICAL: Failed to allocate MQTT buffer. Discovery will fail.");
   }
   mqttClient.setServer(currentSettings.mqttBroker.c_str(), currentSettings.mqttPort);
   mqttClient.setCallback(mqttCallback);
