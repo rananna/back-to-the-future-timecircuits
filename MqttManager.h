@@ -4,6 +4,9 @@
 #include <Arduino.h>
 #include <string>
 
+// Define the maximum MQTT packet size. This must be defined before PubSubClient.h is included.
+#define MQTT_MAX_PACKET_SIZE 1024
+
 // --- MQTT Configuration ---
 #define MQTT_BASE_TOPIC "homeassistant"
 #define MQTT_DEVICE_TYPE "BTTF_TC"
