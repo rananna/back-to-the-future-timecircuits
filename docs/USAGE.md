@@ -5,9 +5,9 @@ This guide covers the day-to-day use and configuration of your Time Circuits dis
 ### **Table of Contents**
 1. [First-Time WiFi Setup](#first-time-wifi-setup)
 2. [Accessing the Web Interface](#accessing-the-web-interface)
-3. [Web Interface Tabs](#web-interface-tabs)
-4. [The "Engage Time Circuits" Button](#the-engage-time-circuits-button)
-5. [Cinematic Save Sequence](#cinematic-save-sequence)
+3. [Web Interface Overview](#web-interface-overview)
+4. [Advanced Features](#advanced-features)
+5. [Saving Settings](#saving-settings)
 
 ***
 
@@ -27,311 +27,46 @@ Once connected, you can access the web UI by navigating to the device's IP addre
 
 ***
 
-## Web Interface Tabs
+## Web Interface Overview
 
 The web interface is organized into several tabs for easy configuration.
 
 ### Time Circuits Tab
-
-This tab is the heart of the time-setting functionality for your display.
-
-#### Destination Time & Year
-*   **Time Zone**: Select the time zone for your destination time. This is useful if you want the destination time to be in a different zone from your present time.
-*   **YEAR**: Enter the four-digit year you want the DeLorean to travel to. This is the primary input for the "Destination Time" display.
-
-#### Last Time Departed & Presets
-
-This section controls the "Last Time Departed" display and allows you to manage a list of your favorite time-jump destinations.
-
-*   **Famous & Custom Time Jumps**: This dropdown contains all the iconic dates from the *Back to the Future* movies, plus any custom presets you've saved.
-    *   Selecting a preset from this list will immediately update the "Last Time Departed" display.
-    *   If you select a **custom** preset, its details will populate the form below, allowing you to edit or delete it.
-
-*   **Managing Custom Presets**: You can create your own list of favorite dates.
-    *   **To Add a Preset**: Leave the dropdown on "-- Select a Famous Date --". Fill in the "Preset Name," "Date," and "Time" fields, and click **Add to Presets**.
-    *   **To Update a Preset**: Select your custom preset from the dropdown. The form will fill with its current details. Make your changes and click **Update Preset**.
-    *   **To Delete a Preset**: Select your custom preset from the dropdown and click **Delete Selected Preset**.
-
-*   **Cycle Presets**: To have the clock automatically rotate the "Last Time Departed" display through all available presets (both movie and custom), set the slider to the desired interval in minutes. Setting it to **0** disables this feature.
+This is the heart of the time-setting functionality.
+*   **Destination Time & Year**: Set the destination time and year for the top display.
+*   **Last Time Departed & Presets**: Manage the "Last Time Departed" display and a list of your favorite time-jump destinations from the movies or your own custom entries.
 
 ### Temporal Controls Tab
-
 This tab controls the clock's automatic behaviors, visual effects, and sound.
-
-#### Sleep Schedule
-This feature is for energy saving, not for simulating time travel. It allows you to set a daily schedule to automatically turn the displays off and on.
-*   **Departure Time**: The time the displays will turn **off**. When this happens, the clock will play `SLEEP_ON.mp3`.
-*   **Arrival Time**: The time the displays will turn back **on**. When this happens, the clock will play `CONFIRM_ON.mp3`.
-
-#### Display & Animation
-*   **Display Brightness**: Adjust the brightness of all the LED displays.
-*   **24 Hour Format**: Toggle the present time display between 12-hour (with AM/PM) and 24-hour format.
-*   **Animation Style**: Select from over 20 unique visual effects for the time travel sequence.
-*   **Preview Button**: Click this to see a live, client-side preview of the selected animation style in the header clocks. This lets you test out animations without having to save your settings.
-*   **Animation Every (min, 0=Off)**: Set an interval in minutes for the clock to automatically play the full time travel sequence. Set to 0 to disable.
-
-#### Sound
-*   **Volume**: Adjust the volume of all sound effects.
-*   **Time Travel Sound FX**: Toggle the main cinematic sound effects on or off.
+*   **Sleep Schedule**: Set a daily schedule to automatically turn the displays off and on to save energy.
+*   **Display & Animation**: Adjust brightness, toggle 24-hour format, and choose from over 20 unique time travel animation styles.
+*   **Sound**: Control the volume of the sound effects.
 
 ### Data Link Tab
-This is where you configure the clock to show live, real-time data from the internet or your smart home. All of these modes take over the bottom display row, hiding the normal "Last Time Departed" information.
-
-The tab is split into three modes, and **only one can be active at a time**. Enabling one will disable the others.
-
----
-
-#### Live Weather Display
-This mode transforms the bottom display row into a comprehensive, multi-page weather station. An internet connection is required, and the data automatically refreshes periodically.
-
-**Configuration Steps:**
-1.  **Enable Weather Mode**: Toggle on "Enable Live Weather".
-2.  **Enter City Name**: Type the name of a city you want weather data for (e.g., `Hill Valley`).
-3.  **Lookup Coordinates**: Click the **Lookup** button. The clock will use a free geocoding service to find the latitude and longitude for the city. These coordinates will appear in the read-only fields below the button. If the city name is ambiguous, a pop-up will ask you to choose the correct location.
-4.  **Fetch Weather**: Once the coordinates are found, the clock will automatically use them to fetch the latest weather data from the free [Open-Meteo API](https://open-meteo.com/).
-5.  **Refresh Data**: You can click the **Refresh** button at any time to manually trigger a new weather data fetch using the saved coordinates.
-
-While fetching data, the display will show `WEA TH ER ----`. Once loaded, it will cycle through the following 7 pages of information, with each page scrolling across the display:
-
-1.  **Current Conditions**
-    *   Displays the current temperature and a description of the weather (e.g., "Partly Cloudy").
-    *   *Example: `CURRENTLY 72.5F, PARTLY CLOUDY`*
-
-2.  **Tomorrow's Forecast**
-    *   Shows the predicted high and low temperatures for the following day, along with a description of the expected conditions.
-    *   *Example: `TOMORROW HIGH 80F, LOW 65F, CLEAR SKY`*
-
-3.  **Wind & Precipitation**
-    *   Details the current wind speed, maximum wind gust for the day, and the probability of precipitation.
-    *   *Example: `WIND 10 MPH, MAX 25 MPH, PRECIP 20%`*
-
-4.  **Sunrise & Sunset**
-    *   Shows the local sunrise and sunset times, automatically formatted for 12/24 hour time.
-    *   *Example: `SUNRISE 630AM, SUNSET 845PM`*
-
-5.  **Hourly Forecast**
-    *   Provides a look at the next 3 hours, showing the temperature and expected conditions for each hour.
-    *   *Example: `NEXT 3 HRS 71F CLEAR, 70F CLOUDY, 69F RAIN`*
-
-6.  **Feels Like & Humidity**
-    *   Displays the apparent ("feels like") temperature and the current relative humidity.
-    *   *Example: `FEELS LIKE 78F, HUMIDITY 55%`*
-
-7.  **Today's High & Low**
-    *   Shows the forecasted high and low temperatures for the current day.
-    *   *Example: `TODAY HIGH 82F, LOW 61F`*
-
-> 💡 **Metric vs. Imperial:** The units used (Celsius/Fahrenheit, KPH/MPH) are automatically determined by the "Use Metric Units" setting in this section.
-
----
-
-#### Stock Ticker Mode
-This mode transforms the bottom display row into a scrolling, multi-page financial ticker. It supports stocks, ETFs, and cryptocurrencies from around the world, allowing you to track your portfolio at a glance.
-
-##### 1. Activation & API Key
-First, you need to enable and configure the mode in the "Data Link" tab of the web interface.
-
-*   **Enable the Mode**: Toggle on "Stock Ticker Mode". This will reveal the settings panel.
-*   **API Key**: You must provide a valid API key from the **Financial Modeling Prep** service. Without this key, the device cannot fetch any data. A free tier is available and is sufficient for this feature.
-    > ⚠️ **Security Note:** Your API key is a secret credential. Treat it like a password and do not share it publicly.
-*   **Refresh Interval**: Set how often the data should be refreshed, in minutes. The default is 20 minutes. Note that the free API tier has a daily call limit, so a very short interval may exhaust your quota quickly.
-
-To get your API key:
-1.  **Navigate to the Registration Page**: Open a web browser and go to the [Financial Modeling Prep registration page](https://site.financialmodelingprep.com/register).
-2.  **Sign Up**: Fill out the required information to create a new account.
-3.  **Find Your API Key**: Once you have created your account and logged in, navigate to your **Dashboard**. Your API key will be displayed in the **"Your API KEY"** section.
-4.  **Copy and Paste**: Copy the API key from the dashboard and paste it into the "Financial Modeling Prep API Key" field in the clock's web interface.
-
-##### 2. Adding & Managing Assets
-This section allows you to build and manage your list of tracked assets.
-
-*   **Add an Asset**:
-    1.  **Symbol Validation**: When you enter a stock, ETF, or crypto symbol (e.g., `AAPL`, `SPY`, `BTCUSD`) and click "Add Asset," the clock first performs a validation check. It contacts the API to verify the symbol is valid and to retrieve its exchange information. If the symbol cannot be found, it will not be added.
-    2.  **Immediate Fetch**: Upon successful validation, the asset is added to the "Tracked Assets" list, and the clock immediately triggers a background fetch to retrieve its price data. This ensures the asset's information appears on the display and in the UI almost instantly.
-
-*   **Manage Assets**:
-    *   **Reorder**: Click and drag any asset in the list to change the order in which they are displayed on the clock.
-    *   **Remove**: Click the red **'×'** button next to an asset to remove it from your list.
-    *   **Saving Changes**: All changes to the asset list (adding, removing, reordering) are saved automatically when you press the main **"Engage Time Circuits"** button at the bottom of the page.
-
-##### 3. The Display
-The physical display provides a rich, multi-page view of your assets.
-
-*   **Display Cycle**: The clock automatically cycles through each of your tracked assets. For each asset, it displays **two pages** of information:
-    1.  **Page 1: Price & Change**: Shows the asset's symbol, current price, and percentage change for the day.
-        *   *Example: `AAPL $175.30 +1.23%`*
-    2.  **Page 2: High, Low & Volume**: Shows the asset's symbol along with the highest and lowest price for the current trading day and the trading volume. Volume is automatically abbreviated (K for thousands, M for millions, B for billions).
-        *   *Example: `AAPL HI $176.10 LO $173.80 VOL 52.5M`*
-
-*   **Currency Symbols**: The clock automatically converts currency codes (e.g., `USD`, `EUR`, `GBP`) into their common symbols (`$`, `€`, `£`) on the display.
-
-*   **Market Closed Behavior**: When the markets for your tracked stock/ETF assets are closed, the clock will not fetch new data. It will continue to display the last available data until the market re-opens. This does not apply to cryptocurrencies, which trade 24/7.
-
-*   **Error Messages**: If the clock encounters a problem, it will display a specific error message on the marquee to help you diagnose the issue. Common errors include:
-    *   `[SYMBOL] INVALID SYMBOL`: The ticker symbol could not be found or is not supported.
-    *   `[SYMBOL] INVALID API KEY`: Your API key is incorrect, has expired, or has been disabled.
-    *   `[SYMBOL] RATE LIMITED`: You have exceeded your daily API call limit. The system will automatically try again later.
-    *   `[SYMBOL] CONNECTION FAILED`: The clock was unable to reach the API server. This is often a temporary network issue.
-    *   `[SYMBOL] PENDING`: The asset has been added but the first data fetch is still in progress.
-
-##### 4. Web UI Live Feedback
-The web interface provides several tools for monitoring the stock ticker in real-time.
-
-*   **Live Marquee Preview**: A preview of the text currently scrolling on the physical display is shown directly in the web UI.
-*   **Tracked Assets List**: This list provides live updates for your assets. You can see the current price and percentage change, which refresh periodically. If there's an error with an asset, it will be shown here.
-*   **API Usage Counter**: The UI displays the number of API calls made for the current day. This counter automatically resets to zero at midnight (based on your clock's time zone).
-
-##### 5. How It Works: Data Fetching & Reliability
-The stock ticker has several smart features to ensure data is both timely and efficient.
-
-*   **Market Hours**: The system uses a general-purpose check for North American market hours (**9:30 AM to 4:00 PM Eastern Time, Mon-Fri**) to decide when to fetch data for stocks and ETFs. Data is not fetched outside of these hours to conserve API calls.
-    *   **Cryptocurrencies**, which trade continuously, are fetched 24/7.
-*   **Individual Asset Fetching**: To improve reliability, the clock fetches data for each asset in your list with a separate API call. This prevents a single invalid symbol from causing the entire update to fail.
-*   **Automatic Retries**: If an API call for an asset fails due to a temporary issue (like a network error or rate limiting), the system will automatically retry the request up to two more times before marking it as failed.
-
-##### 6. MQTT Control
-You can manually cycle through the asset pages using MQTT commands. This is useful for quickly checking a specific data point without waiting for the automatic cycle.
-*   **Next Page**: Publish any message to `bttf-time-circuits/[DEVICE_ID]/stock/next/command`
-*   **Previous Page**: Publish any message to `bttf-time-circuits/[DEVICE_ID]/stock/previous/command`
-
-##### 7. Limitations & Tracking Indices
-*   **Free API Plan**: The free tier of the Financial Modeling Prep API is powerful but has limitations. Most importantly, it **does not support direct tracking of major market indices** like the S&P 500 (`^GSPC`) or the NASDAQ Composite (`^IXIC`). Attempting to add these symbols will result in an `INVALID SYMBOL` error.
-
-*   **Using ETFs as a Proxy**: A great way to track these indices is by using **Exchange-Traded Funds (ETFs)**. These are funds that trade on stock exchanges, just like regular stocks, and are designed to mirror the performance of a specific index. Since they have regular ticker symbols, the clock can track them easily.
-
-Here are some popular ETFs for major North American indices that you can use:
-
-| Index | ETF Ticker | Description |
-| :--- | :--- | :--- |
-| **S&P 500** | `SPY` | Tracks the 500 largest U.S. publicly traded companies. |
-| **Nasdaq-100**| `QQQ` | Tracks the 100 largest non-financial companies on the Nasdaq exchange. |
-| **Dow Jones** | `DIA` | Tracks the 30 large, publicly-owned companies in the Dow Jones Industrial Average. |
-| **Russell 2000**| `IWM` | Tracks an index of 2,000 small-cap U.S. companies. |
-| **S&P/TSX 60**| `XIU.TO` | Tracks the 60 largest companies on the Toronto Stock Exchange (Canada). |
-
----
-
-#### Data Link Marquee
-This is the most powerful and flexible data display mode. It transforms the bottom display row into a fully configurable marquee that can display custom data from multiple sources like MQTT, Home Assistant, or just static text. It works by cycling through up to 5 independent "Data Points," each with its own source and formatting.
-
-##### 1. Activating the Marquee
-To begin, you must first enable the Data Link Marquee mode.
-1.  Navigate to the **Data Link** tab.
-2.  Toggle on the **"Enable Data Link Marquee"** switch.
-This will disable the Weather and Stock Ticker modes and reveal the marquee configuration panel.
-
-##### 2. Global Settings
-These settings apply to all data points that use MQTT.
-*   **Global MQTT Broker Settings**: If you plan to use `MQTT Push` or `Home Assistant Push` as a data source for any data point, you **must** configure your MQTT broker's address, port, and credentials here. If you only use the `Static Text` data source, these settings can be left blank.
-
-##### 3. Configuring Data Points
-This is where you define what data to show on the display.
-
-*   **Number of Data Points**: Use this slider to select how many data points you want to display, from 1 to 5. The clock will cycle through them in order. For each number you select, a new configuration block will appear below.
-
-*   **Data Point Header**: Each data point has a header with its title (e.g., "Data Point 1") and two helper buttons:
-    *   **Clear**: Resets all fields for that data point to their default values.
-    *   **Duplicate**: Copies the configuration of the current data point to a new data point at the end of the list. This is useful for creating several similar data points without re-entering all the settings.
-
-*   **Data Source**: This dropdown determines where the data for this point comes from.
-    *   **`MQTT Push`**: The most common option. The clock will subscribe to the MQTT topic you specify and display the payload of any message it receives. This is perfect for showing real-time data from sensors or other smart home devices.
-        *   When you select this, the **MQTT Topic**, **Prefix Text**, and **Suffix Text** fields will become visible.
-    *   **`Home Assistant Push`**: A special mode for seamless integration with Home Assistant. In this mode, Home Assistant can directly push data to the display without needing a specific MQTT topic configured on the clock.
-    *   **`Static Text`**: The simplest option. The clock will display a fixed string of text that you enter. This is great for reminders, labels, or decorative messages.
-        *   When you select this, the **Scrolling Text** field becomes visible.
-
-*   **Configuration Fields**:
-    *   **MQTT Topic**: (Visible for `MQTT Push` only) Enter the full MQTT topic the clock should listen to for this data point's value.
-    *   **Prefix Text**: (Visible for `MQTT Push` only) Static text that will always be displayed *before* the value received from MQTT. Useful for adding labels (e.g., `TEMP: `).
-    *   **Suffix Text**: (Visible for `MQTT Push` only) Static text that will always be displayed *after* the value received from MQTT. Useful for adding units (e.g., `°C`).
-    *   **Scrolling Text**: (Visible for `Static Text` only) The exact text you want to be displayed on the marquee.
-    *   **Scroll Speed**: A slider that controls how fast the text for this data point scrolls across the display. Faster speeds have a lower `ms/char` value.
-
-##### 4. Examples
-
-**Example 1: Displaying a Temperature from MQTT**
-You have a temperature sensor in your living room that publishes the temperature to the MQTT topic `home/livingroom/temp`. You want the clock to display `LIVING ROOM: 72.5°F`.
-
-1.  Set **Number of Data Points** to 1.
-2.  In the "Data Point 1" block:
-    *   Set **Data Source** to `MQTT Push`.
-    *   Set **MQTT Topic** to `home/livingroom/temp`.
-    *   Set **Prefix Text** to `LIVING ROOM: `.
-    *   Set **Suffix Text** to `°F`.
-3.  Now, when your sensor publishes `72.5` to the topic, the display will automatically show `LIVING ROOM: 72.5°F`.
-
-**Example 2: Displaying a Static Reminder**
-You want to create a simple reminder to take out the trash.
-
-1.  Set **Number of Data Points** to 2 (or another empty slot).
-2.  In the new "Data Point" block:
-    *   Set **Data Source** to `Static Text`.
-    *   Set **Scrolling Text** to `TAKE OUT THE TRASH`.
-3.  This message will now appear in the display rotation.
+This tab unlocks the clock's advanced data display capabilities, allowing it to show real-time information on the bottom display row.
+*   **For detailed instructions** on configuring the Weather, Stock Ticker, and custom Data Link Marquee modes, please see the **[📈 Data Link, Weather & Stock Ticker Guide](guides/DATA_LINK.md)**.
 
 ### Network & System Tab
 This tab provides information about the device's status and allows you to perform system-level actions.
-
-*   **Present Time**: Configure the time zone for the "Present Time" display and manually trigger a synchronization with an NTP time server.
-*   **System Status**: Displays real-time information about the device, including WiFi Signal Strength, free memory, and uptime.
-*   **Firmware & UI Updates**: These forms allow you to update the device's software over-the-air (OTA).
-    *   **Firmware Update (OTA)**: Upload a new firmware (`.bin`) file to update the main controller software.
-    *   **UI File Update**: Upload new web interface files (`.html`, `.css`, `.js`) to update the look or functionality of this web UI.
-*   **UI Theme**: Change the color scheme of this web interface. This setting is cosmetic and does not affect the physical display. Available themes include:
-    *   **Time Circuits**: The classic green and yellow.
-    *   **OUTATIME**: A red and orange "warning" theme.
-    *   **88 MPH**: A cool blue and cyan theme.
-    *   **Plutonium Glow**: A radioactive green and yellow.
-    *   **Mr. Fusion**: An orange and white theme.
-    *   **Clock Tower**: A vintage brown and beige theme.
-*   **Device Actions**:
-    *   **Great Scott!**: Trigger a fun easter egg sound effect.
-    *   **Reset All Settings**: Reset all configuration options on all tabs to their factory defaults. **Use with caution!**
+*   **System Status**: View WiFi signal strength, free memory, and uptime.
+*   **Firmware & UI Updates**: Update the device's software and web interface files over-the-air (OTA).
+*   **Device Actions**: Reboot the device or reset all settings to factory defaults.
 
 ***
 
-## Advanced Control via MQTT & API
+## Advanced Features
 
-Beyond the web interface, many of the clock's features can be controlled programmatically via MQTT or direct API calls, making it highly extensible and easy to integrate into a smart home environment. For a complete list of all available MQTT topics and API endpoints, see the [Home Assistant Guide](HOME_ASSISTANT.md).
+Beyond the web interface, many of the clock's features can be controlled programmatically.
+*   **For Home Assistant Users**: To unlock deep integration with your smart home, see the **[🏠 Home Assistant Integration Guide](HOME_ASSISTANT.md)**.
+*   **For Developers**: For a technical deep dive into the firmware and API, see the **[🔬 Developer's Guide](DEVELOPMENT.md)**.
 
 ***
 
-## The "Engage Time Circuits" Button
+## Saving Settings
 
-The large **"Engage Time Circuits"** button at the bottom of the page is your primary way to save settings and trigger the clock's signature animation.
+The large **"Engage Time Circuits"** button at the bottom of the page is your primary way to save settings.
 
-💡 **What it Does:** This button triggers a smart, asynchronous save-and-animate sequence:
-1.  **Requests a Save:** It sends all configuration options from all tabs to the device.
-2.  **Saves in Background:** The device saves the settings in the background. It intelligently checks which settings have actually been changed and only writes the new values to its memory to minimize wear on the hardware.
-3.  **Triggers Animation on Success:** Once the save is successfully completed, the device immediately starts the full time travel sequence.
-
-This "smart saving" process is extremely fast and reliable, ensuring that an animation only confirms a successful save.
+💡 **How it Works:** This button sends all configuration options from all tabs to the device. The device saves the settings in the background and then triggers the full time travel animation sequence to confirm that the save was successful.
 
 > ⚡ **Tip for Quick Configuration**
-> Because every press of the button triggers the full 17-second animation, it's most efficient to **make all of your desired changes across all tabs first**, and then press the save button only once when you are finished.
-
-***
-
-## Cinematic Save Sequence
-
-Pressing the "Engage Time Circuits" button triggers a cinematic animation on the physical display, complete with synchronized sound effects and feedback in the web interface.
-
-### Web Interface Feedback
-
-When you press the button, you will see the following changes in the web UI:
-
-1.  **Loading State**: The button will be temporarily disabled and show a loading spinner with the text "Saving..." to confirm your action is being processed.
-2.  **Save Confirmation**: A message banner will appear at the top of the screen confirming "Settings Saved!".
-3.  **Temporal Displacement Effect**: The entire web page will flash for the duration of the hardware animation, mimicking the bright lights of the DeLorean's temporal displacement.
-
-### Hardware Animation and Sound Sequence
-
-This table details the sequence of events on the physical clock.
-
-> (All sounds are controlled by the **"Time Travel Sound FX"** toggle under the "Temporal Controls" tab)
-
-| Phase | Duration | Visuals | Sound Effect |
-| :--- | :--- | :--- | :--- |
-| **1. Power Up** | 1 second | The displays begin to flicker and glitch, simulating a power surge. | The sound of crackling electricity and power surges (**electric_sparks.mp3**). |
-| **2. Animation**| 10 seconds | The displays perform the animation selected in the "Animation Style" dropdown. This can range from a simple flicker to complex patterns. | The initial sound effect continues to play. |
-| **3. Cool Down**| 1 second | The displays flicker one last time before settling on the new destination and present times. | The sound fades out. |
+> It's most efficient to **make all of your desired changes across all tabs first**, and then press the save button only once when you are finished.
