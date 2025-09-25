@@ -637,6 +637,19 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 if (id_suffix.endsWith("_marquee")) {
                     currentSettings.dataPoints[dp_index].scrollingText = message.c_str();
                     settingsChanged = true;
+                    // --- BEGIN FIX ---
+                    // The original code saved the setting but didn't update the live display buffer.
+                    // This copies the new text to the live buffer and flags it as "dirty"
+                    // so the DisplayManager will re-render it on the next cycle.
+                    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                        displayPages[dp_index].year = message.c_str();
+                        displayPages[dp_index].month = "";
+                        displayPages[dp_index].day = "";
+                        displayPages[dp_index].time = "";
+                        isMarqueeBufferDirty = true;
+                        xSemaphoreGive(xDisplayDataMutex);
+                    }
+                    // --- END FIX ---
                 } else if (id_suffix.endsWith("_enabled")) {
                     currentSettings.dataPoints[dp_index].enabled = (message == "ON");
                     settingsChanged = true;
