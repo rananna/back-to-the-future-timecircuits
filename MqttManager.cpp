@@ -515,8 +515,7 @@ void reconnectMqtt() {
   Log_printf(LOG_LEVEL_INFO, "Attempting to connect to MQTT broker: %s...", currentSettings.mqttBroker.c_str());
   delay(100); 
 
-  String clientId = "TimeCircuits-";
-  clientId += String(random(0xffff), HEX);
+  String clientId = MQTT_UNIQUE_ID;
   String availability_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/status";
 
   bool connectResult = false;
