@@ -106,7 +106,7 @@ Ready to get started? The **[Installation Guide](docs/INSTALLATION.md)** provide
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/your-username/your-repo/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](../../issues).
 
 ### How to Contribute
 
