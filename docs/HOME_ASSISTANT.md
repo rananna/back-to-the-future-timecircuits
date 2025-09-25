@@ -50,6 +50,17 @@ Many of the included blueprints are **"callable,"** meaning they are on-demand a
 *   **BTTF - Home Assistant Status Display**: Use the main displays as a highly customizable, 12-segment status panel for your smart home. Show temperatures, humidity, or any other sensor value.
 *   **BTTF - TTS Notifier**: Play audio announcements from Home Assistant's Text-to-Speech (TTS) services on the clock's speaker.
 *   **BTTF - Cinematic Scene Trigger**: A complete automation that sets a destination year and immediately triggers the full time travel animation sequence.
+*   **BTTF - Sequencer**: A powerful tool for creating custom, multi-step animations. You can flash specific display segments, play sounds, and show temporary messages in a coordinated sequence. This is perfect for building unique alerts, like a visual alarm for an intruder warning.
+
+    *Example*: Create a script that flashes the "Destination Year" display, plays an alarm, and shows "INTRUDER ALERT" when a door sensor is triggered.
+
+*   **BTTF - Dynamic Marquee Display**: Show a scrolling line of text on one of the five data link display slots. It supports Home Assistant's templating engine, allowing you to display dynamic information like "Outside temp is 21°C."
+
+    *Example*: Set up an automation that updates a marquee every 5 minutes with the current temperature from a weather sensor.
+
+*   **BTTF - Radio Streamer**: Play an internet radio stream through the clock's speaker. You can start a stream by providing a URL or stop it with a simple command.
+
+    *Example*: Create a scene that starts your favorite 80s radio station stream when you say "Hey Google, it's 80s time."
 
 ---
 
