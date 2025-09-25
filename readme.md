@@ -60,7 +60,7 @@ This project's documentation is organized into categories to help you find what 
 | Document | Description |
 | :--- | :--- |
 | **[📈 Data Link Guide](docs/guides/DATA_LINK.md)** | Transform the "Last Time Departed" display into a real-time data feed. This guide covers the built-in Weather and Stock modes and explains how to create your own custom data integrations. |
-| **[🏠 Home Assistant Guide](docs/HOME_ASSISTANT.md)** | For smart home enthusiasts, this guide details how to integrate the clock with Home Assistant. It covers the MQTT API, included blueprints, and provides examples for creating powerful automations. |
+| **[🏠 Home Assistant Guide](docs/home-assistant.md)** | For smart home enthusiasts, this guide details how to integrate the clock with Home Assistant. It covers the MQTT API, included blueprints, and provides examples for creating powerful automations. |
 
 ### **Troubleshooting**
 | Document | Description |
@@ -71,7 +71,6 @@ This project's documentation is organized into categories to help you find what 
 | Document | Description |
 | :--- | :--- |
 | **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep-dive into the project's architecture, code, and file system. This is the place to start if you're interested in contributing to the project or creating a custom fork. |
-| **[🔌 Home Assistant Advanced Guide](docs/guides/HOME_ASSISTANT_ADVANCED.md)** | An advanced guide for Home Assistant users. It covers creating complex automations, custom dashboard cards, and using template sensors to display custom data. |
 | **[✉️ MQTT Technical Reference](docs/reference/MQTT_ENTITIES.md)** | A comprehensive reference for all MQTT topics and payloads used by the clock. Essential for advanced integrations and troubleshooting. |
 | **[⚙️ Configuration Reference](docs/reference/CONFIGURATION.md)** | A complete reference for all firmware (compile-time) and web UI configuration options. |
 | **[🔌 Pinout Reference](docs/reference/PINOUT.md)** | A detailed guide to the ESP32 GPIO pin assignments and instructions for customizing them. |
