@@ -5,6 +5,8 @@ blueprint:
     Triggers a custom sequence of actions on the Time Circuits display.
     This is a "callable" automation that has no trigger; you call it from another automation or script.
 
+    NOTE: This is an advanced blueprint that requires crafting a JSON payload and uses direct MQTT communication with the device.
+
     The sequence is defined by a JSON payload, which is an array of command objects. Each object must have a "command" key.
 
     Supported Commands:

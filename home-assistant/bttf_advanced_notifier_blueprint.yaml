@@ -1,7 +1,12 @@
 # home-assistant/bttf_advanced_notifier_blueprint.yaml
 blueprint:
   name: "BTTF - Advanced Notifier"
-  description: Displays a temporary message on the Time Circuits with an optional sound. This is a "callable" automation that has no trigger; you call it from another automation or script.
+  description: >-
+    Displays a temporary message on the Time Circuits with an optional sound.
+
+    This is a "callable" automation, meaning it has no trigger and is designed to be called as an action from other automations or scripts.
+
+    It includes a safety feature: if an override message is already being displayed when this blueprint is called, the new notification will be shown for its specified duration, but it will not turn off the override switch when it's done. This prevents a short, low-priority notification from canceling a longer, more important one.
   domain: automation
   input:
     target_device:

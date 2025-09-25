@@ -1,8 +1,9 @@
 blueprint:
   name: "BTTF - Cinematic Scene Trigger"
   description: >-
-    Set a destination year and trigger the full, cinematic time travel animation.
-    Ideal for starting scenes or reacting to events.
+    A simple way to trigger the full, cinematic time travel animation for a specific destination year.
+
+    This is a "callable" automation that has no trigger. It's perfect for integrating into Home Assistant scenes or using as a response to an event, like a person arriving home or a movie starting.
   domain: automation
   input:
     target_device:
