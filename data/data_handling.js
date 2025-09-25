@@ -419,11 +419,17 @@ async function saveSettings() {
 
     const stockAssets = [];
     document.querySelectorAll('#stockAssetList .asset-item').forEach(item => {
-        stockAssets.push({
-            symbol: item.dataset.symbol,
-            type: parseInt(item.dataset.type, 10),
-            timezone: item.dataset.timezone
-        });
+        // --- START: MODIFICATION - Add null check for item ---
+        // This prevents an error if an invalid or null item is somehow
+        // in the list of elements.
+        if (item && item.dataset) {
+            stockAssets.push({
+                symbol: item.dataset.symbol,
+                type: parseInt(item.dataset.type, 10),
+                timezone: item.dataset.timezone
+            });
+        }
+        // --- END: MODIFICATION ---
     });
     settings.stockAssets = stockAssets;
 
