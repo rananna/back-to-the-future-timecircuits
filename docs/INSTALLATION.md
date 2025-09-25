@@ -69,8 +69,7 @@ A 3D printed enclosure is highly recommended for a professional finish.
 *   Follow [these instructions](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html) to add the ESP32 board manager.
 
 ### **Step 2: Install Required Libraries**
-*   Open the Library Manager (`Sketch` > `Include Library` > `Manage Libraries...`).
-*   Search for and install the latest version of each of the following libraries:
+*   **Install via Library Manager**: Open the Library Manager (`Sketch` > `Include Library` > `Manage Libraries...`). Search for and install the latest version of each of the following libraries:
     *   `Adafruit GFX Library`
     *   `Adafruit LED Backpack`
     *   `WiFiManager` by tzapu
@@ -78,9 +77,11 @@ A 3D printed enclosure is highly recommended for a professional finish.
     *   `ESPAsyncWebServer` by ESP32-Community
     *   `AsyncTCP` by ESP32-Community
     *   `PubSubClient` by Nick O'Leary
-    *   `ESP32-audioI2S` by schreibfaul1
-> **Note on Audio Library:** The audio library for this project can be found on GitHub. Please install it manually by downloading the repository and adding it to your Arduino libraries folder.
-> **➡️ [ESP32-audioI2S Library](https://github.com/schreibfaul1/ESP32-audioI2S)**
+
+*   **Install Manually (Audio Library)**: The `ESP32-audioI2S` library is not available in the Library Manager and must be installed manually.
+    1.  **[Click here to download the library as a .zip file](https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip)**.
+    2.  In the Arduino IDE, go to `Sketch` > `Include Library` > `Add .ZIP Library...`.
+    3.  Select the .zip file you just downloaded. The library will be installed and ready to use.
 
 ### **Step 3: Set I2C Display Addresses**
 > #### ⚠️ **Critical Step: Address Configuration**
@@ -103,17 +104,20 @@ A 3D printed enclosure is highly recommended for a professional finish.
 
 ### **Step 4: Set Partition Scheme**
 > #### ⚠️ **Critical Step: Partition Scheme**
-> This project requires a specific partition scheme to allocate enough space for the web interface and sound files. The correct scheme is defined in the `partitions.csv` file included with this project.
+> This project requires a specific partition scheme to allocate enough space for the web interface and sound files.
 >
 > 1. In the Arduino IDE, go to **Tools > Partition Scheme**.
-> 2. Select **"Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)"** if it is available. If not, you may need to select the project's `partitions.csv` file manually depending on your IDE version.
+> 2. Look for a scheme named **"Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)"** or similar. The key is to have at least **1.5MB** of space for `SPIFFS` or `LittleFS`.
+> 3. If you do not see a suitable option, you must use the custom partition file included with this project. Follow the instructions for your IDE version to [install a custom partition scheme](https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/partition_scheme.html) using the `partitions.csv` file from this repository.
 
 ### **Step 5: Upload Files to Filesystem**
 > #### ⚠️ **Critical Step: Upload Data Files**
 > The web interface and sound effects will not work unless you upload the contents of the `data` folder to the ESP32's filesystem.
 >
-> 1.  Install the appropriate filesystem uploader tool for your Arduino IDE. For IDE v1.x, install the **ESP32 LittleFS Uploader plugin** from [here](https://github.com/lorol/arduino-esp32littlefs-plugin).
-> 2.  Copy your sound files (e.g., `TIME_TRAVEL.mp3`) and web files (`index.html`, etc.) into the `data` folder within your sketch directory.
+> 1.  Install the filesystem uploader tool for your Arduino IDE.
+>     *   **For Arduino IDE 1.x**: Install the **ESP32 LittleFS Uploader plugin** from [here](https://github.com/lorol/arduino-esp32littlefs-plugin).
+>     *   **For Arduino IDE 2.x**: This functionality is built-in.
+> 2.  Place the required files into the `data` folder located in your sketch directory. This includes all web interface files (`index.html`, `style.css`, etc.) and your desired sound files (e.g., `TIME_TRAVEL.mp3`).
 > 3.  In the Arduino IDE, select **Tools > ESP32 Sketch Data Upload**.
 
 ### **Step 6: Upload the Main Code**
