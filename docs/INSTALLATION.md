@@ -14,10 +14,10 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 
 | Qty | Component | Notes |
 | :-: | :--- | :--- |
-| 1 | [ESP32-S3 Dev Module](https://www.aliexpress.com/item/1005006212080137.html) | A **38-pin** module is required. An S3 model is recommended. |
+| 1 | [ESP32-S3 Dev Module](https://www.aliexpress.com/item/1005006212080137.html) | A **38-pin** module is required. An S3 model is recommended. ([Alternate](https://www.sparkfun.com/products/24408)) |
 | 1 | [MAX98357A I2S DAC Amplifier](https://www.aliexpress.com/item/1005005929311653.html) | For playing sound effects directly from the ESP32. |
 | 1 | [Small 8 Ohm Speaker](https://www.aliexpress.com/item/1005006682079525.html) | A 0.5W or 1W speaker is sufficient. |
-| 12 | **Adafruit HT16K33 14-Segment Displays** | Ensure they are the **14-segment "Alphanumeric"** type. |
+| 12 | **Adafruit HT16K33 14-Segment Displays** | Ensure they are the **14-segment "Alphanumeric"** type. ([Adafruit](https://www.adafruit.com/product/1910), [Digi-Key](https://www.digikey.com/en/products/detail/adafruit-industries-llc/1910/5354394)) |
 | 6 | [5mm LEDs (Any Color)](https://www.aliexpress.com/item/1005003912454852.html) | For the AM/PM indicators on each row. |
 | 6 | [220-330Ω Resistors](https://www.aliexpress.com/item/1005002091320103.html) | Current-limiting resistors for the LEDs. |
 | 1 set| [Dupont Jumper Wires](https://www.aliexpress.com/item/1005003641187997.html) | For connecting all components. |
@@ -79,13 +79,17 @@ A 3D printed enclosure is highly recommended for a professional finish.
     *   `PubSubClient` by Nick O'Leary
 
 *   **Install Manually (Audio Library)**: The `ESP32-audioI2S` library is not available in the Library Manager and must be installed manually.
-    1.  **[Click here to download the library as a .zip file](https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip)**.
-    2.  In the Arduino IDE, go to `Sketch` > `Include Library` > `Add .ZIP Library...`.
-    3.  Select the .zip file you just downloaded. The library will be installed and ready to use.
+    1.  **[Download the library as a .zip file from the official repository](https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip)**.
+    2.  In the Arduino IDE, navigate to `Sketch` > `Include Library` > `Add .ZIP Library...`.
+    3.  Select the downloaded `.zip` file. The library will be installed and ready to use.
 
 ### **Step 3: Set I2C Display Addresses**
 > #### ⚠️ **Critical Step: Address Configuration**
-> Each of the 12 display modules must have a unique address *on its I2C bus*. You must solder the address selection jumpers on the back of each board according to the table below. Failure to do this will result in displays not lighting up.
+> Each of the 12 display modules must have a unique I2C address. To set the address, you'll need to solder the address jumpers on the back of each display board. A "solder bridge" means connecting the two pads with a small blob of solder.
+>
+> **Note on I2C Buses**: This project uses two separate I2C buses. The "Destination" and "Present" displays are on one bus, and the "Last Time Departed" displays are on another. This is why some displays share the same address (e.g., 0x70) but don't conflict.
+>
+> Use the table below to configure each display. Failure to do this will result in displays not lighting up.
 
 | Display Row | Display Purpose | I2C Address | A2 Jumper (+4) | A1 Jumper (+2) | A0 Jumper (+1) |
 | :--- | :--- | :---: | :---: | :---: | :---: |
@@ -106,19 +110,21 @@ A 3D printed enclosure is highly recommended for a professional finish.
 > #### ⚠️ **Critical Step: Partition Scheme**
 > This project requires a specific partition scheme to allocate enough space for the web interface and sound files.
 >
-> 1. In the Arduino IDE, go to **Tools > Partition Scheme**.
-> 2. Look for a scheme named **"Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)"** or similar. The key is to have at least **1.5MB** of space for `SPIFFS` or `LittleFS`.
-> 3. If you do not see a suitable option, you must use the custom partition file included with this project. Follow the instructions for your IDE version to [install a custom partition scheme](https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/partition_scheme.html) using the `partitions.csv` file from this repository.
+> 1.  In the Arduino IDE, navigate to **Tools > Partition Scheme**.
+> 2.  From the dropdown menu, select a scheme that provides at least **1.5MB** for `SPIFFS` or `LittleFS`. A good option is **"Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)"**.
+> 3.  If a suitable option is not available, you must add a custom partition scheme. You can do this by following the official documentation for [installing a custom partition scheme](https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/partition_scheme.html) and using the `partitions.csv` file included in this project's repository.
 
 ### **Step 5: Upload Files to Filesystem**
 > #### ⚠️ **Critical Step: Upload Data Files**
 > The web interface and sound effects will not work unless you upload the contents of the `data` folder to the ESP32's filesystem.
 >
-> 1.  Install the filesystem uploader tool for your Arduino IDE.
->     *   **For Arduino IDE 1.x**: Install the **ESP32 LittleFS Uploader plugin** from [here](https://github.com/lorol/arduino-esp32littlefs-plugin).
->     *   **For Arduino IDE 2.x**: This functionality is built-in.
-> 2.  Place the required files into the `data` folder located in your sketch directory. This includes all web interface files (`index.html`, `style.css`, etc.) and your desired sound files (e.g., `TIME_TRAVEL.mp3`).
-> 3.  In the Arduino IDE, select **Tools > ESP32 Sketch Data Upload**.
+> 1.  **Install the Filesystem Uploader Tool**:
+>     *   **Arduino IDE 1.x**: You must install the **ESP32 LittleFS Uploader** plugin. [Follow these instructions](https://github.com/lorol/arduino-esp32littlefs-plugin) to download and install the plugin.
+>     *   **Arduino IDE 2.x**: Filesystem uploading is built-in. No plugin is required.
+> 2.  **Prepare Your Data Files**: Place all web interface files (`index.html`, `style.css`, etc.) and sound files (`.mp3`) into the `data` folder within your sketch directory.
+> 3.  **Upload the Data**:
+>     *   In the Arduino IDE, select **Tools > ESP32 Sketch Data Upload**.
+>     *   This will upload the entire contents of the `data` folder to the ESP32's internal storage.
 
 ### **Step 6: Upload the Main Code**
 *   Open the `.ino` file in the Arduino IDE, select your board and COM port, and click "Upload".
