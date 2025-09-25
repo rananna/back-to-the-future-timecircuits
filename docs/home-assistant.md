@@ -40,7 +40,7 @@ Setting up the connection is straightforward.
 2.  Enter your MQTT broker's details (IP address, port, and credentials).
 3.  Press the **"Engage Time Circuits"** button to save the settings.
 
-The device will now use **MQTT auto-discovery** to announce itself to your Home Assistant instance. A new device named "**Time Circuits Display**" will automatically appear in your MQTT integration.
+The device will now use **MQTT auto-discovery** to announce itself to your Home Assistant instance. A new device named "**Time Circuits**" will automatically appear in your MQTT integration.
 
 ### **Step 3: Install the Blueprints**
 Blueprints are the easiest way to create powerful automations.
@@ -66,7 +66,7 @@ Below is a detailed guide to each blueprint.
 Displays a temporary, multi-line message on the clock with an optional sound. Perfect for alerts like "Mailbox" or "Door Open."
 
 #### **Inputs**
-*   **Time Circuits Display**: Select the clock device.
+*   **Time Circuits**: Select the clock device.
 *   **Message**: The text to display. Use `\n` for new lines (e.g., `LINE 1\nLINE 2\nLINE 3`).
 *   **Display Duration (seconds)**: How long the message should be displayed.
 *   **Sound Effect**: (Optional) Select a sound to play with the notification.
@@ -170,7 +170,7 @@ action:
 Starts or stops an internet radio stream on the clock's speaker.
 
 #### **Inputs**
-*   **Time Circuits Display**: Select the clock device.
+*   **Time Circuits**: Select the clock device.
 *   **Radio Command**: The URL of the live radio stream, or the command `stop` to end the stream.
 
 #### **Example Usage**
@@ -194,7 +194,7 @@ A powerful tool for creating custom, multi-step animations. You can flash specif
 > **NOTE**: This is an advanced blueprint that requires crafting a JSON payload and uses direct MQTT communication with the device.
 
 #### **Inputs**
-*   **Time Circuits Display**: Select the clock device.
+*   **Time Circuits**: Select the clock device.
 *   **Sequence Payload**: A JSON array of command objects. See the blueprint's description for the full list of commands and their parameters.
 
 #### **Example Usage**
@@ -215,7 +215,7 @@ Create a script that flashes the "Destination Year" display, plays an alarm, and
 Play audio announcements from Home Assistant's Text-to-Speech (TTS) services on the clock's speaker.
 
 #### **Inputs**
-*   **Time Circuits Display**: Select the clock device.
+*   **Time Circuits**: Select the clock device.
 *   **TTS Service**: The TTS service to use (e.g., `tts.google_en_com`).
 *   **Message Text**: The text you want the clock to say.
 *   **Playback Volume**: The volume for the TTS message (0-100).

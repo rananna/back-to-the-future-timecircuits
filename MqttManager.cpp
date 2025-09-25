@@ -189,7 +189,7 @@ void publishHaAutoDiscovery() {
     JsonDocument device_doc;
     JsonObject device = device_doc.to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
-    device["name"] = "Time Circuits Display";
+    device["name"] = "Time Circuits";
     device["model"] = "BTTF Clock v1";
     device["manufacturer"] = "Doc Brown Industries";
     device["sw_version"] = "2.0";
@@ -580,7 +580,7 @@ void reconnectMqtt() {
       }
       // The complex, four-part subscription for HA Push has been removed.
       // All control is now handled via the wildcard command_topic subscription
-      // and the `text.time_circuits_display_datapoint_X_marquee` entities.
+      // and the datapoint marquee text entities.
     }
   } else {
     const char* error_str = "Unknown";
