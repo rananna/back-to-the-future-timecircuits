@@ -14,7 +14,7 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 
 | Qty | Component | Notes |
 | :-: | :--- | :--- |
-| 1 | [ESP32-S3 Dev Module](https://www.aliexpress.com/item/1005006212080137.html) | A **38-pin** module is required. An S3 model is recommended. ([Alternate](https://www.sparkfun.com/products/24408)) |
+| 1 | [ESP32-S3 Dev Module](https://www.aliexpress.com/item/1005006212080137.html) | A **38-pin** module is required. An S3 model is recommended for its safe pinout, which avoids conflicts with the built-in USB controller. ([Alternate](https://www.sparkfun.com/products/24408)) |
 | 1 | [MAX98357A I2S DAC Amplifier](https://www.aliexpress.com/item/1005005929311653.html) | For playing sound effects directly from the ESP32. |
 | 1 | [Small 8 Ohm Speaker](https://www.aliexpress.com/item/1005006682079525.html) | A 0.5W or 1W speaker is sufficient. |
 | 12 | **Adafruit HT16K33 14-Segment Displays** | Ensure they are the **14-segment "Alphanumeric"** type. ([Adafruit](https://www.adafruit.com/product/1910), [Digi-Key](https://www.digikey.com/en/products/detail/adafruit-industries-llc/1910/5354394)) |
@@ -93,7 +93,7 @@ This project relies on several external libraries. Seven of them can be installe
 
 *   **Install Manually (Audio Library)**:
     *   The `ESP32-audioI2S` library is not available in the Library Manager and must be installed from a `.zip` file.
-    1.  **[Download the library from the official repository](https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip)**.
+    1.  **[Download the library from the official repository](https://github.com/schreibfaul1/ESP32-audioI2S/releases/tag/3.4.2)**.
     2.  In the Arduino IDE, navigate to `Sketch` > `Include Library` > `Add .ZIP Library...`.
     3.  Select the downloaded `.zip` file to complete the installation.
 
@@ -105,7 +105,12 @@ This project relies on several external libraries. Seven of them can be installe
 > #### ⚠️ **Critical Step: Address Configuration**
 > Each of the 12 display modules must be configured with a unique I2C address so the firmware can communicate with it. This is done by creating "solder bridges" on the address jumpers on the back of each display's circuit board. A solder bridge is simply a small blob of solder that connects the two pads.
 >
+> <img src="https://i.ytimg.com/vi/AOkdQ0txKpA/maxresdefault.jpg" width="400">
+>
 > **How it Works**: This project uses two separate I2C buses to avoid conflicts. The "Destination" and "Present" displays are on one bus, while the "Last Time Departed" displays are on another. Because they are on separate buses, their addresses can overlap without causing issues.
+>
+> > [!IMPORTANT]
+> > This is the most critical step of the build. If the addresses are not set correctly, the displays will not work. Take your time and double-check your soldering.
 >
 > Use the table below to carefully configure the solder jumpers for each of the 12 displays.
 
@@ -138,7 +143,10 @@ This project relies on several external libraries. Seven of them can be installe
 > 2.  **Select Custom Scheme**:
 >     *   Restart the Arduino IDE to ensure it detects the new file.
 >     *   Navigate to **Tools > Partition Scheme**.
->     *   Select **"Custom (partitions.csv)"** from the dropdown menu. If this option is not visible, the IDE cannot find the `partitions.csv` file.
+>     *   Select **"Custom (partitions.csv)"** from the dropdown menu.
+>
+>     > [!IMPORTANT]
+>     > If the "Custom (partitions.csv)" option is not visible, it means the IDE was not able to find the `partitions.csv` file. Ensure the file is in the same directory as the `.ino` file and that you have restarted the IDE.
 >
 >     > 💡 **What this does**: This custom layout creates a large `littlefs` partition (aliased as `spiffs` for compatibility), which provides over 10MB of space for web files and sounds. It also allocates two large partitions for the main application, enabling robust Over-the-Air (OTA) updates.
 
@@ -152,9 +160,13 @@ This project relies on several external libraries. Seven of them can be installe
 >
 > ---
 > #### **Instructions for Arduino IDE v2.x (Recommended)**
-> 1.  Ensure the `data` folder is located in the same directory as your main `.ino` file.
-> 2.  In the Arduino IDE, navigate to **Tools > ESP32 Sketch Data Upload**.
-> 3.  The IDE will build and upload the filesystem image automatically.
+> 1.  **Install the Uploader Plugin**:
+>     *   Download the `arduino-littlefs-upload` plugin from the [official releases page](https://github.com/earlephilhower/arduino-littlefs-upload/releases).
+>     *   Follow the installation instructions on that page to add the plugin to your Arduino IDE.
+> 2.  **Upload the Data**:
+>     *   Ensure the `data` folder is located in the same directory as your main `.ino` file.
+>     *   In the Arduino IDE, navigate to **Tools > ESP32 LittleFS Data Upload**.
+>     *   The IDE will build and upload the filesystem image automatically.
 >
 > ---
 > #### **Instructions for Arduino IDE v1.x**
