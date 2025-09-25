@@ -74,6 +74,19 @@ Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory
     * **What It Does**: It instructs the SSL/TLS engine to **skip the certificate validation step**. It does **not** disable encryption. The connection is still fully encrypted.
     * **Why It Works**: By skipping validation, the client avoids loading large root certificates into its limited RAM. This eliminates a common source of memory-related errors and greatly improves reliability for this application's purpose of fetching non-sensitive public data.
 
+#### Sequencer for Cinematic Effects
+
+The firmware includes a simple, command-driven sequencer for creating complex, timed animations and effects. This is the mechanism behind the iconic time travel sequence. The sequencer, managed by `handleSequencer()` in the main `.ino` file, processes an array of `SequenceStep` commands in order.
+
+Each `SequenceStep` can perform one of the following actions:
+*   `SEQ_CMD_TEXT`: Display specific text on a display segment.
+*   `SEQ_CMD_FLASH`: Trigger a flash effect on a display segment.
+*   `SEQ_CMD_SOUND`: Play a sound file.
+*   `SEQ_CMD_WAIT`: Pause for a specified number of milliseconds.
+*   `SEQ_CMD_END`: Mark the end of the sequence.
+
+This allows for precise, scripted control over the hardware, which is essential for creating the screen-accurate cinematic moments from the films. The sequencer is not currently exposed via the web UI or MQTT and is intended for internal use within the firmware.
+
 ***
 
 ## 🤝 Contribution Guidelines
