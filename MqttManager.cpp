@@ -635,9 +635,11 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             int dp_index = id_suffix.substring(0, id_suffix.indexOf('_')).toInt();
             if (dp_index >= 0 && dp_index < 5) {
                 if (id_suffix.endsWith("_marquee")) {
-                    currentSettings.dataPoints[dp_index].scrollingText = message.c_str();
+                    if (currentSettings.dataPoints[dp_index].scrollingText != message.c_str()) {
+                        currentSettings.dataPoints[dp_index].scrollingText = message.c_str();
+                        settingsChanged = true;
+                    }
                     isMarqueeBufferDirty = true; // Force display to re-render the marquee
-                    settingsChanged = true;
                 } else if (id_suffix.endsWith("_enabled")) {
                     currentSettings.dataPoints[dp_index].enabled = (message == "ON");
                     settingsChanged = true;
