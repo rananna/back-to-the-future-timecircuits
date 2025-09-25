@@ -248,52 +248,39 @@ void updateStockTickerDisplay() {
         const unsigned long pauseDuration = 250; // 0.25-second pause between tickers
         static char stockMarqueeBuffer[256]; // Buffer for the full text
 
+        static bool isStatusMessage = false;
         // State machine for stock ticker display
         switch (stockState) {
             case SD_CONNECTING: {
-                // Determine the status and display the appropriate message.
-                // The state will only transition away from SD_CONNECTING when data is ready.
-                const char* msg_year = "          ";
-                const char* msg_time = "          ";
-
+                std::string statusMessage;
                 if (stockManager.getAssets().empty()) {
-                    msg_year = "ADD STOCKS";
-                    msg_time = "IN UI";
+                    statusMessage = "ADD STOCKS IN UI";
                 } else if (!stockManager.isTimeSynchronized()) {
-                    msg_year = "CONNECTING";
-                    msg_time = "....";
+                    statusMessage = "CONNECTING...";
                 } else if (stockManager.isFetching()) {
-                    msg_year = "LOADING";
-                    msg_time = "STOCKS";
+                    statusMessage = "LOADING STOCKS";
                 } else if (stockManager.hasDataBeenUpdated() || stockManager.hasAnyValidData()) {
-                    // Data is ready. Clear the flag and transition to the display state.
                     if (stockManager.hasDataBeenUpdated()) {
                         stockManager.clearDataUpdatedFlag();
                     }
                     stockState = SD_START_PAGE;
+                    xSemaphoreGive(xDisplayDataMutex);
+                    return;
                 } else {
-                    // Not fetching, but no data yet. This can happen right after startup
-                    // before the first fetch is triggered by the interval timer.
-                    msg_year = "WAIT";
-                    msg_time = "....";
+                    statusMessage = "WAIT...";
                 }
 
-                // If we are still in the connecting state, display the message.
                 if (stockState == SD_CONNECTING) {
-                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                        printToDisplay(lastRow.month, "   ", 0);
-                        printToDisplay(lastRow.day, "  ", 0);
-                        printToDisplay(lastRow.year, msg_year, 0);
-                        printToDisplay(lastRow.time, msg_time, 0);
-                        lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-                        vTaskDelay(pdMS_TO_TICKS(2));
-                        xSemaphoreGive(xDisplayHardwareMutex);
-                    }
+                    isStatusMessage = true;
+                    snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", statusMessage.c_str());
+                    stockScrollPosition = 0;
+                    stockState = SD_SCROLLING;
+                    lastStockUpdate = millis();
                 }
                 break;
             }
             case SD_START_PAGE: {
-                // Clear display before showing new text
+                isStatusMessage = false;
                 if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                     printToDisplay(lastRow.month, "   ", 0); printToDisplay(lastRow.day, "  ", 0);
                     printToDisplay(lastRow.year, "    ", 0); printToDisplay(lastRow.time, "    ", 0);
@@ -305,8 +292,6 @@ void updateStockTickerDisplay() {
                 String marqueeLine = stockManager.getMarqueeLine();
                 marqueeLine.toUpperCase();
 
-                // All messages (data, errors, status) will now scroll.
-                // We prepare the buffer with padding on the *left* only, to allow it to scroll into view.
                 snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", marqueeLine.c_str());
                 stockScrollPosition = 0;
                 stockState = SD_SCROLLING;
@@ -318,8 +303,6 @@ void updateStockTickerDisplay() {
                 if (millis() - lastStockUpdate > scrollSpeed) {
                     lastStockUpdate = millis();
 
-                    // The scroll is finished once the scroll position has exceeded the length of the entire message.
-                    // Since there is no right-side padding, this happens as soon as the last character disappears.
                     if (stockScrollPosition > strlen(stockMarqueeBuffer)) {
                         stockState = SD_PAUSING;
                         lastStockUpdate = millis();
@@ -328,7 +311,6 @@ void updateStockTickerDisplay() {
                         int text_len = strlen(stockMarqueeBuffer);
                         for (int i = 0; i < 13; i++) {
                             int source_idx = stockScrollPosition + i;
-                            // We now pad with spaces on the right *dynamically* if the source index is out of bounds.
                             if (source_idx < text_len) viewport[i] = stockMarqueeBuffer[source_idx];
                             else viewport[i] = ' ';
                         }
@@ -341,11 +323,10 @@ void updateStockTickerDisplay() {
                         strncpy(segment_time, viewport + 9, 4); segment_time[4] = '\0';
 
                         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                            // Apply correct justification to match physical display constraints
-                            printToDisplay(lastRow.month, segment_month, 1); // Right justified
-                            printToDisplay(lastRow.day, segment_day, 2);   // Center justified
-                            printToDisplay(lastRow.year, segment_year, 0);  // Left justified
-                            printToDisplay(lastRow.time, segment_time, 0);  // Left justified
+                            printToDisplay(lastRow.month, segment_month, 1);
+                            printToDisplay(lastRow.day, segment_day, 2);
+                            printToDisplay(lastRow.year, segment_year, 0);
+                            printToDisplay(lastRow.time, segment_time, 0);
                             lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
                             vTaskDelay(pdMS_TO_TICKS(2));
                             xSemaphoreGive(xDisplayHardwareMutex);
@@ -358,8 +339,12 @@ void updateStockTickerDisplay() {
 
             case SD_PAUSING: {
                 if (millis() - lastStockUpdate > pauseDuration) {
-                    stockManager.nextPage();
-                    stockState = SD_START_PAGE;
+                    if (isStatusMessage) {
+                        stockState = SD_CONNECTING;
+                    } else {
+                        stockManager.nextPage();
+                        stockState = SD_START_PAGE;
+                    }
                 }
                 break;
             }
@@ -551,13 +536,24 @@ void handleWeatherDisplay() {
         const unsigned long errorRetryDelay = 10000; // 10 seconds
 
         if (!currentWeatherData.dataValid) {
-            if (!currentWeatherData.errorReason.empty() && weatherState != WD_ERROR) {
-                weatherState = WD_ERROR;
-                snprintf(weatherBuffer, sizeof(weatherBuffer), "             WEATHER ERROR: %s", currentWeatherData.errorReason.c_str());
+            std::string message;
+            if (!currentWeatherData.errorReason.empty()) {
+                message = "WEATHER ERROR: " + currentWeatherData.errorReason;
+            } else if (isFetchingWeather) {
+                message = "FETCHING WEATHER DATA...";
+            } else {
+                message = "WEATHER DATA UNAVAILABLE";
+            }
+
+            if (weatherState != WD_ERROR) {
+                weatherState = WD_ERROR; // Use the error state for all non-valid data messages
+                snprintf(weatherBuffer, sizeof(weatherBuffer), "             %s", message.c_str());
                 for (int i = 0; weatherBuffer[i]; i++) weatherBuffer[i] = toupper(weatherBuffer[i]);
                 weatherScrollPosition = 0;
                 lastWeatherUpdate = millis();
-            } else if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
+            }
+
+            if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
                 Log_printf(LOG_LEVEL_WARN, "Weather fetch task timed out. Deleting task.");
                 if (weatherTaskHandle != NULL) {
                     vTaskDelete(weatherTaskHandle);
@@ -567,12 +563,6 @@ void handleWeatherDisplay() {
                 handleWeatherTimeout();
                 xSemaphoreGive(xDisplayDataMutex);
                 return;
-            } else {
-                printToDisplay(lastRow.month, "WEA", 1);
-                printToDisplay(lastRow.day, "TH", 2);
-                printToDisplay(lastRow.year, "ER");
-                printToDisplay(lastRow.time, "----");
-                shouldWriteToDisplay = true;
             }
 
             if (!initialFetchTriggered && !isFetchingWeather) {
@@ -585,6 +575,7 @@ void handleWeatherDisplay() {
                 initialFetchTriggered = true;
                 initialFetchStartTime = millis();
                 lastWeatherFetchTime = 0;
+                weatherState = WD_ERROR; // Set state to immediately show "FETCHING..."
             }
         } else {
             initialFetchTriggered = false;
@@ -864,24 +855,11 @@ void updateMarqueeDisplay() {
     digitalWrite(LAST_AM_PIN, LOW);
     digitalWrite(LAST_PM_PIN, LOW);
 
-    if (currentSettings.numDataPoints == 0) {
-        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            printToDisplay(targetRow->month, "NO");
-            printToDisplay(targetRow->day, "DATA", 2);
-            printToDisplay(targetRow->year, "POINTS");
-            printToDisplay(targetRow->time, "----");
-            targetRow->month.writeDisplay();
-            targetRow->day.writeDisplay();
-            targetRow->year.writeDisplay();
-            targetRow->time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
-            xSemaphoreGive(xDisplayHardwareMutex);
-        }
-        return;
-    }
-
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        DataPoint point = currentSettings.dataPoints[currentPageIndex];
+        DataPoint point;
+        if (currentSettings.numDataPoints > 0) {
+            point = currentSettings.dataPoints[currentPageIndex];
+        }
         const unsigned long scrollSpeed = point.scrollSpeed > 0 ? point.scrollSpeed : 150;
         const unsigned long pauseDuration = 250; // 0.25-second pause between pages
 
@@ -897,67 +875,66 @@ void updateMarqueeDisplay() {
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
 
-                // Get the configuration and data for the current page
-                DataPoint point = currentSettings.dataPoints[currentPageIndex];
-
-                // --- Build the content string based on the data source type ---
-                std::string content_text;
-                switch (point.dataSourceType) {
-                    case DATA_SOURCE_STATIC:
-                        content_text = point.scrollingText;
-                        break;
-                    case DATA_SOURCE_MQTT:
-                        // For MQTT, the raw data is in the 'year' field.
-                        content_text = displayPages[currentPageIndex].year;
-                        break;
-                    case DATA_SOURCE_HA:
-                        // For Home Assistant, check if we have a single-string message (only year is populated)
-                        // or a multi-part message from the dedicated HA push integration.
-                        if (displayPages[currentPageIndex].month.empty() &&
-                            displayPages[currentPageIndex].day.empty() &&
-                            displayPages[currentPageIndex].time.empty() &&
-                            !displayPages[currentPageIndex].year.empty())
-                        {
-                            // This looks like a single-string message from a generic HA automation.
-                            // The MQTT callback places the full string into the 'year' field.
-                            content_text = displayPages[currentPageIndex].year;
-                        } else {
-                            // This looks like a multi-part message from the dedicated HA push integration.
-                            // Assemble the text from the four separate fields.
-                            content_text = displayPages[currentPageIndex].month;
-                            if (!displayPages[currentPageIndex].day.empty()) {
-                                if (!content_text.empty()) content_text += " ";
-                                content_text += displayPages[currentPageIndex].day;
-                            }
-                            if (!displayPages[currentPageIndex].year.empty()) {
-                                if (!content_text.empty()) content_text += " ";
-                                content_text += displayPages[currentPageIndex].year;
-                            }
-                            if (!displayPages[currentPageIndex].time.empty()) {
-                                if (!content_text.empty()) content_text += " ";
-                                content_text += displayPages[currentPageIndex].time;
-                            }
-                        }
-                        break;
-                }
-
-                // --- Assemble the final string with prefix and suffix ---
-                // This logic is now centralized and works correctly for all data source types.
                 std::string fullText;
-                if (!point.prefixText.empty()) {
-                    fullText += point.prefixText;
-                }
-                if (!content_text.empty()) {
-                    if (!fullText.empty()) fullText += " ";
-                    fullText += content_text;
-                }
-                if (!point.suffixText.empty()) {
-                    if (!fullText.empty()) fullText += " ";
-                    fullText += point.suffixText;
+                if (currentSettings.numDataPoints == 0) {
+                    fullText = "NO DATA POINTS";
+                } else {
+                    // --- Build the content string based on the data source type ---
+                    std::string content_text;
+                    switch (point.dataSourceType) {
+                        case DATA_SOURCE_STATIC:
+                            content_text = point.scrollingText;
+                            break;
+                        case DATA_SOURCE_MQTT:
+                            // For MQTT, the raw data is in the 'year' field.
+                            content_text = displayPages[currentPageIndex].year;
+                            break;
+                        case DATA_SOURCE_HA:
+                            // For Home Assistant, check if we have a single-string message (only year is populated)
+                            // or a multi-part message from the dedicated HA push integration.
+                            if (displayPages[currentPageIndex].month.empty() &&
+                                displayPages[currentPageIndex].day.empty() &&
+                                displayPages[currentPageIndex].time.empty() &&
+                                !displayPages[currentPageIndex].year.empty())
+                            {
+                                // This looks like a single-string message from a generic HA automation.
+                                // The MQTT callback places the full string into the 'year' field.
+                                content_text = displayPages[currentPageIndex].year;
+                            } else {
+                                // This looks like a multi-part message from the dedicated HA push integration.
+                                // Assemble the text from the four separate fields.
+                                content_text = displayPages[currentPageIndex].month;
+                                if (!displayPages[currentPageIndex].day.empty()) {
+                                    if (!content_text.empty()) content_text += " ";
+                                    content_text += displayPages[currentPageIndex].day;
+                                }
+                                if (!displayPages[currentPageIndex].year.empty()) {
+                                    if (!content_text.empty()) content_text += " ";
+                                    content_text += displayPages[currentPageIndex].year;
+                                }
+                                if (!displayPages[currentPageIndex].time.empty()) {
+                                    if (!content_text.empty()) content_text += " ";
+                                    content_text += displayPages[currentPageIndex].time;
+                                }
+                            }
+                            break;
+                    }
+
+                    // --- Assemble the final string with prefix and suffix ---
+                    if (!point.prefixText.empty()) {
+                        fullText += point.prefixText;
+                    }
+                    if (!content_text.empty()) {
+                        if (!fullText.empty()) fullText += " ";
+                        fullText += content_text;
+                    }
+                    if (!point.suffixText.empty()) {
+                        if (!fullText.empty()) fullText += " ";
+                        fullText += point.suffixText;
+                    }
                 }
 
-                // --- FIX: Check for and skip empty pages ---
-                if (fullText.empty()) {
+                if (fullText.empty() && currentSettings.numDataPoints > 0) {
                     // This page has no content, so skip it immediately.
                     currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
                     marqueeState = M_START_PAGE; // Go back to the start state for the *next* page
