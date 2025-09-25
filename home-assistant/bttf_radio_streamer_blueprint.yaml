@@ -2,8 +2,11 @@ blueprint:
   name: "BTTF - Radio Streamer"
   description: >-
     Starts or stops an internet radio stream on the Time Circuits clock.
-    To stop the radio, simply provide "stop" as the command.
-    This is a "callable" automation that has no trigger; you call it from another automation.
+    To start a stream, provide a valid audio stream URL. To stop, provide the command "stop".
+
+    This is a "callable" automation that has no trigger and is designed to be called from another automation or script.
+
+    When a stream is started, the override display will show "\nRADIO...". When stopped, the blueprint will only turn off the override switch if the message is still "\nRADIO...". This prevents this blueprint from interfering with a more important notification that may have started after the radio was activated.
   domain: automation
   input:
     target_device:

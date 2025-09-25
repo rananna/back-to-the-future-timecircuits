@@ -2,8 +2,12 @@ blueprint:
   name: "BTTF - Dynamic Marquee Display"
   description: >-
     Display a single, scrolling line of text on one of the five data point slots.
-    Use Home Assistant's templating engine to create dynamic messages.
-    For example: "Outside temp is {{ states('sensor.outside_temperature') }}°C"
+    Use Home Assistant's templating engine to create dynamic messages, such as:
+    "Outside temp is {{ states('sensor.outside_temperature') }}°C"
+
+    This is a "callable" automation that has no trigger; you call it from another automation or script.
+
+    Note: The marquee text has a 255-character limit.
   domain: automation
   input:
     target_device:
