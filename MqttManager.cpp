@@ -54,11 +54,10 @@ void publishHaPresetSelector() {
     JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
 
-    JsonArray availability = doc["availability"].to<JsonArray>();
-    JsonObject availability_topic = availability.add<JsonObject>();
-    availability_topic["topic"] = device_base_topic + "/status";
-    availability_topic["payload_available"] = "online";
-    availability_topic["payload_not_available"] = "offline";
+    JsonObject availability = doc["availability"].to<JsonObject>();
+    availability["topic"] = device_base_topic + "/status";
+    availability["payload_available"] = "online";
+    availability["payload_not_available"] = "offline";
 
     doc["name"] = "Last Departed Preset";
     String preset_selector_id = String(MQTT_UNIQUE_ID) + "_preset_selector";
@@ -169,11 +168,10 @@ void publishHaAutoDiscovery() {
     device["sw_version"] = "2.0";
 
     JsonDocument availability_doc;
-    JsonArray availability = availability_doc.to<JsonArray>();
-    JsonObject availability_topic = availability.add<JsonObject>();
-    availability_topic["topic"] = device_base_topic + "/status";
-    availability_topic["payload_available"] = "online";
-    availability_topic["payload_not_available"] = "offline";
+    JsonObject availability = availability_doc.to<JsonObject>();
+    availability["topic"] = device_base_topic + "/status";
+    availability["payload_available"] = "online";
+    availability["payload_not_available"] = "offline";
 
     JsonDocument doc;
     String topic;
