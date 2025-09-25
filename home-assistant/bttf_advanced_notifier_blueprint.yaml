@@ -10,7 +10,7 @@ blueprint:
   domain: automation
   input:
     target_device:
-      name: Time Circuits Display
+      name: Time Circuits
       description: Select the BTTF Time Circuits clock device.
       selector:
         device:
