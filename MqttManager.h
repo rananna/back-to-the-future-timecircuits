@@ -9,7 +9,7 @@
 
 // --- MQTT Configuration ---
 #define MQTT_BASE_TOPIC "homeassistant"
-#define MQTT_DEVICE_TYPE "BTTF_TC"
+#define MQTT_DEVICE_TYPE "bttf_tc"
 extern char MQTT_UNIQUE_ID[21];
 
 
