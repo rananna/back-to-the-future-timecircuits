@@ -26,7 +26,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
 #include <LittleFS.h>
-#define MQTT_MAX_PACKET_SIZE 1024
+#include "MqttManager.h"
 #include <PubSubClient.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
@@ -37,6 +37,7 @@
 #include <LCBUrl.h>
 #include <ArduinoOTA.h>
 
+#include "MqttManager.h"
 #include "HardwareControl.h"
 #include "web_server.h"
 #include "api_templates.h"
@@ -44,7 +45,6 @@
 #include "AnimationManager.h"
 #include "DisplayManager.h"
 #include "DataManager.h"
-#include "MqttManager.h"
 #include "StockManager.h"
 #include "timezone.h"
 
