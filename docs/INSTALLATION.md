@@ -63,86 +63,115 @@ A 3D printed enclosure is highly recommended for a professional finish.
 
 ---
 ## 💾 Software Installation
+The software installation process involves six key steps, from setting up the Arduino IDE to uploading the final firmware. Follow the steps below in order.
 
-### **Step 1: Install Arduino IDE and ESP32 Core**
-*   Download and install the [Arduino IDE](https://www.arduino.cc/en/software).
-*   Follow [these instructions](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html) to add the ESP32 board manager.
+<br>
 
-### **Step 2: Install Required Libraries**
-*   **Install via Library Manager**: Open the Library Manager (`Sketch` > `Include Library` > `Manage Libraries...`). Search for and install the latest version of each of the following libraries:
-    *   `Adafruit GFX Library`
-    *   `Adafruit LED Backpack`
-    *   `WiFiManager` by tzapu
-    *   `ArduinoJson` by Benoit Blanchon (v6.x or v7.x)
-    *   `ESPAsyncWebServer` by ESP32-Community
-    *   `AsyncTCP` by ESP32-Community
-    *   `PubSubClient` by Nick O'Leary
+<details>
+<summary><b>Step 1: Install Arduino IDE and ESP32 Core</b></summary>
 
-*   **Install Manually (Audio Library)**: The `ESP32-audioI2S` library is not available in the Library Manager and must be installed manually.
-    1.  **[Download the library as a .zip file from the official repository](https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip)**.
+*   First, download and install the latest version of the [Arduino IDE](https://www.arduino.cc/en/software).
+*   Next, add support for ESP32 microcontrollers by following the official [installation instructions](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html) from Espressif.
+
+</details>
+
+<details>
+<summary><b>Step 2: Install Required Libraries</b></summary>
+
+This project relies on several external libraries. Seven of them can be installed directly from the Arduino Library Manager, but one must be installed manually.
+
+*   **Install via Library Manager**:
+    *   Open the Library Manager by navigating to `Sketch` > `Include Library` > `Manage Libraries...`.
+    *   Search for and install the latest version of each of the following libraries:
+        *   `Adafruit GFX Library`
+        *   `Adafruit LED Backpack`
+        *   `WiFiManager` by tzapu
+        *   `ArduinoJson` by Benoit Blanchon (v6.x or v7.x)
+        *   `ESPAsyncWebServer` by ESP32-Community
+        *   `AsyncTCP` by ESP32-Community
+        *   `PubSubClient` by Nick O'Leary
+
+*   **Install Manually (Audio Library)**:
+    *   The `ESP32-audioI2S` library is not available in the Library Manager and must be installed from a `.zip` file.
+    1.  **[Download the library from the official repository](https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip)**.
     2.  In the Arduino IDE, navigate to `Sketch` > `Include Library` > `Add .ZIP Library...`.
-    3.  Select the downloaded `.zip` file. The library will be installed and ready to use.
+    3.  Select the downloaded `.zip` file to complete the installation.
 
-### **Step 3: Set I2C Display Addresses**
+</details>
+
+<details>
+<summary><b>Step 3: Set I2C Display Addresses</b></summary>
+
 > #### ⚠️ **Critical Step: Address Configuration**
-> Each of the 12 display modules must have a unique I2C address. To set the address, you'll need to solder the address jumpers on the back of each display board. A "solder bridge" means connecting the two pads with a small blob of solder.
+> Each of the 12 display modules must be configured with a unique I2C address so the firmware can communicate with it. This is done by creating "solder bridges" on the address jumpers on the back of each display's circuit board. A solder bridge is simply a small blob of solder that connects the two pads.
 >
-> **Note on I2C Buses**: This project uses two separate I2C buses. The "Destination" and "Present" displays are on one bus, and the "Last Time Departed" displays are on another. This is why some displays share the same address (e.g., 0x70) but don't conflict.
+> **How it Works**: This project uses two separate I2C buses to avoid conflicts. The "Destination" and "Present" displays are on one bus, while the "Last Time Departed" displays are on another. Because they are on separate buses, their addresses can overlap without causing issues.
 >
-> Use the table below to configure each display. Failure to do this will result in displays not lighting up.
->
-> > 💡 **Why can addresses be reused?**
-> > I2C addresses only need to be unique *per bus*. Since the "Last Time Departed" displays are on a completely separate I2C bus from the other two rows, their addresses can safely overlap without causing conflicts.
+> Use the table below to carefully configure the solder jumpers for each of the 12 displays.
 
-| Display Row | Display Purpose | I2C Address | A2 Jumper (+4) | A1 Jumper (+2) | A0 Jumper (+1) |
+| Display Row | Display Purpose | Final I2C Address | Solder Bridge A2 (+4) | Solder Bridge A1 (+2) | Solder Bridge A0 (+1) |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Destination** | Month | **0x70** | Leave Open | Leave Open | Leave Open |
-| **Destination** | Day | **0x71** | Leave Open | Leave Open | **Solder Bridge** |
-| **Destination** | Year | **0x72** | Leave Open | **Solder Bridge** | Leave Open |
-| **Destination** | Time | **0x73** | Leave Open | **Solder Bridge** | **Solder Bridge** |
-| **Present** | Month | **0x74** | **Solder Bridge** | Leave Open | Leave Open |
-| **Present** | Day | **0x75** | **Solder Bridge** | Leave Open | **Solder Bridge** |
-| **Present** | Year | **0x76** | **Solder Bridge** | **Solder Bridge** | Leave Open |
-| **Present** | Time | **0x77** | **Solder Bridge** | **Solder Bridge** | **Solder Bridge** |
-| **Last Departed** | Month | **0x70** | Leave Open | Leave Open | Leave Open |
-| **Last Departed** | Day | **0x71** | Leave Open | Leave Open | **Solder Bridge** |
-| **Last Departed** | Year | **0x72** | Leave Open | **Solder Bridge** | Leave Open |
-| **Last Departed** | Time | **0x73** | Leave Open | **Solder Bridge** | **Solder Bridge** |
+| **Destination** | Month | **`0x70`** | No | No | No |
+| **Destination** | Day | **`0x71`** | No | No | **Yes** |
+| **Destination** | Year | **`0x72`** | No | **Yes** | No |
+| **Destination** | Time | **`0x73`** | No | **Yes** | **Yes** |
+| **Present** | Month | **`0x74`** | **Yes** | No | No |
+| **Present** | Day | **`0x75`** | **Yes** | No | **Yes** |
+| **Present** | Year | **`0x76`** | **Yes** | **Yes** | No |
+| **Present** | Time | **`0x77`** | **Yes** | **Yes** | **Yes** |
+| **Last Departed** | Month | **`0x70`** | No | No | No |
+| **Last Departed** | Day | **`0x71`** | No | No | **Yes** |
+| **Last Departed** | Year | **`0x72`** | No | **Yes** | No |
+| **Last Departed** | Time | **`0x73`** | No | **Yes** | **Yes** |
 
-### **Step 4: Set Partition Scheme**
+</details>
+
+<details>
+<summary><b>Step 4: Set Partition Scheme</b></summary>
+
 > #### ⚠️ **Critical Step: Partition Scheme**
-> This project requires a custom partition scheme to allocate enough space for the web interface and sound files. The necessary `partitions.csv` file is included in this repository.
+> A custom partition scheme is required to allocate enough space for the web interface and sound files. The `partitions.csv` file, which defines this layout, is included in the repository.
 >
-> 1.  **Ensure `partitions.csv` is in the Sketch Directory**:
->     *   The `partitions.csv` file is located in the root of this repository.
->     *   This file **must** be in the same folder as the main `back-to-the-future-timecircuits.ino` file. The Arduino IDE will not detect it otherwise.
+> 1.  **Confirm File Location**:
+>     *   The `partitions.csv` file **must** be in the same folder as the main `back-to-the-future-timecircuits.ino` file. The Arduino IDE will not detect it otherwise.
 >
-> 2.  **Select the Custom Scheme in Arduino IDE**:
->     *   If the Arduino IDE was already open, restart it.
+> 2.  **Select Custom Scheme**:
+>     *   Restart the Arduino IDE to ensure it detects the new file.
 >     *   Navigate to **Tools > Partition Scheme**.
->     *   Select **"Custom (partitions.csv)"** from the dropdown menu. If this option is not visible, the IDE cannot find the `partitions.csv` file in the sketch directory.
+>     *   Select **"Custom (partitions.csv)"** from the dropdown menu. If this option is not visible, the IDE cannot find the `partitions.csv` file.
 >
->     > 💡 **What this does**: This custom layout creates a large `littlefs` partition (aliased as `spiffs` for compatibility), which provides over 10MB of space for web files and sounds, while also allocating two large partitions for the main application. This enables both robust Over-the-Air (OTA) updates and ample storage.
+>     > 💡 **What this does**: This custom layout creates a large `littlefs` partition (aliased as `spiffs` for compatibility), which provides over 10MB of space for web files and sounds. It also allocates two large partitions for the main application, enabling robust Over-the-Air (OTA) updates.
 
-### **Step 5: Upload Files to Filesystem**
+</details>
+
+<details>
+<summary><b>Step 5: Upload Files to Filesystem</b></summary>
+
 > #### ⚠️ **Critical Step: Upload Data Files**
-> The web interface and sound effects will not work unless you upload the contents of the `data` folder to the ESP32's filesystem. This process differs slightly between Arduino IDE v1.x and v2.x.
+> The web interface and sound effects will not work unless the contents of the `data` folder are uploaded to the ESP32's filesystem. The process differs slightly between Arduino IDE versions.
 >
 > ---
 > #### **Instructions for Arduino IDE v2.x (Recommended)**
 > 1.  Ensure the `data` folder is located in the same directory as your main `.ino` file.
 > 2.  In the Arduino IDE, navigate to **Tools > ESP32 Sketch Data Upload**.
-> 3.  The IDE will build and upload the filesystem image. No external plugin is required.
+> 3.  The IDE will build and upload the filesystem image automatically.
 >
 > ---
 > #### **Instructions for Arduino IDE v1.x**
-> 1.  **Install the Uploader Plugin**: You must first install the **ESP32 LittleFS Uploader** plugin.
->     *   Navigate to the [official plugin repository](https://github.com/lorol/arduino-esp32littlefs-plugin).
->     *   Follow the installation instructions to download and install the plugin into your Arduino IDE's `tools` directory.
+> 1.  **Install the Uploader Plugin**:
+>     *   Download and install the **ESP32 LittleFS Uploader** from the [official plugin repository](https://github.com/lorol/arduino-esp32littlefs-plugin). Follow the installation instructions carefully.
 > 2.  **Upload the Data**:
 >     *   After installing the plugin, restart the Arduino IDE.
 >     *   Open your sketch and navigate to **Tools > ESP32 Sketch Data Upload**.
->     *   This will upload the contents of your `data` folder to the ESP32.
 
-### **Step 6: Upload the Main Code**
-*   Open the `.ino` file in the Arduino IDE, select your board and COM port, and click "Upload".
+</details>
+
+<details>
+<summary><b>Step 6: Upload the Main Code</b></summary>
+
+*   With all the prerequisites in place, you can now upload the main firmware.
+*   Open the `back-to-the-future-timecircuits.ino` file in the Arduino IDE.
+*   Select your ESP32 board model and the correct COM port from the **Tools** menu.
+*   Click the **Upload** button to flash the firmware.
+
+</details>
