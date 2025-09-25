@@ -955,7 +955,7 @@ void handleSequencerCommand(const std::string& payload) {
                 Log_printf(LOG_LEVEL_WARN, "Missing 'display' for message command.");
             }
         } else if (strcmp(cmd, "delay") == 0) {
-            if (command.containsKey("duration")) {
+            if (command["duration"].is<int>()) {
                 delay(command["duration"].as<int>());
             } else {
                 Log_printf(LOG_LEVEL_WARN, "Missing 'duration' for delay command.");
