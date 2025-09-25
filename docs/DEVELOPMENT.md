@@ -24,18 +24,19 @@ To get started with development, you will need the following:
 
 * **Arduino IDE or PlatformIO**: The firmware is built for the ESP32 platform.
 * **ESP32 Board Manager**: Add the ESP32 board manager to your IDE.
-* **Libraries**: The following third-party libraries are required:
-    * `Adafruit HT16K33 LED Backpack`
+* **Libraries**: The following third-party libraries are required. Most can be installed via the Arduino Library Manager.
     * `Adafruit GFX Library`
-    * `ArduinoJson`
-    * `ESPAsyncWebServer`
-    * `AsyncTCP`
-    * `WiFiManager`
-    * `PubSubClient`
-    * `Preferences`
-    * `ESP32-audioI2S` by schreibfaul1
-> **Note on Audio Library:** The audio library for this project, `ESP32-audioI2S`, can be found on GitHub. Please install it manually by downloading the repository and adding it to your Arduino libraries folder.
-> **➡️ [ESP32-audioI2S Library](https://github.com/schreibfaul1/ESP32-audioI2S)**
+    * `Adafruit LED Backpack`
+    * `WiFiManager` by tzapu
+    * `ArduinoJson` by Benoit Blanchon (v6.x or v7.x)
+    * `ESPAsyncWebServer` by ESP32-Community
+    * `AsyncTCP` by ESP32-Community
+    * `PubSubClient` by Nick O'Leary
+    * `Preferences` (built-in)
+*   **Manual Installation**: The `ESP32-audioI2S` library is not in the Library Manager and must be installed manually.
+    1.  **[Download the library as a .zip file from the official repository](https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip)**.
+    2.  In the Arduino IDE, navigate to `Sketch` > `Include Library` > `Add .ZIP Library...`.
+    3.  Select the downloaded `.zip` file.
 
 ### Partitioning
 
@@ -91,13 +92,12 @@ This allows for precise, scripted control over the hardware, which is essential 
 
 ## 🤝 Contribution Guidelines
 
-We welcome contributions to this project! Here is a simple workflow to get started:
+We welcome contributions to this project! Please follow these guidelines:
 
-1.  **Fork the Repository**: Create your own fork of the project on GitHub.
-2.  **Create a Branch**: Create a new branch for your feature or bug fix: `git checkout -b feature/my-new-feature` or `bugfix/my-bug`.
-3.  **Code and Commit**: Write your code and commit your changes with a clear and concise message.
-4.  **Push to your Fork**: Push your new branch to your fork: `git push origin feature/my-new-feature`.
-5.  **Create a Pull Request**: Open a pull request from your branch to the main repository's `main` branch. Provide a detailed description of your changes.
+1.  **Fork & Branch**: Fork the repository and create a new branch for your work (`feature/your-feature` or `bugfix/your-fix`).
+2.  **Code Style**: Please adhere to the existing code style. The code uses a consistent, well-commented, and modular format.
+3.  **Test Your Changes**: Before submitting, ensure your changes work as expected and do not introduce any new bugs.
+4.  **Pull Request**: Open a pull request with a clear title and a detailed description of your changes. Explain the "what" and "why" of your contribution.
 
 ***
 
@@ -106,10 +106,12 @@ We welcome contributions to this project! Here is a simple workflow to get start
 The web UI is a single-page application (SPA) served directly from the ESP32's LittleFS filesystem. It's built with vanilla JavaScript and communicates with the ESP32 via both a RESTful API and a persistent WebSocket connection.
 
 ### File Structure
-*   **`index.html`**: The main HTML file that defines the structure of the page, including all the tabs and settings groups.
-*   **`style.css`**: Contains all the styling for the web interface, including the different color themes.
-*   **`data_handling.js`**: This script manages all communication with the ESP32. It initializes the WebSocket, handles incoming messages, and contains the functions for fetching data from the REST API endpoints (e.g., `/api/settings/temporal`).
-*   **`main_ui.js`**: This script controls the user interface itself. It's responsible for initializing the UI on page load, populating dropdowns, applying fetched settings to the form fields, and attaching all the event listeners to buttons, sliders, and inputs.
+All frontend files are located in the `data` directory of the project. When you use the "ESP32 Sketch Data Upload" tool, these files are uploaded to the ESP32's internal filesystem.
+
+*   **`data/index.html`**: The main HTML file that defines the structure of the page.
+*   **`data/style.css`**: Contains all the styling for the web interface.
+*   **`data/data_handling.js`**: Manages all communication with the ESP32 (REST API and WebSockets).
+*   **`data/main_ui.js`**: Controls the user interface, including event listeners and populating data.
 
 ### Communication Flow
 The frontend uses a hybrid communication model for efficiency:

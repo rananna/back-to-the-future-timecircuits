@@ -13,15 +13,17 @@ This guide covers the day-to-day use and configuration of your Time Circuits dis
 
 ## First-Time WiFi Setup
 
-1.  **Connect to the Hotspot**: On the first boot, the ESP32 will create a WiFi network named **BTTF-Clock-Setup**. Connect to this network with your phone or computer.
-2.  **Captive Portal**: A captive portal should automatically open in your browser. If it doesn't, navigate to `192.18.4.1`.
-3.  **Configure WiFi**: Select your home WiFi network (SSID), enter the password, and click "Save". The device will restart and connect to your network.
+1.  **Connect to the Hotspot**: On its first boot, the ESP32 will create a WiFi network named **`BTTF-Clock-Setup`**. Connect to this network with your phone or computer.
+2.  **Captive Portal**: A captive portal should automatically open in your browser. If it doesn't, open a browser and navigate to `192.168.4.1`.
+3.  **Configure WiFi**: In the portal, select your home WiFi network (SSID), enter your password, and click "Save". The device will restart and connect to your network.
 
 ***
 
 ## Accessing the Web Interface
 
-Once connected, you can access the web UI by navigating to the device's IP address in your browser. You can find the IP address in your router's client list or by monitoring the Serial Monitor in the Arduino IDE during boot.
+Once the clock is connected to your network, you can access its web interface in two ways:
+1.  **Easy Way (mDNS)**: Simply navigate to **`http://bttf-clock.local`** in your browser. This works on most networks without any special configuration.
+2.  **IP Address**: If the mDNS address doesn't work, you'll need the clock's IP address. You can find this in your router's client list or by monitoring the Serial Monitor in the Arduino IDE during boot.
 
 ![Web UI Screenshot](../images/webui.png)
 
@@ -64,9 +66,9 @@ Beyond the web interface, many of the clock's features can be controlled program
 
 ## Saving Settings
 
-The large **"Engage Time Circuits"** button at the bottom of the page is your primary way to save settings.
+The large **"Engage Time Circuits"** button at the bottom of the page is the main "save" button for the entire interface.
 
-💡 **How it Works:** This button sends all configuration options from all tabs to the device. The device saves the settings in the background and then triggers the full time travel animation sequence to confirm that the save was successful.
+💡 **How it Works:** Pressing this button sends all configuration options from all tabs to the device. The clock saves the settings to its internal memory and then triggers the full time-travel animation sequence to confirm that the new settings have been applied.
 
 > ⚡ **Tip for Quick Configuration**
-> It's most efficient to **make all of your desired changes across all tabs first**, and then press the save button only once when you are finished.
+> It's most efficient to make all your desired changes across all tabs *first*, and then press the "Engage Time Circuits" button only once when you're finished.
