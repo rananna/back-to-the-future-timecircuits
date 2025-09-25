@@ -52,20 +52,22 @@ This project's documentation is organized into categories to help you find what 
 ### **Getting Started**
 | Document | Description |
 | :--- | :--- |
-| **[🚀 Installation Guide](docs/INSTALLATION.md)** | **Start here!** This guide provides a complete, soup-to-nuts walkthrough for building the clock. It includes a full bill of materials, detailed wiring diagrams, 3D printing files, and step-by-step instructions for flashing the firmware. |
+| **[🚀 Installation Guide](docs/INSTALLATION.md)** | **Start here!** A complete, soup-to-nuts guide to building the clock. It includes a full bill of materials, wiring diagrams, 3D printing files, and firmware flashing instructions. |
 | **[💡 Usage Guide](docs/USAGE.md)** | Once you've built the clock, this guide explains how to connect to its web interface, configure WiFi, set your time zone, and use all of the day-to-day features. |
+| **[🔄 Updating Guide](docs/UPDATING.md)** | Instructions on how to update the clock's firmware and web interface files to get the latest features and bug fixes. |
 
 ### **User Guides**
 | Document | Description |
 | :--- | :--- |
-| **[📈 Data Link Guide](docs/guides/DATA_LINK.md)** | Transform the "Last Time Departed" display into a real-time data feed. This guide covers the built-in Weather and Stock modes, and explains how to create your own custom data integrations. |
+| **[📈 Data Link Guide](docs/guides/DATA_LINK.md)** | Transform the "Last Time Departed" display into a real-time data feed. This guide covers the built-in Weather and Stock modes and explains how to create your own custom data integrations. |
 | **[🏠 Home Assistant Guide](docs/HOME_ASSISTANT.md)** | For smart home enthusiasts, this guide details how to integrate the clock with Home Assistant. It covers the MQTT API, included blueprints, and provides examples for creating powerful automations. |
-| **[🔄 Updating Guide](docs/UPDATING.md)** | This guide provides instructions on how to update the clock's firmware and web interface files to get the latest features and bug fixes. |
 
 ### **Advanced & Technical Reference**
 | Document | Description |
 | :--- | :--- |
 | **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep-dive into the project's architecture, code, and file system. This is the place to start if you're interested in contributing to the project or creating a custom fork. |
+| **[🔌 Home Assistant Advanced Guide](docs/guides/HOME_ASSISTANT_ADVANCED.md)** | An advanced guide for Home Assistant users. It covers creating complex automations, custom dashboard cards, and using template sensors to display custom data. |
+| **[✉️ MQTT Technical Reference](docs/reference/MQTT_ENTITIES.md)** | A comprehensive reference for all MQTT topics and payloads used by the clock. Essential for advanced integrations and troubleshooting. |
 
 ---
 
