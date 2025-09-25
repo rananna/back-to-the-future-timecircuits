@@ -191,6 +191,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/sensor/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
     // --- NEW: Create 12 text entities for direct display control ---
@@ -215,6 +216,7 @@ void publishHaAutoDiscovery() {
             doc["availability"] = availability;
             topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
             serializeJson(doc, payload);
+            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
             mqttClient.publish(topic.c_str(), payload.c_str(), true);
         }
     }
@@ -248,6 +250,7 @@ void publishHaAutoDiscovery() {
         doc["availability"] = availability;
         topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
         serializeJson(doc, payload);
+        Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
 
@@ -267,6 +270,7 @@ void publishHaAutoDiscovery() {
         doc["availability"] = availability;
         topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
         serializeJson(doc, payload);
+        Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
 
@@ -315,6 +319,7 @@ void publishHaAutoDiscovery() {
         doc["availability"] = availability;
         topic = String(MQTT_BASE_TOPIC) + "/number/" + doc["object_id"].as<String>() + "/config";
         serializeJson(doc, payload);
+        Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
 
@@ -336,6 +341,7 @@ void publishHaAutoDiscovery() {
         doc["availability"] = availability;
         topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
         serializeJson(doc, payload);
+        Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
     
@@ -361,7 +367,9 @@ void publishHaAutoDiscovery() {
         doc["availability"] = availability;
         topic = String(MQTT_BASE_TOPIC) + "/button/" + doc["object_id"].as<String>() + "/config";
         serializeJson(doc, payload);
+        Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    }
 
     // --- Sequencer Button ---
     doc.clear();
@@ -377,8 +385,8 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/button/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
-    }
     
     doc.clear();
     doc["name"] = "Temporal Echo Effect";
@@ -393,6 +401,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
     doc.clear();
@@ -414,6 +423,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/select/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
     
 
@@ -431,6 +441,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
     doc.clear();
@@ -446,6 +457,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
     doc.clear();
@@ -470,6 +482,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/select/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
 
@@ -487,6 +500,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/switch/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
     doc.clear();
@@ -502,6 +516,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/text/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
     doc.clear();
@@ -517,6 +532,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/button/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
 
     // New Audio sensor for stream state
@@ -531,6 +547,7 @@ void publishHaAutoDiscovery() {
     doc["availability"] = availability;
     topic = String(MQTT_BASE_TOPIC) + "/sensor/" + doc["object_id"].as<String>() + "/config";
     serializeJson(doc, payload);
+    Log_printf(LOG_LEVEL_DEBUG, "HA Discovery: Topic: [%s], Payload: [%s]", topic.c_str(), payload.c_str());
     mqttClient.publish(topic.c_str(), payload.c_str(), true);
     
     haDiscoveryPublished = true;
