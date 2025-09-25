@@ -842,6 +842,9 @@ void handleWeatherDisplay() {
 
 void updateMarqueeDisplay() {
 #if ENABLE_HARDWARE
+    // In marquee mode, top two rows show the clock
+    updateNormalClockDisplay_internal(true, true, false);
+
     DisplayRow* targetRow = &lastRow;
     static char marqueePageBuffer[256];
 
