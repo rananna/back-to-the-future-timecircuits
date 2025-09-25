@@ -636,20 +636,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             if (dp_index >= 0 && dp_index < 5) {
                 if (id_suffix.endsWith("_marquee")) {
                     currentSettings.dataPoints[dp_index].scrollingText = message.c_str();
+                    isMarqueeBufferDirty = true; // Force display to re-render the marquee
                     settingsChanged = true;
-                    // --- BEGIN FIX ---
-                    // The original code saved the setting but didn't update the live display buffer.
-                    // This copies the new text to the live buffer and flags it as "dirty"
-                    // so the DisplayManager will re-render it on the next cycle.
-                    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                        displayPages[dp_index].year = message.c_str();
-                        displayPages[dp_index].month = "";
-                        displayPages[dp_index].day = "";
-                        displayPages[dp_index].time = "";
-                        isMarqueeBufferDirty = true;
-                        xSemaphoreGive(xDisplayDataMutex);
-                    }
-                    // --- END FIX ---
                 } else if (id_suffix.endsWith("_enabled")) {
                     currentSettings.dataPoints[dp_index].enabled = (message == "ON");
                     settingsChanged = true;
@@ -812,17 +800,23 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         if (message == "stop") stopAudioStream();
         else startAudioStream(message.c_str(), false);
     } else {
+        // This handles incoming data for any of the 5 data points that are configured
+        // with a `dataSourceType` of `DATA_SOURCE_MQTT`.
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
-            if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
-                if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                    displayPages[i].year = message.c_str();
-                    displayPages[i].month = "";
-                    displayPages[i].day = "";
-                    displayPages[i].time = "";
-                    isMarqueeBufferDirty = true;
-                    xSemaphoreGive(xDisplayDataMutex);
-                }
-                break;
+            // Check if the topic matches and the data source is MQTT
+            if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT &&
+                topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
+
+                // --- FIX ---
+                // The original code was writing to the `displayPages` buffer, which is only
+                // used by the `DATA_SOURCE_HA` type. The fix is to write directly to the
+                // `scrollingText` field in the settings, which is what the DisplayManager
+                // actually reads for this data source type.
+                currentSettings.dataPoints[i].scrollingText = message.c_str();
+                isMarqueeBufferDirty = true; // Set the dirty flag to force a re-render
+                saveSettings(); // Persist the new text
+
+                break; // Exit the loop since we found the matching topic
             }
         }
     }

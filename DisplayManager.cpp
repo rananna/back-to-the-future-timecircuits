@@ -882,46 +882,11 @@ void updateMarqueeDisplay() {
                 if (currentSettings.numDataPoints == 0) {
                     fullText = "NO DATA POINTS";
                 } else {
-                    // --- Build the content string based on the data source type ---
-                    std::string content_text;
-                    switch (point.dataSourceType) {
-                        case DATA_SOURCE_STATIC:
-                            content_text = point.scrollingText;
-                            break;
-                        case DATA_SOURCE_MQTT:
-                            // For MQTT, the raw data is in the 'year' field.
-                            content_text = displayPages[currentPageIndex].year;
-                            break;
-                        case DATA_SOURCE_HA:
-                            // For Home Assistant, check if we have a single-string message (only year is populated)
-                            // or a multi-part message from the dedicated HA push integration.
-                            if (displayPages[currentPageIndex].month.empty() &&
-                                displayPages[currentPageIndex].day.empty() &&
-                                displayPages[currentPageIndex].time.empty() &&
-                                !displayPages[currentPageIndex].year.empty())
-                            {
-                                // This looks like a single-string message from a generic HA automation.
-                                // The MQTT callback places the full string into the 'year' field.
-                                content_text = displayPages[currentPageIndex].year;
-                            } else {
-                                // This looks like a multi-part message from the dedicated HA push integration.
-                                // Assemble the text from the four separate fields.
-                                content_text = displayPages[currentPageIndex].month;
-                                if (!displayPages[currentPageIndex].day.empty()) {
-                                    if (!content_text.empty()) content_text += " ";
-                                    content_text += displayPages[currentPageIndex].day;
-                                }
-                                if (!displayPages[currentPageIndex].year.empty()) {
-                                    if (!content_text.empty()) content_text += " ";
-                                    content_text += displayPages[currentPageIndex].year;
-                                }
-                                if (!displayPages[currentPageIndex].time.empty()) {
-                                    if (!content_text.empty()) content_text += " ";
-                                    content_text += displayPages[currentPageIndex].time;
-                                }
-                            }
-                            break;
-                    }
+                    // --- Build the content string (simplified) ---
+                    // The MQTT callback now correctly populates `scrollingText` for all MQTT-based
+                    // sources, so we no longer need the complex switch-case. We can just use
+                    // `scrollingText` as the authoritative source for the marquee content.
+                    std::string content_text = point.scrollingText;
 
                     // --- Assemble the final string with prefix and suffix ---
                     if (!point.prefixText.empty()) {
