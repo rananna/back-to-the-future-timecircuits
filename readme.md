@@ -47,16 +47,25 @@ This project is more than just a clock; it's a feature-packed, interactive prop 
 
 ## 📚 Documentation
 
-This project's documentation is split into several sections to make it easy to find what you need.
+This project's documentation is organized into categories to help you find what you need, whether you're building the clock for the first time or diving into advanced customizations.
 
+### **Getting Started**
 | Document | Description |
 | :--- | :--- |
-| **[🚀 Installation Guide](docs/INSTALLATION.md)** | **Start here!** A complete guide for building the clock, including the bill of materials, wiring, and setup. |
-| **[💡 Usage Guide](docs/USAGE.md)** | Learn how to configure and use all the features of the clock via its web interface. |
-| **[📈 Data Link Guide](docs/guides/DATA_LINK.md)** | A detailed guide to the Weather, Stock, and custom Data Link modes. |
-| **[🏠 Home Assistant Guide](docs/HOME_ASSISTANT.md)** | Unleash the full power of your clock with deep smart home integration. |
-| **[🔄 Updating Guide](docs/UPDATING.md)** | Instructions for updating the firmware and web interface files. |
-| **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep dive into the project's architecture and code. |
+| **[🚀 Installation Guide](docs/INSTALLATION.md)** | **Start here!** This guide provides a complete, soup-to-nuts walkthrough for building the clock. It includes a full bill of materials, detailed wiring diagrams, 3D printing files, and step-by-step instructions for flashing the firmware. |
+| **[💡 Usage Guide](docs/USAGE.md)** | Once you've built the clock, this guide explains how to connect to its web interface, configure WiFi, set your time zone, and use all of the day-to-day features. |
+
+### **User Guides**
+| Document | Description |
+| :--- | :--- |
+| **[📈 Data Link Guide](docs/guides/DATA_LINK.md)** | Transform the "Last Time Departed" display into a real-time data feed. This guide covers the built-in Weather and Stock modes, and explains how to create your own custom data integrations. |
+| **[🏠 Home Assistant Guide](docs/HOME_ASSISTANT.md)** | For smart home enthusiasts, this guide details how to integrate the clock with Home Assistant. It covers the MQTT API, included blueprints, and provides examples for creating powerful automations. |
+| **[🔄 Updating Guide](docs/UPDATING.md)** | This guide provides instructions on how to update the clock's firmware and web interface files to get the latest features and bug fixes. |
+
+### **Advanced & Technical Reference**
+| Document | Description |
+| :--- | :--- |
+| **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep-dive into the project's architecture, code, and file system. This is the place to start if you're interested in contributing to the project or creating a custom fork. |
 
 ---
 
