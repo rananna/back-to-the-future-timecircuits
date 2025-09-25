@@ -554,6 +554,7 @@ void publishHaAutoDiscovery() {
 }
 
 void reconnectMqtt() {
+  Log_printf(LOG_LEVEL_DEBUG, "Entering reconnectMqtt function.");
   if (currentSettings.mqttBroker.empty()) return;
   
   Log_printf(LOG_LEVEL_INFO, "Attempting to connect to MQTT broker: %s...", currentSettings.mqttBroker.c_str());
@@ -577,6 +578,7 @@ void reconnectMqtt() {
     
     mqttClient.publish(availability_topic.c_str(), "online", true);
 
+    Log_printf(LOG_LEVEL_DEBUG, "Checking if HA discovery needs to be published (haDiscoveryPublished: %s).", haDiscoveryPublished ? "true" : "false");
     if (!haDiscoveryPublished) {
         publishHaAutoDiscovery();
     } else {
