@@ -90,6 +90,9 @@ A 3D printed enclosure is highly recommended for a professional finish.
 > **Note on I2C Buses**: This project uses two separate I2C buses. The "Destination" and "Present" displays are on one bus, and the "Last Time Departed" displays are on another. This is why some displays share the same address (e.g., 0x70) but don't conflict.
 >
 > Use the table below to configure each display. Failure to do this will result in displays not lighting up.
+>
+> > 💡 **Why can addresses be reused?**
+> > I2C addresses only need to be unique *per bus*. Since the "Last Time Departed" displays are on a completely separate I2C bus from the other two rows, their addresses can safely overlap without causing conflicts.
 
 | Display Row | Display Purpose | I2C Address | A2 Jumper (+4) | A1 Jumper (+2) | A0 Jumper (+1) |
 | :--- | :--- | :---: | :---: | :---: | :---: |
@@ -108,23 +111,38 @@ A 3D printed enclosure is highly recommended for a professional finish.
 
 ### **Step 4: Set Partition Scheme**
 > #### ⚠️ **Critical Step: Partition Scheme**
-> This project requires a specific partition scheme to allocate enough space for the web interface and sound files.
+> This project requires a custom partition scheme to allocate enough space for the web interface and sound files. The necessary `partitions.csv` file is included in this repository.
 >
-> 1.  In the Arduino IDE, navigate to **Tools > Partition Scheme**.
-> 2.  From the dropdown menu, select a scheme that provides at least **1.5MB** for `SPIFFS` or `LittleFS`. A good option is **"Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)"**.
-> 3.  If a suitable option is not available, you must add a custom partition scheme. You can do this by following the official documentation for [installing a custom partition scheme](https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/partition_scheme.html) and using the `partitions.csv` file included in this project's repository.
+> 1.  **Ensure `partitions.csv` is in the Sketch Directory**:
+>     *   The `partitions.csv` file is located in the root of this repository.
+>     *   This file **must** be in the same folder as the main `back-to-the-future-timecircuits.ino` file. The Arduino IDE will not detect it otherwise.
+>
+> 2.  **Select the Custom Scheme in Arduino IDE**:
+>     *   If the Arduino IDE was already open, restart it.
+>     *   Navigate to **Tools > Partition Scheme**.
+>     *   Select **"Custom (partitions.csv)"** from the dropdown menu. If this option is not visible, the IDE cannot find the `partitions.csv` file in the sketch directory.
+>
+>     > 💡 **What this does**: This custom layout creates a large `littlefs` partition (aliased as `spiffs` for compatibility), which provides over 10MB of space for web files and sounds, while also allocating two large partitions for the main application. This enables both robust Over-the-Air (OTA) updates and ample storage.
 
 ### **Step 5: Upload Files to Filesystem**
 > #### ⚠️ **Critical Step: Upload Data Files**
-> The web interface and sound effects will not work unless you upload the contents of the `data` folder to the ESP32's filesystem.
+> The web interface and sound effects will not work unless you upload the contents of the `data` folder to the ESP32's filesystem. This process differs slightly between Arduino IDE v1.x and v2.x.
 >
-> 1.  **Install the Filesystem Uploader Tool**:
->     *   **Arduino IDE 1.x**: You must install the **ESP32 LittleFS Uploader** plugin. [Follow these instructions](https://github.com/lorol/arduino-esp32littlefs-plugin) to download and install the plugin.
->     *   **Arduino IDE 2.x**: Filesystem uploading is built-in. No plugin is required.
-> 2.  **Prepare Your Data Files**: Place all web interface files (`index.html`, `style.css`, etc.) and sound files (`.mp3`) into the `data` folder within your sketch directory.
-> 3.  **Upload the Data**:
->     *   In the Arduino IDE, select **Tools > ESP32 Sketch Data Upload**.
->     *   This will upload the entire contents of the `data` folder to the ESP32's internal storage.
+> ---
+> #### **Instructions for Arduino IDE v2.x (Recommended)**
+> 1.  Ensure the `data` folder is located in the same directory as your main `.ino` file.
+> 2.  In the Arduino IDE, navigate to **Tools > ESP32 Sketch Data Upload**.
+> 3.  The IDE will build and upload the filesystem image. No external plugin is required.
+>
+> ---
+> #### **Instructions for Arduino IDE v1.x**
+> 1.  **Install the Uploader Plugin**: You must first install the **ESP32 LittleFS Uploader** plugin.
+>     *   Navigate to the [official plugin repository](https://github.com/lorol/arduino-esp32littlefs-plugin).
+>     *   Follow the installation instructions to download and install the plugin into your Arduino IDE's `tools` directory.
+> 2.  **Upload the Data**:
+>     *   After installing the plugin, restart the Arduino IDE.
+>     *   Open your sketch and navigate to **Tools > ESP32 Sketch Data Upload**.
+>     *   This will upload the contents of your `data` folder to the ESP32.
 
 ### **Step 6: Upload the Main Code**
 *   Open the `.ino` file in the Arduino IDE, select your board and COM port, and click "Upload".
