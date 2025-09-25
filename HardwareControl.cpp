@@ -68,7 +68,7 @@ SemaphoreHandle_t xSerialMutex;
 
 // This flag ensures that the I2C buses are only initialized once,
 // even if setupPhysicalDisplay() is called multiple times on retry attempts.
-static bool i2c_initialized = false;
+// static bool i2c_initialized = false; // This was causing a bug on hardware init retries
 
 // --- HELPER FUNCTION ---
 /**
@@ -121,12 +121,10 @@ bool setupPhysicalDisplay() {
     resetI2CBus(1); // For I2C_2, which is on bus 1
 
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by setupPhysicalDisplay"); }
-    // Initialize both I2C buses, but only if they haven't been started already.
-    if (!i2c_initialized) {
-      I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
-      I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
-      i2c_initialized = true;
-    }
+    // Initialize both I2C buses. Calling .begin() multiple times is safe and
+    // necessary because resetI2CBus() calls .end() on every attempt.
+    I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
+    I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
 
     // Set a timeout to prevent indefinite blocking
     I2C_1.setTimeout(250); // 250ms timeout
