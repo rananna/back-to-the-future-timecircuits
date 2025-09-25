@@ -21,6 +21,7 @@ void publishDeviceTriggers();
 void publishTimeSensors();
 void startAudioStream(const char* url, bool is_tts, int volume = -1);
 void stopAudioStream();
+void handleSequencerCommand(const std::string& payload);
 
 
 #endif // MQTT_MANAGER_H

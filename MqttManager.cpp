@@ -345,6 +345,21 @@ void publishHaAutoDiscovery() {
         topic = String(MQTT_BASE_TOPIC) + "/button/" + doc["object_id"].as<String>() + "/config";
         serializeJson(doc, payload);
         mqttClient.publish(topic.c_str(), payload.c_str(), true);
+
+    // --- Sequencer Button ---
+    doc.clear();
+    doc["name"] = "Trigger Sequence";
+    doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_sequencer";
+    doc["object_id"] = String(MQTT_UNIQUE_ID) + "_sequencer";
+    doc["command_topic"] = device_base_topic + "/sequencer/command";
+    doc["payload_press"] = "PRESS";
+    doc["icon"] = "mdi:movie-play-outline";
+    doc["entity_category"] = "config";
+    doc["device"] = device;
+    doc["availability"] = availability;
+    topic = String(MQTT_BASE_TOPIC) + "/button/" + doc["object_id"].as<String>() + "/config";
+    serializeJson(doc, payload);
+    mqttClient.publish(topic.c_str(), payload.c_str(), true);
     }
     
     doc.clear();
@@ -534,6 +549,10 @@ void reconnectMqtt() {
     mqttClient.subscribe(audio_topic.c_str());
     audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/radio/command";
     mqttClient.subscribe(audio_topic.c_str());
+
+    String sequencer_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/sequencer/command";
+    mqttClient.subscribe(sequencer_topic.c_str());
+    Log_printf(LOG_LEVEL_DEBUG, "Subscribed to sequencer command topic: %s", sequencer_topic.c_str());
 
 
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
@@ -751,6 +770,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             }
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;
+        } else if (component == "sequencer") {
+            handleSequencerCommand(message);
         }
     } else if (topicStr == base_topic + "tts/play") {
         JsonDocument doc;
@@ -861,6 +882,87 @@ void publishAllHaStates() {
         mqttClient.publish(enabled_topic.c_str(), currentSettings.dataPoints[i].enabled ? "ON" : "OFF", true);
         String marquee_topic = base_topic + "/datapoint_" + String(i) + "_marquee/state";
         mqttClient.publish(marquee_topic.c_str(), currentSettings.dataPoints[i].scrollingText.c_str(), true);
+    }
+}
+
+void handleSequencerCommand(const std::string& payload) {
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to parse sequencer JSON: %s", error.c_str());
+        return;
+    }
+
+    JsonArray sequence = doc.as<JsonArray>();
+    if (sequence.isNull()) {
+        Log_printf(LOG_LEVEL_ERROR, "Sequencer payload is not a JSON array.");
+        return;
+    }
+
+    for (JsonObject command : sequence) {
+        const char* cmd = command["command"];
+        if (!cmd) {
+            Log_printf(LOG_LEVEL_WARN, "Skipping invalid sequencer command: missing 'command' key.");
+            continue;
+        }
+
+        if (strcmp(cmd, "flash") == 0) {
+            const char* segment = command["segment"];
+            if (segment) {
+                int row = -1, seg = -1;
+                if (strstr(segment, "dest_")) row = 0;
+                else if (strstr(segment, "pres_")) row = 1;
+                else if (strstr(segment, "last_")) row = 2;
+
+                if (strstr(segment, "_month")) seg = 0;
+                else if (strstr(segment, "_day")) seg = 1;
+                else if (strstr(segment, "_year")) seg = 2;
+                else if (strstr(segment, "_time")) seg = 3;
+
+                if (row != -1 && seg != -1) {
+                    triggerFlashEffect(row, seg, command["duration"] | 500);
+                } else {
+                    Log_printf(LOG_LEVEL_WARN, "Invalid segment for flash command: %s", segment);
+                }
+            } else {
+                Log_printf(LOG_LEVEL_WARN, "Missing 'segment' for flash command.");
+            }
+        } else if (strcmp(cmd, "sound") == 0) {
+            const char* effect = command["effect"];
+            if (effect) {
+                playSound(("/" + String(effect) + ".mp3").c_str());
+            } else {
+                Log_printf(LOG_LEVEL_WARN, "Missing 'effect' for sound command.");
+            }
+        } else if (strcmp(cmd, "message") == 0) {
+            const char* display = command["display"];
+            if (display) {
+                int row = -1;
+                if (strcmp(display, "destination") == 0) row = 0;
+                else if (strcmp(display, "present") == 0) row = 1;
+                else if (strcmp(display, "last_departed") == 0) row = 2;
+
+                if (row != -1) {
+                    updateDisplaySegment(row, 0, command["month"] | "");
+                    updateDisplaySegment(row, 1, command["day"] | "");
+                    updateDisplaySegment(row, 2, command["year"] | "");
+                    updateDisplaySegment(row, 3, command["time"] | "");
+                } else {
+                    Log_printf(LOG_LEVEL_WARN, "Invalid display for message command: %s", display);
+                }
+            } else {
+                Log_printf(LOG_LEVEL_WARN, "Missing 'display' for message command.");
+            }
+        } else if (strcmp(cmd, "delay") == 0) {
+            if (command.containsKey("duration")) {
+                delay(command["duration"].as<int>());
+            } else {
+                Log_printf(LOG_LEVEL_WARN, "Missing 'duration' for delay command.");
+            }
+        } else {
+            Log_printf(LOG_LEVEL_WARN, "Unknown sequencer command: %s", cmd);
+        }
     }
 }
 
