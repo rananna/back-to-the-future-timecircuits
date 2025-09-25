@@ -71,17 +71,34 @@ This project's documentation is organized into categories to help you find what 
 
 ## 🚀 Getting Started
 
-### Prerequisites
+This project is designed for makers and hobbyists who are comfortable with basic electronics and soldering. The assembly process is straightforward, but it requires careful attention to detail, especially when wiring the 12 individual displays.
 
-* Basic knowledge of soldering and electronics.
-* Arduino IDE installed and configured for the ESP32.
-* All components listed in the [Bill of Materials](docs/INSTALLATION.md#-️-bill-of-materials-bom).
+For a successful build, you will need to gather all the required components, 3D print the case, and flash the firmware. The entire process is detailed in the guides below, but here’s a high-level overview of what to expect.
 
-### Installation
+### **Prerequisites**
 
-1.  **Hardware Assembly**: Follow the [Wiring & Schematics](docs/INSTALLATION.md#-wiring--schematics) to connect all the components.
-2.  **Software Setup**: Flash the ESP32 with the firmware and upload the web interface files by following the [Software Installation](docs/INSTALLATION.md#-software-installation) guide.
-3.  **Configuration**: Access the web interface to connect the device to your WiFi and start customizing!
+Before you begin, make sure you have the following:
+
+*   **Hardware & Tools:**
+    *   All components listed in the **[Bill of Materials](docs/INSTALLATION.md#-️-bill-of-materials-bom)**.
+    *   A soldering iron and basic soldering tools.
+    *   Access to a 3D printer for the enclosure.
+*   **Software:**
+    *   The latest version of the **[Arduino IDE](https.www.arduino.cc/en/software)** installed.
+    *   The ESP32 Board Manager configured in the Arduino IDE.
+    *   A Git client to clone this repository.
+
+### **Process at a Glance**
+
+1.  **Assemble the Electronics**: Following the **[Wiring & Schematics](docs/INSTALLATION.md#-wiring--schematics)**, you’ll connect the ESP32, I2S amplifier, and all 12 of the 14-segment displays. This is the most time-consuming part of the build, so take your time and double-check your connections.
+
+2.  **Flash the Firmware**: You’ll need to install several libraries in the Arduino IDE, set the correct partition scheme, and upload the main `.ino` firmware file. This step brings the clock to life.
+
+3.  **Upload the Data Files**: The project's web interface and sound files must be uploaded to the ESP32’s internal storage. This is done using a special plugin for the Arduino IDE.
+
+4.  **Final Assembly**: With the electronics wired and the firmware flashed, the final step is to mount everything inside the **[3D Printed Case](docs/INSTALLATION.md#-3d-printed-case--assembly)**.
+
+Ready to get started? The **[Installation Guide](docs/INSTALLATION.md)** provides a complete, soup-to-nuts walkthrough of this entire process.
 
 ---
 
