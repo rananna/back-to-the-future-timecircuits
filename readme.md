@@ -59,8 +59,10 @@ This project's documentation is organized into categories to help you find what 
 ### **User Guides**
 | Document | Description |
 | :--- | :--- |
+| **[🌐 Web Interface Guide](docs/WEB_INTERFACE.md)** | A detailed, field-by-field guide to all the settings available in the web UI. |
 | **[📈 Data Link Guide](docs/guides/DATA_LINK.md)** | Transform the "Last Time Departed" display into a real-time data feed. This guide covers the built-in Weather and Stock modes and explains how to create your own custom data integrations. |
 | **[🏠 Home Assistant Guide](docs/HOME_ASSISTANT.md)** | For smart home enthusiasts, this guide details how to integrate the clock with Home Assistant. It covers the MQTT API, included blueprints, and provides examples for creating powerful automations. |
+| **[🔧 Troubleshooting Guide](docs/TROUBLESHOOTING.md)** | Solutions to common problems, from hardware issues to network connectivity and data fetching errors. |
 
 ### **Advanced & Technical Reference**
 | Document | Description |

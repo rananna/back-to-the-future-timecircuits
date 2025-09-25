@@ -146,3 +146,20 @@ A 3D printed enclosure is highly recommended for a professional finish.
 
 ### **Step 6: Upload the Main Code**
 *   Open the `.ino` file in the Arduino IDE, select your board and COM port, and click "Upload".
+
+---
+## ✅ First Boot & Verification
+
+Once the firmware and data files are uploaded, you are ready for the first power-up.
+
+1.  **Power On**: Connect your 5V 2A power supply to the ESP32.
+2.  **Boot Sequence**: The clock will perform a cinematic boot sequence. You should hear a startup sound, and the displays will flash and cycle before settling.
+3.  **Initial State**: After the boot sequence, the displays should show the default times:
+    *   **Destination Time**: JAN 01 1955 12:00 AM
+    *   **Present Time**: The current time (it may be incorrect until WiFi is configured).
+    *   **Last Time Departed**: OCT 26 1985 01:21 AM
+4.  **WiFi Hotspot**: The device will fail to find a configured WiFi network and will create its own hotspot named **`BTTF-Clock-Setup`**.
+
+If you see the boot sequence and the hotspot becomes visible on your phone or computer, your hardware is assembled correctly!
+
+**➡️ Next Step**: You are now ready to configure the clock. Proceed to the **[💡 Usage Guide](USAGE.md)** to learn how to connect to the web interface and set up your device.

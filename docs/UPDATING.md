@@ -42,3 +42,23 @@ This feature allows you to update the files that make up the web interface (HTML
 2.  **Select Files**: Under the **UI File Update** section, click **Choose Files**. You can select multiple files at once.
 3.  **Upload**: Click **Upload UI Files**. The files will be uploaded to the device's filesystem.
 4.  **Refresh Browser**: Once the upload is complete, you must **manually refresh the page** in your browser to see the changes.
+
+---
+
+## Changing the OTA Password
+
+For security, the Over-the-Air (OTA) update feature is protected by a password. The default password is **`1.21gigawatts`**.
+
+It is highly recommended to change this password to secure your device from unauthorized updates.
+
+**Steps to Change the Password:**
+
+1.  **Open `web_server.cpp`**: In your Arduino IDE, open the `web_server.cpp` file from the sketch folder.
+2.  **Locate the Password Line**: Find the line of code that sets up the OTA password. It will look like this:
+    ```cpp
+    ArduinoOTA.setPassword("1.21gigawatts");
+    ```
+3.  **Change the Password**: Replace `"1.21gigawatts"` with your own secure password.
+4.  **Re-flash the Firmware**: You must re-upload the main firmware to the device for this change to take effect. You can do this via a USB connection using the standard "Upload" button in the Arduino IDE.
+
+> ⚠️ **Important**: Once you change the password and flash the new firmware, all subsequent OTA updates (both from the Arduino IDE and the web UI) will require the new password.
