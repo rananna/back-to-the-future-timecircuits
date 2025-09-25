@@ -848,20 +848,14 @@ void loadSettings() {
         currentSettings.numDataPoints = preferences.getInt("numDataPoints", 0);
         Log_printf(LOG_LEVEL_INFO, "Loaded numDataPoints: %d", currentSettings.numDataPoints);
         for (int i = 0; i < 5; i++) {
-            if (i < currentSettings.numDataPoints) {
-                String prefix = "dp" + String(i) + "_";
-                currentSettings.dataPoints[i].enabled = preferences.getBool((prefix + "en").c_str(), false);
-                currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str(), 0);
-                currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
-                currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
-                currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str(), 150);
-                currentSettings.dataPoints[i].prefixText = preferences.getString((prefix + "prefix").c_str(), "").c_str();
-                currentSettings.dataPoints[i].suffixText = preferences.getString((prefix + "suffix").c_str(), "").c_str();
-            } else {
-                // Clear out data for points that are no longer active
-                currentSettings.dataPoints[i] = {};
-                currentSettings.dataPoints[i].enabled = false;
-            }
+            String prefix = "dp" + String(i) + "_";
+            currentSettings.dataPoints[i].enabled = preferences.getBool((prefix + "en").c_str(), false);
+            currentSettings.dataPoints[i].dataSourceType = (DataSourceType)preferences.getInt((prefix + "srcType").c_str(), 0);
+            currentSettings.dataPoints[i].mqttTopic = preferences.getString((prefix + "topic").c_str(), "").c_str();
+            currentSettings.dataPoints[i].scrollingText = preferences.getString((prefix + "scrollTxt").c_str(), "").c_str();
+            currentSettings.dataPoints[i].scrollSpeed = preferences.getInt((prefix + "scroll").c_str(), 150);
+            currentSettings.dataPoints[i].prefixText = preferences.getString((prefix + "prefix").c_str(), "").c_str();
+            currentSettings.dataPoints[i].suffixText = preferences.getString((prefix + "suffix").c_str(), "").c_str();
         }
 
         preferences.end(); // End the read-only session.
