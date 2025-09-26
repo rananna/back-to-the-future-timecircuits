@@ -63,7 +63,7 @@ extern bool isSequenceActive;
 extern Audio audio;
 extern bool hardwareInitialized;
 // Function Prototypes
-void playSound(const char* filename);
+
 
 
 #endif // EVENT_MANAGER_H
