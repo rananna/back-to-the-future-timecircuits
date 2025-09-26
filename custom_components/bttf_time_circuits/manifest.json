@@ -1,7 +1,7 @@
 {
   "domain": "bttf_time_circuits",
   "name": "Back to the Future Time Circuits",
-  "codeowners": ["@dmadison"],
+  "codeowners": ["@rananna"],
   "config_flow": true,
   "dependencies": ["mqtt"],
   "documentation": "https://github.com/dmadison/bttf-time-circuits-clock/blob/main/docs/home-assistant.md",
