@@ -469,6 +469,20 @@ void publishHaAutoDiscovery() {
     doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "select");
 
+    // --- NEW: TTS Text Entity ---
+    doc.clear();
+    doc["name"] = "TTS Text";
+    String tts_text_id = String(MQTT_UNIQUE_ID) + "_tts_text";
+    doc["unique_id"] = toLowerCase(tts_text_id);
+    doc["object_id"] = toLowerCase(tts_text_id);
+    doc["command_topic"] = device_base_topic + "/tts_text/command";
+    doc["state_topic"] = device_base_topic + "/tts_text/state";
+    doc["icon"] = "mdi:text-to-speech";
+    doc["entity_category"] = "config";
+    doc["device"].set(device);
+    doc["availability"].set(availability);
+    publishDiscoveryMessage(doc, "text");
+
 
     // --- Display Mode Selection ---
     doc.clear();
@@ -567,7 +581,7 @@ void reconnectMqtt() {
     mqttClient.subscribe(command_topic.c_str());
     Log_printf(LOG_LEVEL_DEBUG, "Subscribed to wildcard command topic: %s", command_topic.c_str());
     
-    String audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/tts/play";
+    String audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/tts/command";
     mqttClient.subscribe(audio_topic.c_str());
     audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/radio/command";
     mqttClient.subscribe(audio_topic.c_str());
@@ -826,13 +840,20 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             settingsChanged = true;
         } else if (component == "sequencer") {
             handleSequencerCommand(message);
-        }
-    } else if (topicStr == base_topic + "tts/play") {
-        JsonDocument doc;
-        if (deserializeJson(doc, message) == DeserializationError::Ok) {
-            startAudioStream(doc["url"], true, doc["volume"] | -1);
-        } else {
-            startAudioStream(message.c_str(), true);
+        } else if (component == "tts_text") {
+            // When text is received on the command topic, just publish it right back to the state topic.
+            // This acts as a trigger for the blueprint automation in Home Assistant, which will then
+            // call the real TTS service and send the audio URL back to the .../tts/command topic.
+            String state_topic = base_topic + "tts_text/state";
+            mqttClient.publish(state_topic.c_str(), message.c_str(), true);
+        } else if (component == "tts") {
+            JsonDocument doc;
+            if (deserializeJson(doc, message) == DeserializationError::Ok) {
+                startAudioStream(doc["url"], true, doc["volume"] | -1);
+            } else {
+                // Support for legacy plain text URL for backward compatibility
+                startAudioStream(message.c_str(), true);
+            }
         }
     } else if (topicStr == base_topic + "radio/command") {
         if (message == "stop") stopAudioStream();
