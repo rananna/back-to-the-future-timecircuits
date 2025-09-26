@@ -45,6 +45,7 @@ These entities are the building blocks for the `Advanced Notifier`, `TTS Notifie
 *   **`number.YOUR_CLOCK_ID_brightness`**: Controls the display brightness (0-7).
 *   **`number.YOUR_CLOCK_ID_volume`**: Adjusts the sound effect volume (0-21).
 *   **`switch.YOUR_CLOCK_ID_24h_format`**: Toggles 24-hour time format.
+*   **`select.YOUR_CLOCK_ID_display_mode`**: The primary control for the clock's function. Options are `Normal Clock`, `Stock Ticker`, `Weather`, and `Data Link`.
 *   **`select.YOUR_CLOCK_ID_profile`**: A powerful feature that applies a pre-configured bundle of settings at once. Profiles include `Standard`, `Cinematic`, `Silent Night`, and `Unstable`.
 *   **`time.YOUR_CLOCK_ID_sleep_time`**: Sets the time for the display to turn off automatically.
 *   **`time.YOUR_CLOCK_ID_wake_time`**: Sets the time for the display to turn on automatically.
@@ -75,7 +76,6 @@ The Stock Ticker mode transforms the bottom display row into a scrolling marquee
 #### **Live Weather Mode**
 The clock's weather display can also be controlled from Home Assistant. This allows you to toggle the weather display, change the city, and force a refresh directly from your dashboard or automations. The following entities are automatically discovered when you connect the clock to your MQTT broker:
 
-*   **`switch.YOUR_CLOCK_ID_weather_mode`** (Friendly name: `Live Weather Mode`): Toggles the live aweather display on or off.
 *   **`text.YOUR_CLOCK_ID_weather_city`** (Friendly name: `Weather City`): Sets the city for which to retrieve weather data. After setting a new city, you may need to press the refresh button to see the change.
 *   **`button.YOUR_CLOCK_ID_refresh_weather_data`** (Friendly name: `Refresh Weather Data`): Forces an immediate refresh of the weather data for the currently configured city. This is only active after a city has been successfully looked up from the web interface at least once.
 
