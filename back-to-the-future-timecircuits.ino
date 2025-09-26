@@ -34,6 +34,7 @@
 #include <freertos/semphr.h>
 #include <freertos/queue.h>
 #include <string>
+#include <cctype>
 #include <LCBUrl.h>
 #include <ArduinoOTA.h>
 
@@ -926,6 +927,9 @@ void setup() {
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
     snprintf(MQTT_UNIQUE_ID, sizeof(MQTT_UNIQUE_ID), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    for (int i = 0; MQTT_UNIQUE_ID[i]; i++) {
+        MQTT_UNIQUE_ID[i] = tolower(MQTT_UNIQUE_ID[i]);
+    }
 
     xSerialMutex = xSemaphoreCreateMutex(); // For thread-safe logging
     Log_printf(LOG_LEVEL_INFO, "--- BOOTING ---");
