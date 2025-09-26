@@ -8,6 +8,7 @@ from homeassistant.components import mqtt
 from homeassistant.components.media_player import (
     MediaPlayerDeviceClass,
     MediaPlayerEntity,
+    MediaPlayerEntityDescription,
     MediaPlayerEntityFeature,
     MediaType,
 )
@@ -37,6 +38,13 @@ SOUND_EFFECTS = [
 ]
 
 
+MEDIA_PLAYER_DESCRIPTION = MediaPlayerEntityDescription(
+    key="media_player",
+    name="Speaker",
+    device_class=MediaPlayerDeviceClass.SPEAKER,
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -44,23 +52,25 @@ async def async_setup_entry(
 ) -> None:
     """Set up the BTTF Time Circuits media player."""
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
-    async_add_entities([BTTFTimeCircuitsMediaPlayer(device)])
+    async_add_entities([BTTFTimeCircuitsMediaPlayer(device, MEDIA_PLAYER_DESCRIPTION)])
 
 
 class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
     """Representation of a BTTF Time Circuits Media Player."""
 
-    _attr_has_entity_name = True
-    _attr_name = "Speaker"
-    _attr_device_class = MediaPlayerDeviceClass.SPEAKER
+    entity_description: MediaPlayerEntityDescription
+
     _attr_supported_features = SUPPORTED_FEATURES
     _attr_source_list = SOUND_EFFECTS
 
-    def __init__(self, device: BTTFTimeCircuitsDevice) -> None:
+    def __init__(
+        self,
+        device: BTTFTimeCircuitsDevice,
+        description: MediaPlayerEntityDescription,
+    ) -> None:
         """Initialize the media player."""
-        self.entity_description = None  # No entity description for this one
+        self.entity_description = description
         super().__init__(device)
-        self._attr_unique_id = f"{DOMAIN}_{self._device.device_id}_media_player"
         self._attr_volume_level = 0.5  # Default volume
         self._attr_state = "idle"
 
