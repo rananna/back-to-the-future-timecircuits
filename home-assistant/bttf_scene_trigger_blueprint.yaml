@@ -3,8 +3,8 @@ blueprint:
   description: >-
     A simple way to trigger the full, cinematic time travel animation for a specific destination year.
 
-    This is a "callable" automation that has no trigger. It's perfect for integrating into Home Assistant scenes or using as a response to an event, like a person arriving home or a movie starting.
-  domain: automation
+    This blueprint creates a script that can be called as a service from automations or other scripts. It's perfect for integrating into Home Assistant scenes or using as a response to an event, like a person arriving home or a movie starting.
+  domain: script
   input:
     target_device:
       name: Time Circuits Device
@@ -25,9 +25,7 @@ variables:
   unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
   year_input: !input destination_year
 
-trigger: []
-
-action:
+sequence:
   - service: text.set_value
     target:
       entity_id: "text.{{ unique_id }}_dest_year"

@@ -3,7 +3,7 @@ blueprint:
   name: "BTTF - Sequencer"
   description: |
     Triggers a custom sequence of actions on the Time Circuits display.
-    This is a "callable" automation that has no trigger; you call it from another automation or script.
+    This blueprint creates a script that can be called as a service from automations or other scripts.
 
     NOTE: This is an advanced blueprint that requires crafting a JSON payload and uses direct MQTT communication with the device.
 
@@ -54,7 +54,7 @@ blueprint:
       }
     ]
     ```
-  domain: automation
+  domain: script
   input:
     target_device:
       name: Time Circuits
@@ -75,9 +75,7 @@ variables:
   unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
   payload: !input sequence_payload
 
-mode: single
-trigger: []
-action:
+sequence:
   - service: mqtt.publish
     data:
       topic: "BTTF_TC/{{ unique_id }}/sequencer/command"
