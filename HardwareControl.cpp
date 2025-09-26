@@ -59,6 +59,7 @@ DisplayRow lastRow;
 
 // --- Make global audio objects available ---
 extern bool isPlayingSound;
+extern bool isSoundFromMqtt;
 extern BootSequenceState bootState;
 
 // Definition for the serial printing mutex.
@@ -973,7 +974,7 @@ void display88MphSpeed(float speed) {
   #endif
 }
 
-void playSound(const char* filepath) {
+void playSound(const char* filepath, bool fromMqtt) {
     #if ENABLE_HARDWARE
         char fullPath[MAX_FILENAME_LENGTH];
 
@@ -986,7 +987,7 @@ void playSound(const char* filepath) {
         // Ensure null-termination in case of overflow
         fullPath[MAX_FILENAME_LENGTH - 1] = '\0';
 
-        Log_printf(LOG_LEVEL_INFO, "Request to play sound: %s", fullPath);
+        Log_printf(LOG_LEVEL_INFO, "Request to play sound: %s (fromMqtt: %s)", fullPath, fromMqtt ? "true" : "false");
 
         if (audio.isRunning()) {
             Log_printf(LOG_LEVEL_DEBUG, "Audio is already running. Stopping current sound.");
@@ -998,6 +999,9 @@ void playSound(const char* filepath) {
             Log_printf(LOG_LEVEL_WARN, "Audio file not found: %s", fullPath);
             return;
         }
+
+        isSoundFromMqtt = fromMqtt;
+        isPlayingSound = true;
 
         // The SD pin logic is harmless even if unwired.
         digitalWrite(I2S_SD_PIN, HIGH);
@@ -1012,6 +1016,8 @@ void playSound(const char* filepath) {
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Failed to connect to audio file: %s", fullPath);
             currentSoundFile[0] = '\0';
+            isPlayingSound = false;
+            isSoundFromMqtt = false;
             digitalWrite(I2S_SD_PIN, LOW);
         }
     #endif

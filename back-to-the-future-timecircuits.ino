@@ -128,6 +128,8 @@ DisplayModeState currentDisplayMode = NORMAL_CLOCK; // Current primary mode of t
 
 // --- AUDIO GLOBALS ---
 Audio audio; // The global audio object from the ESP32-audioI2S library.
+bool isPlayingSound = false;
+bool isSoundFromMqtt = false;
 StockManager stockManager;
 char currentSoundFile[MAX_FILENAME_LENGTH] = ""; // Filename of the audio file currently being played.
 
@@ -241,6 +243,16 @@ DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
 void audio_info(Audio::msg_t m) {
     if (m.e == Audio::evt_eof) {
         Log_printf(LOG_LEVEL_INFO, "Finished playing sound: %s", currentSoundFile);
+
+        // If the sound was triggered by an MQTT command, we need to reset the state
+        // and shut down the amplifier to ensure the hardware is in a clean state.
+        if (isSoundFromMqtt) {
+            Log_printf(LOG_LEVEL_DEBUG, "MQTT-initiated sound finished. Resetting audio state.");
+            isPlayingSound = false;
+            isSoundFromMqtt = false;
+            digitalWrite(I2S_SD_PIN, LOW); // Shut down the I2S amplifier
+        }
+
         currentSoundFile[0] = '\0'; // Clear the filename
         // Update Home Assistant that audio is idle
         if (mqttClient.connected()) {
