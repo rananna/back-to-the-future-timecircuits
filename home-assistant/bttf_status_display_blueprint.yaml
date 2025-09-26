@@ -1,14 +1,14 @@
 blueprint:
   name: "BTTF - Home Assistant Status Display"
   description: >-
-    A "callable" automation to push any Home Assistant entity state or attribute to one of the 12 display segments on your Time Circuits clock.
+    A "callable" script to push any Home Assistant entity state or attribute to one of the 12 display segments on your Time Circuits clock.
 
-    This blueprint has no trigger and is designed to be called as an action from your own automations. You can provide either static text or a Home Assistant template for any of the 12 segments.
+    This blueprint creates a script that can be called as a service from your own automations. You can provide either static text or a Home Assistant template for any of the 12 segments.
 
     For example, to display the current temperature on the destination 'time' segment, you would enter: `{{ states('sensor.your_temperature_sensor') }}`
 
     Any field left blank will be ignored, allowing you to update only the specific segments you need.
-  domain: automation
+  domain: script
   input:
     target_device:
       name: Time Circuits Device
@@ -115,10 +115,7 @@ variables:
     last_year: !input last_departed_year
     last_time: !input last_departed_time
 
-# This automation is designed to be called by other automations or scripts.
-trigger: []
-
-action:
+sequence:
   # Loop through the dictionary of segments
   - repeat:
       for_each: "{{ segments.items() }}"

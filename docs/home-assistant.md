@@ -1,10 +1,3 @@
-<!--
-This file is auto-generated. Do not edit directly.
-Edits should be made in the following files:
-- docs/HOME_ASSISTANT.md
-- docs/guides/HOME_ASSISTANT_ADVANCED.md
-- HOME_ASSISTANT_EXAMPLES.md
--->
 # 🏠 Home Assistant Integration Guide
 
 This project includes deep, "headless" integration with Home Assistant using the MQTT protocol. This allows you to control every aspect of the clock and use it as a dynamic notification display for your smart home.
@@ -43,20 +36,20 @@ Setting up the connection is straightforward.
 The device will now use **MQTT auto-discovery** to announce itself to your Home Assistant instance. A new device named "**Time Circuits**" will automatically appear in your MQTT integration.
 
 ### **Step 3: Install the Blueprints**
-Blueprints are the easiest way to create powerful automations.
-1.  In your Home Assistant configuration directory, find the `config/blueprints/automation` folder. If it doesn't exist, create it.
-2.  Copy the `.yaml` files from the `home-assistant` directory of this project into that `blueprints/automation` folder.
-3.  Reload your automations in Home Assistant by navigating to **Developer Tools > YAML Configuration** and clicking the "Automations" button.
+Blueprints are the easiest way to create powerful, callable scripts.
+1.  In your Home Assistant configuration directory, find the `config/blueprints/script` folder. If it doesn't exist, create it.
+2.  Copy the `.yaml` files from the `home-assistant` directory of this project into that `blueprints/script` folder.
+3.  Reload your scripts in Home Assistant by navigating to **Developer Tools > YAML Configuration** and clicking the "Scripts" button.
 
 ---
 
 ## Guide to Using Blueprints
 
-Once installed, the Time Circuits blueprints will be available when you create a new automation (**Settings > Automations & Scenes**).
+Once installed, the Time Circuits blueprints will be available when you create a new script (**Settings > Automations & Scenes > Scripts**).
 
-Many of the included blueprints are **"callable,"** meaning they are on-demand actions that you call from your own automations. This provides maximum flexibility. A common pattern is:
+Many of the included blueprints create **"callable" scripts,** meaning they are on-demand actions that you call from your own automations. This provides maximum flexibility. A common pattern is:
 1.  **Your Automation's Trigger:** A sensor changes, a specific time is reached, etc.
-2.  **Your Automation's Action:** Call the desired Time Circuits blueprint.
+2.  **Your Automation's Action:** Call the script created from the blueprint.
 
 Below is a detailed guide to each blueprint.
 
@@ -72,16 +65,14 @@ Displays a temporary, multi-line message on the clock with an optional sound. Pe
 *   **Sound Effect**: (Optional) Select a sound to play with the notification.
 
 #### **Example Usage**
-Here is an example of an automation that shows a "MAILBOX" notification when a binary sensor is triggered.
+Here is an example of an automation that calls the script to show a "MAILBOX" notification when a binary sensor is triggered.
 ```yaml
 trigger:
   - platform: state
     entity_id: binary_sensor.mailbox_sensor
     to: 'on'
 action:
-  - service: automation.trigger
-    target:
-      entity_id: automation.bttf_advanced_notifier # Or whatever you named your blueprint automation
+  - service: script.bttf_advanced_notifier # Or whatever you named the script you created from the blueprint
     data:
       message: "\nMAILBOX"
       duration: 60
@@ -103,9 +94,7 @@ This blueprint is perfect for scenes. For example, you could create a "Movie Tim
 - id: 'movie_time_scene'
   name: 'Movie Time'
   actions:
-    - service: automation.trigger
-      target:
-        entity_id: automation.bttf_cinematic_scene_trigger
+    - service: script.bttf_cinematic_scene_trigger # Or whatever you named your script
       data:
         destination_year: "1955"
     # ... other scene actions
@@ -128,9 +117,7 @@ trigger:
   - platform: time_pattern
     minutes: '/5'
 action:
-  - service: automation.trigger
-    target:
-      entity_id: automation.bttf_dynamic_marquee_display
+  - service: script.bttf_dynamic_marquee_display # Or whatever you named your script
     data:
       data_point_slot: 1
       text: "Outside temp is {{ states('sensor.outside_temperature') }}°C"
@@ -152,9 +139,7 @@ trigger:
   - platform: time_pattern
     seconds: '/59'
 action:
-  - service: automation.trigger
-    target:
-      entity_id: automation.bttf_home_assistant_status_display
+  - service: script.bttf_home_assistant_status_display # Or whatever you named your script
     data:
       destination_month: "OUT"
       destination_day: "{{ states('sensor.outside_temperature') | round(0) }}°"
@@ -178,9 +163,7 @@ Create a script to start your favorite 80s radio station.
 ```yaml
 alias: Play 80s Radio
 sequence:
-  - service: automation.trigger
-    target:
-      entity_id: automation.bttf_radio_streamer
+  - service: script.bttf_radio_streamer # Or whatever you named your script
     data:
       radio_command: "http://d.liveatc.net/kcrw_eclectic" # Example Stream URL
 mode: single
@@ -229,9 +212,7 @@ trigger:
     entity_id: sensor.washing_machine_status
     to: 'finished'
 action:
-  - service: automation.trigger
-    target:
-      entity_id: automation.bttf_tts_notifier
+  - service: script.bttf_tts_notifier # Or whatever you named your script
     data:
       message_text: "The washer is finished."
       display_text: "\nWASHER\nDONE"
@@ -424,7 +405,7 @@ This document provides a list of useful and creative automations to demonstrate 
 
 ### Blueprint-Powered Examples
 
-The easiest way to create powerful automations is by using the provided blueprints. For "callable" blueprints, you can use them directly as an `action` in your automation.
+The easiest way to create powerful actions is by using the provided script blueprints. You can then call the scripts you create from your own automations.
 
 <details>
 <summary><strong>1. "Weather Station" Display</strong></summary>
@@ -523,12 +504,11 @@ Here are 30 useful and well-thought-out automations to demonstrate how you can i
 *Triggers the iconic lightning strike scene every night at 10:04 PM. This is a perfect use for the "BTTF - Cinematic Scene Trigger" blueprint.*
 
 **Automation Setup:**
-1.  Create a new automation and select the "BTTF - Cinematic Scene Trigger" blueprint.
-2.  **Trigger:** Select "Time" as the trigger type and enter `22:04:00`.
-3.  **Time Circuits Device:** Select your clock.
-4.  **Destination Year:** Enter `1985`.
+1.  Create a new script from the "BTTF - Cinematic Scene Trigger" blueprint in the UI. Set the **Destination Year** to `1985` and give it a name (e.g., "BTTF Cinematic Scene 1985").
+2.  Create a new, separate automation.
+3.  For the **Trigger**, select "Time" and enter `22:04:00`.
+4.  For the **Action**, select "Call service" and choose the script you just created (e.g., `script.bttf_cinematic_scene_1985`).
 
-*That's it! The blueprint handles setting the year and playing the animation.*
 </details>
 
 <details>
@@ -537,10 +517,10 @@ Here are 30 useful and well-thought-out automations to demonstrate how you can i
 *Sets the destination to the future and plays the animation when you start your vacuum cleaner. This is another great use for the "BTTF - Cinematic Scene Trigger" blueprint.*
 
 **Automation Setup:**
-1.  Create a new automation and select the "BTTF - Cinematic Scene Trigger" blueprint.
-2.  **Trigger:** Select "State" as the trigger type, use `vacuum.roomba` as the entity, and set the "To" state to `cleaning`.
-3.  **Time Circuits Device:** Select your clock.
-4.  **Destination Year:** Enter `2015`.
+1.  Create a new script from the "BTTF - Cinematic Scene Trigger" blueprint. Set the **Destination Year** to `2015`.
+2.  Create a new automation.
+3.  For the **Trigger**, select "State", use `vacuum.roomba` as the entity, and set the "To" state to `cleaning`.
+4.  For the **Action**, call the script you just created.
 </details>
 
 <details>
@@ -570,10 +550,9 @@ action:
 *On your birthday, automatically set the destination year to the year you were born and play the animation. The "Cinematic Scene Trigger" blueprint makes this easy.*
 
 **Automation Setup:**
-1.  Create a new automation and select the "Cinematic Scene Trigger" blueprint.
-2.  **Trigger:** Select "Template" as the trigger type and enter `{{ now().month == 10 and now().day == 26 }}` (replace with your birthday).
-3.  **Time Circuits Device:** Select your clock.
-4.  **Destination Year:** Enter your birth year.
+1.  Create a script from the "Cinematic Scene Trigger" blueprint, setting the **Destination Year** to your birth year.
+2.  Create an automation that triggers on your birthday using a Template trigger: `{{ now().month == 10 and now().day == 26 }}` (replace with your birthday).
+3.  Set the action to call the script you created.
 </details>
 
 ---
@@ -660,9 +639,9 @@ action:
 *If a door or window is opened while the security system is armed, flash a warning message on the display. This is a perfect use for the "BTTF - Advanced Notifier" blueprint.*
 
 **Automation Setup:**
-1.  First, create a "callable" automation using the **BTTF - Advanced Notifier** blueprint.
+1.  First, create a script from the **BTTF - Advanced Notifier** blueprint. Give it a name, e.g., "BTTF Security Alert".
 2.  Create a second automation that triggers when a security sensor is tripped.
-3.  This second automation then calls the first one, passing the specific message and sound.
+3.  This second automation then calls the script, passing the specific message and sound.
 
 ```yaml
 # automation.yaml
@@ -676,10 +655,8 @@ action:
       entity_id: alarm_control_panel.home_alarm
       state: armed_away
   action:
-    # Call the blueprint automation
-    - service: automation.trigger
-      target:
-        entity_id: automation.bttf_advanced_notifier
+    # Call the script created from the blueprint
+    - service: script.bttf_security_alert # Or whatever you named your script
       data:
         message: "SECURITY\nALERT\nFRONT DOOR"
         duration: 30
@@ -693,9 +670,9 @@ action:
 *If a severe weather alert is active, override the display to show the warning. Use the "BTTF - Advanced Notifier" blueprint for a simple setup.*
 
 **Automation Setup:**
-1.  Create a "callable" automation from the **BTTF - Advanced Notifier** blueprint.
+1.  Create a script from the **BTTF - Advanced Notifier** blueprint.
 2.  Create a second automation that triggers when the `binary_sensor.severe_weather_alert` turns on.
-3.  This automation will call your blueprint automation and display the alert.
+3.  This automation will call your script and display the alert.
 
 ```yaml
 # automation.yaml
@@ -705,9 +682,7 @@ action:
       entity_id: binary_sensor.severe_weather_alert
       to: 'on'
   action:
-    - service: automation.trigger
-      target:
-        entity_id: automation.bttf_advanced_notifier
+    - service: script.bttf_advanced_notifier # Or whatever you named your script
       data:
         message: "SEVERE\nWEATHER\n{{ states('sensor.weather_alert_type') }}"
         duration: 600 # 10 minutes
@@ -1005,9 +980,9 @@ action:
 *Monitors the clock's free memory and reboots it if it drops to a critical level.*
 
 **Automation Setup:**
-1.  First, create a "callable" automation using the **BTTF - Advanced Notifier** blueprint. This will be our reboot warning.
+1.  First, create a script from the **BTTF - Advanced Notifier** blueprint. This will be our reboot warning. Let's assume you've named it `bttf_advanced_notifier`.
 2.  Then, create a second automation that triggers when the device's `free_heap` attribute drops below a threshold.
-3.  This automation will call the notifier, wait 10 seconds for the message to be seen, and then press the device's reboot button.
+3.  This automation will call the notifier script, wait 10 seconds for the message to be seen, and then press the device's reboot button.
 
 ```yaml
 # automation.yaml
@@ -1018,10 +993,8 @@ action:
       attribute: free_heap
       below: 20000  # 20 KB
   action:
-    # 1. Call the notifier blueprint to show a warning
-    - service: automation.trigger
-      target:
-        entity_id: automation.bttf_advanced_notifier
+    # 1. Call the notifier script to show a warning
+    - service: script.bttf_advanced_notifier # Or whatever you named your script
       data:
         message: "REBOOTING\nLOW MEMORY\nSTAND BY"
         duration: 10

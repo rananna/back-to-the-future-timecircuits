@@ -5,10 +5,10 @@ blueprint:
     Use Home Assistant's templating engine to create dynamic messages, such as:
     "Outside temp is {{ states('sensor.outside_temperature') }}°C"
 
-    This is a "callable" automation that has no trigger; you call it from another automation or script.
+    This blueprint creates a script that can be called as a service from automations or other scripts.
 
     Note: The marquee text has a 255-character limit.
-  domain: automation
+  domain: script
   input:
     target_device:
       name: Time Circuits Device
@@ -46,10 +46,7 @@ variables:
   slot: "{{ (iif(data_point_slot is string, data_point_slot | int, data_point_slot) - 1) }}"
   unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
 
-# This automation has no trigger, it is meant to be called from a script or another automation.
-trigger: []
-
-action:
+sequence:
   - service: text.set_value
     target:
       entity_id: "text.{{ unique_id }}_datapoint_{{ slot }}_marquee"

@@ -4,10 +4,10 @@ blueprint:
   description: >-
     Displays a temporary message on the Time Circuits with an optional sound.
 
-    This is a "callable" automation, meaning it has no trigger and is designed to be called as an action from other automations or scripts.
+    This blueprint creates a script that can be called as a service from automations or other scripts.
 
     It includes a safety feature: if an override message is already being displayed when this blueprint is called, the new notification will be shown for its specified duration, but it will not turn off the override switch when it's done. This prevents a short, low-priority notification from canceling a longer, more important one.
-  domain: automation
+  domain: script
   input:
     target_device:
       name: Time Circuits
@@ -54,9 +54,7 @@ variables:
   sound: !input sound_effect
   delay_seconds: !input duration
 
-mode: single
-trigger: []
-action:
+sequence:
   # This 'try/finally' block ensures the override display is always turned off,
   # but only if it wasn't already on before this automation started.
   # This prevents a short notification from cancelling a longer, more important one.

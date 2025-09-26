@@ -4,10 +4,10 @@ blueprint:
     Converts a text message into speech and plays it on the clock's speaker using a specified Home Assistant TTS service.
     An optional message can be displayed on the main displays during playback.
 
-    This is a "callable" automation that has no trigger and is designed to be called from another automation or script.
+    This blueprint creates a script that can be called as a service from automations or other scripts.
 
     If you provide optional `display_text`, this blueprint has a safety feature: it checks if an override message is already active. If so, it will display the new text, but will not turn off the override switch when the TTS message is finished. This prevents a short TTS notification from canceling a longer, more important message.
-  domain: automation
+  domain: script
   input:
     target_device:
       name: Time Circuits
@@ -52,10 +52,7 @@ variables:
   message_text: !input message_text
   volume: !input volume
 
-mode: single
-trigger: []
-
-action:
+sequence:
   # This 'try/finally' block ensures the override display is always turned off.
   - variables:
       # Store the state of the override switch to restore it later.

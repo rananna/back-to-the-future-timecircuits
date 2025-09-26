@@ -4,10 +4,10 @@ blueprint:
     Starts or stops an internet radio stream on the Time Circuits clock.
     To start a stream, provide a valid audio stream URL. To stop, provide the command "stop".
 
-    This is a "callable" automation that has no trigger and is designed to be called from another automation or script.
+    This blueprint creates a script that can be called as a service from automations or other scripts.
 
     When a stream is started, the override display will show "\nRADIO...". When stopped, the blueprint will only turn off the override switch if the message is still "\nRADIO...". This prevents this blueprint from interfering with a more important notification that may have started after the radio was activated.
-  domain: automation
+  domain: script
   input:
     target_device:
       name: Time Circuits
@@ -27,10 +27,7 @@ variables:
   unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
   command: !input radio_command
 
-mode: single
-trigger: []
-
-action:
+sequence:
   - choose:
       # Condition 1: The command is "stop"
       - conditions:
