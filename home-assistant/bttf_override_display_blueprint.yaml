@@ -1,0 +1,69 @@
+blueprint:
+  name: "BTTF - Manual Override Display"
+  description: >-
+    Directly control the override display on the Time Circuits clock.
+    Use this to turn on a persistent message (e.g., 'SYSTEM OFFLINE') and turn it off when it's no longer needed.
+    This is ideal for manual control or for automations where the duration is unknown.
+  domain: script
+  input:
+    target_device:
+      name: Time Circuits
+      description: Select the BTTF Time Circuits clock device.
+      selector:
+        device:
+          manufacturer: "Doc Brown Industries"
+          model: "BTTF Clock v1"
+    state:
+      name: State
+      description: "Choose whether to turn the override display on or off."
+      default: "On"
+      selector:
+        select:
+          options:
+            - "On"
+            - "Off"
+    display_line_1:
+      name: Display Line 1
+      description: "Text for the top line of the display."
+      default: ""
+      selector:
+        text:
+    display_line_2:
+      name: Display Line 2
+      description: "Text for the middle line of the display."
+      default: ""
+      selector:
+        text:
+    display_line_3:
+      name: Display Line 3
+      description: "Text for the bottom line of the display."
+      default: ""
+      selector:
+        text:
+
+variables:
+  device_id: !input target_device
+  unique_id: "{{ device_attr(device_id, 'identifiers')[0][1] }}"
+  state: !input state
+  message_text: "{{ (!input display_line_1) ~ '\n' ~ (!input display_line_2) ~ '\n' ~ (!input display_line_3) }}"
+
+sequence:
+  - choose:
+      - conditions:
+          - "{{ state == 'On' }}"
+        sequence:
+          # 1. Set the override message text
+          - service: text.set_value
+            target:
+              entity_id: "text.{{ unique_id }}_override_message"
+            data:
+              value: "{{ message_text }}"
+          # 2. Turn on the override switch to display the message
+          - service: switch.turn_on
+            target:
+              entity_id: "switch.{{ unique_id }}_override_switch"
+    default:
+      # Default action is to turn the override off
+      - service: switch.turn_off
+        target:
+          entity_id: "switch.{{ unique_id }}_override_switch"
