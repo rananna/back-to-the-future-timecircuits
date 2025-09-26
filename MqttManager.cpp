@@ -26,8 +26,6 @@ extern StockManager stockManager;
 
 #include <algorithm> // Required for std::transform
 
-bool haDiscoveryPublished = false;
-
 // Helper function to convert a String to lowercase.
 String toLowerCase(String str) {
     std::transform(str.begin(), str.end(), str.begin(),
@@ -521,8 +519,6 @@ void publishHaAutoDiscovery() {
     doc["device"].set(device);
     doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "sensor");
-    
-    haDiscoveryPublished = true;
 }
 
 void reconnectMqtt() {
@@ -554,12 +550,9 @@ void reconnectMqtt() {
     mqttClient.publish(availability_topic.c_str(), "online", true);
     mqttClient.loop(); // Allow time for the availability message to be sent.
 
-    Log_printf(LOG_LEVEL_DEBUG, "Checking if HA discovery needs to be published (haDiscoveryPublished: %s).", haDiscoveryPublished ? "true" : "false");
-    if (!haDiscoveryPublished) {
-        publishHaAutoDiscovery();
-    } else {
-        publishHaPresetSelector();
-    }
+    // Force HA discovery on every reconnect to ensure capabilities are always up-to-date.
+    publishHaAutoDiscovery();
+    publishHaPresetSelector();
 
     publishAllHaStates();
     String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
