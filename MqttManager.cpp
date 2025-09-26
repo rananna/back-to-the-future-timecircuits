@@ -240,6 +240,7 @@ void publishHaAutoDiscovery() {
         clearHaEntity("select", unique_id_suffix.c_str());
     }
     clearHaEntity("switch", "stock_ticker_mode");
+    clearHaEntity("switch", "live_weather_mode");
     clearHaEntity("button", "stock_next");
     clearHaEntity("button", "stock_previous");
 
