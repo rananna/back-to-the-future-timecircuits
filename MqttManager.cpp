@@ -618,9 +618,14 @@ void reconnectMqtt() {
  * @param length The length of the payload.
  */
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
+    Log_printf(LOG_LEVEL_INFO, "MQTT message received. Topic: [%s]", topic);
+    // Use a string to safely handle the payload, which might not be null-terminated.
+    std::string message(reinterpret_cast<char*>(payload), length);
+    Log_printf(LOG_LEVEL_INFO, "MQTT Payload (raw): %s", message.c_str());
+
+
     // Dynamically allocate a buffer for the message to avoid stack overflow
     // and accommodate larger payloads (e.g., for long marquee text).
-    std::string message(reinterpret_cast<char*>(payload), length);
 
     String topicStr = String(topic);
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/";
@@ -837,16 +842,26 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             String state_topic = base_topic + "tts_text/state";
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
         } else if (component == "tts") {
+            Log_printf(LOG_LEVEL_INFO, "Handling TTS command.");
             JsonDocument doc;
             if (deserializeJson(doc, message) == DeserializationError::Ok) {
-                startAudioStream(doc["url"], true, doc["volume"] | -1);
+                const char* url = doc["url"];
+                int volume = doc["volume"] | -1;
+                Log_printf(LOG_LEVEL_INFO, "Parsed TTS JSON. URL: %s, Volume: %d", url, volume);
+                startAudioStream(url, true, volume);
             } else {
-                // Support for legacy plain text URL for backward compatibility
+                Log_printf(LOG_LEVEL_INFO, "TTS payload is not JSON, treating as raw URL.");
                 startAudioStream(message.c_str(), true);
             }
         } else if (component == "radio") {
-            if (message == "stop") stopAudioStream();
-            else startAudioStream(message.c_str(), false);
+            Log_printf(LOG_LEVEL_INFO, "Handling radio command. Payload: %s", message.c_str());
+            if (message == "stop") {
+                Log_printf(LOG_LEVEL_INFO, "Stopping audio stream.");
+                stopAudioStream();
+            } else {
+                Log_printf(LOG_LEVEL_INFO, "Starting radio stream.");
+                startAudioStream(message.c_str(), false);
+            }
         }
     } else {
         // This handles incoming data for any of the 5 data points that are configured
