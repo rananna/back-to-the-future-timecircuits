@@ -439,32 +439,32 @@ void publishHaAutoDiscovery() {
     }
 
     // --- Media Player Entity (replaces select.play_sound, text.tts_text, sensor.audio_status) ---
-    doc.clear();
-    doc["name"] = "Speaker";
-    String media_player_id = String(MQTT_UNIQUE_ID) + "_media_player";
-    doc["unique_id"] = media_player_id;
-    doc["object_id"] = media_player_id;
-    doc["device_class"] = "speaker";
+    // doc.clear();
+    // doc["name"] = "Speaker";
+    // String media_player_id = String(MQTT_UNIQUE_ID) + "_media_player";
+    // doc["unique_id"] = media_player_id;
+    // doc["object_id"] = media_player_id;
+    // doc["device_class"] = "speaker";
 
-    // State topics
-    doc["state_topic"] = device_base_topic + "/audio/state";
-    doc["volume_state_topic"] = device_base_topic + "/volume/state";
+    // // State topics
+    // doc["state_topic"] = device_base_topic + "/audio/state";
+    // doc["volume_state_topic"] = device_base_topic + "/volume/state";
 
-    // Command topics that the custom media_player.py entity uses
-    doc["command_topic"] = device_base_topic + "/radio/command";
-    doc["volume_command_topic"] = device_base_topic + "/volume/command";
-    doc["json_commands_topic"] = device_base_topic + "/tts/command";
+    // // Command topics that the custom media_player.py entity uses
+    // doc["command_topic"] = device_base_topic + "/radio/command";
+    // doc["volume_command_topic"] = device_base_topic + "/volume/command";
+    // doc["json_commands_topic"] = device_base_topic + "/tts/command";
 
-    // Supported Features
-    JsonArray features = doc["supported_features"].to<JsonArray>();
-    features.add("play_media");
-    features.add("stop");
-    features.add("volume_set");
-    features.add("select_source");
+    // // Supported Features
+    // JsonArray features = doc["supported_features"].to<JsonArray>();
+    // features.add("play_media");
+    // features.add("stop");
+    // features.add("volume_set");
+    // features.add("select_source");
 
-    doc["device"].set(device);
-    doc["availability"].set(availability);
-    publishDiscoveryMessage(doc, "media_player");
+    // doc["device"].set(device);
+    // doc["availability"].set(availability);
+    // publishDiscoveryMessage(doc, "media_player");
 
     // --- Cleanup old entities replaced by the media_player ---
     clearHaEntity("select", "play_sound");
@@ -842,10 +842,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 // Support for legacy plain text URL for backward compatibility
                 startAudioStream(message.c_str(), true);
             }
+        } else if (component == "radio") {
+            if (message == "stop") stopAudioStream();
+            else startAudioStream(message.c_str(), false);
         }
-    } else if (topicStr == base_topic + "radio/command") {
-        if (message == "stop") stopAudioStream();
-        else startAudioStream(message.c_str(), false);
     } else {
         // This handles incoming data for any of the 5 data points that are configured
         // with a `dataSourceType` of `DATA_SOURCE_MQTT`.
