@@ -37,8 +37,23 @@ The new custom component provides a rich, native Home Assistant experience:
 > * A configured and running MQTT broker that is connected to Home Assistant.
 > * The Time Circuits Clock is powered on and connected to your Wi-Fi network.
 > * In the clock's web UI, ensure the MQTT broker details are correctly configured under the **Data Link** tab.
+> * [HACS](https://hacs.xyz/) (Home Assistant Community Store) installed.
 
 ### **Step 2: Install the Custom Component**
+
+There are two ways to install the custom component: via HACS (recommended) or manually.
+
+#### **Method 1: Install via HACS (Recommended)**
+1.  In Home Assistant, navigate to **HACS > Integrations**.
+2.  Click the three dots in the top-right corner and select **Custom repositories**.
+3.  In the "Repository" field, paste the URL to this GitHub repository: `https://github.com/dmadison/bttf-time-circuits-clock`
+4.  Select **Integration** for the category and click **ADD**.
+5.  Close the "Custom repositories" window.
+6.  The "Back to the Future Time Circuits" integration will now appear in your HACS list. Click on it and then click **INSTALL**.
+7.  Follow the on-screen instructions to complete the installation.
+8.  Restart Home Assistant as prompted.
+
+#### **Method 2: Manual Installation**
 1.  Copy the `custom_components/bttf_time_circuits` directory from this project into your Home Assistant `config/` directory.
 2.  Restart Home Assistant.
 
