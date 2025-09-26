@@ -438,41 +438,38 @@ void publishHaAutoDiscovery() {
         publishDiscoveryMessage(doc, "text");
     }
 
+    // --- Media Player Entity (replaces select.play_sound, text.tts_text, sensor.audio_status) ---
     doc.clear();
-    doc["name"] = "Play Sound";
-    String play_sound_id = String(MQTT_UNIQUE_ID) + "_play_sound";
-    doc["unique_id"] = play_sound_id;
-    doc["object_id"] = play_sound_id;
-    doc["command_topic"] = device_base_topic + "/play_sound/command";
-    doc["state_topic"] = device_base_topic + "/play_sound/state";
-    JsonArray sounds = doc["options"].to<JsonArray>();
-    sounds.add("None");
-    sounds.add("ALARM_SOUND");
-    sounds.add("ARRIVAL_THUD");
-    sounds.add("CONFIRM_ON");
-    sounds.add("EASTER_EGG");
-    sounds.add("REBOOT_SOUND");
-    sounds.add("REMINDER_ALERT");
-    sounds.add("TIME_TRAVEL_FAIL");
-    doc["icon"] = "mdi:volume-high";
-    doc["entity_category"] = "config";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
-    publishDiscoveryMessage(doc, "select");
+    doc["name"] = "Speaker";
+    String media_player_id = String(MQTT_UNIQUE_ID) + "_media_player";
+    doc["unique_id"] = media_player_id;
+    doc["object_id"] = media_player_id;
+    doc["device_class"] = "speaker";
 
-    // --- NEW: TTS Text Entity ---
-    doc.clear();
-    doc["name"] = "TTS Text";
-    String tts_text_id = String(MQTT_UNIQUE_ID) + "_tts_text";
-    doc["unique_id"] = tts_text_id;
-    doc["object_id"] = tts_text_id;
-    doc["command_topic"] = device_base_topic + "/tts_text/command";
-    doc["state_topic"] = device_base_topic + "/tts_text/state";
-    doc["icon"] = "mdi:text-to-speech";
-    doc["entity_category"] = "config";
+    // State topics
+    doc["state_topic"] = device_base_topic + "/audio/state";
+    doc["volume_state_topic"] = device_base_topic + "/volume/state";
+
+    // Command topics that the custom media_player.py entity uses
+    doc["command_topic"] = device_base_topic + "/radio/command";
+    doc["volume_command_topic"] = device_base_topic + "/volume/command";
+    doc["json_commands_topic"] = device_base_topic + "/tts/command";
+
+    // Supported Features
+    JsonArray features = doc["supported_features"].to<JsonArray>();
+    features.add("play_media");
+    features.add("stop");
+    features.add("volume_set");
+    features.add("select_source");
+
     doc["device"].set(device);
     doc["availability"].set(availability);
-    publishDiscoveryMessage(doc, "text");
+    publishDiscoveryMessage(doc, "media_player");
+
+    // --- Cleanup old entities replaced by the media_player ---
+    clearHaEntity("select", "play_sound");
+    clearHaEntity("text", "tts_text");
+    clearHaEntity("sensor", "audio_status");
 
 
     // --- Display Mode Selection ---

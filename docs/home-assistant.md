@@ -82,11 +82,11 @@ The integration creates a device with a rich set of entities to control every as
 The `media_player.bttf_time_circuits_speaker` entity is your central hub for all audio.
 
 ### **Playing Sound Effects**
-You can play any of the built-in sound effects using the `media_player.select_sound` service.
+You can play any of the built-in sound effects using the `bttf_time_circuits.select_sound` service.
 
 ```yaml
 # Example: Play an alarm sound
-- service: media_player.select_sound
+- service: bttf_time_circuits.select_sound
   target:
     entity_id: media_player.bttf_time_circuits_speaker
   data:

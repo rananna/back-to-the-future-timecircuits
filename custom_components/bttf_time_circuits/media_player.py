@@ -101,6 +101,18 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             self.hass, f"{self._device.base_topic}/volume/state", volume_state_received, 1
         )
 
+        async def handle_select_sound(call):
+            """Handle the select_sound service call."""
+            sound = call.data.get("sound")
+            if sound in self._attr_source_list:
+                await self.async_select_sound(sound)
+
+        self.hass.services.async_register(
+            DOMAIN,
+            "select_sound",
+            handle_select_sound,
+        )
+
     async def async_set_volume_level(self, volume: float) -> None:
         """Set the volume level."""
         # Convert HA's 0-1 scale to device's 0-21 scale
@@ -145,3 +157,7 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
     async def async_select_source(self, source: str) -> None:
         """Select a source to play."""
         await self.async_play_media("sound", source)
+
+    async def async_select_sound(self, sound: str):
+        """Play a sound effect."""
+        await self.async_play_media("sound", sound)
