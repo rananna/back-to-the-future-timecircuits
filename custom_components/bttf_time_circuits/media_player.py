@@ -69,10 +69,13 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         description: MediaPlayerEntityDescription,
     ) -> None:
         """Initialize the media player."""
-        self.entity_description = description
         super().__init__(device)
+        self.entity_description = description
         self._attr_volume_level = 0.5  # Default volume
         self._attr_state = "idle"
+        self._attr_media_content_id = None
+        self._attr_media_content_type = None
+        self._attr_media_title = None
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
@@ -111,6 +114,9 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
 
     async def async_media_stop(self) -> None:
         """Stop the media player."""
+        self._attr_media_content_id = None
+        self._attr_media_content_type = None
+        self._attr_media_title = None
         command_topic = f"{self._device.base_topic}/radio/command"
         await mqtt.async_publish(self.hass, command_topic, "stop", 1, False)
 
@@ -118,14 +124,20 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         self, media_type: MediaType | str, media_id: str, **kwargs: Any
     ) -> None:
         """Play a piece of media."""
+        self._attr_media_content_id = media_id
+        self._attr_media_content_type = media_type
+        self._attr_media_title = media_id
+
         # Case 1: Sound effect selected via sound mode list
         if media_type == "sound":
+            self._attr_media_title = f"Sound: {media_id}"
             command_topic = f"{self._device.base_topic}/play_sound/command"
             await mqtt.async_publish(self.hass, command_topic, media_id, 1, False)
             return
 
         # Case 2: TTS from Home Assistant
         if media_type.startswith("audio/"):
+            self._attr_media_title = "TTS"
             # The media_id is the URL from the TTS service
             tts_payload = {
                 "url": media_id,
@@ -139,6 +151,7 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
 
         # Case 3: Radio Stream URL
         if media_type == MediaType.URL or media_type == MediaType.MUSIC:
+            self._attr_media_title = f"Radio: {media_id}"
             command_topic = f"{self._device.base_topic}/radio/command"
             await mqtt.async_publish(self.hass, command_topic, media_id, 1, False)
             return
