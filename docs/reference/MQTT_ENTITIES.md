@@ -35,8 +35,10 @@ Twelve `text` entities give you direct, granular control over each segment of th
 #### **Notifications & Alerts**
 These entities are the building blocks for the `Advanced Notifier`, `TTS Notifier`, and other notification-based blueprints. They allow you to temporarily override the main display with a custom message and play a sound.
 
-*   **`switch.YOUR_CLOCK_ID_override_switch`**: A master switch to enable or disable the override mode. When `On`, the `Override Message` is displayed. When `Off`, the clock returns to its normal operation.
-*   **`text.YOUR_CLOCK_ID_override_message`**: A text input for the content of your alert. Use `\n` to separate lines for the three displays.
+*   **`switch.YOUR_CLOCK_ID_override_switch`**: A master switch to enable or disable the override mode. When `On`, the custom messages are displayed. When `Off`, the clock returns to its normal operation.
+*   **`text.YOUR_CLOCK_ID_override_line_1`**: Sets the text for the top display row (Destination Time).
+*   **`text.YOUR_CLOCK_ID_override_line_2`**: Sets the text for the middle display row (Present Time).
+*   **`text.YOUR_CLOCK_ID_override_line_3`**: Sets the text for the bottom display row (Last Time Departed).
 *   **`select.YOUR_CLOCK_ID_play_sound`**: A dropdown to play one of the pre-defined sound effects on command. After a sound is selected, it plays immediately and the entity resets to `None`.
 
 #### **Core Controls**
