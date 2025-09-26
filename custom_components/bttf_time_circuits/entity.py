@@ -19,7 +19,7 @@ class BTTFTimeCircuitsEntity(Entity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device.device_id)},
             name="Time Circuits",
-            manufacturer="dmadison",
+            manufacturer="rananna",
             model="ESP32",
             sw_version="1.0.0",  # This will be updated by the update entity later
         )
