@@ -1074,8 +1074,12 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
     strncpy(currentSoundFile, url, MAX_FILENAME_LENGTH - 1);
     currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
     
-    if (audio.connecttohost(url)) {
-        Log_printf(LOG_LEVEL_INFO, "Successfully connected to host for streaming: %s", url);
+    // --- FIX: Pass the persistent global buffer, not the temporary 'url' pointer ---
+    // The 'url' pointer can become invalid after this function returns, causing a crash
+    // in the audio library's background task. 'currentSoundFile' is a global buffer
+    // that will persist for the duration of the stream.
+    if (audio.connecttohost(currentSoundFile)) {
+        Log_printf(LOG_LEVEL_INFO, "Successfully connected to host for streaming: %s", currentSoundFile);
         if (mqttClient.connected()) {
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
         }
