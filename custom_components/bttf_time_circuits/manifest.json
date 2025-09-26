@@ -7,5 +7,15 @@
   "documentation": "https://github.com/rananna/back-to-the-future-timecircuits/blob/main/docs/home-assistant.md",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/rananna/back-to-the-future-timecircuits/issues",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "platforms": [
+    "button",
+    "media_player",
+    "notify",
+    "number",
+    "sensor",
+    "switch",
+    "text",
+    "update"
+  ]
 }
