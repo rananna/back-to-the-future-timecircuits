@@ -427,18 +427,25 @@ void publishHaAutoDiscovery() {
     doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "switch");
 
-    doc.clear();
-    doc["name"] = "Override Message";
-    String override_message_id = String(MQTT_UNIQUE_ID) + "_override_message";
-    doc["unique_id"] = toLowerCase(override_message_id);
-    doc["object_id"] = toLowerCase(override_message_id);
-    doc["command_topic"] = device_base_topic + "/override_message/command";
-    doc["state_topic"] = device_base_topic + "/override_message/state";
-    doc["icon"] = "mdi:message-draw";
-    doc["entity_category"] = "config";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
-    publishDiscoveryMessage(doc, "text");
+    // --- Remove the old single override message entity ---
+    clearHaEntity("text", "override_message");
+
+    // --- Create three separate text entities for each override line ---
+    for (int i = 1; i <= 3; i++) {
+        doc.clear();
+        doc["name"] = "Override Message Line " + String(i);
+        String id_suffix = "override_line_" + String(i);
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["unique_id"] = toLowerCase(entity_id);
+        doc["object_id"] = toLowerCase(entity_id);
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = "mdi:message-draw";
+        doc["entity_category"] = "config";
+        doc["device"].set(device);
+        doc["availability"].set(availability);
+        publishDiscoveryMessage(doc, "text");
+    }
 
     doc.clear();
     doc["name"] = "Play Sound";
@@ -689,23 +696,14 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "override") {
             isMessageOverrideActive = (message == "ON");
             stateChanged = true;
-        } else if (component == "override_message") {
-            size_t first_newline = message.find('\n');
-            size_t second_newline = message.find('\n', first_newline + 1);
-            if (first_newline != std::string::npos) {
-                overrideMessageLine1 = message.substr(0, first_newline).c_str();
-                if (second_newline != std::string::npos) {
-                    overrideMessageLine2 = message.substr(first_newline + 1, second_newline - (first_newline + 1)).c_str();
-                    overrideMessageLine3 = message.substr(second_newline + 1).c_str();
-                } else {
-                    overrideMessageLine2 = message.substr(first_newline + 1).c_str();
-                    overrideMessageLine3 = "";
-                }
-            } else {
-                overrideMessageLine1 = message.c_str();
-                overrideMessageLine2 = "";
-                overrideMessageLine3 = "";
-            }
+        } else if (component == "override_line_1") {
+            overrideMessageLine1 = message.c_str();
+            stateChanged = true;
+        } else if (component == "override_line_2") {
+            overrideMessageLine2 = message.c_str();
+            stateChanged = true;
+        } else if (component == "override_line_3") {
+            overrideMessageLine3 = message.c_str();
             stateChanged = true;
         } else if (component == "trigger_animation" && message == "PRESS") {
             startTimeTravelAnimation();
@@ -881,10 +879,10 @@ void publishAllHaStates() {
 
     mqttClient.publish((base_topic + "/override/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
     
-    String overrideMessage = overrideMessageLine1;
-    if (overrideMessageLine2.length() > 0) overrideMessage += "\n" + overrideMessageLine2;
-    if (overrideMessageLine3.length() > 0) overrideMessage += "\n" + overrideMessageLine3;
-    mqttClient.publish((base_topic + "/override_message/state").c_str(), overrideMessage.c_str(), true);
+    // Publish the state of the new, separate override line entities
+    mqttClient.publish((base_topic + "/override_line_1/state").c_str(), overrideMessageLine1.c_str(), true);
+    mqttClient.publish((base_topic + "/override_line_2/state").c_str(), overrideMessageLine2.c_str(), true);
+    mqttClient.publish((base_topic + "/override_line_3/state").c_str(), overrideMessageLine3.c_str(), true);
 
     mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
     

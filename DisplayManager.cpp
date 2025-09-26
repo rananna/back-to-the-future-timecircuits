@@ -19,6 +19,14 @@
 #include <cctype>
 
 extern StockManager stockManager;
+extern String overrideMessageLine1;
+extern String overrideMessageLine2;
+extern String overrideMessageLine3;
+
+// State management for override message scrolling
+static int overrideScrollPosition[3] = {0, 0, 0};
+static unsigned long lastOverrideScrollTime[3] = {0, 0, 0};
+static std::string previousOverrideMessage[3] = {"", "", ""};
 
 // Define and initialize the dirty flags and buffers for scrolling text
 bool isMarqueeBufferDirty = true;
@@ -362,26 +370,67 @@ void displayOverrideMessage() {
 #if ENABLE_HARDWARE
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            printToDisplay(destRow.month, overrideMessageLine1.substring(0, 3).c_str(), 1);
-            printToDisplay(destRow.day, overrideMessageLine1.substring(3, 5).c_str(), 2);
-            printToDisplay(destRow.year, overrideMessageLine1.substring(5, 9).c_str());
-            printToDisplay(destRow.time, overrideMessageLine1.substring(9, 13).c_str());
-            destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
 
-            printToDisplay(presRow.month, overrideMessageLine2.substring(0, 3).c_str(), 1);
-            printToDisplay(presRow.day, overrideMessageLine2.substring(3, 5).c_str(), 2);
-            printToDisplay(presRow.year, overrideMessageLine2.substring(5, 9).c_str());
-            printToDisplay(presRow.time, overrideMessageLine2.substring(9, 13).c_str());
-            presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
+            // Turn off all AM/PM LEDs as they are not used in this mode
+            digitalWrite(DEST_AM_PIN, LOW);
+            digitalWrite(DEST_PM_PIN, LOW);
+            digitalWrite(PRES_AM_PIN, LOW);
+            digitalWrite(PRES_PM_PIN, LOW);
+            digitalWrite(LAST_AM_PIN, LOW);
+            digitalWrite(LAST_PM_PIN, LOW);
 
-            printToDisplay(lastRow.month, overrideMessageLine3.substring(0, 3).c_str(), 1);
-            printToDisplay(lastRow.day, overrideMessageLine3.substring(3, 5).c_str(), 2);
-            printToDisplay(lastRow.year, overrideMessageLine3.substring(5, 9).c_str());
-            printToDisplay(lastRow.time, overrideMessageLine3.substring(9, 13).c_str());
-            lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
+            String messages[3] = {overrideMessageLine1, overrideMessageLine2, overrideMessageLine3};
+            DisplayRow* rows[3] = {&destRow, &presRow, &lastRow};
+            const unsigned long scrollSpeed = 250; // Milliseconds between scroll steps
+
+            for (int i = 0; i < 3; i++) {
+                // Check if the message for this row has changed
+                if (messages[i].c_str() != previousOverrideMessage[i]) {
+                    previousOverrideMessage[i] = messages[i].c_str();
+                    overrideScrollPosition[i] = 0; // Reset scroll position
+                }
+
+                String currentMessage = messages[i];
+                currentMessage.toUpperCase();
+                String output_buffer;
+
+                if (currentMessage.length() > 13) {
+                    // --- Scrolling Marquee Logic ---
+                    String padded_message = "  " + currentMessage + "  ";
+                    if (millis() - lastOverrideScrollTime[i] > scrollSpeed) {
+                        lastOverrideScrollTime[i] = millis();
+                        overrideScrollPosition[i]++;
+                        if (overrideScrollPosition[i] > padded_message.length() - 13) {
+                            overrideScrollPosition[i] = 0;
+                        }
+                    }
+                    output_buffer = padded_message.substring(overrideScrollPosition[i], overrideScrollPosition[i] + 13);
+                } else {
+                    // --- Centered Static Text Logic ---
+                    int padding = (13 - currentMessage.length()) / 2;
+                    output_buffer = "";
+                    for (int p = 0; p < padding; p++) {
+                        output_buffer += " ";
+                    }
+                    output_buffer += currentMessage;
+                    while (output_buffer.length() < 13) {
+                        output_buffer += " ";
+                    }
+                }
+
+                // Split the 13-character buffer into the four display segments and print
+                printToDisplay(rows[i]->month, output_buffer.substring(0, 3).c_str(), 1);
+                printToDisplay(rows[i]->day, output_buffer.substring(3, 5).c_str(), 2);
+                printToDisplay(rows[i]->year, output_buffer.substring(5, 9).c_str());
+                printToDisplay(rows[i]->time, output_buffer.substring(9, 13).c_str());
+
+                // Write the changes to the physical display row
+                rows[i]->month.writeDisplay();
+                rows[i]->day.writeDisplay();
+                rows[i]->year.writeDisplay();
+                rows[i]->time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
+            }
             xSemaphoreGive(xDisplayHardwareMutex);
         }
         xSemaphoreGive(xDisplayDataMutex);
