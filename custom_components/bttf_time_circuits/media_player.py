@@ -73,9 +73,17 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         description: MediaPlayerEntityDescription,
     ) -> None:
         """Initialize the media player."""
-        _LOGGER.debug("BTTFTimeCircuitsMediaPlayer.__init__")
+        _LOGGER.debug(
+            f"BTTFTimeCircuitsMediaPlayer.__init__ for device: {device.device_id}"
+        )
         self.entity_description = description
-        super().__init__(device)
+
+        # BTTFTimeCircuitsEntity.__init__ doesn't call super(), which breaks the MRO
+        # chain and prevents MediaPlayerEntity.__init__ from being called.
+        # To fix this without modifying the base class, we explicitly call both initializers.
+        BTTFTimeCircuitsEntity.__init__(self, device)
+        MediaPlayerEntity.__init__(self)
+
         self._attr_volume_level = 0.5  # Default volume
         self._attr_state = "idle"
         self._attr_media_content_id = None
