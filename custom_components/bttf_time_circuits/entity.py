@@ -1,11 +1,15 @@
 """Base entity for the Back to the Future Time Circuits integration."""
 from __future__ import annotations
 
+import logging
+
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
 from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class BTTFTimeCircuitsEntity(Entity):
@@ -15,6 +19,7 @@ class BTTFTimeCircuitsEntity(Entity):
 
     def __init__(self, device: BTTFTimeCircuitsDevice) -> None:
         """Initialize the entity."""
+        _LOGGER.debug("BTTFTimeCircuitsEntity.__init__")
         self._device = device
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device.device_id)},

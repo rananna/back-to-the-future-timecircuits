@@ -1,12 +1,16 @@
 """The Back to the Future Time Circuits integration."""
 from __future__ import annotations
 
+import logging
+
 from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[str] = [
     "button",
@@ -49,15 +53,18 @@ class BTTFTimeCircuitsDevice:
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the BTTF Time Circuits component."""
+    _LOGGER.debug("async_setup")
     hass.data.setdefault(DOMAIN, {})
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up BTTF Time Circuits from a config entry."""
+    _LOGGER.debug("async_setup_entry")
     device_id = entry.data.get("device_id")
 
     if not device_id:
+        _LOGGER.error("device_id is not set")
         return False
 
     device = BTTFTimeCircuitsDevice(hass, device_id)
