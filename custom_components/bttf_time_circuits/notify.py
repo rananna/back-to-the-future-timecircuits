@@ -5,113 +5,78 @@ import asyncio
 from typing import Any
 
 from homeassistant.components import mqtt
-from homeassistant.components.notify import BaseNotificationService
+from homeassistant.components.notify import NotifyEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
+from .entity import BTTFTimeCircuitsEntity
 
 
-async def async_get_service(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: ConfigType,
-    discovery_info: DiscoveryInfoType | None = None,
-) -> BTTFTimeCircuitsNotificationService | None:
-    """Return the notification service."""
-    # The service is only available if there are any BTTF devices.
-    if not any(
-        isinstance(device, BTTFTimeCircuitsDevice)
-        for device in hass.data.get(DOMAIN, {}).values()
-    ):
-        return None
-
-    return BTTFTimeCircuitsNotificationService(hass)
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the BTTF Time Circuits notify entity."""
+    device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
+    async_add_entities([BTTFTimeCircuitsNotifyEntity(device)])
 
 
-class BTTFTimeCircuitsNotificationService(BaseNotificationService):
-    """Implementation of a notification service for the BTTF Time Circuits."""
+class BTTFTimeCircuitsNotifyEntity(BTTFTimeCircuitsEntity, NotifyEntity):
+    """Implementation of a notify entity for the BTTF Time Circuits."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
-        """Initialize the service."""
-        self.hass = hass
-
-    @property
-    def targets(self) -> dict[str, str]:
-        """Return a dictionary of registered devices."""
-        targets = {}
-        for device in self.hass.data.get(DOMAIN, {}).values():
-            if isinstance(device, BTTFTimeCircuitsDevice):
-                targets[device.device_id] = device.device_id
-        return targets
+    def __init__(self, device: BTTFTimeCircuitsDevice) -> None:
+        """Initialize the entity."""
+        super().__init__(device)
+        self._attr_name = f"{device.device_id} Time Circuits Message"
+        self._attr_icon = "mdi:message-text"
 
     async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
         """Send a message to the Time Circuits display."""
-        target_device_ids = kwargs.get("target") or self.targets.keys()
-        if not target_device_ids:
-            return
-
         data = kwargs.get("data") or {}
         sound_effect = data.get("sound_effect")
-        duration = data.get("duration", 10)  # Default to 10 seconds
+        duration = data.get("duration", 10)
 
         lines = message.split("\\n")
         line1 = lines[0] if len(lines) > 0 else ""
         line2 = lines[1] if len(lines) > 1 else ""
         line3 = lines[2] if len(lines) > 2 else ""
 
-        devices_to_notify = [
-            device
-            for device_id in target_device_ids
-            if (
-                device := next(
-                    (
-                        d
-                        for d in self.hass.data[DOMAIN].values()
-                        if isinstance(d, BTTFTimeCircuitsDevice)
-                        and d.device_id == device_id
-                    ),
-                    None,
-                )
-            )
-            is not None
-        ]
+        base_topic = self._device.base_topic
 
-        if not devices_to_notify:
-            return
+        # 1. Publish messages
+        await mqtt.async_publish(
+            self.hass, f"{base_topic}/override_line_1/command", line1, 1, False
+        )
+        await mqtt.async_publish(
+            self.hass, f"{base_topic}/override_line_2/command", line2, 1, False
+        )
+        await mqtt.async_publish(
+            self.hass, f"{base_topic}/override_line_3/command", line3, 1, False
+        )
 
-        for device in devices_to_notify:
-            base_topic = device.base_topic
-            # 1. Publish messages
+        # 2. Play sound
+        if sound_effect:
             await mqtt.async_publish(
-                self.hass, f"{base_topic}/override_line_1/command", line1, 1, False
+                self.hass,
+                f"{base_topic}/play_sound/command",
+                sound_effect,
+                1,
+                False,
             )
-            await mqtt.async_publish(
-                self.hass, f"{base_topic}/override_line_2/command", line2, 1, False
-            )
-            await mqtt.async_publish(
-                self.hass, f"{base_topic}/override_line_3/command", line3, 1, False
-            )
-            # 2. Play sound
-            if sound_effect:
-                await mqtt.async_publish(
-                    self.hass,
-                    f"{base_topic}/play_sound/command",
-                    sound_effect,
-                    1,
-                    False,
-                )
-            # 3. Turn on override
-            await mqtt.async_publish(
-                self.hass, f"{base_topic}/override/command", "ON", 1, False
-            )
+
+        # 3. Turn on override
+        await mqtt.async_publish(
+            self.hass, f"{base_topic}/override/command", "ON", 1, False
+        )
 
         # 4. Wait
         await asyncio.sleep(duration)
 
         # 5. Turn off override
-        for device in devices_to_notify:
-            base_topic = device.base_topic
-            await mqtt.async_publish(
-                self.hass, f"{base_topic}/override/command", "OFF", 1, False
-            )
+        await mqtt.async_publish(
+            self.hass, f"{base_topic}/override/command", "OFF", 1, False
+        )
