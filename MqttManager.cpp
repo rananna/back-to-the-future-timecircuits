@@ -656,6 +656,9 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                         }
                         // And set the source to Home Assistant
                         currentSettings.dataPoints[dp_index].dataSourceType = DATA_SOURCE_HA;
+
+                        // Force a refresh of the marquee to start scrolling immediately
+                        isMarqueeBufferDirty = true;
                     } else {
                         // Automation: If the last data point is disabled, revert to Normal Clock mode
                         bool any_other_enabled = false;
