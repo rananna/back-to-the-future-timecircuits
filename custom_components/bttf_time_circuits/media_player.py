@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from homeassistant.components import mqtt
@@ -19,6 +20,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
+
+_LOGGER = logging.getLogger(__name__)
 
 SUPPORTED_FEATURES = (
     MediaPlayerEntityFeature.PLAY_MEDIA
@@ -51,6 +54,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the BTTF Time Circuits media player."""
+    _LOGGER.debug("media_player.async_setup_entry")
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
     async_add_entities([BTTFTimeCircuitsMediaPlayer(device, MEDIA_PLAYER_DESCRIPTION)])
 
@@ -69,6 +73,7 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         description: MediaPlayerEntityDescription,
     ) -> None:
         """Initialize the media player."""
+        _LOGGER.debug("BTTFTimeCircuitsMediaPlayer.__init__")
         super().__init__(device)
         self.entity_description = description
         self._attr_volume_level = 0.5  # Default volume
