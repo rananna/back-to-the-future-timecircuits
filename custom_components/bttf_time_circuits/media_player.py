@@ -74,8 +74,8 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
     ) -> None:
         """Initialize the media player."""
         _LOGGER.debug("BTTFTimeCircuitsMediaPlayer.__init__")
-        super().__init__(device)
         self.entity_description = description
+        super().__init__(device)
         self._attr_volume_level = 0.5  # Default volume
         self._attr_state = "idle"
         self._attr_media_content_id = None
