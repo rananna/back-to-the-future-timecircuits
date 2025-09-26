@@ -94,6 +94,14 @@ enum DisplayMode {
     SCROLLING_TEXT
 };
 
+// NEW: Added enum for the main display mode setting
+enum DisplayModeSetting {
+  DMS_NORMAL_CLOCK,
+  DMS_STOCK_TICKER,
+  DMS_WEATHER,
+  DMS_DATA_LINK
+};
+
 struct DataPoint {
   bool enabled;
   int scrollSpeed;
@@ -125,18 +133,15 @@ struct ClockSettings {
     bool timeTravelSoundToggle;
     int presetCycleInterval;
     bool displayFormat24h;
-    bool dataLinkEnabled;
     int numDataPoints;
     std::string mqttBroker;
     int mqttPort;
     std::string mqttUser;
     std::string mqttPassword;
-    bool weatherModeEnabled;
     std::string cityName;
     bool useMetricUnits;
     float latitude;
     float longitude;
-    bool stockTickerModeEnabled;
     int stockRefreshInterval; // in minutes
     std::string financialModelingPrepApiKey;
     std::string stockRow1_symbol;
@@ -145,6 +150,7 @@ struct ClockSettings {
     DataPoint dataPoints[5];
     int theme;
     int dataLinkTargetRow;
+    int displayMode;
 };
 
 struct StockData {
