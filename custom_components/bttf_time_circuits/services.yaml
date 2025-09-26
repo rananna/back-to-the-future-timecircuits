@@ -1,27 +1,58 @@
-# Describes the services for the BTTF Time Circuits integration.
-send_message:
-  name: "Send Message"
-  description: "Sends a message to the Time Circuits display."
+set_status_display:
+  description: "Set the time circuits displays."
   fields:
-    message:
-      name: "Message"
-      description: "The message to display. Use '\\n' for line breaks."
-      required: true
+    destination_month:
+      description: "Destination month"
       selector:
         text:
-          multiline: true
-    sound_effect:
-      name: "Sound Effect"
-      description: "The sound effect to play."
-      required: false
+    destination_day:
+      description: "Destination day"
       selector:
         text:
-    duration:
-      name: "Duration"
-      description: "The duration in seconds to display the message."
-      required: false
+    destination_year:
+      description: "Destination year"
       selector:
-        number:
-          min: 1
-          max: 60
-          unit_of_measurement: "seconds"
+        text:
+    destination_time:
+      description: "Destination time"
+      selector:
+        text:
+    present_month:
+      description: "Present month"
+      selector:
+        text:
+    present_day:
+      description: "Present day"
+      selector:
+        text:
+    present_year:
+      description: "Present year"
+      selector:
+        text:
+    present_time:
+      description: "Present time"
+      selector:
+        text:
+    last_departed_month:
+      description: "Last departed month"
+      selector:
+        text:
+    last_departed_day:
+      description: "Last departed day"
+      selector:
+        text:
+    last_departed_year:
+      description: "Last departed year"
+      selector:
+        text:
+    last_departed_time:
+      description: "Last departed time"
+      selector:
+        text:
+run_sequence:
+  description: "Run a pre-defined sequence."
+  fields:
+    sequence:
+      description: "The sequence to run."
+      selector:
+        text:

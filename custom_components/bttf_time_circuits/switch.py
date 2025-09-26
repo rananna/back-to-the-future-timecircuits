@@ -13,14 +13,18 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
+
 
 @dataclass
 class BTTFTimeCircuitsSwitchEntityDescription(SwitchEntityDescription):
     """A class that describes BTTF Time Circuits switch entities."""
+
     # For display mode switches, this is the payload to check for 'on' state
     on_payload: str | None = None
+
 
 # Define all switch entities
 SWITCHES: list[BTTFTimeCircuitsSwitchEntityDescription] = [
@@ -70,20 +74,23 @@ for i in range(5):
         )
     )
 
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the BTTF Time Circuits switches."""
-    device_id = "BTTF_TC_123456"  # Placeholder
+    device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
 
-    entities = []
-    for description in SWITCHES:
-        if description.on_payload:
-            entities.append(BTTFTimeCircuitsDisplayModeSwitch(device_id, description))
-        else:
-            entities.append(BTTFTimeCircuitsMqttSwitch(device_id, description))
+    entities = [
+        (
+            BTTFTimeCircuitsDisplayModeSwitch(device, description)
+            if description.on_payload
+            else BTTFTimeCircuitsMqttSwitch(device, description)
+        )
+        for description in SWITCHES
+    ]
 
     async_add_entities(entities)
 
@@ -91,19 +98,24 @@ async def async_setup_entry(
 class BTTFTimeCircuitsMqttSwitch(BTTFTimeCircuitsEntity, SwitchEntity):
     """Representation of a standard BTTF Time Circuits MQTT Switch."""
 
-    def __init__(self, device_id: str, description: BTTFTimeCircuitsSwitchEntityDescription) -> None:
+    def __init__(
+        self,
+        device: BTTFTimeCircuitsDevice,
+        description: BTTFTimeCircuitsSwitchEntityDescription,
+    ) -> None:
         """Initialize the switch."""
-        super().__init__(device_id)
         self.entity_description = description
+        super().__init__(device)
         # The MQTT topic key is different from the entity key for override_switch
-        self._mqtt_key = "override" if description.key == "override_switch" else description.key
-        self._attr_unique_id = f"{DOMAIN}_{self._device_id}_{description.key}"
+        self._mqtt_key = (
+            "override" if description.key == "override_switch" else description.key
+        )
         self._attr_is_on = False
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
-        state_topic = f"BTTF_TC/{self._device_id}/{self._mqtt_key}/state"
+        state_topic = f"{self._device.base_topic}/{self._mqtt_key}/state"
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
@@ -115,12 +127,12 @@ class BTTFTimeCircuitsMqttSwitch(BTTFTimeCircuitsEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
-        command_topic = f"BTTF_TC/{self._device_id}/{self._mqtt_key}/command"
+        command_topic = f"{self._device.base_topic}/{self._mqtt_key}/command"
         await mqtt.async_publish(self.hass, command_topic, "ON", 1, False)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
-        command_topic = f"BTTF_TC/{self._device_id}/{self._mqtt_key}/command"
+        command_topic = f"{self._device.base_topic}/{self._mqtt_key}/command"
         await mqtt.async_publish(self.hass, command_topic, "OFF", 1, False)
 
 
@@ -129,17 +141,20 @@ class BTTFTimeCircuitsDisplayModeSwitch(BTTFTimeCircuitsEntity, SwitchEntity):
 
     entity_description: BTTFTimeCircuitsSwitchEntityDescription
 
-    def __init__(self, device_id: str, description: BTTFTimeCircuitsSwitchEntityDescription) -> None:
+    def __init__(
+        self,
+        device: BTTFTimeCircuitsDevice,
+        description: BTTFTimeCircuitsSwitchEntityDescription,
+    ) -> None:
         """Initialize the display mode switch."""
-        super().__init__(device_id)
         self.entity_description = description
-        self._attr_unique_id = f"{DOMAIN}_{self._device_id}_{description.key}"
+        super().__init__(device)
         self._attr_is_on = False
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
-        state_topic = f"BTTF_TC/{self._device_id}/display_mode/state"
+        state_topic = f"{self._device.base_topic}/display_mode/state"
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
@@ -151,10 +166,12 @@ class BTTFTimeCircuitsDisplayModeSwitch(BTTFTimeCircuitsEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
-        command_topic = f"BTTF_TC/{self._device_id}/display_mode/command"
-        await mqtt.async_publish(self.hass, command_topic, self.entity_description.on_payload, 1, False)
+        command_topic = f"{self._device.base_topic}/display_mode/command"
+        await mqtt.async_publish(
+            self.hass, command_topic, self.entity_description.on_payload, 1, False
+        )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off by reverting to Normal Clock mode."""
-        command_topic = f"BTTF_TC/{self._device_id}/display_mode/command"
+        command_topic = f"{self._device.base_topic}/display_mode/command"
         await mqtt.async_publish(self.hass, command_topic, "Normal Clock", 1, False)
