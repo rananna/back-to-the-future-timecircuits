@@ -140,6 +140,9 @@ struct ClockSettings {
     std::string mqttPassword;
     std::string cityName;
     bool useMetricUnits;
+    bool dataLinkEnabled;
+    bool weatherModeEnabled;
+    bool stockTickerModeEnabled;
     float latitude;
     float longitude;
     int stockRefreshInterval; // in minutes
