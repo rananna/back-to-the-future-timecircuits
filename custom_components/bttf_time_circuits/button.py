@@ -13,12 +13,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
+
 
 @dataclass
 class BTTFTimeCircuitsButtonEntityDescription(ButtonEntityDescription):
     """A class that describes BTTF Time Circuits button entities."""
+
 
 BUTTONS: tuple[BTTFTimeCircuitsButtonEntityDescription, ...] = (
     BTTFTimeCircuitsButtonEntityDescription(
@@ -61,8 +64,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the BTTF Time Circuits buttons."""
-    device_id = "BTTF_TC_123456"  # Placeholder
-    entities = [BTTFTimeCircuitsButton(device_id, description) for description in BUTTONS]
+    device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
+    entities = [
+        BTTFTimeCircuitsButton(device, description) for description in BUTTONS
+    ]
     async_add_entities(entities)
 
 
@@ -71,13 +76,18 @@ class BTTFTimeCircuitsButton(BTTFTimeCircuitsEntity, ButtonEntity):
 
     entity_description: BTTFTimeCircuitsButtonEntityDescription
 
-    def __init__(self, device_id: str, description: BTTFTimeCircuitsButtonEntityDescription) -> None:
+    def __init__(
+        self,
+        device: BTTFTimeCircuitsDevice,
+        description: BTTFTimeCircuitsButtonEntityDescription,
+    ) -> None:
         """Initialize the button."""
-        super().__init__(device_id)
         self.entity_description = description
-        self._attr_unique_id = f"{DOMAIN}_{self._device_id}_{description.key}"
+        super().__init__(device)
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        command_topic = f"BTTF_TC/{self._device_id}/{self.entity_description.key}/command"
+        command_topic = (
+            f"{self._device.base_topic}/{self.entity_description.key}/command"
+        )
         await mqtt.async_publish(self.hass, command_topic, "PRESS", 1, False)

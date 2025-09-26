@@ -12,12 +12,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
+
 
 @dataclass
 class BTTFTimeCircuitsTextEntityDescription(TextEntityDescription):
     """A class that describes BTTF Time Circuits text entities."""
+
 
 # Define all 22 text entities
 TEXT_ENTITIES: list[BTTFTimeCircuitsTextEntityDescription] = []
@@ -56,18 +59,20 @@ for i in range(1, 4):
     )
 
 # Other Text Entities
-TEXT_ENTITIES.extend([
-    BTTFTimeCircuitsTextEntityDescription(
-        key="tts_text",
-        name="TTS Text",
-        icon="mdi:text-to-speech",
-    ),
-    BTTFTimeCircuitsTextEntityDescription(
-        key="weather_city",
-        name="Weather City",
-        icon="mdi:city",
-    ),
-])
+TEXT_ENTITIES.extend(
+    [
+        BTTFTimeCircuitsTextEntityDescription(
+            key="tts_text",
+            name="TTS Text",
+            icon="mdi:text-to-speech",
+        ),
+        BTTFTimeCircuitsTextEntityDescription(
+            key="weather_city",
+            name="Weather City",
+            icon="mdi:city",
+        ),
+    ]
+)
 
 
 async def async_setup_entry(
@@ -76,8 +81,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the BTTF Time Circuits text entities."""
-    device_id = "BTTF_TC_123456"  # Placeholder
-    entities = [BTTFTimeCircuitsText(device_id, description) for description in TEXT_ENTITIES]
+    device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
+    entities = [
+        BTTFTimeCircuitsText(device, description) for description in TEXT_ENTITIES
+    ]
     async_add_entities(entities)
 
 
@@ -86,17 +93,20 @@ class BTTFTimeCircuitsText(BTTFTimeCircuitsEntity, TextEntity):
 
     entity_description: BTTFTimeCircuitsTextEntityDescription
 
-    def __init__(self, device_id: str, description: BTTFTimeCircuitsTextEntityDescription) -> None:
+    def __init__(
+        self,
+        device: BTTFTimeCircuitsDevice,
+        description: BTTFTimeCircuitsTextEntityDescription,
+    ) -> None:
         """Initialize the text entity."""
-        super().__init__(device_id)
         self.entity_description = description
-        self._attr_unique_id = f"{DOMAIN}_{self._device_id}_{description.key}"
+        super().__init__(device)
         self._attr_native_value = None
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
-        state_topic = f"BTTF_TC/{self._device_id}/{self.entity_description.key}/state"
+        state_topic = f"{self._device.base_topic}/{self.entity_description.key}/state"
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
@@ -108,7 +118,9 @@ class BTTFTimeCircuitsText(BTTFTimeCircuitsEntity, TextEntity):
 
     async def async_set_value(self, value: str) -> None:
         """Update the current value."""
-        command_topic = f"BTTF_TC/{self._device_id}/{self.entity_description.key}/command"
+        command_topic = (
+            f"{self._device.base_topic}/{self.entity_description.key}/command"
+        )
         await mqtt.async_publish(self.hass, command_topic, value, 1, False)
         # Optimistically update the state
         self._attr_native_value = value

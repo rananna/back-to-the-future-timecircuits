@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
+from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
 
@@ -47,11 +48,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the BTTF Time Circuits sensors."""
-    # This function will be expanded later to discover devices
-    # For now, we'll assume a single device for development
-    device_id = "BTTF_TC_123456" # Placeholder
+    device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
 
-    entities = [BTTFTimeCircuitsSensor(device_id, description) for description in SENSORS]
+    entities = [BTTFTimeCircuitsSensor(device, description) for description in SENSORS]
     async_add_entities(entities)
 
 
@@ -60,17 +59,16 @@ class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
 
     entity_description: BTTFTimeCircuitsSensorEntityDescription
 
-    def __init__(self, device_id: str, description: BTTFTimeCircuitsSensorEntityDescription) -> None:
+    def __init__(self, device: BTTFTimeCircuitsDevice, description: BTTFTimeCircuitsSensorEntityDescription) -> None:
         """Initialize the sensor."""
-        super().__init__(device_id)
         self.entity_description = description
-        self._attr_unique_id = f"{DOMAIN}_{self._device_id}_{description.key}"
+        super().__init__(device)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
 
-        state_topic = f"BTTF_TC/{self._device_id}/{self.entity_description.key}/state"
+        state_topic = f"{self._device.base_topic}/{self.entity_description.key}/state"
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
@@ -84,7 +82,7 @@ class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
         await mqtt.async_subscribe(self.hass, state_topic, message_received, 1)
 
         if self.entity_description.key == "status":
-            attributes_topic = f"BTTF_TC/{self._device_id}/status/attributes"
+            attributes_topic = f"{self._device.base_topic}/status/attributes"
             @callback
             def attributes_received(msg: mqtt.ReceiveMessage) -> None:
                 """Handle new MQTT attribute messages."""

@@ -1,11 +1,9 @@
 """The Back to the Future Time Circuits integration."""
 from __future__ import annotations
 
-import voluptuous as vol
 from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
@@ -21,34 +19,32 @@ PLATFORMS: list[str] = [
     "update",
 ]
 
-# Service definitions
-SERVICE_SET_STATUS_DISPLAY = "set_status_display"
-SERVICE_RUN_SEQUENCE = "run_sequence"
 
-# Define the schema for the set_status_display service
-SET_STATUS_DISPLAY_SCHEMA = vol.Schema(
-    {
-        vol.Optional("destination_month"): cv.string,
-        vol.Optional("destination_day"): cv.string,
-        vol.Optional("destination_year"): cv.string,
-        vol.Optional("destination_time"): cv.string,
-        vol.Optional("present_month"): cv.string,
-        vol.Optional("present_day"): cv.string,
-        vol.Optional("present_year"): cv.string,
-        vol.Optional("present_time"): cv.string,
-        vol.Optional("last_departed_month"): cv.string,
-        vol.Optional("last_departed_day"): cv.string,
-        vol.Optional("last_departed_year"): cv.string,
-        vol.Optional("last_departed_time"): cv.string,
-    }
-)
+class BTTFTimeCircuitsDevice:
+    """A wrapper for a BTTF Time Circuits device."""
 
-# Define the schema for the run_sequence service
-RUN_SEQUENCE_SCHEMA = vol.Schema(
-    {
-        vol.Required("sequence"): cv.string,  # JSON string
-    }
-)
+    def __init__(self, hass: HomeAssistant, device_id: str) -> None:
+        """Initialize the device."""
+        self.hass = hass
+        self.device_id = device_id
+        self.base_topic = f"BTTF_TC/{device_id}"
+
+    async def async_handle_set_status_display(self, call: ServiceCall) -> None:
+        """Handle the set_status_display service call."""
+        for key, value in call.data.items():
+            topic_key = (
+                key.replace("destination_", "dest_")
+                .replace("present_", "pres_")
+                .replace("last_departed_", "last_")
+            )
+            command_topic = f"{self.base_topic}/{topic_key}/command"
+            await mqtt.async_publish(self.hass, command_topic, str(value), 1, False)
+
+    async def async_handle_run_sequence(self, call: ServiceCall) -> None:
+        """Handle the run_sequence service call."""
+        sequence_json = call.data.get("sequence")
+        command_topic = f"{self.base_topic}/sequencer/command"
+        await mqtt.async_publish(self.hass, command_topic, sequence_json, 1, False)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -59,54 +55,37 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up BTTF Time Circuits from a config entry."""
+    device_id = entry.data.get("device_id")
+
+    if not device_id:
+        return False
+
+    device = BTTFTimeCircuitsDevice(hass, device_id)
+    hass.data[DOMAIN][entry.entry_id] = device
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Placeholder for device ID
-    device_id = "BTTF_TC_123456"
-    base_topic = f"BTTF_TC/{device_id}"
-
-    async def async_handle_set_status_display(call: ServiceCall) -> None:
-        """Handle the set_status_display service call."""
-        for key, value in call.data.items():
-            topic_key = (
-                key.replace("destination_", "dest_")
-                .replace("present_", "pres_")
-                .replace("last_departed_", "last_")
-            )
-            command_topic = f"{base_topic}/{topic_key}/command"
-            await mqtt.async_publish(hass, command_topic, str(value), 1, False)
-
-    async def async_handle_run_sequence(call: ServiceCall) -> None:
-        """Handle the run_sequence service call."""
-        sequence_json = call.data.get("sequence")
-        command_topic = f"{base_topic}/sequencer/command"
-        await mqtt.async_publish(hass, command_topic, sequence_json, 1, False)
-
     hass.services.async_register(
         DOMAIN,
-        SERVICE_SET_STATUS_DISPLAY,
-        async_handle_set_status_display,
-        schema=SET_STATUS_DISPLAY_SCHEMA,
+        "set_status_display",
+        device.async_handle_set_status_display,
     )
     hass.services.async_register(
         DOMAIN,
-        SERVICE_RUN_SEQUENCE,
-        async_handle_run_sequence,
-        schema=RUN_SEQUENCE_SCHEMA,
+        "run_sequence",
+        device.async_handle_run_sequence,
     )
 
-    # Set up listeners to remove services when the config entry is unloaded.
     entry.async_on_unload(
-        lambda: hass.services.async_remove(DOMAIN, SERVICE_SET_STATUS_DISPLAY)
+        lambda: hass.services.async_remove(DOMAIN, "set_status_display")
     )
-    entry.async_on_unload(
-        lambda: hass.services.async_remove(DOMAIN, SERVICE_RUN_SEQUENCE)
-    )
+    entry.async_on_unload(lambda: hass.services.async_remove(DOMAIN, "run_sequence"))
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    # Service removal is handled by the listeners set up in async_setup_entry.
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        hass.data[DOMAIN].pop(entry.entry_id)
+    return unloaded
