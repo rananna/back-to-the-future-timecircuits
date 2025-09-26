@@ -573,6 +573,8 @@ void reconnectMqtt() {
     mqttClient.subscribe(audio_topic.c_str());
     audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/radio/command";
     mqttClient.subscribe(audio_topic.c_str());
+    audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/play_sound/command";
+    mqttClient.subscribe(audio_topic.c_str());
 
     String sequencer_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/sequencer/command";
     mqttClient.subscribe(sequencer_topic.c_str());
