@@ -1,0 +1,27 @@
+# Describes the services for the BTTF Time Circuits integration.
+send_message:
+  name: "Send Message"
+  description: "Sends a message to the Time Circuits display."
+  fields:
+    message:
+      name: "Message"
+      description: "The message to display. Use '\\n' for line breaks."
+      required: true
+      selector:
+        text:
+          multiline: true
+    sound_effect:
+      name: "Sound Effect"
+      description: "The sound effect to play."
+      required: false
+      selector:
+        text:
+    duration:
+      name: "Duration"
+      description: "The duration in seconds to display the message."
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: "seconds"
