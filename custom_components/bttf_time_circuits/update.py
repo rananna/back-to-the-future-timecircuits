@@ -20,7 +20,7 @@ from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
 
 OTA_PASSWORD = "1.21gigawatts"
-GITHUB_REPO = "dmadison/bttf-time-circuits-clock"
+GITHUB_REPO = "rananna/back-to-the-future-timecircuits"
 FIRMWARE_FILE_NAME = "firmware.bin"  # Confirm this is the correct filename
 
 

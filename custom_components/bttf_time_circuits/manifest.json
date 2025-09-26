@@ -4,8 +4,8 @@
   "codeowners": ["@rananna"],
   "config_flow": true,
   "dependencies": ["mqtt"],
-  "documentation": "https://github.com/dmadison/bttf-time-circuits-clock/blob/main/docs/home-assistant.md",
+  "documentation": "https://github.com/rananna/back-to-the-future-timecircuits/blob/main/docs/home-assistant.md",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/dmadison/bttf-time-circuits-clock/issues",
+  "issue_tracker": "https://github.com/rananna/back-to-the-future-timecircuits/issues",
   "version": "1.0.0"
 }
