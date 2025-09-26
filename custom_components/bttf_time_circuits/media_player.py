@@ -22,7 +22,7 @@ SUPPORTED_FEATURES = (
     MediaPlayerEntityFeature.PLAY_MEDIA
     | MediaPlayerEntityFeature.STOP
     | MediaPlayerEntityFeature.VOLUME_SET
-    | MediaPlayerEntityFeature.SELECT_SOUND
+    | MediaPlayerEntityFeature.SELECT_SOURCE
 )
 
 SOUND_EFFECTS = [
@@ -123,6 +123,6 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             await mqtt.async_publish(self.hass, command_topic, media_id, 1, False)
             return
 
-    async def async_select_sound(self, sound: str) -> None:
-        """Select a sound to play."""
-        await self.async_play_media("sound", sound)
+    async def async_select_source(self, source: str) -> None:
+        """Select a source to play."""
+        await self.async_play_media("sound", source)
