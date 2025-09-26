@@ -5,10 +5,11 @@
 </p>
 
 <p align="center">
-  <img alt="Platform" src="https://img.shields.io/badge/Platform-ESP32-purple.svg">
-  <img alt="Framework" src="https://img.shields.io/badge/Framework-Arduino-00979D.svg">
-  <img alt="Power" src="https://img.shields.io/badge/Power-1.21_Gigawatts!-orange.svg">
-  <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+  <a href="https://github.com/hacs/integration"><img alt="HACS" src="https://img.shields.io/badge/HACS-Default-181717.svg?style=for-the-badge"></a>
+  <img alt="Platform" src="https://img.shields.io/badge/Platform-ESP32-purple.svg?style=for-the-badge">
+  <img alt="Framework" src="https://img.shields.io/badge/Framework-Arduino-00979D.svg?style=for-the-badge">
+  <img alt="Power" src="https://img.shields.io/badge/Power-1.21_Gigawatts!-orange.svg?style=for-the-badge">
+  <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge"></a>
 </p>
 
 > **Great Scott!** You've found the schematics for a fully-functional, WiFi-enabled Time Circuits display. This project brings the iconic look, feel, and sounds of the DeLorean's dashboard right to your desk, complete with a slick web interface and deep integration with Home Assistant.
