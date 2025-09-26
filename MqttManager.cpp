@@ -464,20 +464,26 @@ void publishHaAutoDiscovery() {
     publishDiscoveryMessage(doc, "select");
 
 
-    // --- Live Weather Mode Entities ---
+    // --- Display Mode Selection ---
     doc.clear();
-    doc["name"] = "Live Weather Mode";
-    String weather_mode_id = String(MQTT_UNIQUE_ID) + "_weather_mode";
-    doc["unique_id"] = toLowerCase(weather_mode_id);
-    doc["object_id"] = toLowerCase(weather_mode_id);
-    doc["command_topic"] = device_base_topic + "/weather_mode/command";
-    doc["state_topic"] = device_base_topic + "/weather_mode/state";
-    doc["icon"] = "mdi:weather-cloudy";
+    doc["name"] = "Display Mode";
+    String display_mode_id = String(MQTT_UNIQUE_ID) + "_display_mode";
+    doc["unique_id"] = toLowerCase(display_mode_id);
+    doc["object_id"] = toLowerCase(display_mode_id);
+    doc["command_topic"] = device_base_topic + "/display_mode/command";
+    doc["state_topic"] = device_base_topic + "/display_mode/state";
+    JsonArray modes = doc["options"].to<JsonArray>();
+    modes.add("Normal Clock");
+    modes.add("Stock Ticker");
+    modes.add("Weather");
+    modes.add("Data Link");
+    doc["icon"] = "mdi:television-classic";
     doc["entity_category"] = "config";
     doc["device"].set(device);
     doc["availability"].set(availability);
-    publishDiscoveryMessage(doc, "switch");
+    publishDiscoveryMessage(doc, "select");
 
+    // --- Live Weather Mode Entities ---
     doc.clear();
     doc["name"] = "Weather City";
     String weather_city_id = String(MQTT_UNIQUE_ID) + "_weather_city";
@@ -641,7 +647,35 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                     }
                     isMarqueeBufferDirty = true; // Force display to re-render the marquee
                 } else if (id_suffix.endsWith("_enabled")) {
-                    currentSettings.dataPoints[dp_index].enabled = (message == "ON");
+                    bool is_on = (message == "ON");
+                    currentSettings.dataPoints[dp_index].enabled = is_on;
+
+                    // Immediately publish the state back to HA to fix momentary toggle issue
+                    String enabled_topic = base_topic + component + "/state";
+                    mqttClient.publish(enabled_topic.c_str(), is_on ? "ON" : "OFF", true);
+
+                    if (is_on) {
+                        // Automation: When a data point is enabled, switch to Data Link mode
+                        currentSettings.displayMode = DMS_DATA_LINK;
+                        // And ensure the number of data points is high enough
+                        if (dp_index + 1 > currentSettings.numDataPoints) {
+                            currentSettings.numDataPoints = dp_index + 1;
+                        }
+                        // And set the source to Home Assistant
+                        currentSettings.dataPoints[dp_index].dataSourceType = DATA_SOURCE_HA;
+                    } else {
+                        // Automation: If the last data point is disabled, revert to Normal Clock mode
+                        bool any_other_enabled = false;
+                        for (int i = 0; i < 5; i++) {
+                            if (currentSettings.dataPoints[i].enabled) {
+                                any_other_enabled = true;
+                                break;
+                            }
+                        }
+                        if (!any_other_enabled) {
+                            currentSettings.displayMode = DMS_NORMAL_CLOCK;
+                        }
+                    }
                     settingsChanged = true;
                 }
             }
@@ -732,9 +766,16 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "sound_toggle") {
             currentSettings.timeTravelSoundToggle = (message == "ON");
             settingsChanged = true;
-        } else if (component == "weather_mode") {
-            currentSettings.weatherModeEnabled = (message == "ON");
-            if (currentSettings.weatherModeEnabled) currentSettings.dataLinkEnabled = false;
+        } else if (component == "display_mode") {
+            if (message == "Normal Clock") {
+                currentSettings.displayMode = DMS_NORMAL_CLOCK;
+            } else if (message == "Stock Ticker") {
+                currentSettings.displayMode = DMS_STOCK_TICKER;
+            } else if (message == "Weather") {
+                currentSettings.displayMode = DMS_WEATHER;
+            } else if (message == "Data Link") {
+                currentSettings.displayMode = DMS_DATA_LINK;
+            }
             settingsChanged = true;
         } else if (component == "weather_city") {
             if (currentSettings.cityName != message.c_str()) {
@@ -884,7 +925,6 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/is_asleep/state").c_str(), isDisplayAsleep ? "ON" : "OFF", true);
     itoa(currentPageIndex + 1, payload, 10);
     mqttClient.publish((base_topic + "/marquee_page/state").c_str(), payload, true);
-    mqttClient.publish((base_topic + "/weather_mode/state").c_str(), currentSettings.weatherModeEnabled ? "ON" : "OFF", true);
     mqttClient.publish((base_topic + "/weather_city/state").c_str(), currentSettings.cityName.c_str(), true);
 
     mqttClient.publish((base_topic + "/24h_format/state").c_str(), currentSettings.displayFormat24h ? "ON" : "OFF", true);
@@ -898,6 +938,12 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/temporal_echo/state").c_str(), isEchoEffectActive ? "ON" : "OFF", true);
 
     // This state publishing has been removed as the sensor it belongs to was removed.
+
+    // Publish the state of the new display mode selector
+    const char* modes[] = {"Normal Clock", "Stock Ticker", "Weather", "Data Link"};
+    if (currentSettings.displayMode >= 0 && currentSettings.displayMode < 4) {
+        mqttClient.publish((base_topic + "/display_mode/state").c_str(), modes[currentSettings.displayMode], true);
+    }
 
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
 

@@ -331,12 +331,13 @@ void handleWeatherTimeout() {
     currentWeatherData.errorReason = "FETCH TIMEOUT";
 
     // Disable weather mode to prevent getting stuck in a timeout loop
-    currentSettings.weatherModeEnabled = false;
+    currentSettings.displayMode = DMS_NORMAL_CLOCK;
     saveSettings(); // Persist the change
 
     // Broadcast the change to the web UI via MQTT
     if (mqttClient.connected()) {
-        mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/weatherModeEnabled/state").c_str(), "false", true);
+        // This topic will be created in a later step
+        // mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/display_mode/state").c_str(), "Normal Clock", true);
     }
 
     resetWeatherFetchState();
@@ -387,9 +388,10 @@ void applySettingsFromJson(const JsonObject& obj) {
         oldDataPoints[i] = currentSettings.dataPoints[i];
     }
     std::string oldCityName = currentSettings.cityName;
-    bool oldWeatherModeEnabled = currentSettings.weatherModeEnabled;
+    int oldDisplayMode = currentSettings.displayMode;
 
     // --- Apply All Settings from JSON ---
+    validateAndSet("displayMode", currentSettings.displayMode, 0, 3);
     validateAndSet("destinationYear", currentSettings.destinationYear, 0, 9999);
     validateAndSet("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
     validateAndSet("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear, 0, 9999);
@@ -413,12 +415,10 @@ void applySettingsFromJson(const JsonObject& obj) {
     if (!obj["timeTravelSoundToggle"].isNull()) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
     validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
     if (!obj["displayFormat24h"].isNull()) currentSettings.displayFormat24h = obj["displayFormat24h"];
-    if (!obj["dataLinkEnabled"].isNull()) currentSettings.dataLinkEnabled = obj["dataLinkEnabled"];
     if (!obj["mqttBroker"].isNull()) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
     currentSettings.mqttPort = obj["mqttPort"] | 1883;
     if (!obj["mqttUser"].isNull()) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
     if (!obj["mqttPassword"].isNull()) currentSettings.mqttPassword = obj["mqttPassword"].as<std::string>();
-    currentSettings.weatherModeEnabled = obj["weatherModeEnabled"] | currentSettings.weatherModeEnabled;
     if (!obj["cityName"].isNull()) {
         std::string newCityName = obj["cityName"].as<std::string>();
         if (newCityName != oldCityName) {
@@ -437,8 +437,7 @@ void applySettingsFromJson(const JsonObject& obj) {
         currentSettings.longitude = obj["longitude"].as<float>();
     }
     currentSettings.useMetricUnits = obj["useMetricUnits"] | currentSettings.useMetricUnits;
-    currentSettings.stockTickerModeEnabled = obj["stockTickerModeEnabled"] | currentSettings.stockTickerModeEnabled;
-    stockManager.setEnabled(currentSettings.stockTickerModeEnabled);
+    stockManager.setEnabled(currentSettings.displayMode == DMS_STOCK_TICKER);
     if (!obj["stockRefreshInterval"].isNull()) {
         int newInterval = obj["stockRefreshInterval"].as<int>();
         if (newInterval > 0) { // Basic validation
@@ -514,7 +513,7 @@ void applySettingsFromJson(const JsonObject& obj) {
     }
 
     // If weather mode was just turned off, reset the fetch state
-    if (oldWeatherModeEnabled && !currentSettings.weatherModeEnabled) {
+    if (oldDisplayMode == DMS_WEATHER && currentSettings.displayMode != DMS_WEATHER) {
         resetWeatherFetchState();
     }
 }
@@ -582,8 +581,8 @@ void saveSettings() {
     Log_printf(LOG_LEVEL_INFO, "Saving mqttPass: (hidden)");
     preferences.putString("mqttPass", currentSettings.mqttPassword.c_str());
 
-    Log_printf(LOG_LEVEL_INFO, "Saving weatherMode: %s", currentSettings.weatherModeEnabled ? "true" : "false");
-    preferences.putBool("weatherMode", currentSettings.weatherModeEnabled);
+    Log_printf(LOG_LEVEL_INFO, "Saving displayMode: %d", currentSettings.displayMode);
+    preferences.putInt("displayMode", currentSettings.displayMode);
 
     Log_printf(LOG_LEVEL_INFO, "Saving cityName: %s", currentSettings.cityName.c_str());
     preferences.putString("cityName", currentSettings.cityName.c_str());
@@ -620,9 +619,6 @@ void saveSettings() {
 
     Log_printf(LOG_LEVEL_INFO, "Saving animationStyle: %d", currentSettings.animationStyle);
     preferences.putInt("animStyle", currentSettings.animationStyle);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving dataLinkEnabled: %s", currentSettings.dataLinkEnabled ? "true" : "false");
-    preferences.putBool("dlEnabled", currentSettings.dataLinkEnabled);
 
     Log_printf(LOG_LEVEL_INFO, "Saving dataLinkTargetRow: %d", currentSettings.dataLinkTargetRow);
     preferences.putInt("dlTargetRow", currentSettings.dataLinkTargetRow);
@@ -694,7 +690,7 @@ void loadSettings() {
         currentSettings.timeTravelAnimationInterval = 15;
         currentSettings.timeTravelAnimationDuration = 4000;
         currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
-        currentSettings.dataLinkEnabled = false;
+        currentSettings.displayMode = DMS_NORMAL_CLOCK;
         currentSettings.dataLinkTargetRow = 2;
         currentSettings.stockRefreshInterval = 10;
         currentSettings.numDataPoints = 0;
@@ -702,12 +698,10 @@ void loadSettings() {
         currentSettings.mqttPort = 1883;
         currentSettings.mqttUser = "";
         currentSettings.mqttPassword = "";
-        currentSettings.weatherModeEnabled = false;
         currentSettings.cityName = "New York";
         currentSettings.useMetricUnits = false;
         currentSettings.latitude = 40.7128;
         currentSettings.longitude = -74.0060;
-        currentSettings.stockTickerModeEnabled = false;
         currentSettings.stockRefreshInterval = 20; // Default to 20 minutes
         currentSettings.financialModelingPrepApiKey = "";
         stockManager.clearAssets();
@@ -773,8 +767,8 @@ void loadSettings() {
         currentSettings.mqttPassword = passStr.c_str();
         Log_printf(LOG_LEVEL_INFO, "Loaded mqttPass: (hidden)");
 
-        currentSettings.weatherModeEnabled = preferences.getBool("weatherMode", false);
-        Log_printf(LOG_LEVEL_INFO, "Loaded weatherMode: %s", currentSettings.weatherModeEnabled ? "true" : "false");
+        currentSettings.displayMode = preferences.getInt("displayMode", DMS_NORMAL_CLOCK);
+        Log_printf(LOG_LEVEL_INFO, "Loaded displayMode: %d", currentSettings.displayMode);
 
         String tempString = preferences.getString("cityName", "New York");
         currentSettings.cityName = tempString.c_str();
@@ -788,9 +782,6 @@ void loadSettings() {
 
         currentSettings.longitude = preferences.getFloat("longitude", -74.0060);
         Log_printf(LOG_LEVEL_INFO, "Loaded longitude: %f", currentSettings.longitude);
-
-        currentSettings.stockTickerModeEnabled = preferences.getBool("stModeEnabled", false);
-        Log_printf(LOG_LEVEL_INFO, "Loaded stModeEnabled: %s", currentSettings.stockTickerModeEnabled ? "true" : "false");
 
         currentSettings.stockRefreshInterval = preferences.getInt("stockRefresh", 20);
         Log_printf(LOG_LEVEL_INFO, "Loaded stockRefresh: %d", currentSettings.stockRefreshInterval);
@@ -827,9 +818,6 @@ void loadSettings() {
         currentSettings.animationStyle = preferences.getInt("animStyle", ANIMATION_SEQUENTIAL_FLICKER);
         Log_printf(LOG_LEVEL_INFO, "Loaded animStyle: %d", currentSettings.animationStyle);
 
-        currentSettings.dataLinkEnabled = preferences.getBool("dlEnabled", false);
-        Log_printf(LOG_LEVEL_INFO, "Loaded dlEnabled: %s", currentSettings.dataLinkEnabled ? "true" : "false");
-
         currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow", 2);
         Log_printf(LOG_LEVEL_INFO, "Loaded dlTargetRow: %d", currentSettings.dataLinkTargetRow);
 
@@ -864,7 +852,7 @@ void loadSettings() {
 
     // Initialize the StockManager with the loaded/default settings
     stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
-    stockManager.setEnabled(currentSettings.stockTickerModeEnabled);
+    stockManager.setEnabled(currentSettings.displayMode == DMS_STOCK_TICKER);
     stockManager.setRefreshInterval(currentSettings.stockRefreshInterval);
     stockManager.loadAssets();
 
@@ -1041,14 +1029,23 @@ void updateDisplayState() {
         newDisplayState = STATE_MESSAGE_OVERRIDE;
     } else if (isAnimating) {
         newDisplayState = STATE_ANIMATING;
-    } else if (currentSettings.stockTickerModeEnabled) {
-        newDisplayState = STATE_STOCK_TICKER;
-    } else if (currentSettings.dataLinkEnabled) {
-        newDisplayState = STATE_DATA_LINK;
-    } else if (currentSettings.weatherModeEnabled) {
-        newDisplayState = STATE_WEATHER;
     } else {
-        newDisplayState = STATE_NORMAL_CLOCK;
+        // The main display logic is now driven by the displayMode setting
+        switch (currentSettings.displayMode) {
+            case DMS_STOCK_TICKER:
+                newDisplayState = STATE_STOCK_TICKER;
+                break;
+            case DMS_DATA_LINK:
+                newDisplayState = STATE_DATA_LINK;
+                break;
+            case DMS_WEATHER:
+                newDisplayState = STATE_WEATHER;
+                break;
+            case DMS_NORMAL_CLOCK:
+            default:
+                newDisplayState = STATE_NORMAL_CLOCK;
+                break;
+        }
     }
 
     if (newDisplayState != previousDisplayState) {
