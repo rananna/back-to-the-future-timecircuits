@@ -1,0 +1,11 @@
+{
+  "domain": "bttf_time_circuits",
+  "name": "Back to the Future Time Circuits",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["mqtt"],
+  "documentation": "https://github.com/dmadison/bttf-time-circuits-clock/blob/main/docs/home-assistant.md",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/dmadison/bttf-time-circuits-clock/issues",
+  "version": "1.0.0"
+}

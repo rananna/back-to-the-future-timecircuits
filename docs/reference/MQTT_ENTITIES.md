@@ -1,5 +1,7 @@
 #  MQTT Entities & Device Triggers Reference
 
+> **Note for Custom Component Users:** This document provides a low-level reference to the MQTT topics used by the Time Circuits clock. With the new native Home Assistant integration, you should primarily use the provided entities and services. This reference is intended for advanced users, developers, or for troubleshooting purposes.
+
 This document provides a complete reference for all the Home Assistant entities and device triggers created by the Time Circuits clock via MQTT auto-discovery.
 
 > ### A Note on Entity IDs
