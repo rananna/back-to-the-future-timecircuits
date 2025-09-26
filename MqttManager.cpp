@@ -759,7 +759,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             mqttClient.publish((base_topic + "preset_selector/state").c_str(), message.c_str(), true);
         } else if (component == "play_sound") {
             if (message != "None" && hardwareInitialized) {
-                playSound(("/" + message + ".mp3").c_str());
+                playSound((message + ".mp3").c_str(), true);
             }
             mqttClient.publish((base_topic + "play_sound/state").c_str(), "None", true);
         } else if (component == "sound_toggle") {
@@ -1007,7 +1007,7 @@ void handleSequencerCommand(const std::string& payload) {
         } else if (strcmp(cmd, "sound") == 0) {
             const char* effect = command["effect"];
             if (effect) {
-                playSound(("/" + String(effect) + ".mp3").c_str());
+                playSound((String(effect) + ".mp3").c_str(), true);
             } else {
                 Log_printf(LOG_LEVEL_WARN, "Missing 'effect' for sound command.");
             }

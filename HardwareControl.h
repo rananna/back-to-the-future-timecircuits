@@ -249,7 +249,7 @@ void animateWaveformCollapse(unsigned long elapsed, int duration);
 void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
 void blankAllDisplays();
 void drawIcon(Adafruit_AlphaNum4& display, const char* iconName);
-void playSound(const char* filepath);
+void playSound(const char* filepath, bool fromMqtt = false);
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
 void displaySpeed(int speed);
 void displaySpeedRamp(int speed);
