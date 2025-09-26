@@ -78,5 +78,5 @@ variables:
 sequence:
   - service: mqtt.publish
     data:
-      topic: "BTTF_TC/{{ unique_id }}/sequencer/command"
+      topic: "bttf_tc/{{ unique_id }}/sequencer/command"
       payload: "{{ payload }}"

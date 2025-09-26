@@ -24,17 +24,8 @@ extern StockManager stockManager;
 #include <Preferences.h>
 #include <LCBUrl.h> 
 
-#include <algorithm> // Required for std::transform
-
-// Helper function to convert a String to lowercase.
-String toLowerCase(String str) {
-    std::transform(str.begin(), str.end(), str.begin(),
-                   [](unsigned char c){ return std::tolower(c); });
-    return str;
-}
-
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
-    String object_id = toLowerCase(String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix);
+    String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
     String topic = String(MQTT_BASE_TOPIC) + "/" + component + "/" + object_id + "/config";
     if (mqttClient.connected()) {
         mqttClient.publish(topic.c_str(), "", true);
@@ -96,8 +87,8 @@ void publishHaPresetSelector() {
 
     doc["name"] = "Last Departed Preset";
     String preset_selector_id = String(MQTT_UNIQUE_ID) + "_preset_selector";
-    doc["unique_id"] = toLowerCase(preset_selector_id);
-    doc["object_id"] = toLowerCase(preset_selector_id);
+    doc["unique_id"] = preset_selector_id;
+    doc["object_id"] = preset_selector_id;
     doc["command_topic"] = device_base_topic + "/preset_selector/command";
     doc["state_topic"] = device_base_topic + "/preset_selector/state";
     doc["icon"] = "mdi:history";
@@ -140,7 +131,7 @@ void publishDeviceTriggers() {
 
     for(int i = 0; i < sizeof(trigger_types)/sizeof(trigger_types[0]); ++i) {
         doc["type"] = trigger_types[i];
-        String object_id = toLowerCase(String(MQTT_UNIQUE_ID) + "_" + trigger_subtypes[i]);
+        String object_id = String(MQTT_UNIQUE_ID) + "_" + trigger_subtypes[i];
         doc["object_id"] = object_id;
         doc["unique_id"] = object_id;
         // No need to set a "name" for device triggers, HA uses "type" and "subtype"
@@ -197,8 +188,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Status";
     String status_id = String(MQTT_UNIQUE_ID) + "_status";
-    doc["unique_id"] = toLowerCase(status_id);
-    doc["object_id"] = toLowerCase(status_id);
+    doc["unique_id"] = status_id;
+    doc["object_id"] = status_id;
     doc["state_topic"] = device_base_topic + "/status/state";
     doc["json_attributes_topic"] = device_base_topic + "/status/attributes";
     doc["icon"] = "mdi:clock-outline";
@@ -219,8 +210,8 @@ void publishHaAutoDiscovery() {
             String id_suffix = String(rows[r]) + "_" + String(segments[s]);
             String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
             doc["name"] = name;
-            doc["unique_id"] = toLowerCase(entity_id);
-            doc["object_id"] = toLowerCase(entity_id);
+            doc["unique_id"] = entity_id;
+            doc["object_id"] = entity_id;
             doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
             doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
             doc["icon"] = "mdi:form-textbox";
@@ -250,8 +241,8 @@ void publishHaAutoDiscovery() {
         doc["name"] = "Data Point " + String(i + 1) + " Enabled";
         String id_suffix = "datapoint_" + String(i) + "_enabled";
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = toLowerCase(entity_id);
-        doc["object_id"] = toLowerCase(entity_id);
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = "mdi:toggle-switch";
@@ -267,8 +258,8 @@ void publishHaAutoDiscovery() {
         doc["name"] = "Data Point " + String(i + 1) + " Marquee";
         String id_suffix = "datapoint_" + String(i) + "_marquee";
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = toLowerCase(entity_id);
-        doc["object_id"] = toLowerCase(entity_id);
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = "mdi:text-box-outline";
@@ -296,8 +287,8 @@ void publishHaAutoDiscovery() {
         doc["name"] = cfg[1];
         String id_suffix = cfg[0];
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = toLowerCase(entity_id);
-        doc["object_id"] = toLowerCase(entity_id);
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = cfg[2];
@@ -332,8 +323,8 @@ void publishHaAutoDiscovery() {
         doc["name"] = cfg[1];
         String id_suffix = cfg[0];
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = toLowerCase(entity_id);
-        doc["object_id"] = toLowerCase(entity_id);
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = cfg[2];
@@ -355,8 +346,8 @@ void publishHaAutoDiscovery() {
         doc["name"] = cfg[1];
         String id_suffix = cfg[0];
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = toLowerCase(entity_id);
-        doc["object_id"] = toLowerCase(entity_id);
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["payload_press"] = "PRESS";
         doc["icon"] = cfg[2];
@@ -370,8 +361,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Trigger Sequence";
     String sequencer_id = String(MQTT_UNIQUE_ID) + "_sequencer";
-    doc["unique_id"] = toLowerCase(sequencer_id);
-    doc["object_id"] = toLowerCase(sequencer_id);
+    doc["unique_id"] = sequencer_id;
+    doc["object_id"] = sequencer_id;
     doc["command_topic"] = device_base_topic + "/sequencer/command";
     doc["payload_press"] = "PRESS";
     doc["icon"] = "mdi:movie-play-outline";
@@ -383,8 +374,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Temporal Echo Effect";
     String temporal_echo_id = String(MQTT_UNIQUE_ID) + "_temporal_echo";
-    doc["unique_id"] = toLowerCase(temporal_echo_id);
-    doc["object_id"] = toLowerCase(temporal_echo_id);
+    doc["unique_id"] = temporal_echo_id;
+    doc["object_id"] = temporal_echo_id;
     doc["command_topic"] = device_base_topic + "/temporal_echo/command";
     doc["state_topic"] = device_base_topic + "/temporal_echo/state";
     doc["icon"] = "mdi:ghost";
@@ -396,8 +387,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Profile";
     String profile_id = String(MQTT_UNIQUE_ID) + "_profile";
-    doc["unique_id"] = toLowerCase(profile_id);
-    doc["object_id"] = toLowerCase(profile_id);
+    doc["unique_id"] = profile_id;
+    doc["object_id"] = profile_id;
     doc["command_topic"] = device_base_topic + "/profile/command";
     doc["state_topic"] = device_base_topic + "/profile/state";
     JsonArray profiles = doc["options"].to<JsonArray>();
@@ -417,8 +408,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Override Switch";
     String override_switch_id = String(MQTT_UNIQUE_ID) + "_override_switch";
-    doc["unique_id"] = toLowerCase(override_switch_id);
-    doc["object_id"] = toLowerCase(override_switch_id);
+    doc["unique_id"] = override_switch_id;
+    doc["object_id"] = override_switch_id;
     doc["command_topic"] = device_base_topic + "/override/command";
     doc["state_topic"] = device_base_topic + "/override/state";
     doc["icon"] = "mdi:message-cog";
@@ -436,8 +427,8 @@ void publishHaAutoDiscovery() {
         doc["name"] = "Override Message Line " + String(i);
         String id_suffix = "override_line_" + String(i);
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = toLowerCase(entity_id);
-        doc["object_id"] = toLowerCase(entity_id);
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
         doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = "mdi:message-draw";
@@ -450,8 +441,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Play Sound";
     String play_sound_id = String(MQTT_UNIQUE_ID) + "_play_sound";
-    doc["unique_id"] = toLowerCase(play_sound_id);
-    doc["object_id"] = toLowerCase(play_sound_id);
+    doc["unique_id"] = play_sound_id;
+    doc["object_id"] = play_sound_id;
     doc["command_topic"] = device_base_topic + "/play_sound/command";
     doc["state_topic"] = device_base_topic + "/play_sound/state";
     JsonArray sounds = doc["options"].to<JsonArray>();
@@ -473,8 +464,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "TTS Text";
     String tts_text_id = String(MQTT_UNIQUE_ID) + "_tts_text";
-    doc["unique_id"] = toLowerCase(tts_text_id);
-    doc["object_id"] = toLowerCase(tts_text_id);
+    doc["unique_id"] = tts_text_id;
+    doc["object_id"] = tts_text_id;
     doc["command_topic"] = device_base_topic + "/tts_text/command";
     doc["state_topic"] = device_base_topic + "/tts_text/state";
     doc["icon"] = "mdi:text-to-speech";
@@ -488,8 +479,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Display Mode";
     String display_mode_id = String(MQTT_UNIQUE_ID) + "_display_mode";
-    doc["unique_id"] = toLowerCase(display_mode_id);
-    doc["object_id"] = toLowerCase(display_mode_id);
+    doc["unique_id"] = display_mode_id;
+    doc["object_id"] = display_mode_id;
     doc["command_topic"] = device_base_topic + "/display_mode/command";
     doc["state_topic"] = device_base_topic + "/display_mode/state";
     JsonArray modes = doc["options"].to<JsonArray>();
@@ -507,8 +498,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Weather City";
     String weather_city_id = String(MQTT_UNIQUE_ID) + "_weather_city";
-    doc["unique_id"] = toLowerCase(weather_city_id);
-    doc["object_id"] = toLowerCase(weather_city_id);
+    doc["unique_id"] = weather_city_id;
+    doc["object_id"] = weather_city_id;
     doc["command_topic"] = device_base_topic + "/weather_city/command";
     doc["state_topic"] = device_base_topic + "/weather_city/state";
     doc["icon"] = "mdi:city";
@@ -520,8 +511,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Refresh Weather Data";
     String weather_refresh_id = String(MQTT_UNIQUE_ID) + "_weather_refresh";
-    doc["unique_id"] = toLowerCase(weather_refresh_id);
-    doc["object_id"] = toLowerCase(weather_refresh_id);
+    doc["unique_id"] = weather_refresh_id;
+    doc["object_id"] = weather_refresh_id;
     doc["command_topic"] = device_base_topic + "/weather_refresh/command";
     doc["payload_press"] = "PRESS";
     doc["icon"] = "mdi:refresh";
@@ -534,8 +525,8 @@ void publishHaAutoDiscovery() {
     doc.clear();
     doc["name"] = "Audio Stream Status";
     String audio_status_id = String(MQTT_UNIQUE_ID) + "_audio_status";
-    doc["unique_id"] = toLowerCase(audio_status_id);
-    doc["object_id"] = toLowerCase(audio_status_id);
+    doc["unique_id"] = audio_status_id;
+    doc["object_id"] = audio_status_id;
     doc["state_topic"] = device_base_topic + "/audio/state";
     doc["icon"] = "mdi:waveform";
     doc["device"].set(device);
