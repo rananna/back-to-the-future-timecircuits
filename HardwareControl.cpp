@@ -1011,10 +1011,11 @@ void playSound(const char* filepath, bool fromMqtt) {
         strncpy(currentSoundFile, fullPath, MAX_FILENAME_LENGTH - 1);
         currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
 
-        if (audio.connecttoFS(LittleFS, fullPath)) {
-            Log_printf(LOG_LEVEL_INFO, "Started playing: %s", fullPath);
+        // --- FIX: Pass the persistent global buffer, not the temporary 'fullPath' pointer ---
+        if (audio.connecttoFS(LittleFS, currentSoundFile)) {
+            Log_printf(LOG_LEVEL_INFO, "Started playing: %s", currentSoundFile);
         } else {
-            Log_printf(LOG_LEVEL_ERROR, "Failed to connect to audio file: %s", fullPath);
+            Log_printf(LOG_LEVEL_ERROR, "Failed to connect to audio file: %s", currentSoundFile);
             currentSoundFile[0] = '\0';
             isPlayingSound = false;
             isSoundFromMqtt = false;
