@@ -21,6 +21,13 @@ from .entity import BTTFTimeCircuitsEntity
 
 _LOGGER = logging.getLogger(__name__)
 
+
+# Define the sensor descriptions
+@dataclass(frozen=True)
+class BTTFTimeCircuitsSensorEntityDescription(SensorEntityDescription):
+    """A class that describes BTTF Time Circuits sensor entities."""
+
+
 SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
     BTTFTimeCircuitsSensorEntityDescription(
         key="dest_year",
@@ -94,12 +101,6 @@ SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
         icon="mdi:information",
     ),
 )
-
-
-# Define the sensor descriptions
-@dataclass(frozen=True)
-class BTTFTimeCircuitsSensorEntityDescription(SensorEntityDescription):
-    """A class that describes BTTF Time Circuits sensor entities."""
 
 
 async def async_setup_entry(
