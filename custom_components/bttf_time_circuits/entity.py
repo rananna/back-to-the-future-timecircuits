@@ -5,8 +5,8 @@ import logging
 
 from homeassistant.helpers.entity import Entity
 
-from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
+from .device import BTTFTimeCircuitsDevice
 
 _LOGGER = logging.getLogger(__name__)
 

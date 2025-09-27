@@ -18,8 +18,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_platform, storage
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
+from .device import BTTFTimeCircuitsDevice
 from .entity import BTTFTimeCircuitsEntity
 
 _LOGGER = logging.getLogger(__name__)
