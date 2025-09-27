@@ -19,6 +19,7 @@ class BTTFTimeCircuitsEntity(Entity):
 
     def __init__(self, device: BTTFTimeCircuitsDevice) -> None:
         """Initialize the entity."""
+        super().__init__()
         _LOGGER.debug("BTTFTimeCircuitsEntity.__init__")
         self._device = device
         self._attr_device_info = DeviceInfo(
