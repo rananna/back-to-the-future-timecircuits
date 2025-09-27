@@ -524,30 +524,31 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
             xSemaphoreGive(xDisplayHardwareMutex);
           }
       }
+    }
 
-      // --- Last Time Departed ---
-      if (updateLast) {
-          struct tm lastTimeDepartedInfo = {0};
-          lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
-          lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
-          lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
-          lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
-          lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
+    // --- Last Time Departed ---
+    // This is not dependent on NTP sync, so it can be updated immediately.
+    if (updateLast) {
+        struct tm lastTimeDepartedInfo = {0};
+        lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
+        lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
+        lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
+        lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
+        lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
 
-          if(!isRowInManualMode[2]) {
-              updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
-          } else {
-              if (!manualDisplayText[2][0].empty()) printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
-              if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
-              if (!manualDisplayText[2][2].empty()) printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
-              if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
-          }
-          if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
-            xSemaphoreGive(xDisplayHardwareMutex);
-          }
-      }
+        if(!isRowInManualMode[2]) {
+            updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
+        } else {
+            if (!manualDisplayText[2][0].empty()) printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
+            if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
+            if (!manualDisplayText[2][2].empty()) printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
+            if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
+        }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+          lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+          vTaskDelay(pdMS_TO_TICKS(2));
+          xSemaphoreGive(xDisplayHardwareMutex);
+        }
     }
 #endif
 }
