@@ -73,7 +73,7 @@ void publishHaPresetSelector() {
     if (!mqttClient.connected()) return;
 
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    JsonDocument doc;
+    DynamicJsonDocument doc(1024);
     String topic;
     String payload;
 
@@ -107,7 +107,9 @@ void publishHaPresetSelector() {
     JsonDocument presetsDoc;
     if (deserializeJson(presetsDoc, presetsJson) == DeserializationError::Ok) {
         for (JsonObject preset : presetsDoc.as<JsonArray>()) {
-            options.add(preset["name"].as<String>());
+            if (preset.containsKey("name")) {
+                options.add(preset["name"].as<String>());
+            }
         }
     }
 
@@ -183,7 +185,7 @@ void publishHaAutoDiscovery() {
     availability["payload_available"] = "online";
     availability["payload_not_available"] = "offline";
 
-    JsonDocument doc;
+    DynamicJsonDocument doc(1024);
     
     doc.clear();
     doc["name"] = "Status";
