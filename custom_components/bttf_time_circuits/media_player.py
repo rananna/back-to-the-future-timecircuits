@@ -15,6 +15,7 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_platform, storage
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import BTTFTimeCircuitsDevice
@@ -40,6 +41,9 @@ SOUND_EFFECTS = [
     "TIME_TRAVEL_FAIL",
 ]
 
+STORAGE_KEY = f"{DOMAIN}_favorites"
+STORAGE_VERSION = 1
+
 
 MEDIA_PLAYER_DESCRIPTION = MediaPlayerEntityDescription(
     key="media_player",
@@ -57,6 +61,18 @@ async def async_setup_entry(
     _LOGGER.debug("media_player.async_setup_entry")
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
     async_add_entities([BTTFTimeCircuitsMediaPlayer(device, MEDIA_PLAYER_DESCRIPTION)])
+
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        "favorite_radio_station",
+        {},
+        "async_favorite_radio_station",
+    )
+    platform.async_register_entity_service(
+        "clear_favorite_radio_stations",
+        {},
+        "async_clear_favorite_radio_stations",
+    )
 
 
 class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
@@ -90,9 +106,18 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         self._attr_media_content_type = None
         self._attr_media_title = None
 
+        self._favorites_store: storage.Store | None = None
+        self._favorite_radio_stations: list[str] = []
+
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
+
+        self._favorites_store = storage.Store(self.hass, STORAGE_VERSION, STORAGE_KEY)
+        favorites = await self._favorites_store.async_load()
+        if favorites:
+            self._favorite_radio_stations = favorites.get("radio_stations", [])
+        self._update_source_list()
 
         @callback
         def audio_state_received(msg: mqtt.ReceiveMessage) -> None:
@@ -110,13 +135,52 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             except (ValueError, TypeError):
                 pass
 
+        @callback
+        def favorite_station_pressed(msg: mqtt.ReceiveMessage) -> None:
+            """Handle favorite station button press."""
+            self.hass.async_create_task(self.async_favorite_radio_station())
+
         await mqtt.async_subscribe(
             self.hass, f"{self._device.base_topic}/audio/state", audio_state_received, 1
         )
         await mqtt.async_subscribe(
-            self.hass, f"{self._device.base_topic}/volume/state", volume_state_received, 1
+            self.hass,
+            f"{self._device.base_topic}/volume/state",
+            volume_state_received,
+            1,
+        )
+        await mqtt.async_subscribe(
+            self.hass,
+            f"{self._device.base_topic}/favorite_radio_station/command",
+            favorite_station_pressed,
+            1,
         )
 
+    def _update_source_list(self) -> None:
+        """Update the source list with favorites."""
+        self._attr_source_list = SOUND_EFFECTS + self._favorite_radio_stations
+        self.async_write_ha_state()
+
+    async def async_favorite_radio_station(self, **kwargs: Any) -> None:
+        """Favorite the current radio station."""
+        assert self._favorites_store
+        if (
+            self._attr_media_content_type in [MediaType.URL, MediaType.MUSIC]
+            and self._attr_media_content_id
+            and self._attr_media_content_id not in self._favorite_radio_stations
+        ):
+            self._favorite_radio_stations.append(self._attr_media_content_id)
+            await self._favorites_store.async_save(
+                {"radio_stations": self._favorite_radio_stations}
+            )
+            self._update_source_list()
+
+    async def async_clear_favorite_radio_stations(self, **kwargs: Any) -> None:
+        """Clear all favorite radio stations."""
+        assert self._favorites_store
+        self._favorite_radio_stations = []
+        await self._favorites_store.async_save({"radio_stations": []})
+        self._update_source_list()
 
     async def async_set_volume_level(self, volume: float) -> None:
         """Set the volume level."""
@@ -171,7 +235,12 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
 
     async def async_select_source(self, source: str) -> None:
         """Select a source to play."""
-        await self.async_play_media("sound", source)
+        if source in self._favorite_radio_stations:
+            await self.async_play_media(MediaType.URL, source)
+        elif source in SOUND_EFFECTS:
+            await self.async_play_media("sound", source)
+        else:
+            _LOGGER.warning(f"Unknown source selected: {source}")
 
     async def async_select_sound(self, sound: str):
         """Play a sound effect."""

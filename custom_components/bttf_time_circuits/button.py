@@ -55,6 +55,11 @@ BUTTONS: tuple[BTTFTimeCircuitsButtonEntityDescription, ...] = (
         name="Refresh Weather Data",
         icon="mdi:refresh",
     ),
+    BTTFTimeCircuitsButtonEntityDescription(
+        key="favorite_radio_station",
+        name="Favorite Radio Station",
+        icon="mdi:star",
+    ),
 )
 
 
