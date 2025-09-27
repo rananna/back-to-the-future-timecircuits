@@ -82,15 +82,22 @@ The integration creates a device with a rich set of entities to control every as
 The `media_player.bttf_time_circuits_speaker` entity is your central hub for all audio.
 
 ### **Playing Sound Effects**
-You can play any of the built-in sound effects using the `bttf_time_circuits.select_sound` service.
+
+You can play any of the built-in sound effects directly from the media player entity.
+
+1.  Navigate to the `media_player.bttf_time_circuits_speaker` entity in your Home Assistant dashboard.
+2.  Click the three dots to open the media controls.
+3.  Select a sound from the **Source** dropdown menu.
+
+You can also use the `media_player.select_source` service in scripts or automations:
 
 ```yaml
-# Example: Play an alarm sound
-- service: bttf_time_circuits.select_sound
+# Example: Play an alarm sound in an automation
+- service: media_player.select_source
   target:
     entity_id: media_player.bttf_time_circuits_speaker
   data:
-    sound: "ALARM_SOUND"
+    source: "ALARM_SOUND"
 ```
 
 ### **Playing Radio Streams**
