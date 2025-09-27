@@ -87,11 +87,6 @@ TEXTS: tuple[BTTFTimeCircuitsTextEntityDescription, ...] = (
         name="Last Departed Time",
         icon="mdi:clock",
     ),
-    BTTFTimeCircuitsTextEntityDescription(
-        key="status_text",
-        name="Status Text",
-        icon="mdi:information",
-    ),
 )
 
 
