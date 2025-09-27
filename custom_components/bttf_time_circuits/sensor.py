@@ -90,12 +90,6 @@ SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
         icon="mdi:clock",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
-        key="speed",
-        name="Speed",
-        icon="mdi:gauge",
-        device_class=SensorDeviceClass.SPEED,
-    ),
-    BTTFTimeCircuitsSensorEntityDescription(
         key="status",
         name="Status",
         icon="mdi:information",

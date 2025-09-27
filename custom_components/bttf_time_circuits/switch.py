@@ -32,34 +32,7 @@ class BTTFTimeCircuitsSwitchEntityDescription(SwitchEntityDescription):
     mqtt_key: str | None = None
 
 
-SWITCHES: tuple[BTTFTimeCircuitsSwitchEntityDescription, ...] = (
-    BTTFTimeCircuitsSwitchEntityDescription(
-        key="flux_capacitor",
-        name="Flux Capacitor",
-        icon="mdi:flash",
-    ),
-    BTTFTimeCircuitsSwitchEntityDescription(
-        key="display_mode_destination",
-        name="Display Mode Destination",
-        icon="mdi:calendar-clock",
-        on_payload="Destination",
-        mqtt_key="display_mode",
-    ),
-    BTTFTimeCircuitsSwitchEntityDescription(
-        key="display_mode_present",
-        name="Display Mode Present",
-        icon="mdi:calendar-clock",
-        on_payload="Present",
-        mqtt_key="display_mode",
-    ),
-    BTTFTimeCircuitsSwitchEntityDescription(
-        key="display_mode_last_departed",
-        name="Display Mode Last Departed",
-        icon="mdi:calendar-clock",
-        on_payload="Last Departed",
-        mqtt_key="display_mode",
-    ),
-)
+SWITCHES: tuple[BTTFTimeCircuitsSwitchEntityDescription, ...] = ()
 
 
 async def async_setup_entry(
