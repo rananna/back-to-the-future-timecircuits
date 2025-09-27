@@ -98,9 +98,17 @@ class BTTFTimeCircuitsMqttButton(BTTFTimeCircuitsEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        command_topic = (
-            f"{self.device.base_topic}/{self.entity_description.key}/command"
-        )
+        # The "time_travel" button entity is now an alias for "trigger_animation"
+        # to ensure it works with the latest firmware, which expects the
+        # "trigger_animation" command. This change is made here to avoid
+        # altering the entity's unique ID in Home Assistant, which would
+        # create a breaking change for users.
+        if self.entity_description.key == "time_travel":
+            command_topic = f"{self._device.base_topic}/trigger_animation/command"
+        else:
+            command_topic = (
+                f"{self._device.base_topic}/{self.entity_description.key}/command"
+            )
         await mqtt.async_publish(self.hass, command_topic, "PRESS", 1, False)
 
 
