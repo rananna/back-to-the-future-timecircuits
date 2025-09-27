@@ -49,6 +49,11 @@ class BTTFTimeCircuitsDevice:
             "sw_version": "1.0.0",
         }
 
+    async def async_discover_entities(self) -> None:
+        """Send a discovery message to the device."""
+        command_topic = f"{self.base_topic}/discover/command"
+        await mqtt.async_publish(self.hass, command_topic, "ON", 1, False)
+
     async def async_handle_set_status_display(self, call: ServiceCall) -> None:
         """Handle the set_status_display service call."""
         for key in SERVICE_SET_STATUS_DISPLAY_FIELDS:
