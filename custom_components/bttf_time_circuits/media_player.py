@@ -67,18 +67,6 @@ async def async_setup_entry(
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
     async_add_entities([BTTFTimeCircuitsMediaPlayer(device, MEDIA_PLAYER_DESCRIPTION)])
 
-    platform = entity_platform.async_get_current_platform()
-    platform.async_register_entity_service(
-        "favorite_radio_station",
-        {},
-        "async_favorite_radio_station",
-    )
-    platform.async_register_entity_service(
-        "clear_favorite_radio_stations",
-        {},
-        "async_clear_favorite_radio_stations",
-    )
-
 
 class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
     """Representation of a BTTF Time Circuits Media Player."""
