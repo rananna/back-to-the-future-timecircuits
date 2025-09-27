@@ -1,5 +1,37 @@
+set_destination_time:
+  description: "Set the destination time display."
+  fields:
+    datetime:
+      description: "The date and time to set."
+      example: "2015-10-21 07:28:00"
+      selector:
+        datetime:
+set_present_time:
+  description: "Set the present time display."
+  fields:
+    datetime:
+      description: "The date and time to set."
+      example: "1985-10-26 01:22:00"
+      selector:
+        datetime:
+set_last_departed_time:
+  description: "Set the last departed time display."
+  fields:
+    datetime:
+      description: "The date and time to set."
+      example: "1955-11-05 06:00:00"
+      selector:
+        datetime:
+time_travel:
+  description: "Initiate a full time travel sequence to the specified destination time."
+  fields:
+    datetime:
+      description: "The destination date and time."
+      example: "2015-10-21 07:28:00"
+      selector:
+        datetime:
 set_status_display:
-  description: "Set the time circuits displays."
+  description: "Set the time circuits displays manually (advanced)."
   fields:
     destination_month:
       description: "Destination month"

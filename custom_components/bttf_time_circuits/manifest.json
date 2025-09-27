@@ -15,6 +15,7 @@
     "notify",
     "number",
     "sensor",
+    "select",
     "switch",
     "text",
     "update"

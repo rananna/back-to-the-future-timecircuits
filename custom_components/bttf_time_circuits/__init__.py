@@ -19,6 +19,7 @@ PLATFORMS: list[str] = [
     "notify",
     "number",
     "sensor",
+    "select",
     "switch",
     "text",
     "update",
@@ -72,6 +73,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "clear_favorite_radio_stations",
         device.async_handle_clear_favorite_radio_stations,
     )
+    hass.services.async_register(
+        DOMAIN,
+        "set_destination_time",
+        device.async_handle_set_destination_time,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "set_present_time",
+        device.async_handle_set_present_time,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "set_last_departed_time",
+        device.async_handle_set_last_departed_time,
+    )
 
     entry.async_on_unload(
         lambda: hass.services.async_remove(DOMAIN, "set_status_display")
@@ -82,6 +98,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     entry.async_on_unload(
         lambda: hass.services.async_remove(DOMAIN, "clear_favorite_radio_stations")
+    )
+    entry.async_on_unload(
+        lambda: hass.services.async_remove(DOMAIN, "set_destination_time")
+    )
+    entry.async_on_unload(
+        lambda: hass.services.async_remove(DOMAIN, "set_present_time")
+    )
+    entry.async_on_unload(
+        lambda: hass.services.async_remove(DOMAIN, "set_last_departed_time")
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "time_travel",
+        device.async_handle_time_travel,
+    )
+    entry.async_on_unload(
+        lambda: hass.services.async_remove(DOMAIN, "time_travel")
     )
 
     return True

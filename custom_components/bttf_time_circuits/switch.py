@@ -32,7 +32,23 @@ class BTTFTimeCircuitsSwitchEntityDescription(SwitchEntityDescription):
     mqtt_key: str | None = None
 
 
-SWITCHES: tuple[BTTFTimeCircuitsSwitchEntityDescription, ...] = ()
+SWITCHES: tuple[BTTFTimeCircuitsSwitchEntityDescription, ...] = (
+    BTTFTimeCircuitsSwitchEntityDescription(
+        key="override_switch",
+        name="Override Switch",
+        icon="mdi:television-shimmer",
+    ),
+    BTTFTimeCircuitsSwitchEntityDescription(
+        key="24h_format",
+        name="24h Format",
+        icon="mdi:clock-time-twelve-outline",
+    ),
+    BTTFTimeCircuitsSwitchEntityDescription(
+        key="temporal_echo",
+        name="Temporal Echo",
+        icon="mdi:ghost",
+    ),
+)
 
 
 async def async_setup_entry(
