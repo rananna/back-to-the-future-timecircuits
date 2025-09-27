@@ -6,6 +6,7 @@ import logging
 from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
@@ -69,6 +70,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     device = BTTFTimeCircuitsDevice(hass, device_id)
     hass.data[DOMAIN][entry.entry_id] = device
+
+    device_registry = dr.async_get(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, device.device_id)},
+        name="Time Circuits",
+        manufacturer="rananna",
+        model="ESP32",
+        sw_version="1.0.0",
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
