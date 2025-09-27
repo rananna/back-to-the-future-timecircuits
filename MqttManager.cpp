@@ -580,6 +580,10 @@ void reconnectMqtt() {
     mqttClient.subscribe(sequencer_topic.c_str());
     Log_printf(LOG_LEVEL_DEBUG, "Subscribed to sequencer command topic: %s", sequencer_topic.c_str());
 
+    String discover_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/discover/command";
+    mqttClient.subscribe(discover_topic.c_str());
+    Log_printf(LOG_LEVEL_DEBUG, "Subscribed to discover command topic: %s", discover_topic.c_str());
+
 
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
       if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !currentSettings.dataPoints[i].mqttTopic.empty()) {
@@ -814,6 +818,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             ESP.restart();
         } else if (component == "save_all_settings" && message == "PRESS") {
             saveSettings();
+        } else if (component == "discover" && message == "ON") {
+            Log_printf(LOG_LEVEL_INFO, "HA discovery command received. Republishing all entities.");
+            publishHaAutoDiscovery();
+            publishHaPresetSelector();
         } else if (component == "temporal_echo") {
             isEchoEffectActive = (message == "ON");
             if (isEchoEffectActive) echoEffectStartTime = millis();
