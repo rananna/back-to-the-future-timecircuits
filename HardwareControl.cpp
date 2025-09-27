@@ -1814,24 +1814,46 @@ void animateInterferencePattern(unsigned long elapsed, int duration, const char*
  * @param ... The variable arguments for the format string.
  */
 void safe_printf(const char *format, ...) {
+    // Define a static buffer to hold the formatted string. This avoids placing a large
+    // buffer on the stack, which could cause an overflow. The mutex ensures that this
+    // static buffer is not accessed by multiple tasks simultaneously.
+    // Increased size to 2500 to safely accommodate the largest HA discovery payloads.
+    static char buf[2500];
+
     va_list args;
     va_start(args, format);
 
     if (xSerialMutex == NULL) {
         // Fallback to vprintf if mutex is not available (e.g., before scheduler starts).
+        // This path is less likely to handle very long strings but is a safe fallback.
         Serial.vprintf(format, args);
     } else {
         if (xSemaphoreTake(xSerialMutex, portMAX_DELAY) == pdTRUE) {
-            Serial.vprintf(format, args);
+            // Format the complete message into our local buffer.
+            // vsnprintf is safe and will not write more than sizeof(buf) bytes.
+            int len = vsnprintf(buf, sizeof(buf), format, args);
+
+            if (len >= 0) {
+                // Write the buffer to the Serial port in chunks. This avoids overflowing
+                // the UART's internal buffer, which is the root cause of the truncation.
+                const size_t chunkSize = 64;
+                for (int i = 0; i < len; i += chunkSize) {
+                    Serial.write(&buf[i], min((size_t)len - i, chunkSize));
+                }
+            }
+            // If vsnprintf fails (returns < 0), there's not much we can do, so we just release the mutex.
+
             xSemaphoreGive(xSerialMutex);
         } else {
-            // If we fail to take the mutex, print an error, then the message without protection.
+            // If we fail to take the mutex, something is critically wrong.
+            // As a last resort, try to print an error and then the message without protection.
             Serial.println("FATAL: Could not take serial mutex!");
-            Serial.vprintf(format, args);
+            vsnprintf(buf, sizeof(buf), format, args);
+            Serial.print(buf); // Use print() as a final attempt.
         }
     }
 
-    va_end(args); // Ensure va_end is always called once.
+    va_end(args);
 }
 
 /**
