@@ -417,7 +417,7 @@ void applySettingsFromJson(const JsonObject& obj) {
     validateAndSet("departureMinute", currentSettings.departureMinute, 0, 59);
     validateAndSet("arrivalHour", currentSettings.arrivalHour, 0, 23);
     validateAndSet("arrivalMinute", currentSettings.arrivalMinute, 0, 59);
-    validateAndSetUChar("brightness", currentSettings.brightness, 0, 15);
+    validateAndSetUChar("brightness", currentSettings.brightness, 0, 7);
     if (hardwareInitialized) {
         applyBrightness();
     }

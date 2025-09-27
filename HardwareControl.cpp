@@ -1126,14 +1126,7 @@ void displayStaticFluxText() {
 void applyBrightness() {
   #if ENABLE_HARDWARE
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by applyBrightness"); }
-    // Corrected: The UI provides a value from 0-7. We will use this value directly.
-    // Although the hardware supports 0-15, the 0-7 range is what the UI and diagnostic test use.
     uint8_t brightnessValue = currentSettings.brightness;
-
-    // The setBrightness function can accept values up to 15, but we are clamping it to the UI's max of 7.
-    if (brightnessValue > 7) {
-        brightnessValue = 7;
-    }
 
     // Apply the new brightness level to all 12 display segments
     destRow.month.setBrightness(brightnessValue);
@@ -1149,8 +1142,23 @@ void applyBrightness() {
     lastRow.month.setBrightness(brightnessValue);
     lastRow.day.setBrightness(brightnessValue);
     lastRow.year.setBrightness(brightnessValue);
-
     lastRow.time.setBrightness(brightnessValue);
+
+    // Write the changes to the hardware to make them take effect
+    destRow.month.writeDisplay();
+    destRow.day.writeDisplay();
+    destRow.year.writeDisplay();
+    destRow.time.writeDisplay();
+
+    presRow.month.writeDisplay();
+    presRow.day.writeDisplay();
+    presRow.year.writeDisplay();
+    presRow.time.writeDisplay();
+
+    lastRow.month.writeDisplay();
+    lastRow.day.writeDisplay();
+    lastRow.year.writeDisplay();
+    lastRow.time.writeDisplay();
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by applyBrightness"); }
   #endif
 }
