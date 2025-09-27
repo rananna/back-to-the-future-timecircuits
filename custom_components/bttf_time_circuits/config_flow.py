@@ -11,7 +11,7 @@ from homeassistant.helpers.typing import DiscoveryInfoType
 from .const import DOMAIN
 
 
-class BTTFTimeCircuitsConfigFlow(ConfigFlow, domain=DOMAIN):
+class BttfTimeCircuitsConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for BTTF Time Circuits."""
 
     VERSION = 1
