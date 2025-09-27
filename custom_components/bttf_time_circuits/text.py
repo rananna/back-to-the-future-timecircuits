@@ -26,6 +26,75 @@ class BTTFTimeCircuitsTextEntityDescription(TextEntityDescription):
     """A class that describes BTTF Time Circuits text entities."""
 
 
+TEXTS: tuple[BTTFTimeCircuitsTextEntityDescription, ...] = (
+    BTTFTimeCircuitsTextEntityDescription(
+        key="dest_year",
+        name="Destination Year",
+        icon="mdi:calendar",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="dest_month",
+        name="Destination Month",
+        icon="mdi:calendar",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="dest_day",
+        name="Destination Day",
+        icon="mdi:calendar",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="dest_time",
+        name="Destination Time",
+        icon="mdi:clock",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="pres_year",
+        name="Present Year",
+        icon="mdi:calendar",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="pres_month",
+        name="Present Month",
+        icon="mdi:calendar",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="pres_day",
+        name="Present Day",
+        icon="mdi:calendar",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="pres_time",
+        name="Present Time",
+        icon="mdi:clock",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="last_year",
+        name="Last Departed Year",
+        icon="mdi:calendar",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="last_month",
+        name="Last Departed Month",
+        icon="mdi:calendar",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="last_day",
+        name="Last Departed Day",
+        icon="mdi:calendar",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="last_time",
+        name="Last Departed Time",
+        icon="mdi:clock",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="status_text",
+        name="Status Text",
+        icon="mdi:information",
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -34,30 +103,8 @@ async def async_setup_entry(
     """Set up the BTTF Time Circuits text entities."""
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
 
-    @callback
-    def async_discover(
-        payload: str,
-    ) -> None:
-        """Discover and add a BTTF Time Circuits text entity."""
-        try:
-            config = json.loads(payload)
-        except json.JSONDecodeError:
-            _LOGGER.warning("Received malformed JSON for text discovery: %s", payload)
-            return
-
-        entity_description = BTTFTimeCircuitsTextEntityDescription(
-            key=config["key"],
-            name=config.get("name"),
-            icon=config.get("icon"),
-        )
-
-        async_add_entities([BTTFTimeCircuitsText(device, entity_description, config)])
-
-    await mqtt.async_subscribe(
-        hass,
-        f"{device.base_topic}/text/+/config",
-        lambda msg: async_discover(msg.payload),
-        0,
+    async_add_entities(
+        BTTFTimeCircuitsText(device, description) for description in TEXTS
     )
 
 
@@ -70,21 +117,16 @@ class BTTFTimeCircuitsText(BTTFTimeCircuitsEntity, TextEntity):
         self,
         device: BTTFTimeCircuitsDevice,
         description: BTTFTimeCircuitsTextEntityDescription,
-        config: dict,
     ) -> None:
         """Initialize the text entity."""
         self.entity_description = description
-        self._config = config
         super().__init__(device)
         self._attr_native_value = None
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
-        state_topic = self._config.get("state_topic")
-
-        if not state_topic:
-            return
+        state_topic = f"{self.device.base_topic}/{self.entity_description.key}/state"
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
@@ -96,9 +138,10 @@ class BTTFTimeCircuitsText(BTTFTimeCircuitsEntity, TextEntity):
 
     async def async_set_value(self, value: str) -> None:
         """Update the current value."""
-        command_topic = self._config.get("command_topic")
-        if command_topic:
-            await mqtt.async_publish(self.hass, command_topic, value, 1, False)
+        command_topic = (
+            f"{self.device.base_topic}/{self.entity_description.key}/command"
+        )
+        await mqtt.async_publish(self.hass, command_topic, value, 1, False)
         # Optimistically update the state
         self._attr_native_value = value
         self.async_write_ha_state()
