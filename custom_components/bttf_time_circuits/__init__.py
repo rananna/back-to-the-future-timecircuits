@@ -1,12 +1,14 @@
 """The Back to the Future Time Circuits integration."""
 from __future__ import annotations
 
+import json
 import logging
 
 from homeassistant.components import mqtt
+from homeassistant.components.mqtt import ReceiveMessage
 from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.typing import ConfigType
@@ -163,6 +165,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(
         lambda: hass.services.async_remove(DOMAIN, "clear_favorite_radio_stations")
     )
+
+    @callback
+    async def async_handle_devices_cmnd(msg: ReceiveMessage):
+        """Handle the devices command."""
+        try:
+            payload = json.loads(msg.payload)
+        except json.JSONDecodeError:
+            return
+
+        if payload.get("action") == "discover":
+            await mqtt.async_publish(
+                hass,
+                "bttf_time_circuits/devices/all/cmnd/discover",
+                '{"action":"discover"}',
+                1,
+                False,
+            )
+
+    unsubscribe = await mqtt.async_subscribe(
+        hass,
+        "bttf_time_circuits/cmnd/DEVICES",
+        async_handle_devices_cmnd,
+        1,
+    )
+    entry.async_on_unload(unsubscribe)
 
     return True
 
