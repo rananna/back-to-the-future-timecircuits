@@ -29,15 +29,6 @@ class BTTFTimeCircuitsNumberEntityDescription(NumberEntityDescription):
 
 NUMBERS: tuple[BTTFTimeCircuitsNumberEntityDescription, ...] = (
     BTTFTimeCircuitsNumberEntityDescription(
-        key="volume",
-        name="Volume",
-        icon="mdi:volume-high",
-        native_min_value=0,
-        native_max_value=100,
-        native_step=1,
-        mode=NumberMode.SLIDER,
-    ),
-    BTTFTimeCircuitsNumberEntityDescription(
         key="brightness",
         name="Brightness",
         icon="mdi:brightness-6",
