@@ -1,17 +1,17 @@
 """Config flow for Back to the Future Time Circuits."""
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import voluptuous as vol
+from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
-from homeassistant.helpers.typing import DiscoveryInfoType
 
 from .const import DOMAIN
 
 
-class BttfTimeCircuitsConfigFlow(ConfigFlow, domain=DOMAIN):
+@config_entries.HANDLERS.register(DOMAIN)
+class BttfTimeCircuitsConfigFlow(ConfigFlow):
     """Handle a config flow for BTTF Time Circuits."""
 
     VERSION = 1
