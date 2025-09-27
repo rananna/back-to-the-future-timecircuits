@@ -842,15 +842,20 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             String state_topic = base_topic + "tts_text/state";
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
         } else if (component == "tts") {
-            Log_printf(LOG_LEVEL_INFO, "Handling TTS command.");
+            Log_printf(LOG_LEVEL_INFO, "Handling media player command (tts topic). Payload: %s", message.c_str());
             JsonDocument doc;
             if (deserializeJson(doc, message) == DeserializationError::Ok) {
-                const char* url = doc["url"];
-                int volume = doc["volume"] | -1;
-                Log_printf(LOG_LEVEL_INFO, "Parsed TTS JSON. URL: %s, Volume: %d", url, volume);
-                startAudioStream(url, true, volume);
+                // HA's play_media service sends 'media_id', but we also check for 'url' for direct calls.
+                const char* url = doc["media_id"] | doc["url"];
+                if (url) {
+                    int volume = doc["volume"] | -1; // Use dynamic volume if provided, else -1
+                    Log_printf(LOG_LEVEL_INFO, "Parsed media JSON. URL: %s, Volume: %d", url, volume);
+                    startAudioStream(url, true, volume);
+                } else {
+                    Log_printf(LOG_LEVEL_ERROR, "Media JSON received, but 'media_id' or 'url' key is missing.");
+                }
             } else {
-                Log_printf(LOG_LEVEL_INFO, "TTS payload is not JSON, treating as raw URL.");
+                Log_printf(LOG_LEVEL_WARN, "Media command payload is not valid JSON. Treating as raw URL.");
                 startAudioStream(message.c_str(), true);
             }
         } else if (component == "radio") {

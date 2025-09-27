@@ -6,7 +6,8 @@
 
 // --- MQTT Configuration ---
 #define MQTT_BASE_TOPIC "homeassistant"
-#define MQTT_DEVICE_TYPE "bttf_tc"
+// IMPORTANT: This must match the DOMAIN constant in the Home Assistant integration.
+#define MQTT_DEVICE_TYPE "bttf_time_circuits"
 extern char MQTT_UNIQUE_ID[21];
 
 
