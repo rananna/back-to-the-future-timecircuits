@@ -31,7 +31,7 @@ class BTTFTimeCircuitsDevice:
         """Initialize the device."""
         self.hass = hass
         self.device_id = device_id
-        self.base_topic = f"BTTF_TC/{device_id}"
+        self.base_topic = f"bttf_time_circuits/{device_id}"
 
     async def async_handle_set_status_display(self, call: ServiceCall) -> None:
         """Handle the set_status_display service call."""
