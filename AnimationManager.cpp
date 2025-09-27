@@ -915,7 +915,10 @@ void handleBootSequence() {
                 lastRow.year.setBrightness(saved_brightness);
                 lastRow.time.setBrightness(saved_brightness);
 
-                if (hardwareInitialized) updateNormalClockDisplay();
+                // FIX: Call the internal display function directly to bypass the mutex lock
+                // that is already held by the main loop, ensuring the display is
+                // correctly refreshed after the boot sequence.
+                if (hardwareInitialized) updateNormalClockDisplay_internal(true, true, true);
                 Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
             }
             break;
