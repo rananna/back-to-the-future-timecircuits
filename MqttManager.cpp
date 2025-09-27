@@ -726,6 +726,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             if (brightness >= 0 && brightness <= 7) {
                 currentSettings.brightness = brightness;
                 settingsChanged = true;
+                applyBrightness();
             }
         } else if (component.startsWith("datapoint_")) {
             String id_suffix = component.substring(10);
