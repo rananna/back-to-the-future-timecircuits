@@ -1,6 +1,7 @@
 """Number platform for the Back to the Future Time Circuits integration."""
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from homeassistant.components import mqtt
@@ -18,51 +19,9 @@ from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
 
 
-@dataclass
+@dataclass(frozen=True)
 class BTTFTimeCircuitsNumberEntityDescription(NumberEntityDescription):
     """A class that describes BTTF Time Circuits number entities."""
-
-
-NUMBERS: tuple[BTTFTimeCircuitsNumberEntityDescription, ...] = (
-    BTTFTimeCircuitsNumberEntityDescription(
-        key="brightness",
-        name="Brightness",
-        icon="mdi:brightness-6",
-        native_min_value=0,
-        native_max_value=7,
-        native_step=1,
-        mode=NumberMode.SLIDER,
-    ),
-    BTTFTimeCircuitsNumberEntityDescription(
-        key="volume",
-        name="Volume",
-        icon="mdi:volume-high",
-        native_min_value=0,
-        native_max_value=21,
-        native_step=1,
-        mode=NumberMode.SLIDER,
-    ),
-    BTTFTimeCircuitsNumberEntityDescription(
-        key="animation_interval",
-        name="Animation Interval",
-        icon="mdi:clock-in",
-        native_unit_of_measurement="min",
-        native_min_value=0,
-        native_max_value=120,
-        native_step=1,
-        mode=NumberMode.BOX,
-    ),
-    BTTFTimeCircuitsNumberEntityDescription(
-        key="animation_duration",
-        name="Animation Duration",
-        icon="mdi:movie-filter",
-        native_unit_of_measurement="ms",
-        native_min_value=1000,
-        native_max_value=10000,
-        native_step=100,
-        mode=NumberMode.BOX,
-    ),
-)
 
 
 async def async_setup_entry(
@@ -72,8 +31,36 @@ async def async_setup_entry(
 ) -> None:
     """Set up the BTTF Time Circuits numbers."""
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
-    entities = [BTTFTimeCircuitsNumber(device, description) for description in NUMBERS]
-    async_add_entities(entities)
+
+    @callback
+    def async_discover(
+        payload: str,
+    ) -> None:
+        """Discover and add a BTTF Time Circuits number."""
+        try:
+            config = json.loads(payload)
+        except json.JSONDecodeError:
+            return
+
+        entity_description = BTTFTimeCircuitsNumberEntityDescription(
+            key=config["key"],
+            name=config.get("name"),
+            icon=config.get("icon"),
+            native_min_value=config.get("native_min_value"),
+            native_max_value=config.get("native_max_value"),
+            native_step=config.get("native_step"),
+            mode=config.get("mode"),
+            native_unit_of_measurement=config.get("native_unit_of_measurement"),
+        )
+
+        async_add_entities([BTTFTimeCircuitsNumber(device, entity_description, config)])
+
+    await mqtt.async_subscribe(
+        hass,
+        f"{device.base_topic}/number/+/config",
+        lambda msg: async_discover(msg.payload),
+        0,
+    )
 
 
 class BTTFTimeCircuitsNumber(BTTFTimeCircuitsEntity, NumberEntity):
@@ -85,15 +72,20 @@ class BTTFTimeCircuitsNumber(BTTFTimeCircuitsEntity, NumberEntity):
         self,
         device: BTTFTimeCircuitsDevice,
         description: BTTFTimeCircuitsNumberEntityDescription,
+        config: dict,
     ) -> None:
         """Initialize the number."""
         self.entity_description = description
+        self._config = config
         super().__init__(device)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
-        state_topic = f"{self._device.base_topic}/{self.entity_description.key}/state"
+        state_topic = self._config.get("state_topic")
+
+        if not state_topic:
+            return
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
@@ -109,7 +101,6 @@ class BTTFTimeCircuitsNumber(BTTFTimeCircuitsEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        command_topic = (
-            f"{self._device.base_topic}/{self.entity_description.key}/command"
-        )
-        await mqtt.async_publish(self.hass, command_topic, str(int(value)), 1, False)
+        command_topic = self._config.get("command_topic")
+        if command_topic:
+            await mqtt.async_publish(self.hass, command_topic, str(int(value)), 1, False)

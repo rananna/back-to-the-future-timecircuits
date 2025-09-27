@@ -8,6 +8,7 @@ from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
@@ -45,11 +46,20 @@ SERVICE_SET_STATUS_DISPLAY_FIELDS = [
 class BTTFTimeCircuitsDevice:
     """A wrapper for a BTTF Time Circuits device."""
 
+    device_info: DeviceInfo
+
     def __init__(self, hass: HomeAssistant, device_id: str) -> None:
         """Initialize the device."""
         self.hass = hass
         self.device_id = device_id
         self.base_topic = f"bttf_time_circuits/{device_id}"
+        self.device_info = {
+            "identifiers": {(DOMAIN, self.device_id)},
+            "name": "Time Circuits",
+            "manufacturer": "rananna",
+            "model": "ESP32",
+            "sw_version": "1.0.0",
+        }
 
     async def async_handle_set_status_display(self, call: ServiceCall) -> None:
         """Handle the set_status_display service call."""
@@ -117,11 +127,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, device.device_id)},
-        name="Time Circuits",
-        manufacturer="rananna",
-        model="ESP32",
-        sw_version="1.0.0",
+        **device.device_info,
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

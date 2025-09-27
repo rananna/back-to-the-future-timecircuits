@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
 from . import BTTFTimeCircuitsDevice
@@ -22,13 +21,7 @@ class BTTFTimeCircuitsEntity(Entity):
         super().__init__()
         _LOGGER.debug("BTTFTimeCircuitsEntity.__init__")
         self._device = device
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self._device.device_id)},
-            name="Time Circuits",
-            manufacturer="rananna",
-            model="ESP32",
-            sw_version="1.0.0",  # This will be updated by the update entity later
-        )
+        self._attr_device_info = device.device_info
         # Construct the unique ID for entities that have an entity description
         if hasattr(self, "entity_description") and self.entity_description:
             self._attr_unique_id = (

@@ -21,25 +21,9 @@ from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
 
 # Define the sensor descriptions
-@dataclass
+@dataclass(frozen=True)
 class BTTFTimeCircuitsSensorEntityDescription(SensorEntityDescription):
     """A class that describes BTTF Time Circuits sensor entities."""
-    state: Callable[[str], str] | None = None
-
-SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
-    BTTFTimeCircuitsSensorEntityDescription(
-        key="status",
-        name="Status",
-        icon="mdi:clock-outline",
-        state=lambda value: value,
-    ),
-    BTTFTimeCircuitsSensorEntityDescription(
-        key="audio_stream_status",
-        name="Audio Stream Status",
-        icon="mdi:waveform",
-        state=lambda value: value.lower(),
-    ),
-)
 
 
 async def async_setup_entry(
@@ -50,8 +34,33 @@ async def async_setup_entry(
     """Set up the BTTF Time Circuits sensors."""
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
 
-    entities = [BTTFTimeCircuitsSensor(device, description) for description in SENSORS]
-    async_add_entities(entities)
+    @callback
+    def async_discover(
+        payload: str,
+    ) -> None:
+        """Discover and add a BTTF Time Circuits sensor."""
+        try:
+            config = json.loads(payload)
+        except json.JSONDecodeError:
+            return
+
+        entity_description = BTTFTimeCircuitsSensorEntityDescription(
+            key=config["key"],
+            name=config.get("name"),
+            icon=config.get("icon"),
+            device_class=config.get("device_class"),
+        )
+
+        async_add_entities(
+            [BTTFTimeCircuitsSensor(device, entity_description, config)]
+        )
+
+    await mqtt.async_subscribe(
+        hass,
+        f"{device.base_topic}/sensor/+/config",
+        lambda msg: async_discover(msg.payload),
+        0,
+    )
 
 
 class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
@@ -59,37 +68,46 @@ class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
 
     entity_description: BTTFTimeCircuitsSensorEntityDescription
 
-    def __init__(self, device: BTTFTimeCircuitsDevice, description: BTTFTimeCircuitsSensorEntityDescription) -> None:
+    def __init__(
+        self,
+        device: BTTFTimeCircuitsDevice,
+        description: BTTFTimeCircuitsSensorEntityDescription,
+        config: dict,
+    ) -> None:
         """Initialize the sensor."""
         self.entity_description = description
+        self._config = config
         super().__init__(device)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
 
-        state_topic = f"{self._device.base_topic}/{self.entity_description.key}/state"
+        state_topic = self._config.get("state_topic")
+
+        if not state_topic:
+            return
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
             """Handle new MQTT messages."""
-            if self.entity_description.state:
-                self._attr_native_value = self.entity_description.state(msg.payload)
-            else:
-                self._attr_native_value = msg.payload
+            self._attr_native_value = msg.payload
             self.async_write_ha_state()
 
         await mqtt.async_subscribe(self.hass, state_topic, message_received, 1)
 
-        if self.entity_description.key == "status":
-            attributes_topic = f"{self._device.base_topic}/status/attributes"
+        attributes_topic = self._config.get("json_attributes_topic")
+        if attributes_topic:
+
             @callback
             def attributes_received(msg: mqtt.ReceiveMessage) -> None:
                 """Handle new MQTT attribute messages."""
                 try:
                     self._attr_extra_state_attributes = json.loads(msg.payload)
                 except json.JSONDecodeError:
-                    pass # Ignore invalid JSON
+                    pass  # Ignore invalid JSON
                 self.async_write_ha_state()
 
-            await mqtt.async_subscribe(self.hass, attributes_topic, attributes_received, 1)
+            await mqtt.async_subscribe(
+                self.hass, attributes_topic, attributes_received, 1
+            )
