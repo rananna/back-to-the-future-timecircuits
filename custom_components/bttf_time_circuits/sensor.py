@@ -135,7 +135,7 @@ class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
 
-        state_topic = f"{self.device.base_topic}/{self.entity_description.key}/state"
+        state_topic = f"{self._device.base_topic}/{self.entity_description.key}/state"
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
@@ -146,7 +146,7 @@ class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
         await mqtt.async_subscribe(self.hass, state_topic, message_received, 1)
 
         attributes_topic = (
-            f"{self.device.base_topic}/{self.entity_description.key}/attributes"
+            f"{self._device.base_topic}/{self.entity_description.key}/attributes"
         )
 
         @callback
