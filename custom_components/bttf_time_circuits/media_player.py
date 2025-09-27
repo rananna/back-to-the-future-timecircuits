@@ -32,13 +32,17 @@ SUPPORTED_FEATURES = (
 )
 
 SOUND_EFFECTS = [
-    "ALARM_SOUND",
-    "ARRIVAL_THUD",
-    "CONFIRM_ON",
-    "EASTER_EGG",
-    "REBOOT_SOUND",
-    "REMINDER_ALERT",
-    "TIME_TRAVEL_FAIL",
+    "ACCELERATION",
+    "arrival_chime",
+    "electric_sparks",
+    "engine_rev",
+    "flux_capacitor_power_on",
+    "hum",
+    "keypad_beeps",
+    "lock_on",
+    "relay_activation",
+    "sys_beep",
+    "time_travel",
 ]
 
 STORAGE_KEY = f"{DOMAIN}_favorites"
