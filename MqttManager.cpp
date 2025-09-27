@@ -24,6 +24,9 @@ extern StockManager stockManager;
 #include <Preferences.h>
 #include <LCBUrl.h> 
 
+String currentProfileName = "Standard";
+String lastDepartedPreset = "None";
+
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
     String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
     String topic = String(MQTT_BASE_TOPIC) + "/" + component + "/" + object_id + "/config";
@@ -93,18 +96,22 @@ void publishHaPresetSelector() {
     if (!mqttClient.connected()) return;
 
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    DynamicJsonDocument doc(2048);
-    String topic;
-    String payload;
+    DynamicJsonDocument doc(2048); // Use a single document
 
+    // --- Start with the standard device and availability info ---
     JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
+    device["name"] = "Time Circuits";
+    device["model"] = "BTTF Clock v1";
+    device["manufacturer"] = "Doc Brown Industries";
+    device["sw_version"] = "2.0";
 
     JsonObject availability = doc["availability"].to<JsonObject>();
     availability["topic"] = device_base_topic + "/status";
     availability["payload_available"] = "online";
     availability["payload_not_available"] = "offline";
 
+    // --- Add entity-specific config ---
     doc["name"] = "Last Departed Preset";
     String preset_selector_id = String(MQTT_UNIQUE_ID) + "_preset_selector";
     doc["unique_id"] = preset_selector_id;
@@ -120,6 +127,7 @@ void publishHaPresetSelector() {
     options.add("Arrival in Past (1955)");
     options.add("Lightning Strike (1955)");
 
+    // Add custom presets from preferences
     Preferences prefs;
     prefs.begin(PREFERENCES_NAMESPACE, true);
     String presetsJson = "[]";
@@ -136,21 +144,23 @@ void publishHaPresetSelector() {
         }
     }
 
+    // --- Publish ---
     publishDiscoveryMessage(doc, "select");
 }
 
-
 void publishDeviceTriggers() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    JsonDocument doc;
+    DynamicJsonDocument doc(1024); // Use a single, larger doc
 
+    // --- Base Device Info (Identifier only is sufficient for triggers) ---
     JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
 
+    // --- Base Trigger Info ---
     doc["automation_type"] = "trigger";
     doc["topic"] = device_base_topic + "/events";
 
-    // Define triggers in a loop to reduce repetition
+    // --- Loop through triggers, adding/removing specific fields ---
     const char* trigger_types[] = {"animation_started", "animation_completed", "sleep_mode_entered", "sleep_mode_exited", "preset_changed"};
     const char* trigger_subtypes[] = {"anim_started", "anim_completed", "sleep_entered", "sleep_exited", "preset_changed"};
 
@@ -159,15 +169,18 @@ void publishDeviceTriggers() {
         String object_id = String(MQTT_UNIQUE_ID) + "_" + trigger_subtypes[i];
         doc["object_id"] = object_id;
         doc["unique_id"] = object_id;
-        // No need to set a "name" for device triggers, HA uses "type" and "subtype"
+        // No "name" needed for device triggers, HA uses "type" and "subtype"
+
         publishDiscoveryMessage(doc, "device_automation");
+
+        // No need to remove fields here since they are just overwritten in the next loop iteration
     }
 }
 
 void publishHaDiagnosticAttributes() {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    JsonDocument doc;
+    JsonDocument doc; // StaticJsonDocument is fine here, small payload
 
     doc["free_heap"] = ESP.getFreeHeap();
     doc["uptime_seconds"] = millis() / 1000;
@@ -189,28 +202,31 @@ void publishHaDiagnosticAttributes() {
  * switches, numbers, etc.) to Home Assistant, allowing it to automatically create
  * corresponding entities in the UI. This function is typically called only once
  * upon the first successful connection to the MQTT broker.
+ * @note This function was refactored to use a single, persistent JsonDocument to
+ * build messages, which prevents memory corruption issues from creating and destroying
+ * multiple documents. It follows an "add, send, clean" pattern for each entity.
  */
 void publishHaAutoDiscovery() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
 
-    // --- Create a reusable "device" JSON object ---
-    JsonDocument device_doc;
-    JsonObject device = device_doc.to<JsonObject>();
+    // --- Create a single, reusable JSON document for all discovery messages ---
+    DynamicJsonDocument doc(2048);
+
+    // --- Create the "device" and "availability" objects ONCE ---
+    // These are the stable, shared parts of every discovery message.
+    JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
     device["name"] = "Time Circuits";
     device["model"] = "BTTF Clock v1";
     device["manufacturer"] = "Doc Brown Industries";
     device["sw_version"] = "2.0";
 
-    JsonDocument availability_doc;
-    JsonObject availability = availability_doc.to<JsonObject>();
+    JsonObject availability = doc["availability"].to<JsonObject>();
     availability["topic"] = device_base_topic + "/status";
     availability["payload_available"] = "online";
     availability["payload_not_available"] = "offline";
-
-    DynamicJsonDocument doc(2048);
     
-    doc.clear();
+    // --- Status Sensor ---
     doc["name"] = "Status";
     String status_id = String(MQTT_UNIQUE_ID) + "_status";
     doc["unique_id"] = status_id;
@@ -218,9 +234,13 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/status/state";
     doc["json_attributes_topic"] = device_base_topic + "/status/attributes";
     doc["icon"] = "mdi:clock-outline";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "sensor");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("state_topic");
+    doc.remove("json_attributes_topic");
+    doc.remove("icon");
 
     // --- NEW: Create 12 text entities for direct display control ---
     const char* rows[] = {"dest", "pres", "last"};
@@ -230,7 +250,6 @@ void publishHaAutoDiscovery() {
 
     for (int r = 0; r < 3; ++r) {
         for (int s = 0; s < 4; ++s) {
-            doc.clear();
             String name = String(row_names[r]) + " " + String(segment_names[s]);
             String id_suffix = String(rows[r]) + "_" + String(segments[s]);
             String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
@@ -240,9 +259,13 @@ void publishHaAutoDiscovery() {
             doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
             doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
             doc["icon"] = "mdi:form-textbox";
-            doc["device"].set(device);
-            doc["availability"].set(availability);
             publishDiscoveryMessage(doc, "text");
+            doc.remove("name");
+            doc.remove("unique_id");
+            doc.remove("object_id");
+            doc.remove("command_topic");
+            doc.remove("state_topic");
+            doc.remove("icon");
         }
     }
 
@@ -262,7 +285,6 @@ void publishHaAutoDiscovery() {
 
     // ADDED: Create Enabled switches for each data point
     for (int i=0; i < 5; ++i) {
-        doc.clear();
         doc["name"] = "Data Point " + String(i + 1) + " Enabled";
         String id_suffix = "datapoint_" + String(i) + "_enabled";
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
@@ -272,14 +294,18 @@ void publishHaAutoDiscovery() {
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = "mdi:toggle-switch";
         doc["entity_category"] = "config";
-        doc["device"].set(device);
-        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "switch");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("entity_category");
     }
 
     // ADDED: Create Marquee text inputs for each data point
     for (int i=0; i < 5; ++i) {
-        doc.clear();
         doc["name"] = "Data Point " + String(i + 1) + " Marquee";
         String id_suffix = "datapoint_" + String(i) + "_marquee";
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
@@ -289,9 +315,14 @@ void publishHaAutoDiscovery() {
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = "mdi:text-box-outline";
         doc["entity_category"] = "config";
-        doc["device"].set(device);
-        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "text");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("entity_category");
     }
 
     // This sensor has been replaced by the more specific `..._marquee` text entity and `..._enabled` switch.
@@ -308,7 +339,6 @@ void publishHaAutoDiscovery() {
         {"stock_refresh", "Stock Refresh", "mdi:chart-line", "min", "1,60,1"}
     };
     for (auto const& cfg : number_configs) {
-        doc.clear();
         doc["name"] = cfg[1];
         String id_suffix = cfg[0];
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
@@ -333,18 +363,25 @@ void publishHaAutoDiscovery() {
         doc["min"] = min_val;
         doc["max"] = max_val;
         doc["step"] = step_val;
-        
         doc["entity_category"] = "config";
-        doc["device"].set(device);
-        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "number");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("unit_of_measurement");
+        doc.remove("min");
+        doc.remove("max");
+        doc.remove("step");
+        doc.remove("entity_category");
     }
 
      const char* switch_configs[][3] = {
         {"24h_format", "24-Hour Format", "mdi:clock-time-twelve-outline"}
     };
     for (auto const& cfg : switch_configs) {
-        doc.clear();
         doc["name"] = cfg[1];
         String id_suffix = cfg[0];
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
@@ -354,9 +391,14 @@ void publishHaAutoDiscovery() {
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = cfg[2];
         doc["entity_category"] = "config";
-        doc["device"].set(device);
-        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "switch");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("entity_category");
     }
     
     const char* button_configs[][3] = {
@@ -367,7 +409,6 @@ void publishHaAutoDiscovery() {
         {"save_all_settings", "Save All Settings", "mdi:content-save-all-outline"}
     };
     for (auto const& cfg : button_configs) {
-        doc.clear();
         doc["name"] = cfg[1];
         String id_suffix = cfg[0];
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
@@ -377,13 +418,17 @@ void publishHaAutoDiscovery() {
         doc["payload_press"] = "PRESS";
         doc["icon"] = cfg[2];
         doc["entity_category"] = "config";
-        doc["device"].set(device);
-        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "button");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("payload_press");
+        doc.remove("icon");
+        doc.remove("entity_category");
     }
 
     // --- Sequencer Button ---
-    doc.clear();
     doc["name"] = "Trigger Sequence";
     String sequencer_id = String(MQTT_UNIQUE_ID) + "_sequencer";
     doc["unique_id"] = sequencer_id;
@@ -392,11 +437,16 @@ void publishHaAutoDiscovery() {
     doc["payload_press"] = "PRESS";
     doc["icon"] = "mdi:movie-play-outline";
     doc["entity_category"] = "config";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "button");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("payload_press");
+    doc.remove("icon");
+    doc.remove("entity_category");
     
-    doc.clear();
+    // --- Temporal Echo Switch ---
     doc["name"] = "Temporal Echo Effect";
     String temporal_echo_id = String(MQTT_UNIQUE_ID) + "_temporal_echo";
     doc["unique_id"] = temporal_echo_id;
@@ -405,11 +455,16 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/temporal_echo/state";
     doc["icon"] = "mdi:ghost";
     doc["entity_category"] = "config";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "switch");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("icon");
+    doc.remove("entity_category");
 
-    doc.clear();
+    // --- Profile Selector ---
     doc["name"] = "Profile";
     String profile_id = String(MQTT_UNIQUE_ID) + "_profile";
     doc["unique_id"] = profile_id;
@@ -424,13 +479,17 @@ void publishHaAutoDiscovery() {
     profiles.add("Custom");
     doc["icon"] = "mdi:movie-settings";
     doc["entity_category"] = "config";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "select");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("options");
+    doc.remove("icon");
+    doc.remove("entity_category");
     
-
     // --- Notification & Alert Entities ---
-    doc.clear();
     doc["name"] = "Override Switch";
     String override_switch_id = String(MQTT_UNIQUE_ID) + "_override_switch";
     doc["unique_id"] = override_switch_id;
@@ -439,16 +498,21 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/override/state";
     doc["icon"] = "mdi:message-cog";
     doc["entity_category"] = "config";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "switch");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("icon");
+    doc.remove("entity_category");
+
 
     // --- Remove the old single override message entity ---
     clearHaEntity("text", "override_message");
 
     // --- Create three separate text entities for each override line ---
     for (int i = 1; i <= 3; i++) {
-        doc.clear();
         doc["name"] = "Override Message Line " + String(i);
         String id_suffix = "override_line_" + String(i);
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
@@ -458,38 +522,15 @@ void publishHaAutoDiscovery() {
         doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         doc["icon"] = "mdi:message-draw";
         doc["entity_category"] = "config";
-        doc["device"].set(device);
-        doc["availability"].set(availability);
         publishDiscoveryMessage(doc, "text");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("entity_category");
     }
-
-    // --- Media Player Entity (replaces select.play_sound, text.tts_text, sensor.audio_status) ---
-    // doc.clear();
-    // doc["name"] = "Speaker";
-    // String media_player_id = String(MQTT_UNIQUE_ID) + "_media_player";
-    // doc["unique_id"] = media_player_id;
-    // doc["object_id"] = media_player_id;
-    // doc["device_class"] = "speaker";
-
-    // // State topics
-    // doc["state_topic"] = device_base_topic + "/audio/state";
-    // doc["volume_state_topic"] = device_base_topic + "/volume/state";
-
-    // // Command topics that the custom media_player.py entity uses
-    // doc["command_topic"] = device_base_topic + "/radio/command";
-    // doc["volume_command_topic"] = device_base_topic + "/volume/command";
-    // doc["json_commands_topic"] = device_base_topic + "/tts/command";
-
-    // // Supported Features
-    // JsonArray features = doc["supported_features"].to<JsonArray>();
-    // features.add("play_media");
-    // features.add("stop");
-    // features.add("volume_set");
-    // features.add("select_source");
-
-    // doc["device"].set(device);
-    // doc["availability"].set(availability);
-    // publishDiscoveryMessage(doc, "media_player");
 
     // --- Cleanup old entities replaced by the media_player ---
     clearHaEntity("select", "play_sound");
@@ -498,7 +539,6 @@ void publishHaAutoDiscovery() {
 
 
     // --- Display Mode Selection ---
-    doc.clear();
     doc["name"] = "Display Mode";
     String display_mode_id = String(MQTT_UNIQUE_ID) + "_display_mode";
     doc["unique_id"] = display_mode_id;
@@ -512,12 +552,17 @@ void publishHaAutoDiscovery() {
     modes.add("Data Link");
     doc["icon"] = "mdi:television-classic";
     doc["entity_category"] = "config";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "select");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("options");
+    doc.remove("icon");
+    doc.remove("entity_category");
 
     // --- Live Weather Mode Entities ---
-    doc.clear();
     doc["name"] = "Weather City";
     String weather_city_id = String(MQTT_UNIQUE_ID) + "_weather_city";
     doc["unique_id"] = weather_city_id;
@@ -526,11 +571,15 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/weather_city/state";
     doc["icon"] = "mdi:city";
     doc["entity_category"] = "config";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "text");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("icon");
+    doc.remove("entity_category");
 
-    doc.clear();
     doc["name"] = "Refresh Weather Data";
     String weather_refresh_id = String(MQTT_UNIQUE_ID) + "_weather_refresh";
     doc["unique_id"] = weather_refresh_id;
@@ -539,21 +588,24 @@ void publishHaAutoDiscovery() {
     doc["payload_press"] = "PRESS";
     doc["icon"] = "mdi:refresh";
     doc["entity_category"] = "config";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "button");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("payload_press");
+    doc.remove("icon");
+    doc.remove("entity_category");
 
     // New Audio sensor for stream state
-    doc.clear();
     doc["name"] = "Audio Stream Status";
     String audio_status_id = String(MQTT_UNIQUE_ID) + "_audio_status";
     doc["unique_id"] = audio_status_id;
     doc["object_id"] = audio_status_id;
     doc["state_topic"] = device_base_topic + "/audio/state";
     doc["icon"] = "mdi:waveform";
-    doc["device"].set(device);
-    doc["availability"].set(availability);
     publishDiscoveryMessage(doc, "sensor");
+    // No need to clean up the last message
 }
 
 void reconnectMqtt() {
@@ -790,6 +842,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 settingsChanged = true;
             }
         } else if (component == "preset_selector") {
+            lastDepartedPreset = message.c_str();
             mqttClient.publish((base_topic + "preset_selector/state").c_str(), message.c_str(), true);
         } else if (component == "play_sound") {
             if (message != "None" && hardwareInitialized) {
@@ -864,6 +917,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 currentSettings.notificationVolume = 0;
                 currentSettings.timeTravelSoundToggle = false;
             }
+            currentProfileName = message.c_str();
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;
         } else if (component == "sequencer") {
@@ -1003,6 +1057,10 @@ void publishAllHaStates() {
     if (currentSettings.displayMode >= 0 && currentSettings.displayMode < 4) {
         mqttClient.publish((base_topic + "/display_mode/state").c_str(), modes[currentSettings.displayMode], true);
     }
+
+    // --- ADDED: Publish states for the select entities that were being missed ---
+    mqttClient.publish((base_topic + "/profile/state").c_str(), currentProfileName.c_str(), true);
+    mqttClient.publish((base_topic + "/preset_selector/state").c_str(), lastDepartedPreset.c_str(), true);
 
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
 
