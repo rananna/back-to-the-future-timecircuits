@@ -34,11 +34,6 @@ class BTTFTimeCircuitsSwitchEntityDescription(SwitchEntityDescription):
 
 SWITCHES: tuple[BTTFTimeCircuitsSwitchEntityDescription, ...] = (
     BTTFTimeCircuitsSwitchEntityDescription(
-        key="time_circuits_on",
-        name="Time Circuits On",
-        icon="mdi:power",
-    ),
-    BTTFTimeCircuitsSwitchEntityDescription(
         key="flux_capacitor",
         name="Flux Capacitor",
         icon="mdi:flash",
