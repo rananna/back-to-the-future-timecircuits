@@ -24,6 +24,8 @@ class BTTFTimeCircuitsSwitchEntityDescription(SwitchEntityDescription):
 
     # For display mode switches, this is the payload to check for 'on' state
     on_payload: str | None = None
+    # The MQTT topic key, if different from the entity key
+    mqtt_key: str | None = None
 
 
 # Define all switch entities
@@ -32,6 +34,7 @@ SWITCHES: list[BTTFTimeCircuitsSwitchEntityDescription] = [
         key="override_switch",
         name="Override Switch",
         icon="mdi:message-cog",
+        mqtt_key="override",
     ),
     BTTFTimeCircuitsSwitchEntityDescription(
         key="24h_format",
@@ -106,10 +109,7 @@ class BTTFTimeCircuitsMqttSwitch(BTTFTimeCircuitsEntity, SwitchEntity):
         """Initialize the switch."""
         self.entity_description = description
         super().__init__(device)
-        # The MQTT topic key is different from the entity key for override_switch
-        self._mqtt_key = (
-            "override" if description.key == "override_switch" else description.key
-        )
+        self._mqtt_key = description.mqtt_key or description.key
         self._attr_is_on = False
 
     async def async_added_to_hass(self) -> None:

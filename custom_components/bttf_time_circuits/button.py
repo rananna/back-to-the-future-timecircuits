@@ -71,13 +71,18 @@ async def async_setup_entry(
     """Set up the BTTF Time Circuits buttons."""
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
     entities = [
-        BTTFTimeCircuitsButton(device, description) for description in BUTTONS
+        (
+            BTTFTimeCircuitsFavoriteButton(device, description)
+            if description.key == "favorite_radio_station"
+            else BTTFTimeCircuitsMqttButton(device, description)
+        )
+        for description in BUTTONS
     ]
     async_add_entities(entities)
 
 
-class BTTFTimeCircuitsButton(BTTFTimeCircuitsEntity, ButtonEntity):
-    """Representation of a BTTF Time Circuits Button."""
+class BTTFTimeCircuitsMqttButton(BTTFTimeCircuitsEntity, ButtonEntity):
+    """Representation of a standard BTTF Time Circuits MQTT Button."""
 
     entity_description: BTTFTimeCircuitsButtonEntityDescription
 
@@ -96,3 +101,34 @@ class BTTFTimeCircuitsButton(BTTFTimeCircuitsEntity, ButtonEntity):
             f"{self._device.base_topic}/{self.entity_description.key}/command"
         )
         await mqtt.async_publish(self.hass, command_topic, "PRESS", 1, False)
+
+
+class BTTFTimeCircuitsFavoriteButton(BTTFTimeCircuitsEntity, ButtonEntity):
+    """Representation of the Favorite Radio Station button."""
+
+    entity_description: BTTFTimeCircuitsButtonEntityDescription
+
+    def __init__(
+        self,
+        device: BTTFTimeCircuitsDevice,
+        description: BTTFTimeCircuitsButtonEntityDescription,
+    ) -> None:
+        """Initialize the button."""
+        self.entity_description = description
+        super().__init__(device)
+
+    async def async_press(self) -> None:
+        """Handle the button press by calling the media_player service."""
+        # Find the media_player entity associated with this device
+        entity_registry = self.hass.helpers.entity_registry.async_get(self.hass)
+        media_player_entity_id = entity_registry.async_get_entity_id(
+            "media_player", DOMAIN, f"{DOMAIN}_{self._device.device_id}_media_player"
+        )
+
+        if media_player_entity_id:
+            await self.hass.services.async_call(
+                "media_player",
+                "favorite_radio_station",
+                {"entity_id": media_player_entity_id},
+                blocking=True,
+            )

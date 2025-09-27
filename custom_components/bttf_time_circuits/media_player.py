@@ -87,6 +87,8 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
     _attr_supported_features = SUPPORTED_FEATURES
     _attr_source_list = SOUND_EFFECTS
 
+    _attr_should_poll = False
+
     def __init__(
         self,
         device: BTTFTimeCircuitsDevice,
@@ -96,14 +98,8 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         _LOGGER.debug(
             f"BTTFTimeCircuitsMediaPlayer.__init__ for device: {device.device_id}"
         )
+        super().__init__(device)
         self.entity_description = description
-
-        # BTTFTimeCircuitsEntity.__init__ doesn't call super(), which breaks the MRO
-        # chain and prevents MediaPlayerEntity.__init__ from being called.
-        # To fix this without modifying the base class, we explicitly call both initializers.
-        BTTFTimeCircuitsEntity.__init__(self, device)
-        MediaPlayerEntity.__init__(self)
-
         self._attr_volume_level = 0.5  # Default volume
         self._attr_state = "idle"
         self._attr_media_content_id = None
@@ -139,11 +135,6 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             except (ValueError, TypeError):
                 pass
 
-        @callback
-        def favorite_station_pressed(msg: mqtt.ReceiveMessage) -> None:
-            """Handle favorite station button press."""
-            self.hass.async_create_task(self.async_favorite_radio_station())
-
         await mqtt.async_subscribe(
             self.hass, f"{self._device.base_topic}/audio/state", audio_state_received, 1
         )
@@ -151,12 +142,6 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             self.hass,
             f"{self._device.base_topic}/volume/state",
             volume_state_received,
-            1,
-        )
-        await mqtt.async_subscribe(
-            self.hass,
-            f"{self._device.base_topic}/favorite_radio_station/command",
-            favorite_station_pressed,
             1,
         )
 
