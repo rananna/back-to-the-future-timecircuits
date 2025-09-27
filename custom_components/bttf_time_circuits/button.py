@@ -27,6 +27,21 @@ class BTTFTimeCircuitsButtonEntityDescription(ButtonEntityDescription):
     """A class that describes BTTF Time Circuits button entities."""
 
 
+BUTTONS: tuple[BTTFTimeCircuitsButtonEntityDescription, ...] = (
+    BTTFTimeCircuitsButtonEntityDescription(
+        key="time_travel",
+        name="Time Travel",
+        icon="mdi:creation",
+        device_class=ButtonDeviceClass.RESTART,
+    ),
+    BTTFTimeCircuitsButtonEntityDescription(
+        key="favorite_radio_station",
+        name="Favorite Radio Station",
+        icon="mdi:star",
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -35,39 +50,13 @@ async def async_setup_entry(
     """Set up the BTTF Time Circuits buttons."""
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
 
-    @callback
-    def async_discover(
-        payload: str,
-    ) -> None:
-        """Discover and add a BTTF Time Circuits button."""
-        try:
-            config = json.loads(payload)
-        except json.JSONDecodeError:
-            _LOGGER.warning("Received malformed JSON for button discovery: %s", payload)
-            return
-
-        entity_description = BTTFTimeCircuitsButtonEntityDescription(
-            key=config["key"],
-            name=config.get("name"),
-            icon=config.get("icon"),
-            device_class=config.get("device_class"),
-        )
-
-        # The 'favorite_radio_station' button is a special case that calls a service
-        # instead of publishing to an MQTT topic.
-        if config["key"] == "favorite_radio_station":
-            entity = BTTFTimeCircuitsFavoriteButton(device, entity_description)
+    entities = []
+    for description in BUTTONS:
+        if description.key == "favorite_radio_station":
+            entities.append(BTTFTimeCircuitsFavoriteButton(device, description))
         else:
-            entity = BTTFTimeCircuitsMqttButton(device, entity_description, config)
-
-        async_add_entities([entity])
-
-    await mqtt.async_subscribe(
-        hass,
-        f"{device.base_topic}/button/+/config",
-        lambda msg: async_discover(msg.payload),
-        0,
-    )
+            entities.append(BTTFTimeCircuitsMqttButton(device, description))
+    async_add_entities(entities)
 
 
 class BTTFTimeCircuitsMqttButton(BTTFTimeCircuitsEntity, ButtonEntity):
@@ -79,18 +68,17 @@ class BTTFTimeCircuitsMqttButton(BTTFTimeCircuitsEntity, ButtonEntity):
         self,
         device: BTTFTimeCircuitsDevice,
         description: BTTFTimeCircuitsButtonEntityDescription,
-        config: dict,
     ) -> None:
         """Initialize the button."""
         self.entity_description = description
-        self._config = config
         super().__init__(device)
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        command_topic = self._config.get("command_topic")
-        if command_topic:
-            await mqtt.async_publish(self.hass, command_topic, "PRESS", 1, False)
+        command_topic = (
+            f"{self.device.base_topic}/{self.entity_description.key}/command"
+        )
+        await mqtt.async_publish(self.hass, command_topic, "PRESS", 1, False)
 
 
 class BTTFTimeCircuitsFavoriteButton(BTTFTimeCircuitsEntity, ButtonEntity):
