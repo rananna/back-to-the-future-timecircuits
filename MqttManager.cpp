@@ -102,7 +102,10 @@ void publishHaPresetSelector() {
 
     Preferences prefs;
     prefs.begin(PREFERENCES_NAMESPACE, true);
-    String presetsJson = prefs.getString("customPresets", "[]");
+    String presetsJson = "[]";
+    if (prefs.isKey("customPresets")) {
+        presetsJson = prefs.getString("customPresets", "[]");
+    }
     prefs.end();
     JsonDocument presetsDoc;
     if (deserializeJson(presetsDoc, presetsJson) == DeserializationError::Ok) {
