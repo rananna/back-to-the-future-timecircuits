@@ -25,7 +25,8 @@ from .entity import BTTFTimeCircuitsEntity
 _LOGGER = logging.getLogger(__name__)
 
 SUPPORTED_FEATURES = (
-    MediaPlayerEntityFeature.PLAY_MEDIA
+    MediaPlayerEntityFeature.PLAY
+    | MediaPlayerEntityFeature.PLAY_MEDIA
     | MediaPlayerEntityFeature.STOP
     | MediaPlayerEntityFeature.VOLUME_SET
     | MediaPlayerEntityFeature.SELECT_SOURCE
@@ -185,6 +186,14 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         self._attr_media_title = None
         command_topic = f"{self._device.base_topic}/radio/command"
         await mqtt.async_publish(self.hass, command_topic, "stop", 1, False)
+
+    async def async_media_play(self) -> None:
+        """Play the last media."""
+        if self._attr_media_content_type and self._attr_media_content_id:
+            await self.async_play_media(
+                media_type=self._attr_media_content_type,
+                media_id=self._attr_media_content_id,
+            )
 
     async def async_play_media(
         self, media_type: MediaType | str, media_id: str, **kwargs: Any
