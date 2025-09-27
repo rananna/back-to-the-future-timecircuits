@@ -35,7 +35,7 @@ extern char old_dest_str[17], old_pres_str[17], old_last_str[17];
 
 // --- HARDWARE CONFIG ---
 #define ENABLE_HARDWARE 1
-#define MAX_FILENAME_LENGTH 64
+#define MAX_FILENAME_LENGTH 256
 
 // --- ENUMS & DATA STRUCTURES ---
 
