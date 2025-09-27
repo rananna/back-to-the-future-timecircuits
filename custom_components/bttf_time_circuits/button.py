@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 
 from homeassistant.components import mqtt
@@ -17,6 +18,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -40,6 +43,7 @@ async def async_setup_entry(
         try:
             config = json.loads(payload)
         except json.JSONDecodeError:
+            _LOGGER.warning("Received malformed JSON for button discovery: %s", payload)
             return
 
         entity_description = BTTFTimeCircuitsButtonEntityDescription(

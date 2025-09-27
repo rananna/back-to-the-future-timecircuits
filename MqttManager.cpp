@@ -46,7 +46,13 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
     String topic = String(MQTT_BASE_TOPIC) + "/" + component + "/" + object_id + "/config";
 
     // Serialize the JSON document to a string
-    serializeJson(doc, payload);
+    size_t payload_size = serializeJson(doc, payload);
+
+    // Check for serialization errors (e.g., buffer overflow)
+    if (payload_size == 0) {
+        Log_printf(LOG_LEVEL_ERROR, "HA Discovery: JSON serialization failed for %s. Payload buffer may be too small. Doc size: %d", object_id.c_str(), doc.memoryUsage());
+        return; // Stop processing this message
+    }
 
     // Log the discovery message details for debugging and verification
     Log_printf(LOG_LEVEL_INFO, "HA Discovery: Publishing to topic [%s]", topic.c_str());
@@ -54,16 +60,30 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
 
     if (mqttClient.connected()) {
         // This is a blocking loop that will continue until the message is successfully published.
-        // It checks mqttClient.connected() in each iteration to prevent an infinite loop if the connection is lost.
-        while (mqttClient.connected() && !mqttClient.publish(topic.c_str(), payload.c_str(), true)) {
+        // It now includes a timeout to prevent the device from hanging if the broker is unresponsive.
+        const unsigned long publish_timeout = 5000; // 5-second timeout
+        unsigned long start_time = millis();
+        bool published = false;
+
+        while (mqttClient.connected() && (millis() - start_time < publish_timeout)) {
+            if (mqttClient.publish(topic.c_str(), payload.c_str(), true)) {
+                published = true;
+                break; // Exit loop on success
+            }
+            // Log a warning that the buffer is full and we are retrying.
             Log_printf(LOG_LEVEL_WARN, "HA Discovery: Publish buffer for %s is full. Retrying in 100ms...", object_id.c_str());
-            // Wait and allow the MQTT client to process its outgoing messages
             delay(100);
-            mqttClient.loop();
+            mqttClient.loop(); // Allow the client to process outgoing messages
         }
-        // After a successful publish, give the client time to send the message from the buffer.
-        delay(75);
-        mqttClient.loop();
+
+        if (published) {
+            // After a successful publish, give the client time to send the message.
+            mqttClient.loop();
+            delay(75); // A short delay to help ensure message delivery
+        } else {
+            // Log a critical error if the message could not be sent within the timeout.
+            Log_printf(LOG_LEVEL_ERROR, "CRITICAL: HA Discovery for %s failed after %lums. Broker unresponsive?", object_id.c_str(), publish_timeout);
+        }
     } else {
         Log_printf(LOG_LEVEL_WARN, "HA Discovery: Cannot publish, MQTT client not connected.");
     }
@@ -73,7 +93,7 @@ void publishHaPresetSelector() {
     if (!mqttClient.connected()) return;
 
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(2048);
     String topic;
     String payload;
 
@@ -188,7 +208,7 @@ void publishHaAutoDiscovery() {
     availability["payload_available"] = "online";
     availability["payload_not_available"] = "offline";
 
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(2048);
     
     doc.clear();
     doc["name"] = "Status";
