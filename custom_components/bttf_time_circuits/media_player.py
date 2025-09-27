@@ -241,7 +241,3 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             await self.async_play_media("sound", source)
         else:
             _LOGGER.warning(f"Unknown source selected: {source}")
-
-    async def async_select_sound(self, sound: str):
-        """Play a sound effect."""
-        await self.async_play_media("sound", sound)

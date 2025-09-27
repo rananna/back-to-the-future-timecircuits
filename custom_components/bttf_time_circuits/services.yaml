@@ -56,26 +56,6 @@ run_sequence:
       description: "The sequence to run."
       selector:
         text:
-select_sound:
-  description: "Play a sound effect on the Time Circuits speaker."
-  target:
-    entity:
-      - domain: "media_player"
-  fields:
-    sound:
-      description: "The name of the sound effect to play."
-      example: "ALARM_SOUND"
-      required: true
-      selector:
-        select:
-          options:
-            - "ALARM_SOUND"
-            - "ARRIVAL_THUD"
-            - "CONFIRM_ON"
-            - "EASTER_EGG"
-            - "REBOOT_SOUND"
-            - "REMINDER_ALERT"
-            - "TIME_TRAVEL_FAIL"
 favorite_radio_station:
   description: "Favorite the currently playing radio station."
   target:
