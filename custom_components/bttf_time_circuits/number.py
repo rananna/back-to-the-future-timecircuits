@@ -37,6 +37,15 @@ NUMBERS: tuple[BTTFTimeCircuitsNumberEntityDescription, ...] = (
         native_step=1,
         mode=NumberMode.SLIDER,
     ),
+    BTTFTimeCircuitsNumberEntityDescription(
+        key="brightness",
+        name="Brightness",
+        icon="mdi:brightness-6",
+        native_min_value=0,
+        native_max_value=255,
+        native_step=1,
+        mode=NumberMode.SLIDER,
+    ),
 )
 
 
