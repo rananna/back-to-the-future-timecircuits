@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -19,6 +20,8 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
+
+_LOGGER = logging.getLogger(__name__)
 
 # Define the sensor descriptions
 @dataclass(frozen=True)
@@ -42,6 +45,7 @@ async def async_setup_entry(
         try:
             config = json.loads(payload)
         except json.JSONDecodeError:
+            _LOGGER.warning("Received malformed JSON for sensor discovery: %s", payload)
             return
 
         entity_description = BTTFTimeCircuitsSensorEntityDescription(
@@ -105,7 +109,11 @@ class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
                 try:
                     self._attr_extra_state_attributes = json.loads(msg.payload)
                 except json.JSONDecodeError:
-                    pass  # Ignore invalid JSON
+                    _LOGGER.warning(
+                        "Received malformed JSON for sensor attributes on topic %s: %s",
+                        msg.topic,
+                        msg.payload,
+                    )
                 self.async_write_ha_state()
 
             await mqtt.async_subscribe(

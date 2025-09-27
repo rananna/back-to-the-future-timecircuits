@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 
 from homeassistant.components import mqtt
@@ -17,12 +18,12 @@ from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
 
+_LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class BTTFTimeCircuitsTextEntityDescription(TextEntityDescription):
     """A class that describes BTTF Time Circuits text entities."""
-
-
 
 
 async def async_setup_entry(
@@ -41,6 +42,7 @@ async def async_setup_entry(
         try:
             config = json.loads(payload)
         except json.JSONDecodeError:
+            _LOGGER.warning("Received malformed JSON for text discovery: %s", payload)
             return
 
         entity_description = BTTFTimeCircuitsTextEntityDescription(

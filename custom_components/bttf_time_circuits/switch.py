@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -18,6 +19,8 @@ from . import BTTFTimeCircuitsDevice
 from .const import DOMAIN
 from .entity import BTTFTimeCircuitsEntity
 
+_LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class BTTFTimeCircuitsSwitchEntityDescription(SwitchEntityDescription):
@@ -27,8 +30,6 @@ class BTTFTimeCircuitsSwitchEntityDescription(SwitchEntityDescription):
     on_payload: str | None = None
     # The MQTT topic key, if different from the entity key
     mqtt_key: str | None = None
-
-
 
 
 async def async_setup_entry(
@@ -47,6 +48,7 @@ async def async_setup_entry(
         try:
             config = json.loads(payload)
         except json.JSONDecodeError:
+            _LOGGER.warning("Received malformed JSON for switch discovery: %s", payload)
             return
 
         entity_description = BTTFTimeCircuitsSwitchEntityDescription(
