@@ -76,3 +76,13 @@ select_sound:
             - "REBOOT_SOUND"
             - "REMINDER_ALERT"
             - "TIME_TRAVEL_FAIL"
+favorite_radio_station:
+  description: "Favorite the currently playing radio station."
+  target:
+    entity:
+      - domain: "media_player"
+clear_favorite_radio_stations:
+  description: "Clear all favorite radio stations."
+  target:
+    entity:
+      - domain: "media_player"
