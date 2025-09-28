@@ -1,14 +1,14 @@
 [
   {
     "name": "Intruder Alert",
-    "payload": "[{\"targetRow\":0,\"steps\":[{\"cmd\":\"TEXT\",\"text\":\"INTRUDER\",\"duration\":2000},{\"cmd\":\"TEXT\",\"text\":\"ALERT\",\"duration\":2000}]},{\"targetRow\":2,\"steps\":[{\"cmd\":\"TEXT\",\"text\":\"LOCKDOWN\",\"duration\":4000}]}]"
+    "payload": "[{\"targetRow\":2,\"commands\":[{\"command\":\"SOUND\",\"stringParam\":\"ALARM_SOUND\"},{\"command\":\"MARQUEE\",\"stringParam\":\"INTRUDER ALERT\"}]}]"
   },
   {
     "name": "System Boot",
-    "payload": "[{\"targetRow\":0,\"steps\":[{\"cmd\":\"TEXT\",\"text\":\"SYSTEMS\",\"duration\":1500},{\"cmd\":\"TEXT\",\"text\":\"ONLINE\",\"duration\":1500}]},{\"targetRow\":1,\"steps\":[{\"cmd\":\"FADE_IN\",\"duration\":3000}]},{\"targetRow\":2,\"steps\":[{\"cmd\":\"PULSE\",\"duration\":3000}]}]"
+    "payload": "[{\"targetRow\":0,\"commands\":[{\"command\":\"MARQUEE\",\"stringParam\":\"SYSTEMS ONLINE\"}]},{\"targetRow\":1,\"commands\":[{\"command\":\"FADE_IN\",\"intParam\":3000}]},{\"targetRow\":2,\"commands\":[{\"command\":\"PULSE\",\"targetSegment\":-1,\"intParam\":3000}]}]"
   },
   {
-    "name": "Time Travel Sequence",
-    "payload": "[{\"targetRow\":0,\"steps\":[{\"cmd\":\"ANIMATION\",\"style\":\"RANDOM_FLICKER\",\"duration\":5000}]},{\"targetRow\":1,\"steps\":[{\"cmd\":\"ANIMATION\",\"style\":\"RANDOM_FLICKER\",\"duration\":5000}]},{\"targetRow\":2,\"steps\":[{\"cmd\":\"ANIMATION\",\"style\":\"RANDOM_FLICKER\",\"duration\":5000}]}]"
+    "name": "Knight Rider",
+    "payload": "[{\"targetRow\":2,\"commands\":[{\"command\":\"FLASH\",\"targetSegment\":0,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":1,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":2,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":3,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":2,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":1,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50}]}]"
   }
 ]
