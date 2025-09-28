@@ -212,6 +212,18 @@
                     <input type="checkbox" id="timeTravelSoundToggle">
                     <span class="slider round"></span>
                 </label>
+
+                <div class="setting-sub-group">
+                    <h4>Internet Radio</h4>
+                    <label for="radioStationSelect">Select Station:</label>
+                    <select id="radioStationSelect">
+                        <option value="">-- Select a Station --</option>
+                    </select>
+                    <div class="radio-controls">
+                        <button id="playRadioBtn" class="action-button">Play</button>
+                        <button id="stopRadioBtn" class="action-button">Stop</button>
+                    </div>
+                </div>
             </div>
             <div class="contextual-save-wrapper">
                 <button class="action-button contextual-save" onclick="saveSettings()">Save Temporal Settings</button>

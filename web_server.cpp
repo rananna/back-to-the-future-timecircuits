@@ -14,6 +14,7 @@
 #include "DataManager.h"
 #include "timezone.h"
 #include "EventManager.h"
+#include "MqttManager.h"
 #include <AsyncJson.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -371,6 +372,15 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                     delete params;
                      Log_printf(LOG_LEVEL_ERROR, "Failed to create API test task!");
                 }
+            } else if (action == "play_radio") {
+                String url = doc["url"];
+                if (url.length() > 0) {
+                    Log_printf(LOG_LEVEL_INFO, "WebSocket: Play radio command received for URL: %s", url.c_str());
+                    startAudioStream(url.c_str(), false);
+                }
+            } else if (action == "stop_radio") {
+                Log_printf(LOG_LEVEL_INFO, "WebSocket: Stop radio command received.");
+                stopAudioStream();
             }
         }
     }
@@ -722,6 +732,14 @@ void setupWebRoutes() {
 
   server.on("/api/timezones", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "application/json", TZ_JSON);
+  });
+
+  server.on("/api/radio_stations", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (LittleFS.exists("/radio_stations.json")) {
+        request->send(LittleFS, "/radio_stations.json", "application/json");
+    } else {
+        request->send(200, "application/json", "[]");
+    }
   });
 
   server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {

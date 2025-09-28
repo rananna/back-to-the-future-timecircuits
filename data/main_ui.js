@@ -49,6 +49,9 @@ async function initializeUI() {
         // Initialize the WebSocket connection
         initWebSocket();
 
+        // Populate radio stations
+        populateRadioStations();
+
         // Start fetching real-time data
         fetchTime();
         setInterval(fetchTime, 1000); // Fetch time every second
@@ -68,6 +71,33 @@ async function initializeUI() {
     } finally {
         // Set the loading flag to false
         isLoading = false;
+    }
+}
+
+/**
+ * Populates the radio station select dropdown with data from the server.
+ */
+async function populateRadioStations() {
+    try {
+        const response = await fetch('/api/radio_stations');
+        if (!response.ok) {
+            throw new Error('Failed to fetch radio stations');
+        }
+        const stations = await response.json();
+        const select = document.getElementById('radioStationSelect');
+        select.innerHTML = '<option value="">-- Select a Station --</option>'; // Clear existing options
+
+        if (stations && stations.length > 0) {
+            stations.forEach(station => {
+                const option = document.createElement('option');
+                option.value = station.url;
+                option.textContent = station.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error("CLIENT_DEBUG: Failed to populate radio stations:", error);
+        showMessage('Could not load radio stations.', 'error');
     }
 }
 
@@ -449,6 +479,20 @@ function attachEventListeners() {
     // Firmware upload form
     document.getElementById('firmware-upload-form').onsubmit = handleFirmwareUpload;
 
+    // Radio controls
+    document.getElementById('playRadioBtn').onclick = () => {
+        const stationUrl = document.getElementById('radioStationSelect').value;
+        if (stationUrl) {
+            ws.send(JSON.stringify({ action: 'play_radio', url: stationUrl }));
+            showMessage('Playing radio...', 'info');
+        } else {
+            showMessage('Please select a radio station first.', 'error');
+        }
+    };
+    document.getElementById('stopRadioBtn').onclick = () => {
+        ws.send(JSON.stringify({ action: 'stop_radio' }));
+        showMessage('Radio stopped.', 'info');
+    };
 }
 
 /**
