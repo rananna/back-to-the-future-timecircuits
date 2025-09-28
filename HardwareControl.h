@@ -229,7 +229,7 @@ struct SequencerTrack {
     int currentStep = 0;
     unsigned long stepStartTime = 0;
     bool isActive = false;
-    bool isWaiting = false;
+    bool isWaitingForSound = false;
 };
 // --- END: SEQUENCER DEFINITIONS ---
 

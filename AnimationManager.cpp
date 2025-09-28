@@ -1088,6 +1088,19 @@ void handleSequencer() {
             continue; // Skip inactive tracks
         }
 
+        // --- NEW: Check if this track is waiting for a sound to finish ---
+        if (sequencerTracks[i].isWaitingForSound) {
+            if (!audio.isRunning()) {
+                // Sound has finished, advance to the next step.
+                sequencerTracks[i].isWaitingForSound = false;
+                sequencerTracks[i].currentStep++;
+                sequencerTracks[i].stepStartTime = millis();
+            } else {
+                // Sound is still playing, so we wait and do nothing else for this track.
+                continue;
+            }
+        }
+
         // Get the current step for this active track.
         SequenceStep& step = sequencerTracks[i].steps[sequencerTracks[i].currentStep];
         unsigned long elapsed = millis() - sequencerTracks[i].stepStartTime;
@@ -1135,7 +1148,9 @@ void handleSequencer() {
             case SEQ_CMD_SOUND:
                 // Play the specified sound effect.
                 playSound(step.stringParam.c_str());
-                advance_step = true;
+                // --- FIX: Set the waiting flag and DO NOT advance the step ---
+                sequencerTracks[i].isWaitingForSound = true;
+                advance_step = false;
                 break;
 
             case SEQ_CMD_END:
