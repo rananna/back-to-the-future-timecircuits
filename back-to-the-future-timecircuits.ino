@@ -140,7 +140,6 @@ char MQTT_UNIQUE_ID[21]; // The unique identifier for this device, derived from 
 // Forward declarations for functions defined later in this file.
 void handlePresetCycling();
 void handleSleepSchedule();
-void handleSequencers();
 bool attemptHardwareInit();
 void onHardwareInitialized();
 void checkDataFetchStatusTask(void* p);
@@ -1080,8 +1079,7 @@ void updateDisplayState() {
 void handleDisplay() {
     // These effects can run concurrently with the main display modes
     handleTemporalEcho();
-    handleSequencers();
-    handleSequencerMarquee();
+    handleSequencer();
     handlePulseEffect();
     handleFadeEffect();
     handlePresetCycling();
@@ -1316,96 +1314,6 @@ void loop() {
             break;
     }
     ArduinoOTA.handle();
-}
-void handleSequencers() {
-    for (int i = 0; i < 3; ++i) {
-        if (!sequencerTracks[i].isActive) continue;
-
-        SequencerTrack& track = sequencerTracks[i];
-
-        // If the sequence has ended, clean up and deactivate the track.
-        if (track.steps[track.currentStep].command == SEQ_CMD_END) {
-            track.isActive = false;
-            track.currentStep = 0;
-            track.isWaiting = false;
-            continue;
-        }
-
-        // If we are not currently waiting for a command to complete, execute the next one.
-        if (!track.isWaiting) {
-            track.stepStartTime = millis(); // Set start time for the new command
-            SequenceStep& step = track.steps[track.currentStep];
-
-            switch (step.command) {
-                case SEQ_CMD_MARQUEE:
-                    if (hardwareInitialized) startMarquee(step.targetRow, step.stringParam);
-                    track.isWaiting = true;
-                    break;
-                case SEQ_CMD_FADE_IN:
-                    if (hardwareInitialized) startFadeEffect(step.intParam, true);
-                    track.isWaiting = true;
-                    break;
-                case SEQ_CMD_FADE_OUT:
-                    if (hardwareInitialized) startFadeEffect(step.intParam, false);
-                    track.isWaiting = true;
-                    break;
-                case SEQ_CMD_SOUND:
-                    if (hardwareInitialized) playSound(step.stringParam.c_str());
-                    track.isWaiting = true;
-                    break;
-                case SEQ_CMD_WAIT:
-                    track.isWaiting = true;
-                    break;
-                case SEQ_CMD_PULSE:
-                    if (hardwareInitialized) startPulseEffect(step.targetRow, step.targetSegment, step.intParam);
-                    track.isWaiting = true;
-                    break;
-                case SEQ_CMD_FLASH:
-                    if (hardwareInitialized) triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
-                    track.isWaiting = true;
-                    break;
-                case SEQ_CMD_END: // Should be handled by the check at the top, but here for safety.
-                    track.isActive = false;
-                    break;
-            }
-        } else { // We are waiting for a command to finish. Check for completion.
-            unsigned long elapsed = millis() - track.stepStartTime;
-            bool commandFinished = false;
-            SequenceStep& step = track.steps[track.currentStep];
-
-            switch (step.command) {
-                case SEQ_CMD_MARQUEE:
-                    // The marquee is finished when the global flag is false.
-                    if (!isSequencerMarqueeActive) commandFinished = true;
-                    break;
-                case SEQ_CMD_FADE_IN:
-                case SEQ_CMD_FADE_OUT:
-                    // The fade is finished when the global flag is false.
-                    if (!isFading) commandFinished = true;
-                    break;
-                case SEQ_CMD_SOUND:
-                    // The sound is finished when the audio library is no longer running.
-                    if (!audio.isRunning()) commandFinished = true;
-                    break;
-                case SEQ_CMD_WAIT:
-                case SEQ_CMD_PULSE:
-                case SEQ_CMD_FLASH:
-                    // These commands are finished when their specified duration has elapsed.
-                    if (elapsed >= (unsigned long)step.intParam) {
-                        commandFinished = true;
-                    }
-                    break;
-                case SEQ_CMD_END:
-                    commandFinished = true;
-                    break;
-            }
-
-            if (commandFinished) {
-                track.isWaiting = false;
-                track.currentStep++;
-            }
-        }
-    }
 }
 
 #include <cstdio> // For sscanf
