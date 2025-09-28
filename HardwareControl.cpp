@@ -67,6 +67,11 @@ SemaphoreHandle_t xSerialMutex;
 
 #endif
 
+// These flags ensure that the I2C buses are only initialized once,
+// preventing driver re-installation, which can cause a crash on retry.
+static bool i2c_1_initialized = false;
+static bool i2c_2_initialized = false;
+
 // This flag ensures that the I2C buses are only initialized once,
 // even if setupPhysicalDisplay() is called multiple times on retry attempts.
 // static bool i2c_initialized = false; // This was causing a bug on hardware init retries
@@ -117,19 +122,23 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  */
 bool setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
-    // First, reset the I2C buses to clear any potential lock-ups from a previous run.
-    resetI2CBus(0); // For I2C_1, which is on bus 0
-    resetI2CBus(1); // For I2C_2, which is on bus 1
-
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by setupPhysicalDisplay"); }
-    // Initialize both I2C buses. Calling .begin() multiple times is safe and
-    // necessary because resetI2CBus() calls .end() on every attempt.
-    I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
-    I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
 
-    // Set a timeout to prevent indefinite blocking
-    I2C_1.setTimeout(250); // 250ms timeout
-    I2C_2.setTimeout(250); // 250ms timeout
+    // --- SAFER I2C INITIALIZATION ---
+    // Only initialize the I2C buses if they haven't been already.
+    // This prevents re-installing the driver on retries, which can cause a system crash.
+    if (!i2c_1_initialized) {
+        Log_printf(LOG_LEVEL_INFO, "Initializing I2C Bus 1 (SDA: %d, SCL: %d)", I2C_SDA_1, I2C_SCL_1);
+        I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
+        I2C_1.setTimeout(250); // 250ms timeout
+        i2c_1_initialized = true;
+    }
+    if (!i2c_2_initialized) {
+        Log_printf(LOG_LEVEL_INFO, "Initializing I2C Bus 2 (SDA: %d, SCL: %d)", I2C_SDA_2, I2C_SCL_2);
+        I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
+        I2C_2.setTimeout(250); // 250ms timeout
+        i2c_2_initialized = true;
+    }
 
     // Initialize the Adafruit_AlphaNum4 objects.
     destRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
@@ -1885,19 +1894,6 @@ void safe_printf(const char *format, ...) {
  */
 void resetI2CBus(int i2c_num) {
     #if ENABLE_HARDWARE
-    if (i2c_num < 0 || i2c_num >= I2C_NUM_MAX) {
-        Log_printf(LOG_LEVEL_ERROR, "Invalid I2C port number for reset: %d", i2c_num);
-        return;
-    }
-
-    Log_printf(LOG_LEVEL_INFO, "De-initializing I2C bus #%d to clear potential lock-ups...", i2c_num);
-
-    if (i2c_num == 0) {
-        I2C_1.end();
-    } else if (i2c_num == 1) {
-        I2C_2.end();
-    }
-    // A small delay to allow the bus to settle after de-initialization.
-    vTaskDelay(pdMS_TO_TICKS(10));
+    Log_printf(LOG_LEVEL_WARN, "I2C bus reset for bus #%d requested, but this action is now disabled to prevent system instability.", i2c_num);
     #endif
 }
