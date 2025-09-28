@@ -61,7 +61,7 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
 
     // Check for serialization errors (e.g., buffer overflow)
     if (payload_size == 0) {
-        Log_printf(LOG_LEVEL_ERROR, "HA Discovery: JSON serialization failed for %s. Payload buffer may be too small. Doc capacity: %d", object_id.c_str(), doc.capacity());
+        Log_printf(LOG_LEVEL_ERROR, "HA Discovery: JSON serialization failed for %s. Payload buffer may be too small. Doc memory usage: %d", object_id.c_str(), doc.memoryUsage());
         return; // Stop processing this message
     }
 
