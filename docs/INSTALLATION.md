@@ -17,11 +17,16 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 | 1 | [ESP32-S3 Dev Module](https://www.aliexpress.com/item/1005006212080137.html) | A **38-pin ESP32-S3** module is **required**. This project is not compatible with other ESP32 models due to its specific pinout. ([Alternate](https://www.sparkfun.com/products/24408)) |
 | 1 | [MAX98357A I2S DAC Amplifier](https://www.aliexpress.com/item/1005005929311653.html) | For playing sound effects directly from the ESP32. |
 | 1 | [Small 8 Ohm Speaker](https://www.aliexpress.com/item/1005006682079525.html) | A 0.5W or 1W speaker is sufficient. |
-| 12 | **Adafruit HT16K33 14-Segment Displays** | Ensure they are the **14-segment "Alphanumeric"** type. ([Adafruit](https://www.adafruit.com/product/1910), [Digi-Key](https://www.digikey.com/en/products/detail/adafruit-industries-llc/1910/5354394)) |
+| 12 | **Adafruit HT16K33 14-Segment Displays** | **Critical:** Ensure they are the **14-segment "Alphanumeric"** type, not the 7-segment "Numeric" type. The 14-segment version has a star-like pattern in the center of each digit, which allows it to display letters, while the 7-segment version can only display numbers. Using the wrong type will prevent the clock from displaying text correctly. ([Adafruit](https://www.adafruit.com/product/1910), [Digi-Key](https://www.digikey.com/en/products/detail/adafruit-industries-llc/1910/5354394)) |
 | 6 | [5mm LEDs (Any Color)](https://www.aliexpress.com/item/1005003912454852.html) | For the AM/PM indicators on each row. |
 | 6 | [220-330Ω Resistors](https://www.aliexpress.com/item/1005002091320103.html) | Current-limiting resistors for the LEDs. |
 | 1 set| [Dupont Jumper Wires](https://www.aliexpress.com/item/1005003641187997.html) | For connecting all components. |
 | 1 | 5V Power Supply | A supply rated for at least **2A** is recommended. |
+
+> [!NOTE]
+> **Component Showcase & Display Comparison**
+>
+> *   ***Image Placeholder:*** *A photo showing the required ESP32-S3 module, I2S amplifier, speaker, and a side-by-side comparison of the correct 14-segment display versus an incorrect 7-segment display.*
 
 ---
 ## 🔌 Wiring & Schematics
@@ -61,6 +66,8 @@ A 3D printed enclosure is highly recommended for a professional finish.
 * **Resolution**: A layer height of 0.2mm provides a good balance between speed and quality.
 * **Assembly Order**: It is highly recommended to install the LEDs into the case *first*, as they are difficult to access once the display modules are in place.
 
+> ***Image Placeholder:*** *A photo showing the fully wired electronics mounted inside the 3D-printed enclosure before the front panel is attached. This gives a clear reference for the final assembly stage.*
+
 ---
 ## 💾 Software Installation
 The software installation process involves six key steps, from setting up the Arduino IDE to uploading the final firmware. Follow the steps below in order.
@@ -78,24 +85,23 @@ The software installation process involves six key steps, from setting up the Ar
 <details>
 <summary><b>Step 2: Install Required Libraries</b></summary>
 
-This project relies on several external libraries. Seven of them can be installed directly from the Arduino Library Manager, but one must be installed manually.
+This project relies on several external libraries that can be installed directly from the Arduino Library Manager.
 
-*   **Install via Library Manager**:
-    *   Open the Library Manager by navigating to `Sketch` > `Include Library` > `Manage Libraries...`.
-    *   Search for and install the latest version of each of the following libraries:
-        *   `Adafruit GFX Library`
-        *   `Adafruit LED Backpack`
-        *   `WiFiManager` by tzapu
-        *   `ArduinoJson` by Benoit Blanchon (v6.x or v7.x)
-        *   `ESPAsyncWebServer` by ESP32-Community
-        *   `AsyncTCP` by ESP32-Community
-        *   `PubSubClient` by Nick O'Leary
+*   **How to Install**:
+    1.  In the Arduino IDE, navigate to `Sketch` > `Include Library` > `Manage Libraries...`.
+    2.  Use the search bar to find and install the latest version of each of the following libraries:
 
-*   **Install Manually (Audio Library)**:
-    *   The `ESP32-audioI2S` library is not available in the Library Manager and must be installed from a `.zip` file.
-    1.  **[Download the library from the official repository](https://github.com/schreibfaul1/ESP32-audioI2S/releases/tag/3.4.2)**.
-    2.  In the Arduino IDE, navigate to `Sketch` > `Include Library` > `Add .ZIP Library...`.
-    3.  Select the downloaded `.zip` file to complete the installation.
+*   **Required Libraries**:
+    *   `Adafruit GFX Library`
+    *   `Adafruit LED Backpack`
+    *   `WiFiManager` by tzapu
+    *   `ArduinoJson` by Benoit Blanchon (v6.x or v7.x)
+    *   `ESPAsyncWebServer` by ESP32-Community
+    *   `AsyncTCP` by ESP32-Community
+    *   `PubSubClient` by Nick O'Leary
+    *   `ESP32-audioI2S` by schreibfaul
+
+> ***Image Placeholder:*** *A screenshot of the Arduino IDE's Library Manager showing a search for one of the required libraries (e.g., "ESP32-audioI2S").*
 
 </details>
 
@@ -105,7 +111,7 @@ This project relies on several external libraries. Seven of them can be installe
 > #### ⚠️ **Critical Step: Address Configuration**
 > Each of the 12 display modules must be configured with a unique I2C address so the firmware can communicate with it. This is done by creating "solder bridges" on the address jumpers on the back of each display's circuit board. A solder bridge is simply a small blob of solder that connects the two pads.
 >
-> <img src="https://i.ytimg.com/vi/AOkdQ0txKpA/maxresdefault.jpg" width="400">
+> ***Image Placeholder:*** *A high-resolution, close-up image of the back of an Adafruit HT16K33 display, clearly highlighting the A0, A1, and A2 solder pads. An annotated version showing a properly created solder bridge would be ideal.*
 >
 > **How it Works**: This project uses two separate I2C buses to avoid conflicts. The "Destination" and "Present" displays are on one bus, while the "Last Time Departed" displays are on another. Because they are on separate buses, their addresses can overlap without causing issues.
 >
@@ -156,25 +162,20 @@ This project relies on several external libraries. Seven of them can be installe
 <summary><b>Step 5: Upload Files to Filesystem</b></summary>
 
 > #### ⚠️ **Critical Step: Upload Data Files**
-> The web interface and sound effects will not work unless the contents of the `data` folder are uploaded to the ESP32's filesystem. The process differs slightly between Arduino IDE versions.
+> The web interface and sound effects will not work unless the contents of the `data` folder are uploaded to the ESP32's filesystem. This requires a special uploader plugin for the Arduino IDE.
 >
-> ---
-> #### **Instructions for Arduino IDE v2.x (Recommended)**
 > 1.  **Install the Uploader Plugin**:
->     *   Download the `arduino-littlefs-upload` plugin from the [official releases page](https://github.com/earlephilhower/arduino-littlefs-upload/releases).
->     *   Follow the installation instructions on that page to add the plugin to your Arduino IDE.
-> 2.  **Upload the Data**:
->     *   Ensure the `data` folder is located in the same directory as your main `.ino` file.
->     *   In the Arduino IDE, navigate to **Tools > ESP32 LittleFS Data Upload**.
->     *   The IDE will build and upload the filesystem image automatically.
+>     *   **For Arduino IDE v2.x (Recommended)**: Download the `arduino-littlefs-upload` plugin from its [official releases page](https://github.com/earlephilhower/arduino-littlefs-upload/releases).
+>     *   **For Arduino IDE v1.x**: Download the `ESP32FS` plugin from its [official repository](https://github.com/me-no-dev/arduino-esp32fs-plugin).
+>     *   Follow the installation instructions provided on the respective download pages to add the plugin to your Arduino IDE.
 >
-> ---
-> #### **Instructions for Arduino IDE v1.x**
-> 1.  **Install the Uploader Plugin**:
->     *   Download and install the **ESP32 LittleFS Uploader** from the [official plugin repository](https://github.com/lorol/arduino-esp32littlefs-plugin). Follow the installation instructions carefully.
 > 2.  **Upload the Data**:
->     *   After installing the plugin, restart the Arduino IDE.
->     *   Open your sketch and navigate to **Tools > ESP32 Sketch Data Upload**.
+>     *   Ensure the `data` folder is present in the same directory as your main `.ino` file.
+>     *   Restart the Arduino IDE after installing the plugin.
+>     *   In the IDE, navigate to **Tools > ESP32 LittleFS Data Upload** (the exact name may vary slightly).
+>     *   The IDE will then build and upload the filesystem image.
+>
+> > ***Image Placeholder:*** *A screenshot of the Arduino IDE's Tools menu, highlighting the "Partition Scheme" and "ESP32 LittleFS Data Upload" options.*
 
 </details>
 

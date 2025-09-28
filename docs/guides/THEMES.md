@@ -10,9 +10,7 @@ The Time Circuits clock includes several built-in themes to customize the look a
 2.  **Open the Theme Selector**: At the bottom of the navigation menu on the left side of the page, you will find the theme selector.
 3.  **Choose a Theme**: Click on any of the theme options to instantly apply it. The web interface will update with the new color scheme, and your selection will be saved automatically.
 
-![Theme Selector](../images/webui_themes.png)
-
-*(Note: A screenshot will be added here in a future update to show the location of the theme selector.)*
+> ***Image Placeholder:*** *A collage of screenshots showcasing several of the different web interface themes, such as "OUTATIME," "Plutonium Glow," and "Mr. Fusion." This will give users a preview of the customization options.*
 
 ---
 

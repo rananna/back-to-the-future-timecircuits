@@ -33,10 +33,7 @@ To get started with development, you will need the following:
     * `AsyncTCP` by ESP32-Community
     * `PubSubClient` by Nick O'Leary
     * `Preferences` (built-in)
-*   **Manual Installation**: The `ESP32-audioI2S` library is not in the Library Manager and must be installed manually.
-    1.  **[Download the library as a .zip file from the official repository](https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip)**.
-    2.  In the Arduino IDE, navigate to `Sketch` > `Include Library` > `Add .ZIP Library...`.
-    3.  Select the downloaded `.zip` file.
+    * `ESP32-audioI2S` by schreibfaul
 
 ### Partitioning
 

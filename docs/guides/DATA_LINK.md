@@ -12,6 +12,8 @@ Before enabling a data mode, you can choose which of the three main display rows
 *   **Options**: You can select `Top`, `Middle`, or `Bottom`.
 *   **Behavior**: When a data mode (Weather, Stock Ticker, or Data Link Marquee) is active, it will take over the selected row. The other two rows will continue to show their normal time information. For example, if you set the target row to "Top," the weather forecast will appear there, while the "Present Time" and "Last Time Departed" displays will function as usual.
 
+> ***Image Placeholder:*** *A screenshot of the top of the "Data Link" tab in the web UI, showing the "Target Display Row" dropdown selector.*
+
 The **Data Link** tab in the web interface is split into three powerful modes, and **only one can be active at a time**. Enabling one will automatically disable the others.
 
 ### **Table of Contents**
@@ -23,6 +25,8 @@ The **Data Link** tab in the web interface is split into three powerful modes, a
 
 ## Live Weather Display
 This mode transforms the bottom display row into a comprehensive, multi-page weather station. An internet connection is required, and the data automatically refreshes periodically.
+
+> ***Image Placeholder:*** *A screenshot of the "Live Weather Display" section in the web UI, showing the "Enable" toggle, the city input field, and the coordinate lookup button.*
 
 **Configuration Steps:**
 1.  **Enable Weather Mode**: Toggle on "Enable Live Weather".
@@ -67,6 +71,8 @@ While fetching data, the display will show `WEA TH ER ----`. Once loaded, it wil
 
 ## Stock Ticker Mode
 This mode transforms the bottom display row into a scrolling, multi-page financial ticker. It supports stocks, ETFs, and cryptocurrencies from around the world, allowing you to track your portfolio at a glance.
+
+> ***Image Placeholder:*** *A screenshot of the "Stock Ticker Mode" section in the web UI, showing the "Enable" toggle, the API key input field, and the refresh interval setting.*
 
 ##### 1. Activation & API Key
 First, you need to enable and configure the mode in the "Data Link" tab of the web interface.
@@ -153,6 +159,8 @@ Here are some popular ETFs for major North American indices that you can use:
 
 ## Data Link Marquee
 This is the most powerful and flexible data display mode. It transforms the bottom display row into a fully configurable marquee that can display custom data from multiple sources like MQTT, Home Assistant, or just static text. It works by cycling through up to 5 independent "Data Points," each with its own source and formatting.
+
+> ***Image Placeholder:*** *A screenshot of the "Data Link Marquee" section in the web UI, showing the "Enable" toggle and a configured data point with its source, topic, and text fields.*
 
 ##### 1. Activating the Marquee
 To begin, you must first enable the Data Link Marquee mode.
