@@ -258,6 +258,24 @@ void broadcastRadioStationsUpdated() {
 }
 
 /**
+ * @brief Broadcasts the current radio metadata to all connected WebSocket clients.
+ * @param stationName The name of the radio station.
+ * @param songTitle The title of the currently playing song.
+ */
+void broadcastRadioMetadata(const char* stationName, const char* songTitle) {
+    if (ws.count() > 0) {
+        JsonDocument doc;
+        doc["action"] = "radioMetadataUpdate";
+        doc["stationName"] = stationName;
+        doc["songTitle"] = songTitle;
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
+        Log_printf(LOG_LEVEL_INFO, "Broadcasted radio metadata: %s", jsonString.c_str());
+    }
+}
+
+/**
  * @brief Overloaded function to broadcast an integer state update via WebSocket.
  */
 void broadcastWsStateUpdate(const char* key, int value) {

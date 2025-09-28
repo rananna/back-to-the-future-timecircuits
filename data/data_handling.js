@@ -97,6 +97,9 @@ function initWebSocket() {
             console.log("CLIENT_DEBUG: Received radio stations updated notification.");
             populateRadioStations();
             showMessage('Radio station list has been updated.', 'info');
+        } else if (msg.action === 'radioMetadataUpdate') {
+            document.getElementById('station-name').textContent = msg.stationName || '';
+            document.getElementById('song-title').textContent = msg.songTitle || '';
         } else if (msg.action === 'fullSettings') {
             console.log("CLIENT_DEBUG: Received full settings object from server.");
             // The 'fullSettings' message contains all settings in one object.

@@ -33,5 +33,9 @@ void startAudioStream(const char* url, bool is_tts, int volume = -1);
 void stopAudioStream();
 void handleSequencerCommand(const std::string& payload);
 
+// --- Radio Metadata ---
+void audio_showstreamtitle(const char *info);
+void publishRadioMetadata();
+
 
 #endif // MQTT_MANAGER_H

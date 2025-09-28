@@ -59,6 +59,7 @@ void broadcastWeatherUpdate();
 void sendFullSettingsToClient(uint32_t clientId);
 void broadcastRadioStatus(RadioStatus status, const char* message = "");
 void broadcastRadioStationsUpdated();
+void broadcastRadioMetadata(const char* stationName, const char* songTitle);
 
 
 #endif // WEB_SERVER_H

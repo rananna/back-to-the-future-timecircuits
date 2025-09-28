@@ -1794,3 +1794,29 @@ body.time-travel-active {
 .autocomplete-item:hover {
     background-color: var(--tab-active-bg);
 }
+
+/* Radio Metadata Styles */
+#radio-metadata {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--input-border);
+    text-align: center;
+    min-height: 40px; /* Reserve space to prevent layout shift */
+}
+
+#radio-metadata p {
+    margin: 4px 0;
+    font-size: 0.9em;
+    line-height: 1.3;
+}
+
+#station-name {
+    font-weight: bold;
+    color: var(--highlight-text-color);
+}
+
+#song-title {
+    color: var(--text-color);
+    font-style: italic;
+    opacity: 0.9;
+}
