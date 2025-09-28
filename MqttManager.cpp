@@ -19,6 +19,8 @@
 #include <LittleFS.h>
 
 extern StockManager stockManager;
+#include "Audio.h"
+extern Audio audio;
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
@@ -27,6 +29,10 @@ extern StockManager stockManager;
 
 String currentProfileName = "Standard";
 String lastDepartedPreset = "None";
+
+// --- Radio Metadata Globals ---
+String radioStationName = "";
+String radioSongTitle = "";
 
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
     String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
@@ -606,7 +612,34 @@ void publishHaAutoDiscovery() {
     doc["state_topic"] = device_base_topic + "/audio/state";
     doc["icon"] = "mdi:waveform";
     publishDiscoveryMessage(doc, "sensor");
-    // No need to clean up the last message
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("state_topic");
+    doc.remove("icon");
+
+    // --- Radio Station Name Sensor ---
+    doc["name"] = "Radio Station";
+    String radio_station_id = String(MQTT_UNIQUE_ID) + "_radio_station_name";
+    doc["unique_id"] = radio_station_id;
+    doc["object_id"] = radio_station_id;
+    doc["state_topic"] = device_base_topic + "/radio_station_name/state";
+    doc["icon"] = "mdi:radio-tower";
+    publishDiscoveryMessage(doc, "sensor");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("state_topic");
+    doc.remove("icon");
+
+    // --- Radio Song Title Sensor ---
+    doc["name"] = "Radio Song";
+    String radio_song_id = String(MQTT_UNIQUE_ID) + "_radio_song_title";
+    doc["unique_id"] = radio_song_id;
+    doc["object_id"] = radio_song_id;
+    doc["state_topic"] = device_base_topic + "/radio_song_title/state";
+    doc["icon"] = "mdi:music-note";
+    publishDiscoveryMessage(doc, "sensor");
 }
 
 void reconnectMqtt() {
@@ -1092,6 +1125,10 @@ void publishAllHaStates() {
 
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
 
+    // --- ADDED: Publish radio metadata states ---
+    mqttClient.publish((base_topic + "/radio_station_name/state").c_str(), radioStationName.c_str(), true);
+    mqttClient.publish((base_topic + "/radio_song_title/state").c_str(), radioSongTitle.c_str(), true);
+
     for(int i=0; i<5; ++i) {
         String enabled_topic = base_topic + "/datapoint_" + String(i) + "_enabled/state";
         mqttClient.publish(enabled_topic.c_str(), currentSettings.dataPoints[i].enabled ? "ON" : "OFF", true);
@@ -1195,6 +1232,73 @@ void updateHaStatus(const char* status) {
 	mqttClient.publish((base_topic + "/status/state").c_str(), status, true);
 }
 
+/**
+ * @brief Publishes the current radio metadata to the corresponding MQTT topics.
+ * @details This function is called whenever the station name or song title changes.
+ * It sends the data to Home Assistant and broadcasts it to the web UI.
+ */
+void publishRadioMetadata() {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+
+    // Publish to Home Assistant topics
+    mqttClient.publish((base_topic + "/radio_station_name/state").c_str(), radioStationName.c_str(), true);
+    mqttClient.publish((base_topic + "/radio_song_title/state").c_str(), radioSongTitle.c_str(), true);
+
+    // Broadcast to Web UI
+    broadcastRadioMetadata(radioStationName.c_str(), radioSongTitle.c_str());
+}
+
+/**
+ * @brief Callback function for the ESP32-audioI2S library to handle ICY stream metadata.
+ * @details This function is registered with the audio library. When the library
+ * receives a metadata chunk (usually containing "StreamTitle='...'"), it calls this
+ * function. The function then parses the string to extract the song title and
+ * station name, updates the global variables, and publishes the new information.
+ * @param info The metadata string provided by the audio library.
+ */
+void audio_showstreamtitle(const char *info) {
+    Log_printf(LOG_LEVEL_INFO, "ICY METADATA: %s", info);
+    String metadata = String(info);
+
+    // Look for "StreamTitle" to parse song title
+    int titleStart = metadata.indexOf("StreamTitle='");
+    if (titleStart != -1) {
+        titleStart += 13; // Move past "StreamTitle='"
+        int titleEnd = metadata.indexOf("';", titleStart);
+        if (titleEnd != -1) {
+            radioSongTitle = metadata.substring(titleStart, titleEnd);
+        }
+    } else {
+        // If no StreamTitle, the whole string is probably the title
+        radioSongTitle = metadata;
+    }
+
+    // Look for "StreamName" which is often provided in other parts of the metadata
+    // Note: The audio library sometimes provides the station name in a separate call.
+    // We will check for it, but won't clear the existing station name if it's not found.
+    int nameStart = metadata.indexOf("StreamName='");
+    if (nameStart != -1) {
+        nameStart += 12; // Move past "StreamName='"
+        int nameEnd = metadata.indexOf("'", nameStart);
+        if (nameEnd != -1) {
+            radioStationName = metadata.substring(nameStart, nameEnd);
+        }
+    }
+
+    // Clean up common garbage text from titles
+    radioSongTitle.replace(" - ", " ");
+    radioSongTitle.replace("Now Playing: ", "");
+    radioSongTitle.trim();
+
+    // If the song title is empty or just a dash, use a generic message
+    if (radioSongTitle.length() <= 1) {
+        radioSongTitle = "Currently Playing";
+    }
+
+    publishRadioMetadata();
+}
+
 void startAudioStream(const char* url, bool is_tts, int volume) {
     Log_printf(LOG_LEVEL_INFO, "Request to start audio stream from URL: %s", url);
     if (!hardwareInitialized) {
@@ -1209,8 +1313,13 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    // Broadcast that we are trying to connect
-    if (!is_tts) broadcastRadioStatus(RADIO_STATUS_CONNECTING);
+    // If it's a radio stream, set the callback. Otherwise, ensure it's null.
+    if (!is_tts) {
+        audio.setStreamTitleCallback(audio_showstreamtitle);
+        broadcastRadioStatus(RADIO_STATUS_CONNECTING);
+    } else {
+        audio.setStreamTitleCallback(nullptr);
+    }
     
     digitalWrite(I2S_SD_PIN, HIGH);
     
@@ -1230,7 +1339,13 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
         if (mqttClient.connected()) {
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
         }
-        if (!is_tts) broadcastRadioStatus(RADIO_STATUS_PLAYING);
+        if (!is_tts) {
+            broadcastRadioStatus(RADIO_STATUS_PLAYING);
+            // The station name is often in the header, not the metadata.
+            // Let's grab it now.
+            radioStationName = audio.getStationName();
+            publishRadioMetadata();
+        }
     } else {
         Log_printf(LOG_LEVEL_ERROR, "Failed to connect to host for streaming: %s", url);
         currentSoundFile[0] = '\0';
@@ -1243,6 +1358,14 @@ void stopAudioStream() {
     Log_printf(LOG_LEVEL_INFO, "Request to stop audio stream.");
     if (audio.isRunning()) {
         audio.stopSong();
+        // Clear metadata and publish the update
+        radioStationName = "";
+        radioSongTitle = "";
+        publishRadioMetadata();
+
+        // Unregister the callback
+        audio.setStreamTitleCallback(nullptr);
+
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
         Log_printf(LOG_LEVEL_INFO, "Audio stream stopped successfully.");
