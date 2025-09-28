@@ -45,6 +45,8 @@ The new custom component provides a rich, native Home Assistant experience:
 
 There are two ways to install the custom component: via HACS (recommended) or manually.
 
+> ***Image Placeholder:*** *A screenshot of the HACS "Custom repositories" dialog with the repository URL and "Integration" category selected.*
+
 #### **Method 1: Install via HACS (Recommended)**
 1.  In Home Assistant, navigate to **HACS > Integrations**.
 2.  Click the three dots in the top-right corner and select **Custom repositories**.
@@ -65,6 +67,8 @@ There are two ways to install the custom component: via HACS (recommended) or ma
 3.  Follow the on-screen instructions. The integration will be added without any further configuration needed.
 
 Your Time Circuits clock will now appear as a new device in Home Assistant, with all its entities automatically created.
+
+> ***Image Placeholder:*** *A screenshot of the Home Assistant device page for the Time Circuits clock, showing the collection of entities (switches, numbers, buttons, etc.).*
 
 ---
 
@@ -99,6 +103,8 @@ You can play any of the built-in sound effects directly from the media player en
 1.  Navigate to the `media_player.bttf_time_circuits_speaker` entity in your Home Assistant dashboard.
 2.  Click the three dots to open the media controls.
 3.  Select a sound from the **Source** dropdown menu.
+
+> ***Image Placeholder:*** *A screenshot of the media player entity's controls in Home Assistant, with the "Source" dropdown expanded to show the list of available sound effects.*
 
 You can also use the `media_player.select_source` service in scripts or automations:
 
@@ -143,6 +149,8 @@ The integration provides three powerful services for advanced control and automa
 
 ### **1. `notify.bttf_time_circuits`**
 This service sends a temporary notification message to the clock's display.
+
+> ***Image Placeholder:*** *A screenshot of the Home Assistant Developer Tools > Services view, showing a call to the `notify.bttf_time_circuits` service with example message and data.*
 
 | Parameter | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
