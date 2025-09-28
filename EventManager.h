@@ -53,10 +53,7 @@ extern SemaphoreHandle_t xDisplayDataMutex;
 extern std::string lastCityName;
 
 // --- START: SEQUENCER GLOBALS ---
-extern SequenceStep sequence[20];
-extern int currentSequenceStep;
-extern unsigned long sequenceStepStartTime;
-extern bool isSequenceActive;
+extern SequencerTrack sequencerTracks[3]; // One track for each display row
 // --- END: SEQUENCER GLOBALS ---
 
 // --- NEW GLOBAL AUDIO DECLARATIONS ---

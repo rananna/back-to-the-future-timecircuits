@@ -1090,75 +1090,82 @@ void handleSequencerCommand(const std::string& payload) {
         return;
     }
 
-    JsonArray sequence = doc.as<JsonArray>();
-    if (sequence.isNull()) {
-        Log_printf(LOG_LEVEL_ERROR, "Sequencer payload is not a JSON array.");
+    JsonArray track_definitions = doc.as<JsonArray>();
+    if (track_definitions.isNull()) {
+        Log_printf(LOG_LEVEL_ERROR, "Sequencer payload is not a JSON array of track definitions.");
         return;
     }
 
-    for (JsonObject command : sequence) {
-        const char* cmd = command["command"];
-        if (!cmd) {
-            Log_printf(LOG_LEVEL_WARN, "Skipping invalid sequencer command: missing 'command' key.");
+    for (JsonObject track_def : track_definitions) {
+        int targetRow = track_def["targetRow"] | -1;
+
+        if (targetRow < 0 || targetRow > 2) {
+            Log_printf(LOG_LEVEL_WARN, "Skipping track with invalid targetRow: %d", targetRow);
             continue;
         }
 
-        if (strcmp(cmd, "flash") == 0) {
-            const char* segment = command["segment"];
-            if (segment) {
-                int row = -1, seg = -1;
-                if (strstr(segment, "dest_")) row = 0;
-                else if (strstr(segment, "pres_")) row = 1;
-                else if (strstr(segment, "last_")) row = 2;
-
-                if (strstr(segment, "_month")) seg = 0;
-                else if (strstr(segment, "_day")) seg = 1;
-                else if (strstr(segment, "_year")) seg = 2;
-                else if (strstr(segment, "_time")) seg = 3;
-
-                if (row != -1 && seg != -1) {
-                    triggerFlashEffect(row, seg, command["duration"] | 500);
-                } else {
-                    Log_printf(LOG_LEVEL_WARN, "Invalid segment for flash command: %s", segment);
-                }
-            } else {
-                Log_printf(LOG_LEVEL_WARN, "Missing 'segment' for flash command.");
-            }
-        } else if (strcmp(cmd, "sound") == 0) {
-            const char* effect = command["effect"];
-            if (effect) {
-                playSound((String(effect) + ".mp3").c_str(), true);
-            } else {
-                Log_printf(LOG_LEVEL_WARN, "Missing 'effect' for sound command.");
-            }
-        } else if (strcmp(cmd, "message") == 0) {
-            const char* display = command["display"];
-            if (display) {
-                int row = -1;
-                if (strcmp(display, "destination") == 0) row = 0;
-                else if (strcmp(display, "present") == 0) row = 1;
-                else if (strcmp(display, "last_departed") == 0) row = 2;
-
-                if (row != -1) {
-                    updateDisplaySegment(row, 0, command["month"] | "");
-                    updateDisplaySegment(row, 1, command["day"] | "");
-                    updateDisplaySegment(row, 2, command["year"] | "");
-                    updateDisplaySegment(row, 3, command["time"] | "");
-                } else {
-                    Log_printf(LOG_LEVEL_WARN, "Invalid display for message command: %s", display);
-                }
-            } else {
-                Log_printf(LOG_LEVEL_WARN, "Missing 'display' for message command.");
-            }
-        } else if (strcmp(cmd, "delay") == 0) {
-            if (command["duration"].is<int>()) {
-                delay(command["duration"].as<int>());
-            } else {
-                Log_printf(LOG_LEVEL_WARN, "Missing 'duration' for delay command.");
-            }
-        } else {
-            Log_printf(LOG_LEVEL_WARN, "Unknown sequencer command: %s", cmd);
+        if (sequencerTracks[targetRow].isActive) {
+            Log_printf(LOG_LEVEL_WARN, "Ignoring new sequence for row %d, one is already active.", targetRow);
+            continue;
         }
+
+        JsonArray commands = track_def["commands"].as<JsonArray>();
+        if (commands.isNull()) {
+            Log_printf(LOG_LEVEL_WARN, "Skipping track for row %d: missing 'commands' array.", targetRow);
+            continue;
+        }
+
+        int step_index = 0;
+        for (JsonObject command : commands) {
+            if (step_index >= 19) {
+                Log_printf(LOG_LEVEL_WARN, "Command limit reached for track %d. Ignoring further commands.", targetRow);
+                break;
+            }
+
+            const char* cmd = command["command"];
+            if (!cmd) {
+                Log_printf(LOG_LEVEL_WARN, "Skipping invalid command in track %d: missing 'command' key.", targetRow);
+                continue;
+            }
+
+            SequenceStep& current_step = sequencerTracks[targetRow].steps[step_index];
+            current_step.targetRow = targetRow; // Assign the row to the step for context
+
+            if (strcmp(cmd, "MARQUEE") == 0) {
+                current_step.command = SEQ_CMD_MARQUEE;
+                current_step.stringParam = command["stringParam"] | "";
+            } else if (strcmp(cmd, "FADE_IN") == 0) {
+                current_step.command = SEQ_CMD_FADE_IN;
+                current_step.intParam = command["intParam"] | 1000;
+            } else if (strcmp(cmd, "FADE_OUT") == 0) {
+                current_step.command = SEQ_CMD_FADE_OUT;
+                current_step.intParam = command["intParam"] | 1000;
+            } else if (strcmp(cmd, "PULSE") == 0) {
+                current_step.command = SEQ_CMD_PULSE;
+                current_step.targetSegment = command["targetSegment"] | -1;
+                current_step.intParam = command["intParam"] | 1000;
+            } else if (strcmp(cmd, "FLASH") == 0) {
+                current_step.command = SEQ_CMD_FLASH;
+                current_step.targetSegment = command["targetSegment"] | -1;
+                current_step.intParam = command["intParam"] | 500;
+            } else if (strcmp(cmd, "SOUND") == 0) {
+                current_step.command = SEQ_CMD_SOUND;
+                current_step.stringParam = command["stringParam"] | "";
+            } else if (strcmp(cmd, "WAIT") == 0) {
+                current_step.command = SEQ_CMD_WAIT;
+                current_step.intParam = command["intParam"] | 1000;
+            } else {
+                Log_printf(LOG_LEVEL_WARN, "Unknown sequencer command '%s' in track %d.", cmd, targetRow);
+                continue;
+            }
+            step_index++;
+        }
+
+        sequencerTracks[targetRow].steps[step_index].command = SEQ_CMD_END;
+        sequencerTracks[targetRow].currentStep = 0;
+        sequencerTracks[targetRow].stepStartTime = millis();
+        sequencerTracks[targetRow].isActive = true;
+        Log_printf(LOG_LEVEL_INFO, "Sequencer track %d activated with %d steps.", targetRow, step_index);
     }
 }
 

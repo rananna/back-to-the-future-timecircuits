@@ -140,7 +140,7 @@ char MQTT_UNIQUE_ID[21]; // The unique identifier for this device, derived from 
 // Forward declarations for functions defined later in this file.
 void handlePresetCycling();
 void handleSleepSchedule();
-void handleSequencer();
+void handleSequencers();
 bool attemptHardwareInit();
 void onHardwareInitialized();
 void checkDataFetchStatusTask(void* p);
@@ -220,10 +220,7 @@ SemaphoreHandle_t xAnimationStartMutex;
 SemaphoreHandle_t xTimeLibMutex;
 SemaphoreHandle_t xDisplayHardwareMutex;
 
-SequenceStep sequence[20];
-int currentSequenceStep = 0;
-unsigned long sequenceStepStartTime = 0;
-bool isSequenceActive = false;
+SequencerTrack sequencerTracks[3];
 
 // A more detailed state machine for the main display logic. This helps to cleanly
 // separate the logic for each display mode and ensures only one mode is active at a time,
@@ -1083,7 +1080,10 @@ void updateDisplayState() {
 void handleDisplay() {
     // These effects can run concurrently with the main display modes
     handleTemporalEcho();
-    handleSequencer();
+    handleSequencers();
+    handleSequencerMarquee();
+    handlePulseEffect();
+    handleFadeEffect();
     handlePresetCycling();
     handleSleepSchedule();
 
@@ -1317,36 +1317,56 @@ void loop() {
     }
     ArduinoOTA.handle();
 }
-void handleSequencer() {
-    if (!isSequenceActive) return;
-    SequenceStep step = sequence[currentSequenceStep];
-    unsigned long elapsed = millis() - sequenceStepStartTime;
-    switch (step.command) {
-        case SEQ_CMD_TEXT:
-            if (hardwareInitialized) updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
-            currentSequenceStep++;
-            sequenceStepStartTime = millis();
-            break;
-        case SEQ_CMD_FLASH:
-            if (hardwareInitialized) triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
-            currentSequenceStep++;
-            sequenceStepStartTime = millis();
-            break;
-        case SEQ_CMD_SOUND:
-            if (hardwareInitialized) playSound(step.stringParam.c_str());
-            currentSequenceStep++;
-			sequenceStepStartTime = millis();
-            break;
-        case SEQ_CMD_WAIT:
-            if (elapsed >= (unsigned long)step.intParam) {
-                sequenceStepStartTime = millis();
-                currentSequenceStep++;
-            }
-            break;
-        case SEQ_CMD_END:
-            isSequenceActive = false;
-            currentSequenceStep = 0;
-            break;
+void handleSequencers() {
+    for (int i = 0; i < 3; ++i) {
+        if (!sequencerTracks[i].isActive) continue;
+
+        SequencerTrack& track = sequencerTracks[i];
+        SequenceStep& step = track.steps[track.currentStep];
+        unsigned long elapsed = millis() - track.stepStartTime;
+
+        switch (step.command) {
+            case SEQ_CMD_MARQUEE:
+                if (hardwareInitialized) startMarquee(step.targetRow, step.stringParam);
+                track.currentStep++;
+                track.stepStartTime = millis();
+                break;
+            case SEQ_CMD_FLASH:
+                if (hardwareInitialized) triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
+                track.currentStep++;
+                track.stepStartTime = millis();
+                break;
+            case SEQ_CMD_PULSE:
+                if (hardwareInitialized) startPulseEffect(step.targetRow, step.targetSegment, step.intParam);
+                track.currentStep++;
+                track.stepStartTime = millis();
+                break;
+            case SEQ_CMD_FADE_IN:
+                if (hardwareInitialized) startFadeEffect(step.intParam, true);
+                track.currentStep++;
+                track.stepStartTime = millis();
+                break;
+            case SEQ_CMD_FADE_OUT:
+                if (hardwareInitialized) startFadeEffect(step.intParam, false);
+                track.currentStep++;
+                track.stepStartTime = millis();
+                break;
+            case SEQ_CMD_SOUND:
+                if (hardwareInitialized) playSound(step.stringParam.c_str());
+                track.currentStep++;
+                track.stepStartTime = millis();
+                break;
+            case SEQ_CMD_WAIT:
+                if (elapsed >= (unsigned long)step.intParam) {
+                    track.stepStartTime = millis();
+                    track.currentStep++;
+                }
+                break;
+            case SEQ_CMD_END:
+                track.isActive = false;
+                track.currentStep = 0;
+                break;
+        }
     }
 }
 

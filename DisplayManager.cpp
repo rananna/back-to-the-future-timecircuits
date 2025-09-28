@@ -35,8 +35,87 @@ bool isWeatherBufferDirty = true;
 std::string marqueeBuffer;
 char weatherBuffer[512]; // Increased size for safety, changed to char array
 std::string marqueeOverrideBuffer;
+
+// --- START: NEW Sequencer Marquee Globals ---
+bool isSequencerMarqueeActive = false;
+std::string sequencerMarqueeText;
+int sequencerMarqueeRow = -1;
+int sequencerMarqueeScrollPosition = 0;
+unsigned long lastSequencerMarqueeScrollTime = 0;
+// --- END: NEW Sequencer Marquee Globals ---
+
 #include "HardwareControl.h"
 #include <cmath> // For std::isnan and std::isinf
+
+void startMarquee(int row, const std::string& text) {
+    if (row < 0 || row > 2) {
+        Log_printf(LOG_LEVEL_WARN, "startMarquee: Invalid targetRow %d", row);
+        return;
+    }
+    Log_printf(LOG_LEVEL_INFO, "Starting sequencer marquee on row %d with text: %s", row, text.c_str());
+    sequencerMarqueeText = "             " + text + " "; // Add padding
+    std::transform(sequencerMarqueeText.begin(), sequencerMarqueeText.end(), sequencerMarqueeText.begin(),
+                   [](unsigned char c){ return std::toupper(c); });
+    sequencerMarqueeRow = row;
+    sequencerMarqueeScrollPosition = 0;
+    isSequencerMarqueeActive = true;
+    lastSequencerMarqueeScrollTime = millis();
+}
+
+void handleSequencerMarquee() {
+    if (!isSequencerMarqueeActive || !hardwareInitialized) return;
+
+    // Determine which row to use
+    DisplayRow* targetRow = nullptr;
+    if (sequencerMarqueeRow == 0) targetRow = &destRow;
+    else if (sequencerMarqueeRow == 1) targetRow = &presRow;
+    else if (sequencerMarqueeRow == 2) targetRow = &lastRow;
+    else return; // Invalid row
+
+    const unsigned long scrollSpeed = 150; // Use a fixed speed for now
+
+    if (millis() - lastSequencerMarqueeScrollTime > scrollSpeed) {
+        lastSequencerMarqueeScrollTime = millis();
+
+        if (sequencerMarqueeScrollPosition > sequencerMarqueeText.length()) {
+            isSequencerMarqueeActive = false; // Marquee finished
+            sequencerMarqueeRow = -1;
+            // Restore the normal clock display on the affected row
+            if (sequencerMarqueeRow == 0) updateNormalClockDisplay_internal(true, false, false);
+            if (sequencerMarqueeRow == 1) updateNormalClockDisplay_internal(false, true, false);
+            if (sequencerMarqueeRow == 2) updateNormalClockDisplay_internal(false, false, true);
+            Log_printf(LOG_LEVEL_INFO, "Sequencer marquee finished.");
+        } else {
+            char viewport[14];
+            int text_len = sequencerMarqueeText.length();
+            for (int i = 0; i < 13; i++) {
+                int source_idx = sequencerMarqueeScrollPosition + i;
+                viewport[i] = (source_idx < text_len) ? sequencerMarqueeText[source_idx] : ' ';
+            }
+            viewport[13] = '\0';
+
+            char s_month[4], s_day[3], s_year[5], s_time[5];
+            strncpy(s_month, viewport, 3); s_month[3] = '\0';
+            strncpy(s_day, viewport + 3, 2); s_day[2] = '\0';
+            strncpy(s_year, viewport + 5, 4); s_year[4] = '\0';
+            strncpy(s_time, viewport + 9, 4); s_time[4] = '\0';
+
+            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                printToDisplay(targetRow->month, s_month, 1);
+                printToDisplay(targetRow->day, s_day, 2);
+                printToDisplay(targetRow->year, s_year, 0);
+                printToDisplay(targetRow->time, s_time, 0);
+                targetRow->month.writeDisplay();
+                targetRow->day.writeDisplay();
+                targetRow->year.writeDisplay();
+                targetRow->time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
+                xSemaphoreGive(xDisplayHardwareMutex);
+            }
+            sequencerMarqueeScrollPosition++;
+        }
+    }
+}
 
 // Forward declaration for the timeout handler in the main .ino file
 void handleWeatherTimeout();
