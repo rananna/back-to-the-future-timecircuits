@@ -32,10 +32,10 @@ Twelve `text` entities give you direct, granular control over each segment of th
 *   **Present Display**: `text.YOUR_CLOCK_ID_pres_month`, `text.YOUR_CLOCK_ID_pres_day`, `text.YOUR_CLOCK_ID_pres_year`, `text.YOUR_CLOCK_ID_pres_time`
 *   **Last Departed Display**: `text.YOUR_CLOCK_ID_last_month`, `text.YOUR_CLOCK_ID_last_day`, `text.YOUR_CLOCK_ID_last_year`, `text.YOUR_CLOCK_ID_last_time`
 
-> **💡 Pro Tip:** Use the **BTTF - Home Assistant Status Display** blueprint to easily control these entities without writing any YAML.
+> **💡 Pro Tip:** Use the `bttf_time_circuits.set_status_display` service in Home Assistant to easily control these entities without writing any YAML.
 
 #### **Notifications & Alerts**
-These entities are the building blocks for the `Advanced Notifier`, `TTS Notifier`, and other notification-based blueprints. They allow you to temporarily override the main display with a custom message and play a sound.
+These entities allow you to temporarily override the main display with a custom message and play a sound, forming the basis for advanced notifications.
 
 *   **`switch.YOUR_CLOCK_ID_override_switch`**: A master switch to enable or disable the override mode. When `On`, the custom messages are displayed. When `Off`, the clock returns to its normal operation.
 *   **`text.YOUR_CLOCK_ID_override_line_1`**: Sets the text for the top display row (Destination Time).
