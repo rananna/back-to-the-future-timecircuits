@@ -62,4 +62,6 @@ void handlePulseEffect();
 void startFadeEffect(int duration, bool isFadeIn);
 void handleFadeEffect();
 
+extern bool isFading;
+
 #endif // ANIMATION_MANAGER_H
