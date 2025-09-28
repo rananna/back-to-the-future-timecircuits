@@ -308,6 +308,49 @@ async function applyDataLinkSettings(datalink) {
 }
 
 /**
+ * Updates the radio control button and status display based on the current radio state.
+ * @param {string} status The current status of the radio ('stopped', 'connecting', 'playing', 'error').
+ * @param {string} [message] An optional message, typically for errors.
+ */
+function updateRadioControls(status, message = '') {
+    const controlBtn = document.getElementById('radioControlBtn');
+    const statusDisplay = document.getElementById('radioStatus');
+
+    if (!controlBtn || !statusDisplay) return;
+
+    controlBtn.disabled = false;
+    controlBtn.innerHTML = 'Play'; // Default
+
+    switch (status) {
+        case 'stopped':
+            controlBtn.textContent = 'Play';
+            controlBtn.dataset.state = 'stopped';
+            statusDisplay.textContent = 'Stopped';
+            statusDisplay.className = 'radio-status-display';
+            break;
+        case 'connecting':
+            controlBtn.innerHTML = '<span class="button-spinner"></span>';
+            controlBtn.dataset.state = 'connecting';
+            controlBtn.disabled = true;
+            statusDisplay.textContent = 'Connecting...';
+            statusDisplay.className = 'radio-status-display info';
+            break;
+        case 'playing':
+            controlBtn.textContent = 'Stop';
+            controlBtn.dataset.state = 'playing';
+            statusDisplay.textContent = 'Playing';
+            statusDisplay.className = 'radio-status-display success';
+            break;
+        case 'error':
+            controlBtn.textContent = 'Play';
+            controlBtn.dataset.state = 'stopped'; // Allow retry
+            statusDisplay.textContent = `Error: ${message || 'Unknown'}`;
+            statusDisplay.className = 'radio-status-display error';
+            break;
+    }
+}
+
+/**
  * Attaches all the necessary event listeners to the UI elements.
  */
 function attachEventListeners() {
@@ -479,19 +522,19 @@ function attachEventListeners() {
     // Firmware upload form
     document.getElementById('firmware-upload-form').onsubmit = handleFirmwareUpload;
 
-    // Radio controls
-    document.getElementById('playRadioBtn').onclick = () => {
-        const stationUrl = document.getElementById('radioStationSelect').value;
-        if (stationUrl) {
-            ws.send(JSON.stringify({ action: 'play_radio', url: stationUrl }));
-            showMessage('Playing radio...', 'info');
-        } else {
-            showMessage('Please select a radio station first.', 'error');
+    // Radio control button
+    document.getElementById('radioControlBtn').onclick = (e) => {
+        const state = e.target.dataset.state;
+        if (state === 'playing') {
+            ws.send(JSON.stringify({ action: 'stop_radio' }));
+        } else { // 'stopped' or 'error'
+            const stationUrl = document.getElementById('radioStationSelect').value;
+            if (stationUrl) {
+                ws.send(JSON.stringify({ action: 'play_radio', url: stationUrl }));
+            } else {
+                showMessage('Please select a radio station first.', 'error');
+            }
         }
-    };
-    document.getElementById('stopRadioBtn').onclick = () => {
-        ws.send(JSON.stringify({ action: 'stop_radio' }));
-        showMessage('Radio stopped.', 'info');
     };
 }
 

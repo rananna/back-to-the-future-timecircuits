@@ -4,6 +4,13 @@
 #include <Arduino.h>
 #include <string>
 
+enum RadioStatus {
+  RADIO_STATUS_STOPPED,
+  RADIO_STATUS_CONNECTING,
+  RADIO_STATUS_PLAYING,
+  RADIO_STATUS_ERROR
+};
+
 // --- MQTT Configuration ---
 #define MQTT_BASE_TOPIC "homeassistant"
 // IMPORTANT: This must match the DOMAIN constant in the Home Assistant integration.

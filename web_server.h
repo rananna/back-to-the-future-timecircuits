@@ -8,6 +8,7 @@
 #include <LittleFS.h>
 #include <WiFiClientSecure.h>
 #include "HardwareControl.h"
+#include "MqttManager.h"
 #include <string>
 #include <ArduinoOTA.h>
 
@@ -56,6 +57,8 @@ void broadcastWsStateUpdate(const char* key, int value);
 void broadcastWsStateUpdate(const char* key, bool value);
 void broadcastWeatherUpdate();
 void sendFullSettingsToClient(uint32_t clientId);
+void broadcastRadioStatus(RadioStatus status, const char* message = "");
+void broadcastRadioStationsUpdated();
 
 
 #endif // WEB_SERVER_H

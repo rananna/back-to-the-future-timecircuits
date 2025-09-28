@@ -977,6 +977,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             }
             if (file.print(message.c_str())) {
                 Log_printf(LOG_LEVEL_INFO, "Successfully wrote radio stations to LittleFS.");
+                broadcastRadioStationsUpdated();
             } else {
                 Log_printf(LOG_LEVEL_ERROR, "Failed to write radio stations to LittleFS.");
             }
@@ -1198,46 +1199,43 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
     Log_printf(LOG_LEVEL_INFO, "Request to start audio stream from URL: %s", url);
     if (!hardwareInitialized) {
         Log_printf(LOG_LEVEL_WARN, "Hardware not initialized, cannot play audio.");
+        if (!is_tts) broadcastRadioStatus(RADIO_STATUS_ERROR, "Hardware not ready");
         return;
     }
 
-    // --- START MODIFICATION ---
-    // Stop any currently playing stream and wait for the audio task to process it.
-    // This prevents a race condition where a new stream is started before the old one is fully torn down.
     if (audio.isRunning()) {
         Log_printf(LOG_LEVEL_DEBUG, "Stopping existing audio to play new stream.");
         stopAudioStream();
-        vTaskDelay(pdMS_TO_TICKS(100)); // Give the audio task time to stop
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
-    // --- END MODIFICATION ---
+
+    // Broadcast that we are trying to connect
+    if (!is_tts) broadcastRadioStatus(RADIO_STATUS_CONNECTING);
     
     digitalWrite(I2S_SD_PIN, HIGH);
     
     if (volume >= 0 && volume <= 100) {
-        // Map 0-100 volume from HA to the device's 0-21 scale
         int device_volume = round(volume / 100.0 * 21.0);
         audio.setVolume(device_volume);
         Log_printf(LOG_LEVEL_DEBUG, "Set dynamic volume to %d (%d/100)", device_volume, volume);
     } else {
-        audio.setVolume(currentSettings.notificationVolume); // Use default volume
+        audio.setVolume(currentSettings.notificationVolume);
     }
 
     strncpy(currentSoundFile, url, MAX_FILENAME_LENGTH - 1);
     currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
     
-    // --- FIX: Pass the persistent global buffer, not the temporary 'url' pointer ---
-    // The 'url' pointer can become invalid after this function returns, causing a crash
-    // in the audio library's background task. 'currentSoundFile' is a global buffer
-    // that will persist for the duration of the stream.
     if (audio.connecttohost(currentSoundFile)) {
         Log_printf(LOG_LEVEL_INFO, "Successfully connected to host for streaming: %s", currentSoundFile);
         if (mqttClient.connected()) {
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "PLAYING", true);
         }
+        if (!is_tts) broadcastRadioStatus(RADIO_STATUS_PLAYING);
     } else {
         Log_printf(LOG_LEVEL_ERROR, "Failed to connect to host for streaming: %s", url);
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
+        if (!is_tts) broadcastRadioStatus(RADIO_STATUS_ERROR, "Failed to connect to host");
     }
 }
 
@@ -1248,12 +1246,10 @@ void stopAudioStream() {
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
         Log_printf(LOG_LEVEL_INFO, "Audio stream stopped successfully.");
-        // --- START MODIFICATION ---
-        // Immediately publish the IDLE state to make the UI more responsive.
         if (mqttClient.connected()) {
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
         }
-        // --- END MODIFICATION ---
+        broadcastRadioStatus(RADIO_STATUS_STOPPED);
     } else {
         Log_printf(LOG_LEVEL_DEBUG, "No audio stream was running.");
     }
