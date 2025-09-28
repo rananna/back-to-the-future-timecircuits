@@ -494,8 +494,8 @@ void publishHaAutoDiscovery() {
     String override_switch_id = String(MQTT_UNIQUE_ID) + "_override_switch";
     doc["unique_id"] = override_switch_id;
     doc["object_id"] = override_switch_id;
-    doc["command_topic"] = device_base_topic + "/override/command";
-    doc["state_topic"] = device_base_topic + "/override/state";
+    doc["command_topic"] = device_base_topic + "/override_switch/command";
+    doc["state_topic"] = device_base_topic + "/override_switch/state";
     doc["icon"] = "mdi:message-cog";
     doc["entity_category"] = "config";
     publishDiscoveryMessage(doc, "switch");
@@ -784,17 +784,25 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 audio.setVolume(vol);
                 settingsChanged = true;
             }
-        } else if (component == "override") {
+        } else if (component == "override_switch") {
             isMessageOverrideActive = (message == "ON");
+            String state_topic = base_topic + "override_switch/state";
+            mqttClient.publish(state_topic.c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
             stateChanged = true;
         } else if (component == "override_line_1") {
             overrideMessageLine1 = message.c_str();
+            String state_topic = base_topic + "override_line_1/state";
+            mqttClient.publish(state_topic.c_str(), message.c_str(), true);
             stateChanged = true;
         } else if (component == "override_line_2") {
             overrideMessageLine2 = message.c_str();
+            String state_topic = base_topic + "override_line_2/state";
+            mqttClient.publish(state_topic.c_str(), message.c_str(), true);
             stateChanged = true;
         } else if (component == "override_line_3") {
             overrideMessageLine3 = message.c_str();
+            String state_topic = base_topic + "override_line_3/state";
+            mqttClient.publish(state_topic.c_str(), message.c_str(), true);
             stateChanged = true;
         } else if (component == "trigger_animation" && message == "PRESS") {
             startTimeTravelAnimation();
