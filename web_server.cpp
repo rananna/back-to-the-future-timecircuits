@@ -865,7 +865,7 @@ void setupWebRoutes() {
 
   AsyncCallbackJsonWebHandler* deleteStationHandler = new AsyncCallbackJsonWebHandler("/api/station/delete", [](AsyncWebServerRequest *request, JsonVariant &json) {
     JsonObject obj = json.as<JsonObject>();
-    if (!obj.containsKey("index")) {
+    if (obj["index"].isNull()) {
         request->send(400, "text/plain", "Missing index");
         return;
     }
