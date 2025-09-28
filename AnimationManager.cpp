@@ -49,7 +49,7 @@ void broadcastAnimationComplete() {
 }
 
 // --- FADE EFFECT ---
-static bool isFading = false;
+bool isFading = false;
 static unsigned long fadeStartTime = 0;
 static int fadeDuration = 0;
 static bool isFadeIn = false;

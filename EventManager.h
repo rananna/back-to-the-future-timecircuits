@@ -54,6 +54,8 @@ extern std::string lastCityName;
 
 // --- START: SEQUENCER GLOBALS ---
 extern SequencerTrack sequencerTracks[3]; // One track for each display row
+extern bool isFading;
+extern bool isSequencerMarqueeActive;
 // --- END: SEQUENCER GLOBALS ---
 
 // --- NEW GLOBAL AUDIO DECLARATIONS ---
