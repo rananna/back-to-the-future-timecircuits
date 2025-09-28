@@ -206,10 +206,13 @@ enum AnimationStyle {
 
 // --- START: SEQUENCER DEFINITIONS ---
 enum SequenceCommandType {
-    SEQ_CMD_TEXT,
     SEQ_CMD_FLASH,
     SEQ_CMD_WAIT,
     SEQ_CMD_SOUND,
+    SEQ_CMD_MARQUEE,
+    SEQ_CMD_FADE_IN,
+    SEQ_CMD_FADE_OUT,
+    SEQ_CMD_PULSE,
     SEQ_CMD_END
 };
 
@@ -219,6 +222,13 @@ struct SequenceStep {
     int targetSegment;
     int intParam;
     std::string stringParam;
+};
+
+struct SequencerTrack {
+    SequenceStep steps[20];
+    int currentStep = 0;
+    unsigned long stepStartTime = 0;
+    bool isActive = false;
 };
 // --- END: SEQUENCER DEFINITIONS ---
 

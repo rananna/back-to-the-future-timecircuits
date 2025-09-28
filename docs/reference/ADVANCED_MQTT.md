@@ -8,47 +8,58 @@ These features are intended for advanced users who are comfortable with MQTT and
 
 ### **Command Sequencer**
 
-The command sequencer is a powerful engine that allows you to script a series of actions for the clock to perform in order. You can combine text updates, sound effects, visual effects, and delays to create custom, cinematic moments.
+The command sequencer is a powerful engine that allows you to script a series of actions for the clock to perform in order. With the latest update, the sequencer now supports **parallel tracks**, allowing you to run independent animations on different display rows simultaneously.
 
 *   **MQTT Topic**: `bttf-time-circuits/[DEVICE_ID]/sequence/command`
-*   **Payload**: A JSON array of command objects.
+*   **Payload**: A JSON array of *track objects*.
 
-Each command object in the array must have a `command` field and may have other fields depending on the command being used. The sequencer executes the commands in the order they appear in the array.
+Each track object in the array defines a sequence for a specific row and must contain:
+*   `targetRow`: The display row to run this sequence on (0 = Top, 1 = Middle, 2 = Bottom).
+*   `commands`: An array of command objects, which will be executed in order on that row.
+
+> **⚠️ Breaking Change:** The payload format has changed. You must now wrap your command arrays inside a track object with a `targetRow`. See the example below.
 
 #### **Available Commands**
 
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
-| `TEXT` | Displays a string of text on a specific segment of the display. | `targetRow`, `targetSegment`, `stringParam` | `{"command":"TEXT", "targetRow":0, "targetSegment":0, "stringParam":"HELLO"}` |
+| `MARQUEE` | Scrolls a string of text across the entire `targetRow`. | `stringParam` | `{"command":"MARQUEE", "stringParam":"SYSTEMS ONLINE"}` |
+| `FADE_IN` | Smoothly fades the brightness of all displays from off to full. | `intParam` (duration in ms) | `{"command":"FADE_IN", "intParam":2000}` |
+| `FADE_OUT`| Smoothly fades the brightness of all displays from full to off. | `intParam` (duration in ms) | `{"command":"FADE_OUT", "intParam":2000}` |
+| `PULSE` | Causes a specific display segment on the `targetRow` to blink slowly. | `targetSegment`, `intParam` (duration in ms) | `{"command":"PULSE", "targetSegment":1, "intParam":5000}` |
 | `SOUND` | Plays a sound effect from the device's internal storage. | `stringParam` (filename) | `{"command":"SOUND", "stringParam":"/REMOTE.mp3"}` |
-| `FLASH` | Triggers a bright, flashing effect on a specific display segment. | `targetRow`, `targetSegment`, `intParam` (duration in ms) | `{"command":"FLASH", "targetRow":1, "targetSegment":2, "intParam":500}` |
-| `WAIT` | Pauses the sequence for a specified duration. | `intParam` (duration in ms) | `{"command":"WAIT", "intParam":1000}` |
+| `FLASH` | Triggers a bright, flashing effect on a specific segment of the `targetRow`. | `targetSegment`, `intParam` (duration in ms) | `{"command":"FLASH", "targetSegment":2, "intParam":500}` |
+| `WAIT` | Pauses this track for a specified duration. | `intParam` (duration in ms) | `{"command":"WAIT", "intParam":1000}` |
 
 #### **Parameter Details**
 
-*   `targetRow`: The display row to target (0 = Top, 1 = Middle, 2 = Bottom).
-*   `targetSegment`: The segment of the row to target (0-3, left to right). For example, on the top row, 0 is the month, 1 is the day, 2 is the year, and 3 is the AM/PM indicator.
-*   `stringParam`: A string value, used for text or filenames.
-*   `intParam`: An integer value, used for durations.
+*   `targetRow`: **(Required in track object)** The display row to target (0 = Top, 1 = Middle, 2 = Bottom).
+*   `targetSegment`: The segment of the row to target (0-3, left to right). Used by `PULSE`, `FLASH`.
+*   `stringParam`: A string value, used for text (`MARQUEE`) or filenames (`SOUND`).
+*   `intParam`: An integer value, used for durations in milliseconds.
 
-#### **Example Sequence**
+#### **Example: Parallel Sequences**
 
-Here is an example of a JSON payload that demonstrates a complete sequence. This sequence will:
-1.  Display "TRIP" on the top-left display.
-2.  Wait for half a second.
-3.  Play a sound effect.
-4.  Flash the middle display's year segment.
-5.  Wait for one second.
-6.  Clear the text from the top-left display.
+Here is an example of a payload that runs two sequences at the same time:
+1.  On the top row (`targetRow: 0`), it will pulse the "day" segment for 5 seconds.
+2.  On the bottom row (`targetRow: 2`), it will scroll a message and then play a sound.
 
 ```json
 [
-  {"command":"TEXT", "targetRow":0, "targetSegment":0, "stringParam":"TRIP"},
-  {"command":"WAIT", "intParam":500},
-  {"command":"SOUND", "stringParam":"/ALARM.mp3"},
-  {"command":"FLASH", "targetRow":1, "targetSegment":2, "intParam":750},
-  {"command":"WAIT", "intParam":1000},
-  {"command":"TEXT", "targetRow":0, "targetSegment":0, "stringParam":""}
+  {
+    "targetRow": 0,
+    "commands": [
+      {"command": "PULSE", "targetSegment": 1, "intParam": 5000}
+    ]
+  },
+  {
+    "targetRow": 2,
+    "commands": [
+      {"command": "MARQUEE", "stringParam": "PARALLEL SEQUENCING ENABLED"},
+      {"command": "WAIT", "intParam": 500},
+      {"command": "SOUND", "stringParam": "/CONFIRM_ON.mp3"}
+    ]
+  }
 ]
 ```
 

@@ -48,6 +48,19 @@ void broadcastAnimationComplete() {
     }
 }
 
+// --- FADE EFFECT ---
+static bool isFading = false;
+static unsigned long fadeStartTime = 0;
+static int fadeDuration = 0;
+static bool isFadeIn = false;
+static uint8_t originalBrightness = 0;
+
+// --- PULSE EFFECT ---
+static bool isPulsing[3][4] = {{false}};
+static unsigned long pulseEndTimes[3][4] = {{0}};
+static bool pulseStates[3][4] = {{false}};
+static unsigned long lastPulseToggle[3][4] = {{0}};
+
 // --- FLASH EFFECT ---
 bool isFlashing[3][4] = {{false}};
 unsigned long flashEndTimes[3][4] = {{0}};
@@ -121,6 +134,82 @@ void handleFlashEffect() {
     }
 }
 #endif // ENABLE_HARDWARE
+
+// --- START: NEW FADE AND PULSE IMPLEMENTATIONS ---
+
+void startFadeEffect(int duration, bool fadeIn) {
+    if (isFading) return; // Prevent starting a new fade if one is active
+    isFading = true;
+    isFadeIn = fadeIn;
+    fadeDuration = duration;
+    fadeStartTime = millis();
+    originalBrightness = currentSettings.brightness;
+    Log_printf(LOG_LEVEL_INFO, "Starting %s effect. Duration: %dms", fadeIn ? "Fade In" : "Fade Out", duration);
+}
+
+void handleFadeEffect() {
+    if (!isFading) return;
+
+    unsigned long elapsed = millis() - fadeStartTime;
+    if (elapsed >= fadeDuration) {
+        isFading = false;
+        // Set final brightness and restore original setting
+        currentSettings.brightness = isFadeIn ? 7 : 0;
+        applyBrightness();
+        currentSettings.brightness = originalBrightness; // Restore for future use
+        Log_printf(LOG_LEVEL_INFO, "Fade effect finished.");
+        return;
+    }
+
+    float progress = (float)elapsed / (float)fadeDuration;
+    uint8_t newBrightness;
+
+    if (isFadeIn) {
+        newBrightness = (uint8_t)(progress * 7.0f);
+    } else {
+        newBrightness = (uint8_t)((1.0f - progress) * 7.0f);
+    }
+
+    if (newBrightness != currentSettings.brightness) {
+        currentSettings.brightness = newBrightness;
+        applyBrightness();
+    }
+}
+
+void startPulseEffect(int row, int segment, int duration) {
+    if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
+    isPulsing[row][segment] = true;
+    pulseEndTimes[row][segment] = millis() + duration;
+    pulseStates[row][segment] = true; // Start in the ON state
+    lastPulseToggle[row][segment] = millis();
+    Log_printf(LOG_LEVEL_INFO, "Starting PULSE effect on row %d, seg %d. Duration: %dms", row, segment, duration);
+}
+
+void handlePulseEffect() {
+    bool needsDisplayUpdate = false;
+    for (int r = 0; r < 3; ++r) {
+        for (int s = 0; s < 4; ++s) {
+            if (isPulsing[r][s]) {
+                if (millis() > pulseEndTimes[r][s]) {
+                    isPulsing[r][s] = false;
+                    // Ensure the segment is left in its normal state
+                    needsDisplayUpdate = true;
+                } else {
+                    if (millis() - lastPulseToggle[r][s] > 750) { // Slower 750ms on/off cycle for pulse
+                        pulseStates[r][s] = !pulseStates[r][s];
+                        lastPulseToggle[r][s] = millis();
+                        needsDisplayUpdate = true;
+                    }
+                }
+            }
+        }
+    }
+    // If any pulse state changed, trigger a general display update.
+    // The main display loop will handle redrawing the correct content.
+    if (needsDisplayUpdate) {
+        updateNormalClockDisplay();
+    }
+}
 
 // --- TIME TRAVEL ANIMATION ---
 void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {

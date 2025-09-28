@@ -57,5 +57,9 @@ void handleBootSequence();
 void triggerFlashEffect(int row, int segment, int duration = 500);
 void handleFlashEffect();
 void broadcastAnimationComplete();
+void startPulseEffect(int row, int segment, int duration);
+void handlePulseEffect();
+void startFadeEffect(int duration, bool isFadeIn);
+void handleFadeEffect();
 
 #endif // ANIMATION_MANAGER_H
