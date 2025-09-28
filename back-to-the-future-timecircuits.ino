@@ -235,15 +235,6 @@ enum DisplayState {
 DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
 
 
-// --- Callback function to handle audio events ---
-void audio_info(Audio::msg_t m) {
-    if (m.e == Audio::evt_eof) {
-        Log_printf(LOG_LEVEL_INFO, "Audio event: End of file/stream detected for '%s'.", currentSoundFile);
-        // This is the primary callback for when a sound file finishes playing.
-        // We treat this as a permanent stop and run the full cleanup.
-        cleanupAudio(true);
-    }
-}
 
 /**
  * @brief A dedicated FreeRTOS task to handle audio processing.
@@ -888,8 +879,8 @@ void onHardwareInitialized() {
     audio.setVolume(currentSettings.notificationVolume);
     // This is the generic event callback, which we use for the primary EOF event.
     Audio::audio_info_callback = audio_info;
-    // This is a specific callback for when a network stream ends, which is critical for radio stability.
-    audio.setEofCallback(audio_eof_stream);
+    // The setEofCallback is deprecated and its functionality is now handled
+    // by the main audio_info callback.
     Log_printf(LOG_LEVEL_INFO, "I2S Audio... OK");
 
     xTaskCreatePinnedToCore(
