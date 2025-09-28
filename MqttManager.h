@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <string>
+#include "Audio.h"
 
 enum RadioStatus {
   RADIO_STATUS_STOPPED,
@@ -36,8 +37,7 @@ void handleSequencerCommand(const std::string& payload);
 void cleanupAudio(bool isPermanent);
 
 // --- Radio Metadata ---
-void audio_showstreamtitle(const char *info);
-void audio_eof_stream(const char *info);
+void audio_info(Audio::msg_t m);
 void publishRadioMetadata();
 
 

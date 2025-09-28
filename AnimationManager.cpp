@@ -1,6 +1,7 @@
 #include "AnimationManager.h"
 #include "EventManager.h"
 #include "HardwareControl.h"
+#include "DebugLog.h"
 #include "DisplayManager.h"
 #include "MqttManager.h"
 #include <WiFi.h>
@@ -302,7 +303,7 @@ void handleStyledAnimation() {
             break;
 
         case ANIM_WAIT_FOR_KEYPAD_SOUND:
-            if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
+            if (elapsed > 2000) { // Failsafe timeout of 2s
                 currentStyledPhase = ANIM_FLICKER;
                 styledAnimationStartTime = millis(); // Reset timer for the flicker phase
             } else {
@@ -432,9 +433,6 @@ void handleStyledAnimation() {
 
         case ANIM_COOL_DOWN:
             if (elapsed > 500) {
-                if (audio.isRunning()) {
-                    audio.stopSong();
-                }
                 comprehensiveAnimationCleanup();
                 isStyledAnimating = false;
                 currentStyledPhase = ANIM_INACTIVE;
@@ -537,10 +535,10 @@ void handleBootSequence() {
                 playSound("/relay_activation.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
+            //if (audio.isRunning()) {
                 bootState = BOOT_COLD_START;
                 bootStateStartTime = millis();
-            }
+            //}
             break;
         case BOOT_COLD_START:
             {
@@ -613,9 +611,9 @@ void handleBootSequence() {
                 }
 
                 if (elapsed > typingDuration + 2000) {
-                    if (audio.isRunning()) {
-                        audio.stopSong();
-                    }
+                    // if (audio.isRunning()) {
+                    //     audio.stopSong();
+                    // }
                     bootState = BOOT_FLUX_CAPACITOR_IGNITION;
                     bootStateStartTime = millis();
                 }
@@ -630,7 +628,7 @@ void handleBootSequence() {
                 stateActionCompleted = true;
             }
             // Once the audio is confirmed to be running, move to the animation state.
-            if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
+            if (elapsed > 2000) { // Failsafe timeout of 2s
                 bootState = BOOT_FLUX_CAPACITOR_ANIMATION;
                 bootStateStartTime = millis(); // Reset the timer for the animation phase
             }
@@ -674,7 +672,7 @@ void handleBootSequence() {
                 playSound("/keypad_beeps.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
+            //if (audio.isRunning()) {
                 int currentSecond = elapsed / 2000;
                 if (currentSecond != lastDiagSecond) {
                     blankAllDisplays();
@@ -706,7 +704,7 @@ void handleBootSequence() {
                     }
                     lastDiagSecond = currentSecond;
                 }
-            }
+            //}
             if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
                 bootState = BOOT_FINAL_CHECKS;
                 bootStateStartTime = millis();
@@ -717,7 +715,7 @@ void handleBootSequence() {
                 playSound("/engine_rev.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
+            //if (audio.isRunning()) {
                 if (!stateActionCompleted) {
                     blankAllDisplays();
                     stateActionCompleted = true;
@@ -735,7 +733,7 @@ void handleBootSequence() {
                 printToDisplay(destRow.time, "GO");
                 destRow.year.writeDisplay();
                 destRow.time.writeDisplay();
-            }
+            //}
             if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
                 bootState = BOOT_TEMPORAL_DISPLACEMENT;
                 bootStateStartTime = millis();
@@ -746,9 +744,9 @@ void handleBootSequence() {
                 playSound("/time_travel.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning()) {
+            //if (audio.isRunning()) {
                 animateRandomRealTimes();
-            }
+            //}
             if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
                 bootState = BOOT_ARRIVAL;
                 bootStateStartTime = millis();
@@ -759,7 +757,7 @@ void handleBootSequence() {
                 playSound("/arrival_chime.mp3");
                 stateActionCompleted = true;
             }
-            if (audio.isRunning() || elapsed > 2000) { // Failsafe timeout of 2s
+            if (elapsed > 2000) { // Failsafe timeout of 2s
                 bootState = BOOT_ARRIVAL_ANIMATION;
                 bootStateStartTime = millis(); // Reset the timer for the animation phase
             }
@@ -798,11 +796,11 @@ void handleBootSequence() {
         case BOOT_COOL_DOWN:
             if (!stateActionCompleted) {
                 // Manually fade out the audio
-                for (int i = currentSettings.notificationVolume; i >= 0; i--) {
-                    audio.setVolume(i);
-                    delay(50);
-                }
-                audio.stopSong();
+                // for (int i = currentSettings.notificationVolume; i >= 0; i--) {
+                //     audio.setVolume(i);
+                //     delay(50);
+                // }
+                // audio.stopSong();
                 stateActionCompleted = true;
             }
             {
@@ -1013,7 +1011,7 @@ void handleSequencer() {
                     track.fadeStartTime = millis();
                     track.originalBrightness = currentSettings.brightness;
                     track.stepInitialized = true;
-                    Log_printf(LOG_LEVEL_INFO, "SEQ: Track %d starting %s.", i, track.isFadeIn ? "Fade In" : "Fade Out");
+                    safe_printf(LOG_LEVEL_INFO, "SEQ: Track %d starting %s.", i, track.isFadeIn ? "Fade In" : "Fade Out");
                 }
                 if (!track.isFading) {
                     advance_step = true;
@@ -1054,13 +1052,13 @@ void handleSequencer() {
 
             case SEQ_CMD_SOUND:
                 if (!track.stepInitialized) {
-                    if (audio.isRunning()) break;
+                    // if (audio.isRunning()) break;
                     playSound(step.stringParam.c_str());
                     track.stepInitialized = true;
                 }
-                if (!audio.isRunning()) {
-                    advance_step = true;
-                }
+                // if (!audio.isRunning()) {
+                //     advance_step = true;
+                // }
                 break;
 
             case SEQ_CMD_MARQUEE:
@@ -1080,7 +1078,7 @@ void handleSequencer() {
                 break;
 
             default:
-                Log_printf(LOG_LEVEL_WARNING, "SEQ: Track %d entered unknown command state %d. Aborting.", i, step.command);
+                safe_printf(LOG_LEVEL_WARNING, "SEQ: Track %d entered unknown command state %d. Aborting.", i, step.command);
                 stopAndCleanupTrack(i);
                 needsDisplayUpdate = true;
                 break;
@@ -1130,7 +1128,7 @@ void stopAndCleanupTrack(int trackIndex) {
     // Mark the track as inactive
     track.isActive = false;
 
-    Log_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
+    safe_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
 }
 
 /**
@@ -1141,7 +1139,7 @@ void stopAndCleanupTrack(int trackIndex) {
  *          This is used to confirm that the sequencer's local state management is working.
  */
 void runSequencerTest() {
-    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Sequencer Test ---");
+    safe_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Sequencer Test ---");
 
     // --- FIX: Reset tracks before configuring them to ensure a clean slate ---
     sequencerTracks[0].reset();

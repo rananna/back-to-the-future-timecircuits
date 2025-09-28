@@ -1190,7 +1190,7 @@ void handleSequencerCommand(const std::string& payload) {
 
             if (strcmp(cmd, "MARQUEE") == 0) {
                 current_step.command = SEQ_CMD_MARQUEE;
-                current_step.stringParam = String(command["stringParam"] | "");
+                current_step.stringParam = command["stringParam"] | "";
             } else if (strcmp(cmd, "FADE_IN") == 0) {
                 current_step.command = SEQ_CMD_FADE_IN;
                 current_step.intParam = command["intParam"] | 1000;
@@ -1207,7 +1207,7 @@ void handleSequencerCommand(const std::string& payload) {
                 current_step.intParam = command["intParam"] | 500;
             } else if (strcmp(cmd, "SOUND") == 0) {
                 current_step.command = SEQ_CMD_SOUND;
-                current_step.stringParam = String(command["stringParam"] | "");
+                current_step.stringParam = command["stringParam"] | "";
             } else if (strcmp(cmd, "WAIT") == 0) {
                 current_step.command = SEQ_CMD_WAIT;
                 current_step.intParam = command["intParam"] | 1000;
@@ -1250,54 +1250,43 @@ void publishRadioMetadata() {
     broadcastRadioMetadata(radioStationName.c_str(), radioSongTitle.c_str());
 }
 
-/**
- * @brief Callback function for the ESP32-audioI2S library to handle ICY stream metadata.
- * @details This function is registered with the audio library. When the library
- * receives a metadata chunk (usually containing "StreamTitle='...'"), it calls this
- * function. The function then parses the string to extract the song title and
- * station name, updates the global variables, and publishes the new information.
- * @param info The metadata string provided by the audio library.
- */
-void audio_showstreamtitle(const char *info) {
-    Log_printf(LOG_LEVEL_INFO, "ICY METADATA: %s", info);
-    String metadata = String(info);
+void audio_info(Audio::msg_t m) {
+    switch(m.e) {
+        case Audio::evt_streamtitle:
+            Log_printf(LOG_LEVEL_INFO, "ICY METADATA: %s", m.msg);
+            radioSongTitle = m.msg;
+            // Clean up common garbage text from titles
+            radioSongTitle.replace(" - ", " ");
+            radioSongTitle.replace("Now Playing: ", "");
+            radioSongTitle.trim();
+            if (radioSongTitle.length() <= 1) {
+                radioSongTitle = "Currently Playing";
+            }
+            publishRadioMetadata();
+            break;
 
-    // Look for "StreamTitle" to parse song title
-    int titleStart = metadata.indexOf("StreamTitle='");
-    if (titleStart != -1) {
-        titleStart += 13; // Move past "StreamTitle='"
-        int titleEnd = metadata.indexOf("';", titleStart);
-        if (titleEnd != -1) {
-            radioSongTitle = metadata.substring(titleStart, titleEnd);
-        }
-    } else {
-        // If no StreamTitle, the whole string is probably the title
-        radioSongTitle = metadata;
+        case Audio::evt_name:
+            Log_printf(LOG_LEVEL_INFO, "STATION NAME: %s", m.msg);
+            radioStationName = m.msg;
+            publishRadioMetadata();
+            break;
+
+        case Audio::evt_eof:
+            Log_printf(LOG_LEVEL_INFO, "Stream ended unexpectedly. Info: %s.", m.msg);
+            if (isRadioStreaming) {
+                Log_printf(LOG_LEVEL_INFO, "Radio stream dropped. Performing permanent cleanup.");
+                cleanupAudio(true);
+            } else {
+                Log_printf(LOG_LEVEL_INFO, "TTS or other temporary stream ended. Performing temporary cleanup.");
+                cleanupAudio(false);
+            }
+            break;
+
+        default:
+            // You can add other cases here if needed, e.g., for logging
+            // Log_printf(LOG_LEVEL_DEBUG, "Audio Event: %s", m.msg);
+            break;
     }
-
-    // Look for "StreamName" which is often provided in other parts of the metadata
-    // Note: The audio library sometimes provides the station name in a separate call.
-    // We will check for it, but won't clear the existing station name if it's not found.
-    int nameStart = metadata.indexOf("StreamName='");
-    if (nameStart != -1) {
-        nameStart += 12; // Move past "StreamName='"
-        int nameEnd = metadata.indexOf("'", nameStart);
-        if (nameEnd != -1) {
-            radioStationName = metadata.substring(nameStart, nameEnd);
-        }
-    }
-
-    // Clean up common garbage text from titles
-    radioSongTitle.replace(" - ", " ");
-    radioSongTitle.replace("Now Playing: ", "");
-    radioSongTitle.trim();
-
-    // If the song title is empty or just a dash, use a generic message
-    if (radioSongTitle.length() <= 1) {
-        radioSongTitle = "Currently Playing";
-    }
-
-    publishRadioMetadata();
 }
 
 /**
@@ -1329,8 +1318,7 @@ void cleanupAudio(bool isPermanent) {
         broadcastRadioStatus(RADIO_STATUS_STOPPED);
     }
 
-    // Always unregister the callback to be safe
-    audio.setStreamTitleCallback(nullptr);
+    // The new API uses a single static callback, so we don't unregister it.
 
     // Update HA state to IDLE
     if (mqttClient.connected()) {
@@ -1338,27 +1326,6 @@ void cleanupAudio(bool isPermanent) {
     }
 
     Log_printf(LOG_LEVEL_INFO, "--- Audio cleanup complete ---");
-}
-
-/**
- * @brief Callback function for the ESP32-audioI2S library to handle unexpected stream endings.
- * @details This function is registered to be called when a network stream (like
- * an internet radio station) disconnects or ends abruptly. Its sole responsibility
- * is to call the centralized cleanup function to ensure the device state is
- * reset correctly.
- * @param info The metadata string provided by the audio library (unused).
- */
-void audio_eof_stream(const char *info){
-    Log_printf(LOG_LEVEL_INFO, "Stream ended unexpectedly. Info: %s.", info);
-    // If the stream that ended was a radio stream, perform a permanent cleanup.
-    // Otherwise, it was a temporary stream (like TTS), so perform a temporary cleanup.
-    if (isRadioStreaming) {
-        Log_printf(LOG_LEVEL_INFO, "Radio stream dropped. Performing permanent cleanup.");
-        cleanupAudio(true);
-    } else {
-        Log_printf(LOG_LEVEL_INFO, "TTS or other temporary stream ended. Performing temporary cleanup.");
-        cleanupAudio(false);
-    }
 }
 
 void startAudioStream(const char* url, bool is_tts, int volume) {
@@ -1380,11 +1347,9 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
     // If it's a radio stream, set the callback. Otherwise, ensure it's null.
     if (!is_tts) {
         isRadioStreaming = true; // It's a radio stream
-        audio.setStreamTitleCallback(audio_showstreamtitle);
         broadcastRadioStatus(RADIO_STATUS_CONNECTING);
     } else {
         isRadioStreaming = false; // It's a TTS stream
-        audio.setStreamTitleCallback(nullptr);
     }
     
     digitalWrite(I2S_SD_PIN, HIGH);
@@ -1407,10 +1372,9 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
         }
         if (!is_tts) {
             broadcastRadioStatus(RADIO_STATUS_PLAYING);
-            // The station name is often in the header, not the metadata.
-            // Let's grab it now.
-            radioStationName = audio.getStationName();
-            publishRadioMetadata();
+            // The station name is now handled by the evt_name case in the audio_info callback
+            // radioStationName = audio.getStationName();
+            // publishRadioMetadata();
         }
     } else {
         Log_printf(LOG_LEVEL_ERROR, "Failed to connect to host for streaming: %s", url);
