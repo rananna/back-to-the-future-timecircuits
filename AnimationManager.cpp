@@ -48,168 +48,13 @@ void broadcastAnimationComplete() {
     }
 }
 
-// --- FADE EFFECT ---
-bool isFading = false;
-static unsigned long fadeStartTime = 0;
-static int fadeDuration = 0;
-static bool isFadeIn = false;
-static uint8_t originalBrightness = 0;
-
-// --- PULSE EFFECT ---
-static bool isPulsing[3][4] = {{false}};
-static unsigned long pulseEndTimes[3][4] = {{0}};
-static bool pulseStates[3][4] = {{false}};
-static unsigned long lastPulseToggle[3][4] = {{0}};
-
-// --- FLASH EFFECT ---
-bool isFlashing[3][4] = {{false}};
-unsigned long flashEndTimes[3][4] = {{0}};
-bool flashStates[3][4] = {{false}};
-unsigned long lastFlashToggle[3][4] = {{0}};
+// Effects are now handled inside the sequencer
 
 // File-scoped variable to hold the chosen animation style for a single run
 static int randomAnimationStyle = -1;
 
-/**
- * @brief Triggers a temporary flashing effect on a specific display segment.
- */
-void triggerFlashEffect(int row, int segment, int duration) {
-    if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
-    isFlashing[row][segment] = true;
-    // A duration of 0 means flash indefinitely
-    flashEndTimes[row][segment] = (duration == 0) ? 0 : millis() + duration;
-    flashStates[row][segment] = true;
-    lastFlashToggle[row][segment] = millis();
-}
-
-/**
- * @brief Handles the state of any active flash effects. Called in the main loop.
- */
-#if ENABLE_HARDWARE
-void handleFlashEffect() {
-    for (int r = 0; r < 3; ++r) {
-        for (int s = 0; s < 4; ++s) {
-            if (isFlashing[r][s]) {
-                if (flashEndTimes[r][s] != 0 && millis() > flashEndTimes[r][s]) {
-                    isFlashing[r][s] = false;
-                    // Restore the display by calling the main update function in the next loop
-                } else {
-                    if (millis() - lastFlashToggle[r][s] > 500) { // Toggle every 500ms
-                        flashStates[r][s] = !flashStates[r][s];
-                        lastFlashToggle[r][s] = millis();
-
-                        DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
-                        Adafruit_AlphaNum4* displaySegment = nullptr;
-
-                        switch(s) {
-                            case 0: displaySegment = &rows[r]->month; break;
-                            case 1: displaySegment = &rows[r]->day; break;
-                            case 2: displaySegment = &rows[r]->year; break;
-                            case 3: displaySegment = &rows[r]->time; break;
-                        }
-
-                        if (displaySegment) {
-                           // Special case for the persistent Present Time dot
-                           if (r == 1 && s == 3) {
-                               if (flashStates[r][s]) {
-                                   // Turn ON the dot on the SECOND character (index 1)
-                                   displaySegment->displaybuffer[1] |= 0x4000;
-                               } else {
-                                   // Turn OFF the dot on the SECOND character (index 1)
-                                   displaySegment->displaybuffer[1] &= ~0x4000;
-                               }
-                           } else { // Generic flash for other segments
-                                if (flashStates[r][s]) {
-                                    displaySegment->clear();
-                                } else {
-                                    // The main display logic will restore the content
-                                }
-                           }
-                           displaySegment->writeDisplay();
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-#endif // ENABLE_HARDWARE
-
 // --- START: NEW FADE AND PULSE IMPLEMENTATIONS ---
-
-void startFadeEffect(int duration, bool fadeIn) {
-    if (isFading) return; // Prevent starting a new fade if one is active
-    isFading = true;
-    isFadeIn = fadeIn;
-    fadeDuration = duration;
-    fadeStartTime = millis();
-    originalBrightness = currentSettings.brightness;
-    Log_printf(LOG_LEVEL_INFO, "Starting %s effect. Duration: %dms", fadeIn ? "Fade In" : "Fade Out", duration);
-}
-
-void handleFadeEffect() {
-    if (!isFading) return;
-
-    unsigned long elapsed = millis() - fadeStartTime;
-    if (elapsed >= fadeDuration) {
-        isFading = false;
-        // Set final brightness and restore original setting
-        currentSettings.brightness = isFadeIn ? 7 : 0;
-        applyBrightness();
-        currentSettings.brightness = originalBrightness; // Restore for future use
-        Log_printf(LOG_LEVEL_INFO, "Fade effect finished.");
-        return;
-    }
-
-    float progress = (float)elapsed / (float)fadeDuration;
-    uint8_t newBrightness;
-
-    if (isFadeIn) {
-        newBrightness = (uint8_t)(progress * 7.0f);
-    } else {
-        newBrightness = (uint8_t)((1.0f - progress) * 7.0f);
-    }
-
-    if (newBrightness != currentSettings.brightness) {
-        currentSettings.brightness = newBrightness;
-        applyBrightness();
-    }
-}
-
-void startPulseEffect(int row, int segment, int duration) {
-    if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
-    isPulsing[row][segment] = true;
-    pulseEndTimes[row][segment] = millis() + duration;
-    pulseStates[row][segment] = true; // Start in the ON state
-    lastPulseToggle[row][segment] = millis();
-    Log_printf(LOG_LEVEL_INFO, "Starting PULSE effect on row %d, seg %d. Duration: %dms", row, segment, duration);
-}
-
-void handlePulseEffect() {
-    bool needsDisplayUpdate = false;
-    for (int r = 0; r < 3; ++r) {
-        for (int s = 0; s < 4; ++s) {
-            if (isPulsing[r][s]) {
-                if (millis() > pulseEndTimes[r][s]) {
-                    isPulsing[r][s] = false;
-                    // Ensure the segment is left in its normal state
-                    needsDisplayUpdate = true;
-                } else {
-                    if (millis() - lastPulseToggle[r][s] > 750) { // Slower 750ms on/off cycle for pulse
-                        pulseStates[r][s] = !pulseStates[r][s];
-                        lastPulseToggle[r][s] = millis();
-                        needsDisplayUpdate = true;
-                    }
-                }
-            }
-        }
-    }
-    // If any pulse state changed, trigger a general display update.
-    // The main display loop will handle redrawing the correct content.
-    if (needsDisplayUpdate) {
-        updateNormalClockDisplay();
-    }
-}
+// Global effect handlers are no longer needed; this logic is now inside handleSequencer.
 
 // --- TIME TRAVEL ANIMATION ---
 void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
@@ -1076,26 +921,79 @@ static void comprehensiveAnimationCleanup() {
  * @brief Handles the execution of scripted command sequences.
  * @details This function is called on every main loop iteration. It checks for
  * active sequencer tracks and processes their commands one by one. It supports
- * parallel execution of tracks on different display rows.
+ * parallel execution of tracks on different display rows. It now manages all
+ * effect states (fade, pulse, flash) locally within each track.
  */
 void handleSequencer() {
     bool needsDisplayUpdate = false;
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
 
     for (int i = 0; i < 3; i++) {
-        // Use a reference for easier access to the current track
         SequencerTrack& track = sequencerTracks[i];
+        DisplayRow& row = *rows[i];
+
+        // --- Handle active effects for this track ---
+
+        // Handle Fade Effect
+        if (track.isFading) {
+            unsigned long fadeElapsed = millis() - track.fadeStartTime;
+            if (fadeElapsed >= (unsigned long)track.fadeDuration) {
+                track.isFading = false;
+                uint8_t finalBrightness = track.isFadeIn ? track.originalBrightness : 0;
+                row.month.setBrightness(finalBrightness);
+                row.day.setBrightness(finalBrightness);
+                row.year.setBrightness(finalBrightness);
+                row.time.setBrightness(finalBrightness);
+                needsDisplayUpdate = true;
+            } else {
+                float progress = (float)fadeElapsed / (float)track.fadeDuration;
+                uint8_t newBrightness = track.isFadeIn ?
+                    (uint8_t)(progress * (float)track.originalBrightness) :
+                    (uint8_t)((1.0f - progress) * (float)track.originalBrightness);
+                row.month.setBrightness(newBrightness);
+                row.day.setBrightness(newBrightness);
+                row.year.setBrightness(newBrightness);
+                row.time.setBrightness(newBrightness);
+                needsDisplayUpdate = true;
+            }
+        }
+
+        // Handle Pulse and Flash Effects
+        for (int s = 0; s < 4; s++) {
+            if (track.isPulsing[s]) {
+                if (millis() > track.pulseEndTimes[s]) {
+                    track.isPulsing[s] = false;
+                    needsDisplayUpdate = true;
+                } else if (millis() - track.lastPulseToggle[s] > 750) {
+                    track.pulseStates[s] = !track.pulseStates[s];
+                    track.lastPulseToggle[s] = millis();
+                    needsDisplayUpdate = true;
+                }
+            }
+            if (track.isFlashing[s]) {
+                if (track.flashEndTimes[s] != 0 && millis() > track.flashEndTimes[s]) {
+                    track.isFlashing[s] = false;
+                    needsDisplayUpdate = true;
+                } else if (millis() - track.lastFlashToggle[s] > 500) {
+                    track.flashStates[s] = !track.flashStates[s];
+                    track.lastFlashToggle[s] = millis();
+                    needsDisplayUpdate = true;
+                }
+            }
+        }
 
         if (!track.isActive) {
             continue;
         }
 
+        // --- Process Commands ---
         bool advance_step = false;
         SequenceStep& step = track.steps[track.currentStep];
-        unsigned long elapsed = millis() - track.stepStartTime;
+        unsigned long commandElapsed = millis() - track.stepStartTime;
 
         switch (step.command) {
             case SEQ_CMD_WAIT:
-                if (elapsed >= (unsigned long)step.intParam) {
+                if (commandElapsed >= (unsigned long)step.intParam) {
                     advance_step = true;
                 }
                 break;
@@ -1103,58 +1001,68 @@ void handleSequencer() {
             case SEQ_CMD_FADE_IN:
             case SEQ_CMD_FADE_OUT:
                 if (!track.stepInitialized) {
-                    // FADE is a global effect. If one is already running, this track must wait.
-                    if (isFading) break;
-                    startFadeEffect(step.intParam, step.command == SEQ_CMD_FADE_IN);
+                    if (track.isFading) break;
+                    track.isFading = true;
+                    track.isFadeIn = (step.command == SEQ_CMD_FADE_IN);
+                    track.fadeDuration = step.intParam;
+                    track.fadeStartTime = millis();
+                    track.originalBrightness = currentSettings.brightness;
                     track.stepInitialized = true;
+                    Log_printf(LOG_LEVEL_INFO, "SEQ: Track %d starting %s.", i, track.isFadeIn ? "Fade In" : "Fade Out");
                 }
-                // Wait for the global fade to complete before advancing.
-                if (!isFading) {
+                if (!track.isFading) {
                     advance_step = true;
                 }
                 break;
 
             case SEQ_CMD_PULSE:
-                if (!track.stepInitialized) {
-                    startPulseEffect(step.targetRow, step.targetSegment, step.intParam);
+                 if (!track.stepInitialized) {
+                    int seg = step.targetSegment;
+                    if (seg >= 0 && seg < 4) {
+                        track.isPulsing[seg] = true;
+                        track.pulseEndTimes[seg] = millis() + step.intParam;
+                        track.pulseStates[seg] = true; // Start ON
+                        track.lastPulseToggle[seg] = millis();
+                    }
                     track.stepInitialized = true;
                 }
-                // Wait for the specific pulse to finish
-                if (!isPulsing[step.targetRow][step.targetSegment]) {
+                if (!track.isPulsing[step.targetSegment]) {
                     advance_step = true;
                 }
                 break;
 
             case SEQ_CMD_FLASH:
                 if (!track.stepInitialized) {
-                    triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
+                    int seg = step.targetSegment;
+                    if (seg >= 0 && seg < 4) {
+                        track.isFlashing[seg] = true;
+                        track.flashEndTimes[seg] = (step.intParam == 0) ? 0 : millis() + step.intParam;
+                        track.flashStates[seg] = true; // Start ON
+                        track.lastFlashToggle[seg] = millis();
+                    }
                     track.stepInitialized = true;
                 }
-                // Wait for the specific flash to finish
-                if (!isFlashing[step.targetRow][step.targetSegment]) {
+                if (!track.isFlashing[step.targetSegment]) {
                     advance_step = true;
                 }
                 break;
 
             case SEQ_CMD_SOUND:
                 if (!track.stepInitialized) {
-                    // SOUND is a global effect. If one is already playing, this track must wait.
                     if (audio.isRunning()) break;
                     playSound(step.stringParam.c_str());
                     track.stepInitialized = true;
                 }
-                if (!audio.isRunning()) { // Wait for the sound to finish
+                if (!audio.isRunning()) {
                     advance_step = true;
                 }
                 break;
 
             case SEQ_CMD_MARQUEE:
                 if (!track.stepInitialized) {
-                    // MARQUEE is a local effect. Start it on this specific track.
                     startSequencerMarquee(track, step.stringParam);
                     track.stepInitialized = true;
                 }
-                // Wait for this track's local marquee to complete.
                 if (!track.isMarqueeActive) {
                     advance_step = true;
                 }
@@ -1163,12 +1071,16 @@ void handleSequencer() {
             case SEQ_CMD_END:
             case SEQ_CMD_NONE:
                 track.isActive = false;
-                // Clean up any lingering effects for this track
+                // Restore brightness and clean up effects
+                row.month.setBrightness(track.originalBrightness);
+                row.day.setBrightness(track.originalBrightness);
+                row.year.setBrightness(track.originalBrightness);
+                row.time.setBrightness(track.originalBrightness);
                 for (int s = 0; s < 4; s++) {
-                    isPulsing[i][s] = false;
-                    isFlashing[i][s] = false;
+                    track.isPulsing[s] = false;
+                    track.isFlashing[s] = false;
                 }
-                track.isMarqueeActive = false; // Ensure marquee state is cleared
+                track.isMarqueeActive = false;
                 needsDisplayUpdate = true;
                 break;
 
@@ -1180,11 +1092,49 @@ void handleSequencer() {
         if (advance_step) {
             track.currentStep++;
             track.stepStartTime = millis();
-            track.stepInitialized = false; // Reset for the next step
+            track.stepInitialized = false;
         }
     }
 
     if (needsDisplayUpdate) {
         updateNormalClockDisplay();
     }
+}
+
+/**
+ * @brief Configures and runs a startup test to verify parallel sequence execution.
+ * @details This test sets up two tracks to run simultaneously:
+ *          - Track 0: Fades in the entire top display row over 5 seconds.
+ *          - Track 1: Pulses the middle display row's "month" segment for 5 seconds.
+ *          This is used to confirm that the sequencer's local state management is working.
+ */
+void runSequencerTest() {
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Sequencer Test ---");
+
+    // --- Track 0: Fade in the top row over 5 seconds ---
+    sequencerTracks[0].isActive = true;
+    sequencerTracks[0].currentStep = 0;
+    sequencerTracks[0].stepStartTime = millis();
+    sequencerTracks[0].stepInitialized = false;
+    // Step 1: Fade In
+    sequencerTracks[0].steps[0].command = SEQ_CMD_FADE_IN;
+    sequencerTracks[0].steps[0].targetRow = 0;
+    sequencerTracks[0].steps[0].intParam = 5000; // 5 seconds
+    // Step 2: End
+    sequencerTracks[0].steps[1].command = SEQ_CMD_END;
+
+    // --- Track 1: Pulse the middle row's month segment for 5 seconds ---
+    sequencerTracks[1].isActive = true;
+    sequencerTracks[1].currentStep = 0;
+    sequencerTracks[1].stepStartTime = millis();
+    sequencerTracks[1].stepInitialized = false;
+    // Step 1: Pulse
+    sequencerTracks[1].steps[0].command = SEQ_CMD_PULSE;
+    sequencerTracks[1].steps[0].targetRow = 1;
+    sequencerTracks[1].steps[0].targetSegment = 0; // Month segment
+    sequencerTracks[1].steps[0].intParam = 5000; // 5 seconds
+    // Step 2: End
+    sequencerTracks[1].steps[1].command = SEQ_CMD_END;
+
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Sequencer Test Started ---");
 }
