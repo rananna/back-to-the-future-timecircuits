@@ -64,4 +64,45 @@ void handleFadeEffect();
 
 extern bool isFading;
 
+// --- START: NEW Sequencer Data Structures ---
+// Maximum number of steps in a single sequence track
+#define MAX_SEQUENCE_STEPS 20
+
+// Defines the available commands for the sequencer
+enum SequenceCommand {
+    SEQ_CMD_NONE,
+    SEQ_CMD_WAIT,
+    SEQ_CMD_MARQUEE,
+    SEQ_CMD_FADE_IN,
+    SEQ_CMD_FADE_OUT,
+    SEQ_CMD_PULSE,
+    SEQ_CMD_FLASH,
+    SEQ_CMD_SOUND,
+    SEQ_CMD_END // Marks the end of a sequence
+};
+
+// Represents a single step in a sequence
+struct SequenceStep {
+    SequenceCommand command;
+    int targetRow;
+    int targetSegment;
+    int intParam;
+    String stringParam;
+};
+
+// Represents a single track of commands for one display row
+struct SequencerTrack {
+    bool isActive;
+    int currentStep;
+    unsigned long stepStartTime;
+    SequenceStep steps[MAX_SEQUENCE_STEPS];
+};
+
+// Global array of sequencer tracks, one for each of the 3 display rows
+extern SequencerTrack sequencerTracks[3];
+
+// Function declaration for the new sequencer handler
+void handleSequencer();
+// --- END: NEW Sequencer Data Structures ---
+
 #endif // ANIMATION_MANAGER_H
