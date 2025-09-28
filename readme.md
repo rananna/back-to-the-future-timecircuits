@@ -60,8 +60,10 @@ This project's documentation is organized into categories to help you find what 
 ### **User Guides**
 | Document | Description |
 | :--- | :--- |
-| **[📈 Data Link Guide](docs/guides/DATA_LINK.md)** | Transform the "Last Time Departed" display into a real-time data feed. This guide covers the built-in Weather and Stock modes and explains how to create your own custom data integrations. |
-| **[🏠 Home Assistant Guide](docs/home-assistant.md)** | For smart home enthusiasts, this guide details how to integrate the clock with Home Assistant using the native custom component. It covers installation, entities, and provides examples for creating powerful automations. |
+| **[📈 Data Link Guide](docs/guides/DATA_LINK.md)** | Transform your display into a real-time data feed. This covers Weather, Stocks, and custom data integrations. |
+| **[🔊 Sound System & TTS Guide](docs/guides/SOUND_SYSTEM.md)** | A guide to using the MQTT-controlled sound effects and Text-to-Speech (TTS) features. |
+| **[🎨 Web Interface Themes Guide](docs/guides/THEMES.md)** | A guide to customizing the web UI with built-in visual themes. |
+| **[🏠 Home Assistant Guide](docs/home-assistant.md)** | For smart home enthusiasts, this guide details how to integrate the clock with Home Assistant. |
 
 ### **Troubleshooting**
 | Document | Description |
@@ -71,9 +73,10 @@ This project's documentation is organized into categories to help you find what 
 ### **Advanced & Technical Reference**
 | Document | Description |
 | :--- | :--- |
-| **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep-dive into the project's architecture, code, and file system. This is the place to start if you're interested in contributing to the project or creating a custom fork. |
-| **[✉️ MQTT Technical Reference](docs/reference/MQTT_ENTITIES.md)** | A comprehensive reference for all MQTT topics and payloads used by the clock. Essential for advanced integrations and troubleshooting. |
-| **[⚙️ Configuration Reference](docs/reference/CONFIGURATION.md)** | A complete reference for all firmware (compile-time) and web UI configuration options. |
+| **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep-dive into the project's architecture, code, and file system. |
+| **[✉️ MQTT Technical Reference](docs/reference/MQTT_ENTITIES.md)** | A reference for all basic MQTT topics and payloads used by the clock. |
+| **[🤖 Advanced MQTT Control Guide](docs/reference/ADVANCED_MQTT.md)** | A guide to the advanced MQTT command sequencer and manual display overrides. |
+| **[⚙️ Configuration Reference](docs/reference/CONFIGURATION.md)** | A complete reference for all firmware and web UI configuration options. |
 | **[🔌 Pinout Reference](docs/reference/PINOUT.md)** | A detailed guide to the ESP32 GPIO pin assignments and instructions for customizing them. |
 
 ---
