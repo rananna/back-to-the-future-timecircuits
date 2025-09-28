@@ -17,6 +17,15 @@ This project features a native Home Assistant integration that provides a seamle
 
 ---
 
+## 🛑 Prerequisites
+
+* A running Home Assistant instance.
+* A configured and running MQTT broker that is connected to Home Assistant.
+* The Time Circuits Clock is powered on and connected to your Wi-Fi network.
+* In the clock's web UI, ensure the MQTT broker details are correctly configured under the **Data Link** tab.
+* [HACS](https://hacs.xyz/) (Home Assistant Community Store) installed.
+
+---
 ## ✨ Features
 
 The new custom component provides a rich, native Home Assistant experience:
@@ -32,14 +41,7 @@ The new custom component provides a rich, native Home Assistant experience:
 
 ## 🚀 Setup & Installation
 
-### **Step 1: Prerequisites**
-> * A running Home Assistant instance.
-> * A configured and running MQTT broker that is connected to Home Assistant.
-> * The Time Circuits Clock is powered on and connected to your Wi-Fi network.
-> * In the clock's web UI, ensure the MQTT broker details are correctly configured under the **Data Link** tab.
-> * [HACS](https://hacs.xyz/) (Home Assistant Community Store) installed.
-
-### **Step 2: Install the Custom Component**
+### **Step 1: Install the Custom Component**
 
 There are two ways to install the custom component: via HACS (recommended) or manually.
 
@@ -57,7 +59,7 @@ There are two ways to install the custom component: via HACS (recommended) or ma
 1.  Copy the `custom_components/bttf_time_circuits` directory from this project into your Home Assistant `config/` directory.
 2.  Restart Home Assistant.
 
-### **Step 3: Add the Integration**
+### **Step 2: Add the Integration**
 1.  Navigate to **Settings > Devices & Services**.
 2.  Click **Add Integration** and search for "**Back to the Future Time Circuits**".
 3.  Follow the on-screen instructions. The integration will be added without any further configuration needed.
@@ -66,14 +68,23 @@ Your Time Circuits clock will now appear as a new device in Home Assistant, with
 
 ---
 
-## 🎮 Core Entities & Controls
+## 🎮 Entities & Controls
 
 The integration creates a device with a rich set of entities to control every aspect of the clock.
 
-*   **Display Mode Switches**: `switch.stock_ticker_mode`, `switch.weather_mode`, and `switch.data_link_mode` allow you to easily change the clock's primary function. Turning one on will automatically turn the others off.
-*   **Direct Text Input**: 22 `text` entities give you granular control over every display segment and marquee.
-*   **Core Controls**: `number` entities for `brightness` and `volume`, and `button` entities for `trigger_animation` and `reboot_device`.
-*   **Sensors**: A `sensor.status` entity to monitor the clock's state (`Idle`, `Animating`) and an `sensor.audio_stream_status` for the speaker.
+| Entity Type | Name | Description |
+| :--- | :--- | :--- |
+| **Switch** | `Stock Ticker Mode` | Enables the real-time stock ticker on the bottom display row. |
+| **Switch** | `Weather Mode` | Enables the live weather forecast on the bottom display row. |
+| **Switch** | `Data Link Mode` | Enables the custom marquee on the bottom display row. |
+| **Text** | `(all 22 text inputs)` | Provides direct control over every display segment and marquee for custom messages. |
+| **Number** | `Brightness` | Adjusts the brightness of the displays (0-15). |
+| **Number** | `Volume` | Adjusts the volume of the speaker (0-100). |
+| **Button** | `Trigger Animation` | Manually starts the full time travel animation sequence. |
+| **Button** | `Reboot Device` | Restarts the clock. |
+| **Sensor** | `Status` | Monitors the clock's current state (e.g., `Idle`, `Animating`, `Rebooting`). |
+| **Sensor** | `Audio Status` | Monitors the speaker's state (e.g., `Idle`, `Playing`, `Streaming`). |
+| **Update** | `Firmware` | Notifies you when a new firmware version is available and allows for one-click OTA updates. |
 
 ---
 
@@ -126,77 +137,67 @@ Use your favorite TTS service in Home Assistant to make the clock speak.
 
 ---
 
-## 🔔 Sending Notifications
+## ⚙️ Services
 
-The native `notify.bttf_time_circuits` service makes sending alerts simple.
+The integration provides three powerful services for advanced control and automation.
 
-### **Service Data**
-*   **`message`**: The text to display. Use `\n` for new lines (e.g., `LINE 1\nLINE 2`).
-*   **`data.duration`**: (Optional) How long the message should be displayed in seconds (default: 10).
-*   **`data.sound_effect`**: (Optional) The name of a sound effect to play (e.g., `REMINDER_ALERT`).
+### **1. `notify.bttf_time_circuits`**
+This service sends a temporary notification message to the clock's display.
 
-### **Example Automation**
-Show a "MAILBOX" notification for 60 seconds with a sound.
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| **`message`** | `string` | Yes | The text to display. Use `\n` to separate lines (e.g., `LINE 1\nLINE 2`). |
+| **`data.duration`** | `integer`| No | How long the message should be displayed, in seconds. (Default: 10) |
+| **`data.sound_effect`**| `string` | No | The name of a sound effect to play from the device's library (e.g., `REMINDER_ALERT`). |
 
+**Example:** Show a "MAILBOX" notification for 60 seconds with a sound.
 ```yaml
-trigger:
-  - platform: state
-    entity_id: binary_sensor.mailbox_sensor
-    to: 'on'
-action:
-  - service: notify.bttf_time_circuits
+- service: notify.bttf_time_circuits
+  data:
+    message: "\nMAILBOX"
     data:
-      message: "\nMAILBOX"
-      data:
-        duration: 60
-        sound_effect: "REMINDER_ALERT"
+      duration: 60
+      sound_effect: "REMINDER_ALERT"
 ```
 
----
+### **2. `bttf_time_circuits.set_status_display`**
+This service turns the clock into a 12-segment status panel, allowing you to map individual sensor values to specific display segments.
 
-## ⚙️ Advanced Services
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| **`(all 12 segments)`** | `string` | No | The value to display in a specific segment. Accepts any of the 12 segment names (e.g., `destination_month`, `present_day`, `last_departed_year`). |
 
-For maximum power and flexibility, two custom services are provided to replicate the most advanced blueprint functionality.
-
-### **Custom Status Display**
-The `bttf_time_circuits.set_status_display` service lets you use the clock as a 12-segment status panel for your smart home.
-
+**Example:** Create a live weather and temperature dashboard.
 ```yaml
-# Example: Show temperatures and humidity
-trigger:
-  - platform: time_pattern
-    seconds: '/59'
-action:
-  - service: bttf_time_circuits.set_status_display
-    data:
-      destination_month: "OUT"
-      destination_day: "{{ states('sensor.outside_temperature') | round(0) }}°"
-      present_month: "IN"
-      present_day: "{{ states('sensor.living_room_temperature') | round(0) }}°"
-      last_departed_month: "HUMID"
-      last_departed_day: "{{ states('sensor.living_room_humidity') | round(0) }}%"
+- service: bttf_time_circuits.set_status_display
+  data:
+    destination_month: "OUT"
+    destination_day: "{{ states('sensor.outside_temperature') | round(0) }}°"
+    present_month: "IN"
+    present_day: "{{ states('sensor.living_room_temperature') | round(0) }}°"
+    last_departed_month: "HUMID"
+    last_departed_day: "{{ states('sensor.living_room_humidity') | round(0) }}%"
 ```
 
-### **Custom Sequences**
-The `bttf_time_circuits.run_sequence` service allows you to create complex, multi-step animations by sending a JSON payload directly to the device's sequencer.
+### **3. `bttf_time_circuits.run_sequence`**
+This service offers the most advanced control, allowing you to run a multi-step script of animations, sounds, and display changes directly on the device.
 
-#### **Example Script**
-Flash the "Destination Year" display, play an alarm, and show "INTRUDER ALERT".
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| **`sequence`** | `json` | Yes | A JSON-formatted string containing an array of commands for the device's sequencer. |
 
+**Example:** Create a custom "Intruder Alert" sequence.
 ```yaml
-alias: Intruder Alert Sequence
-sequence:
-  - service: bttf_time_circuits.run_sequence
-    data:
-      sequence: >
-        [
-          { "command": "flash", "segment": "dest_year" },
-          { "command": "sound", "effect": "ALARM_SOUND" },
-          { "command": "message", "display": "destination", "month": "INTRUDER", "day": "ALERT", "year": "!!", "time": "" },
-          { "command": "delay", "duration": 5000 },
-          { "command": "message", "display": "destination", "month": "", "day": "", "year": "", "time": "" }
-        ]
-mode: single
+- service: bttf_time_circuits.run_sequence
+  data:
+    sequence: >
+      [
+        { "command": "flash", "segment": "dest_year" },
+        { "command": "sound", "effect": "ALARM_SOUND" },
+        { "command": "message", "display": "destination", "month": "INTRUDER", "day": "ALERT", "year": "!!", "time": "" },
+        { "command": "delay", "duration": 5000 },
+        { "command": "message", "display": "destination", "month": "", "day": "", "year": "", "time": "" }
+      ]
 ```
 
 ---

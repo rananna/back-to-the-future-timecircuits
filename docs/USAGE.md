@@ -70,7 +70,7 @@ This tab provides information about the device's status and allows you to perfor
 ## Advanced Features
 
 Beyond the web interface, many of the clock's features can be controlled programmatically.
-*   **For Home Assistant Users**: To unlock deep integration with your smart home, see the **[🏠 Home Assistant Integration Guide](HOME_ASSISTANT.md)**.
+*   **For Home Assistant Users**: To unlock deep integration with your smart home, see the **[🏠 Home Assistant Integration Guide](home-assistant.md)**.
 *   **For Developers**: For a technical deep dive into the firmware and API, see the **[🔬 Developer's Guide](DEVELOPMENT.md)**.
 
 ***
