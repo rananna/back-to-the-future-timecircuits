@@ -1201,10 +1201,15 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
         return;
     }
 
+    // --- START MODIFICATION ---
+    // Stop any currently playing stream and wait for the audio task to process it.
+    // This prevents a race condition where a new stream is started before the old one is fully torn down.
     if (audio.isRunning()) {
-        audio.stopSong();
-        Log_printf(LOG_LEVEL_DEBUG, "Stopped existing audio to play new stream.");
+        Log_printf(LOG_LEVEL_DEBUG, "Stopping existing audio to play new stream.");
+        stopAudioStream();
+        vTaskDelay(pdMS_TO_TICKS(100)); // Give the audio task time to stop
     }
+    // --- END MODIFICATION ---
     
     digitalWrite(I2S_SD_PIN, HIGH);
     
@@ -1243,6 +1248,12 @@ void stopAudioStream() {
         currentSoundFile[0] = '\0';
         digitalWrite(I2S_SD_PIN, LOW);
         Log_printf(LOG_LEVEL_INFO, "Audio stream stopped successfully.");
+        // --- START MODIFICATION ---
+        // Immediately publish the IDLE state to make the UI more responsive.
+        if (mqttClient.connected()) {
+            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
+        }
+        // --- END MODIFICATION ---
     } else {
         Log_printf(LOG_LEVEL_DEBUG, "No audio stream was running.");
     }
