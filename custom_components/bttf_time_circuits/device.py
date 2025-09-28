@@ -10,6 +10,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 import asyncio
+import json
 from datetime import datetime
 
 from homeassistant.util import dt as dt_util
@@ -69,9 +70,38 @@ class BTTFTimeCircuitsDevice:
 
     async def async_handle_run_sequence(self, call: ServiceCall) -> None:
         """Handle the run_sequence service call."""
-        sequence_json = call.data.get("sequence")
-        command_topic = f"{self.base_topic}/sequencer/command"
-        await mqtt.async_publish(self.hass, command_topic, sequence_json, 1, False)
+        sequence = call.data.get("sequence")
+        if not sequence:
+            return  # Do nothing if sequence is empty
+
+        payload = None
+
+        # Check if the user provided the new, advanced multi-track format.
+        # This is a list of dicts, where each dict has a "targetRow" key.
+        if (
+            isinstance(sequence, list)
+            and sequence
+            and isinstance(sequence[0], dict)
+            and "targetRow" in sequence[0]
+        ):
+            payload = json.dumps(sequence)
+        # Handle the simple case: a flat list of command dicts.
+        elif isinstance(sequence, list):
+            target_row = call.data.get("target_row", 2)  # Default to bottom row
+            wrapped_sequence = [
+                {
+                    "targetRow": target_row,
+                    "commands": sequence,
+                }
+            ]
+            payload = json.dumps(wrapped_sequence)
+        # Fallback for raw JSON string for backward compatibility.
+        elif isinstance(sequence, str):
+            payload = sequence
+
+        if payload:
+            command_topic = f"{self.base_topic}/sequencer/command"
+            await mqtt.async_publish(self.hass, command_topic, payload, 1, False)
 
     async def _async_get_media_player_entity(
         self,
