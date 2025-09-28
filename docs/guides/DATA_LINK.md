@@ -1,6 +1,16 @@
 # 📈 Data Link, Weather & Stock Ticker Guide
 
-This guide covers the advanced data display features of your Time Circuits clock, which can show live, real-time data from the internet or your smart home. All of these modes take over the bottom display row, hiding the normal "Last Time Departed" information.
+This guide covers the advanced data display features of your Time Circuits clock, which can show live, real-time data from the internet or your smart home.
+
+---
+
+### **Target Display Row**
+
+Before enabling a data mode, you can choose which of the three main display rows will be used to show the data-linked content.
+
+*   **Location**: This setting is located at the top of the **Data Link** tab in the web interface.
+*   **Options**: You can select `Top`, `Middle`, or `Bottom`.
+*   **Behavior**: When a data mode (Weather, Stock Ticker, or Data Link Marquee) is active, it will take over the selected row. The other two rows will continue to show their normal time information. For example, if you set the target row to "Top," the weather forecast will appear there, while the "Present Time" and "Last Time Departed" displays will function as usual.
 
 The **Data Link** tab in the web interface is split into three powerful modes, and **only one can be active at a time**. Enabling one will automatically disable the others.
 
