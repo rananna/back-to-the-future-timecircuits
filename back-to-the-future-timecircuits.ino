@@ -1355,6 +1355,14 @@ std::vector<Preset> getFullPresetList() {
  * update cycle.
  */
 void handlePresetCycling() {
+    // --- START: MODIFICATION ---
+    // Only cycle presets when in normal clock mode. This prevents interference with
+    // other modes that use the last time departed row for their own display.
+    if (currentDisplayMode != NORMAL_CLOCK) {
+        return;
+    }
+    // --- END: MODIFICATION ---
+
     if (lastPresetCycleTime == 0 && bootState == BOOT_INACTIVE) {
         lastPresetCycleTime = millis();
     }
@@ -1457,7 +1465,6 @@ void handleSleepSchedule() {
   } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
     if (hardwareInitialized) {
-        updateNormalClockDisplay();
         playSound("/CONFIRM_ON.mp3");
     }
     updateHaStatus("Idle");
