@@ -48,6 +48,11 @@ SWITCHES: tuple[BTTFTimeCircuitsSwitchEntityDescription, ...] = (
         name="Temporal Echo",
         icon="mdi:ghost",
     ),
+    BTTFTimeCircuitsSwitchEntityDescription(
+        key="sound_toggle",
+        name="Time Travel Sounds",
+        icon="mdi:volume-high",
+    ),
 )
 
 

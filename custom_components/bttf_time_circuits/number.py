@@ -37,6 +37,36 @@ NUMBERS: tuple[BTTFTimeCircuitsNumberEntityDescription, ...] = (
         native_step=1,
         mode=NumberMode.SLIDER,
     ),
+    BTTFTimeCircuitsNumberEntityDescription(
+        key="animation_interval",
+        name="Animation Interval",
+        icon="mdi:clock-in",
+        native_min_value=0,
+        native_max_value=120,
+        native_step=1,
+        native_unit_of_measurement="min",
+        mode=NumberMode.SLIDER,
+    ),
+    BTTFTimeCircuitsNumberEntityDescription(
+        key="animation_duration",
+        name="Animation Duration",
+        icon="mdi:movie-filter",
+        native_min_value=1000,
+        native_max_value=10000,
+        native_step=100,
+        native_unit_of_measurement="ms",
+        mode=NumberMode.SLIDER,
+    ),
+    BTTFTimeCircuitsNumberEntityDescription(
+        key="stock_refresh",
+        name="Stock Refresh",
+        icon="mdi:chart-line",
+        native_min_value=1,
+        native_max_value=60,
+        native_step=1,
+        native_unit_of_measurement="min",
+        mode=NumberMode.SLIDER,
+    ),
 )
 
 
