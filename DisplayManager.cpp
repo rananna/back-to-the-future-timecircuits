@@ -36,84 +36,77 @@ std::string marqueeBuffer;
 char weatherBuffer[512]; // Increased size for safety, changed to char array
 std::string marqueeOverrideBuffer;
 
-// --- START: NEW Sequencer Marquee Globals ---
-bool isSequencerMarqueeActive = false;
-std::string sequencerMarqueeText;
-int sequencerMarqueeRow = -1;
-int sequencerMarqueeScrollPosition = 0;
-unsigned long lastSequencerMarqueeScrollTime = 0;
-// --- END: NEW Sequencer Marquee Globals ---
-
 #include "HardwareControl.h"
+#include "AnimationManager.h" // For SequencerTrack struct
 #include <cmath> // For std::isnan and std::isinf
 
-void startMarquee(int row, const std::string& text) {
-    if (row < 0 || row > 2) {
-        Log_printf(LOG_LEVEL_WARN, "startMarquee: Invalid targetRow %d", row);
-        return;
-    }
-    Log_printf(LOG_LEVEL_INFO, "Starting sequencer marquee on row %d with text: %s", row, text.c_str());
-    sequencerMarqueeText = "             " + text + " "; // Add padding
-    std::transform(sequencerMarqueeText.begin(), sequencerMarqueeText.end(), sequencerMarqueeText.begin(),
+void startSequencerMarquee(SequencerTrack& track, const std::string& text) {
+    Log_printf(LOG_LEVEL_INFO, "Starting sequencer marquee on row %d with text: %s", track.steps[track.currentStep].targetRow, text.c_str());
+    track.marqueeText = "             " + text + " "; // Add padding
+    std::transform(track.marqueeText.begin(), track.marqueeText.end(), track.marqueeText.begin(),
                    [](unsigned char c){ return std::toupper(c); });
-    sequencerMarqueeRow = row;
-    sequencerMarqueeScrollPosition = 0;
-    isSequencerMarqueeActive = true;
-    lastSequencerMarqueeScrollTime = millis();
+    track.marqueeScrollPosition = 0;
+    track.isMarqueeActive = true;
+    track.lastMarqueeScrollTime = millis();
 }
 
-void handleSequencerMarquee() {
-    if (!isSequencerMarqueeActive || !hardwareInitialized) return;
+void handleAllSequencerMarquees() {
+    if (!hardwareInitialized) return;
 
-    // Determine which row to use
-    DisplayRow* targetRow = nullptr;
-    if (sequencerMarqueeRow == 0) targetRow = &destRow;
-    else if (sequencerMarqueeRow == 1) targetRow = &presRow;
-    else if (sequencerMarqueeRow == 2) targetRow = &lastRow;
-    else return; // Invalid row
+    for (int i = 0; i < 3; i++) {
+        SequencerTrack& track = sequencerTracks[i];
+        if (!track.isMarqueeActive) {
+            continue;
+        }
 
-    const unsigned long scrollSpeed = 150; // Use a fixed speed for now
+        DisplayRow* targetRow = nullptr;
+        if (i == 0) targetRow = &destRow;
+        else if (i == 1) targetRow = &presRow;
+        else if (i == 2) targetRow = &lastRow;
+        else continue;
 
-    if (millis() - lastSequencerMarqueeScrollTime > scrollSpeed) {
-        lastSequencerMarqueeScrollTime = millis();
+        const unsigned long scrollSpeed = 150;
 
-        if (sequencerMarqueeScrollPosition > sequencerMarqueeText.length()) {
-            int finishedRow = sequencerMarqueeRow;
-            isSequencerMarqueeActive = false; // Marquee finished
-            sequencerMarqueeRow = -1;
-            // --- FIX: Use the saved row index to restore the correct display ---
-            if (finishedRow == 0) updateNormalClockDisplay_internal(true, false, false);
-            else if (finishedRow == 1) updateNormalClockDisplay_internal(false, true, false);
-            else if (finishedRow == 2) updateNormalClockDisplay_internal(false, false, true);
-            Log_printf(LOG_LEVEL_INFO, "Sequencer marquee finished on row %d.", finishedRow);
-        } else {
-            char viewport[14];
-            int text_len = sequencerMarqueeText.length();
-            for (int i = 0; i < 13; i++) {
-                int source_idx = sequencerMarqueeScrollPosition + i;
-                viewport[i] = (source_idx < text_len) ? sequencerMarqueeText[source_idx] : ' ';
+        if (millis() - track.lastMarqueeScrollTime > scrollSpeed) {
+            track.lastMarqueeScrollTime = millis();
+
+            if (track.marqueeScrollPosition > track.marqueeText.length()) {
+                track.isMarqueeActive = false; // Marquee finished for this track
+                // The sequencer logic in AnimationManager will handle advancing the step.
+                // We just need to restore the display for this row.
+                if (i == 0) updateNormalClockDisplay_internal(true, false, false);
+                else if (i == 1) updateNormalClockDisplay_internal(false, true, false);
+                else if (i == 2) updateNormalClockDisplay_internal(false, false, true);
+                Log_printf(LOG_LEVEL_INFO, "Sequencer marquee finished on row %d.", i);
+            } else {
+                char viewport[14];
+                int text_len = track.marqueeText.length();
+                for (int j = 0; j < 13; j++) {
+                    int source_idx = track.marqueeScrollPosition + j;
+                    viewport[j] = (source_idx < text_len) ? track.marqueeText[source_idx] : ' ';
+                }
+                viewport[13] = '\0';
+
+                char s_month[4], s_day[3], s_year[5], s_time[5];
+                strncpy(s_month, viewport, 3); s_month[3] = '\0';
+                strncpy(s_day, viewport + 3, 2); s_day[2] = '\0';
+                strncpy(s_year, viewport + 5, 4); s_year[4] = '\0';
+                strncpy(s_time, viewport + 9, 4); s_time[4] = '\0';
+
+                if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                    printToDisplay(targetRow->month, s_month, 1);
+                    printToDisplay(targetRow->day, s_day, 2);
+                    printToDisplay(targetRow->year, s_year, 0);
+                    printToDisplay(targetRow->time, s_time, 0);
+                    targetRow->month.writeDisplay();
+                    targetRow->day.writeDisplay();
+                    targetRow->year.writeDisplay();
+                    targetRow->time.writeDisplay();
+                    vTaskDelay(pdMS_TO_TICKS(2));
+                    xSemaphoreGive(xDisplayHardwareMutex);
+                }
+                track.marqueeScrollPosition++;
             }
-            viewport[13] = '\0';
-
-            char s_month[4], s_day[3], s_year[5], s_time[5];
-            strncpy(s_month, viewport, 3); s_month[3] = '\0';
-            strncpy(s_day, viewport + 3, 2); s_day[2] = '\0';
-            strncpy(s_year, viewport + 5, 4); s_year[4] = '\0';
-            strncpy(s_time, viewport + 9, 4); s_time[4] = '\0';
-
-            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                printToDisplay(targetRow->month, s_month, 1);
-                printToDisplay(targetRow->day, s_day, 2);
-                printToDisplay(targetRow->year, s_year, 0);
-                printToDisplay(targetRow->time, s_time, 0);
-                targetRow->month.writeDisplay();
-                targetRow->day.writeDisplay();
-                targetRow->year.writeDisplay();
-                targetRow->time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(2));
-                xSemaphoreGive(xDisplayHardwareMutex);
-            }
-            sequencerMarqueeScrollPosition++;
         }
     }
 }

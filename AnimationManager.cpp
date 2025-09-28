@@ -1082,13 +1082,16 @@ void handleSequencer() {
     bool needsDisplayUpdate = false;
 
     for (int i = 0; i < 3; i++) {
-        if (!sequencerTracks[i].isActive) {
+        // Use a reference for easier access to the current track
+        SequencerTrack& track = sequencerTracks[i];
+
+        if (!track.isActive) {
             continue;
         }
 
         bool advance_step = false;
-        SequenceStep& step = sequencerTracks[i].steps[sequencerTracks[i].currentStep];
-        unsigned long elapsed = millis() - sequencerTracks[i].stepStartTime;
+        SequenceStep& step = track.steps[track.currentStep];
+        unsigned long elapsed = millis() - track.stepStartTime;
 
         switch (step.command) {
             case SEQ_CMD_WAIT:
@@ -1099,20 +1102,22 @@ void handleSequencer() {
 
             case SEQ_CMD_FADE_IN:
             case SEQ_CMD_FADE_OUT:
-                if (!sequencerTracks[i].stepInitialized) {
+                if (!track.stepInitialized) {
+                    // FADE is a global effect. If one is already running, this track must wait.
+                    if (isFading) break;
                     startFadeEffect(step.intParam, step.command == SEQ_CMD_FADE_IN);
-                    sequencerTracks[i].stepInitialized = true;
+                    track.stepInitialized = true;
                 }
-                // --- FIX: Wait for the fade to complete before advancing ---
+                // Wait for the global fade to complete before advancing.
                 if (!isFading) {
                     advance_step = true;
                 }
                 break;
 
             case SEQ_CMD_PULSE:
-                if (!sequencerTracks[i].stepInitialized) {
+                if (!track.stepInitialized) {
                     startPulseEffect(step.targetRow, step.targetSegment, step.intParam);
-                    sequencerTracks[i].stepInitialized = true;
+                    track.stepInitialized = true;
                 }
                 // Wait for the specific pulse to finish
                 if (!isPulsing[step.targetRow][step.targetSegment]) {
@@ -1121,9 +1126,9 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_FLASH:
-                if (!sequencerTracks[i].stepInitialized) {
+                if (!track.stepInitialized) {
                     triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
-                    sequencerTracks[i].stepInitialized = true;
+                    track.stepInitialized = true;
                 }
                 // Wait for the specific flash to finish
                 if (!isFlashing[step.targetRow][step.targetSegment]) {
@@ -1132,9 +1137,11 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_SOUND:
-                if (!sequencerTracks[i].stepInitialized) {
+                if (!track.stepInitialized) {
+                    // SOUND is a global effect. If one is already playing, this track must wait.
+                    if (audio.isRunning()) break;
                     playSound(step.stringParam.c_str());
-                    sequencerTracks[i].stepInitialized = true;
+                    track.stepInitialized = true;
                 }
                 if (!audio.isRunning()) { // Wait for the sound to finish
                     advance_step = true;
@@ -1142,36 +1149,38 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_MARQUEE:
-                // --- FIX: Implement blocking marquee command ---
-                if (!sequencerTracks[i].stepInitialized) {
-                    startMarquee(step.targetRow, step.stringParam);
-                    sequencerTracks[i].stepInitialized = true;
+                if (!track.stepInitialized) {
+                    // MARQUEE is a local effect. Start it on this specific track.
+                    startSequencerMarquee(track, step.stringParam);
+                    track.stepInitialized = true;
                 }
-                // The handleSequencerMarquee() function will set this to false when it's done.
-                if (!isSequencerMarqueeActive) {
+                // Wait for this track's local marquee to complete.
+                if (!track.isMarqueeActive) {
                     advance_step = true;
                 }
                 break;
 
             case SEQ_CMD_END:
             case SEQ_CMD_NONE:
-                sequencerTracks[i].isActive = false;
+                track.isActive = false;
+                // Clean up any lingering effects for this track
                 for (int s = 0; s < 4; s++) {
                     isPulsing[i][s] = false;
                     isFlashing[i][s] = false;
                 }
+                track.isMarqueeActive = false; // Ensure marquee state is cleared
                 needsDisplayUpdate = true;
                 break;
 
             default:
-                sequencerTracks[i].isActive = false;
+                track.isActive = false;
                 break;
         }
 
         if (advance_step) {
-            sequencerTracks[i].currentStep++;
-            sequencerTracks[i].stepStartTime = millis();
-            sequencerTracks[i].stepInitialized = false; // Reset for the next step
+            track.currentStep++;
+            track.stepStartTime = millis();
+            track.stepInitialized = false; // Reset for the next step
         }
     }
 
