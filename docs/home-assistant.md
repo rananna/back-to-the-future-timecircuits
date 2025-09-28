@@ -188,24 +188,43 @@ This service turns the clock into a 12-segment status panel, allowing you to map
 ```
 
 ### **3. `bttf_time_circuits.run_sequence`**
-This service offers the most advanced control, allowing you to run a multi-step script of animations, sounds, and display changes directly on the device.
+This service offers advanced control, allowing you to run a multi-step script of animations and sounds directly on the device.
 
 | Parameter | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| **`sequence`** | `json` | Yes | A JSON-formatted string containing an array of commands for the device's sequencer. |
+| **`sequence`** | `list` | Yes | A list of command dictionaries for the sequencer. See the table below for available commands. |
+| **`target_row`**| `integer`| No | The display row to run the sequence on (0=Destination, 1=Present, 2=Last Departed). Defaults to `2`. |
 
-**Example:** Create a custom "Intruder Alert" sequence.
+#### **Available Commands**
+
+| Command | Parameter | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **`sound`** | `effect` | Plays a sound effect from the device's library. | `{ "command": "sound", "effect": "ALARM_SOUND" }` |
+| **`delay`** | `duration` | Pauses the sequence for a specified time in milliseconds. | `{ "command": "delay", "duration": 2000 }` |
+| **`flash`** | `segment`, `duration` | Flashes a specific display segment for a duration. | `{ "command": "flash", "segment": "destination_year", "duration": 500 }` |
+| **`pulse`** | `segment`, `duration` | Pulses a segment's brightness for a duration. | `{ "command": "pulse", "segment": "present_day", "duration": 3000 }` |
+| **`fade_in`**| `duration` | Fades in the entire display row over a duration. | `{ "command": "fade_in", "duration": 1500 }` |
+| **`fade_out`**| `duration` | Fades out the entire display row over a duration. | `{ "command": "fade_out", "duration": 1500 }` |
+| **`marquee`**| `text` | Scrolls a message across the display row. | `{ "command": "marquee", "text": "GREAT SCOTT!" }` |
+
+> ⚠️ **Note on `message`:** The `message` command is not supported in sequences. To set static text on the displays, use the `text.set_value` service for individual segments or the `bttf_time_circuits.set_status_display` service to update multiple segments at once.
+
+#### **Example: "Intruder Alert"**
+This example flashes the "Last Departed" year, plays an alarm, and scrolls an alert message.
 ```yaml
 - service: bttf_time_circuits.run_sequence
   data:
-    sequence: >
-      [
-        { "command": "flash", "segment": "dest_year" },
-        { "command": "sound", "effect": "ALARM_SOUND" },
-        { "command": "message", "display": "destination", "month": "INTRUDER", "day": "ALERT", "year": "!!", "time": "" },
-        { "command": "delay", "duration": 5000 },
-        { "command": "message", "display": "destination", "month": "", "day": "", "year": "", "time": "" }
-      ]
+    target_row: 2 # Target the "Last Departed" row
+    sequence:
+      - command: flash
+        segment: last_departed_year
+        duration: 1000
+      - command: sound
+        effect: "ALARM_SOUND"
+      - command: marquee
+        text: "INTRUDER ALERT"
+      - command: delay
+        duration: 5000
 ```
 
 ---

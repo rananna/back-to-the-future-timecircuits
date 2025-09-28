@@ -68,40 +68,114 @@ class BTTFTimeCircuitsDevice:
                 command_topic = f"{self.base_topic}/{topic_key}/command"
                 await mqtt.async_publish(self.hass, command_topic, str(value), 1, False)
 
+    def _translate_sequence_command(self, command: dict) -> dict | None:
+        """Translates a user-friendly sequence command into the firmware format."""
+
+        # Mapping from user-friendly command to firmware command
+        COMMAND_MAP = {
+            "wait": "WAIT",
+            "sound": "SOUND",
+            "flash": "FLASH",
+            "pulse": "PULSE",
+            "fade_in": "FADE_IN",
+            "fade_out": "FADE_OUT",
+            "marquee": "MARQUEE",
+        }
+
+        # Mapping from user-friendly segment name to firmware segment index (0-3)
+        SEGMENT_MAP = {
+            "month": 0, "destination_month": 0, "present_month": 0, "last_departed_month": 0,
+            "day": 1, "destination_day": 1, "present_day": 1, "last_departed_day": 1,
+            "year": 2, "destination_year": 2, "present_year": 2, "last_departed_year": 2,
+            "time": 3, "destination_time": 3, "present_time": 3, "last_departed_time": 3,
+        }
+
+        user_cmd = command.get("command")
+        if not user_cmd or user_cmd.lower() not in COMMAND_MAP:
+            # _LOGGER is defined in __init__.py, but we can't access it here.
+            # Let's use the logging module directly.
+            import logging
+            logging.getLogger(__name__).warning("Skipping unknown sequence command: %s", user_cmd)
+            return None
+
+        firmware_cmd = {"command": COMMAND_MAP[user_cmd.lower()]}
+
+        # Handle parameters
+        if firmware_cmd["command"] in ["WAIT", "FADE_IN", "FADE_OUT"]:
+            duration = command.get("duration", 1000)
+            firmware_cmd["intParam"] = int(duration)
+
+        elif firmware_cmd["command"] in ["SOUND", "MARQUEE"]:
+            param = command.get("effect") or command.get("sound") or command.get("text")
+            if not param:
+                import logging
+                logging.getLogger(__name__).warning("Command '%s' requires an 'effect' or 'text' parameter.", user_cmd)
+                return None
+            firmware_cmd["stringParam"] = str(param)
+
+        elif firmware_cmd["command"] in ["FLASH", "PULSE"]:
+            segment_name = command.get("segment")
+            if not segment_name or segment_name.lower() not in SEGMENT_MAP:
+                import logging
+                logging.getLogger(__name__).warning("Command '%s' requires a valid 'segment' parameter.", user_cmd)
+                return None
+
+            firmware_cmd["targetSegment"] = SEGMENT_MAP[segment_name.lower()]
+            duration = command.get("duration", 1000)
+            firmware_cmd["intParam"] = int(duration)
+
+        return firmware_cmd
+
+
     async def async_handle_run_sequence(self, call: ServiceCall) -> None:
         """Handle the run_sequence service call."""
         sequence = call.data.get("sequence")
-        if not sequence:
-            return  # Do nothing if sequence is empty
+        if not isinstance(sequence, list):
+            # _LOGGER is defined in __init__.py, but we can't access it here.
+            # Let's use the logging module directly.
+            import logging
+            logging.getLogger(__name__).error("The 'sequence' must be a list of commands.")
+            return
 
-        payload = None
+        translated_commands = []
+        for user_command in sequence:
+            if not isinstance(user_command, dict):
+                continue
 
-        # Check if the user provided the new, advanced multi-track format.
-        # This is a list of dicts, where each dict has a "targetRow" key.
-        if (
-            isinstance(sequence, list)
-            and sequence
-            and isinstance(sequence[0], dict)
-            and "targetRow" in sequence[0]
-        ):
-            payload = json.dumps(sequence)
-        # Handle the simple case: a flat list of command dicts.
-        elif isinstance(sequence, list):
-            target_row = call.data.get("target_row", 2)  # Default to bottom row
-            wrapped_sequence = [
-                {
-                    "targetRow": target_row,
-                    "commands": sequence,
-                }
-            ]
-            payload = json.dumps(wrapped_sequence)
-        # Fallback for raw JSON string for backward compatibility.
-        elif isinstance(sequence, str):
-            payload = sequence
+            command_name = user_command.get("command")
 
-        if payload:
-            command_topic = f"{self.base_topic}/sequencer/command"
-            await mqtt.async_publish(self.hass, command_topic, payload, 1, False)
+            if command_name == "message":
+                import logging
+                logging.getLogger(__name__).warning(
+                    "The 'message' command is not supported in a sequence. "
+                    "Use the 'text.set_value' or 'bttf_time_circuits.set_status_display' "
+                    "service to set display text directly."
+                )
+                continue
+
+            if command_name == "delay":
+                user_command["command"] = "wait"
+
+            translated = self._translate_sequence_command(user_command)
+            if translated:
+                translated_commands.append(translated)
+
+        if not translated_commands:
+            import logging
+            logging.getLogger(__name__).warning("Sequence contained no valid commands to execute.")
+            return
+
+        target_row = call.data.get("target_row", 2)
+        wrapped_sequence = [
+            {
+                "targetRow": target_row,
+                "commands": translated_commands,
+            }
+        ]
+        payload = json.dumps(wrapped_sequence)
+
+        command_topic = f"{self.base_topic}/sequencer/command"
+        await mqtt.async_publish(self.hass, command_topic, payload, 1, False)
 
     async def _async_get_media_player_entity(
         self,
