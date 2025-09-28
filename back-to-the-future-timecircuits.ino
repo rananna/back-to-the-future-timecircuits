@@ -1080,6 +1080,7 @@ void handleDisplay() {
     // These effects can run concurrently with the main display modes
     handleTemporalEcho();
     handleSequencer();
+    handleSequencerMarquee();
     handlePulseEffect();
     handleFadeEffect();
     handlePresetCycling();
