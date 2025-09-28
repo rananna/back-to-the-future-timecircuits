@@ -668,142 +668,153 @@ void handleBootSequence() {
         // --- FIX END ---
 
         case BOOT_DIAGNOSTICS:
-            if (!stateActionCompleted) {
-                playSound("/keypad_beeps.mp3");
-                stateActionCompleted = true;
-            }
-            //if (audio.isRunning()) {
-                int currentSecond = elapsed / 2000;
-                if (currentSecond != lastDiagSecond) {
-                    blankAllDisplays();
-                    if (currentSecond == 0) {
-                        printToDisplay(destRow.month, "CPU", 1);
-                        printToDisplay(destRow.day, "OK", 2);
-                        destRow.month.writeDisplay();
-                        destRow.day.writeDisplay();
-                    } else if (currentSecond == 1) {
-                        printToDisplay(presRow.month, "MEM", 1);
-                        printToDisplay(presRow.day, "OK", 2);
-                        presRow.month.writeDisplay();
-                        presRow.day.writeDisplay();
-                    } else if (currentSecond == 2) {
-                        printToDisplay(lastRow.month, "WFI", 1);
-                        printToDisplay(lastRow.day, "OK", 2);
-                        lastRow.month.writeDisplay();
-                        lastRow.day.writeDisplay();
-                    } else if (currentSecond == 3) {
-                        printToDisplay(lastRow.month, "IP", 1);
-                        printToDisplay(lastRow.day, "OK", 2);
-                        lastRow.month.writeDisplay();
-                        lastRow.day.writeDisplay();
-                    } else if (currentSecond == 4) {
-                        printToDisplay(lastRow.month, "MQT", 1);
-                        printToDisplay(lastRow.day, "OK", 2);
-                        lastRow.month.writeDisplay();
-                        lastRow.day.writeDisplay();
-                    }
-                    lastDiagSecond = currentSecond;
+            {
+                if (!stateActionCompleted) {
+                    playSound("/keypad_beeps.mp3");
+                    stateActionCompleted = true;
                 }
-            //}
-            if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
-                bootState = BOOT_FINAL_CHECKS;
-                bootStateStartTime = millis();
+                //if (audio.isRunning()) {
+                    int currentSecond = elapsed / 2000;
+                    if (currentSecond != lastDiagSecond) {
+                        blankAllDisplays();
+                        if (currentSecond == 0) {
+                            printToDisplay(destRow.month, "CPU", 1);
+                            printToDisplay(destRow.day, "OK", 2);
+                            destRow.month.writeDisplay();
+                            destRow.day.writeDisplay();
+                        } else if (currentSecond == 1) {
+                            printToDisplay(presRow.month, "MEM", 1);
+                            printToDisplay(presRow.day, "OK", 2);
+                            presRow.month.writeDisplay();
+                            presRow.day.writeDisplay();
+                        } else if (currentSecond == 2) {
+                            printToDisplay(lastRow.month, "WFI", 1);
+                            printToDisplay(lastRow.day, "OK", 2);
+                            lastRow.month.writeDisplay();
+                            lastRow.day.writeDisplay();
+                        } else if (currentSecond == 3) {
+                            printToDisplay(lastRow.month, "IP", 1);
+                            printToDisplay(lastRow.day, "OK", 2);
+                            lastRow.month.writeDisplay();
+                            lastRow.day.writeDisplay();
+                        } else if (currentSecond == 4) {
+                            printToDisplay(lastRow.month, "MQT", 1);
+                            printToDisplay(lastRow.day, "OK", 2);
+                            lastRow.month.writeDisplay();
+                            lastRow.day.writeDisplay();
+                        }
+                        lastDiagSecond = currentSecond;
+                    }
+                //}
+                if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
+                    bootState = BOOT_FINAL_CHECKS;
+                    bootStateStartTime = millis();
+                }
             }
             break;
         case BOOT_FINAL_CHECKS:
-            if (!stateActionCompleted) {
-                playSound("/engine_rev.mp3");
-                stateActionCompleted = true;
-            }
-            //if (audio.isRunning()) {
+            {
                 if (!stateActionCompleted) {
-                    blankAllDisplays();
+                    playSound("/engine_rev.mp3");
                     stateActionCompleted = true;
                 }
+                //if (audio.isRunning()) {
+                    if (!stateActionCompleted) {
+                        blankAllDisplays();
+                        stateActionCompleted = true;
+                    }
 
-                float progress = (float)elapsed / BOOT_FINAL_CHECKS_DURATION;
-                if (progress > 1.0) progress = 1.0;
-                float easedProgress = 1 - pow(1 - progress, 3);
-                int speed = 1 + (easedProgress * 87);
-                if (speed > 88) speed = 88;
+                    float progress = (float)elapsed / BOOT_FINAL_CHECKS_DURATION;
+                    if (progress > 1.0) progress = 1.0;
+                    float easedProgress = 1 - pow(1 - progress, 3);
+                    int speed = 1 + (easedProgress * 87);
+                    if (speed > 88) speed = 88;
 
-                displaySpeedRamp(speed);
+                    displaySpeedRamp(speed);
 
-                printToDisplay(destRow.year, "SYS");
-                printToDisplay(destRow.time, "GO");
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
-            //}
-            if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
-                bootState = BOOT_TEMPORAL_DISPLACEMENT;
-                bootStateStartTime = millis();
+                    printToDisplay(destRow.year, "SYS");
+                    printToDisplay(destRow.time, "GO");
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                //}
+                if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
+                    bootState = BOOT_TEMPORAL_DISPLACEMENT;
+                    bootStateStartTime = millis();
+                }
             }
             break;
         case BOOT_TEMPORAL_DISPLACEMENT:
-            if (!stateActionCompleted) {
-                playSound("/time_travel.mp3");
-                stateActionCompleted = true;
-            }
-            //if (audio.isRunning()) {
-                animateRandomRealTimes();
-            //}
-            if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
-                bootState = BOOT_ARRIVAL;
-                bootStateStartTime = millis();
+            {
+                if (!stateActionCompleted) {
+                    playSound("/time_travel.mp3");
+                    stateActionCompleted = true;
+                }
+                //if (audio.isRunning()) {
+                    animateRandomRealTimes();
+                //}
+                if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
+                    bootState = BOOT_ARRIVAL;
+                    bootStateStartTime = millis();
+                }
             }
             break;
         case BOOT_ARRIVAL:
-            if (!stateActionCompleted) {
-                playSound("/arrival_chime.mp3");
-                stateActionCompleted = true;
-            }
-            if (elapsed > 2000) { // Failsafe timeout of 2s
-                bootState = BOOT_ARRIVAL_ANIMATION;
-                bootStateStartTime = millis(); // Reset the timer for the animation phase
+            {
+                if (!stateActionCompleted) {
+                    playSound("/arrival_chime.mp3");
+                    stateActionCompleted = true;
+                }
+                if (elapsed > 2000) { // Failsafe timeout of 2s
+                    bootState = BOOT_ARRIVAL_ANIMATION;
+                    bootStateStartTime = millis(); // Reset the timer for the animation phase
+                }
             }
             break;
         case BOOT_ARRIVAL_ANIMATION:
-            if (!stateActionCompleted) {
-                // --- FIX: Display text immediately without waiting for audio ---
-                blankAllDisplays();
-                printToDisplay(destRow.year, "ARRI");
-                printToDisplay(destRow.time, "VAL");
-                printToDisplay(presRow.year, "OUTA");
-                printToDisplay(presRow.time, "TIME");
+            {
+                if (!stateActionCompleted) {
+                    // --- FIX: Display text immediately without waiting for audio ---
+                    blankAllDisplays();
+                    printToDisplay(destRow.year, "ARRI");
+                    printToDisplay(destRow.time, "VAL");
+                    printToDisplay(presRow.year, "OUTA");
+                    printToDisplay(presRow.time, "TIME");
 
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
 
-                stateActionCompleted = true; // Mark that the initial action is done
-            }
+                    stateActionCompleted = true; // Mark that the initial action is done
+                }
 
-            // Display the "WELCOME" message after a delay
-            if (elapsed > 2000) { // Show "WELCOME" after 2 seconds
-                printToDisplay(lastRow.year, " WEL");
-                printToDisplay(lastRow.time, "COME");
-                lastRow.year.writeDisplay();
-                lastRow.time.writeDisplay();
-            }
+                // Display the "WELCOME" message after a delay
+                if (elapsed > 2000) { // Show "WELCOME" after 2 seconds
+                    printToDisplay(lastRow.year, " WEL");
+                    printToDisplay(lastRow.time, "COME");
+                    lastRow.year.writeDisplay();
+                    lastRow.time.writeDisplay();
+                }
 
-            // Transition to the next state after the full duration
-            if (elapsed > BOOT_ARRIVAL_DURATION) {
-                bootState = BOOT_COOL_DOWN;
-                bootStateStartTime = millis();
+                // Transition to the next state after the full duration
+                if (elapsed > BOOT_ARRIVAL_DURATION) {
+                    bootState = BOOT_COOL_DOWN;
+                    bootStateStartTime = millis();
+                }
             }
             break;
         case BOOT_COOL_DOWN:
-            if (!stateActionCompleted) {
-                // Manually fade out the audio
-                // for (int i = currentSettings.notificationVolume; i >= 0; i--) {
-                //     audio.setVolume(i);
-                //     delay(50);
-                // }
-                // audio.stopSong();
-                stateActionCompleted = true;
-            }
             {
+                if (!stateActionCompleted) {
+                    // Manually fade out the audio
+                    // for (int i = currentSettings.notificationVolume; i >= 0; i--) {
+                    //     audio.setVolume(i);
+                    //     delay(50);
+                    // }
+                    // audio.stopSong();
+                    stateActionCompleted = true;
+                }
+
                 float progress = (float)elapsed / BOOT_COOL_DOWN_DURATION;
                 if (progress > 1.0) progress = 1.0;
                 uint8_t brightness = 7 * (1.0 - progress);
@@ -820,41 +831,45 @@ void handleBootSequence() {
                 lastRow.day.setBrightness(brightness);
                 lastRow.year.setBrightness(brightness);
                 lastRow.time.setBrightness(brightness);
-            }
 
-            if (elapsed > BOOT_COOL_DOWN_DURATION) {
-                bootState = BOOT_COMPLETE;
-                bootStateStartTime = millis();
+                if (elapsed > BOOT_COOL_DOWN_DURATION) {
+                    bootState = BOOT_COMPLETE;
+                    bootStateStartTime = millis();
+                }
             }
             break;
         case BOOT_COMPLETE:
-            if (elapsed > 500) {
-                isMessageOverrideActive = false;
-                bootState = BOOT_INACTIVE;
+            {
+                if (elapsed > 500) {
+                    isMessageOverrideActive = false;
+                    bootState = BOOT_INACTIVE;
 
-                uint8_t saved_brightness = currentSettings.brightness;
+                    uint8_t saved_brightness = currentSettings.brightness;
 
-                destRow.month.setBrightness(saved_brightness);
-                destRow.day.setBrightness(saved_brightness);
-                destRow.year.setBrightness(saved_brightness);
-                destRow.time.setBrightness(saved_brightness);
-                presRow.month.setBrightness(saved_brightness);
-                presRow.day.setBrightness(saved_brightness);
-                presRow.year.setBrightness(saved_brightness);
-                presRow.time.setBrightness(saved_brightness);
-                lastRow.month.setBrightness(saved_brightness);
-                lastRow.day.setBrightness(saved_brightness);
-                lastRow.year.setBrightness(saved_brightness);
-                lastRow.time.setBrightness(saved_brightness);
+                    destRow.month.setBrightness(saved_brightness);
+                    destRow.day.setBrightness(saved_brightness);
+                    destRow.year.setBrightness(saved_brightness);
+                    destRow.time.setBrightness(saved_brightness);
+                    presRow.month.setBrightness(saved_brightness);
+                    presRow.day.setBrightness(saved_brightness);
+                    presRow.year.setBrightness(saved_brightness);
+                    presRow.time.setBrightness(saved_brightness);
+                    lastRow.month.setBrightness(saved_brightness);
+                    lastRow.day.setBrightness(saved_brightness);
+                    lastRow.year.setBrightness(saved_brightness);
+                    lastRow.time.setBrightness(saved_brightness);
 
-                // The main display loop will handle updating the display correctly
-                // once the bootState is set to BOOT_INACTIVE.
-                Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
+                    // The main display loop will handle updating the display correctly
+                    // once the bootState is set to BOOT_INACTIVE.
+                    Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
+                }
             }
             break;
         default:
-            Serial.printf("BOOT_LOG: Unknown boot state %d. Resetting to INACTIVE.\n", bootState);
-            bootState = BOOT_INACTIVE;
+            {
+                Serial.printf("BOOT_LOG: Unknown boot state %d. Resetting to INACTIVE.\n", bootState);
+                bootState = BOOT_INACTIVE;
+            }
             break;
     }
 }
@@ -1011,7 +1026,7 @@ void handleSequencer() {
                     track.fadeStartTime = millis();
                     track.originalBrightness = currentSettings.brightness;
                     track.stepInitialized = true;
-                    safe_printf(LOG_LEVEL_INFO, "SEQ: Track %d starting %s.", i, track.isFadeIn ? "Fade In" : "Fade Out");
+                    Log_printf(LOG_LEVEL_INFO, "SEQ: Track %d starting %s.", i, track.isFadeIn ? "Fade In" : "Fade Out");
                 }
                 if (!track.isFading) {
                     advance_step = true;
@@ -1078,7 +1093,7 @@ void handleSequencer() {
                 break;
 
             default:
-                safe_printf(LOG_LEVEL_WARNING, "SEQ: Track %d entered unknown command state %d. Aborting.", i, step.command);
+                Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d entered unknown command state %d. Aborting.", i, step.command);
                 stopAndCleanupTrack(i);
                 needsDisplayUpdate = true;
                 break;
@@ -1128,7 +1143,7 @@ void stopAndCleanupTrack(int trackIndex) {
     // Mark the track as inactive
     track.isActive = false;
 
-    safe_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
+    Log_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
 }
 
 /**
@@ -1139,7 +1154,7 @@ void stopAndCleanupTrack(int trackIndex) {
  *          This is used to confirm that the sequencer's local state management is working.
  */
 void runSequencerTest() {
-    safe_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Sequencer Test ---");
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Sequencer Test ---");
 
     // --- FIX: Reset tracks before configuring them to ensure a clean slate ---
     sequencerTracks[0].reset();
