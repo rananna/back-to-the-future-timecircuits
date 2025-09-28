@@ -649,7 +649,7 @@ void handleWeatherDisplay() {
         updateNormalClockDisplay_internal(true, true, false);
 
         if (initialFetchTimedOut) {
-            updateNormalClockDisplay_internal(false, false, true);
+            updateNormalClockDisplay_internal(true, true, false);
             xSemaphoreGive(xDisplayDataMutex);
             return;
         }
@@ -965,7 +965,9 @@ void handleWeatherDisplay() {
 
 void updateMarqueeDisplay() {
 #if ENABLE_HARDWARE
-    // In marquee mode, top two rows show the clock
+    // In marquee mode, the top two rows (Destination and Present Time) should always show the clock.
+    // This call ensures that only those rows are updated, leaving the bottom row untouched
+    // for the scrolling marquee information.
     updateNormalClockDisplay_internal(true, true, false);
 
     DisplayRow* targetRow = &lastRow;
