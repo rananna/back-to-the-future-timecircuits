@@ -57,9 +57,12 @@ class BTTFTimeCircuitsDevice:
 
     async def async_handle_set_status_display(self, call: ServiceCall) -> None:
         """Handle the set_status_display service call."""
-        for key in SERVICE_SET_STATUS_DISPLAY_FIELDS:
-            if key in call.data:
-                value = call.data[key]
+        data = call.data.get("data")
+        if not isinstance(data, dict):
+            return
+
+        for key, value in data.items():
+            if key in SERVICE_SET_STATUS_DISPLAY_FIELDS:
                 topic_key = (
                     key.replace("destination_", "dest_")
                     .replace("present_", "pres_")

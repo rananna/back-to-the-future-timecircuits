@@ -33,54 +33,17 @@ time_travel:
 set_status_display:
   description: "Set the time circuits displays manually (advanced)."
   fields:
-    destination_month:
-      description: "Destination month"
+    data:
+      description: "A dictionary of display values to set."
+      example: >
+        {
+          "destination_month": "OCT",
+          "destination_day": "21",
+          "destination_year": "2015",
+          "destination_time": "07:28"
+        }
       selector:
-        text:
-    destination_day:
-      description: "Destination day"
-      selector:
-        text:
-    destination_year:
-      description: "Destination year"
-      selector:
-        text:
-    destination_time:
-      description: "Destination time"
-      selector:
-        text:
-    present_month:
-      description: "Present month"
-      selector:
-        text:
-    present_day:
-      description: "Present day"
-      selector:
-        text:
-    present_year:
-      description: "Present year"
-      selector:
-        text:
-    present_time:
-      description: "Present time"
-      selector:
-        text:
-    last_departed_month:
-      description: "Last departed month"
-      selector:
-        text:
-    last_departed_day:
-      description: "Last departed day"
-      selector:
-        text:
-    last_departed_year:
-      description: "Last departed year"
-      selector:
-        text:
-    last_departed_time:
-      description: "Last departed time"
-      selector:
-        text:
+        object:
 run_sequence:
   description: "Run a pre-defined sequence."
   fields:
