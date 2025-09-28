@@ -61,7 +61,7 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
 
     // Check for serialization errors (e.g., buffer overflow)
     if (payload_size == 0) {
-        Log_printf(LOG_LEVEL_ERROR, "HA Discovery: JSON serialization failed for %s. Payload buffer may be too small. Doc capacity: %d", object_id.c_str(), doc.capacity());
+        Log_printf(LOG_LEVEL_ERROR, "HA Discovery: JSON serialization failed for %s. Payload buffer may be too small. Doc capacity: %d", object_id.c_str(), doc.memoryUsage());
         return; // Stop processing this message
     }
 
@@ -104,7 +104,7 @@ void publishHaPresetSelector() {
     if (!mqttClient.connected()) return;
 
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    JsonDocument doc(2048); // Use a single document
+    StaticJsonDocument<2048> doc; // Use a single document
 
     // --- Start with the standard device and availability info ---
     JsonObject device = doc["device"].to<JsonObject>();
@@ -143,7 +143,7 @@ void publishHaPresetSelector() {
         presetsJson = prefs.getString("customPresets", "[]");
     }
     prefs.end();
-    JsonDocument presetsDoc;
+    StaticJsonDocument<1024> presetsDoc;
     if (deserializeJson(presetsDoc, presetsJson) == DeserializationError::Ok) {
         for (JsonObject preset : presetsDoc.as<JsonArray>()) {
             if (preset["name"].is<const char*>()) {
@@ -158,7 +158,7 @@ void publishHaPresetSelector() {
 
 void publishDeviceTriggers() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    JsonDocument doc(1024); // Use a single, larger doc
+    StaticJsonDocument<1024> doc; // Use a single, larger doc
 
     // --- Base Device Info (Identifier only is sufficient for triggers) ---
     JsonObject device = doc["device"].to<JsonObject>();
@@ -188,7 +188,7 @@ void publishDeviceTriggers() {
 void publishHaDiagnosticAttributes() {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    JsonDocument doc; // StaticJsonDocument is fine here, small payload
+    StaticJsonDocument<256> doc; // StaticJsonDocument is fine here, small payload
 
     doc["free_heap"] = ESP.getFreeHeap();
     doc["uptime_seconds"] = millis() / 1000;
@@ -218,7 +218,7 @@ void publishHaAutoDiscovery() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
 
     // --- Create a single, reusable JSON document for all discovery messages ---
-    JsonDocument doc(2048);
+    StaticJsonDocument<2048> doc;
 
     // --- Create the "device" and "availability" objects ONCE ---
     // These are the stable, shared parts of every discovery message.
@@ -978,7 +978,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
         } else if (component == "tts") {
             Log_printf(LOG_LEVEL_INFO, "Handling media player command (tts topic). Payload: %s", message.c_str());
-            JsonDocument doc;
+            StaticJsonDocument<1024> doc;
             if (deserializeJson(doc, message) == DeserializationError::Ok) {
                 // HA's play_media service sends 'media_id', but we also check for 'url' for direct calls.
                 const char* url = doc["media_id"] | doc["url"];
@@ -1139,7 +1139,7 @@ void publishAllHaStates() {
 }
 
 void handleSequencerCommand(const std::string& payload) {
-    JsonDocument doc;
+    StaticJsonDocument<2048> doc;
     DeserializationError error = deserializeJson(doc, payload);
 
     if (error) {
