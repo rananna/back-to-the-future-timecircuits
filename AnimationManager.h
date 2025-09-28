@@ -55,12 +55,7 @@ void handleTemporalEcho();
 void runBootSequence();
 void handleBootSequence();
 void triggerFlashEffect(int row, int segment, int duration = 500);
-void handleFlashEffect();
 void broadcastAnimationComplete();
-void startPulseEffect(int row, int segment, int duration);
-void handlePulseEffect();
-void startFadeEffect(int duration, bool isFadeIn);
-void handleFadeEffect();
 
 #include "Sequencer.h"
 

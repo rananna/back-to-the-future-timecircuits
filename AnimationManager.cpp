@@ -51,6 +51,41 @@ void broadcastAnimationComplete() {
 
 // Effects are now handled inside the sequencer
 
+/**
+ * @brief Triggers a short flash effect on a specific display segment using the sequencer.
+ * @param row The display row (0-2) to flash.
+ * @param segment The segment within the row (0-3) to flash.
+ * @param duration The total duration of the flash effect in milliseconds.
+ */
+void triggerFlashEffect(int row, int segment, int duration) {
+    if (row < 0 || row > 2 || segment < 0 || segment > 3) {
+        Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid parameters for triggerFlashEffect (row: %d, seg: %d)", row, segment);
+        return;
+    }
+
+    // If a sequence is already active on this row, don't override it.
+    if (sequencerTracks[row].isActive) {
+        Log_printf(LOG_LEVEL_INFO, "SEQ: Ignoring flash effect on row %d, sequence already active.", row);
+        return;
+    }
+
+    Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering flash effect on row %d, segment %d for %dms.", row, segment, duration);
+
+    // Reset the track to ensure it's in a clean state
+    sequencerTracks[row].reset();
+
+    // Configure the track for the flash effect
+    sequencerTracks[row].isActive = true;
+    sequencerTracks[row].stepStartTime = millis();
+    sequencerTracks[row].originalBrightness = currentSettings.brightness;
+
+    // Step 1: Flash the specified segment for the given duration
+    sequencerTracks[row].steps[0] = {SEQ_CMD_FLASH, row, segment, duration, ""};
+
+    // Step 2: End the sequence
+    sequencerTracks[row].steps[1] = {SEQ_CMD_END, 0, 0, 0, ""};
+}
+
 // File-scoped variable to hold the chosen animation style for a single run
 static int randomAnimationStyle = -1;
 

@@ -1066,8 +1066,6 @@ void handleDisplay() {
     handleTemporalEcho();
     handleSequencer();
     handleAllSequencerMarquees();
-    handlePulseEffect();
-    handleFadeEffect();
     handlePresetCycling();
     handleSleepSchedule();
 
@@ -1274,8 +1272,6 @@ void loop() {
                         xSemaphoreGive(xDisplayDataMutex);
                     }
                 } else {
-                    handleFlashEffect();
-
                     if (isAnimating) {
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                             handleDisplayAnimation();
