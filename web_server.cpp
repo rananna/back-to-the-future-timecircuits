@@ -809,6 +809,80 @@ void setupWebRoutes() {
     }
   });
 
+  AsyncCallbackJsonWebHandler* saveStationHandler = new AsyncCallbackJsonWebHandler("/api/station/save", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    JsonObject obj = json.as<JsonObject>();
+    String name = obj["name"];
+    String url = obj["url"];
+    int index = obj["index"]; // Will be -1 if not provided
+
+    if (name.isEmpty() || url.isEmpty()) {
+        request->send(400, "text/plain", "Missing name or URL");
+        return;
+    }
+
+    JsonDocument doc;
+    File file = LittleFS.open("/radio_stations.json", "r");
+    if (file) {
+        deserializeJson(doc, file);
+        file.close();
+    }
+    JsonArray stations = doc.as<JsonArray>();
+
+    if (index >= 0 && index < stations.size()) {
+        // Update existing station
+        JsonObject station = stations[index];
+        station["name"] = name;
+        station["url"] = url;
+    } else {
+        // Add new station
+        JsonObject newStation = stations.add<JsonObject>();
+        newStation["name"] = name;
+        newStation["url"] = url;
+    }
+
+    file = LittleFS.open("/radio_stations.json", "w");
+    serializeJson(doc, file);
+    file.close();
+
+    request->send(200, "text/plain", "Station saved");
+    broadcastRadioStationsUpdated();
+  });
+  server.addHandler(saveStationHandler);
+
+  AsyncCallbackJsonWebHandler* deleteStationHandler = new AsyncCallbackJsonWebHandler("/api/station/delete", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    JsonObject obj = json.as<JsonObject>();
+    if (!obj.containsKey("index")) {
+        request->send(400, "text/plain", "Missing index");
+        return;
+    }
+    int index = obj["index"];
+
+    JsonDocument doc;
+    File file = LittleFS.open("/radio_stations.json", "r");
+    if (!file) {
+        request->send(500, "text/plain", "Could not open stations file");
+        return;
+    }
+    deserializeJson(doc, file);
+    file.close();
+    JsonArray stations = doc.as<JsonArray>();
+
+    if (index >= 0 && index < stations.size()) {
+        stations.remove(index);
+    } else {
+        request->send(400, "text/plain", "Invalid index");
+        return;
+    }
+
+    file = LittleFS.open("/radio_stations.json", "w");
+    serializeJson(doc, file);
+    file.close();
+
+    request->send(200, "text/plain", "Station deleted");
+    broadcastRadioStationsUpdated();
+  });
+  server.addHandler(deleteStationHandler);
+
   server.on("/api/getPresets", HTTP_GET, [](AsyncWebServerRequest *request) {
     preferences.begin(PREFERENCES_NAMESPACE, true);
     String presets = preferences.getString("customPresets", "[]");

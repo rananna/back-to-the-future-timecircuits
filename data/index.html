@@ -215,17 +215,38 @@
 
                 <div class="setting-sub-group">
                     <h4>Internet Radio</h4>
-                    <label for="radioStationSelect">Select Station:</label>
-                    <select id="radioStationSelect">
-                        <option value="">-- Select a Station --</option>
-                    </select>
                     <div class="radio-controls">
-                        <button id="radioControlBtn" class="action-button" data-state="stopped">Play</button>
+                        <button id="radioControlBtn" class="action-button" data-state="stopped">Stop Radio</button>
                         <span id="radioStatus" class="radio-status-display"></span>
+                         <button id="addStationBtn" class="action-button" style="margin-left: auto;">+ Add New Station</button>
                     </div>
                     <div id="radio-metadata">
                         <p id="station-name"></p>
                         <p id="song-title"></p>
+                    </div>
+                    <table id="stationsTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>URL</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Station rows will be inserted here -->
+                        </tbody>
+                    </table>
+                    <div id="stationFormContainer" class="modal" style="display:none;">
+                        <div class="modal-content">
+                            <span class="close-button">&times;</span>
+                            <h4 id="stationFormTitle">Add Station</h4>
+                            <input type="hidden" id="stationIndex" value="-1">
+                            <label for="stationName">Name:</label>
+                            <input type="text" id="stationName" placeholder="e.g., 80s Hits">
+                            <label for="stationURL">URL:</label>
+                            <input type="text" id="stationURL" placeholder="e.g., http://stream.example.com/80s">
+                            <button id="saveStationBtn" class="action-button">Save Station</button>
+                        </div>
                     </div>
                 </div>
             </div>
