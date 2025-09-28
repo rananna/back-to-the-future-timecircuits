@@ -18,6 +18,7 @@ enum RadioStatus {
 extern char MQTT_UNIQUE_ID[21];
 extern String currentProfileName;
 extern String lastDepartedPreset;
+extern bool isRadioPlaying;
 
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length);
@@ -32,9 +33,11 @@ void publishTimeSensors();
 void startAudioStream(const char* url, bool is_tts, int volume = -1);
 void stopAudioStream(bool isTemporary = false);
 void handleSequencerCommand(const std::string& payload);
+void cleanupAudio(bool isPermanent);
 
 // --- Radio Metadata ---
 void audio_showstreamtitle(const char *info);
+void audio_eof_stream(const char *info);
 void publishRadioMetadata();
 
 

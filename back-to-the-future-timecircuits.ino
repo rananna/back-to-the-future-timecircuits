@@ -238,22 +238,10 @@ DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
 // --- Callback function to handle audio events ---
 void audio_info(Audio::msg_t m) {
     if (m.e == Audio::evt_eof) {
-        Log_printf(LOG_LEVEL_INFO, "Finished playing sound: %s", currentSoundFile);
-
-        // If the sound was triggered by an MQTT command, we need to reset the state
-        // and shut down the amplifier to ensure the hardware is in a clean state.
-        if (isSoundFromMqtt) {
-            Log_printf(LOG_LEVEL_DEBUG, "MQTT-initiated sound finished. Resetting audio state.");
-            isPlayingSound = false;
-            isSoundFromMqtt = false;
-            digitalWrite(I2S_SD_PIN, LOW); // Shut down the I2S amplifier
-        }
-
-        currentSoundFile[0] = '\0'; // Clear the filename
-        // Update Home Assistant that audio is idle
-        if (mqttClient.connected()) {
-            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
-        }
+        Log_printf(LOG_LEVEL_INFO, "Audio event: End of file/stream detected for '%s'.", currentSoundFile);
+        // This is the primary callback for when a sound file finishes playing.
+        // We treat this as a permanent stop and run the full cleanup.
+        cleanupAudio(true);
     }
 }
 
@@ -898,7 +886,10 @@ void onHardwareInitialized() {
     Log_printf(LOG_LEVEL_INFO, "Initializing I2S Audio...");
     audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DIN_PIN);
     audio.setVolume(currentSettings.notificationVolume);
+    // This is the generic event callback, which we use for the primary EOF event.
     Audio::audio_info_callback = audio_info;
+    // This is a specific callback for when a network stream ends, which is critical for radio stability.
+    audio.setEofCallback(audio_eof_stream);
     Log_printf(LOG_LEVEL_INFO, "I2S Audio... OK");
 
     xTaskCreatePinnedToCore(
@@ -1220,6 +1211,18 @@ void loop() {
             }
             
             stockManager.loop();
+
+            // --- NEW: Audio State Synchronization Safety Net ---
+            // Periodically check if the application's radio state is out of sync with the audio library's state.
+            // This can happen if a stream drops unexpectedly and the EOF callback doesn't fire.
+            static unsigned long lastAudioSyncCheck = 0;
+            if (millis() - lastAudioSyncCheck > 1000) { // Check every second
+                if (isRadioPlaying && !audio.isRunning()) {
+                    Log_printf(LOG_LEVEL_WARN, "SAFETY NET: Radio state desync detected! Forcing cleanup.");
+                    cleanupAudio(true); // Force a permanent cleanup
+                }
+                lastAudioSyncCheck = millis();
+            }
 
             // --- START: MODIFICATION - Periodic Stock Manager Reset ---
             static unsigned long lastStockManagerReset = 0;
