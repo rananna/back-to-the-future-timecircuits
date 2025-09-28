@@ -1300,6 +1300,59 @@ void audio_showstreamtitle(const char *info) {
     publishRadioMetadata();
 }
 
+/**
+ * @brief Centralized function to stop audio playback and reset all related states.
+ * @details This function is the single source of truth for halting any audio.
+ * It stops the player, powers down the DAC, clears all state variables
+ * (isRadioPlaying, metadata, etc.), unregisters callbacks, and notifies all
+ * clients (HA and Web UI) that playback has stopped. This ensures the system
+s
+ * state is always consistent.
+ */
+void cleanupAudio(bool isPermanent) {
+    Log_printf(LOG_LEVEL_INFO, "--- Centralized Audio Cleanup (Permanent: %s) ---", isPermanent ? "true" : "false");
+
+    if (audio.isRunning()) {
+        audio.stopSong();
+    }
+
+    digitalWrite(I2S_SD_PIN, LOW);
+    currentSoundFile[0] = '\0';
+
+    // If the stop is permanent (i.e., user-commanded), and the radio was playing,
+    // then we must reset all the radio-specific states.
+    if (isPermanent && isRadioPlaying) {
+        isRadioPlaying = false;
+        radioStationName = "";
+        radioSongTitle = "";
+        publishRadioMetadata(); // Send cleared metadata
+        broadcastRadioStatus(RADIO_STATUS_STOPPED);
+    }
+
+    // Always unregister the callback to be safe
+    audio.setStreamTitleCallback(nullptr);
+
+    // Update HA state to IDLE
+    if (mqttClient.connected()) {
+        mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
+    }
+
+    Log_printf(LOG_LEVEL_INFO, "--- Audio cleanup complete ---");
+}
+
+/**
+ * @brief Callback function for the ESP32-audioI2S library to handle unexpected stream endings.
+ * @details This function is registered to be called when a network stream (like
+ * an internet radio station) disconnects or ends abruptly. Its sole responsibility
+ * is to call the centralized cleanup function to ensure the device state is
+ * reset correctly.
+ * @param info The metadata string provided by the audio library (unused).
+ */
+void audio_eof_stream(const char *info){
+    Log_printf(LOG_LEVEL_INFO, "Stream ended unexpectedly. Info: %s. Cleaning up.", info);
+    cleanupAudio(true);
+}
+
 void startAudioStream(const char* url, bool is_tts, int volume) {
     Log_printf(LOG_LEVEL_INFO, "Request to start audio stream from URL: %s", url);
     if (!hardwareInitialized) {
@@ -1353,39 +1406,19 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
         }
     } else {
         Log_printf(LOG_LEVEL_ERROR, "Failed to connect to host for streaming: %s", url);
-        currentSoundFile[0] = '\0';
-        digitalWrite(I2S_SD_PIN, LOW);
-        if (!is_tts) broadcastRadioStatus(RADIO_STATUS_ERROR, "Failed to connect to host");
+        // Broadcast a specific error to the UI before running the generic cleanup.
+        if (!is_tts) {
+            broadcastRadioStatus(RADIO_STATUS_ERROR, "Failed to connect to host");
+        }
+        // A failed connection attempt means the stream should be considered permanently stopped.
+        cleanupAudio(true);
     }
 }
 
 void stopAudioStream(bool isTemporary) {
     Log_printf(LOG_LEVEL_INFO, "Request to stop audio stream (isTemporary: %s)", isTemporary ? "true" : "false");
-    if (audio.isRunning()) {
-        audio.stopSong();
-        digitalWrite(I2S_SD_PIN, LOW); // Power down the DAC
-        currentSoundFile[0] = '\0';
-
-        // If this is not a temporary stop (i.e., a user-commanded stop), then
-        // clear all the radio-related states and notify the UI.
-        if (!isTemporary) {
-            isRadioPlaying = false;
-            radioStationName = "";
-            radioSongTitle = "";
-            publishRadioMetadata(); // Send cleared info
-            broadcastRadioStatus(RADIO_STATUS_STOPPED);
-        }
-
-        // Always unregister the callback to prevent old callbacks from firing
-        audio.setStreamTitleCallback(nullptr);
-
-        Log_printf(LOG_LEVEL_INFO, "Audio stream stopped successfully.");
-        if (mqttClient.connected()) {
-            mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
-        }
-    } else {
-        Log_printf(LOG_LEVEL_DEBUG, "No audio stream was running.");
-    }
+    // A temporary stop is NOT permanent. A non-temporary stop IS permanent.
+    cleanupAudio(!isTemporary);
 }
 
 void setupMqtt() {
