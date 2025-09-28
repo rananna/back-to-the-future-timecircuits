@@ -61,7 +61,7 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
 
     // Check for serialization errors (e.g., buffer overflow)
     if (payload_size == 0) {
-        Log_printf(LOG_LEVEL_ERROR, "HA Discovery: JSON serialization failed for %s. Payload buffer may be too small. Doc size: %d", object_id.c_str(), doc.memoryUsage());
+        Log_printf(LOG_LEVEL_ERROR, "HA Discovery: JSON serialization failed for %s. Payload buffer may be too small. Doc capacity: %d", object_id.c_str(), doc.capacity());
         return; // Stop processing this message
     }
 
@@ -104,7 +104,7 @@ void publishHaPresetSelector() {
     if (!mqttClient.connected()) return;
 
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    DynamicJsonDocument doc(2048); // Use a single document
+    JsonDocument doc(2048); // Use a single document
 
     // --- Start with the standard device and availability info ---
     JsonObject device = doc["device"].to<JsonObject>();
@@ -146,7 +146,7 @@ void publishHaPresetSelector() {
     JsonDocument presetsDoc;
     if (deserializeJson(presetsDoc, presetsJson) == DeserializationError::Ok) {
         for (JsonObject preset : presetsDoc.as<JsonArray>()) {
-            if (preset.containsKey("name")) {
+            if (preset["name"].is<const char*>()) {
                 options.add(preset["name"].as<String>());
             }
         }
@@ -158,7 +158,7 @@ void publishHaPresetSelector() {
 
 void publishDeviceTriggers() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    DynamicJsonDocument doc(1024); // Use a single, larger doc
+    JsonDocument doc(1024); // Use a single, larger doc
 
     // --- Base Device Info (Identifier only is sufficient for triggers) ---
     JsonObject device = doc["device"].to<JsonObject>();
@@ -218,7 +218,7 @@ void publishHaAutoDiscovery() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
 
     // --- Create a single, reusable JSON document for all discovery messages ---
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc(2048);
 
     // --- Create the "device" and "availability" objects ONCE ---
     // These are the stable, shared parts of every discovery message.
