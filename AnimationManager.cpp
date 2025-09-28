@@ -1075,22 +1075,14 @@ void handleSequencer() {
 
             case SEQ_CMD_END:
             case SEQ_CMD_NONE:
-                track.isActive = false;
-                // Restore brightness and clean up effects
-                row.month.setBrightness(track.originalBrightness);
-                row.day.setBrightness(track.originalBrightness);
-                row.year.setBrightness(track.originalBrightness);
-                row.time.setBrightness(track.originalBrightness);
-                for (int s = 0; s < 4; s++) {
-                    track.isPulsing[s] = false;
-                    track.isFlashing[s] = false;
-                }
-                track.isMarqueeActive = false;
+                stopAndCleanupTrack(i);
                 needsDisplayUpdate = true;
                 break;
 
             default:
-                track.isActive = false;
+                Log_printf(LOG_LEVEL_WARNING, "SEQ: Track %d entered unknown command state %d. Aborting.", i, step.command);
+                stopAndCleanupTrack(i);
+                needsDisplayUpdate = true;
                 break;
         }
 
@@ -1107,6 +1099,41 @@ void handleSequencer() {
 }
 
 /**
+ * @brief Stops all effects on a specific track and restores its brightness.
+ * @param trackIndex The index of the track (0-2) to clean up.
+ * @details This function is a failsafe to ensure that when a sequence ends
+ * or is aborted, the corresponding display row is returned to a neutral,
+ * visible state. It cancels any ongoing fades, pulses, or flashes.
+ */
+void stopAndCleanupTrack(int trackIndex) {
+    if (trackIndex < 0 || trackIndex > 2) return;
+
+    SequencerTrack& track = sequencerTracks[trackIndex];
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    DisplayRow& row = *rows[trackIndex];
+
+    // Reset all effect states
+    track.isFading = false;
+    track.isMarqueeActive = false;
+    for (int s = 0; s < 4; s++) {
+        track.isPulsing[s] = false;
+        track.isFlashing[s] = false;
+    }
+
+    // Restore the brightness to the default setting
+    uint8_t defaultBrightness = track.originalBrightness > 0 ? track.originalBrightness : currentSettings.brightness;
+    row.month.setBrightness(defaultBrightness);
+    row.day.setBrightness(defaultBrightness);
+    row.year.setBrightness(defaultBrightness);
+    row.time.setBrightness(defaultBrightness);
+
+    // Mark the track as inactive
+    track.isActive = false;
+
+    Log_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
+}
+
+/**
  * @brief Configures and runs a startup test to verify parallel sequence execution.
  * @details This test sets up two tracks to run simultaneously:
  *          - Track 0: Fades in the entire top display row over 5 seconds.
@@ -1116,30 +1143,28 @@ void handleSequencer() {
 void runSequencerTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Sequencer Test ---");
 
+    // --- FIX: Reset tracks before configuring them to ensure a clean slate ---
+    sequencerTracks[0].reset();
+    sequencerTracks[1].reset();
+    sequencerTracks[2].reset();
+
     // --- Track 0: Fade in the top row over 5 seconds ---
     sequencerTracks[0].isActive = true;
-    sequencerTracks[0].currentStep = 0;
     sequencerTracks[0].stepStartTime = millis();
-    sequencerTracks[0].stepInitialized = false;
     // Step 1: Fade In
-    sequencerTracks[0].steps[0].command = SEQ_CMD_FADE_IN;
-    sequencerTracks[0].steps[0].targetRow = 0;
-    sequencerTracks[0].steps[0].intParam = 5000; // 5 seconds
+    sequencerTracks[0].steps[0] = {SEQ_CMD_FADE_IN, 0, -1, 5000, ""};
     // Step 2: End
-    sequencerTracks[0].steps[1].command = SEQ_CMD_END;
+    sequencerTracks[0].steps[1] = {SEQ_CMD_END, 0, 0, 0, ""};
+
 
     // --- Track 1: Pulse the middle row's month segment for 5 seconds ---
     sequencerTracks[1].isActive = true;
-    sequencerTracks[1].currentStep = 0;
     sequencerTracks[1].stepStartTime = millis();
-    sequencerTracks[1].stepInitialized = false;
     // Step 1: Pulse
-    sequencerTracks[1].steps[0].command = SEQ_CMD_PULSE;
-    sequencerTracks[1].steps[0].targetRow = 1;
-    sequencerTracks[1].steps[0].targetSegment = 0; // Month segment
-    sequencerTracks[1].steps[0].intParam = 5000; // 5 seconds
+    sequencerTracks[1].steps[0] = {SEQ_CMD_PULSE, 1, 0, 5000, ""}; // Month segment
     // Step 2: End
-    sequencerTracks[1].steps[1].command = SEQ_CMD_END;
+    sequencerTracks[1].steps[1] = {SEQ_CMD_END, 0, 0, 0, ""};
+
 
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Sequencer Test Started ---");
 }

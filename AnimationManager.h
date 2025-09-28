@@ -120,6 +120,47 @@ struct SequencerTrack {
     unsigned long lastFlashToggle[4] = {0};
 
     SequenceStep steps[MAX_SEQUENCE_STEPS];
+
+    /**
+     * @brief Resets the track to a clean, default state.
+     * @details Zeros out all state variables, ensuring that no leftover
+     * effects or properties from a previous run can interfere with the next
+     * sequence. This is critical for preventing visual glitches.
+     */
+    void reset() {
+        isActive = false;
+        currentStep = 0;
+        stepStartTime = 0;
+        stepInitialized = false;
+
+        isMarqueeActive = false;
+        marqueeText.clear();
+        marqueeScrollPosition = 0;
+        lastMarqueeScrollTime = 0;
+
+        isFading = false;
+        fadeStartTime = 0;
+        fadeDuration = 0;
+        isFadeIn = false;
+        // Do not reset originalBrightness here, as it's set at the start of a fade
+
+        for (int i = 0; i < 4; ++i) {
+            isPulsing[i] = false;
+            pulseEndTimes[i] = 0;
+            pulseStates[i] = false;
+            lastPulseToggle[i] = 0;
+
+            isFlashing[i] = false;
+            flashEndTimes[i] = 0;
+            flashStates[i] = false;
+            lastFlashToggle[i] = 0;
+        }
+
+        // Clear out the old steps to prevent any carry-over
+        for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
+            steps[i] = { SEQ_CMD_NONE, 0, 0, 0, "" };
+        }
+    }
 };
 
 // Global array of sequencer tracks, one for each of the 3 display rows
@@ -127,6 +168,9 @@ extern SequencerTrack sequencerTracks[3];
 
 // Function declaration for the new sequencer handler
 void handleSequencer();
+
+// --- NEW: Function declaration for stopping a track ---
+void stopAndCleanupTrack(int trackIndex);
 
 // --- NEW: Function declaration for the startup test ---
 void runSequencerTest();
