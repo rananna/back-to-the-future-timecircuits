@@ -209,6 +209,55 @@ void broadcastStockUpdate() {
 }
 
 /**
+ * @brief Broadcasts the current internet radio status to all connected WebSocket clients.
+ * @param status The current status of the radio (e.g., PLAYING, STOPPED).
+ * @param message An optional message, typically used for error details.
+ */
+void broadcastRadioStatus(RadioStatus status, const char* message) {
+    if (ws.count() > 0) {
+        JsonDocument doc;
+        doc["action"] = "radioStatusUpdate";
+
+        // Convert enum to a string for the UI
+        switch (status) {
+            case RADIO_STATUS_STOPPED:
+                doc["status"] = "stopped";
+                break;
+            case RADIO_STATUS_CONNECTING:
+                doc["status"] = "connecting";
+                break;
+            case RADIO_STATUS_PLAYING:
+                doc["status"] = "playing";
+                break;
+            case RADIO_STATUS_ERROR:
+                doc["status"] = "error";
+                break;
+        }
+
+        doc["message"] = message;
+
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
+        Log_printf(LOG_LEVEL_INFO, "Broadcasted radio status: %s", jsonString.c_str());
+    }
+}
+
+/**
+ * @brief Broadcasts a notification that the radio station list has been updated.
+ */
+void broadcastRadioStationsUpdated() {
+    if (ws.count() > 0) {
+        JsonDocument doc;
+        doc["action"] = "radioStationsUpdated";
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
+        Log_printf(LOG_LEVEL_INFO, "Broadcasted radio stations updated notification.");
+    }
+}
+
+/**
  * @brief Overloaded function to broadcast an integer state update via WebSocket.
  */
 void broadcastWsStateUpdate(const char* key, int value) {

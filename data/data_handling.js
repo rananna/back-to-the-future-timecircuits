@@ -90,6 +90,13 @@ function initWebSocket() {
         } else if (msg.action === 'stockUpdate') {
             console.log('CLIENT_DEBUG: Received stock update from server. Refreshing status.');
             updateStockStatus();
+        } else if (msg.action === 'radioStatusUpdate') {
+            console.log(`CLIENT_DEBUG: Received radio status update: ${msg.status}`);
+            updateRadioControls(msg.status, msg.message);
+        } else if (msg.action === 'radioStationsUpdated') {
+            console.log("CLIENT_DEBUG: Received radio stations updated notification.");
+            populateRadioStations();
+            showMessage('Radio station list has been updated.', 'info');
         } else if (msg.action === 'fullSettings') {
             console.log("CLIENT_DEBUG: Received full settings object from server.");
             // The 'fullSettings' message contains all settings in one object.
