@@ -1217,7 +1217,7 @@ void loop() {
             // This can happen if a stream drops unexpectedly and the EOF callback doesn't fire.
             static unsigned long lastAudioSyncCheck = 0;
             if (millis() - lastAudioSyncCheck > 1000) { // Check every second
-                if (isRadioPlaying && !audio.isRunning()) {
+                if (isRadioStreaming && !audio.isRunning()) {
                     Log_printf(LOG_LEVEL_WARN, "SAFETY NET: Radio state desync detected! Forcing cleanup.");
                     cleanupAudio(true); // Force a permanent cleanup
                 }

@@ -33,7 +33,7 @@ String lastDepartedPreset = "None";
 // --- Radio Metadata Globals ---
 String radioStationName = "";
 String radioSongTitle = "";
-bool isRadioPlaying = false;
+bool isRadioStreaming = false;
 
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
     String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
@@ -1304,7 +1304,7 @@ void audio_showstreamtitle(const char *info) {
  * @brief Centralized function to stop audio playback and reset all related states.
  * @details This function is the single source of truth for halting any audio.
  * It stops the player, powers down the DAC, clears all state variables
- * (isRadioPlaying, metadata, etc.), unregisters callbacks, and notifies all
+ * (isRadioStreaming, metadata, etc.), unregisters callbacks, and notifies all
  * clients (HA and Web UI) that playback has stopped. This ensures the system
 s
  * state is always consistent.
@@ -1321,8 +1321,8 @@ void cleanupAudio(bool isPermanent) {
 
     // If the stop is permanent (i.e., user-commanded), and the radio was playing,
     // then we must reset all the radio-specific states.
-    if (isPermanent && isRadioPlaying) {
-        isRadioPlaying = false;
+    if (isPermanent && isRadioStreaming) {
+        isRadioStreaming = false;
         radioStationName = "";
         radioSongTitle = "";
         publishRadioMetadata(); // Send cleared metadata
@@ -1349,8 +1349,16 @@ void cleanupAudio(bool isPermanent) {
  * @param info The metadata string provided by the audio library (unused).
  */
 void audio_eof_stream(const char *info){
-    Log_printf(LOG_LEVEL_INFO, "Stream ended unexpectedly. Info: %s. Cleaning up.", info);
-    cleanupAudio(true);
+    Log_printf(LOG_LEVEL_INFO, "Stream ended unexpectedly. Info: %s.", info);
+    // If the stream that ended was a radio stream, perform a permanent cleanup.
+    // Otherwise, it was a temporary stream (like TTS), so perform a temporary cleanup.
+    if (isRadioStreaming) {
+        Log_printf(LOG_LEVEL_INFO, "Radio stream dropped. Performing permanent cleanup.");
+        cleanupAudio(true);
+    } else {
+        Log_printf(LOG_LEVEL_INFO, "TTS or other temporary stream ended. Performing temporary cleanup.");
+        cleanupAudio(false);
+    }
 }
 
 void startAudioStream(const char* url, bool is_tts, int volume) {
@@ -1371,11 +1379,11 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
 
     // If it's a radio stream, set the callback. Otherwise, ensure it's null.
     if (!is_tts) {
-        isRadioPlaying = true; // It's a radio stream
+        isRadioStreaming = true; // It's a radio stream
         audio.setStreamTitleCallback(audio_showstreamtitle);
         broadcastRadioStatus(RADIO_STATUS_CONNECTING);
     } else {
-        // It's a TTS stream, don't change isRadioPlaying
+        isRadioStreaming = false; // It's a TTS stream
         audio.setStreamTitleCallback(nullptr);
     }
     
