@@ -1101,14 +1101,13 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_SOUND:
+                // This is now a "fire-and-forget" command. It starts the sound
+                // and immediately moves to the next step without waiting for it to finish.
                 if (!track.stepInitialized) {
-                    // if (audio.isRunning()) break;
                     playSound(step.stringParam.c_str());
-                    track.stepInitialized = true;
+                    track.stepInitialized = true; // Mark as initialized
+                    advance_step = true;          // Immediately advance to the next step
                 }
-                // if (!audio.isRunning()) {
-                //     advance_step = true;
-                // }
                 break;
 
             case SEQ_CMD_MARQUEE:
@@ -1160,23 +1159,17 @@ void stopAndCleanupTrack(int trackIndex) {
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     DisplayRow& row = *rows[trackIndex];
 
-    // Reset all effect states
-    track.isFading = false;
-    track.isMarqueeActive = false;
-    for (int s = 0; s < 4; s++) {
-        track.isPulsing[s] = false;
-        track.isFlashing[s] = false;
-    }
-
-    // Restore the brightness to the default setting
+    // Restore the brightness to the default setting before resetting the track
     uint8_t defaultBrightness = track.originalBrightness > 0 ? track.originalBrightness : currentSettings.brightness;
     row.month.setBrightness(defaultBrightness);
     row.day.setBrightness(defaultBrightness);
     row.year.setBrightness(defaultBrightness);
     row.time.setBrightness(defaultBrightness);
 
-    // Mark the track as inactive
-    track.isActive = false;
+    // --- FIX: Call the comprehensive reset() method ---
+    // This is more robust as it clears all state variables, including marquee text,
+    // effect flags, and step commands, preventing any state from bleeding into the next sequence.
+    track.reset();
 
     Log_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
 }
