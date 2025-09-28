@@ -51,6 +51,7 @@ async function initializeUI() {
 
         // Populate radio stations
         populateRadioStations();
+        populateSequences();
 
         // Start fetching real-time data
         fetchTime();
@@ -71,6 +72,35 @@ async function initializeUI() {
     } finally {
         // Set the loading flag to false
         isLoading = false;
+    }
+}
+
+/**
+/**
+ * Populates the sequence select dropdown with data from the server.
+ */
+async function populateSequences() {
+    try {
+        const response = await fetch('/api/sequences');
+        if (!response.ok) {
+            throw new Error('Failed to fetch sequences');
+        }
+        const sequences = await response.json();
+        const select = document.getElementById('sequenceSelect');
+        select.innerHTML = '<option value="">-- Select a Sequence --</option>'; // Clear existing options
+
+        if (sequences && sequences.length > 0) {
+            sequences.forEach(sequence => {
+                const option = document.createElement('option');
+                option.textContent = sequence.name;
+                // Store the raw JSON payload string in the value attribute
+                option.value = sequence.payload;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error("CLIENT_DEBUG: Failed to populate sequences:", error);
+        showMessage('Could not load sequences.', 'error');
     }
 }
 
@@ -539,6 +569,18 @@ function attachEventListeners() {
     document.getElementById('addStationBtn').onclick = openStationForm;
     document.querySelector('#stationFormContainer .close-button').onclick = closeStationForm;
     document.getElementById('saveStationBtn').onclick = saveStation;
+
+    // Run sequence button
+    document.getElementById('runSequenceBtn').onclick = () => {
+        const select = document.getElementById('sequenceSelect');
+        const sequencePayload = select.value;
+        if (sequencePayload && ws) {
+            ws.send(JSON.stringify({ action: 'run_sequence', payload: sequencePayload }));
+            showMessage(`Running sequence: ${select.options[select.selectedIndex].text}`, 'success');
+        } else if (!sequencePayload) {
+            showMessage('Please select a sequence to run.', 'error');
+        }
+    };
 }
 
 /**

@@ -1360,18 +1360,18 @@ body.time-travel-active {
     display: inline-block;
 }
 
-.animation-style-container {
+.animation-style-container, .sequence-container {
     display: flex;
     gap: 10px;
     align-items: center;
 }
 
-.animation-style-container select {
+.animation-style-container select, .sequence-container select {
     flex-grow: 1;
     margin-bottom: 0;
 }
 
-.animation-style-container .action-button {
+.animation-style-container .action-button, .sequence-container .action-button {
     margin-top: 0;
     flex-shrink: 0;
 }

@@ -448,6 +448,12 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
             } else if (action == "stop_radio") {
                 Log_printf(LOG_LEVEL_INFO, "WebSocket: Stop radio command received.");
                 stopAudioStream();
+            } else if (action == "run_sequence") {
+                String payload = doc["payload"];
+                if (payload.length() > 0) {
+                    Log_printf(LOG_LEVEL_INFO, "WebSocket: Run sequence command received.");
+                    handleSequencerCommand(payload.c_str());
+                }
             }
         }
     }
@@ -804,6 +810,14 @@ void setupWebRoutes() {
   server.on("/api/radio_stations", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (LittleFS.exists("/radio_stations.json")) {
         request->send(LittleFS, "/radio_stations.json", "application/json");
+    } else {
+        request->send(200, "application/json", "[]");
+    }
+  });
+
+  server.on("/api/sequences", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (LittleFS.exists("/sequences.json")) {
+        request->send(LittleFS, "/sequences.json", "application/json");
     } else {
         request->send(200, "application/json", "[]");
     }
