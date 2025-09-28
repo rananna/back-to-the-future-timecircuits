@@ -95,6 +95,7 @@ struct SequencerTrack {
     bool isActive;
     int currentStep;
     unsigned long stepStartTime;
+    bool stepInitialized; // --- FIX: Add flag to track if the step action has been triggered ---
     SequenceStep steps[MAX_SEQUENCE_STEPS];
 };
 

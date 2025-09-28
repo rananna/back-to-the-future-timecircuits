@@ -1165,6 +1165,7 @@ void handleSequencerCommand(const std::string& payload) {
         sequencerTracks[targetRow].currentStep = 0;
         sequencerTracks[targetRow].stepStartTime = millis();
         sequencerTracks[targetRow].isActive = true;
+        sequencerTracks[targetRow].stepInitialized = false; // --- FIX: Reset the initialization flag for the new sequence ---
         Log_printf(LOG_LEVEL_INFO, "Sequencer track %d activated with %d steps.", targetRow, step_index);
     }
 }

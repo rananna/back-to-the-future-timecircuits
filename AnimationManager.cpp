@@ -1079,106 +1079,94 @@ static void comprehensiveAnimationCleanup() {
  * parallel execution of tracks on different display rows.
  */
 void handleSequencer() {
-    // A flag to indicate if any sequencer action requires a display refresh.
     bool needsDisplayUpdate = false;
 
-    // Iterate through each of the three possible tracks (one for each display row).
     for (int i = 0; i < 3; i++) {
         if (!sequencerTracks[i].isActive) {
-            continue; // Skip inactive tracks
+            continue;
         }
 
-        // --- NEW: Check if this track is waiting for a sound to finish ---
-        if (sequencerTracks[i].isWaitingForSound) {
-            if (!audio.isRunning()) {
-                // Sound has finished, advance to the next step.
-                sequencerTracks[i].isWaitingForSound = false;
-                sequencerTracks[i].currentStep++;
-                sequencerTracks[i].stepStartTime = millis();
-            } else {
-                // Sound is still playing, so we wait and do nothing else for this track.
-                continue;
-            }
-        }
-
-        // Get the current step for this active track.
+        bool advance_step = false;
         SequenceStep& step = sequencerTracks[i].steps[sequencerTracks[i].currentStep];
         unsigned long elapsed = millis() - sequencerTracks[i].stepStartTime;
 
-        bool advance_step = false;
-
-        // Process the command for the current step.
         switch (step.command) {
             case SEQ_CMD_WAIT:
-                // If the wait duration has passed, advance to the next step.
                 if (elapsed >= (unsigned long)step.intParam) {
                     advance_step = true;
                 }
                 break;
 
-            case SEQ_CMD_MARQUEE:
-                // The marquee functionality as described for the sequencer is not
-                // implemented in the firmware. This is a known limitation.
-                Log_printf(LOG_LEVEL_WARN, "Sequencer command MARQUEE is not implemented.");
-                advance_step = true; // Immediately move to the next command.
-                break;
-
             case SEQ_CMD_FADE_IN:
-                startFadeEffect(step.intParam, true); // true for fade IN
-                advance_step = true;
-                break;
-
             case SEQ_CMD_FADE_OUT:
-                startFadeEffect(step.intParam, false); // false for fade OUT
-                advance_step = true;
+                if (!sequencerTracks[i].stepInitialized) {
+                    startFadeEffect(step.intParam, step.command == SEQ_CMD_FADE_IN);
+                    sequencerTracks[i].stepInitialized = true;
+                }
+                if (!isFading) { // Wait for the fade to complete
+                    advance_step = true;
+                }
                 break;
 
             case SEQ_CMD_PULSE:
-                // Start the pulse effect on the target segment.
-                startPulseEffect(step.targetRow, step.targetSegment, step.intParam);
-                advance_step = true;
+                if (!sequencerTracks[i].stepInitialized) {
+                    startPulseEffect(step.targetRow, step.targetSegment, step.intParam);
+                    sequencerTracks[i].stepInitialized = true;
+                }
+                // Wait for the specific pulse to finish
+                if (!isPulsing[step.targetRow][step.targetSegment]) {
+                    advance_step = true;
+                }
                 break;
 
             case SEQ_CMD_FLASH:
-                // Start the flash effect on the target segment.
-                triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
-                advance_step = true;
+                if (!sequencerTracks[i].stepInitialized) {
+                    triggerFlashEffect(step.targetRow, step.targetSegment, step.intParam);
+                    sequencerTracks[i].stepInitialized = true;
+                }
+                // Wait for the specific flash to finish
+                if (!isFlashing[step.targetRow][step.targetSegment]) {
+                    advance_step = true;
+                }
                 break;
 
             case SEQ_CMD_SOUND:
-                // Play the specified sound effect.
-                playSound(step.stringParam.c_str());
-                // --- FIX: Set the waiting flag and DO NOT advance the step ---
-                sequencerTracks[i].isWaitingForSound = true;
-                advance_step = false;
+                if (!sequencerTracks[i].stepInitialized) {
+                    playSound(step.stringParam.c_str());
+                    sequencerTracks[i].stepInitialized = true;
+                }
+                if (!audio.isRunning()) { // Wait for the sound to finish
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_MARQUEE:
+                Log_printf(LOG_LEVEL_WARN, "Sequencer command MARQUEE is not implemented.");
+                advance_step = true;
                 break;
 
             case SEQ_CMD_END:
             case SEQ_CMD_NONE:
-                // The sequence for this track is over.
                 sequencerTracks[i].isActive = false;
-                // Clean up any lingering effects for this row.
                 for (int s = 0; s < 4; s++) {
                     isPulsing[i][s] = false;
                     isFlashing[i][s] = false;
                 }
-                needsDisplayUpdate = true; // Force a redraw to clear any visual artifacts.
+                needsDisplayUpdate = true;
                 break;
 
             default:
-                // Unknown command, end the sequence for this track to be safe.
                 sequencerTracks[i].isActive = false;
                 break;
         }
 
-        // If the step is complete, move to the next one.
         if (advance_step) {
             sequencerTracks[i].currentStep++;
-            sequencerTracks[i].stepStartTime = millis(); // Reset timer for the new step.
+            sequencerTracks[i].stepStartTime = millis();
+            sequencerTracks[i].stepInitialized = false; // Reset for the next step
         }
     }
 
-    // If any sequencer action might have changed the display, force a refresh.
     if (needsDisplayUpdate) {
         updateNormalClockDisplay();
     }
