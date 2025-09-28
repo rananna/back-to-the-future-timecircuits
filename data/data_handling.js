@@ -10,6 +10,8 @@ let ws; // The WebSocket object for real-time communication
 let weatherInterval; // The interval ID for fetching weather data periodically
 let isLoading = true; // Flag to indicate if the initial data is still loading
 let correctedCityName = ''; // Stores the validated city name from the geocoding API
+let latestRadioStationName = ''; // Cache for the radio station name
+let latestRadioSongTitle = ''; // Cache for the song title
 
 /**
  * Initializes the WebSocket connection to the server.
@@ -98,8 +100,11 @@ function initWebSocket() {
             populateRadioStations();
             showMessage('Radio station list has been updated.', 'info');
         } else if (msg.action === 'radioMetadataUpdate') {
-            document.getElementById('station-name').textContent = msg.stationName || '';
-            document.getElementById('song-title').textContent = msg.songTitle || '';
+            // Cache the latest metadata
+            latestRadioStationName = msg.stationName || '';
+            latestRadioSongTitle = msg.songTitle || '';
+            // Update the UI using the new centralized function
+            updateRadioMetadataUI();
         } else if (msg.action === 'fullSettings') {
             console.log("CLIENT_DEBUG: Received full settings object from server.");
             // The 'fullSettings' message contains all settings in one object.
@@ -1296,4 +1301,19 @@ function handleLocationSelection(event) {
 
     // Trigger the weather refresh with the selected location's coordinates
     triggerWeatherRefresh(location.latitude, location.longitude);
+}
+
+/**
+ * Updates the radio metadata elements in the UI from the cached global variables.
+ * This function can be called safely at any time.
+ */
+function updateRadioMetadataUI() {
+    const stationNameEl = document.getElementById('station-name');
+    if (stationNameEl) {
+        stationNameEl.textContent = latestRadioStationName;
+    }
+    const songTitleEl = document.getElementById('song-title');
+    if (songTitleEl) {
+        songTitleEl.textContent = latestRadioSongTitle;
+    }
 }
