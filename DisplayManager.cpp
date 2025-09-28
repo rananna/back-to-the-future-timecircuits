@@ -78,13 +78,14 @@ void handleSequencerMarquee() {
         lastSequencerMarqueeScrollTime = millis();
 
         if (sequencerMarqueeScrollPosition > sequencerMarqueeText.length()) {
+            int finishedRow = sequencerMarqueeRow;
             isSequencerMarqueeActive = false; // Marquee finished
             sequencerMarqueeRow = -1;
-            // Restore the normal clock display on the affected row
-            if (sequencerMarqueeRow == 0) updateNormalClockDisplay_internal(true, false, false);
-            if (sequencerMarqueeRow == 1) updateNormalClockDisplay_internal(false, true, false);
-            if (sequencerMarqueeRow == 2) updateNormalClockDisplay_internal(false, false, true);
-            Log_printf(LOG_LEVEL_INFO, "Sequencer marquee finished.");
+            // --- FIX: Use the saved row index to restore the correct display ---
+            if (finishedRow == 0) updateNormalClockDisplay_internal(true, false, false);
+            else if (finishedRow == 1) updateNormalClockDisplay_internal(false, true, false);
+            else if (finishedRow == 2) updateNormalClockDisplay_internal(false, false, true);
+            Log_printf(LOG_LEVEL_INFO, "Sequencer marquee finished on row %d.", finishedRow);
         } else {
             char viewport[14];
             int text_len = sequencerMarqueeText.length();

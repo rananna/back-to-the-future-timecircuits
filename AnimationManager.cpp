@@ -1103,7 +1103,8 @@ void handleSequencer() {
                     startFadeEffect(step.intParam, step.command == SEQ_CMD_FADE_IN);
                     sequencerTracks[i].stepInitialized = true;
                 }
-                if (!isFading) { // Wait for the fade to complete
+                // --- FIX: Wait for the fade to complete before advancing ---
+                if (!isFading) {
                     advance_step = true;
                 }
                 break;
@@ -1141,8 +1142,15 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_MARQUEE:
-                Log_printf(LOG_LEVEL_WARN, "Sequencer command MARQUEE is not implemented.");
-                advance_step = true;
+                // --- FIX: Implement blocking marquee command ---
+                if (!sequencerTracks[i].stepInitialized) {
+                    startMarquee(step.targetRow, step.stringParam);
+                    sequencerTracks[i].stepInitialized = true;
+                }
+                // The handleSequencerMarquee() function will set this to false when it's done.
+                if (!isSequencerMarqueeActive) {
+                    advance_step = true;
+                }
                 break;
 
             case SEQ_CMD_END:
