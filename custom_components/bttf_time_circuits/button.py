@@ -60,6 +60,27 @@ BUTTONS: tuple[BTTFTimeCircuitsButtonEntityDescription, ...] = (
         icon="mdi:calendar-arrow-left",
         datetime_str="1885-09-02 08:00:00",
     ),
+    BTTFTimeCircuitsButtonEntityDescription(
+        key="reboot_device",
+        name="Reboot Device",
+        icon="mdi:restart",
+        device_class=ButtonDeviceClass.RESTART,
+    ),
+    BTTFTimeCircuitsButtonEntityDescription(
+        key="force_ntp_sync",
+        name="Force NTP Sync",
+        icon="mdi:timer-sync-outline",
+    ),
+    BTTFTimeCircuitsButtonEntityDescription(
+        key="factory_reset",
+        name="Factory Reset",
+        icon="mdi:delete-restore",
+    ),
+    BTTFTimeCircuitsButtonEntityDescription(
+        key="weather_refresh",
+        name="Refresh Weather Data",
+        icon="mdi:refresh",
+    ),
 )
 
 
