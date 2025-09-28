@@ -16,6 +16,7 @@
 #include "DataManager.h"
 #include "web_server.h"
 #include "StockManager.h"
+#include <LittleFS.h>
 
 extern StockManager stockManager;
 #include <PubSubClient.h>
@@ -653,6 +654,10 @@ void reconnectMqtt() {
     audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/play_sound/command";
     mqttClient.subscribe(audio_topic.c_str());
 
+    String radio_stations_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/radio_stations/command";
+    mqttClient.subscribe(radio_stations_topic.c_str());
+    Log_printf(LOG_LEVEL_DEBUG, "Subscribed to radio stations command topic: %s", radio_stations_topic.c_str());
+
     String sequencer_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/sequencer/command";
     mqttClient.subscribe(sequencer_topic.c_str());
     Log_printf(LOG_LEVEL_DEBUG, "Subscribed to sequencer command topic: %s", sequencer_topic.c_str());
@@ -963,6 +968,19 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 Log_printf(LOG_LEVEL_INFO, "Starting radio stream.");
                 startAudioStream(message.c_str(), false);
             }
+        } else if (component == "radio_stations") {
+            Log_printf(LOG_LEVEL_INFO, "Received radio stations list. Saving to LittleFS.");
+            File file = LittleFS.open("/radio_stations.json", "w");
+            if (!file) {
+                Log_printf(LOG_LEVEL_ERROR, "Failed to open radio_stations.json for writing");
+                return;
+            }
+            if (file.print(message.c_str())) {
+                Log_printf(LOG_LEVEL_INFO, "Successfully wrote radio stations to LittleFS.");
+            } else {
+                Log_printf(LOG_LEVEL_ERROR, "Failed to write radio stations to LittleFS.");
+            }
+            file.close();
         }
     } else {
         // This handles incoming data for any of the 5 data points that are configured

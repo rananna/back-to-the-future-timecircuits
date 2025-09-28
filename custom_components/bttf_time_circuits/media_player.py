@@ -15,7 +15,6 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_platform, storage
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
@@ -95,18 +94,16 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         self._attr_media_content_type = None
         self._attr_media_title = None
 
-        self._favorites_store: storage.Store | None = None
-        self._favorite_radio_stations: list[str] = []
+        self._radio_stations: list[dict[str, str]] = []
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
 
-        self._favorites_store = storage.Store(self.hass, STORAGE_VERSION, STORAGE_KEY)
-        favorites = await self._favorites_store.async_load()
-        if favorites:
-            self._favorite_radio_stations = favorites.get("radio_stations", [])
-        self._update_source_list()
+        self._update_radio_stations()
+        self.async_on_remove(
+            self.config_entry.add_update_listener(self._on_options_update)
+        )
 
         @callback
         def audio_state_received(msg: mqtt.ReceiveMessage) -> None:
@@ -134,31 +131,25 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             1,
         )
 
-    def _update_source_list(self) -> None:
-        """Update the source list with favorites."""
-        self._attr_source_list = SOUND_EFFECTS + self._favorite_radio_stations
+    async def _on_options_update(
+        self, hass: HomeAssistant, entry: ConfigEntry
+    ) -> None:
+        """Handle options update."""
+        self._update_radio_stations()
         self.async_write_ha_state()
+        await self._publish_radio_stations()
 
-    async def async_favorite_radio_station(self, **kwargs: Any) -> None:
-        """Favorite the current radio station."""
-        assert self._favorites_store
-        if (
-            self._attr_media_content_type in [MediaType.URL, MediaType.MUSIC]
-            and self._attr_media_content_id
-            and self._attr_media_content_id not in self._favorite_radio_stations
-        ):
-            self._favorite_radio_stations.append(self._attr_media_content_id)
-            await self._favorites_store.async_save(
-                {"radio_stations": self._favorite_radio_stations}
-            )
-            self._update_source_list()
+    def _update_radio_stations(self) -> None:
+        """Update the radio stations from the config entry."""
+        self._radio_stations = self.config_entry.options.get("radio_stations", [])
+        radio_station_names = [station["name"] for station in self._radio_stations]
+        self._attr_source_list = SOUND_EFFECTS + radio_station_names
 
-    async def async_clear_favorite_radio_stations(self, **kwargs: Any) -> None:
-        """Clear all favorite radio stations."""
-        assert self._favorites_store
-        self._favorite_radio_stations = []
-        await self._favorites_store.async_save({"radio_stations": []})
-        self._update_source_list()
+    async def _publish_radio_stations(self) -> None:
+        """Publish the list of radio stations to MQTT."""
+        command_topic = f"{self._device.base_topic}/radio_stations/command"
+        payload = json.dumps(self._radio_stations)
+        await mqtt.async_publish(self.hass, command_topic, payload, 1, True)
 
     async def async_set_volume_level(self, volume: float) -> None:
         """Set the volume level."""
@@ -221,8 +212,11 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
 
     async def async_select_source(self, source: str) -> None:
         """Select a source to play."""
-        if source in self._favorite_radio_stations:
-            await self.async_play_media(MediaType.URL, source)
+        station_url = next(
+            (s["url"] for s in self._radio_stations if s["name"] == source), None
+        )
+        if station_url:
+            await self.async_play_media(MediaType.URL, station_url)
         elif source in SOUND_EFFECTS:
             await self.async_play_media("sound", source)
         else:
