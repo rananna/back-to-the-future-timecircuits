@@ -1093,7 +1093,6 @@ void handleDisplay() {
             handleWeatherDisplay();
             break;
         case STATE_NORMAL_CLOCK:
-        default:
             // In the normal clock mode, update all three rows as usual.
             updateNormalClockDisplay();
             break;
@@ -1358,7 +1357,7 @@ void handlePresetCycling() {
     // --- START: MODIFICATION ---
     // Only cycle presets when in normal clock mode. This prevents interference with
     // other modes that use the last time departed row for their own display.
-    if (currentDisplayMode != NORMAL_CLOCK) {
+    if (currentDisplayState != STATE_NORMAL_CLOCK) {
         return;
     }
     // --- END: MODIFICATION ---
