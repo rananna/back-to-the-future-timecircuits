@@ -33,6 +33,7 @@ String lastDepartedPreset = "None";
 // --- Radio Metadata Globals ---
 String radioStationName = "";
 String radioSongTitle = "";
+bool isRadioPlaying = false;
 
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
     String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
@@ -995,8 +996,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "radio") {
             Log_printf(LOG_LEVEL_INFO, "Handling radio command. Payload: %s", message.c_str());
             if (message == "stop") {
-                Log_printf(LOG_LEVEL_INFO, "Stopping audio stream.");
-                stopAudioStream();
+                Log_printf(LOG_LEVEL_INFO, "Stopping audio stream via user command.");
+                stopAudioStream(false); // false = not a temporary stop
             } else {
                 Log_printf(LOG_LEVEL_INFO, "Starting radio stream.");
                 startAudioStream(message.c_str(), false);
@@ -1309,15 +1310,19 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
 
     if (audio.isRunning()) {
         Log_printf(LOG_LEVEL_DEBUG, "Stopping existing audio to play new stream.");
-        stopAudioStream();
+        // If the new stream is TTS, the current one is stopped temporarily.
+        // If the new stream is Radio, the current one is stopped permanently.
+        stopAudioStream(is_tts);
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     // If it's a radio stream, set the callback. Otherwise, ensure it's null.
     if (!is_tts) {
+        isRadioPlaying = true; // It's a radio stream
         audio.setStreamTitleCallback(audio_showstreamtitle);
         broadcastRadioStatus(RADIO_STATUS_CONNECTING);
     } else {
+        // It's a TTS stream, don't change isRadioPlaying
         audio.setStreamTitleCallback(nullptr);
     }
     
@@ -1354,25 +1359,30 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
     }
 }
 
-void stopAudioStream() {
-    Log_printf(LOG_LEVEL_INFO, "Request to stop audio stream.");
+void stopAudioStream(bool isTemporary) {
+    Log_printf(LOG_LEVEL_INFO, "Request to stop audio stream (isTemporary: %s)", isTemporary ? "true" : "false");
     if (audio.isRunning()) {
         audio.stopSong();
-        // Clear metadata and publish the update
-        radioStationName = "";
-        radioSongTitle = "";
-        publishRadioMetadata();
+        digitalWrite(I2S_SD_PIN, LOW); // Power down the DAC
+        currentSoundFile[0] = '\0';
 
-        // Unregister the callback
+        // If this is not a temporary stop (i.e., a user-commanded stop), then
+        // clear all the radio-related states and notify the UI.
+        if (!isTemporary) {
+            isRadioPlaying = false;
+            radioStationName = "";
+            radioSongTitle = "";
+            publishRadioMetadata(); // Send cleared info
+            broadcastRadioStatus(RADIO_STATUS_STOPPED);
+        }
+
+        // Always unregister the callback to prevent old callbacks from firing
         audio.setStreamTitleCallback(nullptr);
 
-        currentSoundFile[0] = '\0';
-        digitalWrite(I2S_SD_PIN, LOW);
         Log_printf(LOG_LEVEL_INFO, "Audio stream stopped successfully.");
         if (mqttClient.connected()) {
             mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
         }
-        broadcastRadioStatus(RADIO_STATUS_STOPPED);
     } else {
         Log_printf(LOG_LEVEL_DEBUG, "No audio stream was running.");
     }

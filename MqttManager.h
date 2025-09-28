@@ -30,7 +30,7 @@ void clearHaEntity(const char* component, const char* unique_id_suffix);
 void publishDeviceTriggers();
 void publishTimeSensors();
 void startAudioStream(const char* url, bool is_tts, int volume = -1);
-void stopAudioStream();
+void stopAudioStream(bool isTemporary = false);
 void handleSequencerCommand(const std::string& payload);
 
 // --- Radio Metadata ---
