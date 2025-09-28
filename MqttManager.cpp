@@ -1140,10 +1140,33 @@ void publishAllHaStates() {
 
 void handleSequencerCommand(const std::string& payload) {
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, payload);
+    std::string json_to_parse;
+
+    // First, check if the payload is a named sequence string
+    if (payload == "Intruder Alert") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Intruder Alert'");
+        json_to_parse = R"([
+            {"targetRow":0, "commands":[{"command":"MARQUEE", "stringParam":"INTRUDER"}, {"command":"SOUND", "stringParam":"ALARM.MP3"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]},
+            {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"ALERT"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]},
+            {"targetRow":2, "commands":[{"command":"MARQUEE", "stringParam":"LOCKDOWN"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]}
+        ])";
+    } else if (payload == "Time Travel") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Time Travel'");
+        json_to_parse = R"([
+            {"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "BTTF.MP3"}]},
+            {"targetRow": 1, "commands": [{"command": "MARQUEE", "stringParam": "TIME TRAVEL"}, {"command": "WAIT", "intParam": 1000}, {"command": "MARQUEE", "stringParam": "ACTIVATED"}]},
+            {"targetRow": 2, "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 2000}]}
+        ])";
+    } else {
+        // Assume it's a JSON payload
+        json_to_parse = payload;
+    }
+
+    DeserializationError error = deserializeJson(doc, json_to_parse);
 
     if (error) {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to parse sequencer JSON: %s", error.c_str());
+        // If we are here, it means the payload was not a known named sequence, AND it's not valid JSON.
+        Log_printf(LOG_LEVEL_ERROR, "Failed to parse sequencer JSON: %s. Payload was: %s", error.c_str(), payload.c_str());
         return;
     }
 
