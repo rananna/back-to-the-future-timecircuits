@@ -993,6 +993,11 @@ void handleSequencer() {
 
         switch (step.command) {
             case SEQ_CMD_WAIT:
+                // --- FIX: Use stepInitialized for consistency ---
+                if (!track.stepInitialized) {
+                    // No action is needed for WAIT, just acknowledge the step has started.
+                    track.stepInitialized = true;
+                }
                 if (commandElapsed >= (unsigned long)step.intParam) {
                     advance_step = true;
                 }
