@@ -8,6 +8,7 @@ from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 import asyncio
 from datetime import datetime
 
@@ -39,6 +40,7 @@ class BTTFTimeCircuitsDevice:
     """A wrapper for a BTTF Time Circuits device."""
 
     device_info: DeviceInfo
+    coordinator: DataUpdateCoordinator | None = None
 
     def __init__(self, hass: HomeAssistant, device_id: str) -> None:
         """Initialize the device."""

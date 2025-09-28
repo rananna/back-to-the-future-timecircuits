@@ -1,12 +1,16 @@
 """The Back to the Future Time Circuits integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
+from datetime import timedelta
 
+from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN
 from .device import BTTFTimeCircuitsDevice
@@ -44,6 +48,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     device = BTTFTimeCircuitsDevice(hass, device_id)
     hass.data[DOMAIN][entry.entry_id] = device
+
+    async def async_update_data():
+        """Update data via MQTT."""
+        command_topic = f"{device.base_topic}/command"
+        await mqtt.async_publish(hass, command_topic, "STATE", 1, False)
+
+    coordinator = DataUpdateCoordinator(
+        hass,
+        _LOGGER,
+        name=f"{DOMAIN}_{device_id}_coordinator",
+        update_method=async_update_data,
+        update_interval=timedelta(seconds=60),
+    )
+
+    device.coordinator = coordinator
+    await coordinator.async_config_entry_first_refresh()
 
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
@@ -122,6 +142,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][entry.entry_id]
+    if device.coordinator:
+        # You might want to cancel any ongoing updates
+        device.coordinator.async_update_listeners = lambda: None
+
     if unloaded := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
+
     return unloaded
