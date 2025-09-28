@@ -87,6 +87,21 @@ TEXTS: tuple[BTTFTimeCircuitsTextEntityDescription, ...] = (
         name="Last Departed Time",
         icon="mdi:clock",
     ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="override_line_1",
+        name="Override Line 1",
+        icon="mdi:format-text",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="override_line_2",
+        name="Override Line 2",
+        icon="mdi:format-text",
+    ),
+    BTTFTimeCircuitsTextEntityDescription(
+        key="override_line_3",
+        name="Override Line 3",
+        icon="mdi:format-text",
+    ),
 )
 
 
