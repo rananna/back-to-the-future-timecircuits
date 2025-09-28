@@ -1030,6 +1030,9 @@ void setup() {
 
     Log_printf(LOG_LEVEL_INFO, "--- BOOT COMPLETE ---");
     bootTimestamp = millis();
+
+    // --- NEW: Run the sequencer test on startup to verify parallel animations ---
+    runSequencerTest();
 }
 
 // --- NEW STATE DETERMINATION FUNCTION ---

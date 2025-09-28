@@ -101,6 +101,24 @@ struct SequencerTrack {
     int marqueeScrollPosition = 0;
     unsigned long lastMarqueeScrollTime = 0;
 
+    // --- NEW: Local state for fade, pulse, and flash effects ---
+    bool isFading = false;
+    unsigned long fadeStartTime = 0;
+    int fadeDuration = 0;
+    bool isFadeIn = false;
+    uint8_t originalBrightness = 0;
+
+    // Pulse and flash states are per-segment (4 segments per row)
+    bool isPulsing[4] = {false};
+    unsigned long pulseEndTimes[4] = {0};
+    bool pulseStates[4] = {false};
+    unsigned long lastPulseToggle[4] = {0};
+
+    bool isFlashing[4] = {false};
+    unsigned long flashEndTimes[4] = {0};
+    bool flashStates[4] = {false};
+    unsigned long lastFlashToggle[4] = {0};
+
     SequenceStep steps[MAX_SEQUENCE_STEPS];
 };
 
@@ -109,6 +127,9 @@ extern SequencerTrack sequencerTracks[3];
 
 // Function declaration for the new sequencer handler
 void handleSequencer();
+
+// --- NEW: Function declaration for the startup test ---
+void runSequencerTest();
 // --- END: NEW Sequencer Data Structures ---
 
 #endif // ANIMATION_MANAGER_H
