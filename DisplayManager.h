@@ -41,7 +41,8 @@ extern std::string marqueeBuffer;
 extern char weatherBuffer[512];
 extern std::string marqueeOverrideBuffer;
 
-extern bool isSequencerMarqueeActive;
+// Forward declaration to use SequencerTrack in function signatures
+struct SequencerTrack;
 
 // MODIFIED: Function now accepts flags to control which rows are updated
 void updateNormalClockDisplay(bool updateDest = true, bool updatePres = true, bool updateLast = true);
@@ -51,8 +52,8 @@ void handleWeatherDisplay();
 void displayOverrideMessage();
 void displayMarqueeOverride();
 void updateStockTickerDisplay();
-void startMarquee(int row, const std::string& text);
-void handleSequencerMarquee();
+void startSequencerMarquee(SequencerTrack& track, const std::string& text);
+void handleAllSequencerMarquees();
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration);
 const char* getIconForWeatherCode(int code);
 void updateDisplaySegment(int row, int segment, const std::string& text);

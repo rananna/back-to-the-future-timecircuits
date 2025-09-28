@@ -62,8 +62,6 @@ void handlePulseEffect();
 void startFadeEffect(int duration, bool isFadeIn);
 void handleFadeEffect();
 
-extern bool isFading;
-
 // --- START: NEW Sequencer Data Structures ---
 // Maximum number of steps in a single sequence track
 #define MAX_SEQUENCE_STEPS 20
@@ -95,7 +93,14 @@ struct SequencerTrack {
     bool isActive;
     int currentStep;
     unsigned long stepStartTime;
-    bool stepInitialized; // --- FIX: Add flag to track if the step action has been triggered ---
+    bool stepInitialized;
+
+    // --- NEW: Local state for marquee commands ---
+    bool isMarqueeActive = false;
+    std::string marqueeText;
+    int marqueeScrollPosition = 0;
+    unsigned long lastMarqueeScrollTime = 0;
+
     SequenceStep steps[MAX_SEQUENCE_STEPS];
 };
 
