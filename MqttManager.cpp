@@ -29,6 +29,7 @@ extern Audio audio;
 
 String currentProfileName = "Standard";
 String lastDepartedPreset = "None";
+bool haDiscoveryCompleted = false;
 
 // --- Radio Metadata Globals ---
 String radioStationName = "";
@@ -626,6 +627,7 @@ void handleHaDiscovery() {
 
         if (discoveryState == HA_DISCOVERY_COMPLETE) {
             Log_printf(LOG_LEVEL_INFO, "Home Assistant discovery process completed.");
+            haDiscoveryCompleted = true;
         }
     }
 }

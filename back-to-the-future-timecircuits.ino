@@ -1186,7 +1186,9 @@ void loop() {
                     }
                 } else {
                     mqttClient.loop();
-                    handleHaDiscovery();
+                    if (!haDiscoveryCompleted) {
+                        handleHaDiscovery();
+                    }
                 }
             }
             
