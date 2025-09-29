@@ -216,15 +216,33 @@ void handleTemporalEcho() {
 #endif
 }
 
+// --- NEW: Global variable to track display status ---
+extern bool displayInitStatus[3][4];
+
 void runBootSequence() {
     Serial.println("BOOT_LOG: runBootSequence() called.");
-    if (bootState == BOOT_INACTIVE) {
-        bootState = BOOT_AWAIT_HUM;
-        bootStateStartTime = millis();
-        Serial.println("BOOT_LOG: Boot sequence initiated.");
-    } else {
+    if (bootState != BOOT_INACTIVE) {
         Serial.println("BOOT_LOG: Boot sequence already in progress. Call ignored.");
+        return;
     }
+
+    bootState = BOOT_AWAIT_HUM;
+    bootStateStartTime = millis();
+    Serial.println("BOOT_LOG: Boot sequence initiated.");
+
+    // --- NEW: Display initial hardware status ---
+    #if ENABLE_HARDWARE
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    for (int i = 0; i < 3; i++) {
+        Adafruit_AlphaNum4* segments[] = {&rows[i]->month, &rows[i]->day, &rows[i]->year, &rows[i]->time};
+        for (int j = 0; j < 4; j++) {
+            if (!displayInitStatus[i][j]) {
+                printToDisplay(*segments[j], "FAIL");
+                segments[j]->writeDisplay();
+            }
+        }
+    }
+    #endif
 }
 
 void handleBootSequence() {

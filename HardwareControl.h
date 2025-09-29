@@ -197,6 +197,7 @@ extern DisplayRow destRow, presRow, lastRow;
 extern SemaphoreHandle_t xDisplayHardwareMutex;
 extern SemaphoreHandle_t xTimeLibMutex;
 extern SemaphoreHandle_t xSerialMutex; // Mutex for thread-safe Serial printing
+extern bool displayInitStatus[3][4]; // Status of each display segment
 #endif
 
 // --- FUNCTION PROTOTYPES ---
