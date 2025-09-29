@@ -1111,60 +1111,63 @@ void handleSequencer() {
             // --- Logic Commands ---
             case SEQ_CMD_LOOP_START:
                 if (!track.stepInitialized) {
-                    // --- FIX: Handle loops with zero or negative counts ---
-                    if (step.intParam <= 0) {
+                    track.stepInitialized = true;
+                    if (step.intParam > 0) {
+                        // A normal loop of 1 or more iterations.
+                        track.loopStartStep = track.currentStep;
+                        track.loopCounter = step.intParam;
+                    } else {
+                        // A loop with 0 or fewer iterations should be skipped entirely.
                         Log_printf(LOG_LEVEL_INFO, "SEQ: Track %d skipping loop with count %d.", i, step.intParam);
                         int openLoops = 1;
                         int seekStep = track.currentStep + 1;
-                        while (seekStep < MAX_SEQUENCE_STEPS && openLoops > 0) {
+                        while (seekStep < MAX_SEQUENCE_STEPS) {
                             if (track.steps[seekStep].command == SEQ_CMD_LOOP_START) {
                                 openLoops++;
                             } else if (track.steps[seekStep].command == SEQ_CMD_LOOP_END) {
                                 openLoops--;
                             }
+                            if (openLoops == 0) {
+                                break;
+                            }
                             seekStep++;
                         }
 
                         if (openLoops == 0) {
-                            // Found the matching end, so jump the program counter to it.
-                            // The outer loop will increment it past the LOOP_END.
-                            track.currentStep = seekStep - 1;
+                            // Jump PC to the LOOP_END. The main loop will advance it to the next step, skipping the loop body.
+                            track.currentStep = seekStep;
                         } else {
-                            // No matching LOOP_END found, this is an error. Abort track.
-                            Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d has an unclosed loop starting at step %d. Aborting.", i, track.currentStep);
+                            // No matching LOOP_END found, this is a sequence error.
+                            Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d has an unclosed loop at step %d. Aborting.", i, track.currentStep);
                             stopAndCleanupTrack(i);
+                            break; // Abort this command.
                         }
-                    } else {
-                        // Regular loop initialization
-                        track.loopStartStep = track.currentStep;
-                        track.loopCounter = step.intParam;
                     }
-                    track.stepInitialized = true;
-                    advance_step = true;
                 }
+                advance_step = true;
                 break;
 
             case SEQ_CMD_LOOP_END:
                 if (!track.stepInitialized) {
                     track.stepInitialized = true;
+                    if (track.loopStartStep < 0) {
+                        // This is a rogue LOOP_END without a matching LOOP_START.
+                        Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d found rogue LOOP_END at step %d. Aborting.", i, track.currentStep);
+                        stopAndCleanupTrack(i);
+                    } else {
+                        // This is a valid loop end. Decrement counter and check if we need to loop again.
+                        track.loopCounter--;
+                        if (track.loopCounter > 0) {
+                            // Jump back to the step *after* LOOP_START.
+                            track.currentStep = track.loopStartStep;
+                        } else {
+                            // Loop is finished.
+                            track.loopStartStep = -1;
+                            track.loopCounter = 0;
+                        }
+                    }
                 }
-                // --- FIX: Prevent infinite loop from rogue LOOP_END ---
-                if (track.loopStartStep < 0) {
-                    Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d encountered a LOOP_END without a matching LOOP_START. Aborting.", i);
-                    stopAndCleanupTrack(i);
-                    break; // Exit the switch case
-                }
-
-                if (track.loopCounter > 1) {
-                    track.loopCounter--;
-                    track.currentStep = track.loopStartStep;
-                    advance_step = true; // Ensure the next iteration starts the new step
-                } else {
-                    // End of the loop, clear loop state
-                    track.loopStartStep = -1;
-                    track.loopCounter = 0;
-                    advance_step = true;
-                }
+                advance_step = true;
                 break;
 
             // --- Effects ---
