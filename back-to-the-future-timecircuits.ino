@@ -390,7 +390,9 @@ void applySettingsFromJson(const JsonObject& obj) {
     }
     validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
     validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
-    validateAndSet("animationStyle", currentSettings.animationStyle, 0, 22);
+    int tempAnimationStyle = static_cast<int>(currentSettings.animationStyle);
+    validateAndSet("animationStyle", tempAnimationStyle, 0, 22);
+    currentSettings.animationStyle = static_cast<AnimationType>(tempAnimationStyle);
     validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
     if (!obj["timeTravelSoundToggle"].isNull()) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
     validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
@@ -799,7 +801,7 @@ void loadSettings() {
         currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration", 4000);
         Log_printf(LOG_LEVEL_INFO, "Loaded animDuration: %d", currentSettings.timeTravelAnimationDuration);
 
-        currentSettings.animationStyle = preferences.getInt("animStyle", ANIMATION_SEQUENTIAL_FLICKER);
+        currentSettings.animationStyle = static_cast<AnimationType>(preferences.getInt("animStyle", ANIMATION_SEQUENTIAL_FLICKER));
         Log_printf(LOG_LEVEL_INFO, "Loaded animStyle: %d", currentSettings.animationStyle);
 
         currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow", 2);

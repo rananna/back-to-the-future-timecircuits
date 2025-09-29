@@ -823,7 +823,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 }
             }
         } else if (component == "animation_style") {
-            currentSettings.animationStyle = std::stoi(message);
+            currentSettings.animationStyle = static_cast<AnimationType>(std::stoi(message));
             settingsChanged = true;
         } else if (component == "volume") {
             int vol = std::stoi(message);
