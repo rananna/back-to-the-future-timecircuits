@@ -411,9 +411,9 @@ async function saveSettings() {
     // --- Determine Display Mode ---
     if (getChecked('stockTickerModeEnabled')) {
         settings.displayMode = 1;
-    } else if (getChecked('dataLinkEnabled')) {
-        settings.displayMode = 2;
     } else if (getChecked('weatherModeEnabled')) {
+        settings.displayMode = 2;
+    } else if (getChecked('dataLinkEnabled')) {
         settings.displayMode = 3;
     } else {
         settings.displayMode = 0;
