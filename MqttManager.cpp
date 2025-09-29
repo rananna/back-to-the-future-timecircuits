@@ -1336,6 +1336,13 @@ void updateHaStatus(const char* status) {
 	mqttClient.publish((base_topic + "/status/state").c_str(), status, true);
 }
 
+void publishRadioMetadata() {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    mqttClient.publish((base_topic + "/radio_station_name/state").c_str(), radioStationName.c_str(), true);
+    mqttClient.publish((base_topic + "/radio_song_title/state").c_str(), radioSongTitle.c_str(), true);
+}
+
 void audio_info(Audio::msg_t m) {
     switch(m.e) {
         case Audio::evt_streamtitle:
