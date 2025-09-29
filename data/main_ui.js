@@ -283,23 +283,23 @@ async function applySettings(timecircuits, temporal, datalink) {
  * @param {object} datalink The Data Link settings.
  */
 async function applyDataLinkSettings(datalink) {
-    // DMS_NORMAL_CLOCK = 0, DMS_STOCK_TICKER = 1, DMS_DATA_LINK = 2, DMS_WEATHER = 3
+    // DMS_NORMAL_CLOCK = 0, DMS_STOCK_TICKER = 1, DMS_WEATHER = 2, DMS_DATA_LINK = 3
     const displayMode = datalink.displayMode;
 
     // Set the checked state of the toggles based on the displayMode
     document.getElementById('stockTickerModeEnabled').checked = (displayMode === 1);
-    document.getElementById('dataLinkEnabled').checked = (displayMode === 2);
-    document.getElementById('weatherModeEnabled').checked = (displayMode === 3);
+    document.getElementById('weatherModeEnabled').checked = (displayMode === 2);
+    document.getElementById('dataLinkEnabled').checked = (displayMode === 3);
 
     // Show/hide the corresponding settings containers
     document.getElementById('stockTickerSettingsContainer').style.display = (displayMode === 1) ? 'block' : 'none';
-    document.getElementById('dataLinkSettingsContainer').style.display = (displayMode === 2) ? 'block' : 'none';
-    document.getElementById('weatherSettingsContainer').style.display = (displayMode === 3) ? 'block' : 'none';
+    document.getElementById('weatherSettingsContainer').style.display = (displayMode === 2) ? 'block' : 'none';
+    document.getElementById('dataLinkSettingsContainer').style.display = (displayMode === 3) ? 'block' : 'none';
 
     // Disable the other mode groups to prevent multiple selections
     document.getElementById('stockTickerGroup').classList.toggle('disabled', displayMode === 2 || displayMode === 3);
-    document.getElementById('dataLinkGroup').classList.toggle('disabled', displayMode === 1 || displayMode === 3);
-    document.getElementById('weatherModeGroup').classList.toggle('disabled', displayMode === 1 || displayMode === 2);
+    document.getElementById('weatherModeGroup').classList.toggle('disabled', displayMode === 1 || displayMode === 3);
+    document.getElementById('dataLinkGroup').classList.toggle('disabled', displayMode === 1 || displayMode === 2);
 
     document.getElementById('cityName').value = datalink.cityName || '';
     document.getElementById('useMetricUnits').checked = datalink.useMetricUnits;
