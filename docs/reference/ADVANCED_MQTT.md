@@ -8,7 +8,7 @@ These features are intended for advanced users who are comfortable with MQTT and
 
 ### **Command Sequencer**
 
-The command sequencer is a powerful engine that allows you to script a series of actions for the clock to perform in order. With the latest update, the sequencer now supports **parallel tracks**, allowing you to run independent animations on different display rows simultaneously.
+The command sequencer is the powerful engine that drives all animations on the clock. It allows you to script a series of actions for the clock to perform in order. The sequencer supports **parallel tracks**, allowing you to run independent animations on different display rows simultaneously.
 
 *   **MQTT Topic**: `bttf-time-circuits/[DEVICE_ID]/sequence/command`
 *   **Payload**: A JSON array of *track objects*.
@@ -17,26 +17,39 @@ Each track object in the array defines a sequence for a specific row and must co
 *   `targetRow`: The display row to run this sequence on (0 = Top, 1 = Middle, 2 = Bottom).
 *   `commands`: An array of command objects, which will be executed in order on that row.
 
-> **⚠️ Breaking Change:** The payload format has changed. You must now wrap your command arrays inside a track object with a `targetRow`. See the example below.
-
 #### **Available Commands**
+
+The following table lists all available commands for the sequencer.
 
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
-| `MARQUEE` | Scrolls a string of text across the entire `targetRow`. | `stringParam` | `{"command":"MARQUEE", "stringParam":"SYSTEMS ONLINE"}` |
-| `FADE_IN` | Smoothly fades the brightness of all displays from off to full. | `intParam` (duration in ms) | `{"command":"FADE_IN", "intParam":2000}` |
-| `FADE_OUT`| Smoothly fades the brightness of all displays from full to off. | `intParam` (duration in ms) | `{"command":"FADE_OUT", "intParam":2000}` |
-| `PULSE` | Causes a specific display segment on the `targetRow` to blink slowly. | `targetSegment`, `intParam` (duration in ms) | `{"command":"PULSE", "targetSegment":1, "intParam":5000}` |
-| `SOUND` | Plays a sound effect from the device's internal storage. | `stringParam` (filename) | `{"command":"SOUND", "stringParam":"/REMOTE.mp3"}` |
-| `FLASH` | Triggers a bright, flashing effect on a specific segment of the `targetRow`. | `targetSegment`, `intParam` (duration in ms) | `{"command":"FLASH", "targetSegment":2, "intParam":500}` |
+| `SET_TEXT` | Sets static text on a segment or a full row. | `targetSegment` (0-3, or -1 for full row), `stringParam` (text) | `{"command":"SET_TEXT", "targetSegment":2, "stringParam":"TEST"}` |
+| `CLEAR_SEGMENT` | Clears the text from a specific segment. | `targetSegment` (0-3) | `{"command":"CLEAR_SEGMENT", "targetSegment": 1}` |
+| `RESTORE_ROW` | Restores a row to its normal clock display. | (none) | `{"command":"RESTORE_ROW"}` |
 | `WAIT` | Pauses this track for a specified duration. | `intParam` (duration in ms) | `{"command":"WAIT", "intParam":1000}` |
+| `SOUND` | Plays a sound effect from the device's internal storage. | `stringParam` (filename) | `{"command":"SOUND", "stringParam":"/REMOTE.mp3"}` |
+| `FADE_IN` | Smoothly fades in the brightness of the target row. | `intParam` (duration in ms) | `{"command":"FADE_IN", "intParam":2000}` |
+| `FADE_OUT`| Smoothly fades out the brightness of the target row. | `intParam` (duration in ms) | `{"command":"FADE_OUT", "intParam":2000}` |
+| `PULSE` | Causes a specific display segment on the `targetRow` to blink slowly. | `targetSegment`, `intParam` (duration in ms) | `{"command":"PULSE", "targetSegment":1, "intParam":5000}` |
+| `FLASH` | Triggers a bright, flashing effect on a specific segment of the `targetRow`. | `targetSegment`, `intParam` (duration in ms) | `{"command":"FLASH", "targetSegment":2, "intParam":500}` |
+| `MARQUEE` | Scrolls a string of text across the entire `targetRow`. | `stringParam` | `{"command":"MARQUEE", "stringParam":"SYSTEMS ONLINE"}` |
+| `SCANNER` | Creates a back-and-forth "scanner" effect on the `targetRow`. | `intParam` (total duration), `intParam2` (step delay) | `{"command":"SCANNER", "intParam":5000, "intParam2":80}` |
+| `TYPEWRITER` | Reveals text on a segment one character at a time. | `targetSegment`, `intParam` (delay), `stringParam` (text) | `{"command":"TYPEWRITER", "targetSegment":2, "intParam":100, "stringParam":"GO"}` |
+| `WIPE` | Wipes text across a full row, revealing it. | `intParam` (delay), `stringParam` (text) | `{"command":"WIPE", "intParam":75, "stringParam":"TESTING"}` |
+| `BAR_GRAPH` | Fills a row with a left-to-right bar graph. | `intParam` (total duration), `intParam2` (step delay) | `{"command":"BAR_GRAPH", "intParam":5000, "intParam2":250}` |
+| `RANDOM_FLICKER_TEXT` | Displays text with random characters flickering. | `targetSegment`, `intParam` (duration), `intParam2` (flicker delay), `stringParam` (text) | `{"command":"RANDOM_FLICKER_TEXT", "targetSegment":0, "intParam":5000, "intParam2":100, "stringParam":"DANGER"}` |
+| `SCRAMBLE_TEXT` | Reveals text by "unscrambling" it from random characters. | `targetSegment`, `intParam` (scramble delay), `intParam2` (lock-in delay), `stringParam` (text) | `{"command":"SCRAMBLE_TEXT", "targetSegment":2, "intParam":50, "intParam2":100, "stringParam":"DONE"}` |
+| `RANDOM_FILL` | Fills a row with rapidly changing random characters. | `intParam` (duration), `intParam2` (update delay) | `{"command":"RANDOM_FILL", "intParam":3000, "intParam2":50}` |
+| `COUNTDOWN` | Counts down from a number on a segment. | `targetSegment`, `intParam` (start number), `intParam2` (delay) | `{"command":"COUNTDOWN", "targetSegment":1, "intParam":10, "intParam2":1000}` |
+
 
 #### **Parameter Details**
 
 *   `targetRow`: **(Required in track object)** The display row to target (0 = Top, 1 = Middle, 2 = Bottom).
-*   `targetSegment`: The segment of the row to target (0-3, left to right). Used by `PULSE`, `FLASH`.
-*   `stringParam`: A string value, used for text (`MARQUEE`) or filenames (`SOUND`).
-*   `intParam`: An integer value, used for durations in milliseconds.
+*   `targetSegment`: The segment of the row to target (0-3, left to right, or -1 for full row).
+*   `stringParam`: A string value, used for text or filenames.
+*   `intParam`: An integer value, typically for durations or start values.
+*   `intParam2`: A second integer value, for commands that need an extra parameter (like step delay).
 
 #### **Example: Parallel Sequences**
 

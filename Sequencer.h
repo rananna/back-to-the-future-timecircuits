@@ -36,6 +36,7 @@ enum SequenceCommand {
     SEQ_CMD_SCRAMBLE_TEXT,
     SEQ_CMD_SCROLL_IN,
     SEQ_CMD_CROSSFADE_TEXT,
+    SEQ_CMD_RANDOM_FILL,
 
     // Logic & Advanced
     SEQ_CMD_LOOP_START,
