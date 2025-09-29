@@ -88,6 +88,9 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         )
         self.entity_description = description
         super().__init__(device)
+        self._attr_unique_id = (
+            f"{DOMAIN}_{device.device_id}_{self.entity_description.key}"
+        )
         self._attr_volume_level = 0.5  # Default volume
         self._attr_state = "idle"
         self._attr_media_content_id = None

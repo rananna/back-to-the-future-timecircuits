@@ -183,7 +183,7 @@ class BTTFTimeCircuitsDevice:
         """Get the media_player entity for this device."""
         ent_reg = er.async_get(self.hass)
         entity_id = ent_reg.async_get_entity_id(
-            MEDIA_PLAYER_DOMAIN, DOMAIN, f"bttf_time_circuits_{self.device_id}_media_player"
+            DOMAIN, MEDIA_PLAYER_DOMAIN, f"bttf_time_circuits_{self.device_id}_media_player"
         )
         if entity_id:
             return self.hass.data[MEDIA_PLAYER_DOMAIN].get_entity(entity_id)
