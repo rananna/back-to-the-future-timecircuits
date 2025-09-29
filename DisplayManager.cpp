@@ -578,16 +578,24 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
             strftime(&ampm_char, 2, "%p", &timeinfo);
         }
 
-        if (row.am_pin != -1 && row.pm_pin != -1) {
+        // AM/PM LED Logic
+        int am_pin = -1, pm_pin = -1;
+        switch(rowIndex) {
+            case 0: am_pin = DEST_AM_PIN; pm_pin = DEST_PM_PIN; break;
+            case 1: am_pin = PRES_AM_PIN; pm_pin = PRES_PM_PIN; break;
+            case 2: am_pin = LAST_AM_PIN; pm_pin = LAST_PM_PIN; break;
+        }
+
+        if (am_pin != -1) {
             if (ampm_char == 'A') {
-                digitalWrite(row.am_pin, HIGH);
-                digitalWrite(row.pm_pin, LOW);
+                digitalWrite(am_pin, HIGH);
+                digitalWrite(pm_pin, LOW);
             } else if (ampm_char == 'P') {
-                digitalWrite(row.am_pin, LOW);
-                digitalWrite(row.pm_pin, HIGH);
+                digitalWrite(am_pin, LOW);
+                digitalWrite(pm_pin, HIGH);
             } else {
-                digitalWrite(row.am_pin, LOW);
-                digitalWrite(row.pm_pin, LOW);
+                digitalWrite(am_pin, LOW);
+                digitalWrite(pm_pin, LOW);
             }
         }
 
@@ -604,8 +612,18 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
         else printToDisplay(row.year, s_year);
 
         // Time (Segment 3)
-        if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(row.time, "    ");
-        else printToDisplay(row.time, s_time, 0, showDecimal);
+        if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) {
+            printToDisplay(row.time, "    ");
+        } else {
+            printToDisplay(row.time, s_time, 0);
+            // The decimal point is used as a blinking colon for the time display.
+            // It's on the second character (index 1) of the 4-char time display.
+            // First, clear the decimal point bit, then set it if needed.
+            row.time.displaybuffer[1] &= ~(1 << 14);
+            if (showDecimal) {
+                row.time.displaybuffer[1] |= (1 << 14);
+            }
+        }
     };
 
     if (timeSynchronized) {

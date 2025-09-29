@@ -2,6 +2,7 @@
 #define HARDWARE_CONTROL_H
 #include "timezone.h"
 #include <Wire.h>
+#include "AnimationSequences.h"
 
 extern char old_dest_str[17], old_pres_str[17], old_last_str[17];
 #include <string>
@@ -129,7 +130,7 @@ struct ClockSettings {
     uint8_t notificationVolume;
     int timeTravelAnimationDuration;
     int timeTravelAnimationInterval;
-    int animationStyle;
+    AnimationType animationStyle;
     bool timeTravelSoundToggle;
     int presetCycleInterval;
     bool displayFormat24h;
@@ -188,20 +189,6 @@ struct DisplayRow {
     Adafruit_AlphaNum4 month; Adafruit_AlphaNum4 day;
     Adafruit_AlphaNum4 year; Adafruit_AlphaNum4 time;
 };
-
-enum AnimationStyle {
-  ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
-  ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
-  ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
-  ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_RANDOM_ALL,
-  ANIMATION_GLITCHY_JUMP_CUT, ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS,
-  ANIMATION_CHARACTER_SCANLINE, ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER,
-  ANIMATION_TEMPORAL_PARADOX, ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE,
-  ANIMATION_FLIP_DISC_DISPLAY, ANIMATION_INTERFERENCE_PATTERN,
-  ANIMATION_ALL_DISPLAYS_RANDOM
-};
-
-
 
 #if ENABLE_HARDWARE
 #include <freertos/semphr.h>
