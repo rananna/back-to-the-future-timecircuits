@@ -8,7 +8,12 @@ from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.components.mqtt import (
+    ATTR_PAYLOAD,
+    ATTR_QOS,
+    ATTR_RETAIN,
+    ATTR_TOPIC,
+)
 import asyncio
 import json
 from datetime import datetime
@@ -41,7 +46,6 @@ class BTTFTimeCircuitsDevice:
     """A wrapper for a BTTF Time Circuits device."""
 
     device_info: DeviceInfo
-    coordinator: DataUpdateCoordinator | None = None
 
     def __init__(self, hass: HomeAssistant, device_id: str) -> None:
         """Initialize the device."""
@@ -54,6 +58,9 @@ class BTTFTimeCircuitsDevice:
             "manufacturer": "rananna",
             "model": "ESP32",
             "sw_version": "1.0.0",
+            "availability_topic": f"{self.base_topic}/status",
+            "payload_available": "online",
+            "payload_not_available": "offline",
         }
 
     async def async_handle_set_status_display(self, call: ServiceCall) -> None:
