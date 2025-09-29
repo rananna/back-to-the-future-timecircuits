@@ -481,7 +481,12 @@ void handleHaDiscovery() {
             doc["object_id"] = String(MQTT_UNIQUE_ID) + "_profile";
             doc["command_topic"] = device_base_topic + "/profile/command";
             doc["state_topic"] = device_base_topic + "/profile/state";
-            doc["options"] = JsonArray{"Standard", "Cinematic", "Silent Night", "Unstable", "Custom"};
+            JsonArray options = doc["options"].to<JsonArray>();
+            options.add("Standard");
+            options.add("Cinematic");
+            options.add("Silent Night");
+            options.add("Unstable");
+            options.add("Custom");
             doc["icon"] = "mdi:movie-settings";
             doc["entity_category"] = "config";
             publishDiscoveryMessage(doc, "select");
@@ -528,7 +533,11 @@ void handleHaDiscovery() {
             doc["object_id"] = String(MQTT_UNIQUE_ID) + "_display_mode";
             doc["command_topic"] = device_base_topic + "/display_mode/command";
             doc["state_topic"] = device_base_topic + "/display_mode/state";
-            doc["options"] = JsonArray{"Normal Clock", "Stock Ticker", "Weather", "Data Link"};
+            JsonArray options = doc["options"].to<JsonArray>();
+            options.add("Normal Clock");
+            options.add("Stock Ticker");
+            options.add("Weather");
+            options.add("Data Link");
             doc["icon"] = "mdi:television-classic";
             doc["entity_category"] = "config";
             publishDiscoveryMessage(doc, "select");
