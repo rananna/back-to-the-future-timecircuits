@@ -1066,11 +1066,6 @@ void updateDisplayState() {
 
 // --- NEW DISPLAY HANDLER FUNCTION ---
 void handleDisplay() {
-    // These effects can run concurrently with the main display modes
-    handleTemporalEcho();
-    handlePresetCycling();
-    handleSleepSchedule();
-
     // --- Main Display State Machine ---
     // This switch statement is the heart of the display logic. It ensures that only one
     // primary display mode is active at any given time, preventing conflicts. The state
@@ -1206,6 +1201,9 @@ void loop() {
             // This ensures that sequences can run in parallel with any display mode.
             handleSequencer();
             handleAllSequencerMarquees();
+            handleTemporalEcho();
+            handlePresetCycling();
+            handleSleepSchedule();
             // --- END: MODIFICATION ---
 
             // --- NEW: Audio State Synchronization Safety Net ---
