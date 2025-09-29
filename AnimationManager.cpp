@@ -1,5 +1,10 @@
 #include "AnimationManager.h"
 #include "AnimationSequences.h"
+
+// Define the animation state variables
+bool isAnimating = false;
+unsigned long animationStartTime = 0;
+AnimationPhase currentPhase = ANIM_INACTIVE;
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DebugLog.h"
