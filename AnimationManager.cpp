@@ -1390,23 +1390,29 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_CROSSFADE_TEXT:
-                 if (!track.stepInitialized) {
-                    // Fade out
+                if (!track.stepInitialized) {
+                    // Phase 1: Start fade out
+                    track.crossfadePhase = 1;
                     track.isFading = true;
                     track.isFadeIn = false;
                     track.fadeDuration = step.intParam / 2;
                     track.fadeStartTime = millis();
                     track.stepInitialized = true;
                 }
-                if (track.stepInitialized && !track.isFading) {
-                    // When fade out is complete, change text and fade in
+
+                // Phase 2: When fade out is complete, change text and start fade in
+                if (track.crossfadePhase == 1 && !track.isFading) {
+                    track.crossfadePhase = 2;
                     updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
                     track.isFading = true;
                     track.isFadeIn = true;
                     track.fadeDuration = step.intParam / 2;
                     track.fadeStartTime = millis();
                 }
-                 if (track.isFadeIn && !track.isFading) {
+
+                // Phase 3: When fade in is complete, advance to the next step
+                if (track.crossfadePhase == 2 && !track.isFading) {
+                    track.crossfadePhase = 0; // Reset for any future use
                     advance_step = true;
                 }
                 break;
@@ -1500,6 +1506,33 @@ void stopAndCleanupTrack(int trackIndex) {
     track.reset();
 
     Log_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
+}
+
+/**
+ * @brief Configures and runs a test for the crossfade command bug.
+ * @details This test sets up a single track to demonstrate the infinite loop
+ * in the SEQ_CMD_CROSSFADE_TEXT command. It is intended to fail before the
+ * fix and pass afterward.
+ */
+void runCrossfadeTest() {
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Crossfade Fix Test ---");
+
+    // Reset track 0 for a clean test
+    sequencerTracks[0].reset();
+
+    int i = 0;
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_SET_TEXT, 0, 0, 0, 0, "Initial", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_WAIT, 0, 0, 2000, 0, "", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_CROSSFADE_TEXT, 0, 0, 2000, 0, "Faded", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_SET_TEXT, 0, 0, 0, 0, "SUCCESS", ""}; // This should appear if the fix works
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_END, 0, 0, 0, 0, "", ""};
+
+    sequencerTracks[0].isActive = true;
+    sequencerTracks[0].stepStartTime = millis();
+    sequencerTracks[0].trackStartTime = millis();
+    sequencerTracks[0].originalBrightness = currentSettings.brightness;
+
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Crossfade Fix Test Started ---");
 }
 
 /**
