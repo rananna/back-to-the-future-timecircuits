@@ -7,14 +7,14 @@ This document provides a deeper look into the project's architecture, code struc
 The firmware is organized into a modular structure to separate concerns and improve maintainability.
 
 * **`back-to-the-future-timecircuits.ino`**: The main entry point of the application. Contains `setup()` and `loop()` and coordinates all other modules.
-* **`HardwareControl.h`**: The hardware abstraction layer and central data definition file. It defines the core data structures for the project (e.g., `ClockSettings`, `WeatherData`) and all functions for direct interaction with the displays and LEDs.
-* **`HardwareControl.cpp`**: The implementation file for the hardware abstraction layer. It utilizes the **Adafruit_LEDBackpack** and **Adafruit_GFX** libraries.
-* **`EventManager.h`**: A global access header. It uses `extern` declarations to make global variables (like the `currentSettings` object) and system-wide objects (like the `mqttClient`) available to all other modules. This prevents circular dependency issues.
-* **`AnimationManager.cpp / .h`**: Contains the logic for complex, multi-stage animations like the time travel sequence and boot-up.
-* **`DisplayManager.cpp / .h`**: Responsible for what is shown on the displays during normal operation (standard clock, weather, Data Link marquee).
-* **`DataManager.cpp / .h`**: Handles all networking tasks for fetching and parsing data from external web APIs. Functions within this module are often run in dedicated FreeRTOS tasks to prevent blocking the main loop.
-* **`MqttManager.cpp / .h`**: Manages the MQTT connection and all communication for the Home Assistant integration. It handles publishing states and subscribing to commands.
-* **`web_server.cpp / .h`**: Sets up all the API endpoints and serves the web interface files using an asynchronous web server.
+* **`HardwareControl.h` / `.cpp`**: The hardware abstraction layer. Defines core data structures (`ClockSettings`, `WeatherData`) and all functions for direct interaction with the displays and LEDs using the **Adafruit_LEDBackpack** and **Adafruit_GFX** libraries.
+* **`DisplayManager.h` / `.cpp`**: Responsible for what is shown on the displays during normal operation (standard clock, weather, Data Link marquee).
+* **`AnimationManager.h` / `.cpp`**: Contains the logic for complex, multi-stage animations like the time travel sequence and boot-up.
+* **`DataManager.h` / `.cpp`**: Handles all networking tasks for fetching and parsing data from external web APIs. Functions within this module are often run in dedicated FreeRTOS tasks to prevent blocking the main loop.
+* **`MqttManager.h` / `.cpp`**: Manages the MQTT connection and all communication for the Home Assistant integration. It handles publishing states and subscribing to commands.
+* **`StockManager.h` / `.cpp`**: A dedicated manager for fetching, parsing, and displaying real-time stock data.
+* **`Sequencer.h`**: Defines the data structures and commands for the cinematic effect sequencer.
+* **`web_server.h` / `.cpp`**: Sets up all the API endpoints and serves the web interface files using an asynchronous web server.
 
 ***
 
@@ -74,16 +74,11 @@ Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory
 
 #### Sequencer for Cinematic Effects
 
-The firmware includes a simple, command-driven sequencer for creating complex, timed animations and effects. This is the mechanism behind the iconic time travel sequence. The sequencer, managed by `handleSequencer()` in the main `.ino` file, processes an array of `SequenceStep` commands in order.
+The firmware includes a powerful, command-driven sequencer for creating complex, timed animations and effects. This is the mechanism behind the iconic time travel sequence and the advanced automations available in Home Assistant.
 
-Each `SequenceStep` can perform one of the following actions:
-*   `SEQ_CMD_TEXT`: Display specific text on a display segment.
-*   `SEQ_CMD_FLASH`: Trigger a flash effect on a display segment.
-*   `SEQ_CMD_SOUND`: Play a sound file.
-*   `SEQ_CMD_WAIT`: Pause for a specified number of milliseconds.
-*   `SEQ_CMD_END`: Mark the end of the sequence.
+The sequencer, managed by `handleSequencer()` in the main `.ino` file, processes a JSON-formatted array of commands. This entire system is exposed via the `bttf_time_circuits/sequencer/command` MQTT topic, allowing for precise, scripted control over the hardware. This is essential for creating the screen-accurate cinematic moments from the films and enables users to design their own complex notification sequences.
 
-This allows for precise, scripted control over the hardware, which is essential for creating the screen-accurate cinematic moments from the films. The sequencer is not currently exposed via the web UI or MQTT and is intended for internal use within the firmware.
+Each command in the sequence can perform an action like displaying text, flashing a segment, playing a sound, or pausing. For a complete list of available commands and their parameters, refer to the **[🏠 Home Assistant Integration Guide](home-assistant.md)**, which details the `bttf_time_circuits.run_sequence` service.
 
 ***
 
@@ -107,8 +102,9 @@ All frontend files are located in the `data` directory of the project. When you 
 
 *   **`data/index.html`**: The main HTML file that defines the structure of the page.
 *   **`data/style.css`**: Contains all the styling for the web interface.
-*   **`data/data_handling.js`**: Manages all communication with the ESP32 (REST API and WebSockets).
-*   **`data/main_ui.js`**: Controls the user interface, including event listeners and populating data.
+*   **`data/main_ui.js`**: The main entry point for the UI. It initializes the application, populates the settings from the device, and attaches the primary event listeners.
+*   **`data/data_handling.js`**: Manages all communication with the ESP32, including the initial REST API calls to fetch settings and the persistent WebSocket connection for real-time updates.
+*   **`data/ui_functions.js`**: Contains helper functions for manipulating the DOM, such as updating specific UI elements, showing/hiding sections, and managing modal dialogs.
 
 ### Communication Flow
 The frontend uses a hybrid communication model for efficiency:
@@ -123,11 +119,10 @@ The frontend uses a hybrid communication model for efficiency:
 If you wanted to add a new setting to the web interface, you would typically follow these steps:
 
 1.  **Add the HTML**: Add the new input field (e.g., a slider, a text box, a checkbox) to the appropriate settings group in `index.html`. Give it a unique `id`.
-2.  **Update `main_ui.js`**:
-    *   In `applySettings()`, add logic to set the value of your new HTML element from the settings object fetched from the ESP32.
-    *   In `attachEventListeners()`, add an event listener (`onchange` or `onclick`) to your new element. This listener should call `setSettingsChanged(true)` to enable the main save button.
-3.  **Update `data_handling.js`**:
-    *   In `saveSettings()`, add a line to read the value from your new HTML element and add it to the `settings` object that gets sent to the ESP32.
+2.  **Update JavaScript Files**:
+    *   **`main_ui.js`**: In `applySettings()`, add logic to set the value of your new HTML element from the settings object fetched from the ESP32. In `attachEventListeners()`, add an event listener (`onchange` or `onclick`) to your new element.
+    *   **`data_handling.js`**: In `saveSettings()`, add a line to read the value from your new HTML element and add it to the `settings` object that gets sent to the ESP32.
+    *   **`ui_functions.js`**: If your new element requires complex UI logic (e.g., showing/hiding other elements), add a new helper function here.
 4.  **Update ESP32 Firmware**:
     *   Add the corresponding new setting to the `ClockSettings` struct in `HardwareControl.h`. For example, `int theme;`.
     *   If you are adding a complex data field (like for the Data Link), you may need to update the `DataPoint` struct. This struct includes fields for `url`, `authHeaderKey`, `authHeaderValue`, `httpMethod`, `requestBody`, and JSON paths.

@@ -143,15 +143,16 @@ Use your favorite TTS service in Home Assistant to make the clock speak.
 
 ---
 
-## ⚙️ Services
+## ⚙️ Advanced Services
 
-The integration provides three powerful services for advanced control and automation.
+The integration provides a rich set of services for advanced control and automation.
 
-### **1. `notify.bttf_time_circuits`**
-This service sends a temporary notification message to the clock's display.
+### **Notification Service**
+This service sends a temporary notification message to the clock's display. It is the only service that uses the `notify` domain.
 
 > ***Image Placeholder:*** *A screenshot of the Home Assistant Developer Tools > Services view, showing a call to the `notify.bttf_time_circuits` service with example message and data.*
 
+#### **`notify.bttf_time_circuits`**
 | Parameter | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
 | **`message`** | `string` | Yes | The text to display. Use `\n` to separate lines (e.g., `LINE 1\nLINE 2`). |
@@ -168,7 +169,10 @@ This service sends a temporary notification message to the clock's display.
       sound_effect: "REMINDER_ALERT"
 ```
 
-### **2. `bttf_time_circuits.set_status_display`**
+### **Display & Sequence Services**
+These services, part of the `bttf_time_circuits` domain, offer direct control over the display content and animation sequences.
+
+#### **`bttf_time_circuits.set_status_display`**
 This service turns the clock into a 12-segment status panel, allowing you to map individual sensor values to specific display segments.
 
 | Parameter | Type | Required | Description |
@@ -187,7 +191,7 @@ This service turns the clock into a 12-segment status panel, allowing you to map
     last_departed_day: "{{ states('sensor.living_room_humidity') | round(0) }}%"
 ```
 
-### **3. `bttf_time_circuits.run_sequence`**
+#### **`bttf_time_circuits.run_sequence`**
 This service offers advanced control, allowing you to run a multi-step script of animations and sounds directly on the device.
 
 | Parameter | Type | Required | Description |
@@ -236,6 +240,60 @@ This example triggers the **Intruder Alert** sequence.
   data:
     sequence: "Intruder Alert"
 ```
+
+### **Time Control Services**
+These services allow for direct, programmatic control over the three main time displays.
+
+#### **`bttf_time_circuits.set_destination_time`**
+Sets the top "Destination Time" display to a specific date and time.
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| **`datetime`** | `datetime` | Yes | The full date and time to display. Can be a `datetime` object or a string (e.g., `"2015-10-21 07:28:00"`). |
+
+**Example:** Set the destination to the date of the first moon landing.
+```yaml
+- service: bttf_time_circuits.set_destination_time
+  data:
+    datetime: "1969-07-20 20:17:00"
+```
+
+#### **`bttf_time_circuits.set_present_time`**
+Sets the middle "Present Time" display to a specific date and time. Note that this overrides the automatic NTP-synced time until the next reboot.
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| **`datetime`** | `datetime` | Yes | The full date and time to display. |
+
+#### **`bttf_time_circuits.set_last_departed_time`**
+Sets the bottom "Last Time Departed" display to a specific date and time.
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| **`datetime`** | `datetime` | Yes | The full date and time to display. |
+
+#### **`bttf_time_circuits.time_travel`**
+Executes a full time travel sequence. It reads the current "Present Time", sets it as the new "Last Time Departed", updates the "Destination Time" to the specified `datetime`, and then triggers the main time travel animation.
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| **`datetime`** | `datetime` | Yes | The target destination date and time for the sequence. |
+
+**Example:** Create an automation to time travel to next Christmas morning.
+```yaml
+- service: bttf_time_circuits.time_travel
+  data:
+    datetime: "{{ (now().year ~ '-12-25 08:00:00') | as_datetime | as_local }}"
+```
+
+### **Media Player Services**
+These services extend the functionality of the `media_player` entity.
+
+#### **`bttf_time_circuits.favorite_radio_station`**
+Saves the currently playing radio stream to the device's list of favorite stations. This service takes no parameters.
+
+#### **`bttf_time_circuits.clear_favorite_radio_stations`**
+Clears all saved favorite radio stations from the device's memory. This service takes no parameters.
 
 ---
 
