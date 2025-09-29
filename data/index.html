@@ -504,6 +504,73 @@
                     <a href="https://github.com/rananna/back-to-the-future-timecircuits/blob/main/readme.md" target="_blank" rel="noopener noreferrer" class="action-button" style="display: inline-block; width: auto;">View on GitHub</a>
                 </p>
             </div>
+            <div class="setting-group">
+                <h3>Web UI Guide</h3>
+                <p>This guide provides an overview of the features available in the Time Circuits clock's web user interface.</p>
+
+                <h4>Time Circuits Tab</h4>
+                <ul>
+                    <li><strong>Destination Time & Year:</strong> Set the target destination year for the time circuits. You can also select a time zone for the destination.</li>
+                    <li><strong>Last Time Departed & Presets:</strong> View the last time the circuits were engaged. You can select from a list of famous dates from the movies or create, save, and delete your own custom presets. The "Cycle Presets" slider allows the clock to automatically cycle through these presets at a defined interval.</li>
+                </ul>
+
+                <h4>Temporal Controls Tab</h4>
+                <ul>
+                    <li><strong>Departure/Arrival (Sleep) Times:</strong> Set a daily schedule for the clock to "depart" (enter sleep mode) and "arrive" (wake up).</li>
+                    <li><strong>Display:</strong> Adjust the display brightness and toggle between 12-hour and 24-hour time formats.</li>
+                    <li><strong>Animation Style:</strong> Choose the visual effect that plays when the time circuits are engaged. You can also set an interval for the animation to play automatically.</li>
+                    <li><strong>Sequences:</strong> Trigger powerful, pre-defined animation sequences on the clock's display. See the full list of available sequences below.</li>
+                    <li><strong>Sound:</strong> Control the master volume and toggle the time travel sound effects on or off.</li>
+                    <li><strong>Internet Radio:</strong> Play internet radio streams directly on the device. You can add, edit, and delete stations from your playlist.</li>
+                </ul>
+
+                <h4>Data Link Tab</h4>
+                <p>This tab allows you to display external data on the bottom row of the time circuits.</p>
+                <ul>
+                    <li><strong>Stock Market Ticker:</strong> Enable this mode to show real-time stock prices. Requires a free API key from Financial Modeling Prep.</li>
+                    <li><strong>Live Weather Display:</strong> Enable this mode to show the current weather for a specified city.</li>
+                    <li><strong>Data Link Configuration:</strong> For advanced users, this allows the clock to display data pushed from an MQTT broker.</li>
+                </ul>
+
+                <h4>Network & System Tab</h4>
+                <ul>
+                    <li><strong>Present Time:</strong> Set the time zone for the current time display and manually sync with an NTP server.</li>
+                    - <strong>System Status:</strong> View real-time device stats like free memory, Wi-Fi signal, and uptime.</li>
+                    <li><strong>Firmware Update (OTA):</strong> Upload and install new firmware to update the device.</li>
+                    <li><strong>UI Theme:</strong> Customize the look and feel of this web interface.</li>
+                    <li><strong>Device Actions:</strong> Trigger a "Great Scott!" animation or reset all device settings to their factory defaults.</li>
+                </ul>
+
+                <hr>
+
+                <h5>Available Sequences</h5>
+                <p>The following is a list of all pre-defined sequences that can be triggered from the "Temporal Controls" tab. A description of what they do is below.</p>
+                <table class="help-table">
+                    <thead>
+                        <tr>
+                            <th>Sequence Name</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>Intruder Alert</strong></td><td>A classic alert sequence. The top display scrolls "INTRUDER ALERT," the middle display scrambles "BREACH DETECTED," and the bottom display scrolls "LOCKDOWN INITIATED," all while pulsing and accompanied by an electrical spark sound.</td></tr>
+                        <tr><td><strong>Time Travel</strong></td><td>The signature time travel sequence. The top display shows an "ACCELERATING" bar graph, the middle display announces "TIME TRAVEL ACTIVATED" followed by "88 MPH," and the bottom display flashes intensely for 8 seconds, all set to the iconic time travel sound.</td></tr>
+                        <tr><td><strong>Party Mode</strong></td><td>Turns the clock into a party machine. All three rows display pulsing, dancing text and marquees like "PARTY TIME!", "DANCE", and "WOOHOO".</td></tr>
+                        <tr><td><strong>Countdown</strong></td><td>A 10-second countdown timer is displayed on the middle row, ending with a "LIFTOFF!" message and an engine revving sound. Great for dramatic entrances.</td></tr>
+                        <tr><td><strong>Knight Rider</strong></td><td>A smooth, red scanning light moves back and forth across the bottom display, just like KITT's scanner.</td></tr>
+                        <tr><td><strong>Cylon</strong></td><td>A red scanning light, similar to Knight Rider but with a wider trail, moves across the middle display, mimicking a Cylon from Battlestar Galactica.</td></tr>
+                        <tr><td><strong>Rainbow</strong></td><td>The middle display cycles through the colors of the rainbow, showing the name of each color.</td></tr>
+                        <tr><td><strong>Lightning</strong></td><td>Simulates a lightning storm. All displays flicker randomly and flash brightly, accompanied by the sound of electric sparks.</td></tr>
+                        <tr><td><strong>Loading</strong></td><td>A progress bar fills up on the middle display with the text "LOADING...".</td></tr>
+                        <tr><td><strong>Error</strong></td><td>A system malfunction sequence. The top display scrambles the word "ERROR," the middle display scrolls "SYSTEM MALFUNCTION," and error beeps play.</td></tr>
+                        <tr><td><strong>Flux Capacitor Charge-Up</strong></td><td>The bottom display shows a "CHARGING" bar graph that fills up, accompanied by the flux capacitor sound. It culminates in a bright flash across the top two displays.</td></tr>
+                        <tr><td><strong>Tachyons Detected</strong></td><td>Simulates temporal interference. The middle display scrambles to reveal the message "TACHYONS DETECTED" while a mysterious hum plays.</td></tr>
+                        <tr><td><strong>Data Stream</strong></td><td>A "Matrix"-style digital rain effect, with random characters flickering down all three display rows.</td></tr>
+                        <tr><td><strong>Wormhole Collapse</strong></td><td>A chaotic sequence where all displays flicker violently and then fade to black one by one, accompanied by the sound of electrical sparks, simulating a collapsing wormhole.</td></tr>
+                        <tr><td><strong>System Boot</strong></td><td>A simple boot sequence that shows "SYSTEMS ONLINE" on the top row, fades in the middle row, and pulses the bottom row.</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
         <button id="saveSettingsBtn" disabled>Save & Engage Time Circuits</button>
     </div>

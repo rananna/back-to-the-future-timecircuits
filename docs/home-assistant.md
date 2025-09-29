@@ -209,22 +209,32 @@ This service offers advanced control, allowing you to run a multi-step script of
 
 > ⚠️ **Note on `message`:** The `message` command is not supported in sequences. To set static text on the displays, use the `text.set_value` service for individual segments or the `bttf_time_circuits.set_status_display` service to update multiple segments at once.
 
-#### **Example: "Intruder Alert"**
-This example flashes the "Last Departed" year, plays an alarm, and scrolls an alert message.
+#### **Pre-defined Sequences**
+In addition to building sequences from scratch, you can trigger a number of pre-defined, named sequences by passing the sequence name directly to the `sequence` parameter. These sequences are also available in the device's web UI dropdown. They are designed to be visually striking and make use of the full range of the sequencer's capabilities.
+
+| Sequence Name | Description |
+| :--- | :--- |
+| **Intruder Alert** | A classic alert sequence. The top display scrolls "INTRUDER ALERT," the middle display scrambles "BREACH DETECTED," and the bottom display scrolls "LOCKDOWN INITIATED," all while pulsing and accompanied by an electrical spark sound. |
+| **Time Travel** | The signature time travel sequence. The top display shows an "ACCELERATING" bar graph, the middle display announces "TIME TRAVEL ACTIVATED" followed by "88 MPH," and the bottom display flashes intensely for 8 seconds, all set to the iconic time travel sound. |
+| **Party Mode** | Turns the clock into a party machine. All three rows display pulsing, dancing text and marquees like "PARTY TIME!", "DANCE", and "WOOHOO". |
+| **Countdown** | A 10-second countdown timer is displayed on the middle row, ending with a "LIFTOFF!" message and an engine revving sound. Great for dramatic entrances. |
+| **Knight Rider** | A smooth, red scanning light moves back and forth across the bottom display, just like KITT's scanner. |
+| **Cylon** | A red scanning light, similar to Knight Rider but with a wider trail, moves across the middle display, mimicking a Cylon from Battlestar Galactica. |
+| **Rainbow** | The middle display cycles through the colors of the rainbow, showing the name of each color. |
+| **Lightning** | Simulates a lightning storm. All displays flicker randomly and flash brightly, accompanied by the sound of electric sparks. |
+| **Loading** | A progress bar fills up on the middle display with the text "LOADING...". |
+| **Error** | A system malfunction sequence. The top display scrambles the word "ERROR," the middle display scrolls "SYSTEM MALFUNCTION," and error beeps play. |
+| **Flux Capacitor Charge-Up** | The bottom display shows a "CHARGING" bar graph that fills up, accompanied by the flux capacitor sound. It culminates in a bright flash across the top two displays. |
+| **Tachyons Detected** | Simulates temporal interference. The middle display scrambles to reveal the message "TACHYONS DETECTED" while a mysterious hum plays. |
+| **Data Stream** | A "Matrix"-style digital rain effect, with random characters flickering down all three display rows. |
+| **Wormhole Collapse** | A chaotic sequence where all displays flicker violently and then fade to black one by one, accompanied by the sound of electrical sparks, simulating a collapsing wormhole. |
+
+#### **Example: Triggering a Named Sequence**
+This example triggers the **Intruder Alert** sequence.
 ```yaml
 - service: bttf_time_circuits.run_sequence
   data:
-    target_row: 2 # Target the "Last Departed" row
-    sequence:
-      - command: flash
-        segment: last_departed_year
-        duration: 1000
-      - command: sound
-        effect: "ALARM_SOUND"
-      - command: marquee
-        text: "INTRUDER ALERT"
-      - command: delay
-        duration: 5000
+    sequence: "Intruder Alert"
 ```
 
 ---

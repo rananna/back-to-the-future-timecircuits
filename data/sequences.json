@@ -1,14 +1,62 @@
 [
   {
     "name": "Intruder Alert",
-    "payload": "[{\"targetRow\":2,\"commands\":[{\"command\":\"SOUND\",\"stringParam\":\"ALARM_SOUND\"},{\"command\":\"MARQUEE\",\"stringParam\":\"INTRUDER ALERT\"}]}]"
+    "payload": "Intruder Alert"
+  },
+  {
+    "name": "Time Travel",
+    "payload": "Time Travel"
   },
   {
     "name": "System Boot",
     "payload": "[{\"targetRow\":0,\"commands\":[{\"command\":\"MARQUEE\",\"stringParam\":\"SYSTEMS ONLINE\"}]},{\"targetRow\":1,\"commands\":[{\"command\":\"FADE_IN\",\"intParam\":3000}]},{\"targetRow\":2,\"commands\":[{\"command\":\"PULSE\",\"targetSegment\":-1,\"intParam\":3000}]}]"
   },
   {
+    "name": "Party Mode",
+    "payload": "Party Mode"
+  },
+  {
+    "name": "Countdown",
+    "payload": "Countdown"
+  },
+  {
     "name": "Knight Rider",
-    "payload": "[{\"targetRow\":2,\"commands\":[{\"command\":\"FLASH\",\"targetSegment\":0,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":1,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":2,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":3,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":2,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50},{\"command\":\"FLASH\",\"targetSegment\":1,\"intParam\":150},{\"command\":\"WAIT\",\"intParam\":50}]}]"
+    "payload": "Knight Rider"
+  },
+  {
+    "name": "Cylon",
+    "payload": "Cylon"
+  },
+  {
+    "name": "Rainbow",
+    "payload": "Rainbow"
+  },
+  {
+    "name": "Lightning",
+    "payload": "Lightning"
+  },
+  {
+    "name": "Loading",
+    "payload": "Loading"
+  },
+  {
+    "name": "Error",
+    "payload": "Error"
+  },
+  {
+    "name": "Flux Capacitor Charge-Up",
+    "payload": "Flux Capacitor Charge-Up"
+  },
+  {
+    "name": "Tachyons Detected",
+    "payload": "Tachyons Detected"
+  },
+  {
+    "name": "Data Stream",
+    "payload": "Data Stream"
+  },
+  {
+    "name": "Wormhole Collapse",
+    "payload": "Wormhole Collapse"
   }
 ]
