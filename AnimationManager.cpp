@@ -1137,57 +1137,50 @@ void handleSequencer() {
             case SEQ_CMD_FADE_IN:
             case SEQ_CMD_FADE_OUT:
                 if (!track.stepInitialized) {
-                    if (track.isFading) break;
+                    if (track.isFading) break; // Don't start a new fade if one is already active on this track
                     track.isFading = true;
                     track.isFadeIn = (step.command == SEQ_CMD_FADE_IN);
                     track.fadeDuration = step.intParam;
                     track.fadeStartTime = millis();
                     track.originalBrightness = currentSettings.brightness;
                     track.stepInitialized = true;
+                    advance_step = true; // --- FIX: Immediately advance to the next command
                 }
-                if (!track.isFading) {
-                    advance_step = true;
-                }
+                // The effect now runs in the background and does not block the sequence.
                 break;
 
             case SEQ_CMD_PULSE:
-                // --- START: MODIFICATION - Add bounds check ---
                 if (step.targetSegment < 0 || step.targetSegment >= 4) {
                     Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid segment %d for PULSE on track %d. Skipping.", step.targetSegment, i);
                     advance_step = true;
                     break;
                 }
-                // --- END: MODIFICATION ---
                 if (!track.stepInitialized) {
                     track.isPulsing[step.targetSegment] = true;
                     track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
                     track.pulseStates[step.targetSegment] = true;
                     track.lastPulseToggle[step.targetSegment] = millis();
                     track.stepInitialized = true;
+                    advance_step = true; // --- FIX: Immediately advance to the next command
                 }
-                if (!track.isPulsing[step.targetSegment]) {
-                    advance_step = true;
-                }
+                // The effect now runs in the background and does not block the sequence.
                 break;
 
             case SEQ_CMD_FLASH:
-                // --- START: MODIFICATION - Add bounds check ---
                 if (step.targetSegment < 0 || step.targetSegment >= 4) {
                     Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid segment %d for FLASH on track %d. Skipping.", step.targetSegment, i);
                     advance_step = true;
                     break;
                 }
-                // --- END: MODIFICATION ---
                 if (!track.stepInitialized) {
                     track.isFlashing[step.targetSegment] = true;
                     track.flashEndTimes[step.targetSegment] = (step.intParam == 0) ? 0 : millis() + step.intParam;
                     track.flashStates[step.targetSegment] = true;
                     track.lastFlashToggle[step.targetSegment] = millis();
                     track.stepInitialized = true;
+                    advance_step = true; // --- FIX: Immediately advance to the next command
                 }
-                if (!track.isFlashing[step.targetSegment]) {
-                    advance_step = true;
-                }
+                // The effect now runs in the background and does not block the sequence.
                 break;
 
             case SEQ_CMD_MARQUEE:
