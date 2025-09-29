@@ -35,6 +35,9 @@ void publishTimeSensors();
 void startAudioStream(const char* url, bool is_tts, int volume = -1);
 void stopAudioStream(bool isTemporary = false);
 void handleSequencerCommand(const std::string& payload);
+void publishMqttMessage(const std::string& topic, const std::string& payload);
+void subscribeToTopic(const std::string& topic);
+void unsubscribeFromTopic(const std::string& topic);
 void cleanupAudio(bool isPermanent);
 
 // --- Radio Metadata ---

@@ -512,20 +512,31 @@ void displayOverrideMessage() {
 }
 
 void updateDisplaySegment(int row, int segment, const std::string& text) {
-    // ... function content remains the same ...
     if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
     
     manualDisplayText[row][segment] = text;
 
-    bool manualActive = false;
-    for(int i=0; i<4; ++i) {
-        if(!manualDisplayText[row][i].empty()) {
-            manualActive = true;
-            break;
-        }
-    }
-    isRowInManualMode[row] = manualActive;
+    // A row is in manual mode if any of its segments have text.
+    isRowInManualMode[row] = !manualDisplayText[row][0].empty() ||
+                             !manualDisplayText[row][1].empty() ||
+                             !manualDisplayText[row][2].empty() ||
+                             !manualDisplayText[row][3].empty();
 
+    updateNormalClockDisplay();
+}
+
+void restoreDisplayRow(int row) {
+    if (row < 0 || row > 2) return;
+
+    // Clear all manual text for the row
+    for (int i = 0; i < 4; ++i) {
+        manualDisplayText[row][i].clear();
+    }
+
+    // Set the row back to normal clock mode
+    isRowInManualMode[row] = false;
+
+    // Trigger an update to show the clock again
     updateNormalClockDisplay();
 }
 
