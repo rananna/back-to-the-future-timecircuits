@@ -1186,6 +1186,7 @@ void loop() {
                     }
                 } else {
                     mqttClient.loop();
+                    handleHaDiscovery();
                 }
             }
             
