@@ -63,6 +63,7 @@ struct SequencerTrack {
     int currentStep;
     unsigned long stepStartTime;
     bool stepInitialized;
+    unsigned long trackStartTime; // --- NEW: Timeout for the entire track ---
 
     // --- State for Looping ---
     int loopStartStep = -1;
@@ -129,6 +130,7 @@ struct SequencerTrack {
         currentStep = 0;
         stepStartTime = 0;
         stepInitialized = false;
+        trackStartTime = 0;
 
         loopStartStep = -1;
         loopCounter = 0;
