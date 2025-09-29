@@ -1111,8 +1111,34 @@ void handleSequencer() {
             // --- Logic Commands ---
             case SEQ_CMD_LOOP_START:
                 if (!track.stepInitialized) {
-                    track.loopStartStep = track.currentStep;
-                    track.loopCounter = step.intParam;
+                    // --- FIX: Handle loops with zero or negative counts ---
+                    if (step.intParam <= 0) {
+                        Log_printf(LOG_LEVEL_INFO, "SEQ: Track %d skipping loop with count %d.", i, step.intParam);
+                        int openLoops = 1;
+                        int seekStep = track.currentStep + 1;
+                        while (seekStep < MAX_SEQUENCE_STEPS && openLoops > 0) {
+                            if (track.steps[seekStep].command == SEQ_CMD_LOOP_START) {
+                                openLoops++;
+                            } else if (track.steps[seekStep].command == SEQ_CMD_LOOP_END) {
+                                openLoops--;
+                            }
+                            seekStep++;
+                        }
+
+                        if (openLoops == 0) {
+                            // Found the matching end, so jump the program counter to it.
+                            // The outer loop will increment it past the LOOP_END.
+                            track.currentStep = seekStep - 1;
+                        } else {
+                            // No matching LOOP_END found, this is an error. Abort track.
+                            Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d has an unclosed loop starting at step %d. Aborting.", i, track.currentStep);
+                            stopAndCleanupTrack(i);
+                        }
+                    } else {
+                        // Regular loop initialization
+                        track.loopStartStep = track.currentStep;
+                        track.loopCounter = step.intParam;
+                    }
                     track.stepInitialized = true;
                     advance_step = true;
                 }
@@ -1122,11 +1148,19 @@ void handleSequencer() {
                 if (!track.stepInitialized) {
                     track.stepInitialized = true;
                 }
+                // --- FIX: Prevent infinite loop from rogue LOOP_END ---
+                if (track.loopStartStep < 0) {
+                    Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d encountered a LOOP_END without a matching LOOP_START. Aborting.", i);
+                    stopAndCleanupTrack(i);
+                    break; // Exit the switch case
+                }
+
                 if (track.loopCounter > 1) {
                     track.loopCounter--;
                     track.currentStep = track.loopStartStep;
                     advance_step = true; // Ensure the next iteration starts the new step
                 } else {
+                    // End of the loop, clear loop state
                     track.loopStartStep = -1;
                     track.loopCounter = 0;
                     advance_step = true;
