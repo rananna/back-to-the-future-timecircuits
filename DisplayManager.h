@@ -32,6 +32,7 @@ extern StockDisplayState stockState;
 extern bool weatherDataUpdated;
 extern bool isRowInManualMode[3];
 extern std::string manualDisplayText[3][4];
+extern bool displayInitStatus[3][4];
 
 // Dirty flags and buffers for scrolling text
 extern bool isMarqueeBufferDirty;
