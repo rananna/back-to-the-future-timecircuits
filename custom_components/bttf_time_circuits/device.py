@@ -58,9 +58,13 @@ class BTTFTimeCircuitsDevice:
             "manufacturer": "rananna",
             "model": "ESP32",
             "sw_version": "1.0.0",
-            "availability_topic": f"{self.base_topic}/status",
-            "payload_available": "online",
-            "payload_not_available": "offline",
+            "availability": [
+                {
+                    "topic": f"{self.base_topic}/status",
+                    "payload_available": "online",
+                    "payload_not_available": "offline",
+                }
+            ],
         }
 
     async def async_handle_set_status_display(self, call: ServiceCall) -> None:
