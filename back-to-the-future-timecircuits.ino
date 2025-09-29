@@ -1111,6 +1111,19 @@ void handleDisplay() {
  */
 void handleBackgroundSave(); // Forward declaration
 
+/**
+ * @brief Checks if any sequencer track is currently active.
+ * @return True if at least one track's `isActive` flag is true, false otherwise.
+ */
+bool isAnySequenceActive() {
+    for (int i = 0; i < 3; i++) {
+        if (sequencerTracks[i].isActive) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void loop() {
     vTaskDelay(1); // Yield to other tasks, making the system responsive.
     
@@ -1290,8 +1303,21 @@ void loop() {
                     } else {
                         if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
                             lastDisplayUpdateTime = millis();
-                            updateDisplayState();
-                            handleDisplay();
+                            // --- START: MODIFICATION - Prioritize Sequencer ---
+                            // If any sequence is active, we bypass the normal display mode logic.
+                            // Instead, we just call updateNormalClockDisplay(), which respects the
+                            // sequencer's control over individual rows. This allows sequences
+                            // to play on one row while the clock runs on others.
+                            if (isAnySequenceActive()) {
+                                // A sequence is running. Just update the clock display, which will
+                                // respect the manual mode flags set by the sequencer.
+                                updateNormalClockDisplay();
+                            } else {
+                                // No sequence is running. Proceed with the normal display logic.
+                                updateDisplayState();
+                                handleDisplay();
+                            }
+                            // --- END: MODIFICATION ---
                         }
                     }
                 }
