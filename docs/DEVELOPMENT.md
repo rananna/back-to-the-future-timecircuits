@@ -6,15 +6,16 @@ This document provides a deeper look into the project's architecture, code struc
 
 The firmware is organized into a modular structure to separate concerns and improve maintainability.
 
-* **`back-to-the-future-timecircuits.ino`**: The main entry point of the application. Contains `setup()` and `loop()` and coordinates all other modules.
-* **`HardwareControl.h` / `.cpp`**: The hardware abstraction layer. Defines core data structures (`ClockSettings`, `WeatherData`) and all functions for direct interaction with the displays and LEDs using the **Adafruit_LEDBackpack** and **Adafruit_GFX** libraries.
-* **`DisplayManager.h` / `.cpp`**: Responsible for what is shown on the displays during normal operation (standard clock, weather, Data Link marquee).
-* **`AnimationManager.h` / `.cpp`**: Contains the logic for complex, multi-stage animations like the time travel sequence and boot-up.
-* **`DataManager.h` / `.cpp`**: Handles all networking tasks for fetching and parsing data from external web APIs. Functions within this module are often run in dedicated FreeRTOS tasks to prevent blocking the main loop.
-* **`MqttManager.h` / `.cpp`**: Manages the MQTT connection and all communication for the Home Assistant integration. It handles publishing states and subscribing to commands.
-* **`StockManager.h` / `.cpp`**: A dedicated manager for fetching, parsing, and displaying real-time stock data.
-* **`Sequencer.h`**: Defines the data structures and commands for the cinematic effect sequencer.
-* **`web_server.h` / `.cpp`**: Sets up all the API endpoints and serves the web interface files using an asynchronous web server.
+*   **`back-to-the-future-timecircuits.ino`**: The main entry point of the application. Contains `setup()` and `loop()` and coordinates all other modules.
+*   **`HardwareControl.h` / `.cpp`**: The hardware abstraction layer. Defines core data structures (`ClockSettings`, `WeatherData`) and all functions for direct interaction with the displays and LEDs using the **Adafruit_LEDBackpack** and **Adafruit_GFX** libraries.
+*   **`DisplayManager.h` / `.cpp`**: Responsible for what is shown on the displays during normal operation (standard clock, weather, Data Link marquee).
+*   **`AnimationManager.h` / `.cpp`**: Manages the execution of animations. It contains the handlers for the hardcoded cinematic time travel and boot sequences, and it also contains the main `handleSequencer` function, which drives all other animations.
+*   **`AnimationSequences.h` / `.cpp`**: The animation library for the clock. This file contains the logic for generating sequencer scripts for all the pre-canned "styled animations" (e.g., "Tornado Flicker", "Code Breaker"). To create a new animation, you add its generator function here.
+*   **`DataManager.h` / `.cpp`**: Handles all networking tasks for fetching and parsing data from external web APIs. Functions within this module are often run in dedicated FreeRTOS tasks to prevent blocking the main loop.
+*   **`MqttManager.h` / `.cpp`**: Manages the MQTT connection and all communication for the Home Assistant integration. It handles publishing states and subscribing to commands.
+*   **`StockManager.h` / `.cpp`**: A dedicated manager for fetching, parsing, and displaying real-time stock data.
+*   **`Sequencer.h`**: Defines the data structures (`SequencerTrack`, `SequenceStep`) and all available commands (`SequenceCommand`) for the animation sequencer engine.
+*   **`web_server.h` / `.cpp`**: Sets up all the API endpoints and serves the web interface files using an asynchronous web server.
 
 ***
 
@@ -22,18 +23,18 @@ The firmware is organized into a modular structure to separate concerns and impr
 
 To get started with development, you will need the following:
 
-* **Arduino IDE or PlatformIO**: The firmware is built for the ESP32 platform.
-* **ESP32 Board Manager**: Add the ESP32 board manager to your IDE.
-* **Libraries**: The following third-party libraries are required. Most can be installed via the Arduino Library Manager.
-    * `Adafruit GFX Library`
-    * `Adafruit LED Backpack`
-    * `WiFiManager` by tzapu
-    * `ArduinoJson` by Benoit Blanchon (v6.x or v7.x)
-    * `ESPAsyncWebServer` by ESP32-Community
-    * `AsyncTCP` by ESP32-Community
-    * `PubSubClient` by Nick O'Leary
-    * `Preferences` (built-in)
-    * `ESP32-audioI2S` by schreibfaul
+*   **Arduino IDE or PlatformIO**: The firmware is built for the ESP32 platform.
+*   **ESP32 Board Manager**: Add the ESP32 board manager to your IDE.
+*   **Libraries**: The following third-party libraries are required. Most can be installed via the Arduino Library Manager.
+    *   `Adafruit GFX Library`
+    *   `Adafruit LED Backpack`
+    *   `WiFiManager` by tzapu
+    *   `ArduinoJson` by Benoit Blanchon (v6.x or v7.x)
+    *   `ESPAsyncWebServer` by ESP32-Community
+    *   `AsyncTCP` by ESP32-Community
+    *   `PubSubClient` by Nick O'Leary
+    *   `Preferences` (built-in)
+    *   `ESP32-audioI2S` by schreibfaul
 
 ### Partitioning
 
@@ -51,34 +52,36 @@ This project supports multiple methods for updating the firmware and filesystem.
 
 The core of this project is a fully asynchronous, event-driven architecture, built on the ESP32's FreeRTOS operating system. This is crucial for a device with complex visual elements and real-time display updates.
 
-* **The Problem with "Blocking" Code:** A simple approach to fetching web data is to make a request and wait for the response. On a microcontroller like the ESP32, this can be disastrous. If a remote server is slow, the entire device will freeze—animations will stutter, sounds will be delayed, and the device will feel unresponsive.
-* **The Event-Driven Solution:** This project leverages the `ESPAsyncWebServer` library for non-blocking network operations and utilizes FreeRTOS tasks to offload time-consuming processes.
-    * **Web Server:** The web server never blocks. It handles multiple connected clients simultaneously and uses callback functions to respond to requests.
-    * **WebSocket Communication:** Real-time communication with the web UI is handled via WebSockets, allowing for a persistent, two-way channel without the overhead of repeated HTTP requests.
-    * **Concurrency:** Outbound requests to external APIs (e.g., weather data, stock prices) are spawned in their own dedicated FreeRTOS tasks using `xTaskCreatePinnedToCore`. This isolates slow network operations from the main application loop, ensuring that even a 10-second API timeout has no impact on the smoothness of the display animations. A `Semaphore` (`xDisplayDataMutex`) is used to protect shared resources, such as the `currentWeatherData` and `displayPages` structs, from being corrupted by concurrent access from different tasks.
+*   **The Problem with "Blocking" Code:** A simple approach to fetching web data is to make a request and wait for the response. On a microcontroller like the ESP32, this can be disastrous. If a remote server is slow, the entire device will freeze—animations will stutter, sounds will be delayed, and the device will feel unresponsive.
+*   **The Event-Driven Solution:** This project leverages the `ESPAsyncWebServer` library for non-blocking network operations and utilizes FreeRTOS tasks to offload time-consuming processes.
+    *   **Web Server:** The web server never blocks. It handles multiple connected clients simultaneously and uses callback functions to respond to requests.
+    *   **WebSocket Communication:** Real-time communication with the web UI is handled via WebSockets, allowing for a persistent, two-way channel without the overhead of repeated HTTP requests.
+    *   **Concurrency:** Outbound requests to external APIs (e.g., weather data, stock prices) are spawned in their own dedicated FreeRTOS tasks using `xTaskCreatePinnedToCore`. This isolates slow network operations from the main application loop, ensuring that even a 10-second API timeout has no impact on the smoothness of the display animations. A `Semaphore` (`xDisplayDataMutex`) is used to protect shared resources, such as the `currentWeatherData` and `displayPages` structs, from being corrupted by concurrent access from different tasks.
 
 ### Hardware & Display Management
 
-* **Dual I2C Bus:** The HT16K33 display driver chip only allows for 8 unique addresses on a single bus. To control all 12 displays, the project cleverly splits them: 8 displays are on one I2C bus (`I2C_1`), and the remaining 4 are on a second I2C bus (`I2C_2`), avoiding the need for a more complex I2C multiplexer.
-* **State Machine Logic:** The application's state is managed through several `enum` types (e.g., `AnimationPhase`, `MalfunctionPhase`) and handler functions in the main loop (`handleDisplayAnimation`, `handleMalfunction`, etc.). This creates a robust state machine where only one major display mode can be active at a time.
-* **Audio Output:** Audio playback is managed by a dedicated FreeRTOS task to prevent stuttering. It uses the I2S peripheral and the **ESP32-audioI2S** library to play MP3 files from the LittleFS filesystem. The `I2S_SD_PIN` is used to enable/disable the external amplifier to save power when no sound is playing.
+*   **Dual I2C Bus:** The HT16K33 display driver chip only allows for 8 unique addresses on a single bus. To control all 12 displays, the project cleverly splits them: 8 displays are on one I2C bus (`I2C_1`), and the remaining 4 are on a second I2C bus (`I2C_2`), avoiding the need for a more complex I2C multiplexer.
+*   **Unified Animation Engine:** All complex animations, from the pre-canned "styled animations" selected in the UI to the MQTT-triggered sequences, are powered by a single, unified sequencer engine. The main loop no longer contains complex state machine logic for animations. Instead, it simply calls `handleSequencer()` on every iteration, which processes any active animation scripts.
+*   **Audio Output:** Audio playback is managed by a dedicated FreeRTOS task to prevent stuttering. It uses the I2S peripheral and the **ESP32-audioI2S** library to play MP3 files from the LittleFS filesystem. The `I2S_SD_PIN` is used to enable/disable the external amplifier to save power when no sound is playing.
 
 ### Handling SSL/TLS on the ESP32
 
 Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory-intensive operations a microcontroller can perform.
 
-* **The Memory Challenge:** The ESP32 has limited RAM. Loading a server's full SSL certificate chain can consume a significant amount of this memory, which can lead to crashes.
-* **The Solution: `client.setInsecure()`:** This project uses `client.setInsecure()` before making an HTTPS connection.
-    * **What It Does**: It instructs the SSL/TLS engine to **skip the certificate validation step**. It does **not** disable encryption. The connection is still fully encrypted.
-    * **Why It Works**: By skipping validation, the client avoids loading large root certificates into its limited RAM. This eliminates a common source of memory-related errors and greatly improves reliability for this application's purpose of fetching non-sensitive public data.
+*   **The Memory Challenge:** The ESP32 has limited RAM. Loading a server's full SSL certificate chain can consume a significant amount of this memory, which can lead to crashes.
+*   **The Solution: `client.setInsecure()`:** This project uses `client.setInsecure()` before making an HTTPS connection.
+    *   **What It Does**: It instructs the SSL/TLS engine to **skip the certificate validation step**. It does **not** disable encryption. The connection is still fully encrypted.
+    *   **Why It Works**: By skipping validation, the client avoids loading large root certificates into its limited RAM. This eliminates a common source of memory-related errors and greatly improves reliability for this application's purpose of fetching non-sensitive public data.
 
-#### Sequencer for Cinematic Effects
+#### The Unified Animation Sequencer
 
-The firmware includes a powerful, command-driven sequencer for creating complex, timed animations and effects. This is the mechanism behind the iconic time travel sequence and the advanced automations available in Home Assistant.
+The firmware includes a powerful, command-driven sequencer for creating complex, timed animations and effects. This is now the **sole mechanism** for all configurable animations, including the "styled animations" selectable in the UI and the advanced automations available in Home Assistant.
 
-The sequencer, managed by `handleSequencer()` in the main `.ino` file, processes a JSON-formatted array of commands. This entire system is exposed via the `bttf_time_circuits/sequencer/command` MQTT topic, allowing for precise, scripted control over the hardware. This is essential for creating the screen-accurate cinematic moments from the films and enables users to design their own complex notification sequences.
+The sequencer, managed by `handleSequencer()` in `AnimationManager.cpp`, processes an array of commands for up to three parallel tracks (one for each display row). This allows for highly complex and independent visual effects.
 
-Each command in the sequence can perform an action like displaying text, flashing a segment, playing a sound, or pausing. For a complete list of available commands and their parameters, refer to the **[🏠 Home Assistant Integration Guide](home-assistant.md)**, which details the `bttf_time_circuits.run_sequence` service.
+When an animation is triggered (either from the UI or via MQTT), a generator function in `AnimationSequences.cpp` builds the appropriate script and loads it into the sequencer tracks. The main loop then simply executes these commands via `handleSequencer`.
+
+This entire system is exposed via the `bttf-time-circuits/[DEVICE_ID]/sequence/command` MQTT topic, allowing for precise, scripted control over the hardware. For a complete list of available commands and their parameters, refer to the **[🤖 Advanced MQTT Control Guide](reference/ADVANCED_MQTT.md)**.
 
 ***
 
