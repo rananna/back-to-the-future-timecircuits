@@ -35,7 +35,7 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 
 This project uses two separate I2C buses to manage all 12 displays without address conflicts.
 
-> #### ⚠️ ESP32-S3 Required
+> [!WARNING]
 > The following pinout is specifically for the **required** ESP32-S3 board. This project is not compatible with other ESP32 models.
 
 | Component | ESP32 Pin | Notes |
@@ -108,7 +108,8 @@ This project relies on several external libraries that can be installed directly
 <details>
 <summary><b>Step 3: Set I2C Display Addresses</b></summary>
 
-> #### ⚠️ **Critical Step: Address Configuration**
+> [!WARNING]
+> **Critical Step: Address Configuration**
 > Each of the 12 display modules must be configured with a unique I2C address so the firmware can communicate with it. This is done by creating "solder bridges" on the address jumpers on the back of each display's circuit board. A solder bridge is simply a small blob of solder that connects the two pads.
 >
 > ***Image Placeholder:*** *A high-resolution, close-up image of the back of an Adafruit HT16K33 display, clearly highlighting the A0, A1, and A2 solder pads. An annotated version showing a properly created solder bridge would be ideal.*
@@ -140,7 +141,8 @@ This project relies on several external libraries that can be installed directly
 <details>
 <summary><b>Step 4: Set Partition Scheme</b></summary>
 
-> #### ⚠️ **Critical Step: Partition Scheme**
+> [!WARNING]
+> **Critical Step: Partition Scheme**
 > A custom partition scheme is required to allocate enough space for the web interface and sound files. The `partitions.csv` file, which defines this layout, is included in the repository.
 >
 > 1.  **Confirm File Location**:
@@ -161,7 +163,8 @@ This project relies on several external libraries that can be installed directly
 <details>
 <summary><b>Step 5: Upload Files to Filesystem</b></summary>
 
-> #### ⚠️ **Critical Step: Upload Data Files**
+> [!WARNING]
+> **Critical Step: Upload Data Files**
 > The web interface and sound effects will not work unless the contents of the `data` folder are uploaded to the ESP32's filesystem. This requires a special uploader plugin for the Arduino IDE.
 >
 > 1.  **Install the Uploader Plugin**:

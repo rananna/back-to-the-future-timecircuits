@@ -36,8 +36,6 @@ Once the clock is connected to your network, you can access its web interface in
 1.  **Easy Way (mDNS)**: Simply navigate to **`http://bttf-clock.local`** in your browser. This works on most networks without any special configuration.
 2.  **IP Address**: If the mDNS address doesn't work, you'll need the clock's IP address. You can find this in your router's client list or by monitoring the Serial Monitor in the Arduino IDE during boot.
 
-![Web UI Screenshot](../images/webui.png)
-
 ***
 
 ## Web Interface Overview
@@ -81,6 +79,7 @@ This tab provides information about the device's status and allows you to perfor
 Beyond the web interface, many of the clock's features can be controlled programmatically.
 *   **For Home Assistant Users**: To unlock deep integration with your smart home, see the **[🏠 Home Assistant Integration Guide](home-assistant.md)**.
 *   **For Developers**: For a technical deep dive into the firmware and API, see the **[🔬 Developer's Guide](DEVELOPMENT.md)**.
+*   **For Advanced Automations**: The clock includes a powerful command sequencer for creating custom, multi-step animations with sounds and text. For a full list of pre-defined sequences (like "Intruder Alert" and "Party Mode") and instructions on how to build your own, see the `run_sequence` service documentation in the **[🏠 Home Assistant Integration Guide](home-assistant.md)**.
 
 ***
 
