@@ -1139,13 +1139,18 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_PULSE:
-                 if (!track.stepInitialized) {
-                    if (step.targetSegment >= 0 && step.targetSegment < 4) {
-                        track.isPulsing[step.targetSegment] = true;
-                        track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
-                        track.pulseStates[step.targetSegment] = true;
-                        track.lastPulseToggle[step.targetSegment] = millis();
-                    }
+                // --- START: MODIFICATION - Add bounds check ---
+                if (step.targetSegment < 0 || step.targetSegment >= 4) {
+                    Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid segment %d for PULSE on track %d. Skipping.", step.targetSegment, i);
+                    advance_step = true;
+                    break;
+                }
+                // --- END: MODIFICATION ---
+                if (!track.stepInitialized) {
+                    track.isPulsing[step.targetSegment] = true;
+                    track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
+                    track.pulseStates[step.targetSegment] = true;
+                    track.lastPulseToggle[step.targetSegment] = millis();
                     track.stepInitialized = true;
                 }
                 if (!track.isPulsing[step.targetSegment]) {
@@ -1154,13 +1159,18 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_FLASH:
+                // --- START: MODIFICATION - Add bounds check ---
+                if (step.targetSegment < 0 || step.targetSegment >= 4) {
+                    Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid segment %d for FLASH on track %d. Skipping.", step.targetSegment, i);
+                    advance_step = true;
+                    break;
+                }
+                // --- END: MODIFICATION ---
                 if (!track.stepInitialized) {
-                    if (step.targetSegment >= 0 && step.targetSegment < 4) {
-                        track.isFlashing[step.targetSegment] = true;
-                        track.flashEndTimes[step.targetSegment] = (step.intParam == 0) ? 0 : millis() + step.intParam;
-                        track.flashStates[step.targetSegment] = true;
-                        track.lastFlashToggle[step.targetSegment] = millis();
-                    }
+                    track.isFlashing[step.targetSegment] = true;
+                    track.flashEndTimes[step.targetSegment] = (step.intParam == 0) ? 0 : millis() + step.intParam;
+                    track.flashStates[step.targetSegment] = true;
+                    track.lastFlashToggle[step.targetSegment] = millis();
                     track.stepInitialized = true;
                 }
                 if (!track.isFlashing[step.targetSegment]) {
