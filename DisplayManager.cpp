@@ -551,63 +551,113 @@ void restoreDisplayRow(int row) {
  * @param updateLast If true, the last time departed row is updated.
  */
 void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool updateLast) {
-  if (isDisplayAsleep || isAnimating || !hardwareInitialized) {
-    if(isAnimating) {
+    if (isDisplayAsleep || isAnimating || !hardwareInitialized) {
+        return;
     }
-    return;
-  }
 
 #if ENABLE_HARDWARE
+    // Helper lambda to format and print a row with blinking logic
+    auto printRow = [&](DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal, int rowIndex) {
+        char s_month[4], s_day[3], s_year[5], s_time[5];
+        char ampm_char;
+        SequencerTrack& track = sequencerTracks[rowIndex];
+
+        strftime(s_month, sizeof(s_month), "%b", &timeinfo);
+        s_month[0] = toupper(s_month[0]);
+        s_month[1] = toupper(s_month[1]);
+        s_month[2] = toupper(s_month[2]);
+
+        strftime(s_day, sizeof(s_day), "%d", &timeinfo);
+        snprintf(s_year, sizeof(s_year), "%d", year);
+
+        if (currentSettings.displayFormat24h) {
+            strftime(s_time, sizeof(s_time), "%H%M", &timeinfo);
+            ampm_char = ' ';
+        } else {
+            strftime(s_time, sizeof(s_time), "%I%M", &timeinfo);
+            strftime(&ampm_char, 2, "%p", &timeinfo);
+        }
+
+        if (row.am_pin != -1 && row.pm_pin != -1) {
+            if (ampm_char == 'A') {
+                digitalWrite(row.am_pin, HIGH);
+                digitalWrite(row.pm_pin, LOW);
+            } else if (ampm_char == 'P') {
+                digitalWrite(row.am_pin, LOW);
+                digitalWrite(row.pm_pin, HIGH);
+            } else {
+                digitalWrite(row.am_pin, LOW);
+                digitalWrite(row.pm_pin, LOW);
+            }
+        }
+
+        // Month (Segment 0)
+        if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(row.month, "   ", 1);
+        else printToDisplay(row.month, s_month, 1);
+
+        // Day (Segment 1)
+        if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(row.day, "  ", 2);
+        else printToDisplay(row.day, s_day, 2);
+
+        // Year (Segment 2)
+        if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(row.year, "    ");
+        else printToDisplay(row.year, s_year);
+
+        // Time (Segment 3)
+        if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(row.time, "    ");
+        else printToDisplay(row.time, s_time, 0, showDecimal);
+    };
+
     if (timeSynchronized) {
-      time_t now_t;
-      struct tm dest_timeinfo, present_timeinfo;
+        time_t now_t;
+        struct tm dest_timeinfo, present_timeinfo;
 
-      if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-        time(&now_t);
-        // --- Destination Time ---
-        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-        tzset();
-        localtime_r(&now_t, &dest_timeinfo);
-        // --- Present Time ---
-        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-        tzset();
-        localtime_r(&now_t, &present_timeinfo);
-        xSemaphoreGive(xTimeLibMutex);
-      }
+        if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+            time(&now_t);
+            // --- Destination Time ---
+            setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+            tzset();
+            localtime_r(&now_t, &dest_timeinfo);
+            // --- Present Time ---
+            setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+            tzset();
+            localtime_r(&now_t, &present_timeinfo);
+            xSemaphoreGive(xTimeLibMutex);
+        }
 
-      if (updateDest) {
-          dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
-          if (!isRowInManualMode[0]) {
-              updateDisplayRow(destRow, dest_timeinfo, currentSettings.destinationYear, true);
-          } else {
-              if (!manualDisplayText[0][0].empty()) printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
-              if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
-              if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
-              if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
-          }
-          if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
-            xSemaphoreGive(xDisplayHardwareMutex);
-          }
-      }
+        if (updateDest) {
+            dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+            if (!isRowInManualMode[0]) {
+                printRow(destRow, dest_timeinfo, currentSettings.destinationYear, true, 0);
+            } else {
+                if (!manualDisplayText[0][0].empty()) printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
+                if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
+                if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
+                if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
+            }
+            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
+                xSemaphoreGive(xDisplayHardwareMutex);
+            }
+        }
 
-      if (updatePres) {
-          bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
-          if(!isRowInManualMode[1]) {
-              updateDisplayRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent);
-          } else {
-              if (!manualDisplayText[1][0].empty()) printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
-              if (!manualDisplayText[1][1].empty()) printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
-              if (!manualDisplayText[1][2].empty()) printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
-              if (!manualDisplayText[1][3].empty()) printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
-          }
-          if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-            presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
-            xSemaphoreGive(xDisplayHardwareMutex);
-          }
-      }
+        if (updatePres) {
+            bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
+            if (!isRowInManualMode[1]) {
+                printRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent, 1);
+            } else {
+                if (!manualDisplayText[1][0].empty()) printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
+                if (!manualDisplayText[1][1].empty()) printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
+                if (!manualDisplayText[1][2].empty()) printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
+                if (!manualDisplayText[1][3].empty()) printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
+            }
+            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
+                vTaskDelay(pdMS_TO_TICKS(2));
+                xSemaphoreGive(xDisplayHardwareMutex);
+            }
+        }
     }
 
     // --- Last Time Departed ---
@@ -620,8 +670,8 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
         lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
         lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
 
-        if(!isRowInManualMode[2]) {
-            updateDisplayRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true);
+        if (!isRowInManualMode[2]) {
+            printRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true, 2);
         } else {
             if (!manualDisplayText[2][0].empty()) printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
             if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
@@ -629,9 +679,9 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
             if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
         }
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-          lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-          vTaskDelay(pdMS_TO_TICKS(2));
-          xSemaphoreGive(xDisplayHardwareMutex);
+            lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+            vTaskDelay(pdMS_TO_TICKS(2));
+            xSemaphoreGive(xDisplayHardwareMutex);
         }
     }
 #endif
