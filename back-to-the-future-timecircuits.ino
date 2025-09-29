@@ -1068,8 +1068,6 @@ void updateDisplayState() {
 void handleDisplay() {
     // These effects can run concurrently with the main display modes
     handleTemporalEcho();
-    handleSequencer();
-    handleAllSequencerMarquees();
     handlePresetCycling();
     handleSleepSchedule();
 
@@ -1203,6 +1201,12 @@ void loop() {
             }
             
             stockManager.loop();
+
+            // --- START: MODIFICATION - Run sequencer on every loop ---
+            // This ensures that sequences can run in parallel with any display mode.
+            handleSequencer();
+            handleAllSequencerMarquees();
+            // --- END: MODIFICATION ---
 
             // --- NEW: Audio State Synchronization Safety Net ---
             // Periodically check if the application's radio state is out of sync with the audio library's state.
