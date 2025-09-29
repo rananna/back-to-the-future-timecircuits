@@ -767,18 +767,18 @@ void setupWebRoutes() {
 
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
     JsonDocument doc;
-    doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
+    doc["dataLinkEnabled"] = (currentSettings.displayMode == DMS_DATA_LINK);
     doc["numDataPoints"] = currentSettings.numDataPoints;
     doc["mqttBroker"] = currentSettings.mqttBroker.c_str();
     doc["mqttPort"] = currentSettings.mqttPort;
     doc["mqttUser"] = currentSettings.mqttUser.c_str();
     doc["mqttPassword"] = currentSettings.mqttPassword.c_str();
-    doc["weatherModeEnabled"] = currentSettings.weatherModeEnabled;
+    doc["weatherModeEnabled"] = (currentSettings.displayMode == DMS_WEATHER);
     doc["cityName"] = currentSettings.cityName.c_str();
     doc["useMetricUnits"] = currentSettings.useMetricUnits;
     doc["latitude"] = currentSettings.latitude;
     doc["longitude"] = currentSettings.longitude;
-    doc["stockTickerModeEnabled"] = currentSettings.stockTickerModeEnabled;
+    doc["stockTickerModeEnabled"] = (currentSettings.displayMode == DMS_STOCK_TICKER);
     doc["stockRefreshInterval"] = currentSettings.stockRefreshInterval;
     doc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
     doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
