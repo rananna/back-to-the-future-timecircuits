@@ -474,7 +474,7 @@ void handleHaDiscovery() {
             publishDiscoveryMessage(doc, "switch");
             break;
 
-        case HA_DISCOVERY_PROFILE_SELECTOR:
+        case HA_DISCOVERY_PROFILE_SELECTOR: {
              Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: PROFILE_SELECTOR");
             doc["name"] = "Profile";
             doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_profile";
@@ -491,6 +491,7 @@ void handleHaDiscovery() {
             doc["entity_category"] = "config";
             publishDiscoveryMessage(doc, "select");
             break;
+        }
 
         case HA_DISCOVERY_NOTIFICATION_ENTITIES: {
             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: NOTIFICATION_ENTITIES (%d)", discoverySubIndex);
@@ -518,15 +519,16 @@ void handleHaDiscovery() {
             break;
         }
 
-        case HA_DISCOVERY_CLEANUP_AUDIO:
+        case HA_DISCOVERY_CLEANUP_AUDIO: {
             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: CLEANUP_AUDIO");
             clearHaEntity("text", "override_message");
             clearHaEntity("select", "play_sound");
             clearHaEntity("text", "tts_text");
             clearHaEntity("sensor", "audio_status");
             break;
+        }
 
-        case HA_DISCOVERY_DISPLAY_MODE:
+        case HA_DISCOVERY_DISPLAY_MODE: {
             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: DISPLAY_MODE");
             doc["name"] = "Display Mode";
             doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_display_mode";
@@ -542,8 +544,9 @@ void handleHaDiscovery() {
             doc["entity_category"] = "config";
             publishDiscoveryMessage(doc, "select");
             break;
+        }
 
-        case HA_DISCOVERY_WEATHER_ENTITIES:
+        case HA_DISCOVERY_WEATHER_ENTITIES: {
             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: WEATHER_ENTITIES (%d)", discoverySubIndex);
             if(discoverySubIndex == 0) {
                 doc["name"] = "Weather City";
@@ -567,8 +570,9 @@ void handleHaDiscovery() {
             discoverySubIndex++;
             advance_state = (discoverySubIndex >= 2);
             break;
+        }
 
-        case HA_DISCOVERY_AUDIO_SENSORS:
+        case HA_DISCOVERY_AUDIO_SENSORS: {
             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: AUDIO_SENSORS (%d)", discoverySubIndex);
             if(discoverySubIndex == 0) {
                 doc["name"] = "Audio Stream Status";
@@ -595,21 +599,25 @@ void handleHaDiscovery() {
             discoverySubIndex++;
             advance_state = (discoverySubIndex >= 3);
             break;
+        }
 
-        case HA_DISCOVERY_PRESET_SELECTOR:
+        case HA_DISCOVERY_PRESET_SELECTOR: {
             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: PRESET_SELECTOR");
             publishHaPresetSelector();
             break;
+        }
 
-        case HA_DISCOVERY_DEVICE_TRIGGERS:
+        case HA_DISCOVERY_DEVICE_TRIGGERS: {
             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: DEVICE_TRIGGERS");
             publishDeviceTriggers();
             break;
+        }
 
-        default:
+        default: {
             Log_printf(LOG_LEVEL_INFO, "HA Discovery: Unknown state %d or process finished. Stopping.", discoveryState);
             discoveryState = HA_DISCOVERY_COMPLETE;
             break;
+        }
     }
 
     if (advance_state) {
