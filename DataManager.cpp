@@ -851,7 +851,7 @@ void fetchDataLink() {
         return;
     }
 
-    if (!currentSettings.dataLinkEnabled) {
+    if (currentSettings.displayMode != DMS_DATA_LINK) {
         xSemaphoreGive(xDisplayDataMutex);
         return;
     }

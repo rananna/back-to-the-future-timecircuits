@@ -504,6 +504,10 @@ void applySettingsFromJson(const JsonObject& obj) {
     if (oldDisplayMode == DMS_WEATHER && currentSettings.displayMode != DMS_WEATHER) {
         resetWeatherFetchState();
     }
+
+    if (oldDisplayMode != currentSettings.displayMode) {
+        publishDisplayMode(currentSettings.displayMode);
+    }
 }
 
 
@@ -1214,7 +1218,7 @@ void loop() {
 
             // --- START: MODIFICATION - Periodic Stock Manager Reset ---
             static unsigned long lastStockManagerReset = 0;
-            if (currentSettings.stockTickerModeEnabled) {
+            if (currentSettings.displayMode == DMS_STOCK_TICKER) {
                 if (lastStockManagerReset == 0) {
                     lastStockManagerReset = millis();
                 }

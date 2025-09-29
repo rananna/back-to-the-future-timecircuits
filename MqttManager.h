@@ -30,6 +30,7 @@ void updateHaStatus(const char* status);
 void publishAllHaStates();
 void clearHaEntity(const char* component, const char* unique_id_suffix);
 void publishDeviceTriggers();
+void publishDisplayMode(int mode);
 void publishTimeSensors();
 void startAudioStream(const char* url, bool is_tts, int volume = -1);
 void stopAudioStream(bool isTemporary = false);

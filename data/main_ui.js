@@ -283,18 +283,23 @@ async function applySettings(timecircuits, temporal, datalink) {
  * @param {object} datalink The Data Link settings.
  */
 async function applyDataLinkSettings(datalink) {
-    // Apply the main Data Link and weather settings
-    document.getElementById('weatherModeEnabled').checked = datalink.weatherModeEnabled;
-    document.getElementById('dataLinkEnabled').checked = datalink.dataLinkEnabled;
-    document.getElementById('stockTickerModeEnabled').checked = datalink.stockTickerModeEnabled;
-    
-    document.getElementById('weatherSettingsContainer').style.display = datalink.weatherModeEnabled ? 'block' : 'none';
-    document.getElementById('dataLinkSettingsContainer').style.display = datalink.dataLinkEnabled ? 'block' : 'none';
-    document.getElementById('stockTickerSettingsContainer').style.display = datalink.stockTickerModeEnabled ? 'block' : 'none';
+    // DMS_NORMAL_CLOCK = 0, DMS_STOCK_TICKER = 1, DMS_DATA_LINK = 2, DMS_WEATHER = 3
+    const displayMode = datalink.displayMode;
 
-    document.getElementById('weatherModeGroup').classList.toggle('disabled', datalink.dataLinkEnabled || datalink.stockTickerModeEnabled);
-    document.getElementById('dataLinkGroup').classList.toggle('disabled', datalink.weatherModeEnabled || datalink.stockTickerModeEnabled);
-    document.getElementById('stockTickerGroup').classList.toggle('disabled', datalink.weatherModeEnabled || datalink.dataLinkEnabled);
+    // Set the checked state of the toggles based on the displayMode
+    document.getElementById('stockTickerModeEnabled').checked = (displayMode === 1);
+    document.getElementById('dataLinkEnabled').checked = (displayMode === 2);
+    document.getElementById('weatherModeEnabled').checked = (displayMode === 3);
+
+    // Show/hide the corresponding settings containers
+    document.getElementById('stockTickerSettingsContainer').style.display = (displayMode === 1) ? 'block' : 'none';
+    document.getElementById('dataLinkSettingsContainer').style.display = (displayMode === 2) ? 'block' : 'none';
+    document.getElementById('weatherSettingsContainer').style.display = (displayMode === 3) ? 'block' : 'none';
+
+    // Disable the other mode groups to prevent multiple selections
+    document.getElementById('stockTickerGroup').classList.toggle('disabled', displayMode === 2 || displayMode === 3);
+    document.getElementById('dataLinkGroup').classList.toggle('disabled', displayMode === 1 || displayMode === 3);
+    document.getElementById('weatherModeGroup').classList.toggle('disabled', displayMode === 1 || displayMode === 2);
 
     document.getElementById('cityName').value = datalink.cityName || '';
     document.getElementById('useMetricUnits').checked = datalink.useMetricUnits;
@@ -302,7 +307,7 @@ async function applyDataLinkSettings(datalink) {
     document.getElementById('financialModelingPrepApiKey').value = datalink.financialModelingPrepApiKey || '';
     document.getElementById('stockRefreshInterval').value = datalink.stockRefreshInterval || 2;
 
-    if (datalink.stockTickerModeEnabled) {
+    if (displayMode === 1) { // If stock ticker mode is enabled
         loadStockAssets();
         updateStockStatus();
     }
@@ -350,6 +355,52 @@ async function applyDataLinkSettings(datalink) {
  * @param {string} status The current status of the radio ('stopped', 'connecting', 'playing', 'error').
  * @param {string} [message] An optional message, typically for errors.
  */
+function handleDisplayModeChange(changedCheckboxId) {
+    const checkboxes = {
+        weatherModeEnabled: 'weatherSettingsContainer',
+        dataLinkEnabled: 'dataLinkSettingsContainer',
+        stockTickerModeEnabled: 'stockTickerSettingsContainer'
+    };
+    const groupIds = {
+        weatherModeEnabled: 'weatherModeGroup',
+        dataLinkEnabled: 'dataLinkGroup',
+        stockTickerModeEnabled: 'stockTickerGroup'
+    };
+    const changedCheckbox = document.getElementById(changedCheckboxId);
+    const isChecked = changedCheckbox.checked;
+
+    // If a checkbox is checked, uncheck others and manage containers/groups
+    if (isChecked) {
+        for (const id in checkboxes) {
+            if (id !== changedCheckboxId) {
+                document.getElementById(id).checked = false;
+                document.getElementById(checkboxes[id]).style.display = 'none';
+                document.getElementById(groupIds[id]).classList.add('disabled');
+            }
+        }
+        document.getElementById(checkboxes[changedCheckboxId]).style.display = 'block';
+        document.getElementById(groupIds[changedCheckboxId]).classList.remove('disabled');
+
+        // Special actions for specific modes when enabled
+        if (changedCheckboxId === 'weatherModeEnabled' && document.getElementById('cityName').value) {
+            lookupCity();
+        } else if (changedCheckboxId === 'stockTickerModeEnabled') {
+            loadStockAssets();
+            updateStockStatus();
+        }
+    } else {
+        // If a checkbox is unchecked, just hide its container and enable all groups for re-selection
+        document.getElementById(checkboxes[changedCheckboxId]).style.display = 'none';
+        for (const id in groupIds) {
+            document.getElementById(groupIds[id]).classList.remove('disabled');
+        }
+    }
+
+    if (!isLoading) {
+        setSettingsChanged(true);
+    }
+}
+
 function updateRadioControls(status, message = '') {
     const controlBtn = document.getElementById('radioControlBtn');
     const statusDisplay = document.getElementById('radioStatus');
@@ -440,57 +491,10 @@ function attachEventListeners() {
         fetchTime();
     });
 
-   // Weather, Data Link, and Stock Ticker mode toggles
-    document.getElementById('weatherModeEnabled').onchange = (e) => {
-        const isChecked = e.target.checked;
-        document.getElementById('weatherSettingsContainer').style.display = isChecked ? 'block' : 'none';
-        document.getElementById('dataLinkGroup').classList.toggle('disabled', isChecked);
-        document.getElementById('stockTickerGroup').classList.toggle('disabled', isChecked);
-        if (isChecked) {
-            document.getElementById('dataLinkEnabled').checked = false;
-            document.getElementById('dataLinkSettingsContainer').style.display = 'none';
-            document.getElementById('stockTickerModeEnabled').checked = false;
-            document.getElementById('stockTickerSettingsContainer').style.display = 'none';
-            document.getElementById('weatherModeGroup').classList.remove('disabled');
-            // Instead of just fetching, trigger a lookup which includes geocoding validation
-            if (document.getElementById('cityName').value) {
-                lookupCity();
-            }
-        }
-        if (!isLoading) setSettingsChanged(true);
-    };
-
-    document.getElementById('dataLinkEnabled').onchange = (e) => {
-        const isChecked = e.target.checked;
-        document.getElementById('dataLinkSettingsContainer').style.display = isChecked ? 'block' : 'none';
-        document.getElementById('weatherModeGroup').classList.toggle('disabled', isChecked);
-        document.getElementById('stockTickerGroup').classList.toggle('disabled', isChecked);
-        if (isChecked) {
-            document.getElementById('weatherModeEnabled').checked = false;
-            document.getElementById('weatherSettingsContainer').style.display = 'none';
-            document.getElementById('stockTickerModeEnabled').checked = false;
-            document.getElementById('stockTickerSettingsContainer').style.display = 'none';
-            document.getElementById('dataLinkGroup').classList.remove('disabled');
-        }
-        if (!isLoading) setSettingsChanged(true);
-    };
-
-    document.getElementById('stockTickerModeEnabled').onchange = (e) => {
-        const isChecked = e.target.checked;
-        document.getElementById('stockTickerSettingsContainer').style.display = isChecked ? 'block' : 'none';
-        document.getElementById('dataLinkGroup').classList.toggle('disabled', isChecked);
-        document.getElementById('weatherModeGroup').classList.toggle('disabled', isChecked);
-        if (isChecked) {
-            document.getElementById('dataLinkEnabled').checked = false;
-            document.getElementById('dataLinkSettingsContainer').style.display = 'none';
-            document.getElementById('weatherModeEnabled').checked = false;
-            document.getElementById('weatherSettingsContainer').style.display = 'none';
-            document.getElementById('stockTickerGroup').classList.remove('disabled');
-            loadStockAssets();
-            updateStockStatus();
-        }
-        if (!isLoading) setSettingsChanged(true);
-    };
+    // Weather, Data Link, and Stock Ticker mode toggles
+    document.getElementById('weatherModeEnabled').onchange = () => handleDisplayModeChange('weatherModeEnabled');
+    document.getElementById('dataLinkEnabled').onchange = () => handleDisplayModeChange('dataLinkEnabled');
+    document.getElementById('stockTickerModeEnabled').onchange = () => handleDisplayModeChange('stockTickerModeEnabled');
 
     // Use event delegation for the stock fetch buttons. This ensures the click event
     // is handled even if the buttons are added to the DOM after the initial page load.
