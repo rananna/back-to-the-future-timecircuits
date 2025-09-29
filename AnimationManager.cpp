@@ -2,6 +2,9 @@
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DebugLog.h"
+
+// --- NEW: A global timeout for any single animation sequence track ---
+#define MAX_SEQUENCE_DURATION 60000 // 60 seconds
 #include "DisplayManager.h"
 #include "MqttManager.h"
 #include <WiFi.h>
@@ -77,6 +80,7 @@ void triggerFlashEffect(int row, int segment, int duration) {
     // Configure the track for the flash effect
     sequencerTracks[row].isActive = true;
     sequencerTracks[row].stepStartTime = millis();
+    sequencerTracks[row].trackStartTime = millis();
     sequencerTracks[row].originalBrightness = currentSettings.brightness;
 
     // Step 1: Flash the specified segment for the given duration
@@ -980,6 +984,14 @@ void handleSequencer() {
         SequencerTrack& track = sequencerTracks[i];
         DisplayRow& row = *rows[i];
 
+        // --- NEW: Check for track timeout ---
+        if (track.isActive && (millis() - track.trackStartTime > MAX_SEQUENCE_DURATION)) {
+            Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d timed out after %d ms. Aborting.", i, MAX_SEQUENCE_DURATION);
+            stopAndCleanupTrack(i);
+            needsDisplayUpdate = true;
+            continue; // Skip to the next track
+        }
+
         // --- Handle active effects for this track ---
 
         // Handle Fade Effect
@@ -1517,6 +1529,7 @@ void runSequencerTest() {
     sequencerTracks[0].steps[i++] = {SEQ_CMD_END, 0, 0, 0, 0, "", ""};
     sequencerTracks[0].isActive = true;
     sequencerTracks[0].stepStartTime = millis();
+    sequencerTracks[0].trackStartTime = millis();
 
     // --- Track 1: Middle Row - Demonstrates loops and high-level effects ---
     i = 0;
@@ -1529,6 +1542,7 @@ void runSequencerTest() {
     sequencerTracks[1].steps[i++] = {SEQ_CMD_END, 1, 0, 0, 0, "", ""};
     sequencerTracks[1].isActive = true;
     sequencerTracks[1].stepStartTime = millis();
+    sequencerTracks[1].trackStartTime = millis();
 
     // --- Track 2: Bottom Row - Demonstrates more visual effects and HA integration ---
     i = 0;
@@ -1542,6 +1556,7 @@ void runSequencerTest() {
     sequencerTracks[2].steps[i++] = {SEQ_CMD_END, 2, 0, 0, 0, "", ""};
     sequencerTracks[2].isActive = true;
     sequencerTracks[2].stepStartTime = millis();
+    sequencerTracks[2].trackStartTime = millis();
 
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Comprehensive Sequencer Test Started ---");
 }
