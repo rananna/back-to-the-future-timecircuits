@@ -1113,6 +1113,7 @@ void handleSequencer() {
                 if (track.loopCounter > 1) {
                     track.loopCounter--;
                     track.currentStep = track.loopStartStep;
+                    advance_step = true; // Ensure the next iteration starts the new step
                 } else {
                     track.loopStartStep = -1;
                     track.loopCounter = 0;
