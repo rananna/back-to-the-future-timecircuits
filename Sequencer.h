@@ -115,6 +115,9 @@ struct SequencerTrack {
     unsigned long lastScrambleUpdate = 0;
     std::string scrambleCurrentText;
 
+    // --- NEW: State for Crossfade command ---
+    int crossfadePhase = 0; // 0=inactive, 1=fading out, 2=fading in
+
     // --- State for HA Sensor Command ---
     bool isWaitingForHAState = false;
     std::string haSensorTopic;
@@ -173,6 +176,8 @@ struct SequencerTrack {
         scrambleCharIndex = 0;
         lastScrambleUpdate = 0;
         scrambleCurrentText.clear();
+
+        crossfadePhase = 0;
 
         isWaitingForHAState = false;
         haSensorTopic.clear();
