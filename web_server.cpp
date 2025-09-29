@@ -497,18 +497,16 @@ void sendFullSettingsToClient(uint32_t clientId) {
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
 
     // --- Add Data Link and other settings ---
-    doc["dataLinkEnabled"] = currentSettings.dataLinkEnabled;
+    doc["displayMode"] = currentSettings.displayMode;
     doc["numDataPoints"] = currentSettings.numDataPoints;
     doc["mqttBroker"] = currentSettings.mqttBroker.c_str();
     doc["mqttPort"] = currentSettings.mqttPort;
     doc["mqttUser"] = currentSettings.mqttUser.c_str();
     doc["mqttPassword"] = currentSettings.mqttPassword.c_str();
-    doc["weatherModeEnabled"] = currentSettings.weatherModeEnabled;
     doc["cityName"] = currentSettings.cityName.c_str();
     doc["useMetricUnits"] = currentSettings.useMetricUnits;
     doc["latitude"] = currentSettings.latitude;
     doc["longitude"] = currentSettings.longitude;
-    doc["stockTickerModeEnabled"] = currentSettings.stockTickerModeEnabled;
     doc["stockRefreshInterval"] = currentSettings.stockRefreshInterval;
     doc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
     doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
@@ -631,7 +629,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/stocks/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!currentSettings.stockTickerModeEnabled) {
+    if (currentSettings.displayMode != DMS_STOCK_TICKER) {
         request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled.\"}");
         return;
     }
@@ -657,7 +655,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/stocks/marquee", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!currentSettings.stockTickerModeEnabled) {
+    if (currentSettings.displayMode != DMS_STOCK_TICKER) {
         request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled.\"}");
         return;
     }
@@ -674,7 +672,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/stocks", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!currentSettings.stockTickerModeEnabled || stockManager.getAssets().empty()) {
+    if (currentSettings.displayMode != DMS_STOCK_TICKER || stockManager.getAssets().empty()) {
         request->send(200, "application/json", "[]");
         return;
     }

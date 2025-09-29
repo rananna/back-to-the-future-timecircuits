@@ -408,23 +408,31 @@ async function saveSettings() {
     settings.timeTravelSoundToggle = getChecked('timeTravelSoundToggle');
     settings.displayFormat24h = getChecked('displayFormat24h');
 
-    // Data Link, Weather & Stock Ticker Settings
-    settings.dataLinkEnabled = getChecked('dataLinkEnabled');
+    // --- Determine Display Mode ---
+    if (getChecked('stockTickerModeEnabled')) {
+        settings.displayMode = 1;
+    } else if (getChecked('dataLinkEnabled')) {
+        settings.displayMode = 2;
+    } else if (getChecked('weatherModeEnabled')) {
+        settings.displayMode = 3;
+    } else {
+        settings.displayMode = 0;
+    }
+
+    // --- Data Link, Weather & Stock Ticker Settings ---
     settings.mqttBroker = getValue('mqttBroker');
     settings.mqttUser = getValue('mqttUser');
     settings.mqttPassword = getValue('mqttPassword');
 
-    settings.weatherModeEnabled = getChecked('weatherModeEnabled');
     settings.cityName = getValue('cityName');
     settings.latitude = parseFloat(getValue('weatherLatitude', '0.0'));
     settings.longitude = parseFloat(getValue('weatherLongitude', '0.0'));
     settings.useMetricUnits = getChecked('useMetricUnits');
     
-    settings.stockTickerModeEnabled = getChecked('stockTickerModeEnabled');
     settings.financialModelingPrepApiKey = getValue('financialModelingPrepApiKey');
     settings.stockRefreshInterval = getIntValue('stockRefreshInterval', 2);
 
-    if (settings.stockTickerModeEnabled && !settings.financialModelingPrepApiKey) {
+    if (settings.displayMode === 1 && !settings.financialModelingPrepApiKey) {
         showMessage('FMP API Key is required for Stock Ticker Mode.', 'error');
         getEl('financialModelingPrepApiKey').classList.add('invalid-input');
         getEl('financialModelingPrepApiKey').focus();
@@ -434,9 +442,6 @@ async function saveSettings() {
 
     const stockAssets = [];
     document.querySelectorAll('#stockAssetList .asset-item').forEach(item => {
-        // --- START: MODIFICATION - Add null check for item ---
-        // This prevents an error if an invalid or null item is somehow
-        // in the list of elements.
         if (item && item.dataset) {
             stockAssets.push({
                 symbol: item.dataset.symbol,
@@ -444,17 +449,15 @@ async function saveSettings() {
                 timezone: item.dataset.timezone
             });
         }
-        // --- END: MODIFICATION ---
     });
     settings.stockAssets = stockAssets;
 
-    if (settings.dataLinkEnabled) {
+    if (settings.displayMode === 2) { // Data Link Mode
         const numDataPoints = getIntValue('numDataPoints', 0);
         settings.numDataPoints = numDataPoints;
         settings.dataPoints = [];
         for (let i = 0; i < numDataPoints; i++) {
-            // Use the new, consolidated helper function from main_ui.js to ensure all fields are captured correctly.
-            const point = getUIDataPoint(i, true); // `true` formats the data for the backend.
+            const point = getUIDataPoint(i, true);
             if (point) {
                 settings.dataPoints.push(point);
             }

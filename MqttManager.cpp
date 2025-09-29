@@ -185,6 +185,15 @@ void publishDeviceTriggers() {
     }
 }
 
+void publishDisplayMode(int mode) {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    const char* modes[] = {"Normal Clock", "Stock Ticker", "Weather", "Data Link"};
+    if (mode >= 0 && mode < 4) {
+        mqttClient.publish((base_topic + "/display_mode/state").c_str(), modes[mode], true);
+    }
+}
+
 void publishHaDiagnosticAttributes() {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
@@ -901,16 +910,21 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             currentSettings.timeTravelSoundToggle = (message == "ON");
             settingsChanged = true;
         } else if (component == "display_mode") {
+            int oldMode = currentSettings.displayMode;
             if (message == "Normal Clock") {
                 currentSettings.displayMode = DMS_NORMAL_CLOCK;
             } else if (message == "Stock Ticker") {
                 currentSettings.displayMode = DMS_STOCK_TICKER;
-            } else if (message == "Weather") {
-                currentSettings.displayMode = DMS_WEATHER;
             } else if (message == "Data Link") {
                 currentSettings.displayMode = DMS_DATA_LINK;
+            } else if (message == "Weather") {
+                currentSettings.displayMode = DMS_WEATHER;
             }
-            settingsChanged = true;
+
+            if (currentSettings.displayMode != oldMode) {
+                publishDisplayMode(currentSettings.displayMode);
+                settingsChanged = true;
+            }
         } else if (component == "weather_city") {
             if (currentSettings.cityName != message.c_str()) {
                 currentSettings.cityName = message.c_str();
