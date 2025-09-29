@@ -677,13 +677,29 @@ void handleWeatherDisplay() {
             }
 
             if (initialFetchTriggered && initialFetchStartTime > 0 && millis() - initialFetchStartTime > 30000) {
-                Log_printf(LOG_LEVEL_WARN, "Weather fetch task timed out. Deleting task.");
-                if (weatherTaskHandle != NULL) {
-                    vTaskDelete(weatherTaskHandle);
-                    weatherTaskHandle = NULL;
+                // --- START: MODIFICATION - Prevent timeout from overwriting other display modes ---
+                // Only proceed with the timeout logic if we are still in weather mode.
+                // This prevents a race condition where a slow fetch timeout could revert
+                // a recently changed display mode.
+                if (currentSettings.displayMode == DMS_WEATHER) {
+                    Log_printf(LOG_LEVEL_WARN, "Weather fetch task timed out. Deleting task.");
+                    if (weatherTaskHandle != NULL) {
+                        vTaskDelete(weatherTaskHandle);
+                        weatherTaskHandle = NULL;
+                    }
+                    isFetchingWeather = false;
+                    handleWeatherTimeout(); // This function will reset the display mode
+                } else {
+                    Log_printf(LOG_LEVEL_INFO, "Weather fetch timed out, but display mode has changed. Ignoring timeout.");
+                    // Just clean up the task and flags without changing settings.
+                    if (weatherTaskHandle != NULL) {
+                        vTaskDelete(weatherTaskHandle);
+                        weatherTaskHandle = NULL;
+                    }
+                    isFetchingWeather = false;
+                    resetWeatherFetchState(); // Reset flags to allow a clean fetch next time
                 }
-                isFetchingWeather = false;
-                handleWeatherTimeout();
+                // --- END: MODIFICATION ---
                 xSemaphoreGive(xDisplayDataMutex);
                 return;
             }
