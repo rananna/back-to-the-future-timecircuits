@@ -10,14 +10,40 @@
 // Defines the available commands for the sequencer
 enum SequenceCommand {
     SEQ_CMD_NONE,
+    SEQ_CMD_END, // Marks the end of a sequence
+
+    // Basic Commands
     SEQ_CMD_WAIT,
-    SEQ_CMD_MARQUEE,
+    SEQ_CMD_SOUND,
+
+    // Display Control
+    SEQ_CMD_SET_TEXT,
+    SEQ_CMD_CLEAR_SEGMENT,
+    SEQ_CMD_SET_BRIGHTNESS,
+    SEQ_CMD_RESTORE_ROW,
+
+    // Visual Effects
     SEQ_CMD_FADE_IN,
     SEQ_CMD_FADE_OUT,
     SEQ_CMD_PULSE,
     SEQ_CMD_FLASH,
-    SEQ_CMD_SOUND,
-    SEQ_CMD_END // Marks the end of a sequence
+    SEQ_CMD_MARQUEE,
+    SEQ_CMD_SCANNER,
+    SEQ_CMD_TYPEWRITER,
+    SEQ_CMD_WIPE,
+    SEQ_CMD_BAR_GRAPH,
+    SEQ_CMD_RANDOM_FLICKER_TEXT,
+    SEQ_CMD_SCRAMBLE_TEXT,
+    SEQ_CMD_SCROLL_IN,
+    SEQ_CMD_CROSSFADE_TEXT,
+
+    // Logic & Advanced
+    SEQ_CMD_LOOP_START,
+    SEQ_CMD_LOOP_END,
+    SEQ_CMD_COUNTDOWN,
+    SEQ_CMD_TRIGGER_ANIMATION,
+    SEQ_CMD_MQTT_PUBLISH,
+    SEQ_CMD_DISPLAY_HA_SENSOR
 };
 
 // Represents a single step in a sequence
@@ -26,7 +52,9 @@ struct SequenceStep {
     int targetRow;
     int targetSegment;
     int intParam;
+    int intParam2; // Added for commands needing a second integer
     std::string stringParam;
+    std::string stringParam2; // Added for commands needing a second string
 };
 
 // Represents a single track of commands for one display row
@@ -36,20 +64,22 @@ struct SequencerTrack {
     unsigned long stepStartTime;
     bool stepInitialized;
 
-    // --- NEW: Local state for marquee commands ---
-    bool isMarqueeActive = false;
-    std::string marqueeText;
-    int marqueeScrollPosition = 0;
-    unsigned long lastMarqueeScrollTime = 0;
+    // --- State for Looping ---
+    int loopStartStep = -1;
+    int loopCounter = 0;
 
-    // --- NEW: Local state for fade, pulse, and flash effects ---
+    // --- State for Effects ---
     bool isFading = false;
     unsigned long fadeStartTime = 0;
     int fadeDuration = 0;
     bool isFadeIn = false;
     uint8_t originalBrightness = 0;
 
-    // Pulse and flash states are per-segment (4 segments per row)
+    bool isMarqueeActive = false;
+    std::string marqueeText;
+    int marqueeScrollPosition = 0;
+    unsigned long lastMarqueeScrollTime = 0;
+
     bool isPulsing[4] = {false};
     unsigned long pulseEndTimes[4] = {0};
     bool pulseStates[4] = {false};
@@ -60,19 +90,48 @@ struct SequencerTrack {
     bool flashStates[4] = {false};
     unsigned long lastFlashToggle[4] = {0};
 
+    // --- State for New High-Level Commands ---
+    int countdownValue = 0;
+    unsigned long countdownLastUpdate = 0;
+
+    int scannerPosition = 0;
+    bool scannerDirection = true; // true=right, false=left
+    unsigned long lastScannerUpdate = 0;
+
+    int typewriterIndex = 0;
+    unsigned long lastTypewriterUpdate = 0;
+
+    int wipeSegment = 0;
+    unsigned long lastWipeUpdate = 0;
+
+    float barGraphPercentage = 0.0f;
+    unsigned long lastBarGraphUpdate = 0;
+
+    unsigned long lastFlickerUpdate = 0;
+    std::string flickerOriginalText;
+
+    int scrambleCharIndex = 0;
+    unsigned long lastScrambleUpdate = 0;
+    std::string scrambleCurrentText;
+
+    // --- State for HA Sensor Command ---
+    bool isWaitingForHAState = false;
+    std::string haSensorTopic;
+    bool haStateReceived = false;
+
     SequenceStep steps[MAX_SEQUENCE_STEPS];
 
     /**
      * @brief Resets the track to a clean, default state.
-     * @details Zeros out all state variables, ensuring that no leftover
-     * effects or properties from a previous run can interfere with the next
-     * sequence. This is critical for preventing visual glitches.
      */
     void reset() {
         isActive = false;
         currentStep = 0;
         stepStartTime = 0;
         stepInitialized = false;
+
+        loopStartStep = -1;
+        loopCounter = 0;
 
         isMarqueeActive = false;
         marqueeText.clear();
@@ -83,7 +142,6 @@ struct SequencerTrack {
         fadeStartTime = 0;
         fadeDuration = 0;
         isFadeIn = false;
-        // Do not reset originalBrightness here, as it's set at the start of a fade
 
         for (int i = 0; i < 4; ++i) {
             isPulsing[i] = false;
@@ -97,9 +155,29 @@ struct SequencerTrack {
             lastFlashToggle[i] = 0;
         }
 
-        // Clear out the old steps to prevent any carry-over
+        countdownValue = 0;
+        countdownLastUpdate = 0;
+        scannerPosition = 0;
+        scannerDirection = true;
+        lastScannerUpdate = 0;
+        typewriterIndex = 0;
+        lastTypewriterUpdate = 0;
+        wipeSegment = 0;
+        lastWipeUpdate = 0;
+        barGraphPercentage = 0.0f;
+        lastBarGraphUpdate = 0;
+        lastFlickerUpdate = 0;
+        flickerOriginalText.clear();
+        scrambleCharIndex = 0;
+        lastScrambleUpdate = 0;
+        scrambleCurrentText.clear();
+
+        isWaitingForHAState = false;
+        haSensorTopic.clear();
+        haStateReceived = false;
+
         for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
-            steps[i] = { SEQ_CMD_NONE, 0, 0, 0, "" };
+            steps[i] = { SEQ_CMD_NONE, 0, 0, 0, 0, "", "" };
         }
     }
 };

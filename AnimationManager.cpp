@@ -1040,10 +1040,47 @@ void handleSequencer() {
         unsigned long commandElapsed = millis() - track.stepStartTime;
 
         switch (step.command) {
-            case SEQ_CMD_WAIT:
-                // --- FIX: Use stepInitialized for consistency ---
+            // --- Display Control ---
+            case SEQ_CMD_SET_TEXT:
                 if (!track.stepInitialized) {
-                    // No action is needed for WAIT, just acknowledge the step has started.
+                    updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_CLEAR_SEGMENT:
+                if (!track.stepInitialized) {
+                    updateDisplaySegment(step.targetRow, step.targetSegment, "");
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_SET_BRIGHTNESS:
+                if (!track.stepInitialized) {
+                    uint8_t brightness = (uint8_t)constrain(step.intParam, 0, 7);
+                    row.month.setBrightness(brightness);
+                    row.day.setBrightness(brightness);
+                    row.year.setBrightness(brightness);
+                    row.time.setBrightness(brightness);
+                    needsDisplayUpdate = true;
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_RESTORE_ROW:
+                if (!track.stepInitialized) {
+                    restoreDisplayRow(step.targetRow);
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            // --- Basic Commands ---
+            case SEQ_CMD_WAIT:
+                if (!track.stepInitialized) {
                     track.stepInitialized = true;
                 }
                 if (commandElapsed >= (unsigned long)step.intParam) {
@@ -1051,6 +1088,39 @@ void handleSequencer() {
                 }
                 break;
 
+            case SEQ_CMD_SOUND:
+                if (!track.stepInitialized) {
+                    playSound(step.stringParam.c_str());
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            // --- Logic Commands ---
+            case SEQ_CMD_LOOP_START:
+                if (!track.stepInitialized) {
+                    track.loopStartStep = track.currentStep;
+                    track.loopCounter = step.intParam;
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_LOOP_END:
+                if (!track.stepInitialized) {
+                    track.stepInitialized = true;
+                }
+                if (track.loopCounter > 1) {
+                    track.loopCounter--;
+                    track.currentStep = track.loopStartStep;
+                } else {
+                    track.loopStartStep = -1;
+                    track.loopCounter = 0;
+                    advance_step = true;
+                }
+                break;
+
+            // --- Effects ---
             case SEQ_CMD_FADE_IN:
             case SEQ_CMD_FADE_OUT:
                 if (!track.stepInitialized) {
@@ -1061,7 +1131,6 @@ void handleSequencer() {
                     track.fadeStartTime = millis();
                     track.originalBrightness = currentSettings.brightness;
                     track.stepInitialized = true;
-                    Log_printf(LOG_LEVEL_INFO, "SEQ: Track %d starting %s.", i, track.isFadeIn ? "Fade In" : "Fade Out");
                 }
                 if (!track.isFading) {
                     advance_step = true;
@@ -1070,12 +1139,11 @@ void handleSequencer() {
 
             case SEQ_CMD_PULSE:
                  if (!track.stepInitialized) {
-                    int seg = step.targetSegment;
-                    if (seg >= 0 && seg < 4) {
-                        track.isPulsing[seg] = true;
-                        track.pulseEndTimes[seg] = millis() + step.intParam;
-                        track.pulseStates[seg] = true; // Start ON
-                        track.lastPulseToggle[seg] = millis();
+                    if (step.targetSegment >= 0 && step.targetSegment < 4) {
+                        track.isPulsing[step.targetSegment] = true;
+                        track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
+                        track.pulseStates[step.targetSegment] = true;
+                        track.lastPulseToggle[step.targetSegment] = millis();
                     }
                     track.stepInitialized = true;
                 }
@@ -1086,27 +1154,16 @@ void handleSequencer() {
 
             case SEQ_CMD_FLASH:
                 if (!track.stepInitialized) {
-                    int seg = step.targetSegment;
-                    if (seg >= 0 && seg < 4) {
-                        track.isFlashing[seg] = true;
-                        track.flashEndTimes[seg] = (step.intParam == 0) ? 0 : millis() + step.intParam;
-                        track.flashStates[seg] = true; // Start ON
-                        track.lastFlashToggle[seg] = millis();
+                    if (step.targetSegment >= 0 && step.targetSegment < 4) {
+                        track.isFlashing[step.targetSegment] = true;
+                        track.flashEndTimes[step.targetSegment] = (step.intParam == 0) ? 0 : millis() + step.intParam;
+                        track.flashStates[step.targetSegment] = true;
+                        track.lastFlashToggle[step.targetSegment] = millis();
                     }
                     track.stepInitialized = true;
                 }
                 if (!track.isFlashing[step.targetSegment]) {
                     advance_step = true;
-                }
-                break;
-
-            case SEQ_CMD_SOUND:
-                // This is now a "fire-and-forget" command. It starts the sound
-                // and immediately moves to the next step without waiting for it to finish.
-                if (!track.stepInitialized) {
-                    playSound(step.stringParam.c_str());
-                    track.stepInitialized = true; // Mark as initialized
-                    advance_step = true;          // Immediately advance to the next step
                 }
                 break;
 
@@ -1120,6 +1177,254 @@ void handleSequencer() {
                 }
                 break;
 
+            case SEQ_CMD_COUNTDOWN:
+                if (!track.stepInitialized) {
+                    track.countdownValue = step.intParam;
+                    track.countdownLastUpdate = millis();
+                    updateDisplaySegment(step.targetRow, step.targetSegment, std::to_string(track.countdownValue));
+                    track.stepInitialized = true;
+                }
+                if (millis() - track.countdownLastUpdate >= (unsigned long)step.intParam2) {
+                    track.countdownValue--;
+                    track.countdownLastUpdate = millis();
+                    if (track.countdownValue >= 0) {
+                        updateDisplaySegment(step.targetRow, step.targetSegment, std::to_string(track.countdownValue));
+                    }
+                }
+                if (track.countdownValue < 0) {
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_SCANNER:
+                if (!track.stepInitialized) {
+                    track.scannerPosition = 0;
+                    track.scannerDirection = true;
+                    track.lastScannerUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if (commandElapsed >= (unsigned long)step.intParam) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastScannerUpdate > (unsigned long)step.intParam2) {
+                        std::string scan_str = "             "; // 13 spaces
+                        scan_str[track.scannerPosition] = '#';
+                        updateDisplaySegment(step.targetRow, 0, scan_str.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, scan_str.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, scan_str.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, scan_str.substr(9,4));
+
+                        if (track.scannerDirection) {
+                            track.scannerPosition++;
+                            if (track.scannerPosition >= 12) track.scannerDirection = false;
+                        } else {
+                            track.scannerPosition--;
+                            if (track.scannerPosition <= 0) track.scannerDirection = true;
+                        }
+                        track.lastScannerUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_TYPEWRITER:
+                if (!track.stepInitialized) {
+                    track.typewriterIndex = 0;
+                    track.lastTypewriterUpdate = millis();
+                    updateDisplaySegment(step.targetRow, step.targetSegment, ""); // Clear segment first
+                    track.stepInitialized = true;
+                }
+                if ((unsigned)track.typewriterIndex >= step.stringParam.length()) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
+                        track.typewriterIndex++;
+                        updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam.substr(0, track.typewriterIndex));
+                        track.lastTypewriterUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_WIPE:
+                 if (!track.stepInitialized) {
+                    track.wipeSegment = 0;
+                    track.lastWipeUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if (track.wipeSegment >= 13) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastWipeUpdate > (unsigned long)step.intParam) {
+                        std::string wipe_str = "             ";
+                        for(int j=0; j < track.wipeSegment; j++) {
+                            wipe_str[j] = step.stringParam[j];
+                        }
+                        updateDisplaySegment(step.targetRow, 0, wipe_str.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, wipe_str.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, wipe_str.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, wipe_str.substr(9,4));
+                        track.wipeSegment++;
+                        track.lastWipeUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_BAR_GRAPH:
+                 if (!track.stepInitialized) {
+                    track.barGraphPercentage = 0.0f;
+                    track.lastBarGraphUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if (track.barGraphPercentage >= 1.0f) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastBarGraphUpdate > (unsigned long)step.intParam2) {
+                        track.barGraphPercentage += 0.1f;
+                        std::string bar = "-------------";
+                        int lit_count = (int)(track.barGraphPercentage * 13);
+                        for(int j=0; j<lit_count; j++) bar[j] = '=';
+                        updateDisplaySegment(step.targetRow, 0, bar.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, bar.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, bar.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, bar.substr(9,4));
+                        track.lastBarGraphUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_RANDOM_FLICKER_TEXT:
+                if (!track.stepInitialized) {
+                    track.flickerOriginalText = step.stringParam;
+                    track.lastFlickerUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if (commandElapsed >= (unsigned long)step.intParam) {
+                    // Restore original text at the end
+                    updateDisplaySegment(step.targetRow, step.targetSegment, track.flickerOriginalText);
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastFlickerUpdate > (unsigned long)step.intParam2) {
+                        std::string temp = track.flickerOriginalText;
+                        for (size_t j = 0; j < temp.length(); ++j) {
+                            if (random(100) < 30) { // 30% chance to flicker a character
+                                temp[j] = (char)random(33, 126);
+                            }
+                        }
+                        updateDisplaySegment(step.targetRow, step.targetSegment, temp);
+                        track.lastFlickerUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_SCRAMBLE_TEXT:
+                if (!track.stepInitialized) {
+                    track.scrambleCurrentText = std::string(step.stringParam.length(), ' ');
+                    track.scrambleCharIndex = 0;
+                    track.lastScrambleUpdate = millis();
+                    track.stepInitialized = true;
+                }
+
+                if ((unsigned)track.scrambleCharIndex >= step.stringParam.length()) {
+                    advance_step = true;
+                } else {
+                     if (millis() - track.lastScrambleUpdate > (unsigned long)step.intParam) {
+                        // Update the text with random characters, but lock in the final ones
+                        std::string temp_scramble = step.stringParam;
+                        for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
+                             temp_scramble[j] = (char)random(33,126);
+                        }
+                        updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
+
+                        // Check if it's time to lock in the next character
+                        if(millis() - track.lastScrambleUpdate > (unsigned long)step.intParam2) {
+                            track.scrambleCharIndex++;
+                            track.lastScrambleUpdate = millis();
+                        }
+                    }
+                }
+                break;
+
+            case SEQ_CMD_SCROLL_IN:
+                // This is a simplified implementation. A more robust one would handle different directions.
+                if (!track.stepInitialized) {
+                    track.typewriterIndex = 0; // Re-using typewriter state for simplicity
+                    track.lastTypewriterUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if ((unsigned)track.typewriterIndex >= step.stringParam.length()) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
+                        track.typewriterIndex++;
+                        std::string text = step.stringParam.substr(0, track.typewriterIndex);
+                        while(text.length() < 13) text = " " + text;
+                        updateDisplaySegment(step.targetRow, 0, text.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, text.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, text.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, text.substr(9,4));
+                        track.lastTypewriterUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_CROSSFADE_TEXT:
+                 if (!track.stepInitialized) {
+                    // Fade out
+                    track.isFading = true;
+                    track.isFadeIn = false;
+                    track.fadeDuration = step.intParam / 2;
+                    track.fadeStartTime = millis();
+                    track.stepInitialized = true;
+                }
+                if (track.stepInitialized && !track.isFading) {
+                    // When fade out is complete, change text and fade in
+                    updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+                    track.isFading = true;
+                    track.isFadeIn = true;
+                    track.fadeDuration = step.intParam / 2;
+                    track.fadeStartTime = millis();
+                }
+                 if (track.isFadeIn && !track.isFading) {
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_TRIGGER_ANIMATION:
+                if (!track.stepInitialized) {
+                    if (step.intParam == 1) {
+                        startTimeTravelAnimation();
+                    } else if (step.intParam == 2) {
+                        startStyledAnimation();
+                    }
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_MQTT_PUBLISH:
+                if (!track.stepInitialized) {
+                    publishMqttMessage(step.stringParam, step.stringParam2);
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_DISPLAY_HA_SENSOR:
+                if (!track.stepInitialized) {
+                    track.isWaitingForHAState = true;
+                    track.haStateReceived = false;
+                    track.haSensorTopic = step.stringParam;
+                    subscribeToTopic(track.haSensorTopic);
+                    track.stepInitialized = true;
+                }
+                // Check if we've received the state or if we've timed out
+                if (track.haStateReceived || commandElapsed > 5000) { // 5-second timeout
+                    unsubscribeFromTopic(track.haSensorTopic);
+                    track.isWaitingForHAState = false;
+                    advance_step = true;
+                }
+                break;
+
+            // --- End of Sequence ---
             case SEQ_CMD_END:
             case SEQ_CMD_NONE:
                 stopAndCleanupTrack(i);
@@ -1182,30 +1487,50 @@ void stopAndCleanupTrack(int trackIndex) {
  *          This is used to confirm that the sequencer's local state management is working.
  */
 void runSequencerTest() {
-    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Sequencer Test ---");
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Comprehensive Sequencer Test ---");
 
-    // --- FIX: Reset tracks before configuring them to ensure a clean slate ---
-    sequencerTracks[0].reset();
-    sequencerTracks[1].reset();
-    sequencerTracks[2].reset();
+    // Reset all tracks to ensure a clean slate
+    for (int i = 0; i < 3; ++i) {
+        sequencerTracks[i].reset();
+    }
 
-    // --- Track 0: Fade in the top row over 5 seconds ---
+    // --- Track 0: Top Row - Demonstrates text, countdown, and MQTT ---
+    int i = 0;
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_SET_BRIGHTNESS, 0, -1, 7, 0, "", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_SET_TEXT, 0, 0, 0, 0, "SEQ", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_COUNTDOWN, 0, 1, 3, 1000, "", ""}; // Countdown 3..2..1 in day segment
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_TYPEWRITER, 0, 2, 100, 0, "TEST", ""}; // Type "TEST" in year segment
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_WAIT, 0, 0, 1000, 0, "", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_MQTT_PUBLISH, 0, 0, 0, 0, "timecircuits/test", "Track 0 Finished"};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_RESTORE_ROW, 0, 0, 0, 0, "", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_END, 0, 0, 0, 0, "", ""};
     sequencerTracks[0].isActive = true;
     sequencerTracks[0].stepStartTime = millis();
-    // Step 1: Fade In
-    sequencerTracks[0].steps[0] = {SEQ_CMD_FADE_IN, 0, -1, 5000, ""};
-    // Step 2: End
-    sequencerTracks[0].steps[1] = {SEQ_CMD_END, 0, 0, 0, ""};
 
-
-    // --- Track 1: Pulse the middle row's month segment for 5 seconds ---
+    // --- Track 1: Middle Row - Demonstrates loops and high-level effects ---
+    i = 0;
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_LOOP_START, 1, 0, 2, 0, "", ""}; // Loop twice
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_SCANNER, 1, -1, 2000, 80, "", ""}; // Scan for 2s, 80ms step
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_LOOP_END, 1, 0, 0, 0, "", ""};
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_BAR_GRAPH, 1, -1, 0, 150, "", ""}; // Bar graph, 150ms step
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_WAIT, 1, 0, 1000, 0, "", ""};
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_TRIGGER_ANIMATION, 1, 0, 2, 0, "", ""}; // Trigger styled animation
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_END, 1, 0, 0, 0, "", ""};
     sequencerTracks[1].isActive = true;
     sequencerTracks[1].stepStartTime = millis();
-    // Step 1: Pulse
-    sequencerTracks[1].steps[0] = {SEQ_CMD_PULSE, 1, 0, 5000, ""}; // Month segment
-    // Step 2: End
-    sequencerTracks[1].steps[1] = {SEQ_CMD_END, 0, 0, 0, ""};
 
+    // --- Track 2: Bottom Row - Demonstrates more visual effects and HA integration ---
+    i = 0;
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_WIPE, 2, -1, 100, 0, "WIPE TEST", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_RANDOM_FLICKER_TEXT, 2, 2, 2000, 100, "FLICKER", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_SET_TEXT, 2, 0, 0, 0, "GET", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_SET_TEXT, 2, 1, 0, 0, "HA", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_DISPLAY_HA_SENSOR, 2, 2, 0, 0, "homeassistant/sensor/test/state", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_WAIT, 2, 0, 2000, 0, "", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_FADE_OUT, 2, -1, 1000, 0, "", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_END, 2, 0, 0, 0, "", ""};
+    sequencerTracks[2].isActive = true;
+    sequencerTracks[2].stepStartTime = millis();
 
-    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Sequencer Test Started ---");
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Comprehensive Sequencer Test Started ---");
 }

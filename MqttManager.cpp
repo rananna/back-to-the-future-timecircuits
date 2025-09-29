@@ -1032,22 +1032,29 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             file.close();
         }
     } else {
+    // --- START: New logic for HA Sensor command in Sequencer ---
+    for (int i = 0; i < 3; ++i) {
+        if (sequencerTracks[i].isActive && sequencerTracks[i].isWaitingForHAState) {
+            if (topicStr == sequencerTracks[i].haSensorTopic.c_str()) {
+                Log_printf(LOG_LEVEL_INFO, "MQTT: Received state for track %d. Payload: %s", i, message.c_str());
+                int segment = sequencerTracks[i].steps[sequencerTracks[i].currentStep].targetSegment;
+                manualDisplayText[i][segment] = message; // Update the display text directly
+                sequencerTracks[i].haStateReceived = true; // Signal that we got the data
+                break; // Assume only one track can wait for a topic at a time
+            }
+        }
+    }
+    // --- END: New logic for HA Sensor command ---
+
         // This handles incoming data for any of the 5 data points that are configured
         // with a `dataSourceType` of `DATA_SOURCE_MQTT`.
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
             // Check if the topic matches and the data source is MQTT
             if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT &&
                 topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
-
-                // --- FIX ---
-                // The original code was writing to the `displayPages` buffer, which is only
-                // used by the `DATA_SOURCE_HA` type. The fix is to write directly to the
-                // `scrollingText` field in the settings, which is what the DisplayManager
-                // actually reads for this data source type.
                 currentSettings.dataPoints[i].scrollingText = message.c_str();
                 isMarqueeBufferDirty = true; // Set the dirty flag to force a re-render
                 saveSettings(); // Persist the new text
-
                 break; // Exit the loop since we found the matching topic
             }
         }
@@ -1062,6 +1069,20 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     }
     if (stateChanged) {
         publishAllHaStates();
+    }
+}
+
+void subscribeToTopic(const std::string& topic) {
+    if (mqttClient.connected()) {
+        mqttClient.subscribe(topic.c_str());
+        Log_printf(LOG_LEVEL_INFO, "MQTT: Subscribed to topic [%s]", topic.c_str());
+    }
+}
+
+void unsubscribeFromTopic(const std::string& topic) {
+    if (mqttClient.connected()) {
+        mqttClient.unsubscribe(topic.c_str());
+        Log_printf(LOG_LEVEL_INFO, "MQTT: Unsubscribed from topic [%s]", topic.c_str());
     }
 }
 
@@ -1149,6 +1170,15 @@ void publishAllHaStates() {
         mqttClient.publish(enabled_topic.c_str(), currentSettings.dataPoints[i].enabled ? "ON" : "OFF", true);
         String marquee_topic = base_topic + "/datapoint_" + String(i) + "_marquee/state";
         mqttClient.publish(marquee_topic.c_str(), currentSettings.dataPoints[i].scrollingText.c_str(), true);
+    }
+}
+
+void publishMqttMessage(const std::string& topic, const std::string& payload) {
+    if (mqttClient.connected()) {
+        mqttClient.publish(topic.c_str(), payload.c_str(), false); // Not retained
+        Log_printf(LOG_LEVEL_INFO, "MQTT: Published to topic [%s] with payload [%s]", topic.c_str(), payload.c_str());
+    } else {
+        Log_printf(LOG_LEVEL_WARN, "MQTT: Cannot publish, client not connected.");
     }
 }
 
