@@ -20,6 +20,7 @@ extern char MQTT_UNIQUE_ID[21];
 extern String currentProfileName;
 extern String lastDepartedPreset;
 extern bool isRadioStreaming;
+extern bool haDiscoveryCompleted;
 
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length);
