@@ -176,7 +176,7 @@ void startStyledAnimation() {
     updateHaStatus("Animating");
 
     AnimationType selectedAnimation;
-    if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
+    if (currentSettings.animationStyle == ANIMATION_ALL_DISPLAYS_RANDOM) {
         const AnimationType validAnimationStyles[] = {
             ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
             ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
