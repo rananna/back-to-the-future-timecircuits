@@ -8,14 +8,17 @@ from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+import logging
 
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .media_player import BTTFTimeCircuitsMediaPlayer
@@ -41,7 +44,7 @@ class BTTFTimeCircuitsDevice:
     """A wrapper for a BTTF Time Circuits device."""
 
     device_info: DeviceInfo
-    coordinator: DataUpdateCoordinator | None = None
+    coordinator: DataUpdateCoordinator
 
     def __init__(self, hass: HomeAssistant, device_id: str) -> None:
         """Initialize the device."""
@@ -55,6 +58,20 @@ class BTTFTimeCircuitsDevice:
             "model": "ESP32",
             "sw_version": "1.0.0",
         }
+        self.coordinator = DataUpdateCoordinator(
+            hass,
+            _LOGGER,
+            name=f"{DOMAIN}_{device_id}",
+            update_method=self.async_update,
+            update_interval=timedelta(seconds=60),
+        )
+
+    async def async_update(self) -> None:
+        """Update the coordinator data."""
+        # This integration is MQTT-based, so we don't need to poll for updates.
+        # This method is here to satisfy the DataUpdateCoordinator requirements
+        # and to ensure entities are marked as available.
+        pass
 
     async def async_handle_set_status_display(self, call: ServiceCall) -> None:
         """Handle the set_status_display service call."""
