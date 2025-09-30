@@ -1210,6 +1210,9 @@ void loop() {
                 }
             }
             
+            // Handle the non-blocking Home Assistant discovery process
+            handleHaDiscovery();
+
             stockManager.loop();
 
             // --- START: MODIFICATION - Run sequencer on every loop ---

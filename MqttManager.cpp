@@ -30,6 +30,13 @@ extern Audio audio;
 String currentProfileName = "Standard";
 String lastDepartedPreset = "None";
 
+// --- HA Discovery State ---
+HaDiscoveryState haDiscoveryState = HA_DISCOVERY_IDLE;
+unsigned long lastHaDiscoveryPublish = 0;
+const unsigned int HA_DISCOVERY_DELAY = 100; // Milliseconds between each discovery message
+static JsonDocument discoveryDoc;
+static String device_base_topic;
+
 // --- Radio Metadata Globals ---
 String radioStationName = "";
 String radioSongTitle = "";
@@ -212,81 +219,85 @@ void publishHaDiagnosticAttributes() {
 }
 
 
+// --- START OF NEW DISCOVERY FUNCTIONS ---
+
+// Forward declarations for all discovery functions
+void publishStatusSensorDiscovery();
+void publishTimeDisplayEntitiesDiscovery();
+void cleanupOldEntities();
+void publishDataPointSwitchesDiscovery();
+void publishDataPointMarqueesDiscovery();
+void cleanupOldDataPointSensors();
+void publishNumberConfigsDiscovery();
+void publishSwitchConfigsDiscovery();
+void publishButtonConfigsDiscovery();
+void publishSequencerButtonDiscovery();
+void publishTemporalEchoSwitchDiscovery();
+void publishProfileSelectorDiscovery();
+void publishOverrideSwitchDiscovery();
+void cleanupOldOverrideMessageEntity();
+void publishOverrideLineTextEntitiesDiscovery();
+void cleanupOldMediaPlayerEntities();
+void publishDisplayModeSelectorDiscovery();
+void publishWeatherEntitiesDiscovery();
+void publishAudioStatusSensorDiscovery();
+void publishRadioSensorsDiscovery();
+void publishPresetSelectorDiscovery();
+
+
 /**
- * @brief Publishes the Home Assistant MQTT Discovery configuration messages.
- * @details This function constructs and sends a series of JSON messages to specific
- * MQTT topics. These messages describe the device and its capabilities (sensors,
- * switches, numbers, etc.) to Home Assistant, allowing it to automatically create
- * corresponding entities in the UI. This function is typically called only once
- * upon the first successful connection to the MQTT broker.
- * @note This function was refactored to use a single, persistent JsonDocument to
- * build messages, which prevents memory corruption issues from creating and destroying
- * multiple documents. It follows an "add, send, clean" pattern for each entity.
+ * @brief Prepares the shared JSON document for HA discovery messages.
  */
-void publishHaAutoDiscovery() {
-    String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-
-    // --- Create a single, reusable JSON document for all discovery messages ---
-    JsonDocument doc;
-
-    // --- Create the "device" and "availability" objects ONCE ---
-    // These are the stable, shared parts of every discovery message.
-    JsonObject device = doc["device"].to<JsonObject>();
+void prepareHaDiscovery() {
+    device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    discoveryDoc.clear();
+    JsonObject device = discoveryDoc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
     device["name"] = "Time Circuits";
     device["model"] = "BTTF Clock v1";
     device["manufacturer"] = "Doc Brown Industries";
     device["sw_version"] = "2.0";
-
-    JsonObject availability = doc["availability"].to<JsonObject>();
+    JsonObject availability = discoveryDoc["availability"].to<JsonObject>();
     availability["topic"] = device_base_topic + "/status";
     availability["payload_available"] = "online";
     availability["payload_not_available"] = "offline";
-    
-    // --- Status Sensor ---
-    doc["name"] = "Status";
-    String status_id = String(MQTT_UNIQUE_ID) + "_status";
-    doc["unique_id"] = status_id;
-    doc["object_id"] = status_id;
-    doc["state_topic"] = device_base_topic + "/status/state";
-    doc["json_attributes_topic"] = device_base_topic + "/status/attributes";
-    doc["icon"] = "mdi:clock-outline";
-    publishDiscoveryMessage(doc, "sensor");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("state_topic");
-    doc.remove("json_attributes_topic");
-    doc.remove("icon");
+}
 
-    // --- NEW: Create 12 text entities for direct display control ---
+void publishStatusSensorDiscovery() {
+    discoveryDoc["name"] = "Status";
+    String status_id = String(MQTT_UNIQUE_ID) + "_status";
+    discoveryDoc["unique_id"] = status_id;
+    discoveryDoc["object_id"] = status_id;
+    discoveryDoc["state_topic"] = device_base_topic + "/status/state";
+    discoveryDoc["json_attributes_topic"] = device_base_topic + "/status/attributes";
+    discoveryDoc["icon"] = "mdi:clock-outline";
+    publishDiscoveryMessage(discoveryDoc, "sensor");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("json_attributes_topic"); discoveryDoc.remove("icon");
+}
+
+void publishTimeDisplayEntitiesDiscovery() {
     const char* rows[] = {"dest", "pres", "last"};
     const char* row_names[] = {"Destination", "Present", "Last Departed"};
     const char* segments[] = {"month", "day", "year", "time"};
     const char* segment_names[] = {"Month", "Day", "Year", "Time"};
-
     for (int r = 0; r < 3; ++r) {
         for (int s = 0; s < 4; ++s) {
             String name = String(row_names[r]) + " " + String(segment_names[s]);
             String id_suffix = String(rows[r]) + "_" + String(segments[s]);
             String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-            doc["name"] = name;
-            doc["unique_id"] = entity_id;
-            doc["object_id"] = entity_id;
-            doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
-            doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-            doc["icon"] = "mdi:form-textbox";
-            publishDiscoveryMessage(doc, "text");
-            doc.remove("name");
-            doc.remove("unique_id");
-            doc.remove("object_id");
-            doc.remove("command_topic");
-            doc.remove("state_topic");
-            doc.remove("icon");
+            discoveryDoc["name"] = name;
+            discoveryDoc["unique_id"] = entity_id;
+            discoveryDoc["object_id"] = entity_id;
+            discoveryDoc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+            discoveryDoc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+            discoveryDoc["icon"] = "mdi:form-textbox";
+            publishDiscoveryMessage(discoveryDoc, "text");
+            discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon");
         }
     }
+}
 
-    // --- Cleanup obsolete entities ---
+void cleanupOldEntities() {
     clearHaEntity("sensor", "destination_time");
     clearHaEntity("sensor", "present_time");
     clearHaEntity("sensor", "last_time_departed");
@@ -299,125 +310,94 @@ void publishHaAutoDiscovery() {
     clearHaEntity("switch", "live_weather_mode");
     clearHaEntity("button", "stock_next");
     clearHaEntity("button", "stock_previous");
+}
 
-    // ADDED: Create Enabled switches for each data point
+void publishDataPointSwitchesDiscovery() {
     for (int i=0; i < 5; ++i) {
-        doc["name"] = "Data Point " + String(i + 1) + " Enabled";
+        discoveryDoc["name"] = "Data Point " + String(i + 1) + " Enabled";
         String id_suffix = "datapoint_" + String(i) + "_enabled";
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = entity_id;
-        doc["object_id"] = entity_id;
-        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
-        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = "mdi:toggle-switch";
-        doc["entity_category"] = "config";
-        publishDiscoveryMessage(doc, "switch");
-        doc.remove("name");
-        doc.remove("unique_id");
-        doc.remove("object_id");
-        doc.remove("command_topic");
-        doc.remove("state_topic");
-        doc.remove("icon");
-        doc.remove("entity_category");
+        discoveryDoc["unique_id"] = entity_id;
+        discoveryDoc["object_id"] = entity_id;
+        discoveryDoc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        discoveryDoc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        discoveryDoc["icon"] = "mdi:toggle-switch";
+        discoveryDoc["entity_category"] = "config";
+        publishDiscoveryMessage(discoveryDoc, "switch");
+        discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
     }
+}
 
-    // ADDED: Create Marquee text inputs for each data point
+void publishDataPointMarqueesDiscovery() {
     for (int i=0; i < 5; ++i) {
-        doc["name"] = "Data Point " + String(i + 1) + " Marquee";
+        discoveryDoc["name"] = "Data Point " + String(i + 1) + " Marquee";
         String id_suffix = "datapoint_" + String(i) + "_marquee";
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = entity_id;
-        doc["object_id"] = entity_id;
-        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
-        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = "mdi:text-box-outline";
-        doc["entity_category"] = "config";
-        publishDiscoveryMessage(doc, "text");
-        doc.remove("name");
-        doc.remove("unique_id");
-        doc.remove("object_id");
-        doc.remove("command_topic");
-        doc.remove("state_topic");
-        doc.remove("icon");
-        doc.remove("entity_category");
+        discoveryDoc["unique_id"] = entity_id;
+        discoveryDoc["object_id"] = entity_id;
+        discoveryDoc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        discoveryDoc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        discoveryDoc["icon"] = "mdi:text-box-outline";
+        discoveryDoc["entity_category"] = "config";
+        publishDiscoveryMessage(discoveryDoc, "text");
+        discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
     }
+}
 
-    // This sensor has been replaced by the more specific `..._marquee` text entity and `..._enabled` switch.
-    // We will now clear any old entities that may exist from previous versions.
+void cleanupOldDataPointSensors() {
     for (int i=0; i < 5; ++i) {
         String unique_id_suffix = "datapoint_" + String(i);
         clearHaEntity("sensor", unique_id_suffix.c_str());
     }
+}
 
-
+void publishNumberConfigsDiscovery() {
     const char* number_configs[][5] = {
         {"animation_interval", "Animation Interval", "mdi:clock-in", "min", "0,120,1"},
         {"animation_duration", "Animation Duration", "mdi:movie-filter", "ms", "1000,10000,100"},
         {"stock_refresh", "Stock Refresh", "mdi:chart-line", "min", "1,60,1"}
     };
     for (auto const& cfg : number_configs) {
-        doc["name"] = cfg[1];
-        String id_suffix = cfg[0];
-        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = entity_id;
-        doc["object_id"] = entity_id;
-        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
-        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = cfg[2];
-        doc["unit_of_measurement"] = cfg[3];
-        
+        discoveryDoc["name"] = cfg[1];
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + cfg[0];
+        discoveryDoc["unique_id"] = entity_id;
+        discoveryDoc["object_id"] = entity_id;
+        discoveryDoc["command_topic"] = device_base_topic + "/" + cfg[0] + "/command";
+        discoveryDoc["state_topic"] = device_base_topic + "/" + cfg[0] + "/state";
+        discoveryDoc["icon"] = cfg[2];
+        discoveryDoc["unit_of_measurement"] = cfg[3];
         int min_val, max_val, step_val;
-        char cfg_copy[20];
-        strncpy(cfg_copy, cfg[4], sizeof(cfg_copy) - 1);
-        cfg_copy[sizeof(cfg_copy) - 1] = '\0';
-        char* token = strtok(cfg_copy, ",");
-        min_val = atoi(token);
-        token = strtok(NULL, ",");
-        max_val = atoi(token);
-        token = strtok(NULL, ",");
-        step_val = atoi(token);
-
-        doc["min"] = min_val;
-        doc["max"] = max_val;
-        doc["step"] = step_val;
-        doc["entity_category"] = "config";
-        publishDiscoveryMessage(doc, "number");
-        doc.remove("name");
-        doc.remove("unique_id");
-        doc.remove("object_id");
-        doc.remove("command_topic");
-        doc.remove("state_topic");
-        doc.remove("icon");
-        doc.remove("unit_of_measurement");
-        doc.remove("min");
-        doc.remove("max");
-        doc.remove("step");
-        doc.remove("entity_category");
+        // Use sscanf for safer parsing than strtok
+        if (sscanf(cfg[4], "%d,%d,%d", &min_val, &max_val, &step_val) == 3) {
+            discoveryDoc["min"] = min_val;
+            discoveryDoc["max"] = max_val;
+            discoveryDoc["step"] = step_val;
+        }
+        discoveryDoc["entity_category"] = "config";
+        publishDiscoveryMessage(discoveryDoc, "number");
+        discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("unit_of_measurement"); discoveryDoc.remove("min"); discoveryDoc.remove("max"); discoveryDoc.remove("step"); discoveryDoc.remove("entity_category");
     }
+}
 
+void publishSwitchConfigsDiscovery() {
      const char* switch_configs[][3] = {
         {"24h_format", "24-Hour Format", "mdi:clock-time-twelve-outline"}
     };
     for (auto const& cfg : switch_configs) {
-        doc["name"] = cfg[1];
-        String id_suffix = cfg[0];
-        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = entity_id;
-        doc["object_id"] = entity_id;
-        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
-        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = cfg[2];
-        doc["entity_category"] = "config";
-        publishDiscoveryMessage(doc, "switch");
-        doc.remove("name");
-        doc.remove("unique_id");
-        doc.remove("object_id");
-        doc.remove("command_topic");
-        doc.remove("state_topic");
-        doc.remove("icon");
-        doc.remove("entity_category");
+        discoveryDoc["name"] = cfg[1];
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + cfg[0];
+        discoveryDoc["unique_id"] = entity_id;
+        discoveryDoc["object_id"] = entity_id;
+        discoveryDoc["command_topic"] = device_base_topic + "/" + cfg[0] + "/command";
+        discoveryDoc["state_topic"] = device_base_topic + "/" + cfg[0] + "/state";
+        discoveryDoc["icon"] = cfg[2];
+        discoveryDoc["entity_category"] = "config";
+        publishDiscoveryMessage(discoveryDoc, "switch");
+        discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
     }
+}
     
+void publishButtonConfigsDiscovery() {
     const char* button_configs[][3] = {
         {"trigger_animation", "Trigger Animation", "mdi:movie-play"},
         {"reboot_device", "Reboot Device", "mdi:restart"},
@@ -426,230 +406,242 @@ void publishHaAutoDiscovery() {
         {"save_all_settings", "Save All Settings", "mdi:content-save-all-outline"}
     };
     for (auto const& cfg : button_configs) {
-        doc["name"] = cfg[1];
-        String id_suffix = cfg[0];
-        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = entity_id;
-        doc["object_id"] = entity_id;
-        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
-        doc["payload_press"] = "PRESS";
-        doc["icon"] = cfg[2];
-        doc["entity_category"] = "config";
-        publishDiscoveryMessage(doc, "button");
-        doc.remove("name");
-        doc.remove("unique_id");
-        doc.remove("object_id");
-        doc.remove("command_topic");
-        doc.remove("payload_press");
-        doc.remove("icon");
-        doc.remove("entity_category");
+        discoveryDoc["name"] = cfg[1];
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + cfg[0];
+        discoveryDoc["unique_id"] = entity_id;
+        discoveryDoc["object_id"] = entity_id;
+        discoveryDoc["command_topic"] = device_base_topic + "/" + cfg[0] + "/command";
+        discoveryDoc["payload_press"] = "PRESS";
+        discoveryDoc["icon"] = cfg[2];
+        discoveryDoc["entity_category"] = "config";
+        publishDiscoveryMessage(discoveryDoc, "button");
+        discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("payload_press"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
     }
+}
 
-    // --- Sequencer Button ---
-    doc["name"] = "Trigger Sequence";
+void publishSequencerButtonDiscovery() {
+    discoveryDoc["name"] = "Trigger Sequence";
     String sequencer_id = String(MQTT_UNIQUE_ID) + "_sequencer";
-    doc["unique_id"] = sequencer_id;
-    doc["object_id"] = sequencer_id;
-    doc["command_topic"] = device_base_topic + "/sequencer/command";
-    doc["payload_press"] = "PRESS";
-    doc["icon"] = "mdi:movie-play-outline";
-    doc["entity_category"] = "config";
-    publishDiscoveryMessage(doc, "button");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("command_topic");
-    doc.remove("payload_press");
-    doc.remove("icon");
-    doc.remove("entity_category");
+    discoveryDoc["unique_id"] = sequencer_id;
+    discoveryDoc["object_id"] = sequencer_id;
+    discoveryDoc["command_topic"] = device_base_topic + "/sequencer/command";
+    discoveryDoc["payload_press"] = "PRESS";
+    discoveryDoc["icon"] = "mdi:movie-play-outline";
+    discoveryDoc["entity_category"] = "config";
+    publishDiscoveryMessage(discoveryDoc, "button");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("payload_press"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+}
     
-    // --- Temporal Echo Switch ---
-    doc["name"] = "Temporal Echo Effect";
+void publishTemporalEchoSwitchDiscovery() {
+    discoveryDoc["name"] = "Temporal Echo Effect";
     String temporal_echo_id = String(MQTT_UNIQUE_ID) + "_temporal_echo";
-    doc["unique_id"] = temporal_echo_id;
-    doc["object_id"] = temporal_echo_id;
-    doc["command_topic"] = device_base_topic + "/temporal_echo/command";
-    doc["state_topic"] = device_base_topic + "/temporal_echo/state";
-    doc["icon"] = "mdi:ghost";
-    doc["entity_category"] = "config";
-    publishDiscoveryMessage(doc, "switch");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("command_topic");
-    doc.remove("state_topic");
-    doc.remove("icon");
-    doc.remove("entity_category");
+    discoveryDoc["unique_id"] = temporal_echo_id;
+    discoveryDoc["object_id"] = temporal_echo_id;
+    discoveryDoc["command_topic"] = device_base_topic + "/temporal_echo/command";
+    discoveryDoc["state_topic"] = device_base_topic + "/temporal_echo/state";
+    discoveryDoc["icon"] = "mdi:ghost";
+    discoveryDoc["entity_category"] = "config";
+    publishDiscoveryMessage(discoveryDoc, "switch");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+}
 
-    // --- Profile Selector ---
-    doc["name"] = "Profile";
+void publishProfileSelectorDiscovery() {
+    discoveryDoc["name"] = "Profile";
     String profile_id = String(MQTT_UNIQUE_ID) + "_profile";
-    doc["unique_id"] = profile_id;
-    doc["object_id"] = profile_id;
-    doc["command_topic"] = device_base_topic + "/profile/command";
-    doc["state_topic"] = device_base_topic + "/profile/state";
-    JsonArray profiles = doc["options"].to<JsonArray>();
+    discoveryDoc["unique_id"] = profile_id;
+    discoveryDoc["object_id"] = profile_id;
+    discoveryDoc["command_topic"] = device_base_topic + "/profile/command";
+    discoveryDoc["state_topic"] = device_base_topic + "/profile/state";
+    JsonArray profiles = discoveryDoc["options"].to<JsonArray>();
     profiles.add("Standard");
     profiles.add("Cinematic");
     profiles.add("Silent Night");
     profiles.add("Unstable");
     profiles.add("Custom");
-    doc["icon"] = "mdi:movie-settings";
-    doc["entity_category"] = "config";
-    publishDiscoveryMessage(doc, "select");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("command_topic");
-    doc.remove("state_topic");
-    doc.remove("options");
-    doc.remove("icon");
-    doc.remove("entity_category");
+    discoveryDoc["icon"] = "mdi:movie-settings";
+    discoveryDoc["entity_category"] = "config";
+    publishDiscoveryMessage(discoveryDoc, "select");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("options"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+}
     
-    // --- Notification & Alert Entities ---
-    doc["name"] = "Override Switch";
+void publishOverrideSwitchDiscovery() {
+    discoveryDoc["name"] = "Override Switch";
     String override_switch_id = String(MQTT_UNIQUE_ID) + "_override_switch";
-    doc["unique_id"] = override_switch_id;
-    doc["object_id"] = override_switch_id;
-    doc["command_topic"] = device_base_topic + "/override_switch/command";
-    doc["state_topic"] = device_base_topic + "/override_switch/state";
-    doc["icon"] = "mdi:message-cog";
-    doc["entity_category"] = "config";
-    publishDiscoveryMessage(doc, "switch");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("command_topic");
-    doc.remove("state_topic");
-    doc.remove("icon");
-    doc.remove("entity_category");
+    discoveryDoc["unique_id"] = override_switch_id;
+    discoveryDoc["object_id"] = override_switch_id;
+    discoveryDoc["command_topic"] = device_base_topic + "/override_switch/command";
+    discoveryDoc["state_topic"] = device_base_topic + "/override_switch/state";
+    discoveryDoc["icon"] = "mdi:message-cog";
+    discoveryDoc["entity_category"] = "config";
+    publishDiscoveryMessage(discoveryDoc, "switch");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+}
 
-
-    // --- Remove the old single override message entity ---
+void cleanupOldOverrideMessageEntity() {
     clearHaEntity("text", "override_message");
+}
 
-    // --- Create three separate text entities for each override line ---
+void publishOverrideLineTextEntitiesDiscovery() {
     for (int i = 1; i <= 3; i++) {
-        doc["name"] = "Override Message Line " + String(i);
+        discoveryDoc["name"] = "Override Message Line " + String(i);
         String id_suffix = "override_line_" + String(i);
         String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-        doc["unique_id"] = entity_id;
-        doc["object_id"] = entity_id;
-        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
-        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
-        doc["icon"] = "mdi:message-draw";
-        doc["entity_category"] = "config";
-        publishDiscoveryMessage(doc, "text");
-        doc.remove("name");
-        doc.remove("unique_id");
-        doc.remove("object_id");
-        doc.remove("command_topic");
-        doc.remove("state_topic");
-        doc.remove("icon");
-        doc.remove("entity_category");
+        discoveryDoc["unique_id"] = entity_id;
+        discoveryDoc["object_id"] = entity_id;
+        discoveryDoc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        discoveryDoc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        discoveryDoc["icon"] = "mdi:message-draw";
+        discoveryDoc["entity_category"] = "config";
+        publishDiscoveryMessage(discoveryDoc, "text");
+        discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
     }
+}
 
-    // --- Cleanup old entities replaced by the media_player ---
+void cleanupOldMediaPlayerEntities() {
     clearHaEntity("select", "play_sound");
     clearHaEntity("text", "tts_text");
     clearHaEntity("sensor", "audio_status");
+}
 
-
-    // --- Display Mode Selection ---
-    doc["name"] = "Display Mode";
+void publishDisplayModeSelectorDiscovery() {
+    discoveryDoc["name"] = "Display Mode";
     String display_mode_id = String(MQTT_UNIQUE_ID) + "_display_mode";
-    doc["unique_id"] = display_mode_id;
-    doc["object_id"] = display_mode_id;
-    doc["command_topic"] = device_base_topic + "/display_mode/command";
-    doc["state_topic"] = device_base_topic + "/display_mode/state";
-    JsonArray modes = doc["options"].to<JsonArray>();
+    discoveryDoc["unique_id"] = display_mode_id;
+    discoveryDoc["object_id"] = display_mode_id;
+    discoveryDoc["command_topic"] = device_base_topic + "/display_mode/command";
+    discoveryDoc["state_topic"] = device_base_topic + "/display_mode/state";
+    JsonArray modes = discoveryDoc["options"].to<JsonArray>();
     modes.add("Normal Clock");
     modes.add("Stock Ticker");
     modes.add("Weather");
     modes.add("Data Link");
-    doc["icon"] = "mdi:television-classic";
-    doc["entity_category"] = "config";
-    publishDiscoveryMessage(doc, "select");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("command_topic");
-    doc.remove("state_topic");
-    doc.remove("options");
-    doc.remove("icon");
-    doc.remove("entity_category");
+    discoveryDoc["icon"] = "mdi:television-classic";
+    discoveryDoc["entity_category"] = "config";
+    publishDiscoveryMessage(discoveryDoc, "select");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("options"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+}
 
-    // --- Live Weather Mode Entities ---
-    doc["name"] = "Weather City";
+void publishWeatherEntitiesDiscovery() {
+    discoveryDoc["name"] = "Weather City";
     String weather_city_id = String(MQTT_UNIQUE_ID) + "_weather_city";
-    doc["unique_id"] = weather_city_id;
-    doc["object_id"] = weather_city_id;
-    doc["command_topic"] = device_base_topic + "/weather_city/command";
-    doc["state_topic"] = device_base_topic + "/weather_city/state";
-    doc["icon"] = "mdi:city";
-    doc["entity_category"] = "config";
-    publishDiscoveryMessage(doc, "text");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("command_topic");
-    doc.remove("state_topic");
-    doc.remove("icon");
-    doc.remove("entity_category");
+    discoveryDoc["unique_id"] = weather_city_id;
+    discoveryDoc["object_id"] = weather_city_id;
+    discoveryDoc["command_topic"] = device_base_topic + "/weather_city/command";
+    discoveryDoc["state_topic"] = device_base_topic + "/weather_city/state";
+    discoveryDoc["icon"] = "mdi:city";
+    discoveryDoc["entity_category"] = "config";
+    publishDiscoveryMessage(discoveryDoc, "text");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
 
-    doc["name"] = "Refresh Weather Data";
+    discoveryDoc["name"] = "Refresh Weather Data";
     String weather_refresh_id = String(MQTT_UNIQUE_ID) + "_weather_refresh";
-    doc["unique_id"] = weather_refresh_id;
-    doc["object_id"] = weather_refresh_id;
-    doc["command_topic"] = device_base_topic + "/weather_refresh/command";
-    doc["payload_press"] = "PRESS";
-    doc["icon"] = "mdi:refresh";
-    doc["entity_category"] = "config";
-    publishDiscoveryMessage(doc, "button");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("command_topic");
-    doc.remove("payload_press");
-    doc.remove("icon");
-    doc.remove("entity_category");
+    discoveryDoc["unique_id"] = weather_refresh_id;
+    discoveryDoc["object_id"] = weather_refresh_id;
+    discoveryDoc["command_topic"] = device_base_topic + "/weather_refresh/command";
+    discoveryDoc["payload_press"] = "PRESS";
+    discoveryDoc["icon"] = "mdi:refresh";
+    discoveryDoc["entity_category"] = "config";
+    publishDiscoveryMessage(discoveryDoc, "button");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("payload_press"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+}
 
-    // New Audio sensor for stream state
-    doc["name"] = "Audio Stream Status";
+void publishAudioStatusSensorDiscovery() {
+    discoveryDoc["name"] = "Audio Stream Status";
     String audio_status_id = String(MQTT_UNIQUE_ID) + "_audio_status";
-    doc["unique_id"] = audio_status_id;
-    doc["object_id"] = audio_status_id;
-    doc["state_topic"] = device_base_topic + "/audio/state";
-    doc["icon"] = "mdi:waveform";
-    publishDiscoveryMessage(doc, "sensor");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("state_topic");
-    doc.remove("icon");
+    discoveryDoc["unique_id"] = audio_status_id;
+    discoveryDoc["object_id"] = audio_status_id;
+    discoveryDoc["state_topic"] = device_base_topic + "/audio/state";
+    discoveryDoc["icon"] = "mdi:waveform";
+    publishDiscoveryMessage(discoveryDoc, "sensor");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon");
+}
 
-    // --- Radio Station Name Sensor ---
-    doc["name"] = "Radio Station";
+void publishRadioSensorsDiscovery() {
+    discoveryDoc["name"] = "Radio Station";
     String radio_station_id = String(MQTT_UNIQUE_ID) + "_radio_station_name";
-    doc["unique_id"] = radio_station_id;
-    doc["object_id"] = radio_station_id;
-    doc["state_topic"] = device_base_topic + "/radio_station_name/state";
-    doc["icon"] = "mdi:radio-tower";
-    publishDiscoveryMessage(doc, "sensor");
-    doc.remove("name");
-    doc.remove("unique_id");
-    doc.remove("object_id");
-    doc.remove("state_topic");
-    doc.remove("icon");
+    discoveryDoc["unique_id"] = radio_station_id;
+    discoveryDoc["object_id"] = radio_station_id;
+    discoveryDoc["state_topic"] = device_base_topic + "/radio_station_name/state";
+    discoveryDoc["icon"] = "mdi:radio-tower";
+    publishDiscoveryMessage(discoveryDoc, "sensor");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon");
 
-    // --- Radio Song Title Sensor ---
-    doc["name"] = "Radio Song";
+    discoveryDoc["name"] = "Radio Song";
     String radio_song_id = String(MQTT_UNIQUE_ID) + "_radio_song_title";
-    doc["unique_id"] = radio_song_id;
-    doc["object_id"] = radio_song_id;
-    doc["state_topic"] = device_base_topic + "/radio_song_title/state";
-    doc["icon"] = "mdi:music-note";
-    publishDiscoveryMessage(doc, "sensor");
+    discoveryDoc["unique_id"] = radio_song_id;
+    discoveryDoc["object_id"] = radio_song_id;
+    discoveryDoc["state_topic"] = device_base_topic + "/radio_song_title/state";
+    discoveryDoc["icon"] = "mdi:music-note";
+    publishDiscoveryMessage(discoveryDoc, "sensor");
+    discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon");
+}
+
+void publishPresetSelectorDiscovery() {
+    // This function is a wrapper around the existing preset selector publisher
+    publishHaPresetSelector();
+}
+
+// --- END OF NEW DISCOVERY FUNCTIONS ---
+
+// Array of discovery function pointers for the state machine
+void (*discovery_functions[])() = {
+    prepareHaDiscovery,
+    publishStatusSensorDiscovery,
+    publishTimeDisplayEntitiesDiscovery,
+    cleanupOldEntities,
+    publishDataPointSwitchesDiscovery,
+    publishDataPointMarqueesDiscovery,
+    cleanupOldDataPointSensors,
+    publishNumberConfigsDiscovery,
+    publishSwitchConfigsDiscovery,
+    publishButtonConfigsDiscovery,
+    publishSequencerButtonDiscovery,
+    publishTemporalEchoSwitchDiscovery,
+    publishProfileSelectorDiscovery,
+    publishOverrideSwitchDiscovery,
+    cleanupOldOverrideMessageEntity,
+    publishOverrideLineTextEntitiesDiscovery,
+    cleanupOldMediaPlayerEntities,
+    publishDisplayModeSelectorDiscovery,
+    publishWeatherEntitiesDiscovery,
+    publishAudioStatusSensorDiscovery,
+    publishRadioSensorsDiscovery,
+    publishPresetSelectorDiscovery
+};
+const int num_discovery_functions = sizeof(discovery_functions) / sizeof(discovery_functions[0]);
+static int discovery_function_index = 0;
+
+/**
+ * @brief Kicks off the HA discovery process.
+ */
+void startHaDiscovery() {
+    Log_printf(LOG_LEVEL_INFO, "Starting Home Assistant discovery process...");
+    haDiscoveryState = HA_DISCOVERY_RUNNING;
+    discovery_function_index = 0;
+    lastHaDiscoveryPublish = 0; // Allow the first message to be sent immediately
+}
+
+/**
+ * @brief Manages the non-blocking HA discovery state machine.
+ * @details This function should be called in the main loop. It publishes one
+ * discovery message per call, with a delay between messages.
+ */
+void handleHaDiscovery() {
+    if (haDiscoveryState != HA_DISCOVERY_RUNNING) {
+        return;
+    }
+
+    if (millis() - lastHaDiscoveryPublish >= HA_DISCOVERY_DELAY) {
+        if (discovery_function_index < num_discovery_functions) {
+            Log_printf(LOG_LEVEL_INFO, "HA Discovery: Publishing step %d of %d", discovery_function_index + 1, num_discovery_functions);
+            discovery_functions[discovery_function_index]();
+            discovery_function_index++;
+            lastHaDiscoveryPublish = millis();
+        } else {
+            Log_printf(LOG_LEVEL_INFO, "Home Assistant discovery complete.");
+            haDiscoveryState = HA_DISCOVERY_COMPLETE;
+        }
+    }
 }
 
 void reconnectMqtt() {
@@ -682,8 +674,7 @@ void reconnectMqtt() {
     mqttClient.loop(); // Allow time for the availability message to be sent.
 
     // Force HA discovery on every reconnect to ensure capabilities are always up-to-date.
-    publishHaAutoDiscovery();
-    publishHaPresetSelector();
+    startHaDiscovery();
 
     publishAllHaStates();
     String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
@@ -960,8 +951,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             saveSettings();
         } else if (component == "discover" && message == "ON") {
             Log_printf(LOG_LEVEL_INFO, "HA discovery command received. Republishing all entities.");
-            publishHaAutoDiscovery();
-            publishHaPresetSelector();
+            startHaDiscovery();
         } else if (component == "temporal_echo") {
             isEchoEffectActive = (message == "ON");
             if (isEchoEffectActive) echoEffectStartTime = millis();
