@@ -84,10 +84,10 @@ void triggerFlashEffect(int row, int segment, int duration) {
     sequencerTracks[row].originalBrightness = currentSettings.brightness;
 
     // Step 1: Flash the specified segment for the given duration
-    sequencerTracks[row].steps[0] = {SEQ_CMD_FLASH, row, segment, duration, ""};
+    sequencerTracks[row].steps[0] = {SEQ_CMD_FLASH, row, segment, duration, 0, "", ""};
 
     // Step 2: End the sequence
-    sequencerTracks[row].steps[1] = {SEQ_CMD_END, 0, 0, 0, ""};
+    sequencerTracks[row].steps[1] = {SEQ_CMD_END, 0, 0, 0, 0, "", ""};
 }
 
 // File-scoped variable to hold the chosen animation style for a single run
