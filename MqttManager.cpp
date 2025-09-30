@@ -257,6 +257,7 @@ void prepareHaDiscovery() {
     device["model"] = "BTTF Clock v1";
     device["manufacturer"] = "Doc Brown Industries";
     device["sw_version"] = "2.0";
+    device["icon"] = "mdi:car-clock";
     JsonObject availability = discoveryDoc["availability"].to<JsonObject>();
     availability["topic"] = device_base_topic + "/status";
     availability["payload_available"] = "online";
