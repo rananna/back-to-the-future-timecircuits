@@ -1369,6 +1369,7 @@ void handleSequencerCommand(const std::string& payload) {
             if (strcmp(cmd, "MARQUEE") == 0) {
                 current_step.command = SEQ_CMD_MARQUEE;
                 current_step.stringParam = command["stringParam"] | "";
+                current_step.targetSegment = command["targetSegment"] | -1;
             } else if (strcmp(cmd, "FADE_IN") == 0) {
                 current_step.command = SEQ_CMD_FADE_IN;
                 current_step.intParam = command["intParam"] | 1000;
@@ -1402,6 +1403,7 @@ void handleSequencerCommand(const std::string& payload) {
             } else if (strcmp(cmd, "SCRAMBLE_TEXT") == 0) {
                 current_step.command = SEQ_CMD_SCRAMBLE_TEXT;
                 current_step.stringParam = command["stringParam"] | "";
+                current_step.targetSegment = command["targetSegment"] | -1;
                 current_step.intParam = command["intParam"] | 50;
                 current_step.intParam2 = command["intParam2"] | 100;
             } else if (strcmp(cmd, "SCANNER") == 0) {

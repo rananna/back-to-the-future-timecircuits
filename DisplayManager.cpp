@@ -512,16 +512,40 @@ void displayOverrideMessage() {
 }
 
 void updateDisplaySegment(int row, int segment, const std::string& text) {
-    if (row < 0 || row > 2 || segment < 0 || segment > 3) return;
-    
-    manualDisplayText[row][segment] = text;
+    if (row < 0 || row > 2) { // Invalid row
+        return;
+    }
 
-    // A row is in manual mode if any of its segments have text.
-    isRowInManualMode[row] = !manualDisplayText[row][0].empty() ||
-                             !manualDisplayText[row][1].empty() ||
-                             !manualDisplayText[row][2].empty() ||
-                             !manualDisplayText[row][3].empty();
+    if (segment == -1) {
+        // A segment of -1 means we are updating the entire row, likely for a marquee.
+        // The text is assumed to be 13 characters long.
+        std::string safe_text = text;
+        if (safe_text.length() > 13) {
+            safe_text = safe_text.substr(0, 13);
+        } else {
+            safe_text.append(13 - safe_text.length(), ' ');
+        }
 
+        manualDisplayText[row][0] = safe_text.substr(0, 3);
+        manualDisplayText[row][1] = safe_text.substr(3, 2);
+        manualDisplayText[row][2] = safe_text.substr(5, 4);
+        manualDisplayText[row][3] = safe_text.substr(9, 4);
+        isRowInManualMode[row] = true; // The whole row is now in manual mode.
+
+    } else if (segment >= 0 && segment <= 3) {
+        // This is for updating a single, specific segment.
+        manualDisplayText[row][segment] = text;
+        // A row is in manual mode if any of its segments have text.
+        isRowInManualMode[row] = !manualDisplayText[row][0].empty() ||
+                                 !manualDisplayText[row][1].empty() ||
+                                 !manualDisplayText[row][2].empty() ||
+                                 !manualDisplayText[row][3].empty();
+    } else {
+        // An invalid segment was provided, so we do nothing.
+        return;
+    }
+
+    // After any manual update, we must redraw the clock display to show the changes.
     updateNormalClockDisplay();
 }
 

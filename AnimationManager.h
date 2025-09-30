@@ -71,6 +71,10 @@ void stopAllSequences();
 
 // --- NEW: Function declaration for the startup test ---
 void runSequencerTest();
+
+// --- NEW: Functions for sequencer-driven marquee ---
+void startSequencerMarquee(SequencerTrack& track, const std::string& text);
+void handleAllSequencerMarquees();
 // --- END: NEW Sequencer Data Structures ---
 
 #endif // ANIMATION_MANAGER_H
