@@ -29,43 +29,11 @@ extern Audio audio;
 
 String currentProfileName = "Standard";
 String lastDepartedPreset = "None";
-bool haDiscoveryCompleted = false;
 
 // --- Radio Metadata Globals ---
 String radioStationName = "";
 String radioSongTitle = "";
 bool isRadioStreaming = false;
-
-// --- HA Discovery State Machine ---
-enum HaDiscoveryState {
-    HA_DISCOVERY_IDLE,
-    HA_DISCOVERY_START,
-    HA_DISCOVERY_STATUS_SENSOR,
-    HA_DISCOVERY_DISPLAY_TEXT_ENTITIES,
-    HA_DISCOVERY_CLEANUP_OBSOLETE,
-    HA_DISCOVERY_DATAPOINT_SWITCHES,
-    HA_DISCOVERY_DATAPOINT_TEXT,
-    HA_DISCOVERY_CLEANUP_DATAPOINTS,
-    HA_DISCOVERY_NUMBER_CONFIGS,
-    HA_DISCOVERY_SWITCH_CONFIGS,
-    HA_DISCOVERY_BUTTON_CONFIGS,
-    HA_DISCOVERY_SEQUENCER_BUTTON,
-    HA_DISCOVERY_TEMPORAL_ECHO,
-    HA_DISCOVERY_PROFILE_SELECTOR,
-    HA_DISCOVERY_NOTIFICATION_ENTITIES,
-    HA_DISCOVERY_CLEANUP_AUDIO,
-    HA_DISCOVERY_DISPLAY_MODE,
-    HA_DISCOVERY_WEATHER_ENTITIES,
-    HA_DISCOVERY_AUDIO_SENSORS,
-    HA_DISCOVERY_PRESET_SELECTOR,
-    HA_DISCOVERY_DEVICE_TRIGGERS,
-    HA_DISCOVERY_COMPLETE
-};
-
-static HaDiscoveryState discoveryState = HA_DISCOVERY_IDLE;
-static unsigned long lastDiscoveryTime = 0;
-static const unsigned long DISCOVERY_INTERVAL = 100; // ms between messages
-static int discoverySubIndex = 0; // For loops within states
 
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
     String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
@@ -122,7 +90,7 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
         if (published) {
             // After a successful publish, give the client time to send the message.
             mqttClient.loop();
-            // The 75ms delay is now handled by the state machine's DISCOVERY_INTERVAL
+            delay(75); // A short delay to help ensure message delivery
         } else {
             // Log a critical error if the message could not be sent within the timeout.
             Log_printf(LOG_LEVEL_ERROR, "CRITICAL: HA Discovery for %s failed after %lums. Broker unresponsive?", object_id.c_str(), publish_timeout);
@@ -243,27 +211,26 @@ void publishHaDiagnosticAttributes() {
     mqttClient.publish((base_topic + "/status/attributes").c_str(), attributes_payload.c_str(), false);
 }
 
-void startHaDiscovery() {
-    // Start or restart the discovery process
-    Log_printf(LOG_LEVEL_INFO, "Starting non-blocking Home Assistant discovery process...");
-    discoveryState = HA_DISCOVERY_START;
-    discoverySubIndex = 0;
-    lastDiscoveryTime = 0; // Allow the first message to be sent immediately
-}
 
-void handleHaDiscovery() {
-    if (discoveryState == HA_DISCOVERY_IDLE || discoveryState == HA_DISCOVERY_COMPLETE) {
-        return;
-    }
-
-    if (millis() - lastDiscoveryTime < DISCOVERY_INTERVAL) {
-        return;
-    }
-
-    lastDiscoveryTime = millis();
+/**
+ * @brief Publishes the Home Assistant MQTT Discovery configuration messages.
+ * @details This function constructs and sends a series of JSON messages to specific
+ * MQTT topics. These messages describe the device and its capabilities (sensors,
+ * switches, numbers, etc.) to Home Assistant, allowing it to automatically create
+ * corresponding entities in the UI. This function is typically called only once
+ * upon the first successful connection to the MQTT broker.
+ * @note This function was refactored to use a single, persistent JsonDocument to
+ * build messages, which prevents memory corruption issues from creating and destroying
+ * multiple documents. It follows an "add, send, clean" pattern for each entity.
+ */
+void publishHaAutoDiscovery() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+
+    // --- Create a single, reusable JSON document for all discovery messages ---
     JsonDocument doc;
 
+    // --- Create the "device" and "availability" objects ONCE ---
+    // These are the stable, shared parts of every discovery message.
     JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
     device["name"] = "Time Circuits";
@@ -275,361 +242,414 @@ void handleHaDiscovery() {
     availability["topic"] = device_base_topic + "/status";
     availability["payload_available"] = "online";
     availability["payload_not_available"] = "offline";
+    
+    // --- Status Sensor ---
+    doc["name"] = "Status";
+    String status_id = String(MQTT_UNIQUE_ID) + "_status";
+    doc["unique_id"] = status_id;
+    doc["object_id"] = status_id;
+    doc["state_topic"] = device_base_topic + "/status/state";
+    doc["json_attributes_topic"] = device_base_topic + "/status/attributes";
+    doc["icon"] = "mdi:clock-outline";
+    publishDiscoveryMessage(doc, "sensor");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("state_topic");
+    doc.remove("json_attributes_topic");
+    doc.remove("icon");
 
-    bool advance_state = true;
+    // --- NEW: Create 12 text entities for direct display control ---
+    const char* rows[] = {"dest", "pres", "last"};
+    const char* row_names[] = {"Destination", "Present", "Last Departed"};
+    const char* segments[] = {"month", "day", "year", "time"};
+    const char* segment_names[] = {"Month", "Day", "Year", "Time"};
 
-    switch (discoveryState) {
-        case HA_DISCOVERY_START:
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: START");
-            break;
-
-        case HA_DISCOVERY_STATUS_SENSOR:
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: STATUS_SENSOR");
-            doc["name"] = "Status";
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_status";
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_status";
-            doc["state_topic"] = device_base_topic + "/status/state";
-            doc["json_attributes_topic"] = device_base_topic + "/status/attributes";
-            doc["icon"] = "mdi:clock-outline";
-            publishDiscoveryMessage(doc, "sensor");
-            break;
-
-        case HA_DISCOVERY_DISPLAY_TEXT_ENTITIES: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: DISPLAY_TEXT_ENTITIES (%d)", discoverySubIndex);
-            const char* rows[] = {"dest", "pres", "last"};
-            const char* row_names[] = {"Destination", "Present", "Last Departed"};
-            const char* segments[] = {"month", "day", "year", "time"};
-            const char* segment_names[] = {"Month", "Day", "Year", "Time"};
-
-            int r = discoverySubIndex / 4;
-            int s = discoverySubIndex % 4;
-
+    for (int r = 0; r < 3; ++r) {
+        for (int s = 0; s < 4; ++s) {
             String name = String(row_names[r]) + " " + String(segment_names[s]);
             String id_suffix = String(rows[r]) + "_" + String(segments[s]);
+            String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
             doc["name"] = name;
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+            doc["unique_id"] = entity_id;
+            doc["object_id"] = entity_id;
             doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
             doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
             doc["icon"] = "mdi:form-textbox";
             publishDiscoveryMessage(doc, "text");
-
-            discoverySubIndex++;
-            if (discoverySubIndex >= 12) {
-                advance_state = true;
-            } else {
-                advance_state = false; // Stay in this state
-            }
-            break;
-        }
-
-        case HA_DISCOVERY_CLEANUP_OBSOLETE: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: CLEANUP_OBSOLETE (%d)", discoverySubIndex);
-            const char* obsolete_sensors[][2] = {{"sensor", "destination_time"}, {"sensor", "present_time"}, {"sensor", "last_time_departed"}, {"number", "destination_year"}};
-            const char* obsolete_switches[][2] = {{"switch", "stock_ticker_mode"}, {"switch", "live_weather_mode"}};
-            const char* obsolete_buttons[][2] = {{"button", "stock_next"}, {"button", "stock_previous"}};
-
-            if (discoverySubIndex < 4) {
-                clearHaEntity(obsolete_sensors[discoverySubIndex][0], obsolete_sensors[discoverySubIndex][1]);
-            } else if (discoverySubIndex < 6) {
-                 clearHaEntity(obsolete_switches[discoverySubIndex - 4][0], obsolete_switches[discoverySubIndex - 4][1]);
-            } else if (discoverySubIndex < 8) {
-                clearHaEntity(obsolete_buttons[discoverySubIndex - 6][0], obsolete_buttons[discoverySubIndex - 6][1]);
-            }
-
-            discoverySubIndex++;
-            if (discoverySubIndex >= 8) {
-                advance_state = true;
-            } else {
-                advance_state = false;
-            }
-            break;
-        }
-
-        case HA_DISCOVERY_DATAPOINT_SWITCHES:
-             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: DATAPOINT_SWITCHES (%d)", discoverySubIndex);
-            doc["name"] = "Data Point " + String(discoverySubIndex + 1) + " Enabled";
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_datapoint_" + String(discoverySubIndex) + "_enabled";
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_datapoint_" + String(discoverySubIndex) + "_enabled";
-            doc["command_topic"] = device_base_topic + "/datapoint_" + String(discoverySubIndex) + "_enabled/command";
-            doc["state_topic"] = device_base_topic + "/datapoint_" + String(discoverySubIndex) + "_enabled/state";
-            doc["icon"] = "mdi:toggle-switch";
-            doc["entity_category"] = "config";
-            publishDiscoveryMessage(doc, "switch");
-            discoverySubIndex++;
-            advance_state = (discoverySubIndex >= 5);
-            break;
-
-        case HA_DISCOVERY_DATAPOINT_TEXT:
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: DATAPOINT_TEXT (%d)", discoverySubIndex);
-            doc["name"] = "Data Point " + String(discoverySubIndex + 1) + " Marquee";
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_datapoint_" + String(discoverySubIndex) + "_marquee";
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_datapoint_" + String(discoverySubIndex) + "_marquee";
-            doc["command_topic"] = device_base_topic + "/datapoint_" + String(discoverySubIndex) + "_marquee/command";
-            doc["state_topic"] = device_base_topic + "/datapoint_" + String(discoverySubIndex) + "_marquee/state";
-            doc["icon"] = "mdi:text-box-outline";
-            doc["entity_category"] = "config";
-            publishDiscoveryMessage(doc, "text");
-            discoverySubIndex++;
-            advance_state = (discoverySubIndex >= 5);
-            break;
-
-        case HA_DISCOVERY_CLEANUP_DATAPOINTS:
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: CLEANUP_DATAPOINTS (%d)", discoverySubIndex);
-            clearHaEntity("sensor", ("datapoint_" + String(discoverySubIndex)).c_str());
-            clearHaEntity("select", ("datapoint_" + String(discoverySubIndex) + "_source").c_str());
-            discoverySubIndex++;
-            advance_state = (discoverySubIndex >= 5);
-            break;
-
-        case HA_DISCOVERY_NUMBER_CONFIGS: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: NUMBER_CONFIGS (%d)", discoverySubIndex);
-            const char* number_configs[][5] = {
-                {"animation_interval", "Animation Interval", "mdi:clock-in", "min", "0,120,1"},
-                {"animation_duration", "Animation Duration", "mdi:movie-filter", "ms", "1000,10000,100"},
-                {"stock_refresh", "Stock Refresh", "mdi:chart-line", "min", "1,60,1"}
-            };
-            const char** cfg = number_configs[discoverySubIndex];
-            doc["name"] = cfg[1];
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + cfg[0];
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + cfg[0];
-            doc["command_topic"] = device_base_topic + "/" + cfg[0] + "/command";
-            doc["state_topic"] = device_base_topic + "/" + cfg[0] + "/state";
-            doc["icon"] = cfg[2];
-            doc["unit_of_measurement"] = cfg[3];
-            int min, max, step;
-            sscanf(cfg[4], "%d,%d,%d", &min, &max, &step);
-            doc["min"] = min;
-            doc["max"] = max;
-            doc["step"] = step;
-            doc["entity_category"] = "config";
-            publishDiscoveryMessage(doc, "number");
-            discoverySubIndex++;
-            advance_state = (discoverySubIndex >= 3);
-            break;
-        }
-
-        case HA_DISCOVERY_SWITCH_CONFIGS: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: SWITCH_CONFIGS (%d)", discoverySubIndex);
-            const char* switch_configs[][3] = {
-                {"24h_format", "24-Hour Format", "mdi:clock-time-twelve-outline"}
-            };
-            const char** cfg = switch_configs[discoverySubIndex];
-            doc["name"] = cfg[1];
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + cfg[0];
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + cfg[0];
-            doc["command_topic"] = device_base_topic + "/" + cfg[0] + "/command";
-            doc["state_topic"] = device_base_topic + "/" + cfg[0] + "/state";
-            doc["icon"] = cfg[2];
-            doc["entity_category"] = "config";
-            publishDiscoveryMessage(doc, "switch");
-            discoverySubIndex++;
-            advance_state = (discoverySubIndex >= 1);
-            break;
-        }
-
-        case HA_DISCOVERY_BUTTON_CONFIGS: {
-             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: BUTTON_CONFIGS (%d)", discoverySubIndex);
-            const char* button_configs[][3] = {
-                {"trigger_animation", "Trigger Animation", "mdi:movie-play"},
-                {"reboot_device", "Reboot Device", "mdi:restart"},
-                {"force_ntp_sync", "Force NTP Sync", "mdi:timer-sync-outline"},
-                {"factory_reset", "Factory Reset", "mdi:delete-restore"},
-                {"save_all_settings", "Save All Settings", "mdi:content-save-all-outline"}
-            };
-            const char** cfg = button_configs[discoverySubIndex];
-            doc["name"] = cfg[1];
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_" + cfg[0];
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_" + cfg[0];
-            doc["command_topic"] = device_base_topic + "/" + cfg[0] + "/command";
-            doc["payload_press"] = "PRESS";
-            doc["icon"] = cfg[2];
-            doc["entity_category"] = "config";
-            publishDiscoveryMessage(doc, "button");
-            discoverySubIndex++;
-            advance_state = (discoverySubIndex >= 5);
-            break;
-        }
-
-        case HA_DISCOVERY_SEQUENCER_BUTTON:
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: SEQUENCER_BUTTON");
-            doc["name"] = "Trigger Sequence";
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_sequencer";
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_sequencer";
-            doc["command_topic"] = device_base_topic + "/sequencer/command";
-            doc["payload_press"] = "PRESS";
-            doc["icon"] = "mdi:movie-play-outline";
-            doc["entity_category"] = "config";
-            publishDiscoveryMessage(doc, "button");
-            break;
-
-        case HA_DISCOVERY_TEMPORAL_ECHO:
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: TEMPORAL_ECHO");
-            doc["name"] = "Temporal Echo Effect";
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_temporal_echo";
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_temporal_echo";
-            doc["command_topic"] = device_base_topic + "/temporal_echo/command";
-            doc["state_topic"] = device_base_topic + "/temporal_echo/state";
-            doc["icon"] = "mdi:ghost";
-            doc["entity_category"] = "config";
-            publishDiscoveryMessage(doc, "switch");
-            break;
-
-        case HA_DISCOVERY_PROFILE_SELECTOR: {
-             Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: PROFILE_SELECTOR");
-            doc["name"] = "Profile";
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_profile";
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_profile";
-            doc["command_topic"] = device_base_topic + "/profile/command";
-            doc["state_topic"] = device_base_topic + "/profile/state";
-            JsonArray options = doc["options"].to<JsonArray>();
-            options.add("Standard");
-            options.add("Cinematic");
-            options.add("Silent Night");
-            options.add("Unstable");
-            options.add("Custom");
-            doc["icon"] = "mdi:movie-settings";
-            doc["entity_category"] = "config";
-            publishDiscoveryMessage(doc, "select");
-            break;
-        }
-
-        case HA_DISCOVERY_NOTIFICATION_ENTITIES: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: NOTIFICATION_ENTITIES (%d)", discoverySubIndex);
-            if (discoverySubIndex == 0) {
-                doc["name"] = "Override Switch";
-                doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_override_switch";
-                doc["object_id"] = String(MQTT_UNIQUE_ID) + "_override_switch";
-                doc["command_topic"] = device_base_topic + "/override_switch/command";
-                doc["state_topic"] = device_base_topic + "/override_switch/state";
-                doc["icon"] = "mdi:message-cog";
-                doc["entity_category"] = "config";
-                publishDiscoveryMessage(doc, "switch");
-            } else {
-                doc["name"] = "Override Message Line " + String(discoverySubIndex);
-                doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_override_line_" + String(discoverySubIndex);
-                doc["object_id"] = String(MQTT_UNIQUE_ID) + "_override_line_" + String(discoverySubIndex);
-                doc["command_topic"] = device_base_topic + "/override_line_" + String(discoverySubIndex) + "/command";
-                doc["state_topic"] = device_base_topic + "/override_line_" + String(discoverySubIndex) + "/state";
-                doc["icon"] = "mdi:message-draw";
-                doc["entity_category"] = "config";
-                publishDiscoveryMessage(doc, "text");
-            }
-            discoverySubIndex++;
-            advance_state = (discoverySubIndex > 3);
-            break;
-        }
-
-        case HA_DISCOVERY_CLEANUP_AUDIO: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: CLEANUP_AUDIO");
-            clearHaEntity("text", "override_message");
-            clearHaEntity("select", "play_sound");
-            clearHaEntity("text", "tts_text");
-            clearHaEntity("sensor", "audio_status");
-            break;
-        }
-
-        case HA_DISCOVERY_DISPLAY_MODE: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: DISPLAY_MODE");
-            doc["name"] = "Display Mode";
-            doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_display_mode";
-            doc["object_id"] = String(MQTT_UNIQUE_ID) + "_display_mode";
-            doc["command_topic"] = device_base_topic + "/display_mode/command";
-            doc["state_topic"] = device_base_topic + "/display_mode/state";
-            JsonArray options = doc["options"].to<JsonArray>();
-            options.add("Normal Clock");
-            options.add("Stock Ticker");
-            options.add("Weather");
-            options.add("Data Link");
-            doc["icon"] = "mdi:television-classic";
-            doc["entity_category"] = "config";
-            publishDiscoveryMessage(doc, "select");
-            break;
-        }
-
-        case HA_DISCOVERY_WEATHER_ENTITIES: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: WEATHER_ENTITIES (%d)", discoverySubIndex);
-            if(discoverySubIndex == 0) {
-                doc["name"] = "Weather City";
-                doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_weather_city";
-                doc["object_id"] = String(MQTT_UNIQUE_ID) + "_weather_city";
-                doc["command_topic"] = device_base_topic + "/weather_city/command";
-                doc["state_topic"] = device_base_topic + "/weather_city/state";
-                doc["icon"] = "mdi:city";
-                doc["entity_category"] = "config";
-                publishDiscoveryMessage(doc, "text");
-            } else {
-                doc["name"] = "Refresh Weather Data";
-                doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_weather_refresh";
-                doc["object_id"] = String(MQTT_UNIQUE_ID) + "_weather_refresh";
-                doc["command_topic"] = device_base_topic + "/weather_refresh/command";
-                doc["payload_press"] = "PRESS";
-                doc["icon"] = "mdi:refresh";
-                doc["entity_category"] = "config";
-                publishDiscoveryMessage(doc, "button");
-            }
-            discoverySubIndex++;
-            advance_state = (discoverySubIndex >= 2);
-            break;
-        }
-
-        case HA_DISCOVERY_AUDIO_SENSORS: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: AUDIO_SENSORS (%d)", discoverySubIndex);
-            if(discoverySubIndex == 0) {
-                doc["name"] = "Audio Stream Status";
-                doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_audio_status";
-                doc["object_id"] = String(MQTT_UNIQUE_ID) + "_audio_status";
-                doc["state_topic"] = device_base_topic + "/audio/state";
-                doc["icon"] = "mdi:waveform";
-                publishDiscoveryMessage(doc, "sensor");
-            } else if (discoverySubIndex == 1) {
-                doc["name"] = "Radio Station";
-                doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_radio_station_name";
-                doc["object_id"] = String(MQTT_UNIQUE_ID) + "_radio_station_name";
-                doc["state_topic"] = device_base_topic + "/radio_station_name/state";
-                doc["icon"] = "mdi:radio-tower";
-                publishDiscoveryMessage(doc, "sensor");
-            } else {
-                doc["name"] = "Radio Song";
-                doc["unique_id"] = String(MQTT_UNIQUE_ID) + "_radio_song_title";
-                doc["object_id"] = String(MQTT_UNIQUE_ID) + "_radio_song_title";
-                doc["state_topic"] = device_base_topic + "/radio_song_title/state";
-                doc["icon"] = "mdi:music-note";
-                publishDiscoveryMessage(doc, "sensor");
-            }
-            discoverySubIndex++;
-            advance_state = (discoverySubIndex >= 3);
-            break;
-        }
-
-        case HA_DISCOVERY_PRESET_SELECTOR: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: PRESET_SELECTOR");
-            publishHaPresetSelector();
-            break;
-        }
-
-        case HA_DISCOVERY_DEVICE_TRIGGERS: {
-            Log_printf(LOG_LEVEL_DEBUG, "HA Discovery Step: DEVICE_TRIGGERS");
-            publishDeviceTriggers();
-            break;
-        }
-
-        default: {
-            Log_printf(LOG_LEVEL_INFO, "HA Discovery: Unknown state %d or process finished. Stopping.", discoveryState);
-            discoveryState = HA_DISCOVERY_COMPLETE;
-            break;
+            doc.remove("name");
+            doc.remove("unique_id");
+            doc.remove("object_id");
+            doc.remove("command_topic");
+            doc.remove("state_topic");
+            doc.remove("icon");
         }
     }
 
-    if (advance_state) {
-        discoverySubIndex = 0; // Reset sub-index for the next state
-        discoveryState = static_cast<HaDiscoveryState>(static_cast<int>(discoveryState) + 1);
-
-        if (discoveryState == HA_DISCOVERY_COMPLETE) {
-            Log_printf(LOG_LEVEL_INFO, "Home Assistant discovery process completed.");
-            haDiscoveryCompleted = true;
-        }
+    // --- Cleanup obsolete entities ---
+    clearHaEntity("sensor", "destination_time");
+    clearHaEntity("sensor", "present_time");
+    clearHaEntity("sensor", "last_time_departed");
+    clearHaEntity("number", "destination_year");
+    for (int i=0; i < 5; ++i) {
+        String unique_id_suffix = "datapoint_" + String(i) + "_source";
+        clearHaEntity("select", unique_id_suffix.c_str());
     }
+    clearHaEntity("switch", "stock_ticker_mode");
+    clearHaEntity("switch", "live_weather_mode");
+    clearHaEntity("button", "stock_next");
+    clearHaEntity("button", "stock_previous");
+
+    // ADDED: Create Enabled switches for each data point
+    for (int i=0; i < 5; ++i) {
+        doc["name"] = "Data Point " + String(i + 1) + " Enabled";
+        String id_suffix = "datapoint_" + String(i) + "_enabled";
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = "mdi:toggle-switch";
+        doc["entity_category"] = "config";
+        publishDiscoveryMessage(doc, "switch");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("entity_category");
+    }
+
+    // ADDED: Create Marquee text inputs for each data point
+    for (int i=0; i < 5; ++i) {
+        doc["name"] = "Data Point " + String(i + 1) + " Marquee";
+        String id_suffix = "datapoint_" + String(i) + "_marquee";
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = "mdi:text-box-outline";
+        doc["entity_category"] = "config";
+        publishDiscoveryMessage(doc, "text");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("entity_category");
+    }
+
+    // This sensor has been replaced by the more specific `..._marquee` text entity and `..._enabled` switch.
+    // We will now clear any old entities that may exist from previous versions.
+    for (int i=0; i < 5; ++i) {
+        String unique_id_suffix = "datapoint_" + String(i);
+        clearHaEntity("sensor", unique_id_suffix.c_str());
+    }
+
+
+    const char* number_configs[][5] = {
+        {"animation_interval", "Animation Interval", "mdi:clock-in", "min", "0,120,1"},
+        {"animation_duration", "Animation Duration", "mdi:movie-filter", "ms", "1000,10000,100"},
+        {"stock_refresh", "Stock Refresh", "mdi:chart-line", "min", "1,60,1"}
+    };
+    for (auto const& cfg : number_configs) {
+        doc["name"] = cfg[1];
+        String id_suffix = cfg[0];
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = cfg[2];
+        doc["unit_of_measurement"] = cfg[3];
+        
+        int min_val, max_val, step_val;
+        char cfg_copy[20];
+        strncpy(cfg_copy, cfg[4], sizeof(cfg_copy) - 1);
+        cfg_copy[sizeof(cfg_copy) - 1] = '\0';
+        char* token = strtok(cfg_copy, ",");
+        min_val = atoi(token);
+        token = strtok(NULL, ",");
+        max_val = atoi(token);
+        token = strtok(NULL, ",");
+        step_val = atoi(token);
+
+        doc["min"] = min_val;
+        doc["max"] = max_val;
+        doc["step"] = step_val;
+        doc["entity_category"] = "config";
+        publishDiscoveryMessage(doc, "number");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("unit_of_measurement");
+        doc.remove("min");
+        doc.remove("max");
+        doc.remove("step");
+        doc.remove("entity_category");
+    }
+
+     const char* switch_configs[][3] = {
+        {"24h_format", "24-Hour Format", "mdi:clock-time-twelve-outline"}
+    };
+    for (auto const& cfg : switch_configs) {
+        doc["name"] = cfg[1];
+        String id_suffix = cfg[0];
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = cfg[2];
+        doc["entity_category"] = "config";
+        publishDiscoveryMessage(doc, "switch");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("entity_category");
+    }
+    
+    const char* button_configs[][3] = {
+        {"trigger_animation", "Trigger Animation", "mdi:movie-play"},
+        {"reboot_device", "Reboot Device", "mdi:restart"},
+        {"force_ntp_sync", "Force NTP Sync", "mdi:timer-sync-outline"},
+        {"factory_reset", "Factory Reset", "mdi:delete-restore"},
+        {"save_all_settings", "Save All Settings", "mdi:content-save-all-outline"}
+    };
+    for (auto const& cfg : button_configs) {
+        doc["name"] = cfg[1];
+        String id_suffix = cfg[0];
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["payload_press"] = "PRESS";
+        doc["icon"] = cfg[2];
+        doc["entity_category"] = "config";
+        publishDiscoveryMessage(doc, "button");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("payload_press");
+        doc.remove("icon");
+        doc.remove("entity_category");
+    }
+
+    // --- Sequencer Button ---
+    doc["name"] = "Trigger Sequence";
+    String sequencer_id = String(MQTT_UNIQUE_ID) + "_sequencer";
+    doc["unique_id"] = sequencer_id;
+    doc["object_id"] = sequencer_id;
+    doc["command_topic"] = device_base_topic + "/sequencer/command";
+    doc["payload_press"] = "PRESS";
+    doc["icon"] = "mdi:movie-play-outline";
+    doc["entity_category"] = "config";
+    publishDiscoveryMessage(doc, "button");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("payload_press");
+    doc.remove("icon");
+    doc.remove("entity_category");
+    
+    // --- Temporal Echo Switch ---
+    doc["name"] = "Temporal Echo Effect";
+    String temporal_echo_id = String(MQTT_UNIQUE_ID) + "_temporal_echo";
+    doc["unique_id"] = temporal_echo_id;
+    doc["object_id"] = temporal_echo_id;
+    doc["command_topic"] = device_base_topic + "/temporal_echo/command";
+    doc["state_topic"] = device_base_topic + "/temporal_echo/state";
+    doc["icon"] = "mdi:ghost";
+    doc["entity_category"] = "config";
+    publishDiscoveryMessage(doc, "switch");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("icon");
+    doc.remove("entity_category");
+
+    // --- Profile Selector ---
+    doc["name"] = "Profile";
+    String profile_id = String(MQTT_UNIQUE_ID) + "_profile";
+    doc["unique_id"] = profile_id;
+    doc["object_id"] = profile_id;
+    doc["command_topic"] = device_base_topic + "/profile/command";
+    doc["state_topic"] = device_base_topic + "/profile/state";
+    JsonArray profiles = doc["options"].to<JsonArray>();
+    profiles.add("Standard");
+    profiles.add("Cinematic");
+    profiles.add("Silent Night");
+    profiles.add("Unstable");
+    profiles.add("Custom");
+    doc["icon"] = "mdi:movie-settings";
+    doc["entity_category"] = "config";
+    publishDiscoveryMessage(doc, "select");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("options");
+    doc.remove("icon");
+    doc.remove("entity_category");
+    
+    // --- Notification & Alert Entities ---
+    doc["name"] = "Override Switch";
+    String override_switch_id = String(MQTT_UNIQUE_ID) + "_override_switch";
+    doc["unique_id"] = override_switch_id;
+    doc["object_id"] = override_switch_id;
+    doc["command_topic"] = device_base_topic + "/override_switch/command";
+    doc["state_topic"] = device_base_topic + "/override_switch/state";
+    doc["icon"] = "mdi:message-cog";
+    doc["entity_category"] = "config";
+    publishDiscoveryMessage(doc, "switch");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("icon");
+    doc.remove("entity_category");
+
+
+    // --- Remove the old single override message entity ---
+    clearHaEntity("text", "override_message");
+
+    // --- Create three separate text entities for each override line ---
+    for (int i = 1; i <= 3; i++) {
+        doc["name"] = "Override Message Line " + String(i);
+        String id_suffix = "override_line_" + String(i);
+        String entity_id = String(MQTT_UNIQUE_ID) + "_" + id_suffix;
+        doc["unique_id"] = entity_id;
+        doc["object_id"] = entity_id;
+        doc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
+        doc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
+        doc["icon"] = "mdi:message-draw";
+        doc["entity_category"] = "config";
+        publishDiscoveryMessage(doc, "text");
+        doc.remove("name");
+        doc.remove("unique_id");
+        doc.remove("object_id");
+        doc.remove("command_topic");
+        doc.remove("state_topic");
+        doc.remove("icon");
+        doc.remove("entity_category");
+    }
+
+    // --- Cleanup old entities replaced by the media_player ---
+    clearHaEntity("select", "play_sound");
+    clearHaEntity("text", "tts_text");
+    clearHaEntity("sensor", "audio_status");
+
+
+    // --- Display Mode Selection ---
+    doc["name"] = "Display Mode";
+    String display_mode_id = String(MQTT_UNIQUE_ID) + "_display_mode";
+    doc["unique_id"] = display_mode_id;
+    doc["object_id"] = display_mode_id;
+    doc["command_topic"] = device_base_topic + "/display_mode/command";
+    doc["state_topic"] = device_base_topic + "/display_mode/state";
+    JsonArray modes = doc["options"].to<JsonArray>();
+    modes.add("Normal Clock");
+    modes.add("Stock Ticker");
+    modes.add("Weather");
+    modes.add("Data Link");
+    doc["icon"] = "mdi:television-classic";
+    doc["entity_category"] = "config";
+    publishDiscoveryMessage(doc, "select");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("options");
+    doc.remove("icon");
+    doc.remove("entity_category");
+
+    // --- Live Weather Mode Entities ---
+    doc["name"] = "Weather City";
+    String weather_city_id = String(MQTT_UNIQUE_ID) + "_weather_city";
+    doc["unique_id"] = weather_city_id;
+    doc["object_id"] = weather_city_id;
+    doc["command_topic"] = device_base_topic + "/weather_city/command";
+    doc["state_topic"] = device_base_topic + "/weather_city/state";
+    doc["icon"] = "mdi:city";
+    doc["entity_category"] = "config";
+    publishDiscoveryMessage(doc, "text");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("state_topic");
+    doc.remove("icon");
+    doc.remove("entity_category");
+
+    doc["name"] = "Refresh Weather Data";
+    String weather_refresh_id = String(MQTT_UNIQUE_ID) + "_weather_refresh";
+    doc["unique_id"] = weather_refresh_id;
+    doc["object_id"] = weather_refresh_id;
+    doc["command_topic"] = device_base_topic + "/weather_refresh/command";
+    doc["payload_press"] = "PRESS";
+    doc["icon"] = "mdi:refresh";
+    doc["entity_category"] = "config";
+    publishDiscoveryMessage(doc, "button");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("command_topic");
+    doc.remove("payload_press");
+    doc.remove("icon");
+    doc.remove("entity_category");
+
+    // New Audio sensor for stream state
+    doc["name"] = "Audio Stream Status";
+    String audio_status_id = String(MQTT_UNIQUE_ID) + "_audio_status";
+    doc["unique_id"] = audio_status_id;
+    doc["object_id"] = audio_status_id;
+    doc["state_topic"] = device_base_topic + "/audio/state";
+    doc["icon"] = "mdi:waveform";
+    publishDiscoveryMessage(doc, "sensor");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("state_topic");
+    doc.remove("icon");
+
+    // --- Radio Station Name Sensor ---
+    doc["name"] = "Radio Station";
+    String radio_station_id = String(MQTT_UNIQUE_ID) + "_radio_station_name";
+    doc["unique_id"] = radio_station_id;
+    doc["object_id"] = radio_station_id;
+    doc["state_topic"] = device_base_topic + "/radio_station_name/state";
+    doc["icon"] = "mdi:radio-tower";
+    publishDiscoveryMessage(doc, "sensor");
+    doc.remove("name");
+    doc.remove("unique_id");
+    doc.remove("object_id");
+    doc.remove("state_topic");
+    doc.remove("icon");
+
+    // --- Radio Song Title Sensor ---
+    doc["name"] = "Radio Song";
+    String radio_song_id = String(MQTT_UNIQUE_ID) + "_radio_song_title";
+    doc["unique_id"] = radio_song_id;
+    doc["object_id"] = radio_song_id;
+    doc["state_topic"] = device_base_topic + "/radio_song_title/state";
+    doc["icon"] = "mdi:music-note";
+    publishDiscoveryMessage(doc, "sensor");
 }
 
 void reconnectMqtt() {
@@ -653,13 +673,17 @@ void reconnectMqtt() {
 
   if (connectResult) {
     Log_printf(LOG_LEVEL_INFO, "SUCCESS! MQTT client connected.");
+    // It's crucial to delay and call loop() here to allow the client to process the CONNACK from the broker.
+    // Without this, the first publish will likely fail as the client is not yet ready.
     delay(250);
     mqttClient.loop();
     
     mqttClient.publish(availability_topic.c_str(), "online", true);
-    mqttClient.loop();
+    mqttClient.loop(); // Allow time for the availability message to be sent.
 
-    startHaDiscovery();
+    // Force HA discovery on every reconnect to ensure capabilities are always up-to-date.
+    publishHaAutoDiscovery();
+    publishHaPresetSelector();
 
     publishAllHaStates();
     String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
@@ -690,6 +714,9 @@ void reconnectMqtt() {
       if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !currentSettings.dataPoints[i].mqttTopic.empty()) {
         mqttClient.subscribe(currentSettings.dataPoints[i].mqttTopic.c_str());
       }
+      // The complex, four-part subscription for HA Push has been removed.
+      // All control is now handled via the wildcard command_topic subscription
+      // and the datapoint marquee text entities.
     }
   } else {
     const char* error_str = "Unknown";
@@ -796,7 +823,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 }
             }
         } else if (component == "animation_style") {
-            currentSettings.animationStyle = static_cast<AnimationType>(std::stoi(message));
+            currentSettings.animationStyle = std::stoi(message);
             settingsChanged = true;
         } else if (component == "volume") {
             int vol = std::stoi(message);
@@ -933,7 +960,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             saveSettings();
         } else if (component == "discover" && message == "ON") {
             Log_printf(LOG_LEVEL_INFO, "HA discovery command received. Republishing all entities.");
-            startHaDiscovery();
+            publishHaAutoDiscovery();
+            publishHaPresetSelector();
         } else if (component == "temporal_echo") {
             isEchoEffectActive = (message == "ON");
             if (isEchoEffectActive) echoEffectStartTime = millis();
@@ -957,15 +985,19 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "sequencer") {
             handleSequencerCommand(message);
         } else if (component == "tts_text") {
+            // When text is received on the command topic, just publish it right back to the state topic.
+            // This acts as a trigger for the blueprint automation in Home Assistant, which will then
+            // call the real TTS service and send the audio URL back to the .../tts/command topic.
             String state_topic = base_topic + "tts_text/state";
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
         } else if (component == "tts") {
             Log_printf(LOG_LEVEL_INFO, "Handling media player command (tts topic). Payload: %s", message.c_str());
             JsonDocument doc;
             if (deserializeJson(doc, message) == DeserializationError::Ok) {
+                // HA's play_media service sends 'media_id', but we also check for 'url' for direct calls.
                 const char* url = doc["media_id"] | doc["url"];
                 if (url) {
-                    int volume = doc["volume"] | -1;
+                    int volume = doc["volume"] | -1; // Use dynamic volume if provided, else -1
                     Log_printf(LOG_LEVEL_INFO, "Parsed media JSON. URL: %s, Volume: %d", url, volume);
                     startAudioStream(url, true, volume);
                 } else {
@@ -979,7 +1011,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             Log_printf(LOG_LEVEL_INFO, "Handling radio command. Payload: %s", message.c_str());
             if (message == "stop") {
                 Log_printf(LOG_LEVEL_INFO, "Stopping audio stream via user command.");
-                stopAudioStream(false);
+                stopAudioStream(false); // false = not a temporary stop
             } else {
                 Log_printf(LOG_LEVEL_INFO, "Starting radio stream.");
                 startAudioStream(message.c_str(), false);
@@ -1000,24 +1032,30 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             file.close();
         }
     } else {
+    // --- START: New logic for HA Sensor command in Sequencer ---
     for (int i = 0; i < 3; ++i) {
         if (sequencerTracks[i].isActive && sequencerTracks[i].isWaitingForHAState) {
             if (topicStr == sequencerTracks[i].haSensorTopic.c_str()) {
                 Log_printf(LOG_LEVEL_INFO, "MQTT: Received state for track %d. Payload: %s", i, message.c_str());
                 int segment = sequencerTracks[i].steps[sequencerTracks[i].currentStep].targetSegment;
-                manualDisplayText[i][segment] = message;
-                sequencerTracks[i].haStateReceived = true;
-                break;
+                manualDisplayText[i][segment] = message; // Update the display text directly
+                sequencerTracks[i].haStateReceived = true; // Signal that we got the data
+                break; // Assume only one track can wait for a topic at a time
             }
         }
     }
+    // --- END: New logic for HA Sensor command ---
+
+        // This handles incoming data for any of the 5 data points that are configured
+        // with a `dataSourceType` of `DATA_SOURCE_MQTT`.
         for (int i = 0; i < currentSettings.numDataPoints; i++) {
+            // Check if the topic matches and the data source is MQTT
             if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT &&
                 topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
                 currentSettings.dataPoints[i].scrollingText = message.c_str();
-                isMarqueeBufferDirty = true;
-                saveSettings();
-                break;
+                isMarqueeBufferDirty = true; // Set the dirty flag to force a re-render
+                saveSettings(); // Persist the new text
+                break; // Exit the loop since we found the matching topic
             }
         }
     }
@@ -1056,6 +1094,7 @@ void publishAllHaStates() {
 
     mqttClient.publish((base_topic + "/override/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
     
+    // Publish the state of the new, separate override line entities
     mqttClient.publish((base_topic + "/override_line_1/state").c_str(), overrideMessageLine1.c_str(), true);
     mqttClient.publish((base_topic + "/override_line_2/state").c_str(), overrideMessageLine2.c_str(), true);
     mqttClient.publish((base_topic + "/override_line_3/state").c_str(), overrideMessageLine3.c_str(), true);
@@ -1081,6 +1120,7 @@ void publishAllHaStates() {
     sprintf(time_str, "%02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
     mqttClient.publish((base_topic + "/wake_time/state").c_str(), time_str, true);
 
+    // Publish the state of the 12 text entities
     for(int r=0; r<3; ++r) {
         for(int s=0; s<4; ++s) {
             const char* rows[] = {"dest", "pres", "last"};
@@ -1107,16 +1147,21 @@ void publishAllHaStates() {
     
     mqttClient.publish((base_topic + "/temporal_echo/state").c_str(), isEchoEffectActive ? "ON" : "OFF", true);
 
+    // This state publishing has been removed as the sensor it belongs to was removed.
+
+    // Publish the state of the new display mode selector
     const char* modes[] = {"Normal Clock", "Stock Ticker", "Weather", "Data Link"};
     if (currentSettings.displayMode >= 0 && currentSettings.displayMode < 4) {
         mqttClient.publish((base_topic + "/display_mode/state").c_str(), modes[currentSettings.displayMode], true);
     }
 
+    // --- ADDED: Publish states for the select entities that were being missed ---
     mqttClient.publish((base_topic + "/profile/state").c_str(), currentProfileName.c_str(), true);
     mqttClient.publish((base_topic + "/preset_selector/state").c_str(), lastDepartedPreset.c_str(), true);
 
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
 
+    // --- ADDED: Publish radio metadata states ---
     mqttClient.publish((base_topic + "/radio_station_name/state").c_str(), radioStationName.c_str(), true);
     mqttClient.publish((base_topic + "/radio_song_title/state").c_str(), radioSongTitle.c_str(), true);
 
@@ -1130,7 +1175,7 @@ void publishAllHaStates() {
 
 void publishMqttMessage(const std::string& topic, const std::string& payload) {
     if (mqttClient.connected()) {
-        mqttClient.publish(topic.c_str(), payload.c_str(), false);
+        mqttClient.publish(topic.c_str(), payload.c_str(), false); // Not retained
         Log_printf(LOG_LEVEL_INFO, "MQTT: Published to topic [%s] with payload [%s]", topic.c_str(), payload.c_str());
     } else {
         Log_printf(LOG_LEVEL_WARN, "MQTT: Cannot publish, client not connected.");
@@ -1141,6 +1186,7 @@ void handleSequencerCommand(const std::string& payload) {
     JsonDocument doc;
     std::string json_to_parse;
 
+    // First, check if the payload is a named sequence string
     if (payload == "Intruder Alert") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Intruder Alert'");
         json_to_parse = R"([
@@ -1247,6 +1293,7 @@ void handleSequencerCommand(const std::string& payload) {
     DeserializationError error = deserializeJson(doc, json_to_parse);
 
     if (error) {
+        // If we are here, it means the payload was not a known named sequence, AND it's not valid JSON.
         Log_printf(LOG_LEVEL_ERROR, "Failed to parse sequencer JSON: %s. Payload was: %s", error.c_str(), payload.c_str());
         return;
     }
@@ -1290,7 +1337,7 @@ void handleSequencerCommand(const std::string& payload) {
             }
 
             SequenceStep& current_step = sequencerTracks[targetRow].steps[step_index];
-            current_step.targetRow = targetRow;
+            current_step.targetRow = targetRow; // Assign the row to the step for context
 
             if (strcmp(cmd, "MARQUEE") == 0) {
                 current_step.command = SEQ_CMD_MARQUEE;
@@ -1326,8 +1373,8 @@ void handleSequencerCommand(const std::string& payload) {
         sequencerTracks[targetRow].currentStep = 0;
         sequencerTracks[targetRow].stepStartTime = millis();
         sequencerTracks[targetRow].isActive = true;
-        sequencerTracks[targetRow].trackStartTime = millis();
-        sequencerTracks[targetRow].stepInitialized = false;
+        sequencerTracks[targetRow].trackStartTime = millis(); // --- NEW: Set track start time for timeout ---
+        sequencerTracks[targetRow].stepInitialized = false; // --- FIX: Reset the initialization flag for the new sequence ---
         Log_printf(LOG_LEVEL_INFO, "Sequencer track %d activated with %d steps.", targetRow, step_index);
     }
 }
@@ -1338,11 +1385,21 @@ void updateHaStatus(const char* status) {
 	mqttClient.publish((base_topic + "/status/state").c_str(), status, true);
 }
 
+/**
+ * @brief Publishes the current radio metadata to the corresponding MQTT topics.
+ * @details This function is called whenever the station name or song title changes.
+ * It sends the data to Home Assistant and broadcasts it to the web UI.
+ */
 void publishRadioMetadata() {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+
+    // Publish to Home Assistant topics
     mqttClient.publish((base_topic + "/radio_station_name/state").c_str(), radioStationName.c_str(), true);
     mqttClient.publish((base_topic + "/radio_song_title/state").c_str(), radioSongTitle.c_str(), true);
+
+    // Broadcast to Web UI
+    broadcastRadioMetadata(radioStationName.c_str(), radioSongTitle.c_str());
 }
 
 void audio_info(Audio::msg_t m) {
@@ -1350,6 +1407,7 @@ void audio_info(Audio::msg_t m) {
         case Audio::evt_streamtitle:
             Log_printf(LOG_LEVEL_INFO, "ICY METADATA: %s", m.msg);
             radioSongTitle = m.msg;
+            // Clean up common garbage text from titles
             radioSongTitle.replace(" - ", " ");
             radioSongTitle.replace("Now Playing: ", "");
             radioSongTitle.trim();
@@ -1377,10 +1435,21 @@ void audio_info(Audio::msg_t m) {
             break;
 
         default:
+            // You can add other cases here if needed, e.g., for logging
+            // Log_printf(LOG_LEVEL_DEBUG, "Audio Event: %s", m.msg);
             break;
     }
 }
 
+/**
+ * @brief Centralized function to stop audio playback and reset all related states.
+ * @details This function is the single source of truth for halting any audio.
+ * It stops the player, powers down the DAC, clears all state variables
+ * (isRadioStreaming, metadata, etc.), unregisters callbacks, and notifies all
+ * clients (HA and Web UI) that playback has stopped. This ensures the system
+s
+ * state is always consistent.
+ */
 void cleanupAudio(bool isPermanent) {
     Log_printf(LOG_LEVEL_INFO, "--- Centralized Audio Cleanup (Permanent: %s) ---", isPermanent ? "true" : "false");
 
@@ -1391,14 +1460,19 @@ void cleanupAudio(bool isPermanent) {
     digitalWrite(I2S_SD_PIN, LOW);
     currentSoundFile[0] = '\0';
 
+    // If the stop is permanent (i.e., user-commanded), and the radio was playing,
+    // then we must reset all the radio-specific states.
     if (isPermanent && isRadioStreaming) {
         isRadioStreaming = false;
         radioStationName = "";
         radioSongTitle = "";
-        publishRadioMetadata();
+        publishRadioMetadata(); // Send cleared metadata
         broadcastRadioStatus(RADIO_STATUS_STOPPED);
     }
 
+    // The new API uses a single static callback, so we don't unregister it.
+
+    // Update HA state to IDLE
     if (mqttClient.connected()) {
         mqttClient.publish((String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/audio/state").c_str(), "IDLE", true);
     }
@@ -1416,15 +1490,18 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
 
     if (audio.isRunning()) {
         Log_printf(LOG_LEVEL_DEBUG, "Stopping existing audio to play new stream.");
+        // If the new stream is TTS, the current one is stopped temporarily.
+        // If the new stream is Radio, the current one is stopped permanently.
         stopAudioStream(is_tts);
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
+    // If it's a radio stream, set the callback. Otherwise, ensure it's null.
     if (!is_tts) {
-        isRadioStreaming = true;
+        isRadioStreaming = true; // It's a radio stream
         broadcastRadioStatus(RADIO_STATUS_CONNECTING);
     } else {
-        isRadioStreaming = false;
+        isRadioStreaming = false; // It's a TTS stream
     }
     
     digitalWrite(I2S_SD_PIN, HIGH);
@@ -1447,18 +1524,24 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
         }
         if (!is_tts) {
             broadcastRadioStatus(RADIO_STATUS_PLAYING);
+            // The station name is now handled by the evt_name case in the audio_info callback
+            // radioStationName = audio.getStationName();
+            // publishRadioMetadata();
         }
     } else {
         Log_printf(LOG_LEVEL_ERROR, "Failed to connect to host for streaming: %s", url);
+        // Broadcast a specific error to the UI before running the generic cleanup.
         if (!is_tts) {
             broadcastRadioStatus(RADIO_STATUS_ERROR, "Failed to connect to host");
         }
+        // A failed connection attempt means the stream should be considered permanently stopped.
         cleanupAudio(true);
     }
 }
 
 void stopAudioStream(bool isTemporary) {
     Log_printf(LOG_LEVEL_INFO, "Request to stop audio stream (isTemporary: %s)", isTemporary ? "true" : "false");
+    // A temporary stop is NOT permanent. A non-temporary stop IS permanent.
     cleanupAudio(!isTemporary);
 }
 
@@ -1467,6 +1550,8 @@ void setupMqtt() {
     Log_printf(LOG_LEVEL_INFO, "No broker configured. MQTT setup skipped.");
     return;
   }
+  // Programmatically set the buffer size to ensure it's large enough for HA discovery payloads.
+  // This is more reliable than using the #define directive.
   if (!mqttClient.setBufferSize(1500)) {
     Log_printf(LOG_LEVEL_ERROR, "CRITICAL: Failed to allocate MQTT buffer. Discovery will fail.");
   }

@@ -1,51 +1,45 @@
 #include "AnimationManager.h"
-#include "AnimationSequences.h"
-
-// Define the animation state variables
-bool isAnimating = false;
-unsigned long animationStartTime = 0;
-AnimationPhase currentPhase = ANIM_INACTIVE;
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DebugLog.h"
-#include "DisplayManager.h" // <-- This now includes the declaration for setOverrideMessage
+
+// --- NEW: A global timeout for any single animation sequence track ---
+#define MAX_SEQUENCE_DURATION 60000 // 60 seconds
+#include "DisplayManager.h"
 #include "MqttManager.h"
 #include <WiFi.h>
 #include "web_server.h"
 #include <ArduinoJson.h>
 
-#define MAX_SEQUENCE_DURATION 60000 // 60 seconds
-
+// --- Add these extern declarations for the new state variables ---
+extern bool isStyledAnimating;
+extern unsigned long styledAnimationStartTime;
+extern AnimationPhase currentStyledPhase;
 char old_dest_str[17], old_pres_str[17], old_last_str[17];
 
 static BootSequenceState nextStateAfterSound = BOOT_INACTIVE;
 static AnimationPhase nextPhaseAfterSound = ANIM_INACTIVE;
 
+
+// --- Static flag to prevent boot loop ---
 static bool infoMessageSet = false;
 
+// --- Extern variable/function declarations ---
+extern void setOverrideMessage(const char* line1, const char* line2, const char* line3);
+extern bool isMessageOverrideActive;
 extern unsigned long bootStateStartTime;
 
+// Helper function prototypes
 void playReconfiguringSound();
 void resetDisplayToNormal();
+static void comprehensiveAnimationCleanup();
 
 extern int speedometerValue;
 
+// Extern variables should be within the conditional block
 #if ENABLE_HARDWARE
 extern DisplayRow destRow, presRow, lastRow;
 #endif
-
-/**
- * @brief Checks if any sequencer track is currently active.
- * @return True if at least one track's `isActive` flag is true, false otherwise.
- */
-bool isAnySequenceActive() {
-    for (int i = 0; i < 3; i++) {
-        if (sequencerTracks[i].isActive) {
-            return true;
-        }
-    }
-    return false;
-}
 
 void broadcastAnimationComplete() {
     if (ws.count() > 0) {
@@ -58,45 +52,116 @@ void broadcastAnimationComplete() {
     }
 }
 
+// Effects are now handled inside the sequencer
+
+/**
+ * @brief Triggers a short flash effect on a specific display segment using the sequencer.
+ * @param row The display row (0-2) to flash.
+ * @param segment The segment within the row (0-3) to flash.
+ * @param duration The total duration of the flash effect in milliseconds.
+ */
 void triggerFlashEffect(int row, int segment, int duration) {
     if (row < 0 || row > 2 || segment < 0 || segment > 3) {
         Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid parameters for triggerFlashEffect (row: %d, seg: %d)", row, segment);
         return;
     }
+
+    // If a sequence is already active on this row, don't override it.
     if (sequencerTracks[row].isActive) {
         Log_printf(LOG_LEVEL_INFO, "SEQ: Ignoring flash effect on row %d, sequence already active.", row);
         return;
     }
+
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering flash effect on row %d, segment %d for %dms.", row, segment, duration);
+
+    // Reset the track to ensure it's in a clean state
     sequencerTracks[row].reset();
+
+    // Configure the track for the flash effect
     sequencerTracks[row].isActive = true;
     sequencerTracks[row].stepStartTime = millis();
     sequencerTracks[row].trackStartTime = millis();
     sequencerTracks[row].originalBrightness = currentSettings.brightness;
-    sequencerTracks[row].steps[0] = {SEQ_CMD_FLASH, row, segment, duration, 0, ""};
-    sequencerTracks[row].steps[1] = {SEQ_CMD_END, 0, 0, 0, 0, ""};
+
+    // Step 1: Flash the specified segment for the given duration
+    sequencerTracks[row].steps[0] = {SEQ_CMD_FLASH, row, segment, duration, ""};
+
+    // Step 2: End the sequence
+    sequencerTracks[row].steps[1] = {SEQ_CMD_END, 0, 0, 0, ""};
 }
 
+// File-scoped variable to hold the chosen animation style for a single run
+static int randomAnimationStyle = -1;
+
+// --- START: NEW FADE AND PULSE IMPLEMENTATIONS ---
+// Global effect handlers are no longer needed; this logic is now inside handleSequencer.
+
+// --- TIME TRAVEL ANIMATION ---
+void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
+    if (hardwareInitialized && currentSettings.timeTravelSoundToggle) {
+        playSound(filename);
+    }
+    nextPhaseAfterSound = nextPhase;
+    currentPhase = ANIM_WAIT_FOR_SOUND;
+    animationStartTime = millis();
+}
+
+/**
+ * @brief Initiates the multi-stage time travel animation sequence.
+ */
+/**
+ * @brief Initiates the multi-stage time travel animation sequence.
+ * @details This function acts as the entry point for the main cinematic time travel
+ * animation. It sets the global `isAnimating` flag to true, which prevents other
+ * display modes from interfering, and sets the initial animation phase. The actual
+ * animation is handled by the `handleDisplayAnimation` state machine, which is
+ * called on each iteration of the main loop.
+ */
 void startTimeTravelAnimation() {
+    // Attempt to take the mutex. If we can't get it, another task is trying
+    // to start an animation, so we should just exit.
     if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
         return;
     }
+
+    // We have the mutex, now we can safely check the animation flag.
     if (isAnimating) {
-        xSemaphoreGive(xAnimationStartMutex);
+        xSemaphoreGive(xAnimationStartMutex); // Release the mutex before returning.
         return;
     }
+
+    // Set the animation flag to prevent other tasks from starting another animation.
     isAnimating = true;
+
+    // The critical section is over, release the mutex.
     xSemaphoreGive(xAnimationStartMutex);
+
     animationStartTime = millis();
+    // Set the initial phase; the state machine will handle the rest.
     currentPhase = ANIM_POWER_UP;
     updateHaStatus("Animating");
+
+    // The Last Time Departed is now exclusively set via the UI.
+    // This animation is purely visual.
 }
 
+/**
+ * @brief The main state machine for the CINEMATIC time travel animation. Called in the main loop.
+ */
+/**
+ * @brief Manages the state machine for the main cinematic time travel animation.
+ * @details This function is called on every loop iteration while `isAnimating` is true.
+ * It uses a `switch` statement to progress through the different phases of the
+ * animation (e.g., power up, time acceleration, arrival). It handles the timing for
+ * each phase and calls the appropriate low-level animation functions from HardwareControl.cpp.
+ */
 void handleDisplayAnimation() {
     if (!isAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     unsigned long elapsed = millis() - animationStartTime;
-    const unsigned long MAX_ANIMATION_DURATION = 30000;
+
+    // --- FIX: Add a global timeout to prevent the animation from hanging indefinitely ---
+    const unsigned long MAX_ANIMATION_DURATION = 30000; // 30 seconds
     if (elapsed > MAX_ANIMATION_DURATION) {
         Serial.println(F("ANIMATION_ERROR: Time travel animation timed out. Forcing exit."));
         isAnimating = false;
@@ -106,26 +171,40 @@ void handleDisplayAnimation() {
         return;
     }
     static AnimationPhase lastPhase = ANIM_INACTIVE;
+
+    // Detect when the animation phase changes to trigger the sound for the new phase.
     if (currentPhase != lastPhase) {
         if (currentSettings.timeTravelSoundToggle) {
             switch (currentPhase) {
-                case ANIM_POWER_UP: playSound("engine_rev.mp3"); break;
-                case ANIM_ARRIVAL: playSound("time_travel.mp3"); break;
-                default: break;
+                case ANIM_POWER_UP:
+                    playSound("engine_rev.mp3");
+                    break;
+                case ANIM_ARRIVAL:
+                    playSound("time_travel.mp3");
+                    break;
+                default:
+                    break; // No sound for other states
             }
         }
         lastPhase = currentPhase;
     }
+
     switch (currentPhase) {
         case ANIM_POWER_UP:
-            if (elapsed < 2000) { animateTornadoFlicker(); }
-            else { currentPhase = ANIM_TIME_ACCELERATION; animationStartTime = millis(); }
+            if (elapsed < 2000) {
+                animateTornadoFlicker();
+            } else {
+                currentPhase = ANIM_TIME_ACCELERATION;
+                animationStartTime = millis(); // Reset timer for the next phase
+            }
             break;
+
         case ANIM_TIME_ACCELERATION:
-             if (elapsed < 10000) {
+             if (elapsed < 10000) { // Duration is 10 seconds
                 float progress = (float)elapsed / 10000.0f;
                 float easedProgress = progress * (2.0f - progress);
                 int speed = 88 * easedProgress;
+                
                 displaySpeed(speed);
                 animateDisplayRowRandomly(destRow);
                 animateDisplayRowRandomly(presRow);
@@ -136,20 +215,24 @@ void handleDisplayAnimation() {
                 animationStartTime = millis();
             }
             break;
+
         case ANIM_ARRIVAL:
             if (elapsed < currentSettings.timeTravelAnimationDuration) {
+                // The main cinematic animation always uses the "Timeline Skim" effect.
                 animateAllRowsTimelineSkim(elapsed, currentSettings.timeTravelAnimationDuration, currentSettings.destinationYear, false);
             } else {
                 currentPhase = ANIM_LANDING;
                 animationStartTime = millis();
             }
             break;
+
         case ANIM_LANDING:
-             if (elapsed < 1000) { animateTornadoFlicker(); }
-             else {
+             if (elapsed < 1000) {
+                animateTornadoFlicker();
+            } else {
                 isAnimating = false;
                 currentPhase = ANIM_INACTIVE;
-                lastPhase = ANIM_INACTIVE;
+                lastPhase = ANIM_INACTIVE; // Reset for next run
                 updateNormalClockDisplay();
                 updateHaStatus("Idle");
                 isEchoEffectActive = true;
@@ -157,6 +240,7 @@ void handleDisplayAnimation() {
             }
             break;
         default:
+            // Failsafe to prevent getting stuck in an unknown state
             isAnimating = false;
             currentPhase = ANIM_INACTIVE;
             lastPhase = ANIM_INACTIVE;
@@ -165,22 +249,42 @@ void handleDisplayAnimation() {
 #endif
 }
 
+
+// --- NEW FUNCTIONS FOR STYLED ANIMATION ---
+
+/**
+ * @brief Initiates the styled animation sequence for scheduled events.
+ */
 void startStyledAnimation() {
-    getFormattedTimeStrings(old_dest_str, old_pres_str, old_last_str);
+    // Attempt to take the mutex. If we can't get it, another task is trying
+    // to start an animation, so we should just exit.
     if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
+        Serial.println("ANIM_LOG: Styled animation mutex grab FAILED.");
         return;
     }
-    if (isAnimating || isAnySequenceActive()) {
-        xSemaphoreGive(xAnimationStartMutex);
+    Serial.println("ANIM_LOG: Styled animation mutex grab SUCCESS.");
+
+    // We have the mutex, now we can safely check the animation flags.
+    if (isStyledAnimating || isAnimating) {
+        xSemaphoreGive(xAnimationStartMutex); // Release the mutex before returning.
         return;
     }
+
+    // Set the animation flag to prevent other tasks from starting another animation.
+    isStyledAnimating = true;
+
+    // The critical section is over, release the mutex.
     xSemaphoreGive(xAnimationStartMutex);
 
+    getFormattedTimeStrings(old_dest_str, old_pres_str, old_last_str);
+
+    styledAnimationStartTime = millis();
+    currentStyledPhase = ANIM_START; // Set initial phase to ANIM_START
     updateHaStatus("Animating");
 
-    AnimationType selectedAnimation;
-    if (currentSettings.animationStyle == ANIMATION_ALL_DISPLAYS_RANDOM) {
-        const AnimationType validAnimationStyles[] = {
+    // Set the animation style for this run
+    if (currentSettings.animationStyle == ANIMATION_RANDOM_ALL) {
+        const int validAnimationStyles[] = {
             ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
             ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
             ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
@@ -192,28 +296,234 @@ void startStyledAnimation() {
             ANIMATION_ALL_DISPLAYS_RANDOM
         };
         int numStyles = sizeof(validAnimationStyles) / sizeof(validAnimationStyles[0]);
-        selectedAnimation = validAnimationStyles[random(0, numStyles)];
+        int randomIndex = random(0, numStyles);
+        randomAnimationStyle = validAnimationStyles[randomIndex];
     } else {
-        selectedAnimation = (AnimationType)currentSettings.animationStyle;
+        randomAnimationStyle = currentSettings.animationStyle;
     }
-
-    generateAnimationSequence(selectedAnimation, sequencerTracks);
 }
 
-void handleTemporalEcho() {
-    if (!isEchoEffectActive || isAnimating || isAnySequenceActive() || !hardwareInitialized) return;
-
+/**
+ * @brief The state machine for the STYLED time travel animation.
+ */
+void handleStyledAnimation() {
+    if (!isStyledAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
-    if (millis() - echoEffectStartTime > 60000) {
+    unsigned long elapsed = millis() - styledAnimationStartTime;
+
+    // State variables for the "Unstable Flux" (Random Flicker) animation
+    static int glitchRow = -1;
+    static unsigned long lastGlitchTriggerTime = 0;
+    static AnimationPhase lastStyledPhase = ANIM_INACTIVE;
+    // --- FIX: Buffers to hold the formatted time strings for one animation cycle ---
+    static char dest_str[17], pres_str[17], last_str[17];
+
+    // If we are entering a new phase, log it.
+    if (currentStyledPhase != lastStyledPhase) {
+        Serial.printf("ANIM_LOG: Entering styled animation phase: %d\n", currentStyledPhase);
+        // If we are entering the first phase of the animation, reset local static variables
+        if (currentStyledPhase == ANIM_FLICKER) {
+            glitchRow = -1;
+            lastGlitchTriggerTime = 0;
+            // --- FIX: Get the time strings once at the start of the animation ---
+            getFormattedTimeStrings(dest_str, pres_str, last_str);
+        }
+        lastStyledPhase = currentStyledPhase;
+    }
+
+
+    switch (currentStyledPhase) {
+        case ANIM_START:
+            // This new state plays the sound and immediately transitions to the next state.
+            playSound("/electric_sparks.mp3");
+            Serial.println("ANIM_LOG: Keypad sound requested.");
+            currentStyledPhase = ANIM_WAIT_FOR_KEYPAD_SOUND;
+            styledAnimationStartTime = millis(); // Reset timer for the wait phase
+            break;
+
+        case ANIM_WAIT_FOR_KEYPAD_SOUND:
+            if (elapsed > 2000) { // Failsafe timeout of 2s
+                currentStyledPhase = ANIM_FLICKER;
+                styledAnimationStartTime = millis(); // Reset timer for the flicker phase
+            } else {
+                // Yield to other tasks to prevent blocking the scheduler
+                vTaskDelay(pdMS_TO_TICKS(10));
+            }
+            break;
+
+        case ANIM_FLICKER:
+            if (elapsed < 10000) { // --- FIX: Use a fixed 10-second duration ---
+                switch (randomAnimationStyle) {
+                    case ANIMATION_SEQUENTIAL_FLICKER:
+                        animateSequentialFlicker(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_RANDOM_FLICKER:
+                        // "Unstable Flux": Mostly normal, with brief, intermittent glitches on a single row.
+                        if (glitchRow != -1) {
+                            // We are in a glitch state
+                            DisplayRow& rowToGlitch = (glitchRow == 0) ? destRow : ((glitchRow == 1) ? presRow : lastRow);
+                            animateDisplayRowRandomly(rowToGlitch);
+                            if (millis() - lastGlitchTriggerTime > 200) { // Glitch lasts for 200ms
+                                glitchRow = -1; // End the glitch
+                            }
+                        } else {
+                            // Not glitching, show the normal clock
+                            updateNormalClockDisplay();
+                            // Check if it's time to trigger a new glitch
+                            if (millis() - lastGlitchTriggerTime > 100 && random(100) < 75) {
+                                glitchRow = random(3); // Pick a row (0, 1, or 2)
+                                lastGlitchTriggerTime = millis();
+                            }
+                        }
+                        break;
+
+                    case ANIMATION_COUNTING_UP:
+                        animateLockOnSequence(elapsed, 10000);
+                        break;
+                    case ANIMATION_TIMELINE_SKIM:
+                        animateUnstableSkim(elapsed, 10000, currentSettings.destinationYear);
+                        break;
+                    case ANIMATION_WAVE_FLICKER:
+                    case ANIMATION_WAVEFORM_COLLAPSE:
+                        animateWaveformCollapse(elapsed, 10000);
+                        break;
+                    case ANIMATION_CAPACITOR_CHARGE_UP:
+                        animateCapacitorChargeUp(elapsed, 10000);
+                        break;
+                    case ANIMATION_DIGITAL_RAIN:
+                        animateDigitalRain(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_ALL_DISPLAYS_RANDOM:
+                        // NEW: "Corrupted Data" effect - stable display with random characters
+                        animateCorruptedData();
+                        break;
+
+                    case ANIMATION_TEMPORAL_DESYNC:
+                        animateTemporalDesync();
+                        break;
+
+                    case ANIMATION_GLITCHY_JUMP_CUT:
+                        animateGlitchyJumpCut(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_PLASMA_WARM_UP:
+                        animatePlasmaWarmUp(elapsed, 10000);
+                        break;
+
+                    case ANIMATION_TIME_WARP_STREAKS:
+                        animateTimeWarpStreaks(elapsed, 10000, dest_str, pres_str, last_str);
+                        break;
+
+                    case ANIMATION_CHARACTER_SCANLINE:
+                        animateCharacterScanline(elapsed, 10000, dest_str, pres_str, last_str);
+                        break;
+
+                    case ANIMATION_FOCUS_IN:
+                        animateFocusIn(elapsed, 10000, dest_str, pres_str, last_str);
+                        break;
+
+                    case ANIMATION_CODE_BREAKER:
+                        animateCodeBreaker(elapsed, 10000, dest_str, pres_str, last_str);
+                        break;
+
+                    case ANIMATION_TEMPORAL_PARADOX:
+                        animateTemporalParadox(elapsed, 10000, dest_str, pres_str, last_str);
+                        break;
+
+                    case ANIMATION_DIGIT_CASCADE:
+                        animateDigitCascade(elapsed, 10000, dest_str, pres_str, last_str);
+                        break;
+
+                    case ANIMATION_ELECTRIC_SURGE:
+                        animateElectricSurge(elapsed, 10000, dest_str, pres_str, last_str);
+                        break;
+
+                    case ANIMATION_FLIP_DISC_DISPLAY:
+                        animateFlipDiscDisplay(elapsed, 10000, dest_str, pres_str, last_str);
+                        break;
+
+                    case ANIMATION_INTERFERENCE_PATTERN:
+                        animateInterferencePattern(elapsed, 10000, dest_str, pres_str, last_str);
+                        break;
+
+                    case ANIMATION_TORNADO_FLICKER:
+                    default:
+                        // This is now the most intense, full-power flicker effect
+                        animateTornadoFlicker();
+                        break;
+                }
+            } else {
+                currentStyledPhase = ANIM_LANDING;
+                styledAnimationStartTime = millis();
+            }
+            break;
+
+        case ANIM_LANDING:
+            if (elapsed < 1000) {
+                animateTornadoFlicker();
+            } else {
+                // Transition to the cool down phase
+                currentStyledPhase = ANIM_COOL_DOWN;
+                styledAnimationStartTime = millis();
+            }
+            break;
+
+        case ANIM_COOL_DOWN:
+            if (elapsed > 500) {
+                comprehensiveAnimationCleanup();
+                isStyledAnimating = false;
+                currentStyledPhase = ANIM_INACTIVE;
+                updateHaStatus("Idle");
+                Serial.println("ANIM_LOG: Styled animation finished. Broadcasting completion.");
+                broadcastAnimationComplete();
+            }
+            break;
+
+        default:
+            isStyledAnimating = false;
+            currentStyledPhase = ANIM_INACTIVE;
+            Serial.println("ANIM_LOG: Styled animation entered unknown state. Forcing cleanup.");
+            broadcastAnimationComplete();
+            break;
+    }
+#endif
+}
+
+
+// --- OTHER EFFECTS ---
+
+/**
+ * @brief Handles the "temporal echo" effect after a time jump.
+ */
+/**
+ * @brief Handles the "temporal echo" visual effect after a time jump.
+ * @details For a short period after an animation sequence completes, this function
+ * creates a lingering effect by randomly flickering the "Present Time" display,
+ * suggesting a temporary instability in the timeline.
+ */
+void handleTemporalEcho() {
+    if (!isEchoEffectActive || isAnimating || isStyledAnimating || !hardwareInitialized) return;
+#if ENABLE_HARDWARE
+    if (millis() - echoEffectStartTime > 60000) { // Effect lasts for 1 minute
         isEchoEffectActive = false;
         return;
     }
+
+    // Randomly flicker the "Present Time" display
     if (random(100) < 10) {
         animateDisplayRowRandomly(presRow);
     }
 #endif
 }
 
+// --- BOOT SEQUENCE ---
+
+/**
+ * @brief Starts the boot-up animation.
+ */
+// In AnimationManager.cpp
 void runBootSequence() {
     Serial.println("BOOT_LOG: runBootSequence() called.");
     if (bootState == BOOT_INACTIVE) {
@@ -225,165 +535,955 @@ void runBootSequence() {
     }
 }
 
-void handleBootSequence() {
-    if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
 
+void handleBootSequence() {
+    if (bootState == BOOT_INACTIVE) return;
+
+    static bool stateActionCompleted = false;
     unsigned long elapsed = millis() - bootStateStartTime;
     static BootSequenceState lastLoggedState = BOOT_INACTIVE;
+    static int lastDiagSecond = -1;
+    static bool typingStarted = false;
 
-    // Log when state changes
     if (bootState != lastLoggedState) {
-        Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: State changing from %d to %d", lastLoggedState, bootState);
+        Serial.printf("BOOT_LOG: Entering state %d. Elapsed: %lu ms.\n", bootState, elapsed);
         lastLoggedState = bootState;
-        bootStateStartTime = millis(); // Reset timer for new state
-        elapsed = 0; // Reset elapsed time
+        stateActionCompleted = false;
+        typingStarted = false;
     }
 
     switch (bootState) {
         case BOOT_AWAIT_HUM:
-            // This state just waits for a sound to finish, which is handled by the sound system.
-            // Let's assume it transitions after a timeout if the sound doesn't trigger a change.
+            if (!stateActionCompleted) {
+                playSound("/hum.mp3");
+                stateActionCompleted = true;
+            }
             if (elapsed > BOOT_AWAIT_HUM_DURATION) {
-                Log_printf(LOG_LEVEL_WARN, "BOOT_TRACE: Await Hum timed out. Forcing start.");
                 bootState = BOOT_START;
+                bootStateStartTime = millis();
             }
             break;
-
         case BOOT_START:
-            setOverrideMessage("SYSTEM BOOT", "PLEASE WAIT", "");
-            playSound("boot_up.mp3");
-            bootState = BOOT_WARM_UP;
+            if (elapsed > 1000) {
+                bootState = BOOT_WARM_UP;
+                bootStateStartTime = millis();
+            }
             break;
-
         case BOOT_WARM_UP:
-            if (elapsed > BOOT_WARM_UP_DURATION) {
+            if (!stateActionCompleted) {
+                playSound("/relay_activation.mp3");
+                stateActionCompleted = true;
+            }
+            //if (audio.isRunning()) {
                 bootState = BOOT_COLD_START;
-            }
+                bootStateStartTime = millis();
+            //}
             break;
-
         case BOOT_COLD_START:
-            setOverrideMessage("COLD START", "SEQUENCE", "INITIATED");
-            if (elapsed > BOOT_COLD_START_DURATION) {
-                bootState = BOOT_FLUX_CAPACITOR_IGNITION;
+            {
+                const char* textToType = " INITIATE PWR";
+                int textLen = strlen(textToType);
+                int typingDuration = 5000; // 5 seconds
+                int charDuration = typingDuration / textLen;
+                static int charsTyped = 0;
+
+                if (!stateActionCompleted) {
+                    playSound("/keypad_beeps.mp3");
+                    blankAllDisplays();
+                    printToDisplay(destRow.day, "TM", 2);
+                    printToDisplay(destRow.year, "CIRC");
+                    printToDisplay(destRow.time, "UITS");
+                    destRow.day.writeDisplay();
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                    stateActionCompleted = true;
+                    charsTyped = 0;
+                }
+
+                int charsToShow = elapsed / charDuration;
+                if (charsToShow > textLen) {
+                    charsToShow = textLen;
+                }
+
+                if (charsToShow > charsTyped) {
+                    const char* p_month = " IN";
+                    const char* p_day = "IT";
+                    const char* p_year = "IATE";
+                    const char* p_time = " PWR";
+
+                    char monthStr[4];
+                    char dayStr[3];
+                    char yearStr[5];
+                    char timeStr[5];
+
+                    int len_m = strlen(p_month);
+                    int len_d = strlen(p_day);
+                    int len_y = strlen(p_year);
+                    int len_t = strlen(p_time);
+
+                    int chars_m = (charsToShow > len_m) ? len_m : charsToShow;
+                    strncpy(monthStr, p_month, chars_m);
+                    monthStr[chars_m] = '\0';
+
+                    int chars_d = (charsToShow > len_m + len_d) ? len_d : ((charsToShow > len_m) ? charsToShow - len_m : 0);
+                    strncpy(dayStr, p_day, chars_d);
+                    dayStr[chars_d] = '\0';
+
+                    int chars_y = (charsToShow > len_m + len_d + len_y) ? len_y : ((charsToShow > len_m + len_d) ? charsToShow - (len_m + len_d) : 0);
+                    strncpy(yearStr, p_year, chars_y);
+                    yearStr[chars_y] = '\0';
+
+                    int chars_t = (charsToShow > len_m + len_d + len_y + len_t) ? len_t : ((charsToShow > len_m + len_d + len_y) ? charsToShow - (len_m + len_d + len_y) : 0);
+                    strncpy(timeStr, p_time, chars_t);
+                    timeStr[chars_t] = '\0';
+
+                    printToDisplay(presRow.month, monthStr, 1);
+                    printToDisplay(presRow.day, dayStr, 2);
+                    printToDisplay(presRow.year, yearStr, 0);
+                    printToDisplay(presRow.time, timeStr, 1);
+
+                    presRow.month.writeDisplay();
+                    presRow.day.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
+                    charsTyped = charsToShow;
+                }
+
+                if (elapsed > typingDuration + 2000) {
+                    // if (audio.isRunning()) {
+                    //     audio.stopSong();
+                    // }
+                    bootState = BOOT_FLUX_CAPACITOR_IGNITION;
+                    bootStateStartTime = millis();
+                }
             }
             break;
 
+        // --- FIX START: Decouple audio from animation ---
         case BOOT_FLUX_CAPACITOR_IGNITION:
-            setOverrideMessage("FLUX CAPACITOR", "IGNITION", "SEQUENCE");
-            if (elapsed > BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
+            // This state now ONLY starts the sound and waits for it to begin playing.
+            if (!stateActionCompleted) {
+                playSound("/flux_capacitor_power_on.mp3");
+                stateActionCompleted = true;
+            }
+            // Once the audio is confirmed to be running, move to the animation state.
+            if (elapsed > 2000) { // Failsafe timeout of 2s
                 bootState = BOOT_FLUX_CAPACITOR_ANIMATION;
+                bootStateStartTime = millis(); // Reset the timer for the animation phase
             }
             break;
 
         case BOOT_FLUX_CAPACITOR_ANIMATION:
-            // This state is likely stuck because it has no duration or exit condition.
-            // Let's add a simple animation and an exit condition.
-            Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Running Flux Capacitor Animation.");
-            animateTornadoFlicker();
-            if (elapsed > 5000) { // Let's assume a 5-second animation
-                Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Flux Capacitor Animation complete.");
+            // This new state handles all the visuals. The sound is guaranteed to be playing.
+            if (elapsed < BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
+                 if (elapsed < 3000) { // First 3 seconds: flash
+                    if ((elapsed / 250) % 2 == 0) {
+                        flashAllDisplays();
+                    } else {
+                        blankAllDisplays();
+                    }
+                } else { // The rest of the animation
+                    animateDisplayRowRandomly(destRow);
+                    animateDisplayRowRandomly(lastRow);
+                    if ((elapsed / 250) % 2 == 0) {
+                        displayStaticFluxText();
+                    } else {
+                        printToDisplay(presRow.month, "");
+                        printToDisplay(presRow.day, "");
+                        printToDisplay(presRow.year, "");
+                        printToDisplay(presRow.time, "");
+                        presRow.month.writeDisplay();
+                        presRow.day.writeDisplay();
+                        presRow.year.writeDisplay();
+                        presRow.time.writeDisplay();
+                    }
+                }
+            } else {
+                // When the animation duration is over, transition to the next major step.
                 bootState = BOOT_DIAGNOSTICS;
+                bootStateStartTime = millis();
             }
             break;
+        // --- FIX END ---
 
         case BOOT_DIAGNOSTICS:
-            setOverrideMessage("RUNNING", "DIAGNOSTICS", "...");
-            if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
-                bootState = BOOT_FINAL_CHECKS;
+            {
+                if (!stateActionCompleted) {
+                    playSound("/keypad_beeps.mp3");
+                    stateActionCompleted = true;
+                }
+                //if (audio.isRunning()) {
+                    int currentSecond = elapsed / 2000;
+                    if (currentSecond != lastDiagSecond) {
+                        blankAllDisplays();
+                        if (currentSecond == 0) {
+                            printToDisplay(destRow.month, "CPU", 1);
+                            printToDisplay(destRow.day, "OK", 2);
+                            destRow.month.writeDisplay();
+                            destRow.day.writeDisplay();
+                        } else if (currentSecond == 1) {
+                            printToDisplay(presRow.month, "MEM", 1);
+                            printToDisplay(presRow.day, "OK", 2);
+                            presRow.month.writeDisplay();
+                            presRow.day.writeDisplay();
+                        } else if (currentSecond == 2) {
+                            printToDisplay(lastRow.month, "WFI", 1);
+                            printToDisplay(lastRow.day, "OK", 2);
+                            lastRow.month.writeDisplay();
+                            lastRow.day.writeDisplay();
+                        } else if (currentSecond == 3) {
+                            printToDisplay(lastRow.month, "IP", 1);
+                            printToDisplay(lastRow.day, "OK", 2);
+                            lastRow.month.writeDisplay();
+                            lastRow.day.writeDisplay();
+                        } else if (currentSecond == 4) {
+                            printToDisplay(lastRow.month, "MQT", 1);
+                            printToDisplay(lastRow.day, "OK", 2);
+                            lastRow.month.writeDisplay();
+                            lastRow.day.writeDisplay();
+                        }
+                        lastDiagSecond = currentSecond;
+                    }
+                //}
+                if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
+                    bootState = BOOT_FINAL_CHECKS;
+                    bootStateStartTime = millis();
+                }
             }
             break;
-
         case BOOT_FINAL_CHECKS:
-            setOverrideMessage("FINAL CHECKS", "IN PROGRESS", "");
-            if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
-                bootState = BOOT_TEMPORAL_DISPLACEMENT;
+            {
+                if (!stateActionCompleted) {
+                    playSound("/engine_rev.mp3");
+                    stateActionCompleted = true;
+                }
+                //if (audio.isRunning()) {
+                    if (!stateActionCompleted) {
+                        blankAllDisplays();
+                        stateActionCompleted = true;
+                    }
+
+                    float progress = (float)elapsed / BOOT_FINAL_CHECKS_DURATION;
+                    if (progress > 1.0) progress = 1.0;
+                    float easedProgress = 1 - pow(1 - progress, 3);
+                    int speed = 1 + (easedProgress * 87);
+                    if (speed > 88) speed = 88;
+
+                    displaySpeedRamp(speed);
+
+                    printToDisplay(destRow.year, "SYS");
+                    printToDisplay(destRow.time, "GO");
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                //}
+                if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
+                    bootState = BOOT_TEMPORAL_DISPLACEMENT;
+                    bootStateStartTime = millis();
+                }
             }
             break;
-
         case BOOT_TEMPORAL_DISPLACEMENT:
-            setOverrideMessage("TEMPORAL", "DISPLACEMENT", "ACTIVE");
-            if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
-                bootState = BOOT_ARRIVAL;
+            {
+                if (!stateActionCompleted) {
+                    playSound("/time_travel.mp3");
+                    stateActionCompleted = true;
+                }
+                //if (audio.isRunning()) {
+                    animateRandomRealTimes();
+                //}
+                if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
+                    bootState = BOOT_ARRIVAL;
+                    bootStateStartTime = millis();
+                }
             }
             break;
-
         case BOOT_ARRIVAL:
-            setOverrideMessage("TIME CIRCUIT", "ARRIVAL", "SEQUENCE");
-            if (elapsed > BOOT_ARRIVAL_DURATION) {
-                bootState = BOOT_ARRIVAL_ANIMATION;
+            {
+                if (!stateActionCompleted) {
+                    playSound("/arrival_chime.mp3");
+                    stateActionCompleted = true;
+                }
+                if (elapsed > 2000) { // Failsafe timeout of 2s
+                    bootState = BOOT_ARRIVAL_ANIMATION;
+                    bootStateStartTime = millis(); // Reset the timer for the animation phase
+                }
             }
             break;
-
         case BOOT_ARRIVAL_ANIMATION:
-            // Similar to the flux capacitor animation, this could be a sticking point.
-            Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Running Arrival Animation.");
-            animateTornadoFlicker();
-            if (elapsed > 3000) { // 3-second animation
-                 Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Arrival Animation complete.");
-                bootState = BOOT_COOL_DOWN;
+            {
+                if (!stateActionCompleted) {
+                    // --- FIX: Display text immediately without waiting for audio ---
+                    blankAllDisplays();
+                    printToDisplay(destRow.year, "ARRI");
+                    printToDisplay(destRow.time, "VAL");
+                    printToDisplay(presRow.year, "OUTA");
+                    printToDisplay(presRow.time, "TIME");
+
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
+
+                    stateActionCompleted = true; // Mark that the initial action is done
+                }
+
+                // Display the "WELCOME" message after a delay
+                if (elapsed > 2000) { // Show "WELCOME" after 2 seconds
+                    printToDisplay(lastRow.year, " WEL");
+                    printToDisplay(lastRow.time, "COME");
+                    lastRow.year.writeDisplay();
+                    lastRow.time.writeDisplay();
+                }
+
+                // Transition to the next state after the full duration
+                if (elapsed > BOOT_ARRIVAL_DURATION) {
+                    bootState = BOOT_COOL_DOWN;
+                    bootStateStartTime = millis();
+                }
             }
             break;
-
         case BOOT_COOL_DOWN:
-            setOverrideMessage("SYSTEMS", "COOL DOWN", "PHASE");
-            if (elapsed > BOOT_COOL_DOWN_DURATION) {
-                bootState = BOOT_COMPLETE;
+            {
+                if (!stateActionCompleted) {
+                    // Manually fade out the audio
+                    // for (int i = currentSettings.notificationVolume; i >= 0; i--) {
+                    //     audio.setVolume(i);
+                    //     delay(50);
+                    // }
+                    // audio.stopSong();
+                    stateActionCompleted = true;
+                }
+
+                float progress = (float)elapsed / BOOT_COOL_DOWN_DURATION;
+                if (progress > 1.0) progress = 1.0;
+                uint8_t brightness = 7 * (1.0 - progress);
+
+                destRow.month.setBrightness(brightness);
+                destRow.day.setBrightness(brightness);
+                destRow.year.setBrightness(brightness);
+                destRow.time.setBrightness(brightness);
+                presRow.month.setBrightness(brightness);
+                presRow.day.setBrightness(brightness);
+                presRow.year.setBrightness(brightness);
+                presRow.time.setBrightness(brightness);
+                lastRow.month.setBrightness(brightness);
+                lastRow.day.setBrightness(brightness);
+                lastRow.year.setBrightness(brightness);
+                lastRow.time.setBrightness(brightness);
+
+                if (elapsed > BOOT_COOL_DOWN_DURATION) {
+                    bootState = BOOT_COMPLETE;
+                    bootStateStartTime = millis();
+                }
             }
             break;
-
         case BOOT_COMPLETE:
-            Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Boot sequence complete.");
-            setOverrideMessage("", "", ""); // Clear override
-            isMessageOverrideActive = false;
-            updateNormalClockDisplay();
-            // No need to change state further, just let it be.
-            break;
+            {
+                if (elapsed > 500) {
+                    isMessageOverrideActive = false;
+                    bootState = BOOT_INACTIVE;
 
+                    uint8_t saved_brightness = currentSettings.brightness;
+
+                    destRow.month.setBrightness(saved_brightness);
+                    destRow.day.setBrightness(saved_brightness);
+                    destRow.year.setBrightness(saved_brightness);
+                    destRow.time.setBrightness(saved_brightness);
+                    presRow.month.setBrightness(saved_brightness);
+                    presRow.day.setBrightness(saved_brightness);
+                    presRow.year.setBrightness(saved_brightness);
+                    presRow.time.setBrightness(saved_brightness);
+                    lastRow.month.setBrightness(saved_brightness);
+                    lastRow.day.setBrightness(saved_brightness);
+                    lastRow.year.setBrightness(saved_brightness);
+                    lastRow.time.setBrightness(saved_brightness);
+
+                    // The main display loop will handle updating the display correctly
+                    // once the bootState is set to BOOT_INACTIVE.
+                    Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
+                }
+            }
+            break;
         default:
-            Log_printf(LOG_LEVEL_ERROR, "BOOT_TRACE: Reached unknown boot state %d. Resetting.", bootState);
-            bootState = BOOT_INACTIVE;
+            {
+                Serial.printf("BOOT_LOG: Unknown boot state %d. Resetting to INACTIVE.\n", bootState);
+                bootState = BOOT_INACTIVE;
+            }
             break;
     }
 }
+/**
+ * @brief Resets all display rows and flags to the normal clock view.
+ * @details This function is a robust way to exit any special display mode
+ * (like an override message or manual text) and ensure the correct time is
+ * shown. It clears all relevant state flags before forcing a full redraw
+ * of all three time circuit rows.
+ */
+void resetDisplayToNormal() {
+    // Clear any active override message flags
+    isMessageOverrideActive = false;
 
+    // Reset manual text override for all display segments
+    for (int r = 0; r < 3; ++r) {
+        isRowInManualMode[r] = false;
+        for (int s = 0; s < 4; ++s) {
+            manualDisplayText[r][s] = "";
+        }
+    }
+
+    // Force a full redraw of all three rows to the current time
+    updateNormalClockDisplay(true, true, true);
+}
+
+/**
+ * @brief Restores the display to a clean state after an animation.
+ * @details This function resets all key state flags (manual mode, overrides)
+ * and restores the default brightness to all display segments. It's a comprehensive
+ * cleanup designed to be called at the end of any animation sequence to ensure
+ * the display returns to normal operation without artifacts or getting stuck
+ * in a previous state. It does NOT force a display redraw.
+ */
+static void comprehensiveAnimationCleanup() {
+    // Reset all override and manual mode flags
+    isMessageOverrideActive = false;
+    for (int r = 0; r < 3; ++r) {
+        isRowInManualMode[r] = false;
+        for (int s = 0; s < 4; ++s) {
+            manualDisplayText[r][s] = "";
+        }
+    }
+
+    // Restore brightness
+    uint8_t saved_brightness = currentSettings.brightness;
+    destRow.month.setBrightness(saved_brightness);
+    destRow.day.setBrightness(saved_brightness);
+    destRow.year.setBrightness(saved_brightness);
+    destRow.time.setBrightness(saved_brightness);
+    presRow.month.setBrightness(saved_brightness);
+    presRow.day.setBrightness(saved_brightness);
+    presRow.year.setBrightness(saved_brightness);
+    presRow.time.setBrightness(saved_brightness);
+    lastRow.month.setBrightness(saved_brightness);
+    lastRow.day.setBrightness(saved_brightness);
+    lastRow.year.setBrightness(saved_brightness);
+    lastRow.time.setBrightness(saved_brightness);
+}
+
+/**
+ * @brief Handles the execution of scripted command sequences.
+ * @details This function is called on every main loop iteration. It checks for
+ * active sequencer tracks and processes their commands one by one. It supports
+ * parallel execution of tracks on different display rows. It now manages all
+ * effect states (fade, pulse, flash) locally within each track.
+ */
 void handleSequencer() {
     bool needsDisplayUpdate = false;
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
 
     for (int i = 0; i < 3; i++) {
         SequencerTrack& track = sequencerTracks[i];
-        if (!track.isActive) continue;
-
         DisplayRow& row = *rows[i];
 
-        if (millis() - track.trackStartTime > MAX_SEQUENCE_DURATION) {
-            Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d timed out. Aborting.", i);
+        // --- NEW: Check for track timeout ---
+        if (track.isActive && (millis() - track.trackStartTime > MAX_SEQUENCE_DURATION)) {
+            Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d timed out after %d ms. Aborting.", i, MAX_SEQUENCE_DURATION);
             stopAndCleanupTrack(i);
             needsDisplayUpdate = true;
+            continue; // Skip to the next track
+        }
+
+        // --- Handle active effects for this track ---
+
+        // Handle Fade Effect
+        if (track.isFading) {
+            unsigned long fadeElapsed = millis() - track.fadeStartTime;
+            if (fadeElapsed >= (unsigned long)track.fadeDuration) {
+                track.isFading = false;
+                uint8_t finalBrightness = track.isFadeIn ? track.originalBrightness : 0;
+                row.month.setBrightness(finalBrightness);
+                row.day.setBrightness(finalBrightness);
+                row.year.setBrightness(finalBrightness);
+                row.time.setBrightness(finalBrightness);
+                needsDisplayUpdate = true;
+            } else {
+                float progress = (float)fadeElapsed / (float)track.fadeDuration;
+                uint8_t newBrightness = track.isFadeIn ?
+                    (uint8_t)(progress * (float)track.originalBrightness) :
+                    (uint8_t)((1.0f - progress) * (float)track.originalBrightness);
+                row.month.setBrightness(newBrightness);
+                row.day.setBrightness(newBrightness);
+                row.year.setBrightness(newBrightness);
+                row.time.setBrightness(newBrightness);
+                needsDisplayUpdate = true;
+            }
+        }
+
+        // Handle Pulse and Flash Effects
+        for (int s = 0; s < 4; s++) {
+            if (track.isPulsing[s]) {
+                if (millis() > track.pulseEndTimes[s]) {
+                    track.isPulsing[s] = false;
+                    needsDisplayUpdate = true;
+                } else if (millis() - track.lastPulseToggle[s] > 750) {
+                    track.pulseStates[s] = !track.pulseStates[s];
+                    track.lastPulseToggle[s] = millis();
+                    needsDisplayUpdate = true;
+                }
+            }
+            if (track.isFlashing[s]) {
+                if (track.flashEndTimes[s] != 0 && millis() > track.flashEndTimes[s]) {
+                    track.isFlashing[s] = false;
+                    needsDisplayUpdate = true;
+                } else if (millis() - track.lastFlashToggle[s] > 500) {
+                    track.flashStates[s] = !track.flashStates[s];
+                    track.lastFlashToggle[s] = millis();
+                    needsDisplayUpdate = true;
+                }
+            }
+        }
+
+        if (!track.isActive) {
             continue;
         }
 
-        // Handle active effects for this track
-        // ... (fade/pulse/flash logic remains the same)
-
+        // --- Process Commands ---
+        bool advance_step = false;
         SequenceStep& step = track.steps[track.currentStep];
         unsigned long commandElapsed = millis() - track.stepStartTime;
-        bool advance_step = false;
 
         switch (step.command) {
-            // ... (all other existing commands)
+            // --- Display Control ---
+            case SEQ_CMD_SET_TEXT:
+                if (!track.stepInitialized) {
+                    updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
 
-            case SEQ_CMD_RANDOM_FILL:
+            case SEQ_CMD_CLEAR_SEGMENT:
+                if (!track.stepInitialized) {
+                    updateDisplaySegment(step.targetRow, step.targetSegment, "");
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_SET_BRIGHTNESS:
+                if (!track.stepInitialized) {
+                    uint8_t brightness = (uint8_t)constrain(step.intParam, 0, 7);
+                    row.month.setBrightness(brightness);
+                    row.day.setBrightness(brightness);
+                    row.year.setBrightness(brightness);
+                    row.time.setBrightness(brightness);
+                    needsDisplayUpdate = true;
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_RESTORE_ROW:
+                if (!track.stepInitialized) {
+                    restoreDisplayRow(step.targetRow);
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            // --- Basic Commands ---
+            case SEQ_CMD_WAIT:
                 if (!track.stepInitialized) {
                     track.stepInitialized = true;
                 }
                 if (commandElapsed >= (unsigned long)step.intParam) {
                     advance_step = true;
-                } else {
-                    animateDisplayRowRandomly(row);
                 }
                 break;
 
+            case SEQ_CMD_SOUND:
+                if (!track.stepInitialized) {
+                    playSound(step.stringParam.c_str());
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            // --- Logic Commands ---
+            case SEQ_CMD_LOOP_START:
+                if (!track.stepInitialized) {
+                    track.stepInitialized = true;
+                    if (step.intParam > 0) {
+                        // A normal loop of 1 or more iterations.
+                        track.loopStartStep = track.currentStep;
+                        track.loopCounter = step.intParam;
+                    } else {
+                        // A loop with 0 or fewer iterations should be skipped entirely.
+                        Log_printf(LOG_LEVEL_INFO, "SEQ: Track %d skipping loop with count %d.", i, step.intParam);
+                        int openLoops = 1;
+                        int seekStep = track.currentStep + 1;
+                        while (seekStep < MAX_SEQUENCE_STEPS) {
+                            if (track.steps[seekStep].command == SEQ_CMD_LOOP_START) {
+                                openLoops++;
+                            } else if (track.steps[seekStep].command == SEQ_CMD_LOOP_END) {
+                                openLoops--;
+                            }
+                            if (openLoops == 0) {
+                                break;
+                            }
+                            seekStep++;
+                        }
+
+                        if (openLoops == 0) {
+                            // Jump PC to the LOOP_END. The main loop will advance it to the next step, skipping the loop body.
+                            track.currentStep = seekStep;
+                        } else {
+                            // No matching LOOP_END found, this is a sequence error.
+                            Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d has an unclosed loop at step %d. Aborting.", i, track.currentStep);
+                            stopAndCleanupTrack(i);
+                            break; // Abort this command.
+                        }
+                    }
+                }
+                advance_step = true;
+                break;
+
+            case SEQ_CMD_LOOP_END:
+                if (!track.stepInitialized) {
+                    track.stepInitialized = true;
+                    if (track.loopStartStep < 0) {
+                        // This is a rogue LOOP_END without a matching LOOP_START.
+                        Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d found rogue LOOP_END at step %d. Aborting.", i, track.currentStep);
+                        stopAndCleanupTrack(i);
+                    } else {
+                        // This is a valid loop end. Decrement counter and check if we need to loop again.
+                        track.loopCounter--;
+                        if (track.loopCounter > 0) {
+                            // Jump back to the step *after* LOOP_START.
+                            track.currentStep = track.loopStartStep;
+                        } else {
+                            // Loop is finished.
+                            track.loopStartStep = -1;
+                            track.loopCounter = 0;
+                        }
+                    }
+                }
+                advance_step = true;
+                break;
+
+            // --- Effects ---
+            case SEQ_CMD_FADE_IN:
+            case SEQ_CMD_FADE_OUT:
+                if (!track.stepInitialized) {
+                    if (track.isFading) break; // Don't start a new fade if one is already active on this track
+                    track.isFading = true;
+                    track.isFadeIn = (step.command == SEQ_CMD_FADE_IN);
+                    track.fadeDuration = step.intParam;
+                    track.fadeStartTime = millis();
+                    track.originalBrightness = currentSettings.brightness;
+                    track.stepInitialized = true;
+                    advance_step = true; // --- FIX: Immediately advance to the next command
+                }
+                // The effect now runs in the background and does not block the sequence.
+                break;
+
+            case SEQ_CMD_PULSE:
+                if (step.targetSegment < 0 || step.targetSegment >= 4) {
+                    Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid segment %d for PULSE on track %d. Skipping.", step.targetSegment, i);
+                    advance_step = true;
+                    break;
+                }
+                if (!track.stepInitialized) {
+                    track.isPulsing[step.targetSegment] = true;
+                    track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
+                    track.pulseStates[step.targetSegment] = true;
+                    track.lastPulseToggle[step.targetSegment] = millis();
+                    track.stepInitialized = true;
+                    advance_step = true; // --- FIX: Immediately advance to the next command
+                }
+                // The effect now runs in the background and does not block the sequence.
+                break;
+
+            case SEQ_CMD_FLASH:
+                if (step.targetSegment < 0 || step.targetSegment >= 4) {
+                    Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid segment %d for FLASH on track %d. Skipping.", step.targetSegment, i);
+                    advance_step = true;
+                    break;
+                }
+                if (!track.stepInitialized) {
+                    track.isFlashing[step.targetSegment] = true;
+                    track.flashEndTimes[step.targetSegment] = (step.intParam == 0) ? 0 : millis() + step.intParam;
+                    track.flashStates[step.targetSegment] = true;
+                    track.lastFlashToggle[step.targetSegment] = millis();
+                    track.stepInitialized = true;
+                    advance_step = true; // --- FIX: Immediately advance to the next command
+                }
+                // The effect now runs in the background and does not block the sequence.
+                break;
+
+            case SEQ_CMD_MARQUEE:
+                if (!track.stepInitialized) {
+                    startSequencerMarquee(track, step.stringParam);
+                    track.stepInitialized = true;
+                }
+                if (!track.isMarqueeActive) {
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_COUNTDOWN:
+                if (!track.stepInitialized) {
+                    track.countdownValue = step.intParam;
+                    track.countdownLastUpdate = millis();
+                    updateDisplaySegment(step.targetRow, step.targetSegment, std::to_string(track.countdownValue));
+                    track.stepInitialized = true;
+                }
+                if (millis() - track.countdownLastUpdate >= (unsigned long)step.intParam2) {
+                    track.countdownValue--;
+                    track.countdownLastUpdate = millis();
+                    if (track.countdownValue >= 0) {
+                        updateDisplaySegment(step.targetRow, step.targetSegment, std::to_string(track.countdownValue));
+                    }
+                }
+                if (track.countdownValue < 0) {
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_SCANNER:
+                if (!track.stepInitialized) {
+                    track.scannerPosition = 0;
+                    track.scannerDirection = true;
+                    track.lastScannerUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if (commandElapsed >= (unsigned long)step.intParam) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastScannerUpdate > (unsigned long)step.intParam2) {
+                        std::string scan_str = "             "; // 13 spaces
+                        scan_str[track.scannerPosition] = '#';
+                        updateDisplaySegment(step.targetRow, 0, scan_str.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, scan_str.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, scan_str.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, scan_str.substr(9,4));
+
+                        if (track.scannerDirection) {
+                            track.scannerPosition++;
+                            if (track.scannerPosition >= 12) track.scannerDirection = false;
+                        } else {
+                            track.scannerPosition--;
+                            if (track.scannerPosition <= 0) track.scannerDirection = true;
+                        }
+                        track.lastScannerUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_TYPEWRITER:
+                if (!track.stepInitialized) {
+                    track.typewriterIndex = 0;
+                    track.lastTypewriterUpdate = millis();
+                    updateDisplaySegment(step.targetRow, step.targetSegment, ""); // Clear segment first
+                    track.stepInitialized = true;
+                }
+                if ((unsigned)track.typewriterIndex >= step.stringParam.length()) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
+                        track.typewriterIndex++;
+                        updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam.substr(0, track.typewriterIndex));
+                        track.lastTypewriterUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_WIPE:
+                 if (!track.stepInitialized) {
+                    track.wipeSegment = 0;
+                    track.lastWipeUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if (track.wipeSegment >= 13) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastWipeUpdate > (unsigned long)step.intParam) {
+                        std::string wipe_str = "             ";
+                        for(int j=0; j < track.wipeSegment; j++) {
+                            wipe_str[j] = step.stringParam[j];
+                        }
+                        updateDisplaySegment(step.targetRow, 0, wipe_str.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, wipe_str.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, wipe_str.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, wipe_str.substr(9,4));
+                        track.wipeSegment++;
+                        track.lastWipeUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_BAR_GRAPH:
+                 if (!track.stepInitialized) {
+                    track.barGraphPercentage = 0.0f;
+                    track.lastBarGraphUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if (track.barGraphPercentage >= 1.0f) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastBarGraphUpdate > (unsigned long)step.intParam2) {
+                        track.barGraphPercentage += 0.1f;
+                        std::string bar = "-------------";
+                        int lit_count = (int)(track.barGraphPercentage * 13);
+                        for(int j=0; j<lit_count; j++) bar[j] = '=';
+                        updateDisplaySegment(step.targetRow, 0, bar.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, bar.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, bar.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, bar.substr(9,4));
+                        track.lastBarGraphUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_RANDOM_FLICKER_TEXT:
+                if (!track.stepInitialized) {
+                    track.flickerOriginalText = step.stringParam;
+                    track.lastFlickerUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if (commandElapsed >= (unsigned long)step.intParam) {
+                    // Restore original text at the end
+                    updateDisplaySegment(step.targetRow, step.targetSegment, track.flickerOriginalText);
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastFlickerUpdate > (unsigned long)step.intParam2) {
+                        std::string temp = track.flickerOriginalText;
+                        for (size_t j = 0; j < temp.length(); ++j) {
+                            if (random(100) < 30) { // 30% chance to flicker a character
+                                temp[j] = (char)random(33, 126);
+                            }
+                        }
+                        updateDisplaySegment(step.targetRow, step.targetSegment, temp);
+                        track.lastFlickerUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_SCRAMBLE_TEXT:
+                if (!track.stepInitialized) {
+                    track.scrambleCurrentText = std::string(step.stringParam.length(), ' ');
+                    track.scrambleCharIndex = 0;
+                    track.lastScrambleUpdate = millis();
+                    track.stepInitialized = true;
+                }
+
+                if ((unsigned)track.scrambleCharIndex >= step.stringParam.length()) {
+                    advance_step = true;
+                } else {
+                     if (millis() - track.lastScrambleUpdate > (unsigned long)step.intParam) {
+                        // Update the text with random characters, but lock in the final ones
+                        std::string temp_scramble = step.stringParam;
+                        for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
+                             temp_scramble[j] = (char)random(33,126);
+                        }
+                        updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
+
+                        // Check if it's time to lock in the next character
+                        if(millis() - track.lastScrambleUpdate > (unsigned long)step.intParam2) {
+                            track.scrambleCharIndex++;
+                            track.lastScrambleUpdate = millis();
+                        }
+                    }
+                }
+                break;
+
+            case SEQ_CMD_SCROLL_IN:
+                // This is a simplified implementation. A more robust one would handle different directions.
+                if (!track.stepInitialized) {
+                    track.typewriterIndex = 0; // Re-using typewriter state for simplicity
+                    track.lastTypewriterUpdate = millis();
+                    track.stepInitialized = true;
+                }
+                if ((unsigned)track.typewriterIndex >= step.stringParam.length()) {
+                    advance_step = true;
+                } else {
+                    if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
+                        track.typewriterIndex++;
+                        std::string text = step.stringParam.substr(0, track.typewriterIndex);
+                        while(text.length() < 13) text = " " + text;
+                        updateDisplaySegment(step.targetRow, 0, text.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, text.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, text.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, text.substr(9,4));
+                        track.lastTypewriterUpdate = millis();
+                    }
+                }
+                break;
+
+            case SEQ_CMD_CROSSFADE_TEXT:
+                if (!track.stepInitialized) {
+                    // Phase 1: Start fade out
+                    track.crossfadePhase = 1;
+                    track.isFading = true;
+                    track.isFadeIn = false;
+                    track.fadeDuration = step.intParam / 2;
+                    track.fadeStartTime = millis();
+                    track.stepInitialized = true;
+                }
+
+                // Phase 2: When fade out is complete, change text and start fade in
+                if (track.crossfadePhase == 1 && !track.isFading) {
+                    track.crossfadePhase = 2;
+                    updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+                    track.isFading = true;
+                    track.isFadeIn = true;
+                    track.fadeDuration = step.intParam / 2;
+                    track.fadeStartTime = millis();
+                }
+
+                // Phase 3: When fade in is complete, advance to the next step
+                if (track.crossfadePhase == 2 && !track.isFading) {
+                    track.crossfadePhase = 0; // Reset for any future use
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_TRIGGER_ANIMATION:
+                if (!track.stepInitialized) {
+                    if (step.intParam == 1) {
+                        startTimeTravelAnimation();
+                    } else if (step.intParam == 2) {
+                        startStyledAnimation();
+                    }
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_MQTT_PUBLISH:
+                if (!track.stepInitialized) {
+                    publishMqttMessage(step.stringParam, step.stringParam2);
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_DISPLAY_HA_SENSOR:
+                if (!track.stepInitialized) {
+                    track.isWaitingForHAState = true;
+                    track.haStateReceived = false;
+                    track.haSensorTopic = step.stringParam;
+                    subscribeToTopic(track.haSensorTopic);
+                    track.stepInitialized = true;
+                }
+                // Check if we've received the state or if we've timed out
+                if (track.haStateReceived || commandElapsed > 5000) { // 5-second timeout
+                    unsubscribeFromTopic(track.haSensorTopic);
+                    track.isWaitingForHAState = false;
+                    advance_step = true;
+                }
+                break;
+
+            // --- End of Sequence ---
             case SEQ_CMD_END:
             case SEQ_CMD_NONE:
                 stopAndCleanupTrack(i);
@@ -391,7 +1491,7 @@ void handleSequencer() {
                 break;
 
             default:
-                Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d unknown command %d. Aborting.", i, step.command);
+                Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d entered unknown command state %d. Aborting.", i, step.command);
                 stopAndCleanupTrack(i);
                 needsDisplayUpdate = true;
                 break;
@@ -409,20 +1509,117 @@ void handleSequencer() {
     }
 }
 
+/**
+ * @brief Stops all effects on a specific track and restores its brightness.
+ * @param trackIndex The index of the track (0-2) to clean up.
+ * @details This function is a failsafe to ensure that when a sequence ends
+ * or is aborted, the corresponding display row is returned to a neutral,
+ * visible state. It cancels any ongoing fades, pulses, or flashes.
+ */
 void stopAndCleanupTrack(int trackIndex) {
     if (trackIndex < 0 || trackIndex > 2) return;
+
     SequencerTrack& track = sequencerTracks[trackIndex];
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     DisplayRow& row = *rows[trackIndex];
+
+    // Restore the brightness to the default setting before resetting the track
     uint8_t defaultBrightness = track.originalBrightness > 0 ? track.originalBrightness : currentSettings.brightness;
     row.month.setBrightness(defaultBrightness);
     row.day.setBrightness(defaultBrightness);
     row.year.setBrightness(defaultBrightness);
     row.time.setBrightness(defaultBrightness);
+
+    // --- FIX: Call the comprehensive reset() method ---
+    // This is more robust as it clears all state variables, including marquee text,
+    // effect flags, and step commands, preventing any state from bleeding into the next sequence.
     track.reset();
+
     Log_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
 }
 
+/**
+ * @brief Configures and runs a test for the crossfade command bug.
+ * @details This test sets up a single track to demonstrate the infinite loop
+ * in the SEQ_CMD_CROSSFADE_TEXT command. It is intended to fail before the
+ * fix and pass afterward.
+ */
+void runCrossfadeTest() {
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Crossfade Fix Test ---");
+
+    // Reset track 0 for a clean test
+    sequencerTracks[0].reset();
+
+    int i = 0;
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_SET_TEXT, 0, 0, 0, 0, "Initial", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_WAIT, 0, 0, 2000, 0, "", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_CROSSFADE_TEXT, 0, 0, 2000, 0, "Faded", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_SET_TEXT, 0, 0, 0, 0, "SUCCESS", ""}; // This should appear if the fix works
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_END, 0, 0, 0, 0, "", ""};
+
+    sequencerTracks[0].isActive = true;
+    sequencerTracks[0].stepStartTime = millis();
+    sequencerTracks[0].trackStartTime = millis();
+    sequencerTracks[0].originalBrightness = currentSettings.brightness;
+
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Crossfade Fix Test Started ---");
+}
+
+/**
+ * @brief Configures and runs a startup test to verify parallel sequence execution.
+ * @details This test sets up two tracks to run simultaneously:
+ *          - Track 0: Fades in the entire top display row over 5 seconds.
+ *          - Track 1: Pulses the middle display row's "month" segment for 5 seconds.
+ *          This is used to confirm that the sequencer's local state management is working.
+ */
 void runSequencerTest() {
-    // This function remains unchanged.
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Comprehensive Sequencer Test ---");
+
+    // Reset all tracks to ensure a clean slate
+    for (int i = 0; i < 3; ++i) {
+        sequencerTracks[i].reset();
+    }
+
+    // --- Track 0: Top Row - Demonstrates text, countdown, and MQTT ---
+    int i = 0;
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_SET_BRIGHTNESS, 0, -1, 7, 0, "", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_SET_TEXT, 0, 0, 0, 0, "SEQ", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_COUNTDOWN, 0, 1, 3, 1000, "", ""}; // Countdown 3..2..1 in day segment
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_TYPEWRITER, 0, 2, 100, 0, "TEST", ""}; // Type "TEST" in year segment
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_WAIT, 0, 0, 1000, 0, "", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_MQTT_PUBLISH, 0, 0, 0, 0, "timecircuits/test", "Track 0 Finished"};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_RESTORE_ROW, 0, 0, 0, 0, "", ""};
+    sequencerTracks[0].steps[i++] = {SEQ_CMD_END, 0, 0, 0, 0, "", ""};
+    sequencerTracks[0].isActive = true;
+    sequencerTracks[0].stepStartTime = millis();
+    sequencerTracks[0].trackStartTime = millis();
+
+    // --- Track 1: Middle Row - Demonstrates loops and high-level effects ---
+    i = 0;
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_LOOP_START, 1, 0, 2, 0, "", ""}; // Loop twice
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_SCANNER, 1, -1, 2000, 80, "", ""}; // Scan for 2s, 80ms step
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_LOOP_END, 1, 0, 0, 0, "", ""};
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_BAR_GRAPH, 1, -1, 0, 150, "", ""}; // Bar graph, 150ms step
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_WAIT, 1, 0, 1000, 0, "", ""};
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_TRIGGER_ANIMATION, 1, 0, 2, 0, "", ""}; // Trigger styled animation
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_END, 1, 0, 0, 0, "", ""};
+    sequencerTracks[1].isActive = true;
+    sequencerTracks[1].stepStartTime = millis();
+    sequencerTracks[1].trackStartTime = millis();
+
+    // --- Track 2: Bottom Row - Demonstrates more visual effects and HA integration ---
+    i = 0;
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_WIPE, 2, -1, 100, 0, "WIPE TEST", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_RANDOM_FLICKER_TEXT, 2, 2, 2000, 100, "FLICKER", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_SET_TEXT, 2, 0, 0, 0, "GET", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_SET_TEXT, 2, 1, 0, 0, "HA", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_DISPLAY_HA_SENSOR, 2, 2, 0, 0, "homeassistant/sensor/test/state", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_WAIT, 2, 0, 2000, 0, "", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_FADE_OUT, 2, -1, 1000, 0, "", ""};
+    sequencerTracks[2].steps[i++] = {SEQ_CMD_END, 2, 0, 0, 0, "", ""};
+    sequencerTracks[2].isActive = true;
+    sequencerTracks[2].stepStartTime = millis();
+    sequencerTracks[2].trackStartTime = millis();
+
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Comprehensive Sequencer Test Started ---");
 }

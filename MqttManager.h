@@ -20,14 +20,12 @@ extern char MQTT_UNIQUE_ID[21];
 extern String currentProfileName;
 extern String lastDepartedPreset;
 extern bool isRadioStreaming;
-extern bool haDiscoveryCompleted;
 
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length);
 void setupMqtt();
 void reconnectMqtt();
-void startHaDiscovery();
-void handleHaDiscovery();
+void publishHaAutoDiscovery();
 void updateHaStatus(const char* status);
 void publishAllHaStates();
 void clearHaEntity(const char* component, const char* unique_id_suffix);

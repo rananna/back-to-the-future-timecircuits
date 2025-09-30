@@ -173,6 +173,14 @@ WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 unsigned long lastMqttReconnectAttempt = 0;
 bool mqttReconnectRequired = false;
+bool isAnimating = false;
+unsigned long animationStartTime = 0;
+unsigned long lastAnimationFrameTime = 0;
+AnimationPhase currentPhase = ANIM_INACTIVE;
+bool isStyledAnimating = false;
+unsigned long styledAnimationStartTime = 0;
+AnimationPhase currentStyledPhase = ANIM_INACTIVE;
+
 // --- Asynchronous Settings Save Mechanism ---
 // This flag is set by the web server when a save request is received.
 // The main loop then handles the actual saving process in the background.
@@ -390,9 +398,7 @@ void applySettingsFromJson(const JsonObject& obj) {
     }
     validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
     validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
-    int tempAnimationStyle = static_cast<int>(currentSettings.animationStyle);
-    validateAndSet("animationStyle", tempAnimationStyle, 0, 22);
-    currentSettings.animationStyle = static_cast<AnimationType>(tempAnimationStyle);
+    validateAndSet("animationStyle", currentSettings.animationStyle, 0, 22);
     validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
     if (!obj["timeTravelSoundToggle"].isNull()) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
     validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
@@ -801,7 +807,7 @@ void loadSettings() {
         currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration", 4000);
         Log_printf(LOG_LEVEL_INFO, "Loaded animDuration: %d", currentSettings.timeTravelAnimationDuration);
 
-        currentSettings.animationStyle = static_cast<AnimationType>(preferences.getInt("animStyle", ANIMATION_SEQUENTIAL_FLICKER));
+        currentSettings.animationStyle = preferences.getInt("animStyle", ANIMATION_SEQUENTIAL_FLICKER);
         Log_printf(LOG_LEVEL_INFO, "Loaded animStyle: %d", currentSettings.animationStyle);
 
         currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow", 2);
@@ -1105,6 +1111,19 @@ void handleDisplay() {
  */
 void handleBackgroundSave(); // Forward declaration
 
+/**
+ * @brief Checks if any sequencer track is currently active.
+ * @return True if at least one track's `isActive` flag is true, false otherwise.
+ */
+bool isAnySequenceActive() {
+    for (int i = 0; i < 3; i++) {
+        if (sequencerTracks[i].isActive) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void loop() {
     vTaskDelay(1); // Yield to other tasks, making the system responsive.
     
@@ -1186,9 +1205,6 @@ void loop() {
                     }
                 } else {
                     mqttClient.loop();
-                    if (!haDiscoveryCompleted) {
-                        handleHaDiscovery();
-                    }
                 }
             }
             
@@ -1277,6 +1293,11 @@ void loop() {
                     if (isAnimating) {
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                             handleDisplayAnimation();
+                            xSemaphoreGive(xDisplayDataMutex);
+                        }
+                    } else if (isStyledAnimating) {
+                        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                            handleStyledAnimation();
                             xSemaphoreGive(xDisplayDataMutex);
                         }
                     } else {
@@ -1377,7 +1398,7 @@ void handlePresetCycling() {
         lastPresetCycleTime = millis();
     }
     // Return if cycling is disabled, an animation is playing, or the display is asleep
-    if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep || isAnySequenceActive()) {
+    if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
         return;
     }
 
@@ -1430,7 +1451,7 @@ void handlePresetCycling() {
  * animation sequence after the specified number of minutes.
  */
 void handleScheduledAnimation() {
-    if (currentSettings.timeTravelAnimationInterval == 0 || isAnimating || isDisplayAsleep || isAnySequenceActive()) {
+    if (currentSettings.timeTravelAnimationInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
         return;
     }
 

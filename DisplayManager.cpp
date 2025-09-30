@@ -22,7 +22,6 @@ extern StockManager stockManager;
 extern String overrideMessageLine1;
 extern String overrideMessageLine2;
 extern String overrideMessageLine3;
-extern bool isMessageOverrideActive;
 
 // State management for override message scrolling
 static int overrideScrollPosition[3] = {0, 0, 0};
@@ -541,31 +540,6 @@ void restoreDisplayRow(int row) {
     updateNormalClockDisplay();
 }
 
-void setOverrideMessage(const char* line1, const char* line2, const char* line3) {
-    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-        overrideMessageLine1 = line1;
-        overrideMessageLine2 = line2;
-        overrideMessageLine3 = line3;
-
-        // The override is considered "active" if any of the lines contain text.
-        // If all lines are empty, the override mode is turned off.
-        isMessageOverrideActive = (overrideMessageLine1.length() > 0 ||
-                                   overrideMessageLine2.length() > 0 ||
-                                   overrideMessageLine3.length() > 0);
-
-        // If we are turning off the override, clear the scroll tracking variables
-        if (!isMessageOverrideActive) {
-            for (int i = 0; i < 3; i++) {
-                overrideScrollPosition[i] = 0;
-                previousOverrideMessage[i] = "";
-            }
-        }
-
-        Log_printf(LOG_LEVEL_INFO, "Override message set. Active: %s", isMessageOverrideActive ? "true" : "false");
-        xSemaphoreGive(xDisplayDataMutex);
-    }
-}
-
 /**
  * @brief The primary function for updating the three main time circuit displays.
  * @details This is one of the most critical functions in the firmware. It's responsible
@@ -604,24 +578,16 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
             strftime(&ampm_char, 2, "%p", &timeinfo);
         }
 
-        // AM/PM LED Logic
-        int am_pin = -1, pm_pin = -1;
-        switch(rowIndex) {
-            case 0: am_pin = DEST_AM_PIN; pm_pin = DEST_PM_PIN; break;
-            case 1: am_pin = PRES_AM_PIN; pm_pin = PRES_PM_PIN; break;
-            case 2: am_pin = LAST_AM_PIN; pm_pin = LAST_PM_PIN; break;
-        }
-
-        if (am_pin != -1) {
+        if (row.am_pin != -1 && row.pm_pin != -1) {
             if (ampm_char == 'A') {
-                digitalWrite(am_pin, HIGH);
-                digitalWrite(pm_pin, LOW);
+                digitalWrite(row.am_pin, HIGH);
+                digitalWrite(row.pm_pin, LOW);
             } else if (ampm_char == 'P') {
-                digitalWrite(am_pin, LOW);
-                digitalWrite(pm_pin, HIGH);
+                digitalWrite(row.am_pin, LOW);
+                digitalWrite(row.pm_pin, HIGH);
             } else {
-                digitalWrite(am_pin, LOW);
-                digitalWrite(pm_pin, LOW);
+                digitalWrite(row.am_pin, LOW);
+                digitalWrite(row.pm_pin, LOW);
             }
         }
 
@@ -638,18 +604,8 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
         else printToDisplay(row.year, s_year);
 
         // Time (Segment 3)
-        if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) {
-            printToDisplay(row.time, "    ");
-        } else {
-            printToDisplay(row.time, s_time, 0);
-            // The decimal point is used as a blinking colon for the time display.
-            // It's on the second character (index 1) of the 4-char time display.
-            // First, clear the decimal point bit, then set it if needed.
-            row.time.displaybuffer[1] &= ~(1 << 14);
-            if (showDecimal) {
-                row.time.displaybuffer[1] |= (1 << 14);
-            }
-        }
+        if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(row.time, "    ");
+        else printToDisplay(row.time, s_time, 0, showDecimal);
     };
 
     if (timeSynchronized) {
