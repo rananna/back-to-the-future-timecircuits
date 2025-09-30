@@ -628,6 +628,20 @@ void startHaDiscovery() {
  * discovery message per call, with a delay between messages.
  */
 void handleHaDiscovery() {
+    // --- FIX: Prevent discovery from running if MQTT is not connected ---
+    // This is a critical stability fix. The discovery process allocates significant
+    // memory for JSON documents. If the client is disconnected, attempting to publish
+    // these messages can fail, but the loop continues, leading to rapid memory
+    // exhaustion and a device crash (ESP_ERR_NO_MEM).
+    if (!mqttClient.connected()) {
+        // Log this event, as it indicates a potential issue if it happens frequently.
+        Log_printf(LOG_LEVEL_WARN, "HA Discovery: Paused. MQTT client is not connected.");
+        // We stop the discovery process entirely to prevent it from retrying immediately
+        // on the next loop iteration. It will be restarted upon successful reconnection.
+        haDiscoveryState = HA_DISCOVERY_IDLE;
+        return;
+    }
+
     if (haDiscoveryState != HA_DISCOVERY_RUNNING) {
         return;
     }
