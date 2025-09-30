@@ -125,6 +125,7 @@ unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL; // Current rec
 bool initialMqttConnectionAttempted = false; // Tracks if the first connection attempt has been made.
 unsigned int mqttConsecutiveFails = 0;       // Counter for consecutive MQTT connection failures.
 unsigned long mqttHoldoffUntil = 0;           // Timestamp (millis) until which MQTT reconnections are paused.
+bool mDnsIsActive = false;                   // Tracks whether the mDNS service is currently running.
 
 // --- STATE VARIABLES ---
 BootSequenceState bootState = BOOT_INACTIVE; // Current phase of the cinematic boot sequence.
@@ -1182,9 +1183,6 @@ void loop() {
                 Log_printf(LOG_LEVEL_INFO, "HTTP server started on successful connection.");
 
                 logConnectedPrinted = true;
-                if (MDNS.begin("BTTF_TC")) {
-                    MDNS.addService("http", "tcp", 80);
-                }
 
                 ntpSyncRequested = true;
                 runBootSequence();
@@ -1192,6 +1190,13 @@ void loop() {
             if (!currentSettings.mqttBroker.empty()) {
                 unsigned long now = millis();
                 if (!mqttClient.connected()) {
+                    // --- mDNS Management: Stop mDNS when MQTT is disconnected ---
+                    if (mDnsIsActive) {
+                        MDNS.end();
+                        mDnsIsActive = false;
+                        Log_printf(LOG_LEVEL_INFO, "mDNS service stopped to conserve memory during MQTT reconnect.");
+                    }
+
                     // Check if we are in a hold-off period (circuit breaker is tripped)
                     if (mqttHoldoffUntil > 0 && now < mqttHoldoffUntil) {
                         // We are in a hold-off period, do nothing.
@@ -1236,6 +1241,15 @@ void loop() {
                         }
                     }
                 } else {
+                    // --- mDNS Management: Start mDNS when MQTT is connected and stable ---
+                    if (!mDnsIsActive) {
+                        if (MDNS.begin("BTTF_TC")) {
+                            MDNS.addService("http", "tcp", 80);
+                            mDnsIsActive = true;
+                            Log_printf(LOG_LEVEL_INFO, "mDNS service started on stable MQTT connection.");
+                        }
+                    }
+
                     // If we are connected, ensure the failure counter is reset.
                     if (mqttConsecutiveFails > 0) {
                         Log_printf(LOG_LEVEL_INFO, "MQTT: Re-established connection. Resetting failure counter.");
