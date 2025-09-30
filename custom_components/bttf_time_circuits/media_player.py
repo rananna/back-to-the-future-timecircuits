@@ -186,14 +186,31 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         self._attr_media_content_type = media_type
         self._attr_media_title = media_id
 
-        # Case 1: Sound effect selected via sound mode list
-        if media_type == "sound":
+        # Case 1: Sound effect. Home Assistant may send this as `media_type: music`
+        # when a sound is selected from the media browser, so we check if the
+        # `media_id` is in our list of known sound effects.
+        if media_type == "sound" or (
+            media_type == MediaType.MUSIC and media_id in SOUND_EFFECTS
+        ):
             self._attr_media_title = f"Sound: {media_id}"
             command_topic = f"{self._device.base_topic}/play_sound/command"
             await mqtt.async_publish(self.hass, command_topic, media_id, 1, False)
             return
 
-        # Case 2: TTS from Home Assistant
+        # Case 2: Radio station by channel name. This handles `media_type: channel`
+        # which is used when selecting a radio station from the source list.
+        if media_type == MediaType.CHANNEL:
+            station_url = next(
+                (s["url"] for s in self._radio_stations if s["name"] == media_id), None
+            )
+            if station_url:
+                # Recursively call this function with the correct media type and URL
+                await self.async_play_media(MediaType.URL, station_url)
+            else:
+                _LOGGER.warning(f"Unknown radio station channel selected: {media_id}")
+            return
+
+        # Case 3: TTS from Home Assistant. This handles `media_type: audio/...`
         if media_type.startswith("audio/"):
             self._attr_media_title = "TTS"
             # The media_id is the URL from the TTS service
@@ -207,7 +224,7 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             )
             return
 
-        # Case 3: Radio Stream URL
+        # Case 4: Radio Stream URL
         if media_type == MediaType.URL or media_type == MediaType.MUSIC:
             self._attr_media_title = f"Radio: {media_id}"
             command_topic = f"{self._device.base_topic}/radio/command"
