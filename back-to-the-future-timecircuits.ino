@@ -1345,14 +1345,12 @@ void loop() {
                         if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
                             lastDisplayUpdateTime = millis();
                             // --- START: MODIFICATION - Prioritize Sequencer ---
-                            // If any sequence is active, we bypass the normal display mode logic.
-                            // Instead, we just call updateNormalClockDisplay(), which respects the
-                            // sequencer's control over individual rows. This allows sequences
-                            // to play on one row while the clock runs on others.
+                            // If any sequence is active, we bypass the normal display mode logic
+                            // to prevent interference with the sequence.
                             if (isAnySequenceActive()) {
-                                // A sequence is running. Just update the clock display, which will
-                                // respect the manual mode flags set by the sequencer.
-                                updateNormalClockDisplay();
+                                // A sequence is running. Do nothing here to allow the sequence
+                                // to have full control of the display. The handleSequencer()
+                                // function will handle the necessary display updates.
                             } else {
                                 // No sequence is running. Proceed with the normal display logic.
                                 updateDisplayState();
@@ -1438,8 +1436,8 @@ void handlePresetCycling() {
     if (lastPresetCycleTime == 0 && bootState == BOOT_INACTIVE) {
         lastPresetCycleTime = millis();
     }
-    // Return if cycling is disabled, an animation is playing, or the display is asleep
-    if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
+    // Return if cycling is disabled, an animation is playing, the display is asleep, or a sequence is active
+    if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating || isAnySequenceActive()) {
         return;
     }
 
@@ -1492,7 +1490,7 @@ void handlePresetCycling() {
  * animation sequence after the specified number of minutes.
  */
 void handleScheduledAnimation() {
-    if (currentSettings.timeTravelAnimationInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating) {
+    if (currentSettings.timeTravelAnimationInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating || isAnySequenceActive()) {
         return;
     }
 
@@ -1508,7 +1506,7 @@ void handleScheduledAnimation() {
 }
 
 void handleSleepSchedule() {
-  if (!timeSynchronized) return;
+  if (!timeSynchronized || isAnySequenceActive()) return;
   struct tm timeinfo;
   getLocalTime(&timeinfo);
   
