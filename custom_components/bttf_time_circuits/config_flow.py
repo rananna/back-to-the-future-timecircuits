@@ -156,8 +156,15 @@ class BttfTimeCircuitsConfigFlow(ConfigFlow):
         """Handle the initial step."""
         if user_input is not None:
             device_id = user_input["device_id"]
-            await self.async_set_unique_id(device_id)
-            self._abort_if_unique_id_configured()
+
+            existing_entry = await self.async_set_unique_id(device_id)
+            if existing_entry:
+                self.hass.config_entries.async_update_entry(
+                    existing_entry, data=user_input
+                )
+                await self.hass.config_entries.async_reload(existing_entry.entry_id)
+                return self.async_abort(reason="reconfigure_successful")
+
             return self.async_create_entry(
                 title=f"BTTF Time Circuits {device_id}",
                 data={"device_id": device_id},
