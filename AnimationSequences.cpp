@@ -17,9 +17,9 @@ static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, in
 
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FILL, 0, -1, 10000, 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FILL, 1, -1, 10000, 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FILL, 2, -1, 10000, 50);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
 }
 
 void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings[3][17]) {
@@ -115,11 +115,11 @@ void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, time_strings[1]);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, time_strings[0]);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FILL, 2, -1, 200, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 0, -1, 0, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 1, -1, 0, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FILL, 2, -1, 200, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
@@ -159,9 +159,9 @@ void generatePlasmaWarmup(SequencerTrack tracks[3]) {
 void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
     int s=0;
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FILL, 0, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FILL, 1, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FILL, 2, -1, 200, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
     s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 100, 0);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
