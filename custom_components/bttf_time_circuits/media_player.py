@@ -64,7 +64,9 @@ async def async_setup_entry(
     """Set up the BTTF Time Circuits media player."""
     _LOGGER.debug("media_player.async_setup_entry")
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
-    async_add_entities([BTTFTimeCircuitsMediaPlayer(device, MEDIA_PLAYER_DESCRIPTION)])
+    async_add_entities(
+        [BTTFTimeCircuitsMediaPlayer(device, config_entry, MEDIA_PLAYER_DESCRIPTION)]
+    )
 
 
 class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
@@ -80,6 +82,7 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
     def __init__(
         self,
         device: BTTFTimeCircuitsDevice,
+        config_entry: ConfigEntry,
         description: MediaPlayerEntityDescription,
     ) -> None:
         """Initialize the media player."""
@@ -88,6 +91,7 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         )
         self.entity_description = description
         super().__init__(device)
+        self.config_entry = config_entry
         self._attr_volume_level = 0.5  # Default volume
         self._attr_state = "idle"
         self._attr_media_content_id = None
