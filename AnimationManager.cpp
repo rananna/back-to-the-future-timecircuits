@@ -8,7 +8,7 @@ AnimationPhase currentPhase = ANIM_INACTIVE;
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DebugLog.h"
-#include "DisplayManager.h"
+#include "DisplayManager.h" // <-- This now includes the declaration for setOverrideMessage
 #include "MqttManager.h"
 #include <WiFi.h>
 #include "web_server.h"
@@ -23,8 +23,6 @@ static AnimationPhase nextPhaseAfterSound = ANIM_INACTIVE;
 
 static bool infoMessageSet = false;
 
-extern void setOverrideMessage(const char* line1, const char* line2, const char* line3);
-extern bool isMessageOverrideActive;
 extern unsigned long bootStateStartTime;
 
 void playReconfiguringSound();
