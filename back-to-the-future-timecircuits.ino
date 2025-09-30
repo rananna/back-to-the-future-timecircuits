@@ -1270,18 +1270,6 @@ void loop() {
             if (hardwareInitialized) {
                 if (bootState != BOOT_INACTIVE) {
                     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                        // --- MODIFICATION: Check display status before animating ---
-                        DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
-                        for (int i = 0; i < 3; i++) {
-                            Adafruit_AlphaNum4* segments[] = {&rows[i]->month, &rows[i]->day, &rows[i]->year, &rows[i]->time};
-                            for (int j = 0; j < 4; j++) {
-                                if (!displayInitStatus[i][j]) {
-                                    // Re-assert FAIL message in case it gets cleared
-                                    printToDisplay(*segments[j], "FAIL");
-                                    segments[j]->writeDisplay();
-                                }
-                            }
-                        }
                         handleBootSequence();
                         xSemaphoreGive(xDisplayDataMutex);
                     }

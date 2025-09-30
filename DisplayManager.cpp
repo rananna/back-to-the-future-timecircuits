@@ -255,7 +255,6 @@ extern StockData stockData[3];
 bool weatherDataUpdated = false;
 std::string manualDisplayText[3][4];
 bool isRowInManualMode[3] = {false, false, false};
-bool displayInitStatus[3][4];
 
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration) {
     if (!hardwareInitialized) return;

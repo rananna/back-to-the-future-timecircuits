@@ -120,76 +120,61 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  * with its correct I2C address and bus. Finally, it configures the AM/PM indicator
  * LED pins and the I2S amplifier shutdown pin as outputs.
  */
-// --- NEW: Array to track the initialization status of each display segment ---
-bool displayInitStatus[3][4] = {{0}};
-
 bool setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
     if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by setupPhysicalDisplay"); }
 
+    // --- SAFER I2C INITIALIZATION ---
+    // Only initialize the I2C buses if they haven't been already.
+    // This prevents re-installing the driver on retries, which can cause a system crash.
     if (!i2c_1_initialized) {
         Log_printf(LOG_LEVEL_INFO, "Initializing I2C Bus 1 (SDA: %d, SCL: %d)", I2C_SDA_1, I2C_SCL_1);
         I2C_1.begin(I2C_SDA_1, I2C_SCL_1, 50000);
-        I2C_1.setTimeout(250);
+        I2C_1.setTimeout(250); // 250ms timeout
         i2c_1_initialized = true;
     }
     if (!i2c_2_initialized) {
         Log_printf(LOG_LEVEL_INFO, "Initializing I2C Bus 2 (SDA: %d, SCL: %d)", I2C_SDA_2, I2C_SCL_2);
         I2C_2.begin(I2C_SDA_2, I2C_SCL_2, 50000);
-        I2C_2.setTimeout(250);
+        I2C_2.setTimeout(250); // 250ms timeout
         i2c_2_initialized = true;
     }
 
+    // Initialize the Adafruit_AlphaNum4 objects.
     destRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
     presRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
     lastRow = {Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4()};
 
-    int successfulInits = 0;
-
     // --- Destination Row ---
-    displayInitStatus[0][0] = destRow.month.begin(0x70, &I2C_1);
-    if (displayInitStatus[0][0]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: Dest Row Month (0x70, I2C_1) FAILED");
-    displayInitStatus[0][1] = destRow.day.begin(0x71, &I2C_1);
-    if (displayInitStatus[0][1]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: Dest Row Day (0x71, I2C_1) FAILED");
-    displayInitStatus[0][2] = destRow.year.begin(0x72, &I2C_1);
-    if (displayInitStatus[0][2]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: Dest Row Year (0x72, I2C_1) FAILED");
-    displayInitStatus[0][3] = destRow.time.begin(0x73, &I2C_1);
-    if (displayInitStatus[0][3]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: Dest Row Time (0x73, I2C_1) FAILED");
+    if (!destRow.month.begin(0x70, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Dest Row Month display failed to init."); return false; }
+    if (!destRow.day.begin(0x71, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Dest Row Day display failed to init."); return false; }
+    if (!destRow.year.begin(0x72, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Dest Row Year display failed to init."); return false; }
+    if (!destRow.time.begin(0x73, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Dest Row Time display failed to init."); return false; }
 
     // --- Present Row ---
-    displayInitStatus[1][0] = presRow.month.begin(0x74, &I2C_1);
-    if (displayInitStatus[1][0]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: Pres Row Month (0x74, I2C_1) FAILED");
-    displayInitStatus[1][1] = presRow.day.begin(0x75, &I2C_1);
-    if (displayInitStatus[1][1]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: Pres Row Day (0x75, I2C_1) FAILED");
-    displayInitStatus[1][2] = presRow.year.begin(0x76, &I2C_1);
-    if (displayInitStatus[1][2]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: Pres Row Year (0x76, I2C_1) FAILED");
-    displayInitStatus[1][3] = presRow.time.begin(0x77, &I2C_1);
-    if (displayInitStatus[1][3]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: Pres Row Time (0x77, I2C_1) FAILED");
+    if (!presRow.month.begin(0x74, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Pres Row Month display failed to init."); return false; }
+    if (!presRow.day.begin(0x75, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Pres Row Day display failed to init."); return false; }
+    if (!presRow.year.begin(0x76, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Pres Row Year display failed to init."); return false; }
+    if (!presRow.time.begin(0x77, &I2C_1)) { Log_printf(LOG_LEVEL_ERROR, "Pres Row Time display failed to init."); return false; }
 
     // --- Last Time Departed Row ---
-    displayInitStatus[2][0] = lastRow.month.begin(0x70, &I2C_2);
-    if (displayInitStatus[2][0]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: LTD Row Month (0x70, I2C_2) FAILED");
-    displayInitStatus[2][1] = lastRow.day.begin(0x71, &I2C_2);
-    if (displayInitStatus[2][1]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: LTD Row Day (0x71, I2C_2) FAILED");
-    displayInitStatus[2][2] = lastRow.year.begin(0x72, &I2C_2);
-    if (displayInitStatus[2][2]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: LTD Row Year (0x72, I2C_2) FAILED");
-    displayInitStatus[2][3] = lastRow.time.begin(0x73, &I2C_2);
-    if (displayInitStatus[2][3]) successfulInits++; else Log_printf(LOG_LEVEL_ERROR, "HW_INIT: LTD Row Time (0x73, I2C_2) FAILED");
+    if (!lastRow.month.begin(0x70, &I2C_2)) { Log_printf(LOG_LEVEL_ERROR, "LTD Row Month display failed to init."); return false; }
+    if (!lastRow.day.begin(0x71, &I2C_2)) { Log_printf(LOG_LEVEL_ERROR, "LTD Row Day display failed to init."); return false; }
+    if (!lastRow.year.begin(0x72, &I2C_2)) { Log_printf(LOG_LEVEL_ERROR, "LTD Row Year display failed to init."); return false; }
+    if (!lastRow.time.begin(0x73, &I2C_2)) { Log_printf(LOG_LEVEL_ERROR, "LTD Row Time display failed to init."); return false; }
 
+    // Set LED indicator pins to output mode.
     pinMode(DEST_AM_PIN, OUTPUT); pinMode(DEST_PM_PIN, OUTPUT);
     pinMode(PRES_AM_PIN, OUTPUT); pinMode(PRES_PM_PIN, OUTPUT);
     pinMode(LAST_AM_PIN, OUTPUT); pinMode(LAST_PM_PIN, OUTPUT);
 
+    // Set I2S Amplifier Shutdown pin to output mode and enable the amplifier.
     pinMode(I2S_SD_PIN, OUTPUT);
     digitalWrite(I2S_SD_PIN, HIGH);
 
-    Log_printf(LOG_LEVEL_INFO, "HW_INIT: %d out of 12 displays initialized successfully.", successfulInits);
-
-    // Return true if at least ONE display initialized, allowing the boot sequence to proceed
-    // with visual feedback on the working displays.
-    return (successfulInits > 0);
+    return true; // All displays initialized successfully
   #else
-    return true;
+    return true; // If hardware is disabled, we consider it "initialized" successfully.
   #endif
 }
 /**
