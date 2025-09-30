@@ -403,7 +403,7 @@ void applySettingsFromJson(const JsonObject& obj) {
     validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
     validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
     int tempAnimationStyle = currentSettings.animationStyle;
-    validateAndSet("animationStyle", tempAnimationStyle, 0, 22);
+    validateAndSet("animationStyle", tempAnimationStyle, 0, 27);
     currentSettings.animationStyle = (AnimationType)tempAnimationStyle;
     validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
     if (!obj["timeTravelSoundToggle"].isNull()) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
