@@ -22,6 +22,7 @@ extern StockManager stockManager;
 extern String overrideMessageLine1;
 extern String overrideMessageLine2;
 extern String overrideMessageLine3;
+extern bool isMessageOverrideActive;
 
 // State management for override message scrolling
 static int overrideScrollPosition[3] = {0, 0, 0};
@@ -538,6 +539,31 @@ void restoreDisplayRow(int row) {
 
     // Trigger an update to show the clock again
     updateNormalClockDisplay();
+}
+
+void setOverrideMessage(const char* line1, const char* line2, const char* line3) {
+    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+        overrideMessageLine1 = line1;
+        overrideMessageLine2 = line2;
+        overrideMessageLine3 = line3;
+
+        // The override is considered "active" if any of the lines contain text.
+        // If all lines are empty, the override mode is turned off.
+        isMessageOverrideActive = (overrideMessageLine1.length() > 0 ||
+                                   overrideMessageLine2.length() > 0 ||
+                                   overrideMessageLine3.length() > 0);
+
+        // If we are turning off the override, clear the scroll tracking variables
+        if (!isMessageOverrideActive) {
+            for (int i = 0; i < 3; i++) {
+                overrideScrollPosition[i] = 0;
+                previousOverrideMessage[i] = "";
+            }
+        }
+
+        Log_printf(LOG_LEVEL_INFO, "Override message set. Active: %s", isMessageOverrideActive ? "true" : "false");
+        xSemaphoreGive(xDisplayDataMutex);
+    }
 }
 
 /**
