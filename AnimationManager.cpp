@@ -228,9 +228,124 @@ void runBootSequence() {
 }
 
 void handleBootSequence() {
-    // This function remains unchanged as it's a separate system.
-    if (bootState == BOOT_INACTIVE) return;
-    // ... (rest of the original function)
+    if (bootState == BOOT_INACTIVE || bootState == BOOT_COMPLETE) return;
+
+    unsigned long elapsed = millis() - bootStateStartTime;
+    static BootSequenceState lastLoggedState = BOOT_INACTIVE;
+
+    // Log when state changes
+    if (bootState != lastLoggedState) {
+        Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: State changing from %d to %d", lastLoggedState, bootState);
+        lastLoggedState = bootState;
+        bootStateStartTime = millis(); // Reset timer for new state
+        elapsed = 0; // Reset elapsed time
+    }
+
+    switch (bootState) {
+        case BOOT_AWAIT_HUM:
+            // This state just waits for a sound to finish, which is handled by the sound system.
+            // Let's assume it transitions after a timeout if the sound doesn't trigger a change.
+            if (elapsed > BOOT_AWAIT_HUM_DURATION) {
+                Log_printf(LOG_LEVEL_WARN, "BOOT_TRACE: Await Hum timed out. Forcing start.");
+                bootState = BOOT_START;
+            }
+            break;
+
+        case BOOT_START:
+            setOverrideMessage("SYSTEM BOOT", "PLEASE WAIT", "");
+            playSound("boot_up.mp3");
+            bootState = BOOT_WARM_UP;
+            break;
+
+        case BOOT_WARM_UP:
+            if (elapsed > BOOT_WARM_UP_DURATION) {
+                bootState = BOOT_COLD_START;
+            }
+            break;
+
+        case BOOT_COLD_START:
+            setOverrideMessage("COLD START", "SEQUENCE", "INITIATED");
+            if (elapsed > BOOT_COLD_START_DURATION) {
+                bootState = BOOT_FLUX_CAPACITOR_IGNITION;
+            }
+            break;
+
+        case BOOT_FLUX_CAPACITOR_IGNITION:
+            setOverrideMessage("FLUX CAPACITOR", "IGNITION", "SEQUENCE");
+            if (elapsed > BOOT_FLUX_CAPACITOR_IGNITION_DURATION) {
+                bootState = BOOT_FLUX_CAPACITOR_ANIMATION;
+            }
+            break;
+
+        case BOOT_FLUX_CAPACITOR_ANIMATION:
+            // This state is likely stuck because it has no duration or exit condition.
+            // Let's add a simple animation and an exit condition.
+            Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Running Flux Capacitor Animation.");
+            animateTornadoFlicker();
+            if (elapsed > 5000) { // Let's assume a 5-second animation
+                Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Flux Capacitor Animation complete.");
+                bootState = BOOT_DIAGNOSTICS;
+            }
+            break;
+
+        case BOOT_DIAGNOSTICS:
+            setOverrideMessage("RUNNING", "DIAGNOSTICS", "...");
+            if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
+                bootState = BOOT_FINAL_CHECKS;
+            }
+            break;
+
+        case BOOT_FINAL_CHECKS:
+            setOverrideMessage("FINAL CHECKS", "IN PROGRESS", "");
+            if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
+                bootState = BOOT_TEMPORAL_DISPLACEMENT;
+            }
+            break;
+
+        case BOOT_TEMPORAL_DISPLACEMENT:
+            setOverrideMessage("TEMPORAL", "DISPLACEMENT", "ACTIVE");
+            if (elapsed > BOOT_TEMPORAL_DISPLACEMENT_DURATION) {
+                bootState = BOOT_ARRIVAL;
+            }
+            break;
+
+        case BOOT_ARRIVAL:
+            setOverrideMessage("TIME CIRCUIT", "ARRIVAL", "SEQUENCE");
+            if (elapsed > BOOT_ARRIVAL_DURATION) {
+                bootState = BOOT_ARRIVAL_ANIMATION;
+            }
+            break;
+
+        case BOOT_ARRIVAL_ANIMATION:
+            // Similar to the flux capacitor animation, this could be a sticking point.
+            Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Running Arrival Animation.");
+            animateTornadoFlicker();
+            if (elapsed > 3000) { // 3-second animation
+                 Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Arrival Animation complete.");
+                bootState = BOOT_COOL_DOWN;
+            }
+            break;
+
+        case BOOT_COOL_DOWN:
+            setOverrideMessage("SYSTEMS", "COOL DOWN", "PHASE");
+            if (elapsed > BOOT_COOL_DOWN_DURATION) {
+                bootState = BOOT_COMPLETE;
+            }
+            break;
+
+        case BOOT_COMPLETE:
+            Log_printf(LOG_LEVEL_INFO, "BOOT_TRACE: Boot sequence complete.");
+            setOverrideMessage("", "", ""); // Clear override
+            isMessageOverrideActive = false;
+            updateNormalClockDisplay();
+            // No need to change state further, just let it be.
+            break;
+
+        default:
+            Log_printf(LOG_LEVEL_ERROR, "BOOT_TRACE: Reached unknown boot state %d. Resetting.", bootState);
+            bootState = BOOT_INACTIVE;
+            break;
+    }
 }
 
 void handleSequencer() {
