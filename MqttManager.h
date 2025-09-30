@@ -5,12 +5,22 @@
 #include <string>
 #include "Audio.h"
 
+// --- Enums for State Machines ---
 enum RadioStatus {
   RADIO_STATUS_STOPPED,
   RADIO_STATUS_CONNECTING,
   RADIO_STATUS_PLAYING,
   RADIO_STATUS_ERROR
 };
+
+enum HaDiscoveryState {
+    HA_DISCOVERY_IDLE,
+    HA_DISCOVERY_RUNNING,
+    HA_DISCOVERY_COMPLETE
+};
+
+extern HaDiscoveryState haDiscoveryState;
+extern unsigned long lastHaDiscoveryPublish;
 
 // --- MQTT Configuration ---
 #define MQTT_BASE_TOPIC "homeassistant"
@@ -25,7 +35,11 @@ extern bool isRadioStreaming;
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length);
 void setupMqtt();
 void reconnectMqtt();
-void publishHaAutoDiscovery();
+
+// --- Home Assistant Discovery State Machine ---
+void startHaDiscovery();
+void handleHaDiscovery();
+
 void updateHaStatus(const char* status);
 void publishAllHaStates();
 void clearHaEntity(const char* component, const char* unique_id_suffix);
