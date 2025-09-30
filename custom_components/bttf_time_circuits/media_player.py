@@ -30,7 +30,6 @@ SUPPORTED_FEATURES = (
     | MediaPlayerEntityFeature.STOP
     | MediaPlayerEntityFeature.VOLUME_SET
     | MediaPlayerEntityFeature.SELECT_SOURCE
-    | MediaPlayerEntityFeature.FAVORITE_SET
     | MediaPlayerEntityFeature.CLEAR_PLAYLIST
 )
 
