@@ -53,6 +53,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Update data via MQTT."""
         command_topic = f"{device.base_topic}/command"
         await mqtt.async_publish(hass, command_topic, "STATE", 1, False)
+        return {}
 
     coordinator = DataUpdateCoordinator(
         hass,
