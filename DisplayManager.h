@@ -52,8 +52,6 @@ void handleWeatherDisplay();
 void displayOverrideMessage();
 void displayMarqueeOverride();
 void updateStockTickerDisplay();
-void startSequencerMarquee(SequencerTrack& track, const std::string& text);
-void handleAllSequencerMarquees();
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration);
 const char* getIconForWeatherCode(int code);
 void updateDisplaySegment(int row, int segment, const std::string& text);
