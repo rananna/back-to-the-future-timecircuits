@@ -370,7 +370,6 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_TEMPORAL_DESYNC:         generateTemporalDesync(tracks); break;
         case ANIMATION_DIGITAL_RAIN:            generateDigitalRain(tracks); break;
         case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(tracks, time_strings); break;
-        case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(tracks, time_strings); break;
 
         // New thematic animations
         case ANIMATION_LIGHTNING:               generateLightning(tracks); break;
