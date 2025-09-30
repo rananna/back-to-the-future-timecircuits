@@ -67,6 +67,7 @@ void handleSequencer();
 
 // --- NEW: Function declaration for stopping a track ---
 void stopAndCleanupTrack(int trackIndex);
+void stopAllSequences();
 
 // --- NEW: Function declaration for the startup test ---
 void runSequencerTest();

@@ -1539,6 +1539,22 @@ void stopAndCleanupTrack(int trackIndex) {
 }
 
 /**
+ * @brief Stops all active sequencer tracks immediately.
+ * @details This function iterates through all available tracks and calls
+ * `stopAndCleanupTrack` on each one. This serves as a "master reset" to ensure
+ * no sequences are running before starting a new one, preventing conflicts.
+ */
+void stopAllSequences() {
+    Log_printf(LOG_LEVEL_INFO, "SEQ: Stopping all active sequences.");
+    for (int i = 0; i < 3; i++) {
+        // The cleanup function has its own guards, but checking isActive here is a good practice.
+        if (sequencerTracks[i].isActive) {
+            stopAndCleanupTrack(i);
+        }
+    }
+}
+
+/**
  * @brief Configures and runs a test for the crossfade command bug.
  * @details This test sets up a single track to demonstrate the infinite loop
  * in the SEQ_CMD_CROSSFADE_TEXT command. It is intended to fail before the
