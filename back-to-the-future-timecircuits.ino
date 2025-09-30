@@ -1020,7 +1020,7 @@ void setup() {
     bootTimestamp = millis();
 
     // --- NEW: Run the sequencer test on startup to verify parallel animations ---
-    runSequencerTest();
+   // runSequencerTest();
 }
 
 // --- NEW STATE DETERMINATION FUNCTION ---
