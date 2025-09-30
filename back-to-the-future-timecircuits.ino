@@ -96,6 +96,8 @@ const std::vector<Preset> moviePresets = {
 const unsigned long WIFI_CONNECT_TIMEOUT = 15000;       // Time in ms to wait for WiFi before starting the captive portal.
 const unsigned int MQTT_INITIAL_RETRY_INTERVAL = 5000;  // Initial time in ms to wait before first MQTT reconnect attempt.
 const unsigned int MQTT_MAX_RETRY_INTERVAL = 60000;     // Maximum time in ms for the exponential backoff for MQTT reconnects.
+const unsigned int MQTT_MAX_FAILS = 5;                  // Number of consecutive MQTT fails before tripping the circuit breaker.
+const unsigned long MQTT_HOLDOFF_DURATION = 300000;     // Time in ms (5 minutes) to wait before retrying after a circuit break.
 const unsigned long NTP_INITIAL_SYNC_DELAY = 2000;      // Delay in ms after connecting to WiFi before the first NTP sync.
 const unsigned long DISPLAY_UPDATE_INTERVAL = 250;      // Milliseconds between display updates for the main clock.
 const unsigned long HARDWARE_INIT_RETRY_INTERVAL = 30000; // Time in ms to wait before retrying hardware init.
@@ -121,6 +123,8 @@ bool logConnectedPrinted = false;            // Flag to ensure the "Connected" m
 unsigned long nextMqttReconnectAttempt = 0;  // Timestamp (millis) for the next scheduled reconnect attempt.
 unsigned int mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL; // Current reconnect interval, increases on failure.
 bool initialMqttConnectionAttempted = false; // Tracks if the first connection attempt has been made.
+unsigned int mqttConsecutiveFails = 0;       // Counter for consecutive MQTT connection failures.
+unsigned long mqttHoldoffUntil = 0;           // Timestamp (millis) until which MQTT reconnections are paused.
 
 // --- STATE VARIABLES ---
 BootSequenceState bootState = BOOT_INACTIVE; // Current phase of the cinematic boot sequence.
@@ -1186,26 +1190,58 @@ void loop() {
                 runBootSequence();
             }
             if (!currentSettings.mqttBroker.empty()) {
+                unsigned long now = millis();
                 if (!mqttClient.connected()) {
-                    unsigned long now = millis();
-                    // MODIFICATION: Allow the first connection attempt immediately after WiFi is up,
-                    // then use the exponential backoff timer for subsequent retries.
-                    if (!initialMqttConnectionAttempted || now > nextMqttReconnectAttempt) {
-                        reconnectMqtt();
-                        initialMqttConnectionAttempted = true; // Mark that the first attempt has been made
-                        nextMqttReconnectAttempt = now + mqttReconnectInterval;
-                        if (!mqttClient.connected()) {
-                            // If connection failed, double the wait time for the next retry
-                            mqttReconnectInterval *= 2;
-                            if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
-                                mqttReconnectInterval = MQTT_MAX_RETRY_INTERVAL;
+                    // Check if we are in a hold-off period (circuit breaker is tripped)
+                    if (mqttHoldoffUntil > 0 && now < mqttHoldoffUntil) {
+                        // We are in a hold-off period, do nothing.
+                    } else {
+                        // If hold-off is over, reset the timestamp to allow a single new attempt.
+                        if (mqttHoldoffUntil > 0 && now >= mqttHoldoffUntil) {
+                            Log_printf(LOG_LEVEL_INFO, "MQTT: Hold-off period is over. Attempting to reconnect.");
+                            mqttHoldoffUntil = 0;
+                            nextMqttReconnectAttempt = 0; // Force immediate attempt
+                        }
+
+                        // Check if it's time for a reconnect attempt
+                        if (!initialMqttConnectionAttempted || now > nextMqttReconnectAttempt) {
+                            reconnectMqtt();
+                            initialMqttConnectionAttempted = true;
+
+                            if (!mqttClient.connected()) {
+                                // --- CIRCUIT BREAKER: FAILED CONNECTION ---
+                                mqttConsecutiveFails++;
+                                Log_printf(LOG_LEVEL_WARN, "MQTT: Connection failed. Consecutive failures: %d", mqttConsecutiveFails);
+
+                                if (mqttConsecutiveFails >= MQTT_MAX_FAILS) {
+                                    // Trip the circuit breaker
+                                    Log_printf(LOG_LEVEL_ERROR, "MQTT: Too many consecutive failures. Tripping circuit breaker for 5 minutes.");
+                                    mqttHoldoffUntil = now + MQTT_HOLDOFF_DURATION;
+                                    mqttConsecutiveFails = 0; // Reset for after the hold-off
+                                    mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL; // Reset for after the hold-off
+                                } else {
+                                    // If breaker not tripped, use exponential backoff for next attempt
+                                    nextMqttReconnectAttempt = now + mqttReconnectInterval;
+                                    mqttReconnectInterval *= 2;
+                                    if (mqttReconnectInterval > MQTT_MAX_RETRY_INTERVAL) {
+                                        mqttReconnectInterval = MQTT_MAX_RETRY_INTERVAL;
+                                    }
+                                }
+                            } else {
+                                // --- CIRCUIT BREAKER: SUCCESSFUL CONNECTION ---
+                                Log_printf(LOG_LEVEL_INFO, "MQTT: Connection successful. Resetting failure counter.");
+                                mqttConsecutiveFails = 0;
+                                mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
                             }
-                        } else {
-                             // If connection succeeded, reset the interval
-                             mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
                         }
                     }
                 } else {
+                    // If we are connected, ensure the failure counter is reset.
+                    if (mqttConsecutiveFails > 0) {
+                        Log_printf(LOG_LEVEL_INFO, "MQTT: Re-established connection. Resetting failure counter.");
+                        mqttConsecutiveFails = 0;
+                        mqttReconnectInterval = MQTT_INITIAL_RETRY_INTERVAL;
+                    }
                     mqttClient.loop();
                 }
             }
