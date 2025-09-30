@@ -85,6 +85,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     hass.services.async_register(
         DOMAIN,
+        "favorite_radio_station",
+        device.async_handle_favorite_radio_station,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "clear_favorite_radio_stations",
+        device.async_handle_clear_favorite_radio_stations,
+    )
+    hass.services.async_register(
+        DOMAIN,
         "set_destination_time",
         device.async_handle_set_destination_time,
     )
@@ -103,6 +113,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         lambda: hass.services.async_remove(DOMAIN, "set_status_display")
     )
     entry.async_on_unload(lambda: hass.services.async_remove(DOMAIN, "run_sequence"))
+    entry.async_on_unload(
+        lambda: hass.services.async_remove(DOMAIN, "favorite_radio_station")
+    )
+    entry.async_on_unload(
+        lambda: hass.services.async_remove(DOMAIN, "clear_favorite_radio_stations")
+    )
     entry.async_on_unload(
         lambda: hass.services.async_remove(DOMAIN, "set_destination_time")
     )

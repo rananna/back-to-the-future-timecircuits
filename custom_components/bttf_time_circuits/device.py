@@ -189,6 +189,18 @@ class BTTFTimeCircuitsDevice:
             return self.hass.data[MEDIA_PLAYER_DOMAIN].get_entity(entity_id)
         return None
 
+    async def async_handle_favorite_radio_station(self, call: ServiceCall) -> None:
+        """Handle the favorite_radio_station service call."""
+        if entity := await self._async_get_media_player_entity():
+            await entity.async_favorite_radio_station()
+
+    async def async_handle_clear_favorite_radio_stations(
+        self, call: ServiceCall
+    ) -> None:
+        """Handle the clear_favorite_radio_stations service call."""
+        if entity := await self._async_get_media_player_entity():
+            await entity.async_clear_favorite_radio_stations()
+
     async def _async_set_time(self, prefix: str, dt_obj) -> None:
         """Set a time display (destination, present, or last departed)."""
         # Month: JAN, FEB, etc.
