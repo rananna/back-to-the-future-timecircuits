@@ -16,10 +16,17 @@ static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, in
 // --- Individual Animation Generators ---
 
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
-    int s0 = 0, s1 = 0, s2 = 0;
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
+    int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
+    for (int i = 0; i < 4; i++) {
+        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, i, 100, 50);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, i, 100, 50);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, i, 100, 50);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+    }
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
 void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings[3][17]) {
@@ -89,6 +96,18 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
+void generateWaveFlicker(SequencerTrack tracks[3]) {
+    int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50, "---     ---");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50, "  ---   --- ");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50, "   -------  ");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+}
+
 void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 100, time_strings[0]);
@@ -125,7 +144,15 @@ void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3
 }
 
 void generateInterferencePattern(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    generateAllDisplaysRandom(tracks, time_strings);
+    int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 15, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 150, 100, "!@#$%%^&*()_+-=");
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 150, 100, time_strings[1]);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 150, 100, "!@#$%%^&*()_+-=");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 1, -1, 0, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
 void generateTimeWarpStreaks(SequencerTrack tracks[3], const char time_strings[3][17]) {
@@ -136,32 +163,41 @@ void generateTimeWarpStreaks(SequencerTrack tracks[3], const char time_strings[3
 }
 
 void generateFocusIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    generateCodeBreaker(tracks, time_strings);
+    int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 200, 200, time_strings[0]);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 200, 200, time_strings[1]);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 200, 200, time_strings[2]);
 }
 
 void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    generateFlipDisc(tracks, time_strings);
+    int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 50, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 25, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 1, -1, 50, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 25, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 2, -1, 50, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
 void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s0 = 0, s1 = 0, s2 = 0;
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "/countdown.mp3");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_COUNTDOWN, 0, 2, 9999, 50);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 200, 0);
-
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100, 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 100, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_COUNTDOWN, 2, 2, 9999, 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 100, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 200, 0);
+    int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/countdown.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 13, 0);
+    for (int i = 0; i < 13; i++) {
+        char text[14] = "             ";
+        text[i] = time_strings[0][i];
+        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, text);
+        text[i] = time_strings[1][i];
+        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, text);
+        text[i] = time_strings[2][i];
+        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, text);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 75, 0);
+    }
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
 void generatePlasmaWarmup(SequencerTrack tracks[3]) {
@@ -189,8 +225,17 @@ void generateCountingUp(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_COUNTDOWN, 2, -1, 99999999, 1);
 }
 
-void generateTimelineSkim(SequencerTrack tracks[3]) {
-    generateTornadoFlicker(tracks); // Fallback for a complex animation
+void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][17]) {
+    int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 3, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 500, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 500, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 500, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_TYPEWRITER, 0, -1, 100, 0, time_strings[0]);
+    s = add_step(tracks[0], s, SEQ_CMD_TYPEWRITER, 1, -1, 100, 0, time_strings[1]);
+    s = add_step(tracks[0], s, SEQ_CMD_TYPEWRITER, 2, -1, 100, 0, time_strings[2]);
 }
 
 void generateTemporalDesync(SequencerTrack tracks[3]) {
@@ -201,11 +246,16 @@ void generateTemporalDesync(SequencerTrack tracks[3]) {
 }
 
 void generateDigitalRain(SequencerTrack tracks[3]) {
-    int s=0;
+    int s = 0;
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 100, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100, 50, "                ");
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100, 50, "                ");
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100, 50, "                ");
+    for (int i = 0; i < 13; i++) {
+        char text[14] = "             ";
+        text[i] = random(33, 126);
+        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, text);
+        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, text);
+        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, text);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+    }
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
@@ -268,6 +318,20 @@ void generateFireTrails(SequencerTrack tracks[3], const char time_strings[3][17]
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 2, -1, 100, 0, time_strings[2]);
 }
 
+void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][17]) {
+    int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100, 50, " . ");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100, 50, ". .");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100, 50, " . ");
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 0, -1, 100, 0, time_strings[0]);
+    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 1, -1, 100, 0, time_strings[1]);
+    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 2, -1, 100, 0, time_strings[2]);
+}
+
 
 // --- Main Generation Function ---
 
@@ -288,8 +352,8 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_TORNADO_FLICKER:         generateTornadoFlicker(tracks); break;
         case ANIMATION_ALL_DISPLAYS_RANDOM:     generateAllDisplaysRandom(tracks, time_strings); break;
         case ANIMATION_CAPACITOR_CHARGE_UP:     generateCapacitorChargeUp(tracks); break;
-        case ANIMATION_WAVEFORM_COLLAPSE:
-        case ANIMATION_WAVE_FLICKER:            generateWaveformCollapse(tracks); break;
+        case ANIMATION_WAVEFORM_COLLAPSE:       generateWaveformCollapse(tracks); break;
+        case ANIMATION_WAVE_FLICKER:            generateWaveFlicker(tracks); break;
         case ANIMATION_CODE_BREAKER:            generateCodeBreaker(tracks, time_strings); break;
         case ANIMATION_FLIP_DISC_DISPLAY:       generateFlipDisc(tracks, time_strings); break;
         case ANIMATION_CHARACTER_SCANLINE:      generateCharacterScanline(tracks, time_strings); break;
@@ -302,9 +366,11 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_PLASMA_WARM_UP:          generatePlasmaWarmup(tracks); break;
         case ANIMATION_GLITCHY_JUMP_CUT:        generateGlitchyJumpCut(tracks); break;
         case ANIMATION_COUNTING_UP:             generateCountingUp(tracks); break;
-        case ANIMATION_TIMELINE_SKIM:           generateTimelineSkim(tracks); break;
+        case ANIMATION_TIMELINE_SKIM:           generateTimelineSkim(tracks, time_strings); break;
         case ANIMATION_TEMPORAL_DESYNC:         generateTemporalDesync(tracks); break;
         case ANIMATION_DIGITAL_RAIN:            generateDigitalRain(tracks); break;
+        case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(tracks, time_strings); break;
+        case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(tracks, time_strings); break;
 
         // New thematic animations
         case ANIMATION_LIGHTNING:               generateLightning(tracks); break;

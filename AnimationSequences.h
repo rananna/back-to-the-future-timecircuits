@@ -31,7 +31,8 @@ enum AnimationType {
     ANIMATION_SCANNER,
     ANIMATION_TIME_TRAVEL_TUNNEL,
     ANIMATION_FLUX_CAPACITOR_OVERLOAD,
-    ANIMATION_FIRE_TRAILS
+    ANIMATION_FIRE_TRAILS,
+    ANIMATION_SPARKLE_REVEAL
 };
 
 // Main function to generate a sequence based on type
