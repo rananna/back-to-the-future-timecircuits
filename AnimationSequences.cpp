@@ -144,10 +144,24 @@ void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][
 }
 
 void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s0=0, s1=0, s2=0;
-    s0 = add_step(tracks[0], s0, SEQ_CMD_COUNTDOWN, 0, 2, 9999, 1);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, 2, 9999, 1);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_COUNTDOWN, 2, 2, 9999, 1);
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "/countdown.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_COUNTDOWN, 0, 2, 9999, 50);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 200, 0);
+
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100, 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_COUNTDOWN, 2, 2, 9999, 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 200, 0);
 }
 
 void generatePlasmaWarmup(SequencerTrack tracks[3]) {
@@ -195,6 +209,66 @@ void generateDigitalRain(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
+// --- New Thematic Animation Generators ---
+
+void generateLightning(SequencerTrack tracks[3]) {
+    int s = 0;
+    // Start with a sound effect for thunder
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/lightning.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    // Random flashes on all displays
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
+    // A big flash to simulate a lightning strike
+    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 150, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+}
+
+void generateScanner(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+    // A Cylon/Knight Rider style scanner effect
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCANNER, 0, -1, 50, 0, "---");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 50, 0, "---");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCANNER, 2, -1, 50, 0, "---");
+}
+
+void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[3][17]) {
+    int s = 0;
+    // Simulate traveling through a time vortex
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/time_travel.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 0, -1, 50, 0, time_strings[0]);
+    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 1, -1, 50, 0, time_strings[1]);
+    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 2, -1, 50, 0, time_strings[2]);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+}
+
+void generateFluxCapacitorOverload(SequencerTrack tracks[3]) {
+    int s = 0;
+    // Show the Flux Capacitor pulsing with energy
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/flux_capacitor.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 0, -1, 500, 250);
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 1, -1, 500, 250);
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 2, -1, 500, 250);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+}
+
+void generateFireTrails(SequencerTrack tracks[3], const char time_strings[3][17]) {
+    int s = 0;
+    // Burn the date onto the display with a fire trail effect
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/fire_trails.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 0, -1, 100, 0, time_strings[0]);
+    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 1, -1, 100, 0, time_strings[1]);
+    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 2, -1, 100, 0, time_strings[2]);
+}
+
+
 // --- Main Generation Function ---
 
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
@@ -231,6 +305,14 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_TIMELINE_SKIM:           generateTimelineSkim(tracks); break;
         case ANIMATION_TEMPORAL_DESYNC:         generateTemporalDesync(tracks); break;
         case ANIMATION_DIGITAL_RAIN:            generateDigitalRain(tracks); break;
+
+        // New thematic animations
+        case ANIMATION_LIGHTNING:               generateLightning(tracks); break;
+        case ANIMATION_SCANNER:                 generateScanner(tracks); break;
+        case ANIMATION_TIME_TRAVEL_TUNNEL:      generateTimeTravelTunnel(tracks, time_strings); break;
+        case ANIMATION_FLUX_CAPACITOR_OVERLOAD: generateFluxCapacitorOverload(tracks); break;
+        case ANIMATION_FIRE_TRAILS:             generateFireTrails(tracks, time_strings); break;
+
         case ANIMATION_RANDOM_FLICKER:
         default:
             generateTornadoFlicker(tracks);

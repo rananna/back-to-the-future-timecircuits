@@ -1233,14 +1233,38 @@ void handleSequencerCommand(const std::string& payload) {
     } else if (payload == "Lightning") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Lightning'");
         json_to_parse = R"([
-            {"targetRow":0, "commands":[{"command":"SOUND", "stringParam":"electric_sparks.mp3"}, {"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":100, "intParam2":2000}, {"command":"FLASH", "targetSegment":-1, "intParam":200}]},
-            {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":100, "intParam2":2000}, {"command":"FLASH", "targetSegment":-1, "intParam":200}]},
-            {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":100, "intParam2":2000}, {"command":"FLASH", "targetSegment":-1, "intParam":200}]}
+            {"targetRow":0, "commands":[
+                {"command":"SOUND", "stringParam":"/lightning.mp3"},
+                {"command":"LOOP_START", "intParam":10},
+                {"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":200, "intParam2":50},
+                {"command":"WAIT", "intParam":200},
+                {"command":"FLASH", "targetSegment":-1, "intParam":150},
+                {"command":"WAIT", "intParam":150},
+                {"command":"LOOP_END"}
+            ]},
+            {"targetRow":1, "commands":[
+                {"command":"LOOP_START", "intParam":10},
+                {"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":200, "intParam2":50},
+                {"command":"WAIT", "intParam":200},
+                {"command":"FLASH", "targetSegment":-1, "intParam":150},
+                {"command":"WAIT", "intParam":150},
+                {"command":"LOOP_END"}
+            ]},
+            {"targetRow":2, "commands":[
+                {"command":"LOOP_START", "intParam":10},
+                {"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":200, "intParam2":50},
+                {"command":"WAIT", "intParam":200},
+                {"command":"FLASH", "targetSegment":-1, "intParam":150},
+                {"command":"WAIT", "intParam":150},
+                {"command":"LOOP_END"}
+            ]}
         ])";
     } else if (payload == "Loading") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Loading'");
         json_to_parse = R"([
-            {"targetRow":1, "commands":[{"command":"BAR_GRAPH", "stringParam":"LOADING", "intParam":0, "intParam2":5000}]}
+            {"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":5000, "intParam2":100}]},
+            {"targetRow":1, "commands":[{"command":"BAR_GRAPH", "stringParam":"LOADING", "intParam":5000, "intParam2":250}]},
+            {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":5000, "intParam2":100}]}
         ])";
     } else if (payload == "Error") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Error'");
@@ -1352,6 +1376,36 @@ void handleSequencerCommand(const std::string& payload) {
             } else if (strcmp(cmd, "WAIT") == 0) {
                 current_step.command = SEQ_CMD_WAIT;
                 current_step.intParam = command["intParam"] | 1000;
+            } else if (strcmp(cmd, "RANDOM_FLICKER_TEXT") == 0) {
+                current_step.command = SEQ_CMD_RANDOM_FLICKER_TEXT;
+                current_step.stringParam = command["stringParam"] | "";
+                current_step.intParam = command["intParam"] | 2000;
+                current_step.intParam2 = command["intParam2"] | 100;
+            } else if (strcmp(cmd, "BAR_GRAPH") == 0) {
+                current_step.command = SEQ_CMD_BAR_GRAPH;
+                current_step.stringParam = command["stringParam"] | "";
+                current_step.intParam = command["intParam"] | 5000;
+                current_step.intParam2 = command["intParam2"] | 250;
+            } else if (strcmp(cmd, "SCRAMBLE_TEXT") == 0) {
+                current_step.command = SEQ_CMD_SCRAMBLE_TEXT;
+                current_step.stringParam = command["stringParam"] | "";
+                current_step.intParam = command["intParam"] | 50;
+                current_step.intParam2 = command["intParam2"] | 100;
+            } else if (strcmp(cmd, "SCANNER") == 0) {
+                current_step.command = SEQ_CMD_SCANNER;
+                current_step.stringParam = command["stringParam"] | "---";
+                current_step.intParam = command["intParam"] | 5000;
+                current_step.intParam2 = command["intParam2"] | 50;
+            } else if (strcmp(cmd, "COUNTDOWN") == 0) {
+                current_step.command = SEQ_CMD_COUNTDOWN;
+                current_step.targetSegment = command["targetSegment"] | -1;
+                current_step.intParam = command["intParam"] | 10;
+                current_step.intParam2 = command["intParam2"] | 1000;
+            } else if (strcmp(cmd, "LOOP_START") == 0) {
+                current_step.command = SEQ_CMD_LOOP_START;
+                current_step.intParam = command["intParam"] | 1;
+            } else if (strcmp(cmd, "LOOP_END") == 0) {
+                current_step.command = SEQ_CMD_LOOP_END;
             } else {
                 Log_printf(LOG_LEVEL_WARN, "Unknown sequencer command '%s' in track %d.", cmd, targetRow);
                 continue;
