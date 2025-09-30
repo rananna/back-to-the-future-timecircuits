@@ -673,8 +673,15 @@ void reconnectMqtt() {
     mqttClient.publish(availability_topic.c_str(), "online", true);
     mqttClient.loop(); // Allow time for the availability message to be sent.
 
-    // Force HA discovery on every reconnect to ensure capabilities are always up-to-date.
-    startHaDiscovery();
+    // --- FIX: Only run HA discovery if it has not been completed before. ---
+    // This prevents memory-intensive discovery from running on every reconnect,
+    // which can cause instability on flaky networks.
+    if (haDiscoveryState != HA_DISCOVERY_COMPLETE) {
+        Log_printf(LOG_LEVEL_INFO, "HA discovery has not been completed. Starting process.");
+        startHaDiscovery();
+    } else {
+        Log_printf(LOG_LEVEL_INFO, "HA discovery already completed. Skipping.");
+    }
 
     publishAllHaStates();
     String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
