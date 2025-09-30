@@ -1222,9 +1222,12 @@ void handleSequencer() {
 
             case SEQ_CMD_MARQUEE:
                 if (!track.stepInitialized) {
+                    // This now correctly calls the marquee initialization function
                     startSequencerMarquee(track, step.stringParam);
                     track.stepInitialized = true;
                 }
+                // The marquee effect runs in the background via handleAllSequencerMarquees().
+                // We check the isMarqueeActive flag to know when it's done.
                 if (!track.isMarqueeActive) {
                     advance_step = true;
                 }
@@ -1638,4 +1641,52 @@ void runSequencerTest() {
     sequencerTracks[2].trackStartTime = millis();
 
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Comprehensive Sequencer Test Started ---");
+}
+
+/**
+ * @brief Initializes a scrolling marquee effect on a specific sequencer track.
+ * @param track The sequencer track to activate the marquee on.
+ * @param text The text to be scrolled.
+ */
+void startSequencerMarquee(SequencerTrack& track, const std::string& text) {
+    if (text.empty()) {
+        track.isMarqueeActive = false;
+        return;
+    }
+    track.isMarqueeActive = true;
+    // Add padding for a smooth scroll-on and scroll-off effect
+    track.marqueeText = "             " + text + "             ";
+    track.marqueeScrollPosition = 0;
+    track.lastMarqueeScrollTime = millis();
+    Log_printf(LOG_LEVEL_INFO, "SEQ: Marquee started on track %d", track.steps[track.currentStep].targetRow);
+}
+
+/**
+ * @brief Handles the continuous scrolling for all active marquee effects.
+ * @details This function is called on every main loop. It iterates through all
+ * sequencer tracks and, for any track with an active marquee, it updates the
+ * scroll position and redraws the relevant display row with the new text segment.
+ */
+void handleAllSequencerMarquees() {
+    for (int i = 0; i < 3; ++i) {
+        SequencerTrack& track = sequencerTracks[i];
+
+        if (track.isActive && track.isMarqueeActive) {
+            // Use a fixed scroll speed for now. This could be extended to be a parameter.
+            if (millis() - track.lastMarqueeScrollTime > 120) { // 120ms scroll speed
+                track.marqueeScrollPosition++;
+
+                // Check if the marquee has finished scrolling completely
+                if ((unsigned)track.marqueeScrollPosition >= track.marqueeText.length() - 13) {
+                    track.isMarqueeActive = false;
+                    Log_printf(LOG_LEVEL_INFO, "SEQ: Marquee finished on track %d.", i);
+                } else {
+                    // Get the 13-character segment to display
+                    std::string displayText = track.marqueeText.substr(track.marqueeScrollPosition, 13);
+                    updateDisplaySegment(i, -1, displayText);
+                }
+                track.lastMarqueeScrollTime = millis();
+            }
+        }
+    }
 }
