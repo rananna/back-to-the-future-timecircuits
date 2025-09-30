@@ -1181,6 +1181,11 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
 }
 
 void handleSequencerCommand(const std::string& payload) {
+    // --- FIX: Stop any and all currently running sequences before starting a new one ---
+    // This acts as a "master reset" to prevent state corruption or conflicts when
+    // a new sequence is triggered while another is still active.
+    stopAllSequences();
+
     JsonDocument doc;
     std::string json_to_parse;
 
