@@ -7,9 +7,12 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN
+
+RECONFIGURE_SCHEMA = vol.Schema({vol.Required("device_id"): str})
 
 RADIO_STATION_SCHEMA = vol.Schema(
     {
@@ -122,7 +125,9 @@ class BttfTimeCircuitsOptionsFlow(OptionsFlow):
 
         if user_input is not None:
             stations_to_keep = [
-                s for s in stations if s["name"] not in user_input["stations_to_remove"]
+                s
+                for s in stations
+                if s["name"] not in user_input["stations_to_remove"]
             ]
             return self.async_create_entry(
                 title="", data={"radio_stations": stations_to_keep}
@@ -137,10 +142,12 @@ class BttfTimeCircuitsOptionsFlow(OptionsFlow):
 
 
 @config_entries.HANDLERS.register(DOMAIN)
-class BttfTimeCircuitsConfigFlow(ConfigFlow):
+class BttfTimeCircuitsConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for BTTF Time Circuits."""
 
-    VERSION = 1
+    VERSION = 2
+
+    entry: config_entries.ConfigEntry | None
 
     @staticmethod
     @callback
@@ -149,6 +156,33 @@ class BttfTimeCircuitsConfigFlow(ConfigFlow):
     ) -> BttfTimeCircuitsOptionsFlow:
         """Get the options flow for this handler."""
         return BttfTimeCircuitsOptionsFlow(config_entry)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle a reconfiguration flow."""
+        self.entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+
+        if self.entry is None:
+            return self.async_abort(reason="reconfigure_failed")
+
+        if user_input is not None:
+            new_data = self.entry.data.copy()
+            new_data["device_id"] = user_input["device_id"]
+
+            self.hass.config_entries.async_update_entry(
+                self.entry,
+                data=new_data,
+            )
+            await self.hass.config_entries.async_reload(self.entry.entry_id)
+            return self.async_abort(reason="reconfigure_successful")
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=RECONFIGURE_SCHEMA,
+        )
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -159,11 +193,8 @@ class BttfTimeCircuitsConfigFlow(ConfigFlow):
 
             existing_entry = await self.async_set_unique_id(device_id)
             if existing_entry:
-                self.hass.config_entries.async_update_entry(
-                    existing_entry, data=user_input
-                )
-                await self.hass.config_entries.async_reload(existing_entry.entry_id)
-                return self.async_abort(reason="reconfigure_successful")
+                self.context["entry_id"] = existing_entry.entry_id
+                return await self.async_step_reconfigure()
 
             return self.async_create_entry(
                 title=f"BTTF Time Circuits {device_id}",

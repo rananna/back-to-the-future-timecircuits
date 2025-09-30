@@ -37,6 +37,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate old entry."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+
+    if config_entry.version == 1:
+        # No migration needed
+        config_entry.version = 2
+        hass.config_entries.async_update_entry(config_entry, data=config_entry.data)
+
+    _LOGGER.info("Migration to version %s successful", config_entry.version)
+    return True
+
+
+async def options_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle options update."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up BTTF Time Circuits from a config entry."""
     _LOGGER.debug("async_setup_entry")
@@ -136,6 +154,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(
         lambda: hass.services.async_remove(DOMAIN, "time_travel")
     )
+    entry.async_on_unload(entry.add_update_listener(options_update_listener))
 
     return True
 
