@@ -565,7 +565,6 @@ void handleBootSequence() {
         case BOOT_AWAIT_HUM:
             if (!stateActionCompleted) {
                 playSound("/hum.mp3");
-                updateDisplaySegment(1, -1, "BOOTING.....");
                 stateActionCompleted = true;
             }
             if (elapsed > BOOT_AWAIT_HUM_DURATION) {
@@ -574,6 +573,15 @@ void handleBootSequence() {
             }
             break;
         case BOOT_START:
+            if (!stateActionCompleted) {
+                blankAllDisplays();
+                printToDisplay(presRow.year, "BOOT");
+                // Explicitly write all rows to ensure a clean display state
+                destRow.writeDisplay();
+                presRow.writeDisplay();
+                lastRow.writeDisplay();
+                stateActionCompleted = true;
+            }
             if (elapsed > 1000) {
                 bootState = BOOT_WARM_UP;
                 bootStateStartTime = millis();
@@ -583,9 +591,13 @@ void handleBootSequence() {
             if (!stateActionCompleted) {
                 playSound("/relay_activation.mp3");
                 blankAllDisplays();
-                updateDisplaySegment(0, -1, "TIME CIRCUITS");
-                updateDisplaySegment(1, -1, "ACTIVE");
-                updateDisplaySegment(2, -1, "");
+                printToDisplay(destRow.day, "TM");
+                printToDisplay(destRow.year, "CIRC");
+                printToDisplay(destRow.time, "ACTV");
+                // Explicitly write all rows to ensure the middle and bottom are blank
+                destRow.writeDisplay();
+                presRow.writeDisplay();
+                lastRow.writeDisplay();
                 stateActionCompleted = true;
             }
             if (elapsed > 2000) { // Keep text on screen for 2 seconds
