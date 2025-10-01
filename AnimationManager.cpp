@@ -1134,9 +1134,11 @@ void handleSequencer() {
                     track.fadeStartTime = millis();
                     track.originalBrightness = currentSettings.brightness;
                     track.stepInitialized = true;
-                    advance_step = true; // --- FIX: Immediately advance to the next command
                 }
-                // The effect now runs in the background and does not block the sequence.
+                // --- FIX: This is now a blocking command. We wait for the fade to complete. ---
+                if (!track.isFading) {
+                    advance_step = true;
+                }
                 break;
 
             case SEQ_CMD_PULSE:
@@ -1351,7 +1353,7 @@ void handleSequencer() {
                     track.scrambleCurrentText = std::string(step.stringParam.length(), ' ');
                     track.scrambleCharIndex = 0;
                     track.lastScrambleUpdate = millis();
-                    track.lastScrambleLockInTime = millis(); // Initialize new timer
+                    track.lastScrambleLockInTime = millis();
                     track.stepInitialized = true;
                 }
 
@@ -1362,18 +1364,17 @@ void handleSequencer() {
                 } else {
                     // Check if it's time to lock in the next character.
                     if (millis() - track.lastScrambleLockInTime >= (unsigned long)step.intParam2) {
+                        // --- FIX: Lock in the character before incrementing the index ---
+                        if (track.scrambleCharIndex < step.stringParam.length()) {
+                            track.scrambleCurrentText[track.scrambleCharIndex] = step.stringParam[track.scrambleCharIndex];
+                        }
                         track.scrambleCharIndex++;
                         track.lastScrambleLockInTime = millis();
                     }
 
                     // Check if it's time to update the flickering characters.
                     if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
-                        // Lock in the correct character before scrambling the rest
-                        if (track.scrambleCharIndex < step.stringParam.length()) {
-                            track.scrambleCurrentText[track.scrambleCharIndex] = step.stringParam[track.scrambleCharIndex];
-                        }
-
-                        // Build the string to display, starting with the current state.
+                        // Build the string to display, starting with the current locked-in state.
                         std::string temp_scramble = track.scrambleCurrentText;
                         // Scramble the characters that haven't been locked in yet.
                         for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
