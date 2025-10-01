@@ -593,18 +593,11 @@ void handleBootSequence() {
                 printToDisplay(presRow.day, " IS");
                 printToDisplay(presRow.year, "BOOT");
                 printToDisplay(presRow.time, "ING ");
-                destRow.month.writeDisplay();
-                destRow.day.writeDisplay();
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
+                // Only write the present time row to the display
                 presRow.month.writeDisplay();
                 presRow.day.writeDisplay();
                 presRow.year.writeDisplay();
                 presRow.time.writeDisplay();
-                lastRow.month.writeDisplay();
-                lastRow.day.writeDisplay();
-                lastRow.year.writeDisplay();
-                lastRow.time.writeDisplay();
                 playSound("/hum.mp3");
                 stateActionCompleted = true;
             }
@@ -625,34 +618,29 @@ void handleBootSequence() {
             break;
         case BOOT_SYSTEM_ACTIVATE:
             {
-                const int typeOutDuration = 2000;
-                const int holdDuration = 3000;
-                const int totalDuration = typeOutDuration + holdDuration;
+                const int holdDuration = 5000; // Keep the message on screen for 5 seconds
 
                 if (!stateActionCompleted) {
                     playSound("/relay_activation.mp3");
                     blankAllDisplays();
+                    // Instantly display the text instead of typing it out
+                    updateDisplaySegment(0, -1, "  TMCIRCUITS");
+                    updateDisplaySegment(1, -1, "   ACTIVATE");
+
+                    // Explicitly write to the display hardware
+                    destRow.month.writeDisplay();
+                    destRow.day.writeDisplay();
+                    destRow.year.writeDisplay();
+                    destRow.time.writeDisplay();
+                    presRow.month.writeDisplay();
+                    presRow.day.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
+
                     stateActionCompleted = true;
                 }
 
-                if (elapsed <= typeOutDuration) {
-                    // Phase 1: Type out the message
-                    typeOutDiagnostic(elapsed, "TMCIRCUITS", "ACTIVATE", 0, -1, 1, -1);
-                } else {
-                    // Phase 2: Hold the completed message on the screen
-                    typeOutDiagnostic(typeOutDuration, "TMCIRCUITS", "ACTIVATE", 0, -1, 1, -1);
-                }
-                // --- FIX: Explicitly write to the display hardware ---
-                destRow.month.writeDisplay();
-                destRow.day.writeDisplay();
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
-
-                if (elapsed > totalDuration) {
+                if (elapsed > holdDuration) {
                     bootState = BOOT_FLUX_CAPACITOR_IGNITION;
                     bootStateStartTime = millis();
                 }
