@@ -48,9 +48,6 @@ enum BootSequenceState {
 // Externally declared mutex for controlling animation start
 extern SemaphoreHandle_t xAnimationStartMutex;
 
-// Flag to indicate the boot sequence is complete
-extern bool bootSequenceCompleted;
-
 // --- Function Declarations for animations and effects ---
 void startTimeTravelAnimation();
 void handleDisplayAnimation();

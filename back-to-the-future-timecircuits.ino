@@ -1345,7 +1345,7 @@ void loop() {
                         handleBootSequence();
                         xSemaphoreGive(xDisplayDataMutex);
                     }
-                } else if (bootSequenceCompleted) {
+                } else {
                     if (isAnimating) {
                         if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                             handleDisplayAnimation();
