@@ -34,7 +34,13 @@ enum AnimationType {
     ANIMATION_FIRE_TRAILS,
     ANIMATION_SPARKLE_REVEAL,
     ANIMATION_COUNTDOWN,
-    ANIMATION_SYSTEM_ERROR
+    ANIMATION_SYSTEM_ERROR,
+
+    // --- Special Debug Sequences ---
+    ANIMATION_DEBUG,
+    ANIMATION_DEBUG_EFFECTS,
+    ANIMATION_DEBUG_LOGIC,
+    ANIMATION_DEBUG_STRESS
 };
 
 // Main function to generate a sequence based on type

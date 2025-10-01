@@ -54,5 +54,21 @@
   {
     "name": "Wormhole Collapse",
     "payload": "Wormhole Collapse"
+  },
+  {
+    "name": "Debug",
+    "payload": "Debug"
+  },
+  {
+    "name": "Debug Effects",
+    "payload": "DebugEffects"
+  },
+  {
+    "name": "Debug Logic",
+    "payload": "DebugLogic"
+  },
+  {
+    "name": "Debug Stress",
+    "payload": "DebugStress"
   }
 ]
