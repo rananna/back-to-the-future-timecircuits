@@ -600,9 +600,13 @@ void handleBootSequence() {
             if (!stateActionCompleted) {
                 playSound("/relay_activation.mp3");
                 blankAllDisplays();
-                printToDisplay(destRow.day, "TM");
+                printToDisplay(destRow.day, " TM");
                 printToDisplay(destRow.year, "CIRC");
-                printToDisplay(destRow.time, "ACTV");
+                printToDisplay(destRow.time, "UITS");
+                printToDisplay(presRow.month, "");
+                printToDisplay(presRow.day, "");
+                printToDisplay(presRow.year, "ACTI");
+                printToDisplay(presRow.time, "VATE");
                 // Explicitly write all rows to ensure the middle and bottom are blank
                 destRow.month.writeDisplay();
                 destRow.day.writeDisplay();
