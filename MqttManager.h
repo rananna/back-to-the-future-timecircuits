@@ -39,6 +39,7 @@ void reconnectMqtt();
 // --- Home Assistant Discovery State Machine ---
 void startHaDiscovery();
 void handleHaDiscovery();
+bool isHaDiscoveryComplete();
 
 void updateHaStatus(const char* status);
 void publishAllHaStates();
