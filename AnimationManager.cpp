@@ -693,24 +693,24 @@ void handleBootSequence() {
                     blankAllDisplays();
 
                     if (currentSecond == 0) {
-                        printToDisplay(destRow.month, "CPU");
-                        printToDisplay(destRow.day, "OK");
+                        printToDisplay(destRow.month, " CPU");
+                        printToDisplay(destRow.day, " OK");
                         destRow.month.writeDisplay();
                         destRow.day.writeDisplay();
                     } else if (currentSecond == 1) {
-                        printToDisplay(presRow.month, "MEM");
-                        printToDisplay(presRow.day, "OK");
+                        printToDisplay(presRow.month, " MEM");
+                        printToDisplay(presRow.day, " OK");
                         presRow.month.writeDisplay();
                         presRow.day.writeDisplay();
                     } else if (currentSecond == 2) {
-                        printToDisplay(lastRow.month, "WIFI");
-                        printToDisplay(lastRow.day, "OK");
+                        printToDisplay(lastRow.month, " WFI");
+                        printToDisplay(lastRow.day, " OK");
                         lastRow.month.writeDisplay();
                         lastRow.day.writeDisplay();
                     } else if (currentSecond == 3) {
                         // For variety, put the last message back on the top row
-                        printToDisplay(destRow.month, "MQTT");
-                        printToDisplay(destRow.day, "OK");
+                        printToDisplay(destRow.month, " MQT");
+                        printToDisplay(destRow.day, " OK");
                         destRow.month.writeDisplay();
                         destRow.day.writeDisplay();
                     }
