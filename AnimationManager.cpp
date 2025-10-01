@@ -619,36 +619,31 @@ void handleBootSequence() {
                 stateActionCompleted = true;
             }
             if (elapsed > 1000) {
-                bootState = BOOT_WARM_UP;
+                bootState = BOOT_SYSTEM_ACTIVATE;
                 bootStateStartTime = millis();
             }
             break;
-        case BOOT_WARM_UP:
+        case BOOT_SYSTEM_ACTIVATE:
             {
+                const int typeOutDuration = 2000;
+                const int holdDuration = 3000;
+                const int totalDuration = typeOutDuration + holdDuration;
+
                 if (!stateActionCompleted) {
                     playSound("/relay_activation.mp3");
                     blankAllDisplays();
                     stateActionCompleted = true;
                 }
 
-                const int headerDuration = 2000;
-                typeOutDiagnostic(elapsed, "TMCIRCUITS", "ACTIVATE", 0, -1, 1, -1);
-
-                if (elapsed > headerDuration) {
-                    bootState = BOOT_COLD_START;
-                    bootStateStartTime = millis();
-                }
-            }
-            break;
-        case BOOT_COLD_START:
-            {
-                if (!stateActionCompleted) {
-                    playSound("/keypad_beeps.mp3");
-                    // Text display logic is now in BOOT_WARM_UP
-                    stateActionCompleted = true;
+                if (elapsed <= typeOutDuration) {
+                    // Phase 1: Type out the message
+                    typeOutDiagnostic(elapsed, "TMCIRCUITS", "ACTIVATE", 0, -1, 1, -1);
+                } else {
+                    // Phase 2: Hold the completed message on the screen
+                    typeOutDiagnostic(typeOutDuration, "TMCIRCUITS", "ACTIVATE", 0, -1, 1, -1);
                 }
 
-                if (elapsed > 3000) { // Shortened duration to maintain original total time
+                if (elapsed > totalDuration) {
                     bootState = BOOT_FLUX_CAPACITOR_IGNITION;
                     bootStateStartTime = millis();
                 }
