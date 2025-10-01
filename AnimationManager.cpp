@@ -549,25 +549,6 @@ void runBootSequence() {
 }
 
 
-// --- REFACTORED: Helper function to type out a two-part diagnostic message on any segment or row ---
-static void typeOutDiagnostic(unsigned long elapsedInSecond, const char* part1, const char* part2, int row1, int seg1, int row2, int seg2) {
-    const int typeSpeed = 100; // ms per character
-    std::string s1 = part1;
-    std::string s2 = part2;
-    int len1 = s1.length();
-
-    int charsToShow1 = elapsedInSecond / typeSpeed;
-    if (charsToShow1 > len1) charsToShow1 = len1;
-
-    int charsToShow2 = 0;
-    if (elapsedInSecond > (unsigned long)len1 * typeSpeed) {
-        charsToShow2 = (elapsedInSecond - (len1 * typeSpeed)) / typeSpeed;
-    }
-    if (charsToShow2 > (int)s2.length()) charsToShow2 = s2.length();
-
-    updateDisplaySegment(row1, seg1, s1.substr(0, charsToShow1));
-    updateDisplaySegment(row2, seg2, s2.substr(0, charsToShow2));
-}
 
 void handleBootSequence() {
     if (bootState == BOOT_INACTIVE) return;
@@ -702,23 +683,33 @@ void handleBootSequence() {
                 }
 
                 int currentSecond = elapsed / 2000;
-                unsigned long elapsedInSecond = elapsed % 2000;
 
                 if (currentSecond != lastDiagSecond) {
                     blankAllDisplays();
-                    lastDiagSecond = currentSecond;
-                }
 
-                if (currentSecond == 0) {
-                    typeOutDiagnostic(elapsedInSecond, "CPU", "OK", 0, 0, 0, 1);
-                } else if (currentSecond == 1) {
-                    typeOutDiagnostic(elapsedInSecond, "MEM", "OK", 1, 0, 1, 1);
-                } else if (currentSecond == 2) {
-                    typeOutDiagnostic(elapsedInSecond, "WFI", "OK", 2, 0, 2, 1);
-                } else if (currentSecond == 3) {
-                    typeOutDiagnostic(elapsedInSecond, "IP", "OK", 2, 0, 2, 1);
-                } else if (currentSecond == 4) {
-                    typeOutDiagnostic(elapsedInSecond, "MQT", "OK", 2, 0, 2, 1);
+                    if (currentSecond == 0) {
+                        printToDisplay(destRow.month, "CPU");
+                        printToDisplay(destRow.day, "OK");
+                        destRow.month.writeDisplay();
+                        destRow.day.writeDisplay();
+                    } else if (currentSecond == 1) {
+                        printToDisplay(presRow.month, "MEM");
+                        printToDisplay(presRow.day, "OK");
+                        presRow.month.writeDisplay();
+                        presRow.day.writeDisplay();
+                    } else if (currentSecond == 2) {
+                        printToDisplay(lastRow.month, "WIFI");
+                        printToDisplay(lastRow.day, "OK");
+                        lastRow.month.writeDisplay();
+                        lastRow.day.writeDisplay();
+                    } else if (currentSecond == 3) {
+                        // For variety, put the last message back on the top row
+                        printToDisplay(destRow.month, "MQTT");
+                        printToDisplay(destRow.day, "OK");
+                        destRow.month.writeDisplay();
+                        destRow.day.writeDisplay();
+                    }
+                    lastDiagSecond = currentSecond;
                 }
 
                 if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
