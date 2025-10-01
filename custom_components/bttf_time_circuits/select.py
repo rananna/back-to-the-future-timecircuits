@@ -48,6 +48,11 @@ SELECTS: tuple[BTTFTimeCircuitsSelectEntityDescription, ...] = (
             "Lightning",
             "Loading",
             "Error",
+            "Debug",
+            "DebugEffects",
+            "DebugLogic",
+            "DebugParallelLogic",
+            "DebugStress",
         ],
     ),
 )

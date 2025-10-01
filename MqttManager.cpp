@@ -1227,6 +1227,10 @@ void handleSequencerCommand(const std::string& payload) {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugLogic'");
         generateAnimationSequence(ANIMATION_DEBUG_LOGIC, sequencerTracks);
         return; // Bypass JSON parsing
+    } else if (payload == "DebugParallelLogic") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugParallelLogic'");
+        generateAnimationSequence(ANIMATION_DEBUG_PARALLEL_LOGIC, sequencerTracks);
+        return; // Bypass JSON parsing
     } else if (payload == "DebugStress") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugStress'");
         generateAnimationSequence(ANIMATION_DEBUG_STRESS, sequencerTracks);
