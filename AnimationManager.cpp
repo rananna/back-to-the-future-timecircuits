@@ -1402,29 +1402,26 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_CROSSFADE_TEXT:
+                // --- FIX: Use if/else if to prevent race condition ---
                 if (!track.stepInitialized) {
-                    // Phase 1: Start fade out
+                    // Phase 1: Start fade out.
                     track.crossfadePhase = 1;
                     track.isFading = true;
                     track.isFadeIn = false;
                     track.fadeDuration = step.intParam / 2;
                     track.fadeStartTime = millis();
-                    track.stepInitialized = true;
-                }
-
-                // Phase 2: When fade out is complete, change text and start fade in
-                if (track.crossfadePhase == 1 && !track.isFading) {
+                    track.stepInitialized = true; // Mark that we have started.
+                } else if (track.crossfadePhase == 1 && !track.isFading) {
+                    // Phase 2: Fade out is complete. Change text and start fade in.
                     track.crossfadePhase = 2;
                     updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
                     track.isFading = true;
                     track.isFadeIn = true;
                     track.fadeDuration = step.intParam / 2;
                     track.fadeStartTime = millis();
-                }
-
-                // Phase 3: When fade in is complete, advance to the next step
-                if (track.crossfadePhase == 2 && !track.isFading) {
-                    track.crossfadePhase = 0; // Reset for any future use
+                } else if (track.crossfadePhase == 2 && !track.isFading) {
+                    // Phase 3: Fade in is complete. End the command.
+                    track.crossfadePhase = 0; // Reset for any future use.
                     advance_step = true;
                 }
                 break;

@@ -1231,6 +1231,10 @@ void handleSequencerCommand(const std::string& payload) {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugStress'");
         generateAnimationSequence(ANIMATION_DEBUG_STRESS, sequencerTracks);
         return; // Bypass JSON parsing
+    } else if (payload == "CrossfadeTest") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'CrossfadeTest'");
+        runCrossfadeTest();
+        return; // Bypass JSON parsing
     }
 
     JsonDocument doc;
