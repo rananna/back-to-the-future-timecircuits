@@ -1,4 +1,8 @@
 #include "AnimationManager.h"
+
+// Flag to indicate the boot sequence is complete, initialized to false.
+bool bootSequenceCompleted = false;
+
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DebugLog.h"
@@ -561,6 +565,7 @@ void handleBootSequence() {
         case BOOT_AWAIT_HUM:
             if (!stateActionCompleted) {
                 playSound("/hum.mp3");
+                updateDisplaySegment(1, -1, "   BOOTING   ");
                 stateActionCompleted = true;
             }
             if (elapsed > BOOT_AWAIT_HUM_DURATION) {
@@ -825,6 +830,7 @@ void handleBootSequence() {
                 if (elapsed > 500) {
                     isMessageOverrideActive = false;
                     bootState = BOOT_INACTIVE;
+                    bootSequenceCompleted = true;
 
                     uint8_t saved_brightness = currentSettings.brightness;
 
