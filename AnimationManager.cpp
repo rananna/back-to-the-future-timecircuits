@@ -642,6 +642,15 @@ void handleBootSequence() {
                     // Phase 2: Hold the completed message on the screen
                     typeOutDiagnostic(typeOutDuration, "TMCIRCUITS", "ACTIVATE", 0, -1, 1, -1);
                 }
+                // --- FIX: Explicitly write to the display hardware ---
+                destRow.month.writeDisplay();
+                destRow.day.writeDisplay();
+                destRow.year.writeDisplay();
+                destRow.time.writeDisplay();
+                presRow.month.writeDisplay();
+                presRow.day.writeDisplay();
+                presRow.year.writeDisplay();
+                presRow.time.writeDisplay();
 
                 if (elapsed > totalDuration) {
                     bootState = BOOT_FLUX_CAPACITOR_IGNITION;
