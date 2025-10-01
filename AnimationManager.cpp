@@ -1334,25 +1334,43 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_BAR_GRAPH:
-                 if (!track.stepInitialized) {
+                if (!track.stepInitialized) {
                     track.barGraphPercentage = 0.0f;
                     track.lastBarGraphUpdate = millis();
                     track.stepInitialized = true;
                 }
-                if (track.barGraphPercentage >= 1.0f) {
+                // The animation completes when the total duration from intParam has passed.
+                if (commandElapsed >= (unsigned long)step.intParam) {
+                    // Ensure the bar is full and text is final at the end.
+                    std::string final_bar = "=============";
+                    if (!step.stringParam.empty()) {
+                        int text_len = step.stringParam.length();
+                        int start_pos = (13 - text_len) / 2;
+                        if (start_pos < 0) start_pos = 0;
+                        final_bar.replace(start_pos, text_len, step.stringParam);
+                    }
+                    updateDisplaySegment(step.targetRow, -1, final_bar);
                     advance_step = true;
                 } else {
-                    if (millis() - track.lastBarGraphUpdate > (unsigned long)step.intParam2) {
-                        track.barGraphPercentage += 0.1f;
-                        std::string bar = "-------------";
-                        int lit_count = (int)(track.barGraphPercentage * 13);
-                        for(int j=0; j<lit_count; j++) bar[j] = '=';
-                        updateDisplaySegment(step.targetRow, 0, bar.substr(0,3));
-                        updateDisplaySegment(step.targetRow, 1, bar.substr(3,2));
-                        updateDisplaySegment(step.targetRow, 2, bar.substr(5,4));
-                        updateDisplaySegment(step.targetRow, 3, bar.substr(9,4));
-                        track.lastBarGraphUpdate = millis();
+                    // Calculate progress based on elapsed time vs total duration
+                    float progress = (float)commandElapsed / (float)step.intParam;
+                    if(progress > 1.0f) progress = 1.0f;
+
+                    std::string bar = "-------------";
+                    int lit_count = (int)(progress * 13);
+                    for(int j=0; j<lit_count; j++) bar[j] = '=';
+
+                    // Overlay the text if it exists
+                    if (!step.stringParam.empty()) {
+                        int text_len = step.stringParam.length();
+                        int start_pos = (13 - text_len) / 2;
+                        if (start_pos < 0) start_pos = 0;
+                        // Replace the bar section with the text
+                        bar.replace(start_pos, text_len, step.stringParam);
                     }
+
+                    // Update the entire row with the new string
+                    updateDisplaySegment(step.targetRow, -1, bar);
                 }
                 break;
 
