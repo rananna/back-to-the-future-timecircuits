@@ -549,8 +549,8 @@ void runBootSequence() {
 }
 
 
-// Helper function to type out a two-part diagnostic message
-static void typeOutDiagnostic(unsigned long elapsedInSecond, const char* part1, const char* part2, Adafruit_AlphaNum4& seg1, Adafruit_AlphaNum4& seg2) {
+// --- REFACTORED: Helper function to type out a two-part diagnostic message on any segment or row ---
+static void typeOutDiagnostic(unsigned long elapsedInSecond, const char* part1, const char* part2, int row1, int seg1, int row2, int seg2) {
     const int typeSpeed = 100; // ms per character
     std::string s1 = part1;
     std::string s2 = part2;
@@ -565,10 +565,8 @@ static void typeOutDiagnostic(unsigned long elapsedInSecond, const char* part1, 
     }
     if (charsToShow2 > (int)s2.length()) charsToShow2 = s2.length();
 
-    printToDisplay(seg1, s1.substr(0, charsToShow1).c_str(), 1);
-    printToDisplay(seg2, s2.substr(0, charsToShow2).c_str(), 2);
-    seg1.writeDisplay();
-    seg2.writeDisplay();
+    updateDisplaySegment(row1, seg1, s1.substr(0, charsToShow1));
+    updateDisplaySegment(row2, seg2, s2.substr(0, charsToShow2));
 }
 
 void handleBootSequence() {
@@ -633,42 +631,10 @@ void handleBootSequence() {
                     stateActionCompleted = true;
                 }
 
-                const std::string topTarget = "TMCIRCUITS";
-                const std::string midTarget = "ACTIVATE";
-                const int totalChars = topTarget.length() + midTarget.length(); // 18
+                const int headerDuration = 2000;
+                typeOutDiagnostic(elapsed, "TMCIRCUITS", "ACTIVATE", 0, -1, 1, -1);
 
-                // Determine how many characters should be visible based on elapsed time (1 char per second)
-                int charsToShow = elapsed / 1000;
-                if (charsToShow > totalChars) {
-                    charsToShow = totalChars;
-                }
-
-                // Build the display strings
-                std::string topRowStr = "             ";
-                std::string midRowStr = "             ";
-
-                // Populate top row: "   TMCIRCUITS"
-                int charsOnTop = (charsToShow > topTarget.length()) ? topTarget.length() : charsToShow;
-                for(int i = 0; i < charsOnTop; ++i) {
-                    topRowStr[i + 3] = topTarget[i];
-                }
-
-                // Populate middle row: "     ACTIVATE"
-                if (charsToShow > topTarget.length()) {
-                    int charsOnMid = charsToShow - topTarget.length();
-                    for(int i = 0; i < charsOnMid; ++i) {
-                        if (i < midTarget.length()) {
-                           midRowStr[i + 5] = midTarget[i];
-                        }
-                    }
-                }
-
-                // Update the displays
-                updateDisplaySegment(0, -1, topRowStr);
-                updateDisplaySegment(1, -1, midRowStr);
-
-                // Transition after typing is done + 2 second pause
-                if (elapsed > (totalChars * 1000) + 2000) {
+                if (elapsed > headerDuration) {
                     bootState = BOOT_COLD_START;
                     bootStateStartTime = millis();
                 }
@@ -752,15 +718,15 @@ void handleBootSequence() {
                 }
 
                 if (currentSecond == 0) {
-                    typeOutDiagnostic(elapsedInSecond, "CPU", "OK", destRow.month, destRow.day);
+                    typeOutDiagnostic(elapsedInSecond, "CPU", "OK", 0, 0, 0, 1);
                 } else if (currentSecond == 1) {
-                    typeOutDiagnostic(elapsedInSecond, "MEM", "OK", presRow.month, presRow.day);
+                    typeOutDiagnostic(elapsedInSecond, "MEM", "OK", 1, 0, 1, 1);
                 } else if (currentSecond == 2) {
-                    typeOutDiagnostic(elapsedInSecond, "WFI", "OK", lastRow.month, lastRow.day);
+                    typeOutDiagnostic(elapsedInSecond, "WFI", "OK", 2, 0, 2, 1);
                 } else if (currentSecond == 3) {
-                    typeOutDiagnostic(elapsedInSecond, "IP", "OK", lastRow.month, lastRow.day);
+                    typeOutDiagnostic(elapsedInSecond, "IP", "OK", 2, 0, 2, 1);
                 } else if (currentSecond == 4) {
-                    typeOutDiagnostic(elapsedInSecond, "MQT", "OK", lastRow.month, lastRow.day);
+                    typeOutDiagnostic(elapsedInSecond, "MQT", "OK", 2, 0, 2, 1);
                 }
 
                 if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
