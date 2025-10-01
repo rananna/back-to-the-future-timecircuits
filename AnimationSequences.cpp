@@ -447,10 +447,11 @@ void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
 }
 
 /**
- * @brief (DEBUG) Tests the control-flow and logic commands of the sequencer.
+ * @brief (DEBUG - FLAWED) Tests the control-flow and logic commands of the sequencer.
  * @details This is a single-track sequence that executes a series of logic-based
- * commands in order, using the bottom row (row 2) to display the status of each
- * test. All commands are initiated from track 0.
+ * commands in order. It is FLAWED because it does not correctly test parallel
+ * execution and the TRIGGER_ANIMATION command will not behave as expected with
+ * this sequence. Use generateDebugParallelLogicSequence for a correct test.
  * It tests: CLEAR_SEGMENT, RESTORE_ROW, DISPLAY_HA_SENSOR, TRIGGER_ANIMATION,
  * and RESTORE_ALL_ROWS.
  */
@@ -489,7 +490,7 @@ void generateDebugLogicSequence(SequencerTrack tracks[3]) {
     // --- Test TRIGGER_ANIMATION ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: TRIGGER");
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_TRIGGER_ANIMATION, 1, 0, ANIMATION_LIGHTNING, 0); // Trigger Lightning on Track 1
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TRIGGER_ANIMATION, 0, 0, ANIMATION_LIGHTNING, 0); // Trigger Lightning (now global)
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: TRIGGER");
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
@@ -511,14 +512,13 @@ void generateDebugLogicSequence(SequencerTrack tracks[3]) {
 /**
  * @brief (DEBUG) A robust, parallel test for the sequencer's logic commands.
  * @details This test replaces the flawed `generateDebugLogicSequence`. It is
- * designed to correctly test the parallel execution of the sequencer by running
- * commands on all three tracks simultaneously.
- * - Track 0 (Top): Executes logic commands (CLEAR, RESTORE, etc.) and provides
- *   real-time feedback on the bottom display row.
- * - Track 1 (Middle): Runs an independent, continuous visual animation (PULSE)
- *   to visually confirm parallel execution is working.
- * - Track 2 (Bottom): Is the target for a `TRIGGER_ANIMATION` command sent from
- *   Track 0, verifying that one track can dynamically start an animation on another.
+ * designed to correctly test the parallel execution of the sequencer. With the
+ * refactoring of `triggerAnimation`, this sequence now also demonstrates
+ * a full animation takeover.
+ * - Track 0: The main controller, providing feedback on the bottom display row.
+ * - Track 1: Runs an independent visual animation (PULSE) to show parallel execution.
+ * - Track 0 then calls `TRIGGER_ANIMATION`, which stops all tracks and launches
+ *   the `ANIMATION_LIGHTNING` sequence globally.
  */
 void generateDebugParallelLogicSequence(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
@@ -546,11 +546,10 @@ void generateDebugParallelLogicSequence(SequencerTrack tracks[3]) {
     s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ROW, 0, 0, 0, 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
 
-    // 3. Test TRIGGER_ANIMATION on Track 2
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: TRIG T2");
-    // This command tells the sequencer to start the LIGHTNING animation on Track 2.
-    // We should see lightning start on the bottom row while the top two rows continue.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_TRIGGER_ANIMATION, 2, 0, ANIMATION_LIGHTNING, 0);
+    // 3. Test TRIGGER_ANIMATION (Global)
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: TRIGGER");
+    // This command will stop all current tracks and start the LIGHTNING animation.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TRIGGER_ANIMATION, 0, 0, ANIMATION_LIGHTNING, 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 5000, 0); // Wait for lightning to run
 
     // 4. Test DISPLAY_HA_SENSOR (on the top row)
@@ -733,10 +732,10 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_DEBUG_STRESS:            generateDebugStressSequence(tracks); break;
 
         case ANIMATION_RANDOM_FLICKER:
-            generateWaveFlicker(tracks);
+            generateTornadoFlicker(tracks);
             break;
         default:
-            generateTornadoFlicker(tracks);
+            generateWaveFlicker(tracks);
             break;
     }
 

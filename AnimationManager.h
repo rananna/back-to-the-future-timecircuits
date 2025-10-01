@@ -79,7 +79,7 @@ void runSequencerTest();
 // --- NEW: Functions for sequencer-driven marquee ---
 void startSequencerMarquee(SequencerTrack& track, const std::string& text);
 void handleAllSequencerMarquees();
-void triggerAnimationOnRow(int row, AnimationType animType);
+void triggerAnimation(AnimationType animType);
 // --- END: NEW Sequencer Data Structures ---
 
 #endif // ANIMATION_MANAGER_H

@@ -1436,8 +1436,8 @@ void handleSequencer() {
             case SEQ_CMD_TRIGGER_ANIMATION:
                 if (!track.stepInitialized) {
                     // The animation to trigger is passed in intParam.
-                    // The row to trigger it on is passed in targetRow.
-                    triggerAnimationOnRow(step.targetRow, (AnimationType)step.intParam);
+                    // This is a full takeover, so the original row is ignored.
+                    triggerAnimation((AnimationType)step.intParam);
                     track.stepInitialized = true;
                     advance_step = true;
                 }
@@ -1617,7 +1617,7 @@ void runSequencerTest() {
     sequencerTracks[1].steps[i++] = {SEQ_CMD_LOOP_END, 1, 0, 0, 0, "", ""};
     sequencerTracks[1].steps[i++] = {SEQ_CMD_BAR_GRAPH, 1, -1, 0, 150, "", ""}; // Bar graph, 150ms step
     sequencerTracks[1].steps[i++] = {SEQ_CMD_WAIT, 1, 0, 1000, 0, "", ""};
-    sequencerTracks[1].steps[i++] = {SEQ_CMD_TRIGGER_ANIMATION, 1, 0, 2, 0, "", ""}; // Trigger styled animation
+    sequencerTracks[1].steps[i++] = {SEQ_CMD_TRIGGER_ANIMATION, 1, 0, (int)ANIMATION_WAVE_FLICKER, 0, "", ""}; // Trigger a global animation
     sequencerTracks[1].steps[i++] = {SEQ_CMD_END, 1, 0, 0, 0, "", ""};
     sequencerTracks[1].isActive = true;
     sequencerTracks[1].stepStartTime = millis();
@@ -1645,36 +1645,36 @@ void runSequencerTest() {
  * @param track The sequencer track to activate the marquee on.
  * @param text The text to be scrolled.
  */
-void triggerAnimationOnRow(int row, AnimationType animType) {
-    if (row < 0 || row > 2) {
-        Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid row %d for triggerAnimationOnRow", row);
-        return;
-    }
-
-    Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering animation %d on row %d", (int)animType, row);
+void triggerAnimation(AnimationType animType) {
+    // This function is a full takeover. It replaces all running tracks
+    // with the new animation.
+    Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d. All current tracks will be replaced.", (int)animType);
 
     // Generate the requested animation into a temporary set of tracks.
-    // Most simple animations only use the first track (temp_tracks[0]).
     SequencerTrack temp_tracks[3];
     generateAnimationSequence(animType, temp_tracks);
 
-    // Stop whatever was running on the target row's track and reset it.
-    stopAndCleanupTrack(row);
-    sequencerTracks[row].reset();
+    // Stop ALL currently running tracks to prepare for the new animation.
+    stopAllSequences();
 
-    // Copy the steps from the generated animation's first track to the target track.
-    for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
-        sequencerTracks[row].steps[i] = temp_tracks[0].steps[i];
-        if (temp_tracks[0].steps[i].command == SEQ_CMD_END) {
-            break; // Stop copying after the END command.
+    // Copy the steps from ALL generated tracks to the main sequencer tracks.
+    for (int j = 0; j < 3; ++j) {
+        // We don't need to call reset() here because stopAllSequences() already did.
+        for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
+            sequencerTracks[j].steps[i] = temp_tracks[j].steps[i];
+            if (temp_tracks[j].steps[i].command == SEQ_CMD_END) {
+                break; // Stop copying after the END command for this track.
+            }
+        }
+
+        // Activate the track if it has any commands.
+        if (sequencerTracks[j].steps[0].command != SEQ_CMD_NONE) {
+             sequencerTracks[j].isActive = true;
+             sequencerTracks[j].trackStartTime = millis();
+             sequencerTracks[j].stepStartTime = millis();
+             sequencerTracks[j].originalBrightness = currentSettings.brightness;
         }
     }
-
-    // Activate the newly populated track.
-    sequencerTracks[row].isActive = true;
-    sequencerTracks[row].trackStartTime = millis();
-    sequencerTracks[row].stepStartTime = millis();
-    sequencerTracks[row].originalBrightness = currentSettings.brightness;
 }
 
 void startSequencerMarquee(SequencerTrack& track, const std::string& text) {
