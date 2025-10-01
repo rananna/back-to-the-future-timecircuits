@@ -14,10 +14,18 @@ static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, in
     return step_idx;
 }
 
+// Helper to add the introductory sound effect steps
+static int add_intro_sound_steps(SequencerTrack& track, int step_idx) {
+    step_idx = add_step(track, step_idx, SEQ_CMD_SOUND, 0, 0, 0, 0, "/electric_sparks.mp3");
+    step_idx = add_step(track, step_idx, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    return step_idx;
+}
+
 // --- Individual Animation Generators ---
 
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
     for (int i = 0; i < 4; i++) {
         s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, i, 100, 50);
@@ -32,6 +40,7 @@ void generateTornadoFlicker(SequencerTrack tracks[3]) {
 
 void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     const int flicker_interval = 50; // ms for flicker effect refresh rate
     const int total_duration = 10000; // 10 seconds total animation time
     const int num_chars = 13; // Standard display width
@@ -49,6 +58,7 @@ void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings
 
 void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     const int delay = 83;
     std::string dest_str(time_strings[0]);
     std::string pres_str(time_strings[1]);
@@ -80,6 +90,7 @@ void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings
 
 void generateCapacitorChargeUp(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 10000, 250);
     s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 1, -1, 10000, 250);
     s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 10000, 250);
@@ -88,6 +99,7 @@ void generateCapacitorChargeUp(SequencerTrack tracks[3]) {
 void generateWaveformCollapse(SequencerTrack tracks[3]) {
     const char* waves[] = {"-------------", " ---     --- ", "  ---   ---  ", "   -------   ", "  ---   ---  ", " ---     --- "};
     int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 16, 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 16, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 16, 0);
@@ -109,6 +121,7 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
 
 void generateWaveFlicker(SequencerTrack tracks[3]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50, "---     ---");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
@@ -121,6 +134,7 @@ void generateWaveFlicker(SequencerTrack tracks[3]) {
 
 void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 15, 33, time_strings[0]);
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 15, 33, time_strings[1]);
     s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 15, 33, time_strings[2]);
@@ -128,6 +142,7 @@ void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17
 
 void generateFlipDisc(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 75, 0, time_strings[0]);
     s1 = add_step(tracks[1], s1, SEQ_CMD_WIPE, 1, -1, 75, 0, time_strings[1]);
     s2 = add_step(tracks[2], s2, SEQ_CMD_WIPE, 2, -1, 75, 0, time_strings[2]);
@@ -135,6 +150,7 @@ void generateFlipDisc(SequencerTrack tracks[3], const char time_strings[3][17]) 
 
 void generateCharacterScanline(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 75, 0, time_strings[0]);
     s1 = add_step(tracks[1], s1, SEQ_CMD_TYPEWRITER, 1, -1, 75, 0, time_strings[1]);
     s2 = add_step(tracks[2], s2, SEQ_CMD_TYPEWRITER, 2, -1, 75, 0, time_strings[2]);
@@ -142,6 +158,7 @@ void generateCharacterScanline(SequencerTrack tracks[3], const char time_strings
 
 void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, time_strings[1]);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, time_strings[0]);
@@ -156,6 +173,7 @@ void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3
 
 void generateInterferencePattern(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 15, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 150, 100, "!@#$%%^&*()_+-=");
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 150, 100, time_strings[1]);
@@ -168,6 +186,7 @@ void generateInterferencePattern(SequencerTrack tracks[3], const char time_strin
 
 void generateTimeWarpStreaks(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0=0, s1=0, s2=0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCROLL_IN, 0, -1, 75, 0, time_strings[0]);
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCROLL_IN, 1, -1, 75, 0, time_strings[1]);
     s2 = add_step(tracks[2], s2, SEQ_CMD_SCROLL_IN, 2, -1, 75, 0, time_strings[2]);
@@ -175,6 +194,7 @@ void generateTimeWarpStreaks(SequencerTrack tracks[3], const char time_strings[3
 
 void generateFocusIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 200, 200, time_strings[0]);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
     s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 200, 200, time_strings[1]);
@@ -184,6 +204,7 @@ void generateFocusIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
 
 void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
     s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 50, 0);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 25, 0);
@@ -213,12 +234,14 @@ void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][1
 
 void generatePlasmaWarmup(SequencerTrack tracks[3]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_FADE_IN, 0, -1, 5000, 0);
     s = add_step(tracks[0], s, SEQ_CMD_FADE_OUT, 0, -1, 5000, 0);
 }
 
 void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
     int s=0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
@@ -231,6 +254,7 @@ void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
 
 void generateCountingUp(SequencerTrack tracks[3]) {
     int s0=0, s1=0, s2=0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_COUNTDOWN, 0, -1, 99999999, 1);
     s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, -1, 99999999, 1);
     s2 = add_step(tracks[2], s2, SEQ_CMD_COUNTDOWN, 2, -1, 99999999, 1);
@@ -238,6 +262,7 @@ void generateCountingUp(SequencerTrack tracks[3]) {
 
 void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 3, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 500, 50);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 500, 50);
@@ -251,6 +276,7 @@ void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][1
 
 void generateTemporalDesync(SequencerTrack tracks[3]) {
     int s0=0, s1=0, s2=0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_COUNTDOWN, 0, -1, 99999999, 100);
     s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, -1, 99999999, 50);
     s2 = add_step(tracks[2], s2, SEQ_CMD_COUNTDOWN, 2, -1, 99999999, 200);
@@ -258,6 +284,7 @@ void generateTemporalDesync(SequencerTrack tracks[3]) {
 
 void generateDigitalRain(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50);
     s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
     s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
@@ -579,6 +606,7 @@ void generateFireTrails(SequencerTrack tracks[3], const char time_strings[3][17]
 
 void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100, 50, " . ");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
@@ -601,10 +629,6 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
     for (int i = 0; i < 3; ++i) {
         tracks[i].reset();
     }
-
-    int s = 0;
-    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/electric_sparks.mp3");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
 
     switch (animType) {
         case ANIMATION_SEQUENTIAL_FLICKER:      generateSequentialFlicker(tracks, time_strings); break;
