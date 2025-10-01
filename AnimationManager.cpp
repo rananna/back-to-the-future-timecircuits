@@ -565,6 +565,20 @@ void handleBootSequence() {
         case BOOT_AWAIT_HUM:
             if (!stateActionCompleted) {
                 playSound("/hum.mp3");
+                blankAllDisplays();
+                printToDisplay(presRow.year, "BOOT");
+                destRow.month.writeDisplay();
+                destRow.day.writeDisplay();
+                destRow.year.writeDisplay();
+                destRow.time.writeDisplay();
+                presRow.month.writeDisplay();
+                presRow.day.writeDisplay();
+                presRow.year.writeDisplay();
+                presRow.time.writeDisplay();
+                lastRow.month.writeDisplay();
+                lastRow.day.writeDisplay();
+                lastRow.year.writeDisplay();
+                lastRow.time.writeDisplay();
                 stateActionCompleted = true;
             }
             if (elapsed > BOOT_AWAIT_HUM_DURATION) {
@@ -574,9 +588,22 @@ void handleBootSequence() {
             break;
         case BOOT_START:
             if (!stateActionCompleted) {
+                // Text display logic moved to BOOT_AWAIT_HUM
+                stateActionCompleted = true;
+            }
+            if (elapsed > 1000) {
+                bootState = BOOT_WARM_UP;
+                bootStateStartTime = millis();
+            }
+            break;
+        case BOOT_WARM_UP:
+            if (!stateActionCompleted) {
+                playSound("/relay_activation.mp3");
                 blankAllDisplays();
-                printToDisplay(presRow.year, "BOOT");
-                // Explicitly write all rows to ensure a clean display state
+                printToDisplay(destRow.day, "TM", 2);
+                printToDisplay(destRow.year, "CIRC");
+                printToDisplay(destRow.time, "ACTV");
+                // Explicitly write all rows to ensure the middle and bottom are blank
                 destRow.month.writeDisplay();
                 destRow.day.writeDisplay();
                 destRow.year.writeDisplay();
