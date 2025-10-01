@@ -562,6 +562,7 @@ void handleBootSequence() {
         case BOOT_AWAIT_HUM:
             if (!stateActionCompleted) {
                 playSound("/hum.mp3");
+                updateDisplaySegment(1, -1, "BOOTING.....");
                 stateActionCompleted = true;
             }
             if (elapsed > BOOT_AWAIT_HUM_DURATION) {
@@ -578,25 +579,26 @@ void handleBootSequence() {
         case BOOT_WARM_UP:
             if (!stateActionCompleted) {
                 playSound("/relay_activation.mp3");
+                blankAllDisplays();
+                updateDisplaySegment(0, -1, "TIME CIRCUITS");
+                updateDisplaySegment(1, -1, "ACTIVE");
+                updateDisplaySegment(2, -1, "");
                 stateActionCompleted = true;
             }
-            //if (audio.isRunning()) {
+            if (elapsed > 2000) { // Keep text on screen for 2 seconds
                 bootState = BOOT_COLD_START;
                 bootStateStartTime = millis();
-            //}
+            }
             break;
         case BOOT_COLD_START:
             {
                 if (!stateActionCompleted) {
                     playSound("/keypad_beeps.mp3");
-                    blankAllDisplays();
-                    updateDisplaySegment(0, -1, "TIME CIRCUITS");
-                    updateDisplaySegment(1, -1, "ACTIVE");
-                    updateDisplaySegment(2, -1, "");
+                    // Text display logic is now in BOOT_WARM_UP
                     stateActionCompleted = true;
                 }
 
-                if (elapsed > 5000) {
+                if (elapsed > 3000) { // Shortened duration to maintain original total time
                     bootState = BOOT_FLUX_CAPACITOR_IGNITION;
                     bootStateStartTime = millis();
                 }
@@ -824,30 +826,11 @@ void handleBootSequence() {
         case BOOT_COMPLETE:
             {
                 if (elapsed > 500) {
-                    isMessageOverrideActive = false;
+                    comprehensiveAnimationCleanup(); // Resets manual modes without forcing clock display
                     bootState = BOOT_INACTIVE;
-
-                    uint8_t saved_brightness = currentSettings.brightness;
-
-                    destRow.month.setBrightness(saved_brightness);
-                    destRow.day.setBrightness(saved_brightness);
-                    destRow.year.setBrightness(saved_brightness);
-                    destRow.time.setBrightness(saved_brightness);
-                    presRow.month.setBrightness(saved_brightness);
-                    presRow.day.setBrightness(saved_brightness);
-                    presRow.year.setBrightness(saved_brightness);
-                    presRow.time.setBrightness(saved_brightness);
-                    lastRow.month.setBrightness(saved_brightness);
-                    lastRow.day.setBrightness(saved_brightness);
-                    lastRow.year.setBrightness(saved_brightness);
-                    lastRow.time.setBrightness(saved_brightness);
-
-                    // --- FIX: Explicitly update the display to show the clock ---
-                    updateNormalClockDisplay();
-
-                    // The main display loop will handle updating the display correctly
-                    // once the bootState is set to BOOT_INACTIVE.
-                    Serial.println("BOOT_LOG: Boot sequence finished. Clock is now active.");
+                    // The main display loop will now handle updating the display correctly
+                    // according to the restored displayMode (e.g., Clock, Weather, Stocks).
+                    Serial.println("BOOT_LOG: Boot sequence finished. Restoring previous display mode.");
                 }
             }
             break;
