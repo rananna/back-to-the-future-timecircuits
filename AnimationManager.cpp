@@ -577,9 +577,18 @@ void handleBootSequence() {
                 blankAllDisplays();
                 printToDisplay(presRow.year, "BOOT");
                 // Explicitly write all rows to ensure a clean display state
-                destRow.writeDisplay();
-                presRow.writeDisplay();
-                lastRow.writeDisplay();
+                destRow.month.writeDisplay();
+                destRow.day.writeDisplay();
+                destRow.year.writeDisplay();
+                destRow.time.writeDisplay();
+                presRow.month.writeDisplay();
+                presRow.day.writeDisplay();
+                presRow.year.writeDisplay();
+                presRow.time.writeDisplay();
+                lastRow.month.writeDisplay();
+                lastRow.day.writeDisplay();
+                lastRow.year.writeDisplay();
+                lastRow.time.writeDisplay();
                 stateActionCompleted = true;
             }
             if (elapsed > 1000) {
@@ -595,9 +604,18 @@ void handleBootSequence() {
                 printToDisplay(destRow.year, "CIRC");
                 printToDisplay(destRow.time, "ACTV");
                 // Explicitly write all rows to ensure the middle and bottom are blank
-                destRow.writeDisplay();
-                presRow.writeDisplay();
-                lastRow.writeDisplay();
+                destRow.month.writeDisplay();
+                destRow.day.writeDisplay();
+                destRow.year.writeDisplay();
+                destRow.time.writeDisplay();
+                presRow.month.writeDisplay();
+                presRow.day.writeDisplay();
+                presRow.year.writeDisplay();
+                presRow.time.writeDisplay();
+                lastRow.month.writeDisplay();
+                lastRow.day.writeDisplay();
+                lastRow.year.writeDisplay();
+                lastRow.time.writeDisplay();
                 stateActionCompleted = true;
             }
             if (elapsed > 2000) { // Keep text on screen for 2 seconds
