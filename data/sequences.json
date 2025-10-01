@@ -68,6 +68,10 @@
     "payload": "DebugLogic"
   },
   {
+    "name": "Debug Parallel Logic",
+    "payload": "DebugParallelLogic"
+  },
+  {
     "name": "Debug Stress",
     "payload": "DebugStress"
   }

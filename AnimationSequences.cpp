@@ -509,6 +509,67 @@ void generateDebugLogicSequence(SequencerTrack tracks[3]) {
 }
 
 /**
+ * @brief (DEBUG) A robust, parallel test for the sequencer's logic commands.
+ * @details This test replaces the flawed `generateDebugLogicSequence`. It is
+ * designed to correctly test the parallel execution of the sequencer by running
+ * commands on all three tracks simultaneously.
+ * - Track 0 (Top): Executes logic commands (CLEAR, RESTORE, etc.) and provides
+ *   real-time feedback on the bottom display row.
+ * - Track 1 (Middle): Runs an independent, continuous visual animation (PULSE)
+ *   to visually confirm parallel execution is working.
+ * - Track 2 (Bottom): Is the target for a `TRIGGER_ANIMATION` command sent from
+ *   Track 0, verifying that one track can dynamically start an animation on another.
+ */
+void generateDebugParallelLogicSequence(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // Announce the test on all rows
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "PARALLEL TEST");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PARALLEL TEST");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "PARALLEL TEST");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+
+    // --- Track 1: Independent Visual Indicator ---
+    // This track just pulses the whole time to show it's running in parallel.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 20000, 750); // Pulse for 20s
+
+    // --- Track 0: The Main Logic Test Controller ---
+    // It will use Row 2 (the bottom display) to show what it's doing.
+
+    // 1. Test CLEAR_SEGMENT
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: CLR_SEG 0:2");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, 2, 0, 0); // Clear year on top row
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+
+    // 2. Test RESTORE_ROW
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: RST_ROW 0");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ROW, 0, 0, 0, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+
+    // 3. Test TRIGGER_ANIMATION on Track 2
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: TRIG T2");
+    // This command tells the sequencer to start the LIGHTNING animation on Track 2.
+    // We should see lightning start on the bottom row while the top two rows continue.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TRIGGER_ANIMATION, 2, 0, ANIMATION_LIGHTNING, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 5000, 0); // Wait for lightning to run
+
+    // 4. Test DISPLAY_HA_SENSOR (on the top row)
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: HA_SENSOR");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_DISPLAY_HA_SENSOR, 0, -1, 4000, 0, "sensor.time");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 4500, 0);
+
+    // 5. Test RESTORE_ALL_ROWS
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: RST_ALL");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+
+    // --- Final Step ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TEST COMPLETE");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TEST COMPLETE");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST COMPLETE");
+}
+
+/**
  * @brief (DEBUG) A chaotic stress-test sequence.
  * @details This sequence runs a long loop, firing off random animations on random
  * tracks with random timings. Its purpose is to uncover race conditions, memory
@@ -668,6 +729,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_DEBUG:                   generateDebugSequence(tracks); break;
         case ANIMATION_DEBUG_EFFECTS:           generateDebugEffectsSequence(tracks); break;
         case ANIMATION_DEBUG_LOGIC:             generateDebugLogicSequence(tracks); break;
+        case ANIMATION_DEBUG_PARALLEL_LOGIC:    generateDebugParallelLogicSequence(tracks); break;
         case ANIMATION_DEBUG_STRESS:            generateDebugStressSequence(tracks); break;
 
         case ANIMATION_RANDOM_FLICKER:
