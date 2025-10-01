@@ -7,6 +7,9 @@
 #define MAX_SEQUENCE_DURATION 60000 // 60 seconds
 #include "DisplayManager.h"
 #include "MqttManager.h"
+
+// --- NEW: Extern declaration to access the pre-animation display mode ---
+extern int preAnimationDisplayMode;
 #include <WiFi.h>
 #include "web_server.h"
 #include <ArduinoJson.h>
@@ -1525,10 +1528,11 @@ void stopAndCleanupTrack(int trackIndex) {
         }
     }
 
-    // If no other tracks are active, force a full display restore to the clock.
+    // If no other tracks are active, restore the original display mode.
     if (!anyOtherTrackActive) {
-        Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Restoring normal clock display.");
-        updateNormalClockDisplay(true, true, true); // Force redraw all rows
+        Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Restoring pre-animation display mode: %d", preAnimationDisplayMode);
+        currentSettings.displayMode = preAnimationDisplayMode;
+        // The main loop will now handle updating the display according to the restored mode.
     }
 }
 

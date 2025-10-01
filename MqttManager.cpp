@@ -42,6 +42,9 @@ String radioStationName = "";
 String radioSongTitle = "";
 bool isRadioStreaming = false;
 
+// --- NEW: Global state for saving display mode before animations ---
+int preAnimationDisplayMode = DMS_NORMAL_CLOCK; // Default to normal clock
+
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
     String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
     String topic = String(MQTT_BASE_TOPIC) + "/" + component + "/" + object_id + "/config";
@@ -1203,6 +1206,9 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
 }
 
 void handleSequencerCommand(const std::string& payload) {
+    // --- NEW: Save the current display mode before starting any sequence ---
+    preAnimationDisplayMode = currentSettings.displayMode;
+
     // --- FIX: Stop any and all currently running sequences before starting a new one ---
     // This acts as a "master reset" to prevent state corruption or conflicts when
     // a new sequence is triggered while another is still active.
