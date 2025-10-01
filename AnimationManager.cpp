@@ -532,6 +532,7 @@ void handleTemporalEcho() {
 void runBootSequence() {
     Serial.println("BOOT_LOG: runBootSequence() called.");
     if (bootState == BOOT_INACTIVE) {
+        blankAllDisplays(); // Immediately clear the display to prevent showing old data
         bootState = BOOT_AWAIT_HUM;
         bootStateStartTime = millis();
         Serial.println("BOOT_LOG: Boot sequence initiated.");
