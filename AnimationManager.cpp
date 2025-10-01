@@ -976,7 +976,7 @@ void handleSequencer() {
                 if (track.flashEndTimes[s] != 0 && millis() > track.flashEndTimes[s]) {
                     track.isFlashing[s] = false;
                     needsDisplayUpdate = true;
-                } else if (millis() - track.lastFlashToggle[s] > 500) {
+                } else if (millis() - track.lastFlashToggle[s] > 50) {
                     track.flashStates[s] = !track.flashStates[s];
                     track.lastFlashToggle[s] = millis();
                     needsDisplayUpdate = true;
