@@ -84,21 +84,6 @@ static bool i2c_2_initialized = false;
  * @param justification 0 for left, 1 for right, 2 for center.
  */
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification) {
-  // --- NEW: Add debugging for display writes before boot sequence ---
-  if (bootState == BOOT_INACTIVE) {
-    // Check if the text is not just empty spaces before logging
-    bool isTextBlank = true;
-    for (int i = 0; text[i] != '\0'; i++) {
-        if (text[i] != ' ') {
-            isTextBlank = false;
-            break;
-        }
-    }
-    if (!isTextBlank) {
-        Log_printf(LOG_LEVEL_WARN, "PRE-BOOT DISPLAY WRITE: Attempted to write '%s' before boot sequence started.", text);
-    }
-  }
-  // --- END NEW ---
   display.clear();
 
   // --- FIX: Safely handle strings to prevent overflow and ensure truncation ---
