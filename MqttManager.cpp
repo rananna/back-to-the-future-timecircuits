@@ -659,6 +659,14 @@ void handleHaDiscovery() {
     }
 }
 
+/**
+ * @brief Checks if the Home Assistant discovery process has finished.
+ * @return True if discovery is complete, false otherwise.
+ */
+bool isHaDiscoveryComplete() {
+    return haDiscoveryState == HA_DISCOVERY_COMPLETE;
+}
+
 void reconnectMqtt() {
   Log_printf(LOG_LEVEL_DEBUG, "Entering reconnectMqtt function.");
   if (currentSettings.mqttBroker.empty()) return;

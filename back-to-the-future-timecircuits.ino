@@ -1241,12 +1241,13 @@ void loop() {
                         }
                     }
                 } else {
-                    // --- mDNS Management: Start mDNS when MQTT is connected and stable ---
-                    if (!mDnsIsActive) {
+                    // --- mDNS Management: Start mDNS only after HA discovery is complete ---
+                    // This prevents a memory allocation race condition on the ESP32.
+                    if (!mDnsIsActive && isHaDiscoveryComplete()) {
                         if (MDNS.begin("BTTF_TC")) {
                             MDNS.addService("http", "tcp", 80);
                             mDnsIsActive = true;
-                            Log_printf(LOG_LEVEL_INFO, "mDNS service started on stable MQTT connection.");
+                            Log_printf(LOG_LEVEL_INFO, "mDNS service started after HA discovery.");
                         }
                     }
 
