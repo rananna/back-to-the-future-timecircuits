@@ -413,10 +413,12 @@ void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FLICKER DONE");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- SCRAMBLE_TEXT ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCRAMBLE");
-    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 200, "SCRAMBLE TEST");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
+    // --- SCRAMBLE_TEXT (FIX VERIFICATION) ---
+    // This test uses a slow lock-in speed (500ms per character) to make it easy
+    // to visually verify that the progressive reveal is working correctly.
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCRAMBLE FIX");
+    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 500, "PROGRESSIVE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 8000, 0); // Wait long enough for the full effect
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SCRAMBLE DONE");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
     // --- SCANNER ---
