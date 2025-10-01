@@ -549,6 +549,28 @@ void runBootSequence() {
 }
 
 
+// Helper function to type out a two-part diagnostic message
+static void typeOutDiagnostic(unsigned long elapsedInSecond, const char* part1, const char* part2, Adafruit_AlphaNum4& seg1, Adafruit_AlphaNum4& seg2) {
+    const int typeSpeed = 100; // ms per character
+    std::string s1 = part1;
+    std::string s2 = part2;
+    int len1 = s1.length();
+
+    int charsToShow1 = elapsedInSecond / typeSpeed;
+    if (charsToShow1 > len1) charsToShow1 = len1;
+
+    int charsToShow2 = 0;
+    if (elapsedInSecond > (unsigned long)len1 * typeSpeed) {
+        charsToShow2 = (elapsedInSecond - (len1 * typeSpeed)) / typeSpeed;
+    }
+    if (charsToShow2 > (int)s2.length()) charsToShow2 = s2.length();
+
+    printToDisplay(seg1, s1.substr(0, charsToShow1).c_str(), 1);
+    printToDisplay(seg2, s2.substr(0, charsToShow2).c_str(), 2);
+    seg1.writeDisplay();
+    seg2.writeDisplay();
+}
+
 void handleBootSequence() {
     if (bootState == BOOT_INACTIVE) return;
 
@@ -604,34 +626,52 @@ void handleBootSequence() {
             }
             break;
         case BOOT_WARM_UP:
-            if (!stateActionCompleted) {
-                playSound("/relay_activation.mp3");
-                blankAllDisplays();
-                printToDisplay(destRow.day, " TM");
-                printToDisplay(destRow.year, "CIRC");
-                printToDisplay(destRow.time, "UITS");
-                printToDisplay(presRow.month, "");
-                printToDisplay(presRow.day, "");
-                printToDisplay(presRow.year, "ACTI");
-                printToDisplay(presRow.time, "VATE");
-                // Explicitly write all rows to ensure the middle and bottom are blank
-                destRow.month.writeDisplay();
-                destRow.day.writeDisplay();
-                destRow.year.writeDisplay();
-                destRow.time.writeDisplay();
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
-                lastRow.month.writeDisplay();
-                lastRow.day.writeDisplay();
-                lastRow.year.writeDisplay();
-                lastRow.time.writeDisplay();
-                stateActionCompleted = true;
-            }
-            if (elapsed > 2000) { // Keep text on screen for 2 seconds
-                bootState = BOOT_COLD_START;
-                bootStateStartTime = millis();
+            {
+                if (!stateActionCompleted) {
+                    playSound("/relay_activation.mp3");
+                    blankAllDisplays();
+                    stateActionCompleted = true;
+                }
+
+                const std::string topTarget = "TMCIRCUITS";
+                const std::string midTarget = "ACTIVATE";
+                const int totalChars = topTarget.length() + midTarget.length(); // 18
+
+                // Determine how many characters should be visible based on elapsed time (1 char per second)
+                int charsToShow = elapsed / 1000;
+                if (charsToShow > totalChars) {
+                    charsToShow = totalChars;
+                }
+
+                // Build the display strings
+                std::string topRowStr = "             ";
+                std::string midRowStr = "             ";
+
+                // Populate top row: "   TMCIRCUITS"
+                int charsOnTop = (charsToShow > topTarget.length()) ? topTarget.length() : charsToShow;
+                for(int i = 0; i < charsOnTop; ++i) {
+                    topRowStr[i + 3] = topTarget[i];
+                }
+
+                // Populate middle row: "     ACTIVATE"
+                if (charsToShow > topTarget.length()) {
+                    int charsOnMid = charsToShow - topTarget.length();
+                    for(int i = 0; i < charsOnMid; ++i) {
+                        if (i < midTarget.length()) {
+                           midRowStr[i + 5] = midTarget[i];
+                        }
+                    }
+                }
+
+                // Update the displays
+                updateDisplaySegment(0, -1, topRowStr);
+                updateDisplaySegment(1, -1, midRowStr);
+
+                // Transition after typing is done + 2 second pause
+                if (elapsed > (totalChars * 1000) + 2000) {
+                    bootState = BOOT_COLD_START;
+                    bootStateStartTime = millis();
+                }
             }
             break;
         case BOOT_COLD_START:
@@ -702,39 +742,27 @@ void handleBootSequence() {
                     playSound("/keypad_beeps.mp3");
                     stateActionCompleted = true;
                 }
-                //if (audio.isRunning()) {
-                    int currentSecond = elapsed / 2000;
-                    if (currentSecond != lastDiagSecond) {
-                        blankAllDisplays();
-                        if (currentSecond == 0) {
-                            printToDisplay(destRow.month, "CPU", 1);
-                            printToDisplay(destRow.day, "OK", 2);
-                            destRow.month.writeDisplay();
-                            destRow.day.writeDisplay();
-                        } else if (currentSecond == 1) {
-                            printToDisplay(presRow.month, "MEM", 1);
-                            printToDisplay(presRow.day, "OK", 2);
-                            presRow.month.writeDisplay();
-                            presRow.day.writeDisplay();
-                        } else if (currentSecond == 2) {
-                            printToDisplay(lastRow.month, "WFI", 1);
-                            printToDisplay(lastRow.day, "OK", 2);
-                            lastRow.month.writeDisplay();
-                            lastRow.day.writeDisplay();
-                        } else if (currentSecond == 3) {
-                            printToDisplay(lastRow.month, "IP", 1);
-                            printToDisplay(lastRow.day, "OK", 2);
-                            lastRow.month.writeDisplay();
-                            lastRow.day.writeDisplay();
-                        } else if (currentSecond == 4) {
-                            printToDisplay(lastRow.month, "MQT", 1);
-                            printToDisplay(lastRow.day, "OK", 2);
-                            lastRow.month.writeDisplay();
-                            lastRow.day.writeDisplay();
-                        }
-                        lastDiagSecond = currentSecond;
-                    }
-                //}
+
+                int currentSecond = elapsed / 2000;
+                unsigned long elapsedInSecond = elapsed % 2000;
+
+                if (currentSecond != lastDiagSecond) {
+                    blankAllDisplays();
+                    lastDiagSecond = currentSecond;
+                }
+
+                if (currentSecond == 0) {
+                    typeOutDiagnostic(elapsedInSecond, "CPU", "OK", destRow.month, destRow.day);
+                } else if (currentSecond == 1) {
+                    typeOutDiagnostic(elapsedInSecond, "MEM", "OK", presRow.month, presRow.day);
+                } else if (currentSecond == 2) {
+                    typeOutDiagnostic(elapsedInSecond, "WFI", "OK", lastRow.month, lastRow.day);
+                } else if (currentSecond == 3) {
+                    typeOutDiagnostic(elapsedInSecond, "IP", "OK", lastRow.month, lastRow.day);
+                } else if (currentSecond == 4) {
+                    typeOutDiagnostic(elapsedInSecond, "MQT", "OK", lastRow.month, lastRow.day);
+                }
+
                 if (elapsed > BOOT_DIAGNOSTICS_DURATION) {
                     bootState = BOOT_FINAL_CHECKS;
                     bootStateStartTime = millis();
