@@ -590,9 +590,9 @@ void handleBootSequence() {
                 if (!stateActionCompleted) {
                     playSound("/keypad_beeps.mp3");
                     blankAllDisplays();
-                    updateDisplaySegment(0, -1, "FLUX CAPACITOR");
-                    updateDisplaySegment(1, -1, "TIME CIRCUITS");
-                    updateDisplaySegment(2, -1, "ON");
+                    updateDisplaySegment(0, -1, "TIME CIRCUITS");
+                    updateDisplaySegment(1, -1, "ACTIVE");
+                    updateDisplaySegment(2, -1, "");
                     stateActionCompleted = true;
                 }
 
@@ -841,6 +841,9 @@ void handleBootSequence() {
                     lastRow.day.setBrightness(saved_brightness);
                     lastRow.year.setBrightness(saved_brightness);
                     lastRow.time.setBrightness(saved_brightness);
+
+                    // --- FIX: Explicitly update the display to show the clock ---
+                    updateNormalClockDisplay();
 
                     // The main display loop will handle updating the display correctly
                     // once the bootState is set to BOOT_INACTIVE.
