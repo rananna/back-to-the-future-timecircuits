@@ -972,6 +972,8 @@ void setup() {
     hardwareInitialized = attemptHardwareInit();
     if (hardwareInitialized) {
         onHardwareInitialized();
+        // --- NEW: Immediately blank displays on successful init to prevent showing stale data ---
+        blankAllDisplays();
     }
 
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -1346,32 +1348,35 @@ void loop() {
                         xSemaphoreGive(xDisplayDataMutex);
                     }
                 } else {
-                    if (isAnimating) {
-                        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                            handleDisplayAnimation();
-                            xSemaphoreGive(xDisplayDataMutex);
-                        }
-                    } else if (isStyledAnimating) {
-                        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                            handleStyledAnimation();
-                            xSemaphoreGive(xDisplayDataMutex);
-                        }
-                    } else {
-                        if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
-                            lastDisplayUpdateTime = millis();
-                            // --- START: MODIFICATION - Prioritize Sequencer ---
-                            // If any sequence is active, we bypass the normal display mode logic
-                            // to prevent interference with the sequence.
-                            if (isAnySequenceActive()) {
-                                // A sequence is running. Do nothing here to allow the sequence
-                                // to have full control of the display. The handleSequencer()
-                                // function will handle the necessary display updates.
-                            } else {
-                                // No sequence is running. Proceed with the normal display logic.
-                                updateDisplayState();
-                                handleDisplay();
+                    // --- NEW: Only run normal display logic after boot is complete ---
+                    if (bootSequenceCompleted) {
+                        if (isAnimating) {
+                            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                                handleDisplayAnimation();
+                                xSemaphoreGive(xDisplayDataMutex);
                             }
-                            // --- END: MODIFICATION ---
+                        } else if (isStyledAnimating) {
+                            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                                handleStyledAnimation();
+                                xSemaphoreGive(xDisplayDataMutex);
+                            }
+                        } else {
+                            if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
+                                lastDisplayUpdateTime = millis();
+                                // --- START: MODIFICATION - Prioritize Sequencer ---
+                                // If any sequence is active, we bypass the normal display mode logic
+                                // to prevent interference with the sequence.
+                                if (isAnySequenceActive()) {
+                                    // A sequence is running. Do nothing here to allow the sequence
+                                    // to have full control of the display. The handleSequencer()
+                                    // function will handle the necessary display updates.
+                                } else {
+                                    // No sequence is running. Proceed with the normal display logic.
+                                    updateDisplayState();
+                                    handleDisplay();
+                                }
+                                // --- END: MODIFICATION ---
+                            }
                         }
                     }
                 }

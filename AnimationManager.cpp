@@ -1,4 +1,8 @@
 #include "AnimationManager.h"
+
+// --- NEW: Global flag to prevent display updates until boot sequence is complete ---
+bool bootSequenceCompleted = false;
+
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DebugLog.h"
@@ -867,6 +871,7 @@ void handleBootSequence() {
             {
                 if (elapsed > 500) {
                     comprehensiveAnimationCleanup(); // Resets manual modes without forcing clock display
+                    bootSequenceCompleted = true; // --- NEW: Signal that the boot sequence is done.
                     bootState = BOOT_INACTIVE;
                     // The main display loop will now handle updating the display correctly
                     // according to the restored displayMode (e.g., Clock, Weather, Stocks).
