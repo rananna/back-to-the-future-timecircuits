@@ -3,6 +3,7 @@
 #include "DisplayManager.h"
 #include <Arduino.h>
 #include <string>
+#include <stdlib.h>
 
 // Helper to add a step to a track safely, returns the new index
 static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, int row, int seg, int p1, int p2, const char* s1 = "", const char* s2 = "") {
@@ -278,6 +279,244 @@ void generateSystemError(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_SOUND, 0, 0, 0, 0, "/error_beeps.mp3");
 }
 
+// --- Special Debugging Sequences ---
+
+/**
+ * @brief (DEBUG) A general stress-test sequence.
+ * @details This sequence is designed to test multiple complex features at once.
+ * - Track 0: Runs a nested loop with sound effects to test timing and loop control.
+ * - Track 1: Displays a very long scrolling marquee text to stress the buffer and timing for this effect.
+ * - Track 2: Runs a parallel scramble text animation to ensure multiple complex animations can run together.
+ */
+void generateDebugSequence(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // Announce the main test
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "DEBUG TEST");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "STRESS TEST");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "RUNNING...");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+
+    // Track 0: Complex nested loops with sound
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "NESTED LOOPS");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "/time_travel.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 3, 0); // Outer loop
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0); // Inner loop
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, 0, 100, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0); // End inner loop
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0); // End outer loop
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "LOOPS DONE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+
+    // Track 1: Long scrolling text
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "LONG MARQUEE");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "THIS IS A VERY LONG SCROLLING TEXT SEQUENCE TO TEST THE MARQUEE FUNCTIONALITY AND ENSURE IT HANDLES LONG STRINGS CORRECTLY");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 20000, 0); // Wait for marquee to finish
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "MARQUEE DONE");
+
+    // Track 2: Parallel scramble text
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "SCRAMBLE");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 150, "PARALLEL TEST");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 4000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "SCRAMBLE DONE");
+}
+
+/**
+ * @brief (DEBUG) A comprehensive, sequential showcase of all visual effects.
+ * @details This sequence demonstrates each visual effect one after another on the
+ * center display, with the top and bottom displays showing the name of the
+ * currently running test. This is useful for debugging individual effects.
+ */
+void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
+    int s = 0;
+    // --- WIPE ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "WIPE");
+    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 1, -1, 100, 0, "WIPE TEST");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "WIPE DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- SCROLL_IN ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCROLL IN");
+    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 1, -1, 75, 0, "SCROLL IN TEST");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 3000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SCROLL IN DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- CROSSFADE ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "CROSSFADE");
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FROM THIS");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_CROSSFADE_TEXT, 1, -1, 2000, 0, "TO THIS");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "CROSSFADE DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- TYPEWRITER ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TYPEWRITER");
+    s = add_step(tracks[0], s, SEQ_CMD_TYPEWRITER, 1, -1, 150, 0, "TYPEWRITER TEST");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 3000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TYPEWRITER DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- FADE ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "FADE");
+    s = add_step(tracks[0], s, SEQ_CMD_FADE_OUT, 1, -1, 1500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_FADE_IN, 1, -1, 1500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FADE DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- PULSE ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "PULSE");
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 1, -1, 4000, 750);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PULSE DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- FLASH ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "FLASH");
+    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 1, -1, 4000, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FLASH DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- RANDOM_FLICKER_TEXT ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "FLICKER");
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 4000, 100);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FLICKER DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- SCRAMBLE_TEXT ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCRAMBLE");
+    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 200, "SCRAMBLE TEST");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SCRAMBLE DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- SCANNER ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCANNER");
+    s = add_step(tracks[0], s, SEQ_CMD_SCANNER, 1, -1, 4000, 80, "---");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SCANNER DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- BAR_GRAPH ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "BAR GRAPH");
+    s = add_step(tracks[0], s, SEQ_CMD_BAR_GRAPH, 1, -1, 4000, 250, "BAR GRAPH");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "BAR GRAPH DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- SET_BRIGHTNESS ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "BRIGHTNESS");
+    s = add_step(tracks[0], s, SEQ_CMD_SET_BRIGHTNESS, 0, 0, 1, 0); // Dim
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_BRIGHTNESS, 0, 0, 7, 0); // Bright
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "BRIGHTNESS DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- Final Step ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "EFFECTS DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "");
+}
+
+/**
+ * @brief (DEBUG) Tests the control-flow and logic commands of the sequencer.
+ * @details This sequence is designed to validate the non-visual, logic-based
+ * commands, such as countdowns, MQTT publishing, and triggering other animations.
+ * - Track 0: Tests CLEAR_SEGMENT and RESTORE_ROW.
+ * - Track 1: Tests DISPLAY_HA_SENSOR and then TRIGGER_ANIMATION to start a different
+ *   animation on track 2.
+ * - Track 2: Tests RESTORE_ALL_ROWS after being triggered by track 1.
+ */
+void generateDebugLogicSequence(SequencerTrack tracks[3]) {
+    int s0 = 0;
+
+    // Announce the test
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "LOGIC TEST");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "RUNNING...");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "------------");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+
+    // --- Test CLEAR_SEGMENT ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: CLR_SEG");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, 2, 0, 0); // Clear year on top row
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: CLR_SEG");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+
+    // --- Test RESTORE_ROW ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: RST_ROW");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ROW, 0, 0, 0, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: RST_ROW");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+
+    // --- Test DISPLAY_HA_SENSOR ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: HA_SENS");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_DISPLAY_HA_SENSOR, 1, -1, 4000, 0, "sensor.time");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 4500, 0); // Wait for it to finish
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: HA_SENS");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+
+    // --- Test TRIGGER_ANIMATION ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: TRIGGER");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TRIGGER_ANIMATION, 1, 0, ANIMATION_LIGHTNING, 0); // Trigger Lightning on Track 1
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: TRIGGER");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+
+    // --- Test RESTORE_ALL_ROWS ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: RST_ALL");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: RST_ALL");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+
+    // --- Final Step ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "LOGIC TEST");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "COMPLETE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "------------");
+}
+
+/**
+ * @brief (DEBUG) A chaotic stress-test sequence.
+ * @details This sequence runs a long loop, firing off random animations on random
+ * tracks with random timings. Its purpose is to uncover race conditions, memory
+ * leaks, or other instability issues that only appear under high load.
+ * It is not designed to be visually coherent.
+ */
+void generateDebugStressSequence(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // Announce the test
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "STRESS TEST");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "RANDOM CHAOS");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "RUNNING...");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+
+    // List of visual effects to choose from randomly
+    SequenceCommand effects[] = {
+        SEQ_CMD_WIPE, SEQ_CMD_SCROLL_IN, SEQ_CMD_TYPEWRITER, SEQ_CMD_FADE_OUT,
+        SEQ_CMD_PULSE, SEQ_CMD_FLASH, SEQ_CMD_RANDOM_FLICKER_TEXT, SEQ_CMD_SCRAMBLE_TEXT,
+        SEQ_CMD_SCANNER, SEQ_CMD_BAR_GRAPH
+    };
+    int num_effects = sizeof(effects) / sizeof(effects[0]);
+
+    for (int i = 0; i < 50; ++i) { // Run 50 random commands
+        int track_idx = random(0, 3);
+        int effect_idx = random(0, num_effects);
+        int duration = random(500, 2000);
+        int interval = random(50, 250);
+
+        int* s_ptr = (track_idx == 0) ? &s0 : (track_idx == 1) ? &s1 : &s2;
+        SequencerTrack& track = tracks[track_idx];
+
+        *s_ptr = add_step(track, *s_ptr, effects[effect_idx], track_idx, -1, duration, interval, "STRESS!");
+        *s_ptr = add_step(track, *s_ptr, SEQ_CMD_WAIT, track_idx, 0, duration, 0);
+    }
+}
 
 // --- New Thematic Animation Generators ---
 
@@ -399,6 +638,12 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_FIRE_TRAILS:             generateFireTrails(tracks, time_strings); break;
         case ANIMATION_COUNTDOWN:               generateCountdown(tracks); break;
         case ANIMATION_SYSTEM_ERROR:            generateSystemError(tracks); break;
+
+        // --- Special Debug Sequences ---
+        case ANIMATION_DEBUG:                   generateDebugSequence(tracks); break;
+        case ANIMATION_DEBUG_EFFECTS:           generateDebugEffectsSequence(tracks); break;
+        case ANIMATION_DEBUG_LOGIC:             generateDebugLogicSequence(tracks); break;
+        case ANIMATION_DEBUG_STRESS:            generateDebugStressSequence(tracks); break;
 
         case ANIMATION_RANDOM_FLICKER:
         default:

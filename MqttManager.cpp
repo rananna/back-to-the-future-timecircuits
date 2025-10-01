@@ -1214,6 +1214,25 @@ void handleSequencerCommand(const std::string& payload) {
     // a new sequence is triggered while another is still active.
     stopAllSequences();
 
+    // --- NEW: Handle special, non-JSON-based named sequences ---
+    if (payload == "Debug") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Debug'");
+        generateAnimationSequence(ANIMATION_DEBUG, sequencerTracks);
+        return; // Bypass JSON parsing
+    } else if (payload == "DebugEffects") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugEffects'");
+        generateAnimationSequence(ANIMATION_DEBUG_EFFECTS, sequencerTracks);
+        return; // Bypass JSON parsing
+    } else if (payload == "DebugLogic") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugLogic'");
+        generateAnimationSequence(ANIMATION_DEBUG_LOGIC, sequencerTracks);
+        return; // Bypass JSON parsing
+    } else if (payload == "DebugStress") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugStress'");
+        generateAnimationSequence(ANIMATION_DEBUG_STRESS, sequencerTracks);
+        return; // Bypass JSON parsing
+    }
+
     JsonDocument doc;
     std::string json_to_parse;
 
