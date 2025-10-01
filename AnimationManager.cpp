@@ -1347,25 +1347,30 @@ void handleSequencer() {
                     track.scrambleCurrentText = std::string(step.stringParam.length(), ' ');
                     track.scrambleCharIndex = 0;
                     track.lastScrambleUpdate = millis();
+                    track.lastScrambleLockInTime = millis(); // Initialize new timer
                     track.stepInitialized = true;
                 }
 
                 if ((unsigned)track.scrambleCharIndex >= step.stringParam.length()) {
+                    // Animation is complete, ensure final text is displayed and advance.
+                    updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
                     advance_step = true;
                 } else {
-                     if (millis() - track.lastScrambleUpdate > (unsigned long)step.intParam) {
-                        // Update the text with random characters, but lock in the final ones
+                    // Check if it's time to lock in the next character.
+                    if (millis() - track.lastScrambleLockInTime >= (unsigned long)step.intParam2) {
+                        track.scrambleCharIndex++;
+                        track.lastScrambleLockInTime = millis();
+                    }
+
+                    // Check if it's time to update the flickering characters.
+                    if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
+                        // Build the string to display.
                         std::string temp_scramble = step.stringParam;
                         for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
-                             temp_scramble[j] = (char)random(33,126);
+                             temp_scramble[j] = (char)random(33, 126);
                         }
                         updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
-
-                        // Check if it's time to lock in the next character
-                        if(millis() - track.lastScrambleUpdate > (unsigned long)step.intParam2) {
-                            track.scrambleCharIndex++;
-                            track.lastScrambleUpdate = millis();
-                        }
+                        track.lastScrambleUpdate = millis();
                     }
                 }
                 break;
