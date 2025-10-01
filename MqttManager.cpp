@@ -1249,7 +1249,7 @@ void handleSequencerCommand(const std::string& payload) {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Intruder Alert'");
         json_to_parse = R"([
             {"targetRow":0, "commands":[{"command":"MARQUEE", "stringParam":"INTRUDER ALERT"}, {"command":"SOUND", "stringParam":"electric_sparks.mp3"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]},
-            {"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":100, "intParam2":5000}]},
+            {"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":100, "intParam2":400}]},
             {"targetRow":2, "commands":[{"command":"MARQUEE", "stringParam":"LOCKDOWN INITIATED"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]}
         ])";
     } else if (payload == "Time Travel") {
