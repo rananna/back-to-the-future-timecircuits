@@ -114,6 +114,7 @@ struct SequencerTrack {
 
     int scrambleCharIndex = 0;
     unsigned long lastScrambleUpdate = 0;
+    unsigned long lastScrambleLockInTime = 0; // New timer for character lock-in
     std::string scrambleCurrentText;
 
     // --- NEW: State for Crossfade command ---
@@ -176,6 +177,7 @@ struct SequencerTrack {
         flickerOriginalText.clear();
         scrambleCharIndex = 0;
         lastScrambleUpdate = 0;
+        lastScrambleLockInTime = 0;
         scrambleCurrentText.clear();
 
         crossfadePhase = 0;
