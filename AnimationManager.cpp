@@ -564,7 +564,6 @@ void handleBootSequence() {
     switch (bootState) {
         case BOOT_AWAIT_HUM:
             if (!stateActionCompleted) {
-                playSound("/hum.mp3");
                 blankAllDisplays();
                 printToDisplay(presRow.year, "BOOT");
                 destRow.month.writeDisplay();
@@ -579,6 +578,7 @@ void handleBootSequence() {
                 lastRow.day.writeDisplay();
                 lastRow.year.writeDisplay();
                 lastRow.time.writeDisplay();
+                playSound("/hum.mp3");
                 stateActionCompleted = true;
             }
             if (elapsed > BOOT_AWAIT_HUM_DURATION) {
