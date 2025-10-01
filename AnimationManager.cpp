@@ -1232,14 +1232,26 @@ void handleSequencer() {
                 if (!track.stepInitialized) {
                     track.countdownValue = step.intParam;
                     track.countdownLastUpdate = millis();
-                    updateDisplaySegment(step.targetRow, step.targetSegment, std::to_string(track.countdownValue));
+                    std::string val_str = std::to_string(track.countdownValue);
+                    if (step.targetSegment == -1) {
+                        std::string padded_str = std::string(13 - val_str.length(), ' ') + val_str;
+                        updateDisplaySegment(step.targetRow, step.targetSegment, padded_str);
+                    } else {
+                        updateDisplaySegment(step.targetRow, step.targetSegment, val_str);
+                    }
                     track.stepInitialized = true;
                 }
                 if (millis() - track.countdownLastUpdate >= (unsigned long)step.intParam2) {
                     track.countdownValue--;
                     track.countdownLastUpdate = millis();
                     if (track.countdownValue >= 0) {
-                        updateDisplaySegment(step.targetRow, step.targetSegment, std::to_string(track.countdownValue));
+                        std::string val_str = std::to_string(track.countdownValue);
+                        if (step.targetSegment == -1) {
+                            std::string padded_str = std::string(13 - val_str.length(), ' ') + val_str;
+                            updateDisplaySegment(step.targetRow, step.targetSegment, padded_str);
+                        } else {
+                            updateDisplaySegment(step.targetRow, step.targetSegment, val_str);
+                        }
                     }
                 }
                 if (track.countdownValue < 0) {
@@ -1258,21 +1270,25 @@ void handleSequencer() {
                     advance_step = true;
                 } else {
                     if (millis() - track.lastScannerUpdate > (unsigned long)step.intParam2) {
-                        std::string scan_str = "             "; // 13 spaces
                         std::string visual = step.stringParam;
                         if (visual.empty()) visual = "#";
+                        int visual_len = visual.length();
+                        std::string scan_str(13, ' '); // 13 spaces
 
-                        scan_str.replace(track.scannerPosition, visual.length(), visual);
+                        // Correctly place the visual without going out of bounds
+                        scan_str.replace(track.scannerPosition, visual_len, visual);
                         updateDisplaySegment(step.targetRow, -1, scan_str);
 
                         if (track.scannerDirection) { // moving right
                             track.scannerPosition++;
-                            if (track.scannerPosition > 13 - visual.length()) {
-                                track.scannerPosition = 13 - visual.length();
+                            // Corrected boundary check: reverse when the *end* of the visual hits the edge
+                            if (track.scannerPosition + visual_len > 13) {
+                                track.scannerPosition = 13 - visual_len;
                                 track.scannerDirection = false;
                             }
                         } else { // moving left
                             track.scannerPosition--;
+                            // Corrected boundary check: reverse when the *start* of the visual hits the edge
                             if (track.scannerPosition < 0) {
                                 track.scannerPosition = 0;
                                 track.scannerDirection = true;

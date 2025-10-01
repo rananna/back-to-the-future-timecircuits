@@ -56,7 +56,7 @@ void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
     const int flicker_interval = 50; // ms for flicker effect refresh rate
-    const int total_duration = 10000; // 10 seconds total animation time
+    const int total_duration = 8500; // 8.5 seconds total animation time
     const int num_chars = 13; // Standard display width
     const int lock_in_interval = total_duration / num_chars; // ms per character reveal
 
@@ -306,8 +306,10 @@ void generateDigitalRain(SequencerTrack tracks[3]) {
 
 void generateCountdown(SequencerTrack tracks[3]) {
     int s = 0;
-    s = add_step(tracks[0], s, SEQ_CMD_COUNTDOWN, 1, 1, 10, 1000);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 1, 0, 0, "0");
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "COUNTDOWN");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_COUNTDOWN, 1, -1, 10, 1000);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "0");
     s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/engine_rev.mp3");
     s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "LIFTOFF!");
 }
@@ -355,8 +357,7 @@ void generateDebugSequence(SequencerTrack tracks[3]) {
     // Track 1: Long scrolling text
     s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "LONG MARQUEE");
     s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "THIS IS A VERY LONG SCROLLING TEXT SEQUENCE TO TEST THE MARQUEE FUNCTIONALITY AND ENSURE IT HANDLES LONG STRINGS CORRECTLY");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 20000, 0); // Wait for marquee to finish
+    s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "ROADS? WHERE WE'RE GOING, WE DON'T NEED ROADS. THIS IS A TEST OF THE EMERGENCY BROADCAST SYSTEM. THIS IS ONLY A TEST.");
     s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "MARQUEE DONE");
 
     // Track 2: Parallel scramble text
@@ -582,6 +583,16 @@ void generateDebugParallelLogicSequence(SequencerTrack tracks[3]) {
     s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
 
+    // 6. Test COUNTDOWN (on the top row)
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: COUNTDOWN");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_COUNTDOWN, 0, -1, 5, 500); // Countdown from 5, 500ms interval
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 3000, 0); // Wait for it to finish
+
+    // 7. Test MQTT_PUBLISH
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: MQTT_PUB");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_MQTT_PUBLISH, 0, 0, 0, 0, "timecircuits/debug", "Debug sequence test message");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+
     // --- Final Step ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TEST COMPLETE");
     s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TEST COMPLETE");
@@ -646,7 +657,21 @@ void generateLightning(SequencerTrack tracks[3]) {
 
 void generateScanner(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
-    // A Cylon/Knight Rider style scanner effect
+
+    // Announce the animation and play a sound
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "/scanner.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCANNER");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SCANNER");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "SCANNER");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1500, 0); // Wait for text to be readable
+
+    // Clear the announcement text
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_NONE, 0, 0, 0, 0); // No more steps for track 1
+    s2 = add_step(tracks[2], s2, SEQ_CMD_NONE, 0, 0, 0, 0); // No more steps for track 2
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 250, 0);
+
+    // Run the scanner effect on all three rows in parallel
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCANNER, 0, -1, 10000, 80, "---");
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 10000, 80, "---");
     s2 = add_step(tracks[2], s2, SEQ_CMD_SCANNER, 2, -1, 10000, 80, "---");
