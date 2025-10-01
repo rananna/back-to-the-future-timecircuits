@@ -621,7 +621,7 @@ void generateDebugStressSequence(SequencerTrack tracks[3]) {
         int* s_ptr = (track_idx == 0) ? &s0 : (track_idx == 1) ? &s1 : &s2;
         SequencerTrack& track = tracks[track_idx];
 
-        *s_ptr = add_step(track, *s_ptr, effects[effect_idx], track_idx, -1, duration, interval, "STRESS!");
+        *s_ptr = add_step(track, *s_ptr, effects[effect_idx], track_idx, -1, duration, interval, "STRESS");
         *s_ptr = add_step(track, *s_ptr, SEQ_CMD_WAIT, track_idx, 0, duration, 0);
     }
 }
