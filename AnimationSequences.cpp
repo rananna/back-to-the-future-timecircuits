@@ -68,10 +68,10 @@ void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings
 }
 
 void generateCapacitorChargeUp(SequencerTrack tracks[3]) {
-    int s = 0;
-    s = add_step(tracks[0], s, SEQ_CMD_BAR_GRAPH, 2, -1, 3333, 250);
-    s = add_step(tracks[0], s, SEQ_CMD_BAR_GRAPH, 1, -1, 3333, 250);
-    s = add_step(tracks[0], s, SEQ_CMD_BAR_GRAPH, 0, -1, 3334, 250);
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 10000, 250);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 1, -1, 10000, 250);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 10000, 250);
 }
 
 void generateWaveformCollapse(SequencerTrack tracks[3]) {
@@ -110,9 +110,9 @@ void generateWaveFlicker(SequencerTrack tracks[3]) {
 
 void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 100, time_strings[0]);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 100, time_strings[1]);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 100, time_strings[2]);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 15, 33, time_strings[0]);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 15, 33, time_strings[1]);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 15, 33, time_strings[2]);
 }
 
 void generateFlipDisc(SequencerTrack tracks[3], const char time_strings[3][17]) {
@@ -246,18 +246,28 @@ void generateTemporalDesync(SequencerTrack tracks[3]) {
 }
 
 void generateDigitalRain(SequencerTrack tracks[3]) {
-    int s = 0;
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 100, 0);
-    for (int i = 0; i < 13; i++) {
-        char text[14] = "             ";
-        text[i] = random(33, 126);
-        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, text);
-        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, text);
-        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, text);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
-    }
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
 }
+
+void generateCountdown(SequencerTrack tracks[3]) {
+    int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_COUNTDOWN, 1, 1, 10, 1000);
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 1, 0, 0, "0");
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/engine_rev.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "LIFTOFF!");
+}
+
+void generateSystemError(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 100, 200, "ERROR");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "ERROR");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "SYSTEM MALFUNCTION");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SOUND, 0, 0, 0, 0, "/error_beeps.mp3");
+}
+
 
 // --- New Thematic Animation Generators ---
 
@@ -280,9 +290,9 @@ void generateLightning(SequencerTrack tracks[3]) {
 void generateScanner(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     // A Cylon/Knight Rider style scanner effect
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCANNER, 0, -1, 50, 0, "---");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 50, 0, "---");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCANNER, 2, -1, 50, 0, "---");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCANNER, 0, -1, 10000, 80, "---");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 10000, 80, "---");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCANNER, 2, -1, 10000, 80, "---");
 }
 
 void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[3][17]) {
@@ -377,6 +387,8 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_TIME_TRAVEL_TUNNEL:      generateTimeTravelTunnel(tracks, time_strings); break;
         case ANIMATION_FLUX_CAPACITOR_OVERLOAD: generateFluxCapacitorOverload(tracks); break;
         case ANIMATION_FIRE_TRAILS:             generateFireTrails(tracks, time_strings); break;
+        case ANIMATION_COUNTDOWN:               generateCountdown(tracks); break;
+        case ANIMATION_SYSTEM_ERROR:            generateSystemError(tracks); break;
 
         case ANIMATION_RANDOM_FLICKER:
         default:
@@ -384,16 +396,23 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
             break;
     }
 
+    // --- Add a final step to the main track to restore all displays ---
+    int end_idx = 0;
+    while(end_idx < MAX_SEQUENCE_STEPS && tracks[0].steps[end_idx].command != SEQ_CMD_NONE) {
+        end_idx++;
+    }
+    if (end_idx < MAX_SEQUENCE_STEPS - 2) {
+        end_idx = add_step(tracks[0], end_idx, SEQ_CMD_WAIT, 0, -1, 1000, 0);
+        end_idx = add_step(tracks[0], end_idx, SEQ_CMD_RESTORE_ALL_ROWS, 0, -1, 0, 0);
+    }
+
+    // --- Ensure all tracks have a proper END command ---
     for (int i = 0; i < 3; i++) {
-        int end_idx = 0;
-        while(end_idx < MAX_SEQUENCE_STEPS && tracks[i].steps[end_idx].command != SEQ_CMD_NONE) {
-            end_idx++;
+        int track_end_idx = 0;
+        while(track_end_idx < MAX_SEQUENCE_STEPS && tracks[i].steps[track_end_idx].command != SEQ_CMD_NONE) {
+            track_end_idx++;
         }
-        if (end_idx < MAX_SEQUENCE_STEPS - 2) {
-            end_idx = add_step(tracks[i], end_idx, SEQ_CMD_WAIT, i, -1, 1000, 0);
-            end_idx = add_step(tracks[i], end_idx, SEQ_CMD_RESTORE_ROW, i, -1, 0, 0);
-        }
-        add_step(tracks[i], end_idx, SEQ_CMD_END, i, 0, 0, 0);
+        add_step(tracks[i], track_end_idx, SEQ_CMD_END, i, 0, 0, 0);
     }
 
     for (int i = 0; i < 3; ++i) {
