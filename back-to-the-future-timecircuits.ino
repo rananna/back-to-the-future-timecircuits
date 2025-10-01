@@ -1017,11 +1017,11 @@ void setup() {
     ArduinoOTA.begin();
 
     // Clear any persistent manual display overrides from the previous session
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            updateDisplaySegment(i, j, "");
-        }
-    }
+   // for (int i = 0; i < 3; ++i) {
+   //     for (int j = 0; j < 4; ++j) {
+   //         updateDisplaySegment(i, j, "");
+ //       }
+ //  }
 
     Log_printf(LOG_LEVEL_INFO, "--- BOOT COMPLETE ---");
     bootTimestamp = millis();
