@@ -224,7 +224,6 @@ In addition to building sequences from scratch, you can trigger a number of pre-
 | **Countdown** | A 10-second countdown timer is displayed on the middle row, ending with a "LIFTOFF!" message and an engine revving sound. Great for dramatic entrances. |
 | **Knight Rider** | A smooth, red scanning light moves back and forth across the bottom display, just like KITT's scanner. |
 | **Cylon** | A red scanning light, similar to Knight Rider but with a wider trail, moves across the middle display, mimicking a Cylon from Battlestar Galactica. |
-| **Rainbow** | The middle display cycles through the colors of the rainbow, showing the name of each color. |
 | **Lightning** | Simulates a lightning storm. All displays flicker randomly and flash brightly, accompanied by the sound of electric sparks. |
 | **Loading** | A progress bar fills up on the middle display with the text "LOADING...". |
 | **Error** | A system malfunction sequence. The top display scrambles the word "ERROR," the middle display scrolls "SYSTEM MALFUNCTION," and error beeps play. |

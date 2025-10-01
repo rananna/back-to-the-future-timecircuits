@@ -43,7 +43,8 @@ enum SequenceCommand {
     SEQ_CMD_COUNTDOWN,
     SEQ_CMD_TRIGGER_ANIMATION,
     SEQ_CMD_MQTT_PUBLISH,
-    SEQ_CMD_DISPLAY_HA_SENSOR
+    SEQ_CMD_DISPLAY_HA_SENSOR,
+    SEQ_CMD_RESTORE_ALL_ROWS
 };
 
 // Represents a single step in a sequence

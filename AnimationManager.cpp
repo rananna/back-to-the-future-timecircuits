@@ -208,6 +208,7 @@ void handleDisplayAnimation() {
                 displaySpeed(speed);
                 animateDisplayRowRandomly(destRow);
                 animateDisplayRowRandomly(presRow);
+                animateDisplayRowRandomly(lastRow);
             } else {
                 displaySpeed(88);
                 flashAllDisplays();
@@ -581,78 +582,16 @@ void handleBootSequence() {
             break;
         case BOOT_COLD_START:
             {
-                const char* textToType = " INITIATE PWR";
-                int textLen = strlen(textToType);
-                int typingDuration = 5000; // 5 seconds
-                int charDuration = typingDuration / textLen;
-                static int charsTyped = 0;
-
                 if (!stateActionCompleted) {
                     playSound("/keypad_beeps.mp3");
                     blankAllDisplays();
-                    printToDisplay(destRow.day, "TM", 2);
-                    printToDisplay(destRow.year, "CIRC");
-                    printToDisplay(destRow.time, "UITS");
-                    destRow.day.writeDisplay();
-                    destRow.year.writeDisplay();
-                    destRow.time.writeDisplay();
+                    updateDisplaySegment(0, -1, "FLUX CAPACITOR");
+                    updateDisplaySegment(1, -1, "TIME CIRCUITS");
+                    updateDisplaySegment(2, -1, "ON");
                     stateActionCompleted = true;
-                    charsTyped = 0;
                 }
 
-                int charsToShow = elapsed / charDuration;
-                if (charsToShow > textLen) {
-                    charsToShow = textLen;
-                }
-
-                if (charsToShow > charsTyped) {
-                    const char* p_month = " IN";
-                    const char* p_day = "IT";
-                    const char* p_year = "IATE";
-                    const char* p_time = " PWR";
-
-                    char monthStr[4];
-                    char dayStr[3];
-                    char yearStr[5];
-                    char timeStr[5];
-
-                    int len_m = strlen(p_month);
-                    int len_d = strlen(p_day);
-                    int len_y = strlen(p_year);
-                    int len_t = strlen(p_time);
-
-                    int chars_m = (charsToShow > len_m) ? len_m : charsToShow;
-                    strncpy(monthStr, p_month, chars_m);
-                    monthStr[chars_m] = '\0';
-
-                    int chars_d = (charsToShow > len_m + len_d) ? len_d : ((charsToShow > len_m) ? charsToShow - len_m : 0);
-                    strncpy(dayStr, p_day, chars_d);
-                    dayStr[chars_d] = '\0';
-
-                    int chars_y = (charsToShow > len_m + len_d + len_y) ? len_y : ((charsToShow > len_m + len_d) ? charsToShow - (len_m + len_d) : 0);
-                    strncpy(yearStr, p_year, chars_y);
-                    yearStr[chars_y] = '\0';
-
-                    int chars_t = (charsToShow > len_m + len_d + len_y + len_t) ? len_t : ((charsToShow > len_m + len_d + len_y) ? charsToShow - (len_m + len_d + len_y) : 0);
-                    strncpy(timeStr, p_time, chars_t);
-                    timeStr[chars_t] = '\0';
-
-                    printToDisplay(presRow.month, monthStr, 1);
-                    printToDisplay(presRow.day, dayStr, 2);
-                    printToDisplay(presRow.year, yearStr, 0);
-                    printToDisplay(presRow.time, timeStr, 1);
-
-                    presRow.month.writeDisplay();
-                    presRow.day.writeDisplay();
-                    presRow.year.writeDisplay();
-                    presRow.time.writeDisplay();
-                    charsTyped = charsToShow;
-                }
-
-                if (elapsed > typingDuration + 2000) {
-                    // if (audio.isRunning()) {
-                    //     audio.stopSong();
-                    // }
+                if (elapsed > 5000) {
                     bootState = BOOT_FLUX_CAPACITOR_IGNITION;
                     bootStateStartTime = millis();
                 }
@@ -1090,6 +1029,16 @@ void handleSequencer() {
                 }
                 break;
 
+            case SEQ_CMD_RESTORE_ALL_ROWS:
+                if (!track.stepInitialized) {
+                    restoreDisplayRow(0);
+                    restoreDisplayRow(1);
+                    restoreDisplayRow(2);
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
             // --- Basic Commands ---
             case SEQ_CMD_WAIT:
                 if (!track.stepInitialized) {
@@ -1187,37 +1136,53 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_PULSE:
-                if (step.targetSegment < 0 || step.targetSegment >= 4) {
+                if (step.targetSegment < -1 || step.targetSegment >= 4) {
                     Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid segment %d for PULSE on track %d. Skipping.", step.targetSegment, i);
                     advance_step = true;
                     break;
                 }
                 if (!track.stepInitialized) {
-                    track.isPulsing[step.targetSegment] = true;
-                    track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
-                    track.pulseStates[step.targetSegment] = true;
-                    track.lastPulseToggle[step.targetSegment] = millis();
+                    if (step.targetSegment == -1) { // Apply to all segments
+                        for (int s = 0; s < 4; s++) {
+                            track.isPulsing[s] = true;
+                            track.pulseEndTimes[s] = millis() + step.intParam;
+                            track.pulseStates[s] = true;
+                            track.lastPulseToggle[s] = millis();
+                        }
+                    } else { // Apply to a single segment
+                        track.isPulsing[step.targetSegment] = true;
+                        track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
+                        track.pulseStates[step.targetSegment] = true;
+                        track.lastPulseToggle[step.targetSegment] = millis();
+                    }
                     track.stepInitialized = true;
-                    advance_step = true; // --- FIX: Immediately advance to the next command
+                    advance_step = true;
                 }
-                // The effect now runs in the background and does not block the sequence.
                 break;
 
             case SEQ_CMD_FLASH:
-                if (step.targetSegment < 0 || step.targetSegment >= 4) {
+                if (step.targetSegment < -1 || step.targetSegment >= 4) {
                     Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid segment %d for FLASH on track %d. Skipping.", step.targetSegment, i);
                     advance_step = true;
                     break;
                 }
                 if (!track.stepInitialized) {
-                    track.isFlashing[step.targetSegment] = true;
-                    track.flashEndTimes[step.targetSegment] = (step.intParam == 0) ? 0 : millis() + step.intParam;
-                    track.flashStates[step.targetSegment] = true;
-                    track.lastFlashToggle[step.targetSegment] = millis();
+                    if (step.targetSegment == -1) { // Apply to all segments
+                        for (int s = 0; s < 4; s++) {
+                            track.isFlashing[s] = true;
+                            track.flashEndTimes[s] = (step.intParam == 0) ? 0 : millis() + step.intParam;
+                            track.flashStates[s] = true;
+                            track.lastFlashToggle[s] = millis();
+                        }
+                    } else { // Apply to a single segment
+                        track.isFlashing[step.targetSegment] = true;
+                        track.flashEndTimes[step.targetSegment] = (step.intParam == 0) ? 0 : millis() + step.intParam;
+                        track.flashStates[step.targetSegment] = true;
+                        track.lastFlashToggle[step.targetSegment] = millis();
+                    }
                     track.stepInitialized = true;
-                    advance_step = true; // --- FIX: Immediately advance to the next command
+                    advance_step = true;
                 }
-                // The effect now runs in the background and does not block the sequence.
                 break;
 
             case SEQ_CMD_MARQUEE:
@@ -1264,18 +1229,24 @@ void handleSequencer() {
                 } else {
                     if (millis() - track.lastScannerUpdate > (unsigned long)step.intParam2) {
                         std::string scan_str = "             "; // 13 spaces
-                        scan_str[track.scannerPosition] = '#';
-                        updateDisplaySegment(step.targetRow, 0, scan_str.substr(0,3));
-                        updateDisplaySegment(step.targetRow, 1, scan_str.substr(3,2));
-                        updateDisplaySegment(step.targetRow, 2, scan_str.substr(5,4));
-                        updateDisplaySegment(step.targetRow, 3, scan_str.substr(9,4));
+                        std::string visual = step.stringParam;
+                        if (visual.empty()) visual = "#";
 
-                        if (track.scannerDirection) {
+                        scan_str.replace(track.scannerPosition, visual.length(), visual);
+                        updateDisplaySegment(step.targetRow, -1, scan_str);
+
+                        if (track.scannerDirection) { // moving right
                             track.scannerPosition++;
-                            if (track.scannerPosition >= 12) track.scannerDirection = false;
-                        } else {
+                            if (track.scannerPosition > 13 - visual.length()) {
+                                track.scannerPosition = 13 - visual.length();
+                                track.scannerDirection = false;
+                            }
+                        } else { // moving left
                             track.scannerPosition--;
-                            if (track.scannerPosition <= 0) track.scannerDirection = true;
+                            if (track.scannerPosition < 0) {
+                                track.scannerPosition = 0;
+                                track.scannerDirection = true;
+                            }
                         }
                         track.lastScannerUpdate = millis();
                     }
@@ -1677,7 +1648,7 @@ void handleAllSequencerMarquees() {
                 track.marqueeScrollPosition++;
 
                 // Check if the marquee has finished scrolling completely
-                if ((unsigned)track.marqueeScrollPosition >= track.marqueeText.length() - 13) {
+                if ((unsigned)track.marqueeScrollPosition > track.marqueeText.length() - 13) {
                     track.isMarqueeActive = false;
                     Log_printf(LOG_LEVEL_INFO, "SEQ: Marquee finished on track %d.", i);
                 } else {
