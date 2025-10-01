@@ -1367,10 +1367,16 @@ void handleSequencer() {
 
                     // Check if it's time to update the flickering characters.
                     if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
-                        // Build the string to display.
-                        std::string temp_scramble = step.stringParam;
+                        // Lock in the correct character before scrambling the rest
+                        if (track.scrambleCharIndex < step.stringParam.length()) {
+                            track.scrambleCurrentText[track.scrambleCharIndex] = step.stringParam[track.scrambleCharIndex];
+                        }
+
+                        // Build the string to display, starting with the current state.
+                        std::string temp_scramble = track.scrambleCurrentText;
+                        // Scramble the characters that haven't been locked in yet.
                         for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
-                             temp_scramble[j] = (char)random(33, 126);
+                            temp_scramble[j] = (char)random(33, 126);
                         }
                         updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
                         track.lastScrambleUpdate = millis();
