@@ -605,9 +605,14 @@ void handleBootSequence() {
                     playSound("/relay_activation.mp3");
                     blankAllDisplays();
                     // Instantly display the text instead of typing it out
-                    updateDisplaySegment(0, -1, "  TMCIRCUITS");
-                    updateDisplaySegment(1, -1, "   ACTIVATE");
-
+                    printToDisplay(destRow.month, "");
+                    printToDisplay(destRow.day, " TM");
+                    printToDisplay(destRow.year, "CIRC");
+                    printToDisplay(destRow.time, "UITS");
+                    printToDisplay(presRow.month, "");
+                    printToDisplay(presRow.day, "");
+                    printToDisplay(presRow.year, "ACTI");
+                    printToDisplay(presRow.time, "VATE");
                     // Explicitly write to the display hardware
                     destRow.month.writeDisplay();
                     destRow.day.writeDisplay();
