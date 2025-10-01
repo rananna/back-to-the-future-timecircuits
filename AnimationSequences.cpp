@@ -23,6 +23,20 @@ static int add_intro_sound_steps(SequencerTrack& track, int step_idx) {
 
 // --- Individual Animation Generators ---
 
+void generateRandomFlicker(SequencerTrack tracks[3]) {
+    int s = 0;
+    s = add_intro_sound_steps(tracks[0], s);
+    // Loop for 10 seconds (100 * 100ms)
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 100, 0);
+    // Restore all rows to normal at the start of each loop
+    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
+    // Glitch a random row for a short duration (200ms)
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), -1, 200, 50);
+    // Wait for the remainder of the 100ms interval, plus a random extra delay
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 80 + random(0, 200), 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+}
+
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -407,6 +421,12 @@ void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FLASH DONE");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // --- RANDOM_FLICKER (NEW TEST) ---
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "RANDOM FLICKER");
+    s = add_step(tracks[0], s, SEQ_CMD_TRIGGER_ANIMATION, 0, 0, ANIMATION_RANDOM_FLICKER, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 10000, 0); // Wait for the animation to run
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "R_FLICKER DONE");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
     // --- RANDOM_FLICKER_TEXT ---
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "FLICKER");
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 4000, 100);
@@ -731,11 +751,9 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_DEBUG_PARALLEL_LOGIC:    generateDebugParallelLogicSequence(tracks); break;
         case ANIMATION_DEBUG_STRESS:            generateDebugStressSequence(tracks); break;
 
-        case ANIMATION_RANDOM_FLICKER:
-            generateTornadoFlicker(tracks);
-            break;
+        case ANIMATION_RANDOM_FLICKER:          generateRandomFlicker(tracks); break;
         default:
-            generateWaveFlicker(tracks);
+            generateTornadoFlicker(tracks);
             break;
     }
 
