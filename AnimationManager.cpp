@@ -2,6 +2,7 @@
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DebugLog.h"
+#include "AnimationSequences.h"
 
 // --- NEW: A global timeout for any single animation sequence track ---
 #define MAX_SEQUENCE_DURATION 60000 // 60 seconds
@@ -1431,11 +1432,9 @@ void handleSequencer() {
 
             case SEQ_CMD_TRIGGER_ANIMATION:
                 if (!track.stepInitialized) {
-                    if (step.intParam == 1) {
-                        startTimeTravelAnimation();
-                    } else if (step.intParam == 2) {
-                        startStyledAnimation();
-                    }
+                    // The animation to trigger is passed in intParam.
+                    // The row to trigger it on is passed in targetRow.
+                    triggerAnimationOnRow(step.targetRow, (AnimationType)step.intParam);
                     track.stepInitialized = true;
                     advance_step = true;
                 }
@@ -1643,6 +1642,38 @@ void runSequencerTest() {
  * @param track The sequencer track to activate the marquee on.
  * @param text The text to be scrolled.
  */
+void triggerAnimationOnRow(int row, AnimationType animType) {
+    if (row < 0 || row > 2) {
+        Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid row %d for triggerAnimationOnRow", row);
+        return;
+    }
+
+    Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering animation %d on row %d", (int)animType, row);
+
+    // Generate the requested animation into a temporary set of tracks.
+    // Most simple animations only use the first track (temp_tracks[0]).
+    SequencerTrack temp_tracks[3];
+    generateAnimationSequence(animType, temp_tracks);
+
+    // Stop whatever was running on the target row's track and reset it.
+    stopAndCleanupTrack(row);
+    sequencerTracks[row].reset();
+
+    // Copy the steps from the generated animation's first track to the target track.
+    for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
+        sequencerTracks[row].steps[i] = temp_tracks[0].steps[i];
+        if (temp_tracks[0].steps[i].command == SEQ_CMD_END) {
+            break; // Stop copying after the END command.
+        }
+    }
+
+    // Activate the newly populated track.
+    sequencerTracks[row].isActive = true;
+    sequencerTracks[row].trackStartTime = millis();
+    sequencerTracks[row].stepStartTime = millis();
+    sequencerTracks[row].originalBrightness = currentSettings.brightness;
+}
+
 void startSequencerMarquee(SequencerTrack& track, const std::string& text) {
     if (text.empty()) {
         track.isMarqueeActive = false;

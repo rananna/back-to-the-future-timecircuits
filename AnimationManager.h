@@ -8,6 +8,10 @@
 
 #ifndef ANIMATION_MANAGER_H
 #define ANIMATION_MANAGER_H
+
+// Forward-declare the enum to avoid circular dependencies
+enum AnimationType;
+
 #include "HardwareControl.h"
 
 // --- MODIFIED: New constants and states for the cinematic boot sequence ---
@@ -75,6 +79,7 @@ void runSequencerTest();
 // --- NEW: Functions for sequencer-driven marquee ---
 void startSequencerMarquee(SequencerTrack& track, const std::string& text);
 void handleAllSequencerMarquees();
+void triggerAnimationOnRow(int row, AnimationType animType);
 // --- END: NEW Sequencer Data Structures ---
 
 #endif // ANIMATION_MANAGER_H

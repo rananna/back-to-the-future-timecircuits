@@ -446,12 +446,11 @@ void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
 
 /**
  * @brief (DEBUG) Tests the control-flow and logic commands of the sequencer.
- * @details This sequence is designed to validate the non-visual, logic-based
- * commands, such as countdowns, MQTT publishing, and triggering other animations.
- * - Track 0: Tests CLEAR_SEGMENT and RESTORE_ROW.
- * - Track 1: Tests DISPLAY_HA_SENSOR and then TRIGGER_ANIMATION to start a different
- *   animation on track 2.
- * - Track 2: Tests RESTORE_ALL_ROWS after being triggered by track 1.
+ * @details This is a single-track sequence that executes a series of logic-based
+ * commands in order, using the bottom row (row 2) to display the status of each
+ * test. All commands are initiated from track 0.
+ * It tests: CLEAR_SEGMENT, RESTORE_ROW, DISPLAY_HA_SENSOR, TRIGGER_ANIMATION,
+ * and RESTORE_ALL_ROWS.
  */
 void generateDebugLogicSequence(SequencerTrack tracks[3]) {
     int s0 = 0;
@@ -670,6 +669,8 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_DEBUG_STRESS:            generateDebugStressSequence(tracks); break;
 
         case ANIMATION_RANDOM_FLICKER:
+            generateWaveFlicker(tracks);
+            break;
         default:
             generateTornadoFlicker(tracks);
             break;
