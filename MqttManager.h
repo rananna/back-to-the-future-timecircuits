@@ -31,6 +31,9 @@ extern String currentProfileName;
 extern String lastDepartedPreset;
 extern bool isRadioStreaming;
 
+// --- NEW: Global state for saving display mode before animations ---
+extern int preAnimationDisplayMode;
+
 
 void mqttCallback(char* topic, unsigned char* payload, unsigned int length);
 void setupMqtt();
