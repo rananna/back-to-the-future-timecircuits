@@ -591,8 +591,8 @@ void handleBootSequence() {
         case BOOT_AWAIT_HUM:
             if (!stateActionCompleted) {
                 blankAllDisplays();
-                printToDisplay(presRow.month, "SYS");
-                printToDisplay(presRow.day, "IS");
+                printToDisplay(presRow.month, " SYS");
+                printToDisplay(presRow.day, " IS");
                 printToDisplay(presRow.year, "BOOT");
                 printToDisplay(presRow.time, "ING ");
                 destRow.month.writeDisplay();
