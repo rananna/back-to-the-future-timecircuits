@@ -1445,6 +1445,49 @@ void handleSequencerCommand(const std::string& payload) {
                 current_step.intParam = command["intParam"] | 1;
             } else if (strcmp(cmd, "LOOP_END") == 0) {
                 current_step.command = SEQ_CMD_LOOP_END;
+            } else if (strcmp(cmd, "SET_TEXT") == 0) {
+                current_step.command = SEQ_CMD_SET_TEXT;
+                current_step.stringParam = command["stringParam"] | "";
+                current_step.targetSegment = command["targetSegment"] | -1;
+            } else if (strcmp(cmd, "CLEAR_SEGMENT") == 0) {
+                current_step.command = SEQ_CMD_CLEAR_SEGMENT;
+                current_step.targetSegment = command["targetSegment"] | 0;
+            } else if (strcmp(cmd, "SET_BRIGHTNESS") == 0) {
+                current_step.command = SEQ_CMD_SET_BRIGHTNESS;
+                current_step.intParam = command["intParam"] | 7; // Default to max brightness
+            } else if (strcmp(cmd, "RESTORE_ROW") == 0) {
+                current_step.command = SEQ_CMD_RESTORE_ROW;
+            } else if (strcmp(cmd, "TYPEWRITER") == 0) {
+                current_step.command = SEQ_CMD_TYPEWRITER;
+                current_step.stringParam = command["stringParam"] | "";
+                current_step.targetSegment = command["targetSegment"] | -1;
+                current_step.intParam = command["intParam"] | 50; // Delay
+            } else if (strcmp(cmd, "WIPE") == 0) {
+                current_step.command = SEQ_CMD_WIPE;
+                current_step.stringParam = command["stringParam"] | "";
+                current_step.intParam = command["intParam"] | 50; // Delay
+            } else if (strcmp(cmd, "SCROLL_IN") == 0) {
+                current_step.command = SEQ_CMD_SCROLL_IN;
+                current_step.stringParam = command["stringParam"] | "";
+                current_step.intParam = command["intParam"] | 50; // Delay
+            } else if (strcmp(cmd, "CROSSFADE_TEXT") == 0) {
+                current_step.command = SEQ_CMD_CROSSFADE_TEXT;
+                current_step.stringParam = command["stringParam"] | "";
+                current_step.targetSegment = command["targetSegment"] | -1;
+                current_step.intParam = command["intParam"] | 1000; // Duration
+            } else if (strcmp(cmd, "TRIGGER_ANIMATION") == 0) {
+                current_step.command = SEQ_CMD_TRIGGER_ANIMATION;
+                current_step.intParam = command["intParam"] | 0; // Animation type
+            } else if (strcmp(cmd, "MQTT_PUBLISH") == 0) {
+                current_step.command = SEQ_CMD_MQTT_PUBLISH;
+                current_step.stringParam = command["stringParam"] | ""; // Topic
+                current_step.stringParam2 = command["stringParam2"] | ""; // Payload
+            } else if (strcmp(cmd, "DISPLAY_HA_SENSOR") == 0) {
+                current_step.command = SEQ_CMD_DISPLAY_HA_SENSOR;
+                current_step.stringParam = command["stringParam"] | ""; // Topic (sensor entity_id)
+                current_step.targetSegment = command["targetSegment"] | 0;
+            } else if (strcmp(cmd, "RESTORE_ALL_ROWS") == 0) {
+                current_step.command = SEQ_CMD_RESTORE_ALL_ROWS;
             } else {
                 Log_printf(LOG_LEVEL_WARN, "Unknown sequencer command '%s' in track %d.", cmd, targetRow);
                 continue;
