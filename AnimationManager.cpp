@@ -789,8 +789,10 @@ void handleBootSequence() {
 
                     displaySpeedRamp(speed);
 
-                    printToDisplay(destRow.year, "SYS");
-                    printToDisplay(destRow.time, "GO");
+                    printToDisplay(destRow.month, "SYS");
+                    printToDisplay(destRow.day, "IS");
+                    printToDisplay(presRow.year, "LIVE");
+                    printToDisplay(presRow.time, " NOW");
                     destRow.year.writeDisplay();
                     destRow.time.writeDisplay();
                 //}
