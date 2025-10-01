@@ -1510,6 +1510,21 @@ void stopAndCleanupTrack(int trackIndex) {
     track.reset();
 
     Log_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
+
+    // --- NEW: Check if this was the very last active track ---
+    bool anyOtherTrackActive = false;
+    for (int i = 0; i < 3; ++i) {
+        if (sequencerTracks[i].isActive) {
+            anyOtherTrackActive = true;
+            break; // Found another active track, no need to check further
+        }
+    }
+
+    // If no other tracks are active, force a full display restore to the clock.
+    if (!anyOtherTrackActive) {
+        Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Restoring normal clock display.");
+        updateNormalClockDisplay(true, true, true); // Force redraw all rows
+    }
 }
 
 /**
