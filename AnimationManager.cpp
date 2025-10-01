@@ -168,10 +168,11 @@ void handleDisplayAnimation() {
     const unsigned long MAX_ANIMATION_DURATION = 30000; // 30 seconds
     if (elapsed > MAX_ANIMATION_DURATION) {
         Serial.println(F("ANIMATION_ERROR: Time travel animation timed out. Forcing exit."));
+        comprehensiveAnimationCleanup();
         isAnimating = false;
         currentPhase = ANIM_INACTIVE;
-        updateNormalClockDisplay();
         updateHaStatus("Idle");
+        broadcastAnimationComplete();
         return;
     }
     static AnimationPhase lastPhase = ANIM_INACTIVE;
@@ -235,13 +236,14 @@ void handleDisplayAnimation() {
              if (elapsed < 1000) {
                 animateTornadoFlicker();
             } else {
+                comprehensiveAnimationCleanup();
                 isAnimating = false;
                 currentPhase = ANIM_INACTIVE;
                 lastPhase = ANIM_INACTIVE; // Reset for next run
-                updateNormalClockDisplay();
                 updateHaStatus("Idle");
                 isEchoEffectActive = true;
                 echoEffectStartTime = millis();
+                broadcastAnimationComplete();
             }
             break;
         default:
@@ -487,6 +489,7 @@ void handleStyledAnimation() {
             break;
 
         default:
+            comprehensiveAnimationCleanup();
             isStyledAnimating = false;
             currentStyledPhase = ANIM_INACTIVE;
             Serial.println("ANIM_LOG: Styled animation entered unknown state. Forcing cleanup.");
@@ -1458,6 +1461,20 @@ void handleSequencer() {
             // --- End of Sequence ---
             case SEQ_CMD_END:
             case SEQ_CMD_NONE:
+                { // New scope for local variable
+                    // This is a natural end to a sequence. Check if it's the very last track.
+                    bool wasLastTrack = true;
+                    for (int j = 0; j < 3; j++) {
+                        if (i != j && sequencerTracks[j].isActive) {
+                            wasLastTrack = false;
+                            break;
+                        }
+                    }
+                    // If it was the last active track, now is the correct time to signal completion.
+                    if (wasLastTrack) {
+                        broadcastAnimationComplete();
+                    }
+                }
                 stopAndCleanupTrack(i);
                 needsDisplayUpdate = true;
                 break;
@@ -1520,9 +1537,12 @@ void stopAndCleanupTrack(int trackIndex) {
 
     // If no other tracks are active, restore the original display mode.
     if (!anyOtherTrackActive) {
-        Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Restoring pre-animation display mode: %d", preAnimationDisplayMode);
+        Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Cleaning up and restoring pre-animation display mode: %d", preAnimationDisplayMode);
+        comprehensiveAnimationCleanup(); // Full cleanup of all states
         currentSettings.displayMode = preAnimationDisplayMode;
         // The main loop will now handle updating the display according to the restored mode.
+        // NOTE: broadcastAnimationComplete() is now called from the SEQ_CMD_END handler
+        // to prevent premature completion signals when one sequence triggers another.
     }
 }
 
