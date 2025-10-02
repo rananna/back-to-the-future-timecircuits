@@ -1248,7 +1248,9 @@ void loop() {
                     // We temporarily disconnect MQTT to free its large buffers, start mDNS,
                     // and then immediately reconnect.
                     if (!mDnsIsActive && isHaDiscoveryComplete()) {
-                        Log_printf(LOG_LEVEL_INFO, "HA Discovery complete. Temporarily disconnecting MQTT to start mDNS...");
+                        Log_printf(LOG_LEVEL_INFO, "HA Discovery complete. Temporarily disconnecting services to start mDNS...");
+                        // --- FIX START: Stop Web Server and MQTT Client to free memory ---
+                        server.end();
                         mqttClient.disconnect();
                         delay(250); // Allow time for buffers to be freed.
 
@@ -1257,13 +1259,15 @@ void loop() {
                             mDnsIsActive = true;
                             Log_printf(LOG_LEVEL_INFO, "mDNS service started successfully.");
                         } else {
-                            Log_printf(LOG_LEVEL_ERROR, "mDNS failed to start even after freeing MQTT memory.");
+                            Log_printf(LOG_LEVEL_ERROR, "mDNS failed to start even after freeing memory.");
                         }
 
                         // Whether mDNS succeeded or not, we must reconnect to MQTT immediately
                         // to prevent the main loop from stopping mDNS on the next iteration.
-                        Log_printf(LOG_LEVEL_INFO, "Reconnecting MQTT after mDNS attempt...");
+                        Log_printf(LOG_LEVEL_INFO, "Reconnecting services after mDNS attempt...");
                         reconnectMqtt(); // This attempts to reconnect immediately.
+                        server.begin(); // Restart the web server
+                        // --- FIX END ---
                     }
 
                     // If we are connected, ensure the failure counter is reset.
