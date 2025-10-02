@@ -86,7 +86,7 @@ This table details every command available in the sequencer.
 | `RANDOM_FLICKER_TEXT` | Fills the display with random characters that flicker rapidly. | `stringParam` (ignored), `intParam` (duration), `intParam2` (flicker speed) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":5000, "intParam2":50}` |
 | `BAR_GRAPH` | Displays a "charging" bar that fills from left to right. | `stringParam` (label), `intParam` (start %), `intParam2` (duration) | `{"command":"BAR_GRAPH", "stringParam":"LOAD", "intParam":0, "intParam2":3000}` |
 | `SCANNER` | Creates a back-and-forth scanning light effect ("Knight Rider"). | `stringParam` (character), `intParam` (duration), `intParam2` (speed) | `{"command":"SCANNER", "stringParam":"-", "intParam":10000, "intParam2":50}` |
-| `COUNTDOWN` | Displays a countdown from a set number. | `stringParam` (prefix), `targetSegment` (optional, default: -1), `intParam` (start number), `intParam2` (delay per number) | `{"command":"COUNTDOWN", "stringParam":"T-", "intParam":10, "intParam2":1000}` |
+| `COUNTDOWN` | Displays a countdown. For numbers > 20, it shows digits. For 20-0, it spells out the word (e.g., "TWENTY"). | `targetSegment` (optional, default: -1), `intParam` (start number), `intParam2` (delay per number) | `{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}` |
 | `CLEAR_SEGMENT` | Clears the text from a specific segment or the entire row. | `targetSegment` (optional, default: 0) | `{"command":"CLEAR_SEGMENT", "targetSegment": 1}` |
 | `RESTORE_ROW` | Restores the target row to its normal display (clock, weather, etc.). | (none) | `{"command":"RESTORE_ROW"}` |
 | `RESTORE_ALL_ROWS` | Restores all three display rows to their normal function. | (none) | `{"command":"RESTORE_ALL_ROWS"}` |

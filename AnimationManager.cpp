@@ -1254,18 +1254,52 @@ void handleSequencer() {
 
             case SEQ_CMD_COUNTDOWN:
                 { // Scope for local variables
+                    // Helper lambda to get the string for the countdown value
+                    auto get_countdown_string = [](int value) -> std::string {
+                        if (value > 20) {
+                            return std::to_string(value);
+                        }
+                        switch (value) {
+                            case 0: return "ZERO";
+                            case 1: return "ONE";
+                            case 2: return "TWO";
+                            case 3: return "THREE";
+                            case 4: return "FOUR";
+                            case 5: return "FIVE";
+                            case 6: return "SIX";
+                            case 7: return "SEVEN";
+                            case 8: return "EIGHT";
+                            case 9: return "NINE";
+                            case 10: return "TEN";
+                            case 11: return "ELEVEN";
+                            case 12: return "TWELVE";
+                            case 13: return "THIRTEEN";
+                            case 14: return "FOURTEEN";
+                            case 15: return "FIFTEEN";
+                            case 16: return "SIXTEEN";
+                            case 17: return "SEVENTEEN";
+                            case 18: return "EIGHTEEN";
+                            case 19: return "NINETEEN";
+                            case 20: return "TWENTY";
+                            default: return ""; // Should not happen for value >= 0
+                        }
+                    };
+
                     // Helper lambda to format and display the countdown string
                     auto display_countdown = [&](int value) {
-                        // Combine the prefix text (if any) with the current countdown value
-                        std::string text_to_display = step.stringParam + " " + std::to_string(value);
+                        std::string text_to_display = get_countdown_string(value);
 
-                        // Right-align the combined string on the 13-character display
-                        if (text_to_display.length() > 13) {
-                            // If the string is too long, truncate from the left
-                            text_to_display = text_to_display.substr(text_to_display.length() - 13);
-                        } else {
-                            // Otherwise, pad with spaces on the left
-                            text_to_display = std::string(13 - text_to_display.length(), ' ') + text_to_display;
+                        // Center the text on the 13-character display
+                        if (text_to_display.length() < 13) {
+                            int padding = (13 - text_to_display.length()) / 2;
+                            text_to_display = std::string(padding, ' ') + text_to_display;
+                            // Pad the rest to clear previous characters
+                            while (text_to_display.length() < 13) {
+                                text_to_display += " ";
+                            }
+                        } else if (text_to_display.length() > 13) {
+                            // Should not happen with current words, but as a safeguard
+                            text_to_display = text_to_display.substr(0, 13);
                         }
 
                         // This command is assumed to always target the full row
