@@ -1366,15 +1366,20 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_BAR_GRAPH:
+                // intParam:  Starting percentage (0-100)
+                // intParam2: Duration in milliseconds
                 if (!track.stepInitialized) {
-                    track.barGraphPercentage = 0.0f;
-                    track.lastBarGraphUpdate = millis();
+                    track.barGraphStartTime = millis(); // Use a dedicated timer
                     track.stepInitialized = true;
                 }
-                // The animation completes when the total duration from intParam has passed.
-                if (commandElapsed >= (unsigned long)step.intParam) {
-                    // Ensure the bar is full and text is final at the end.
-                    std::string final_bar = "=============";
+
+                unsigned long animElapsed = millis() - track.barGraphStartTime;
+                unsigned long totalDuration = (unsigned long)step.intParam2;
+
+                // Check for animation completion
+                if (animElapsed >= totalDuration) {
+                    // Ensure the bar is 100% full at the end
+                    std::string final_bar = "|||||||||||||"; // Use '|' character
                     if (!step.stringParam.empty()) {
                         int text_len = step.stringParam.length();
                         int start_pos = (13 - text_len) / 2;
@@ -1384,24 +1389,29 @@ void handleSequencer() {
                     updateDisplaySegment(step.targetRow, -1, final_bar);
                     advance_step = true;
                 } else {
-                    // Calculate progress based on elapsed time vs total duration
-                    float progress = (float)commandElapsed / (float)step.intParam;
-                    if(progress > 1.0f) progress = 1.0f;
+                    // Calculate animation progress
+                    float startPercent = (float)constrain(step.intParam, 0, 100) / 100.0f;
+                    float animProgress = (totalDuration > 0) ? ((float)animElapsed / (float)totalDuration) : 1.0f;
+                    if (animProgress > 1.0f) animProgress = 1.0f;
 
-                    std::string bar = "-------------";
-                    int lit_count = (int)(progress * 13);
-                    for(int j=0; j<lit_count; j++) bar[j] = '=';
+                    // Calculate the current state of the bar
+                    float currentProgress = startPercent + ((1.0f - startPercent) * animProgress);
+                    int lit_count = (int)(currentProgress * 13.0f);
+                    if (lit_count > 13) lit_count = 13;
+
+                    std::string bar = "             "; // Use spaces for the empty part
+                    for (int j = 0; j < lit_count; j++) {
+                        bar[j] = '|'; // Use '|' character
+                    }
 
                     // Overlay the text if it exists
                     if (!step.stringParam.empty()) {
                         int text_len = step.stringParam.length();
                         int start_pos = (13 - text_len) / 2;
                         if (start_pos < 0) start_pos = 0;
-                        // Replace the bar section with the text
                         bar.replace(start_pos, text_len, step.stringParam);
                     }
 
-                    // Update the entire row with the new string
                     updateDisplaySegment(step.targetRow, -1, bar);
                 }
                 break;
