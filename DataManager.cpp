@@ -443,7 +443,8 @@ static bool fetchWeatherDataFromApi() {
         }
 
         // Use a stack-allocated buffer for headers to avoid heap fragmentation.
-        char header_buf[2048];
+        // Increased from 2048 to 4096 to handle larger API response headers.
+        char header_buf[4096];
         int http_status = 0;
         size_t header_len = 0;
         unsigned long header_read_start_time = millis();
