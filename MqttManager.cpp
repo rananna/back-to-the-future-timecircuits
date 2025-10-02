@@ -712,7 +712,6 @@ void reconnectMqtt() {
         Log_printf(LOG_LEVEL_INFO, "HA discovery already completed. Skipping.");
     }
 
-    publishAllHaStates();
     String command_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/+/command";
     mqttClient.subscribe(command_topic.c_str());
     Log_printf(LOG_LEVEL_DEBUG, "Subscribed to wildcard command topic: %s", command_topic.c_str());
@@ -745,6 +744,7 @@ void reconnectMqtt() {
       // All control is now handled via the wildcard command_topic subscription
       // and the datapoint marquee text entities.
     }
+    publishAllHaStates();
   } else {
     const char* error_str = "Unknown";
     switch (mqttClient.state()) {
