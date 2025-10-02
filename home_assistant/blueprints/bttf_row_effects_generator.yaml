@@ -1,8 +1,7 @@
 blueprint:
   name: BTTF Time Circuits - Row Effects Generator
   description: >-
-    Starts or stops a continuous, attention-grabbing effect on an entire row, like a slow pulse or a rapid flash.
-    NOTE: These effects run forever until you stop them. To stop an effect, run the same script again, but choose the 'Stop Effect' action.
+    Runs a one-shot, attention-grabbing effect on an entire row, like a slow pulse or a rapid flash, for a specific duration.
   domain: script
   input:
     mqtt_topic:
@@ -23,7 +22,7 @@ blueprint:
               value: "BOTTOM"
     effect:
       name: Row Effect
-      description: "Select the continuous effect to run on the row."
+      description: "Select the effect to run on the row."
       default: "PULSE"
       selector:
         select:
@@ -32,23 +31,21 @@ blueprint:
               value: "PULSE"
             - label: "Flash (rapid blink)"
               value: "FLASH"
-    action:
-      name: Action
-      description: "Start the effect or stop it."
-      default: "1"
+    duration:
+      name: Effect Duration (seconds)
+      description: "How long the effect should run before the row is restored."
+      default: 5
       selector:
-        select:
-          options:
-            - label: "Start Effect"
-              value: "1"
-            - label: "Stop Effect"
-              value: "0"
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: "s"
 
 mode: single
 
 sequence:
   - service: mqtt.publish
-    data:
+    data_template:
       topic: !input mqtt_topic
       payload: >
         {{
@@ -58,8 +55,15 @@ sequence:
                 {
                   "command": effect,
                   "targetRow": target_row,
-                  "targetSegment": -1,
-                  "intParam": action | int
+                  "targetSegment": -1
+                },
+                {
+                  "command": "WAIT",
+                  "intParam": (duration * 1000) | int
+                },
+                {
+                  "command": "RESTORE_ROW",
+                  "targetRow": target_row
                 }
               ]
             ]

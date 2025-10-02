@@ -34,6 +34,15 @@ blueprint:
           min: 20
           max: 1000
           unit_of_measurement: "ms"
+    scramble_speed:
+      name: Scramble Speed (milliseconds)
+      description: "The speed of the random character flicker, in milliseconds. A lower number is faster."
+      default: 50
+      selector:
+        number:
+          min: 20
+          max: 500
+          unit_of_measurement: "ms"
     restore_row:
       name: Restore Row After Scramble
       description: "If enabled, the row will be restored to its previous state after the animation finishes."
@@ -54,7 +63,8 @@ sequence:
             "targetRow": target_row,
             "targetSegment": -1,
             "stringParam": text_to_display,
-            "intParam": lock_in_speed
+            "intParam": lock_in_speed,
+            "intParam2": scramble_speed
           }
         ] -%}
         {%- if restore_row -%}
