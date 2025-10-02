@@ -1209,206 +1209,101 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
 }
 
 void handleSequencerCommand(const std::string& payload) {
-    // --- NEW: Save the current display mode before starting any sequence ---
     preAnimationDisplayMode = currentSettings.displayMode;
-
-    // --- FIX: Stop any and all currently running sequences before starting a new one ---
-    // This acts as a "master reset" to prevent state corruption or conflicts when
-    // a new sequence is triggered while another is still active.
     stopAllSequences();
 
-    // --- NEW: Handle special, non-JSON-based named sequences ---
+    // Handle special, non-JSON-based named sequences that have their own generation functions
     if (payload == "Debug") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Debug'");
         generateAnimationSequence(ANIMATION_DEBUG, sequencerTracks);
-        return; // Bypass JSON parsing
+        return;
     } else if (payload == "DebugEffects") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugEffects'");
         generateAnimationSequence(ANIMATION_DEBUG_EFFECTS, sequencerTracks);
-        return; // Bypass JSON parsing
+        return;
     } else if (payload == "DebugLogic") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugLogic'");
         generateAnimationSequence(ANIMATION_DEBUG_LOGIC, sequencerTracks);
-        return; // Bypass JSON parsing
+        return;
     } else if (payload == "DebugParallelLogic") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugParallelLogic'");
         generateAnimationSequence(ANIMATION_DEBUG_PARALLEL_LOGIC, sequencerTracks);
-        return; // Bypass JSON parsing
+        return;
     } else if (payload == "DebugStress") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugStress'");
         generateAnimationSequence(ANIMATION_DEBUG_STRESS, sequencerTracks);
-        return; // Bypass JSON parsing
+        return;
     } else if (payload == "CrossfadeTest") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'CrossfadeTest'");
         runCrossfadeTest();
-        return; // Bypass JSON parsing
+        return;
     } else if (payload == "DebugWipe") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugWipe'");
         runWipeTest();
-        return; // Bypass JSON parsing
+        return;
     }
 
     JsonDocument doc;
     std::string json_to_parse;
 
-    // First, check if the payload is a named sequence string
-    if (payload == "Intruder Alert") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Intruder Alert'");
-        json_to_parse = R"([
-            {"targetRow":0, "commands":[{"command":"MARQUEE", "stringParam":"INTRUDER ALERT"}, {"command":"SOUND", "stringParam":"electric_sparks.mp3"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]},
-            {"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":100, "intParam2":400}]},
-            {"targetRow":2, "commands":[{"command":"MARQUEE", "stringParam":"LOCKDOWN INITIATED"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]}
-        ])";
-    } else if (payload == "Time Travel") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Time Travel'");
-        json_to_parse = R"([
-            {"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"GO", "intParam":0, "intParam2":8000}]},
-            {"targetRow": 1, "commands": [{"command": "MARQUEE", "stringParam": "TIME TRAVEL ACTIVATED"}, {"command": "WAIT", "intParam": 1000}, {"command": "MARQUEE", "stringParam": "88 MPH"}]},
-            {"targetRow": 2, "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 8000}]}
-        ])";
-    } else if (payload == "Party Mode") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Party Mode'");
-        json_to_parse = R"([
-            {"targetRow":0, "commands":[{"command":"MARQUEE", "stringParam":"PARTY TIME"}, {"command":"LOOP_START"}, {"command":"PULSE", "targetSegment":-1, "intParam":1000}, {"command":"WAIT", "intParam":1000}, {"command":"LOOP_END"}]},
-            {"targetRow":1, "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"DANCE"}, {"command":"WAIT", "intParam":2000}, {"command":"MARQUEE", "stringParam":"PARTY"}, {"command":"WAIT", "intParam":2000}, {"command":"LOOP_END"}]},
-            {"targetRow":2, "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"WOOHOO"}, {"command":"WAIT", "intParam":5000}, {"command":"LOOP_END"}]}
-        ])";
-    } else if (payload == "Countdown") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Countdown'");
-        json_to_parse = R"([
-            {"targetRow":1, "commands":[{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}, {"command":"MARQUEE", "stringParam":"LIFTOFF"}, {"command":"SOUND", "stringParam":"engine_rev.mp3"}]}
-        ])";
-    } else if (payload == "Knight Rider") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Knight Rider'");
-        json_to_parse = R"([
-            {"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}
-        ])";
-    } else if (payload == "Cylon") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Cylon'");
-        json_to_parse = R"([
-            {"targetRow":1, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":200}]}
-        ])";
-    } else if (payload == "Lightning") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Lightning'");
-        json_to_parse = R"([
-            {"targetRow":0, "commands":[
-                {"command":"SOUND", "stringParam":"/lightning.mp3"},
-                {"command":"LOOP_START", "intParam":10},
-                {"command":"RANDOM_FLICKER_TEXT", "targetSegment":-1, "stringParam":"             ", "intParam":200, "intParam2":50},
-                {"command":"WAIT", "intParam":100},
-                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"|||||||||||||"},
-                {"command":"FLASH", "targetSegment":-1, "intParam":150},
-                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"             "},
-                {"command":"WAIT", "intParam":150},
-                {"command":"LOOP_END"}
-            ]},
-            {"targetRow":1, "commands":[
-                {"command":"LOOP_START", "intParam":10},
-                {"command":"RANDOM_FLICKER_TEXT", "targetSegment":-1, "stringParam":"             ", "intParam":200, "intParam2":50},
-                {"command":"WAIT", "intParam":100},
-                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"|||||||||||||"},
-                {"command":"FLASH", "targetSegment":-1, "intParam":150},
-                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"             "},
-                {"command":"WAIT", "intParam":150},
-                {"command":"LOOP_END"}
-            ]},
-            {"targetRow":2, "commands":[
-                {"command":"LOOP_START", "intParam":10},
-                {"command":"RANDOM_FLICKER_TEXT", "targetSegment":-1, "stringParam":"             ", "intParam":200, "intParam2":50},
-                {"command":"WAIT", "intParam":100},
-                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"|||||||||||||"},
-                {"command":"FLASH", "targetSegment":-1, "intParam":150},
-                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"             "},
-                {"command":"WAIT", "intParam":150},
-                {"command":"LOOP_END"}
-            ]}
-        ])";
-    } else if (payload == "Loading") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Loading'");
-        json_to_parse = R"([
-            {"targetRow":0, "commands":[
-                {"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"},
-                {"command":"WAIT", "intParam":1500}
-            ]},
-            {"targetRow":1, "commands":[
-                {"command":"WAIT", "intParam":1500},
-                {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"},
-                {"command":"WAIT", "intParam":1500}
-            ]},
-            {"targetRow":2, "commands":[
-                {"command":"WAIT", "intParam":3000},
-                {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"},
-                {"command":"WAIT", "intParam":1500}
-            ]}
-        ])";
-    } else if (payload == "Error") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Error'");
-        json_to_parse = R"([
-            {"targetRow":0, "commands":[
-                {"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":200},
-                {"command":"SET_TEXT", "stringParam":"ERROR"}
-            ]},
-            {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION"}]},
-            {"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"/error_beeps.mp3"}]}
-        ])";
-    } else if (payload == "Flux Capacitor Charge-Up") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Flux Capacitor Charge-Up'");
-        json_to_parse = R"([
-            {"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":5000}]},
-            {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]},
-            {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}
-        ])";
-    } else if (payload == "Tachyons Detected") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Tachyons Detected'");
-        json_to_parse = R"([
-            {"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS ON", "intParam":150, "intParam2":250}, {"command":"SOUND", "stringParam":"hum.mp3"},{"command":"WAIT", "intParam":3000]}
-        ])";
-    } else if (payload == "Data Stream") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Data Stream'");
-        json_to_parse = R"([
-    {"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]},
-    {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]},
-    {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}
-])";
-    } else if (payload == "Wormhole Collapse") {
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Wormhole Collapse'");
-        json_to_parse = R"([
-    {
-        "targetRow": 0,
-        "commands": [
-            {"command": "SOUND", "stringParam": "electric_sparks.mp3"},
-            {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000},
-            {"command": "FADE_OUT", "intParam": 1000}
-        ]
-    },
-    {
-        "targetRow": 1,
-        "commands": [
-            {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000},
-            {"command": "WAIT", "intParam": 500},
-            {"command": "FADE_OUT", "intParam": 1000}
-        ]
-    },
-    {
-        "targetRow": 2,
-        "commands": [
-            {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000},
-            {"command": "WAIT", "intParam": 1000},
-            {"command": "FADE_OUT", "intParam": 1000}
-        ]
-    }
-])";
+    // First, try to parse the payload as a direct JSON command
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error != DeserializationError::Ok) {
+        // It's not JSON, so check if it's a known named sequence that maps to a JSON string
+        if (payload == "Intruder Alert") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Intruder Alert'");
+            json_to_parse = R"([{"targetRow":0, "commands":[{"command":"MARQUEE", "stringParam":"INTRUDER ALERT"}, {"command":"SOUND", "stringParam":"electric_sparks.mp3"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]}, {"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":100, "intParam2":400}]}, {"targetRow":2, "commands":[{"command":"MARQUEE", "stringParam":"LOCKDOWN INITIATED"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]}])";
+        } else if (payload == "Time Travel") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Time Travel'");
+            json_to_parse = R"([{"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"GO", "intParam":0, "intParam2":8000}]}, {"targetRow": 1, "commands": [{"command": "MARQUEE", "stringParam": "TIME TRAVEL ACTIVATED"}, {"command": "WAIT", "intParam": 1000}, {"command": "MARQUEE", "stringParam": "88 MPH"}]}, {"targetRow": 2, "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 8000}]}])";
+        } else if (payload == "Party Mode") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Party Mode'");
+            json_to_parse = R"([{"targetRow":0, "commands":[{"command":"MARQUEE", "stringParam":"PARTY TIME"}, {"command":"LOOP_START"}, {"command":"PULSE", "targetSegment":-1, "intParam":1000}, {"command":"WAIT", "intParam":1000}, {"command":"LOOP_END"}]}, {"targetRow":1, "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"DANCE"}, {"command":"WAIT", "intParam":2000}, {"command":"MARQUEE", "stringParam":"PARTY"}, {"command":"WAIT", "intParam":2000}, {"command":"LOOP_END"}]}, {"targetRow":2, "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"WOOHOO"}, {"command":"WAIT", "intParam":5000}, {"command":"LOOP_END"}]}])";
+        } else if (payload == "Countdown") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Countdown'");
+            json_to_parse = R"([{"targetRow":1, "commands":[{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}, {"command":"MARQUEE", "stringParam":"LIFTOFF"}, {"command":"SOUND", "stringParam":"engine_rev.mp3"}]}])";
+        } else if (payload == "Knight Rider") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Knight Rider'");
+            json_to_parse = R"([{"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}])";
+        } else if (payload == "Cylon") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Cylon'");
+            json_to_parse = R"([{"targetRow":1, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":200}]}])";
+        } else if (payload == "Lightning") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Lightning'");
+            json_to_parse = R"([{"targetRow":0, "commands":[{"command":"SOUND", "stringParam":"/lightning.mp3"}, {"command":"LOOP_START", "intParam":10}, {"command":"RANDOM_FLICKER_TEXT", "targetSegment":-1, "stringParam":"             ", "intParam":200, "intParam2":50}, {"command":"WAIT", "intParam":100}, {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"|||||||||||||"}, {"command":"FLASH", "targetSegment":-1, "intParam":150}, {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"             "}, {"command":"WAIT", "intParam":150}, {"command":"LOOP_END"}]}, {"targetRow":1, "commands":[{"command":"LOOP_START", "intParam":10}, {"command":"RANDOM_FLICKER_TEXT", "targetSegment":-1, "stringParam":"             ", "intParam":200, "intParam2":50}, {"command":"WAIT", "intParam":100}, {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"|||||||||||||"}, {"command":"FLASH", "targetSegment":-1, "intParam":150}, {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"             "}, {"command":"WAIT", "intParam":150}, {"command":"LOOP_END"}]}, {"targetRow":2, "commands":[{"command":"LOOP_START", "intParam":10}, {"command":"RANDOM_FLICKER_TEXT", "targetSegment":-1, "stringParam":"             ", "intParam":200, "intParam2":50}, {"command":"WAIT", "intParam":100}, {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"|||||||||||||"}, {"command":"FLASH", "targetSegment":-1, "intParam":150}, {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"             "}, {"command":"WAIT", "intParam":150}, {"command":"LOOP_END"}]}])";
+        } else if (payload == "Loading") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Loading'");
+            json_to_parse = R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":1500}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":1500}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":1500}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":1500}]}])";
+        } else if (payload == "Error") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Error'");
+            json_to_parse = R"([{"targetRow":0, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":200}, {"command":"SET_TEXT", "stringParam":"ERROR"}]}, {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION"}]}, {"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"/error_beeps.mp3"}]}])";
+        } else if (payload == "Flux Capacitor Charge-Up") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Flux Capacitor Charge-Up'");
+            json_to_parse = R"([{"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":5000}]}, {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}])";
+        } else if (payload == "Tachyons Detected") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Tachyons Detected'");
+            json_to_parse = R"([{"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS ON", "intParam":150, "intParam2":250}, {"command":"SOUND", "stringParam":"hum.mp3"},{"command":"WAIT", "intParam":3000}]}])";
+        } else if (payload == "Data Stream") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Data Stream'");
+            json_to_parse = R"([{"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}])";
+        } else if (payload == "Wormhole Collapse") {
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Wormhole Collapse'");
+            json_to_parse = R"([{"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "electric_sparks.mp3"}, {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "FADE_OUT", "intParam": 1000}]}, {"targetRow": 1, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 500}, {"command": "FADE_OUT", "intParam": 1000}]}, {"targetRow": 2, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 1000}, {"command": "FADE_OUT", "intParam": 1000}]}])";
+        }
+
+        if (json_to_parse.empty()) {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to parse sequencer command. Not valid JSON and not a known named sequence. Payload was: %s", payload.c_str());
+            return;
+        }
+
+        DeserializationError named_seq_error = deserializeJson(doc, json_to_parse);
+        if (named_seq_error) {
+            Log_printf(LOG_LEVEL_ERROR, "CRITICAL: Failed to parse hardcoded JSON for named sequence '%s'. Error: %s", payload.c_str(), named_seq_error.c_str());
+            return;
+        }
     } else {
-        // Assume it's a JSON payload
-        json_to_parse = payload;
-    }
-
-    DeserializationError error = deserializeJson(doc, json_to_parse);
-
-    if (error) {
-        // If we are here, it means the payload was not a known named sequence, AND it's not valid JSON.
-        Log_printf(LOG_LEVEL_ERROR, "Failed to parse sequencer JSON: %s. Payload was: %s", error.c_str(), payload.c_str());
-        return;
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing incoming JSON payload.");
     }
 
     JsonArray track_definitions = doc.as<JsonArray>();
@@ -1450,7 +1345,7 @@ void handleSequencerCommand(const std::string& payload) {
             }
 
             SequenceStep& current_step = sequencerTracks[targetRow].steps[step_index];
-            current_step.targetRow = targetRow; // Assign the row to the step for context
+            current_step.targetRow = targetRow;
 
             if (strcmp(cmd, "MARQUEE") == 0) {
                 current_step.command = SEQ_CMD_MARQUEE;
@@ -1479,7 +1374,7 @@ void handleSequencerCommand(const std::string& payload) {
             } else if (strcmp(cmd, "RANDOM_FLICKER_TEXT") == 0) {
                 current_step.command = SEQ_CMD_RANDOM_FLICKER_TEXT;
                 current_step.stringParam = command["stringParam"] | "";
-                current_step.targetSegment = command["targetSegment"] | -1; // --- FIX: Ensure targetSegment is parsed
+                current_step.targetSegment = command["targetSegment"] | -1;
                 current_step.intParam = command["intParam"] | 2000;
                 current_step.intParam2 = command["intParam2"] | 100;
             } else if (strcmp(cmd, "BAR_GRAPH") == 0) {
@@ -1517,37 +1412,37 @@ void handleSequencerCommand(const std::string& payload) {
                 current_step.targetSegment = command["targetSegment"] | 0;
             } else if (strcmp(cmd, "SET_BRIGHTNESS") == 0) {
                 current_step.command = SEQ_CMD_SET_BRIGHTNESS;
-                current_step.intParam = command["intParam"] | 7; // Default to max brightness
+                current_step.intParam = command["intParam"] | 7;
             } else if (strcmp(cmd, "RESTORE_ROW") == 0) {
                 current_step.command = SEQ_CMD_RESTORE_ROW;
             } else if (strcmp(cmd, "TYPEWRITER") == 0) {
                 current_step.command = SEQ_CMD_TYPEWRITER;
                 current_step.stringParam = command["stringParam"] | "";
                 current_step.targetSegment = command["targetSegment"] | -1;
-                current_step.intParam = command["intParam"] | 50; // Delay
+                current_step.intParam = command["intParam"] | 50;
             } else if (strcmp(cmd, "WIPE") == 0) {
                 current_step.command = SEQ_CMD_WIPE;
                 current_step.stringParam = command["stringParam"] | "";
-                current_step.intParam = command["intParam"] | 50; // Delay
+                current_step.intParam = command["intParam"] | 50;
             } else if (strcmp(cmd, "SCROLL_IN") == 0) {
                 current_step.command = SEQ_CMD_SCROLL_IN;
                 current_step.stringParam = command["stringParam"] | "";
-                current_step.intParam = command["intParam"] | 50; // Delay
+                current_step.intParam = command["intParam"] | 50;
             } else if (strcmp(cmd, "CROSSFADE_TEXT") == 0) {
                 current_step.command = SEQ_CMD_CROSSFADE_TEXT;
                 current_step.stringParam = command["stringParam"] | "";
                 current_step.targetSegment = command["targetSegment"] | -1;
-                current_step.intParam = command["intParam"] | 1000; // Duration
+                current_step.intParam = command["intParam"] | 1000;
             } else if (strcmp(cmd, "TRIGGER_ANIMATION") == 0) {
                 current_step.command = SEQ_CMD_TRIGGER_ANIMATION;
-                current_step.intParam = command["intParam"] | 0; // Animation type
+                current_step.intParam = command["intParam"] | 0;
             } else if (strcmp(cmd, "MQTT_PUBLISH") == 0) {
                 current_step.command = SEQ_CMD_MQTT_PUBLISH;
-                current_step.stringParam = command["stringParam"] | ""; // Topic
-                current_step.stringParam2 = command["stringParam2"] | ""; // Payload
+                current_step.stringParam = command["stringParam"] | "";
+                current_step.stringParam2 = command["stringParam2"] | "";
             } else if (strcmp(cmd, "DISPLAY_HA_SENSOR") == 0) {
                 current_step.command = SEQ_CMD_DISPLAY_HA_SENSOR;
-                current_step.stringParam = command["stringParam"] | ""; // Topic (sensor entity_id)
+                current_step.stringParam = command["stringParam"] | "";
                 current_step.targetSegment = command["targetSegment"] | 0;
             } else if (strcmp(cmd, "RESTORE_ALL_ROWS") == 0) {
                 current_step.command = SEQ_CMD_RESTORE_ALL_ROWS;
@@ -1562,8 +1457,8 @@ void handleSequencerCommand(const std::string& payload) {
         sequencerTracks[targetRow].currentStep = 0;
         sequencerTracks[targetRow].stepStartTime = millis();
         sequencerTracks[targetRow].isActive = true;
-        sequencerTracks[targetRow].trackStartTime = millis(); // --- NEW: Set track start time for timeout ---
-        sequencerTracks[targetRow].stepInitialized = false; // --- FIX: Reset the initialization flag for the new sequence ---
+        sequencerTracks[targetRow].trackStartTime = millis();
+        sequencerTracks[targetRow].stepInitialized = false;
         Log_printf(LOG_LEVEL_INFO, "Sequencer track %d activated with %d steps.", targetRow, step_index);
     }
 }
