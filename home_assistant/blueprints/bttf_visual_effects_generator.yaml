@@ -83,8 +83,8 @@ blueprint:
       selector:
         boolean: {}
     duration:
-      name: Display Duration (seconds)
-      description: "If 'Restore Row' is enabled, this is how long the effect will be visible before restoring. Make sure this is longer than any effect animation duration."
+      name: "[Scanner] Display Duration (seconds)"
+      description: "For continuous effects like Scanner, this is how long the effect will be visible before restoring. For other effects, this is ignored."
       default: 5
       selector:
         number:
@@ -112,8 +112,20 @@ sequence:
         {%- endif -%}
         {%- set steps = [step] -%}
         {%- if restore_row -%}
+          {#- For effects with a defined duration, wait for them to finish. For continuous effects, use the manual duration. -#}
+          {%- set wait_step = namespace(duration=0) -%}
+          {%- if effect == 'TYPEWRITER' -%}
+            {%- set wait_step.duration = (text_to_display | length) * typewriter_delay -%}
+          {%- elif effect == 'CROSSFADE_TEXT' -%}
+            {%- set wait_step.duration = crossfade_duration -%}
+          {%- elif effect == 'BAR_GRAPH' -%}
+            {%- set wait_step.duration = bargraph_duration -%}
+          {%- else -%}
+            {#- For Scanner or other continuous effects, use the manual duration -#}
+            {%- set wait_step.duration = duration * 1000 -%}
+          {%- endif -%}
           {%- set steps = steps + [
-            {"command": "WAIT", "intParam": (duration * 1000) | int},
+            {"command": "WAIT", "intParam": wait_step.duration | int},
             {"command": "RESTORE_ROW", "targetRow": target_row}
           ] -%}
         {%- endif -%}
