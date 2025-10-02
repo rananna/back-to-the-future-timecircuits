@@ -1475,7 +1475,22 @@ void handleSequencer() {
 
             case SEQ_CMD_RANDOM_FLICKER_TEXT:
                 if (!track.stepInitialized) {
-                    track.flickerOriginalText = step.stringParam;
+                    // --- FIX: If no string is provided, use the current display text ---
+                    if (step.stringParam.empty()) {
+                        if (step.targetSegment == -1) {
+                            // Reconstruct the full 13-character string from all segments of the row
+                            track.flickerOriginalText = manualDisplayText[step.targetRow][0] +
+                                                        manualDisplayText[step.targetRow][1] +
+                                                        manualDisplayText[step.targetRow][2] +
+                                                        manualDisplayText[step.targetRow][3];
+                        } else if (step.targetSegment >= 0 && step.targetSegment < 4) {
+                            // Use the text from the specific segment
+                            track.flickerOriginalText = manualDisplayText[step.targetRow][step.targetSegment];
+                        }
+                    } else {
+                        // A string was provided, so use it
+                        track.flickerOriginalText = step.stringParam;
+                    }
                     track.lastFlickerUpdate = millis();
                     track.stepInitialized = true;
                 }
