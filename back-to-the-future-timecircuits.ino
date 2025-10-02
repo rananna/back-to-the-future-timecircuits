@@ -385,7 +385,7 @@ void applySettingsFromJson(const JsonObject& obj) {
     int oldDisplayMode = currentSettings.displayMode;
 
     // --- Apply All Settings from JSON ---
-    validateAndSet("displayMode", currentSettings.displayMode, 0, 3);
+    validateAndSet("displayMode", currentSettings.displayMode, 0, DMS_MAX - 1);
     validateAndSet("destinationYear", currentSettings.destinationYear, 0, 9999);
     validateAndSet("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
     validateAndSet("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear, 0, 9999);
