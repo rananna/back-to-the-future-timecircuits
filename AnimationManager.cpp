@@ -518,7 +518,7 @@ void handleStyledAnimation() {
 void handleTemporalEcho() {
     if (!isEchoEffectActive || isAnimating || isStyledAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
-    if (millis() - echoEffectStartTime > 60000) { // Effect lasts for 1 minute
+    if (millis() - echoEffectStartTime > 20000) { // Effect lasts for 20 seconds
         isEchoEffectActive = false;
         // --- FIX: Force a redraw of the present time row to clear the flicker effect ---
         updateNormalClockDisplay(false, true, false);
