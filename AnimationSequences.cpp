@@ -1,17 +1,24 @@
 #include "AnimationSequences.h"
 #include "HardwareControl.h"
 #include "DisplayManager.h"
+#include "DebugLog.h"
 #include <Arduino.h>
 #include <string>
 #include <stdlib.h>
 
 // Helper to add a step to a track safely, returns the new index
 static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, int row, int seg, int p1, int p2, const char* s1 = "", const char* s2 = "") {
-    if (step_idx < MAX_SEQUENCE_STEPS -1) {
-        track.steps[step_idx] = {cmd, row, seg, p1, p2, s1, s2};
-        return step_idx + 1;
+    if (step_idx >= MAX_SEQUENCE_STEPS) {
+        // --- Failsafe: Prevent buffer overflow ---
+        // Log a warning that the sequence is too long.
+        Log_printf(LOG_LEVEL_WARN, "SEQ_GEN: Sequence has too many steps! Truncating. Max is %d.", MAX_SEQUENCE_STEPS);
+        // Overwrite the last step with an END command to ensure graceful termination.
+        track.steps[MAX_SEQUENCE_STEPS - 1] = {SEQ_CMD_END, 0, 0, 0, 0, "", ""};
+        // Return the index without advancing it to prevent further writes.
+        return step_idx;
     }
-    return step_idx;
+    track.steps[step_idx] = {cmd, row, seg, p1, p2, s1, s2};
+    return step_idx + 1;
 }
 
 // Helper to add the introductory sound effect steps
@@ -467,68 +474,6 @@ void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "");
 }
 
-/**
- * @brief (DEBUG - FLAWED) Tests the control-flow and logic commands of the sequencer.
- * @details This is a single-track sequence that executes a series of logic-based
- * commands in order. It is FLAWED because it does not correctly test parallel
- * execution and the TRIGGER_ANIMATION command will not behave as expected with
- * this sequence. Use generateDebugParallelLogicSequence for a correct test.
- * It tests: CLEAR_SEGMENT, RESTORE_ROW, DISPLAY_HA_SENSOR, TRIGGER_ANIMATION,
- * and RESTORE_ALL_ROWS.
- */
-void generateDebugLogicSequence(SequencerTrack tracks[3]) {
-    int s0 = 0;
-
-    // Announce the test
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "LOGIC TEST");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "RUNNING...");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "------------");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-
-    // --- Test CLEAR_SEGMENT ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: CLR_SEG");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, 2, 0, 0); // Clear year on top row
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: CLR_SEG");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-
-    // --- Test RESTORE_ROW ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: RST_ROW");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ROW, 0, 0, 0, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: RST_ROW");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-
-    // --- Test DISPLAY_HA_SENSOR ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: HA_SENS");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_DISPLAY_HA_SENSOR, 1, -1, 4000, 0, "sensor.time");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 4500, 0); // Wait for it to finish
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: HA_SENS");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-
-    // --- Test TRIGGER_ANIMATION ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: TRIGGER");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_TRIGGER_ANIMATION, 0, 0, ANIMATION_LIGHTNING, 0); // Trigger Lightning (now global)
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: TRIGGER");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-
-    // --- Test RESTORE_ALL_ROWS ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST: RST_ALL");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "DONE: RST_ALL");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-
-    // --- Final Step ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "LOGIC TEST");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "COMPLETE");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "------------");
-}
 
 /**
  * @brief (DEBUG) A robust, parallel test for the sequencer's logic commands.
@@ -772,7 +717,6 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         // --- Special Debug Sequences ---
         case ANIMATION_DEBUG:                   generateDebugSequence(tracks); break;
         case ANIMATION_DEBUG_EFFECTS:           generateDebugEffectsSequence(tracks); break;
-        case ANIMATION_DEBUG_LOGIC:             generateDebugLogicSequence(tracks); break;
         case ANIMATION_DEBUG_PARALLEL_LOGIC:    generateDebugParallelLogicSequence(tracks); break;
         case ANIMATION_DEBUG_STRESS:            generateDebugStressSequence(tracks); break;
 

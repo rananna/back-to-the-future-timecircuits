@@ -5,7 +5,7 @@
 #include "WString.h"
 
 // Maximum number of steps in a single sequence track
-#define MAX_SEQUENCE_STEPS 20
+#define MAX_SEQUENCE_STEPS 80
 
 // Defines the available commands for the sequencer
 enum SequenceCommand {
