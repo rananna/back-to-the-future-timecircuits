@@ -1495,18 +1495,23 @@ void handleSequencer() {
 
             case SEQ_CMD_RANDOM_FLICKER_TEXT:
                 if (!track.stepInitialized) {
-                    // --- FIX: If no string is provided, use the current display text ---
                     if (step.stringParam.empty()) {
-                        // When flickering the whole row, we must reconstruct the full string
-                        // from all four segments to ensure we have the complete text.
-                        if (step.targetSegment == -1) {
-                            track.flickerOriginalText = getFullRowText(step.targetRow);
-                        } else if (step.targetSegment >= 0 && step.targetSegment < 4) {
-                            // For a single segment, just get its text.
-                            track.flickerOriginalText = manualDisplayText[step.targetRow][step.targetSegment];
+                        // If no string is provided, intelligently decide which text to use.
+                        // First, check if there's already manual text on the display for this row.
+                        std::string currentManualText = getFullRowText(step.targetRow);
+                        // Check if the string is empty or contains only whitespace.
+                        if (currentManualText.find_first_not_of(' ') == std::string::npos) {
+                            // The manual buffer is empty, so fall back to the actual clock time.
+                            char dest_str[17], pres_str[17], last_str[17];
+                            getFormattedTimeStrings(dest_str, pres_str, last_str);
+                            const char* time_strings[] = {dest_str, pres_str, last_str};
+                            track.flickerOriginalText = time_strings[step.targetRow];
+                        } else {
+                            // The manual buffer has content, so use that for the flicker effect.
+                            track.flickerOriginalText = currentManualText;
                         }
                     } else {
-                        // A string was provided, so use it directly.
+                        // A string was explicitly provided in the command, so use it.
                         track.flickerOriginalText = step.stringParam;
                     }
                     track.lastFlickerUpdate = millis();
