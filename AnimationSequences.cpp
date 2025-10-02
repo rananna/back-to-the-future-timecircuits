@@ -315,8 +315,9 @@ void generateCountdown(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "COUNTDOWN");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1500, 0);
+    // --- FIX: The COUNTDOWN command now correctly handles the full sequence including '0'.
+    // No need for a separate SET_TEXT command.
     s = add_step(tracks[0], s, SEQ_CMD_COUNTDOWN, 1, -1, 10, 1000);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "0");
     s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/engine_rev.mp3");
     s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "LIFTOFF!");
 }

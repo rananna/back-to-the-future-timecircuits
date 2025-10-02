@@ -1253,9 +1253,12 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_COUNTDOWN:
+                // --- FIX: Use if/else if to ensure initialization and updates are mutually exclusive ---
                 if (!track.stepInitialized) {
-                    track.countdownValue = step.intParam;
-                    track.countdownLastUpdate = millis();
+                    // This block runs ONCE when the command starts.
+                    track.countdownValue = step.intParam; // Set the starting number.
+                    track.countdownLastUpdate = millis(); // Set the initial timer.
+                    // Display the starting number immediately.
                     std::string val_str = std::to_string(track.countdownValue);
                     if (step.targetSegment == -1) {
                         std::string padded_str = std::string(13 - val_str.length(), ' ') + val_str;
@@ -1263,11 +1266,12 @@ void handleSequencer() {
                     } else {
                         updateDisplaySegment(step.targetRow, step.targetSegment, val_str);
                     }
-                    track.stepInitialized = true;
-                }
-                if (millis() - track.countdownLastUpdate >= (unsigned long)step.intParam2) {
-                    track.countdownValue--;
-                    track.countdownLastUpdate = millis();
+                    track.stepInitialized = true; // Mark as initialized.
+                } else if (millis() - track.countdownLastUpdate >= (unsigned long)step.intParam2) {
+                    // This block runs on subsequent loops, after the delay has passed.
+                    track.countdownValue--; // Decrement the number.
+                    track.countdownLastUpdate = millis(); // Reset the timer for the next interval.
+                    // Display the new number.
                     if (track.countdownValue >= 0) {
                         std::string val_str = std::to_string(track.countdownValue);
                         if (step.targetSegment == -1) {
@@ -1278,6 +1282,8 @@ void handleSequencer() {
                         }
                     }
                 }
+
+                // This check runs every time and advances the sequence when the countdown is finished.
                 if (track.countdownValue < 0) {
                     advance_step = true;
                 }
