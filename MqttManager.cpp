@@ -1354,22 +1354,22 @@ void handleSequencerCommand(const std::string& payload) {
     } else if (payload == "Flux Capacitor Charge-Up") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Flux Capacitor Charge-Up'");
         json_to_parse = R"([
-            {"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGING", "intParam":0, "intParam2":5000}]},
-            {"targetRow":0, "commands":[{"command":"WAIT", "intParam":5000}, {"command":"FLASH", "targetSegment":-1, "intParam":500}]},
-            {"targetRow":1, "commands":[{"command":"WAIT", "intParam":5000}, {"command":"FLASH", "targetSegment":-1, "intParam":500}]}
+            {"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":5000}]},
+            {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]},
+            {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}
         ])";
     } else if (payload == "Tachyons Detected") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Tachyons Detected'");
         json_to_parse = R"([
-            {"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS DETECTED", "intParam":150, "intParam2":5000}, {"command":"SOUND", "stringParam":"hum.mp3"}]}
+            {"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS AVAIL", "intParam":150, "intParam2":250}, {"command":"SOUND", "stringParam":"hum.mp3"}]}
         ])";
     } else if (payload == "Data Stream") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Data Stream'");
         json_to_parse = R"([
-            {"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":50, "intParam2":10000}]},
-            {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":50, "intParam2":10000}]},
-            {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":50, "intParam2":10000}]}
-        ])";
+    {"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]},
+    {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]},
+    {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}
+])";
     } else if (payload == "Wormhole Collapse") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Wormhole Collapse'");
         json_to_parse = R"([
