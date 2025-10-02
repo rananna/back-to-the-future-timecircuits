@@ -1,0 +1,69 @@
+blueprint:
+  name: BTTF Time Circuits - Countdown Sequence
+  description: >-
+    Creates a script that displays a numerical countdown on one of the display rows.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT Topic
+      description: The MQTT topic to publish the sequencer command to.
+      default: "bttf-time-circuits/cmnd/sequencer"
+    target_row:
+      name: Target Row
+      description: The display row to show the countdown on.
+      selector:
+        select:
+          options:
+            - label: "Top (Destination Time)"
+              value: "TOP"
+            - label: "Middle (Present Time)"
+              value: "MIDDLE"
+            - label: "Bottom (Last Time Departed)"
+              value: "BOTTOM"
+    start_number:
+      name: Start Number
+      description: The number to start counting down from.
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 9999
+    speed:
+      name: Countdown Speed (milliseconds)
+      description: "The delay between each number change. 1000ms = 1 second."
+      default: 1000
+      selector:
+        number:
+          min: 50
+          max: 5000
+          unit_of_measurement: "ms"
+    restore_row:
+      name: Restore Row After Countdown
+      description: "If enabled, the row will be restored to its previous state after the countdown finishes."
+      default: true
+      selector:
+        boolean: {}
+
+mode: single
+
+sequence:
+  - service: mqtt.publish
+    data:
+      topic: !input mqtt_topic
+      payload: >
+        {%- set steps = [
+          {
+            "command": "COUNTDOWN",
+            "targetRow": !input target_row,
+            "targetSegment": -1,
+            "intParam": !input start_number,
+            "intParam2": !input speed
+          }
+        ] -%}
+        {%- if restore_row -%}
+          {%- set steps = steps + [{
+            "command": "RESTORE_ROW",
+            "targetRow": !input target_row
+          }] -%}
+        {%- endif -%}
+        {{ {"tracks": [steps]} | to_json }}

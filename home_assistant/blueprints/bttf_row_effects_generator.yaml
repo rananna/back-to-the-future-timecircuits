@@ -1,0 +1,67 @@
+blueprint:
+  name: BTTF Time Circuits - Row Effects Generator
+  description: >-
+    Starts or stops a continuous, attention-grabbing effect on an entire row, like a slow pulse or a rapid flash.
+    NOTE: These effects run forever until you stop them. To stop an effect, run the same script again, but choose the 'Stop Effect' action.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT Topic
+      description: The MQTT topic to publish the sequencer command to.
+      default: "bttf-time-circuits/cmnd/sequencer"
+    target_row:
+      name: Target Row
+      description: The display row to apply the effect to.
+      selector:
+        select:
+          options:
+            - label: "Top (Destination Time)"
+              value: "TOP"
+            - label: "Middle (Present Time)"
+              value: "MIDDLE"
+            - label: "Bottom (Last Time Departed)"
+              value: "BOTTOM"
+    effect:
+      name: Row Effect
+      description: "Select the continuous effect to run on the row."
+      default: "PULSE"
+      selector:
+        select:
+          options:
+            - label: "Pulse (slower throb)"
+              value: "PULSE"
+            - label: "Flash (rapid blink)"
+              value: "FLASH"
+    action:
+      name: Action
+      description: "Start the effect or stop it."
+      default: "1"
+      selector:
+        select:
+          options:
+            - label: "Start Effect"
+              value: "1"
+            - label: "Stop Effect"
+              value: "0"
+
+mode: single
+
+sequence:
+  - service: mqtt.publish
+    data:
+      topic: !input mqtt_topic
+      payload: >
+        {{
+          {
+            "tracks": [
+              [
+                {
+                  "command": !input effect,
+                  "targetRow": !input target_row,
+                  "targetSegment": -1,
+                  "intParam": !input action | int
+                }
+              ]
+            ]
+          } | to_json
+        }}
