@@ -545,7 +545,8 @@ void generateDebugStressSequence(SequencerTrack tracks[3]) {
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
 
     // List of visual effects to choose from randomly
-    SequenceCommand effects[] = {
+    // --- FIX: Declare as static const to prevent stack allocation ---
+    static const SequenceCommand effects[] = {
         SEQ_CMD_WIPE, SEQ_CMD_SCROLL_IN, SEQ_CMD_TYPEWRITER, SEQ_CMD_FADE_OUT,
         SEQ_CMD_PULSE, SEQ_CMD_FLASH, SEQ_CMD_RANDOM_FLICKER_TEXT, SEQ_CMD_SCRAMBLE_TEXT,
         SEQ_CMD_SCANNER, SEQ_CMD_BAR_GRAPH
