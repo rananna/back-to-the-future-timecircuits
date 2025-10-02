@@ -67,9 +67,11 @@ sequence:
         {%- endif -%}
         {%- set steps = [step] -%}
         {%- if restore_row -%}
-          {%- set steps = steps + [{
-            "command": "RESTORE_ROW",
-            "targetRow": target_row
-          }] -%}
+          {# Wait for the countdown to complete before restoring the row #}
+          {%- set wait_duration = (start_number * countdown_delay) | int -%}
+          {%- set steps = steps + [
+            {"command": "WAIT", "intParam": wait_duration},
+            {"command": "RESTORE_ROW", "targetRow": target_row}
+          ] -%}
         {%- endif -%}
         {{ {"tracks": [steps]} | to_json }}

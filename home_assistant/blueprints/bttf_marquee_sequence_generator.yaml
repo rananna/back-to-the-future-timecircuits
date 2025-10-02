@@ -58,9 +58,11 @@ sequence:
           }
         ] -%}
         {%- if restore_row -%}
-          {%- set steps = steps + [{
-            "command": "RESTORE_ROW",
-            "targetRow": target_row
-          }] -%}
+          {# The marquee animation is text length + 13 steps. Wait for it to finish. #}
+          {%- set wait_duration = ((text_to_display | length) + 13) * speed -%}
+          {%- set steps = steps + [
+            {"command": "WAIT", "intParam": wait_duration | int},
+            {"command": "RESTORE_ROW", "targetRow": target_row}
+          ] -%}
         {%- endif -%}
         {{ {"tracks": [steps]} | to_json }}

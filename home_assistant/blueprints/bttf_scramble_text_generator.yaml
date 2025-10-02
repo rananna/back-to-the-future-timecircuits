@@ -68,9 +68,11 @@ sequence:
           }
         ] -%}
         {%- if restore_row -%}
-          {%- set steps = steps + [{
-            "command": "RESTORE_ROW",
-            "targetRow": target_row
-          }] -%}
+          {# Wait for the scramble animation to complete before restoring the row #}
+          {%- set wait_duration = (text_to_display | length) * lock_in_speed -%}
+          {%- set steps = steps + [
+            {"command": "WAIT", "intParam": wait_duration | int},
+            {"command": "RESTORE_ROW", "targetRow": target_row}
+          ] -%}
         {%- endif -%}
         {{ {"tracks": [steps]} | to_json }}
