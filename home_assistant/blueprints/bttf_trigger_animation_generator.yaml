@@ -29,8 +29,6 @@ blueprint:
               value: "AllDisplaysRandom"
             - label: "Debug Effects"
               value: "DebugEffects"
-            - label: "Debug Parallel Logic"
-              value: "DebugParallelLogic"
             - label: "Debug Stress"
               value: "DebugStress"
 
@@ -38,6 +36,6 @@ mode: single
 
 sequence:
   - service: mqtt.publish
-    data:
+    data_template:
       topic: !input mqtt_topic
-      payload: !input animation
+      payload: "{{ animation }}"
