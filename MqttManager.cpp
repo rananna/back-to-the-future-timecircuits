@@ -1294,25 +1294,31 @@ void handleSequencerCommand(const std::string& payload) {
             {"targetRow":0, "commands":[
                 {"command":"SOUND", "stringParam":"/lightning.mp3"},
                 {"command":"LOOP_START", "intParam":10},
-                {"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":200, "intParam2":50},
-                {"command":"WAIT", "intParam":200},
+                {"command":"RANDOM_FLICKER_TEXT", "targetSegment":-1, "stringParam":"             ", "intParam":200, "intParam2":50},
+                {"command":"WAIT", "intParam":100},
+                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"|||||||||||||"},
                 {"command":"FLASH", "targetSegment":-1, "intParam":150},
+                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"             "},
                 {"command":"WAIT", "intParam":150},
                 {"command":"LOOP_END"}
             ]},
             {"targetRow":1, "commands":[
                 {"command":"LOOP_START", "intParam":10},
-                {"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":200, "intParam2":50},
-                {"command":"WAIT", "intParam":200},
+                {"command":"RANDOM_FLICKER_TEXT", "targetSegment":-1, "stringParam":"             ", "intParam":200, "intParam2":50},
+                {"command":"WAIT", "intParam":100},
+                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"|||||||||||||"},
                 {"command":"FLASH", "targetSegment":-1, "intParam":150},
+                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"             "},
                 {"command":"WAIT", "intParam":150},
                 {"command":"LOOP_END"}
             ]},
             {"targetRow":2, "commands":[
                 {"command":"LOOP_START", "intParam":10},
-                {"command":"RANDOM_FLICKER_TEXT", "stringParam":" ", "intParam":200, "intParam2":50},
-                {"command":"WAIT", "intParam":200},
+                {"command":"RANDOM_FLICKER_TEXT", "targetSegment":-1, "stringParam":"             ", "intParam":200, "intParam2":50},
+                {"command":"WAIT", "intParam":100},
+                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"|||||||||||||"},
                 {"command":"FLASH", "targetSegment":-1, "intParam":150},
+                {"command":"SET_TEXT", "targetSegment":-1, "stringParam":"             "},
                 {"command":"WAIT", "intParam":150},
                 {"command":"LOOP_END"}
             ]}
@@ -1452,6 +1458,7 @@ void handleSequencerCommand(const std::string& payload) {
             } else if (strcmp(cmd, "RANDOM_FLICKER_TEXT") == 0) {
                 current_step.command = SEQ_CMD_RANDOM_FLICKER_TEXT;
                 current_step.stringParam = command["stringParam"] | "";
+                current_step.targetSegment = command["targetSegment"] | -1; // --- FIX: Ensure targetSegment is parsed
                 current_step.intParam = command["intParam"] | 2000;
                 current_step.intParam2 = command["intParam2"] | 100;
             } else if (strcmp(cmd, "BAR_GRAPH") == 0) {
