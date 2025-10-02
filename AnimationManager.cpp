@@ -1323,15 +1323,17 @@ void handleSequencer() {
                             track.scannerPosition++;
                             // Corrected boundary check: reverse when the *end* of the visual hits the edge
                             if (track.scannerPosition + visual_len > 13) {
-                                track.scannerPosition = 13 - visual_len;
-                                track.scannerDirection = false;
+                                track.scannerPosition = 13 - visual_len; // Clamp the position
+                                track.scannerDirection = false; // Reverse direction
+                                track.scannerPosition--; // Immediately step back to prevent stutter
                             }
                         } else { // moving left
                             track.scannerPosition--;
                             // Corrected boundary check: reverse when the *start* of the visual hits the edge
                             if (track.scannerPosition < 0) {
-                                track.scannerPosition = 0;
-                                track.scannerDirection = true;
+                                track.scannerPosition = 0; // Clamp the position
+                                track.scannerDirection = true; // Reverse direction
+                                track.scannerPosition++; // Immediately step forward to prevent stutter
                             }
                         }
                         track.lastScannerUpdate = millis();
