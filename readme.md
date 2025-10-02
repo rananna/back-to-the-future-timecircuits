@@ -1,133 +1,60 @@
-# Back to the Future - ESP32 Time Circuits Display
+# Back to the Future Time Circuits Replica
 
-<p align="center">
-  <img alt="A photo of the completed BTTF Clock Prop" src="images/bttf.png" width="800">
-</p>
+Welcome to the Back to the Future Time Circuits Replica project! This repository contains everything you need to build your own fully-functional, Wi-Fi connected, ESP32-powered replica of the iconic Time Circuits from the DeLorean Time Machine.
 
-<p align="center">
-  <a href="https://github.com/hacs/integration"><img alt="HACS" src="https://img.shields.io/badge/HACS-Default-181717.svg?style=for-the-badge"></a>
-  <img alt="Platform" src="https://img.shields.io/badge/Platform-ESP32-purple.svg?style=for-the-badge">
-  <img alt="Framework" src="https://img.shields.io/badge/Framework-Arduino-00979D.svg?style=for-the-badge">
-  <img alt="Power" src="https://img.shields.io/badge/Power-1.21_Gigawatts!-orange.svg?style=for-the-badge">
-  <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge"></a>
-</p>
+This isn't just a clock; it's a meticulously crafted, open-source project that blends nostalgia with modern technology. It's designed for hobbyists, enthusiasts, and anyone who's ever dreamed of hitting 88 mph.
 
-> **Great Scott!** You've found the schematics for a fully-functional, WiFi-enabled Time Circuits display. This project brings the iconic look, feel, and sounds of the DeLorean's dashboard right to your desk, complete with a slick web interface and deep integration with Home Assistant.
+![Time Circuits](images/bttf_bb.png)
 
----
+## Features
 
-### 📚 Overview
+- **Iconic Design:** A faithful replica of the Time Circuits display, with three individual rows of 14-segment displays.
+- **Cinematic Animations:** Includes the full boot-up sequence, time travel effects, and other iconic animations.
+- **Real-Time Clock:** Keeps accurate time, synchronized over the internet.
+- **Powerful Sequencer:** A flexible, built-in animation engine that allows you to create complex, multi-track animations.
+- **Web Interface:** Easy-to-use web-based configuration for Wi-Fi, MQTT, and other settings.
+- **MQTT Control:** Full control over the device via MQTT, allowing integration with any smart home system.
+- **Home Assistant Integration:** Deep integration with Home Assistant, including auto-discovery and a rich set of script blueprints for creating custom automations and effects.
+- **Sound Effects:** Optional support for an external speaker to play sound effects synchronized with animations.
 
-This project is a faithful, DIY replica of the iconic Time Circuits from the *Back to the Future* movies. Built using a powerful ESP32 microcontroller, it’s not just a static prop—it's a fully functional, network-connected clock that brings the magic of the DeLorean's dashboard to your desk.
+## Getting Started
 
-At its core, the project runs on a single firmware file, **`back-to-the-future-timecircuits.ino`**, which manages everything from the vibrant, screen-accurate display animations to the web-based interface that gives you complete control. Whether you're setting the Destination Time, checking the current weather, or tracking your stocks, it’s all handled by the ESP32.
+For complete, step-by-step instructions on building and installing the project, please see the **[Full Installation Guide](docs/getting-started/installation.md)**.
 
-The firmware is designed to be both powerful and flexible, with key features like:
+1.  **Hardware & Assembly:** Start with the [Bill of Materials & Hardware Guide](docs/getting-started/hardware.md).
+2.  **Firmware Installation:** Follow the [Firmware Installation Guide](docs/getting-started/installation.md).
+3.  **Firmware Updates:** Learn how to [Update Your Firmware](docs/getting-started/updating.md).
 
-*   **Real-Time Clock:** Keeps perfect time by syncing with network time servers, with full support for time zones.
-*   **Dynamic Data Displays:** The bottom "Last Time Departed" display can be transformed to show live data from the web, including weather forecasts and a real-time stock ticker.
-*   **Cinematic Sequences:** A built-in sequencer allows for scripted events, recreating the famous time-travel effects from the movies with coordinated lights, sounds, and animations.
-*   **Persistent Memory:** All your settings—from WiFi credentials to your favorite destination times—are saved on the device, so it remembers everything even after being unplugged.
+## Documentation
 
----
+This project is extensively documented. Once you're set up, explore the guides to get the most out of your Time Circuits.
 
-## 🌟 Features
+### User Guide
+- **[Web Interface](docs/user-guide/web-interface.md)**: Learn how to use the web UI for configuration.
+- **[Sound System & TTS](docs/user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
+- **[Home Assistant Integration](docs/user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant.
+- **[Troubleshooting](docs/user-guide/troubleshooting.md)**: Solutions to common problems.
 
-This project is more than just a clock; it's a feature-packed, interactive prop designed for fans and makers alike.
+### Developer & Advanced Topics
+- **[Sequencer API](docs/developer/sequencer-api.md)**: Create custom animations using the powerful sequencer.
+- **[MQTT API](docs/developer/mqtt-api.md)**: A complete reference for the MQTT API.
+- **[Configuration Files](docs/developer/configuration.md)**: Details on advanced configuration files.
+- **[Contributing Guide](docs/developer/contributing.md)**: Information for developers who want to contribute.
 
-* **Authentic Three-Row Display**: Destination Time, Present Time, and Last Time Departed.
-* **Accurate & Automatic Time**: Full time zone support with automatic NTP synchronization.
-* **Cinematic Animations & Sound**: Screen-accurate time travel sequences, boot-up animations, and random glitch effects with iconic movie sounds.
-* **Advanced Web Interface**: A mobile-friendly UI for full configuration and control.
-*   **Native Home Assistant Integration**: A full-featured custom component provides seamless control over the clock. It includes a media player for sounds and TTS, `notify` services for display messages, and one-click firmware updates right from the HA interface.
-* **Data Link**: Display real-time data from any web API or your smart home. This feature takes over the bottom display row, which normally shows the "Last Time Departed" information.
-* **Stock Ticker Mode**: A dedicated mode for displaying real-time stock information on the bottom display row.
-* **Weather Display Mode**: A separate mode to show live weather conditions on the bottom display row.
+## Home Assistant Integration
 
----
+This project has deep integration with Home Assistant, allowing you to control the device, display sensor data, and run complex animation sequences.
 
-## 📚 Documentation
+### Sequencer Blueprints
 
-This project's documentation is organized into categories to help you find what you need, whether you're building the clock for the first time or diving into advanced customizations.
+To make creating custom animations as easy as possible, this project now includes a comprehensive library of Home Assistant script blueprints. These blueprints provide a user-friendly UI to generate animation sequences without needing to write any code.
 
-### **Getting Started**
-| Document | Description |
-| :--- | :--- |
-| **[🚀 Installation Guide](docs/INSTALLATION.md)** | **Start here!** A complete, soup-to-nuts guide to building the clock. It includes a full bill of materials, wiring diagrams, 3D printing files, and firmware flashing instructions. |
-| **[💡 Usage Guide](docs/USAGE.md)** | Once you've built the clock, this guide explains how to connect to its web interface, configure WiFi, set your time zone, and use all of the day-to-day features. |
-| **[🔄 Updating Guide](docs/UPDATING.md)** | Instructions on how to update the clock's firmware and web interface files to get the latest features and bug fixes. |
+**[Click here to view the documentation and available blueprints](./home_assistant/blueprints/README.md)**
 
-### **User Guides**
-| Document | Description |
-| :--- | :--- |
-| **[📈 Data Link Guide](docs/guides/DATA_LINK.md)** | Transform your display into a real-time data feed. This covers Weather, Stocks, and custom data integrations. |
-| **[🔊 Sound System & TTS Guide](docs/guides/SOUND_SYSTEM.md)** | A guide to using the MQTT-controlled sound effects and Text-to-Speech (TTS) features. |
-| **[🎨 Web Interface Themes Guide](docs/guides/THEMES.md)** | A guide to customizing the web UI with built-in visual themes. |
-| **[🏠 Home Assistant Guide](docs/home-assistant.md)** | For smart home enthusiasts, this guide details how to integrate the clock with Home Assistant. |
+This library includes blueprints for:
+- Simple text and marquee effects
+- Displaying sensor values and dynamic text from helpers
+- Triggering built-in cinematic animations
+- Advanced multi-track sequences
 
-### **Troubleshooting**
-| Document | Description |
-| :--- | :--- |
-| **[🔬 Troubleshooting Guide](docs/TROUBLESHOOTING.md)** | Solutions to common hardware, software, and connectivity problems. |
-
-### **Advanced & Technical Reference**
-| Document | Description |
-| :--- | :--- |
-| **[🔬 Developer's Guide](docs/DEVELOPMENT.md)** | A technical deep-dive into the project's architecture, code, and file system. |
-| **[✉️ MQTT Technical Reference](docs/reference/MQTT_ENTITIES.md)** | A reference for all basic MQTT topics and payloads used by the clock. |
-| **[🤖 Advanced MQTT Control Guide](docs/reference/ADVANCED_MQTT.md)** | A guide to the advanced MQTT command sequencer and manual display overrides. |
-| **[⚙️ Configuration Reference](docs/reference/CONFIGURATION.md)** | A complete reference for all firmware and web UI configuration options. |
-| **[🔌 Pinout Reference](docs/reference/PINOUT.md)** | A detailed guide to the ESP32 GPIO pin assignments and instructions for customizing them. |
-
----
-
-## 🚀 Getting Started
-
-This project is designed for makers and hobbyists who are comfortable with basic electronics and soldering. The assembly process is straightforward, but it requires careful attention to detail, especially when wiring the 12 individual displays.
-
-For a successful build, you will need to gather all the required components, 3D print the case, and flash the firmware. The entire process is detailed in the guides below, but here’s a high-level overview of what to expect.
-
-### **Prerequisites**
-
-Before you begin, make sure you have the following:
-
-*   **Hardware & Tools:**
-    *   All components listed in the **[Bill of Materials](docs/INSTALLATION.md#-️-bill-of-materials-bom)**.
-    *   A soldering iron and basic soldering tools.
-    *   Access to a 3D printer for the enclosure.
-*   **Software:**
-    *   The latest version of the **[Arduino IDE](https.www.arduino.cc/en/software)** installed.
-    *   The ESP32 Board Manager configured in the Arduino IDE.
-    *   A Git client to clone this repository.
-
-### **Process at a Glance**
-
-1.  **Assemble the Electronics**: Following the **[Wiring & Schematics](docs/INSTALLATION.md#-wiring--schematics)**, you’ll connect the ESP32, I2S amplifier, and all 12 of the 14-segment displays. This is the most time-consuming part of the build, so take your time and double-check your connections.
-
-2.  **Flash the Firmware**: You’ll need to install several libraries in the Arduino IDE, set the correct partition scheme, and upload the main `.ino` firmware file. This step brings the clock to life.
-
-3.  **Upload the Data Files**: The project's web interface and sound files must be uploaded to the ESP32’s internal storage. This is done using a special plugin for the Arduino IDE.
-
-4.  **Final Assembly**: With the electronics wired and the firmware flashed, the final step is to mount everything inside the **[3D Printed Case](docs/INSTALLATION.md#-3d-printed-case--assembly)**.
-
-Ready to get started? The **[Installation Guide](docs/INSTALLATION.md)** provides a complete, soup-to-nuts walkthrough of this entire process.
-
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](../../issues).
-
-### How to Contribute
-
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/your-feature`).
-3.  Commit your changes (`git commit -am 'Add some feature'`).
-4.  Push to the branch (`git push origin feature/your-feature`).
-5.  Open a new Pull Request.
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.txt) file for details.
+We highly recommend using these blueprints to get the most out of your device.
