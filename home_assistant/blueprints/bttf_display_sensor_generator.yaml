@@ -53,7 +53,7 @@ sequence:
         {%- set steps = [
           {
             "command": "SET_TEXT",
-            "targetRow": !input target_row,
+            "targetRow": target_row,
             "targetSegment": -1,
             "stringParam": entity_state
           }
@@ -62,11 +62,11 @@ sequence:
           {%- set steps = steps + [
             {
               "command": "WAIT",
-              "intParam": {{ (!input duration * 1000) | int }}
+              "intParam": (duration * 1000) | int
             },
             {
               "command": "RESTORE_ROW",
-              "targetRow": !input target_row
+              "targetRow": target_row
             }
           ] -%}
         {%- endif -%}

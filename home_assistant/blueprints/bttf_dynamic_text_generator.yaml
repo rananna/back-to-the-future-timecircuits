@@ -60,11 +60,11 @@ sequence:
         {%- set helper_text = states(text_helper) -%}
         {%- set steps = [
           {
-            "command": !input animation_style,
-            "targetRow": !input target_row,
+            "command": animation_style,
+            "targetRow": target_row,
             "targetSegment": -1,
             "stringParam": helper_text,
-            "intParam": !input speed
+            "intParam": speed
           }
         ] -%}
         {{ {"tracks": [steps]} | to_json }}
