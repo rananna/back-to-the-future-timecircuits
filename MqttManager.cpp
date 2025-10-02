@@ -1239,6 +1239,10 @@ void handleSequencerCommand(const std::string& payload) {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'CrossfadeTest'");
         runCrossfadeTest();
         return; // Bypass JSON parsing
+    } else if (payload == "DebugWipe") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'DebugWipe'");
+        runWipeTest();
+        return; // Bypass JSON parsing
     }
 
     JsonDocument doc;

@@ -74,5 +74,9 @@
   {
     "name": "Debug Stress",
     "payload": "DebugStress"
+  },
+  {
+    "name": "Debug Wipe",
+    "payload": "DebugWipe"
   }
 ]

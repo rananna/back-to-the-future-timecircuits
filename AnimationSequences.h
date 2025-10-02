@@ -41,7 +41,8 @@ enum AnimationType {
     ANIMATION_DEBUG_EFFECTS,
     ANIMATION_DEBUG_LOGIC,
     ANIMATION_DEBUG_PARALLEL_LOGIC,
-    ANIMATION_DEBUG_STRESS
+    ANIMATION_DEBUG_STRESS,
+    ANIMATION_DEBUG_WIPE
 };
 
 // Main function to generate a sequence based on type

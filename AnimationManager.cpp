@@ -1353,7 +1353,10 @@ void handleSequencer() {
                     if (millis() - track.lastWipeUpdate > (unsigned long)step.intParam) {
                         std::string wipe_str = "             ";
                         for(int j=0; j < track.wipeSegment; j++) {
-                            wipe_str[j] = step.stringParam[j];
+                            // --- FIX: Add bounds check to prevent reading past the end of the string ---
+                            if (j < (int)step.stringParam.length()) {
+                                wipe_str[j] = step.stringParam[j];
+                            }
                         }
                         updateDisplaySegment(step.targetRow, 0, wipe_str.substr(0,3));
                         updateDisplaySegment(step.targetRow, 1, wipe_str.substr(3,2));
@@ -1691,6 +1694,16 @@ void runCrossfadeTest() {
     sequencerTracks[0].originalBrightness = currentSettings.brightness;
 
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Crossfade Fix Test Started ---");
+}
+
+/**
+ * @brief Configures and runs a test for the WIPE command.
+ * @details This test runs the debug wipe sequence to validate the bounds check.
+ */
+void runWipeTest() {
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Wipe Fix Test ---");
+    triggerAnimation(ANIMATION_DEBUG_WIPE);
+    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Wipe Fix Test Started ---");
 }
 
 /**
