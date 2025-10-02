@@ -571,46 +571,56 @@ void generateDebugStressSequence(SequencerTrack tracks[3]) {
 void generateLightning(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
-    // Start with a single sound effect on the main track
+    // A more dramatic, multi-stage lightning effect.
     s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "/lightning.mp3");
 
-    // Pre-load all displays with a static, lightning-like pattern.
-    // This gives the subsequent FLASH and FLICKER commands something visible to work with.
-    const char* lightning_pattern = "/\\/\\/\\/\\/\\/\\";
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, lightning_pattern);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, lightning_pattern);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, lightning_pattern);
+    // --- Stage 1: Initial Strike ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "  DANGER!    ");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "HIGH VOLTAGE ");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "-------------");
 
-    // Add a small initial delay to let the sound start and text appear.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    // Quick, intense flash on all rows
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 250, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 250, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 250, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 300, 0);
 
-    // --- Main loop for the lightning storm effect ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 15, 0); // Loop 15 times for a decent duration
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 15, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 15, 0);
+    // --- Stage 2: Building Chaos ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 10, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 10, 0);
 
-    // Track 0 (Top Row)
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 150, 50); // Flicker for 150ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, random(50, 200), 0);      // Wait a random amount of time
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 100, 0);                // Big flash for 100ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, random(100, 300), 0);     // Wait again
+    // Flicker all rows with random timings to create a chaotic effect.
+    // The command will use the text already on the display.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, random(100, 200), 50);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, random(50, 150), 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, random(100, 250), 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, random(50, 200), 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, random(100, 300), 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, random(50, 250), 0);
 
-    // Track 1 (Middle Row)
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50); // Flicker for 200ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, random(75, 250), 0);      // Wait a random amount of time
-    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 150, 0);                // Big flash for 150ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, random(50, 250), 0);      // Wait again
-
-    // Track 2 (Bottom Row)
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100, 50); // Flicker for 100ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, random(100, 200), 0);     // Wait a random amount of time
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 120, 0);                // Big flash for 120ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, random(150, 350), 0);     // Wait again
-
-    // End the loops on all tracks
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
+
+    // --- Stage 3: The "1.21 Gigawatts" Moment ---
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SOUND, 0, 0, 0, 0, "/electric_sparks.mp3");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 100, "  1.21 GW!!  ");
+
+    // While the middle row is scrambling, keep flashing the top and bottom
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 1500, 0);
+
+    // --- Stage 4: Final Power Surge ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0); // Wait for scramble to finish
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SYSTEMS LIVE ");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "  1.21 GW!!  ");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "-------------");
+
+    // Final pulse to end the sequence
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 2000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 2000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 2000, 0);
 }
 
 void generateScanner(SequencerTrack tracks[3]) {

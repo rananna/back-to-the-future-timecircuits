@@ -80,6 +80,9 @@ void runWipeTest();
 void startSequencerMarquee(SequencerTrack& track, const std::string& text);
 void handleAllSequencerMarquees();
 void triggerAnimation(AnimationType animType);
+
+// --- NEW: Helper to get full text from a row ---
+std::string getFullRowText(int row);
 // --- END: NEW Sequencer Data Structures ---
 
 #endif // ANIMATION_MANAGER_H

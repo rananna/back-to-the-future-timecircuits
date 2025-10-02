@@ -929,6 +929,26 @@ static void comprehensiveAnimationCleanup() {
 }
 
 /**
+ * @brief Retrieves the full 13-character text for a given row.
+ * @details This is used by effects like RANDOM_FLICKER_TEXT when no string
+ * parameter is provided, allowing the effect to operate on the currently
+ * displayed text.
+ * @param row The display row index (0-2).
+ * @return A std::string containing the concatenated text from all four segments.
+ */
+std::string getFullRowText(int row) {
+    if (row < 0 || row > 2) {
+        Log_printf(LOG_LEVEL_WARN, "HELPER: Invalid row %d passed to getFullRowText.", row);
+        return ""; // Return empty string for invalid row
+    }
+    // Concatenate the text from all four segments of the specified row.
+    return manualDisplayText[row][0] +
+           manualDisplayText[row][1] +
+           manualDisplayText[row][2] +
+           manualDisplayText[row][3];
+}
+
+/**
  * @brief Handles the execution of scripted command sequences.
  * @details This function is called on every main loop iteration. It checks for
  * active sequencer tracks and processes their commands one by one. It supports
@@ -1477,18 +1497,16 @@ void handleSequencer() {
                 if (!track.stepInitialized) {
                     // --- FIX: If no string is provided, use the current display text ---
                     if (step.stringParam.empty()) {
+                        // When flickering the whole row, we must reconstruct the full string
+                        // from all four segments to ensure we have the complete text.
                         if (step.targetSegment == -1) {
-                            // Reconstruct the full 13-character string from all segments of the row
-                            track.flickerOriginalText = manualDisplayText[step.targetRow][0] +
-                                                        manualDisplayText[step.targetRow][1] +
-                                                        manualDisplayText[step.targetRow][2] +
-                                                        manualDisplayText[step.targetRow][3];
+                            track.flickerOriginalText = getFullRowText(step.targetRow);
                         } else if (step.targetSegment >= 0 && step.targetSegment < 4) {
-                            // Use the text from the specific segment
+                            // For a single segment, just get its text.
                             track.flickerOriginalText = manualDisplayText[step.targetRow][step.targetSegment];
                         }
                     } else {
-                        // A string was provided, so use it
+                        // A string was provided, so use it directly.
                         track.flickerOriginalText = step.stringParam;
                     }
                     track.lastFlickerUpdate = millis();
