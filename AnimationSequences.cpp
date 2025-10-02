@@ -483,47 +483,38 @@ void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
 
 /**
  * @brief (DEBUG) A robust, parallel test for the sequencer's logic commands.
- * @details This test replaces the flawed `generateDebugLogicSequence`. It is
- * designed to correctly test the parallel execution of the sequencer. With the
- * refactoring of `triggerAnimation`, this sequence now also demonstrates
- * a full animation takeover.
- * - Track 0: The main controller, providing feedback on the bottom display row.
- * - Track 1: Runs an independent visual animation (PULSE) to show parallel execution.
- * - Track 0 then calls `TRIGGER_ANIMATION`, which stops all tracks and launches
- *   the `ANIMATION_LIGHTNING` sequence globally.
+ * @details This test is designed to correctly test the parallel execution
+ * of the sequencer. It runs three distinct, long-running, and non-conflicting
+ * animations on each of the three display rows to demonstrate that the sequencer
+ * can handle them all at once without interference.
+ * - Track 0: A long scrolling marquee text.
+ * - Track 1: A 20-second countdown.
+ * - Track 2: A 20-second scanner effect.
  */
 void generateDebugParallelLogicSequence(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
-    // Announce the test on all rows
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "PARALLEL TEST");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PARALLEL TEST");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "PARALLEL TEST");
+    // Announce the test
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "PARALLEL LOGIC");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PARALLEL LOGIC");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "PARALLEL LOGIC");
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
 
-    // --- Track 1: Independent Visual Indicator ---
-    // This track just pulses the whole time to show it's running in parallel.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 20000, 750); // Pulse for 20s
 
-    // --- Track 0: The Main Logic Test Controller ---
-    // It will use Row 2 (the bottom display) to show what it's doing.
+    // Track 0: Long Marquee
+    s0 = add_step(tracks[0], s0, SEQ_CMD_MARQUEE, 0, -1, 0, 0, "TRACK 0: A VERY LONG MARQUEE TO TEST PARALLEL EXECUTION");
 
-    // 1. Test CLEAR_SEGMENT
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: CLR_SEG 0:2");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, 2, 0, 0); // Clear year on top row
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    // Track 1: Countdown
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TRACK 1: COUNT");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, -1, 20, 1000, ""); // Countdown from 20, 1s interval
 
-    // 2. Test RESTORE_ROW
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: RST_ROW 0");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ROW, 0, 0, 0, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-
-    // 3. Test TRIGGER_ANIMATION (Global)
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: TRIGGER");
-    // This command will stop all current tracks and start the LIGHTNING animation.
-    // Any commands after this on this track will NOT be executed. This is the
-    // intended final step of this test sequence.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_TRIGGER_ANIMATION, 0, 0, ANIMATION_LIGHTNING, 0);
+    // Track 2: Scanner
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TRACK 2: SCAN");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCANNER, 2, -1, 20000, 80, "<=>"); // Scan for 20s
 }
 
 /**
