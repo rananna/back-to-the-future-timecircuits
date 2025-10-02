@@ -6,13 +6,24 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 
 ![Time Circuits](images/bttf_bb.png)
 
+## Features
+
+- **Iconic Design:** A faithful replica of the Time Circuits display, with three individual rows of 14-segment displays.
+- **Cinematic Animations:** Includes the full boot-up sequence, time travel effects, and other iconic animations.
+- **Real-Time Clock:** Keeps accurate time, synchronized over the internet.
+- **Powerful Sequencer:** A flexible, built-in animation engine that allows you to create complex, multi-track animations.
+- **Web Interface:** Easy-to-use web-based configuration for Wi-Fi, MQTT, and other settings.
+- **MQTT Control:** Full control over the device via MQTT, allowing integration with any smart home system.
+- **Home Assistant Integration:** Deep integration with Home Assistant, including auto-discovery and a rich set of script blueprints for creating custom automations and effects.
+- **Sound Effects:** Optional support for an external speaker to play sound effects synchronized with animations.
+
 ## Getting Started
 
-For complete, step-by-step instructions, please see the [**Full Installation Guide**](docs/getting-started/installation.md).
+For complete, step-by-step instructions on building and installing the project, please see the **[Full Installation Guide](docs/getting-started/installation.md)**.
 
 1.  **Hardware & Assembly:** Start with the [Bill of Materials & Hardware Guide](docs/getting-started/hardware.md).
-2.  **Installation:** Follow the [Firmware Installation Guide](docs/getting-started/installation.md).
-3.  **Updating:** Learn how to [Update Your Firmware](docs/getting-started/updating.md).
+2.  **Firmware Installation:** Follow the [Firmware Installation Guide](docs/getting-started/installation.md).
+3.  **Firmware Updates:** Learn how to [Update Your Firmware](docs/getting-started/updating.md).
 
 ## Documentation
 
@@ -28,17 +39,6 @@ This project is extensively documented. Once you're set up, explore the guides t
 - **[MQTT API](docs/developer/mqtt-api.md)**: A complete reference for the MQTT API.
 - **[Configuration Files](docs/developer/configuration.md)**: Details on advanced configuration files.
 - **[Contributing Guide](docs/developer/contributing.md)**: Information for developers who want to contribute.
-
-## Features
-
-- **Iconic Design:** A faithful replica of the Time Circuits display, with three individual rows of 14-segment displays.
-- **Cinematic Animations:** Includes the full boot-up sequence, time travel effects, and other iconic animations.
-- **Real-Time Clock:** Keeps accurate time, synchronized over the internet.
-- **Powerful Sequencer:** A flexible, built-in animation engine that allows you to create complex, multi-track animations.
-- **Web Interface:** Easy-to-use web-based configuration for Wi-Fi, MQTT, and other settings.
-- **MQTT Control:** Full control over the device via MQTT, allowing integration with any smart home system.
-- **Home Assistant Integration:** Deep integration with Home Assistant, including auto-discovery and a rich set of script blueprints for creating custom automations and effects.
-- **Sound Effects:** Optional support for an external speaker to play sound effects synchronized with animations.
 
 ## Home Assistant Integration
 

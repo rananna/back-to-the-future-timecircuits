@@ -77,16 +77,16 @@ This table details every command available in the sequencer.
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
 | `SET_TEXT` | Instantly displays static text on a segment or the full row. | `stringParam`, `targetSegment` (optional, default: -1) | `{"command":"SET_TEXT", "stringParam":"SYSTEM READY"}` |
-| `MARQUEE` | Scrolls text across the entire target row. | `stringParam` | `{"command":"MARQUEE", "stringParam":"A VERY LONG MESSAGE"}` |
-| `SCRAMBLE_TEXT` | Reveals text one character at a time with a scrambling effect. | `stringParam`, `intParam` (scramble speed), `intParam2` (lock-in delay) | `{"command":"SCRAMBLE_TEXT", "stringParam":"ACCESSING", "intParam":50, "intParam2":150}` |
-| `TYPEWRITER` | Reveals text one character at a time, like a typewriter. | `stringParam`, `intParam` (delay) | `{"command":"TYPEWRITER", "stringParam":"LOADING...", "intParam":100}` |
+| `MARQUEE` | Scrolls text across the entire target row. | `stringParam`, `targetSegment` (optional, default: -1) | `{"command":"MARQUEE", "stringParam":"A VERY LONG MESSAGE"}` |
+| `SCRAMBLE_TEXT` | Reveals text one character at a time with a scrambling effect. | `stringParam`, `targetSegment` (optional, default: -1), `intParam` (flicker speed), `intParam2` (reveal delay) | `{"command":"SCRAMBLE_TEXT", "stringParam":"ACCESSING", "intParam":50, "intParam2":150}` |
+| `TYPEWRITER` | Reveals text one character at a time, like a typewriter. | `stringParam`, `targetSegment` (optional, default: -1), `intParam` (delay) | `{"command":"TYPEWRITER", "stringParam":"LOADING...", "intParam":100}` |
 | `WIPE` | Reveals text with a wipe effect from left to right. | `stringParam`, `intParam` (delay) | `{"command":"WIPE", "stringParam":"AUTHORIZED", "intParam":75}` |
 | `SCROLL_IN` | Scrolls text in from the right and stops. | `stringParam`, `intParam` (delay) | `{"command":"SCROLL_IN", "stringParam":"WELCOME", "intParam":60}` |
-| `CROSSFADE_TEXT` | Fades from the current text to new text. | `stringParam`, `intParam` (duration) | `{"command":"CROSSFADE_TEXT", "stringParam":"NEW TEXT", "intParam":1500}` |
+| `CROSSFADE_TEXT` | Fades from the current text to new text. | `stringParam`, `targetSegment` (optional, default: -1), `intParam` (duration) | `{"command":"CROSSFADE_TEXT", "stringParam":"NEW TEXT", "intParam":1500}` |
 | `RANDOM_FLICKER_TEXT` | Fills the display with random characters that flicker rapidly. | `stringParam` (ignored), `intParam` (duration), `intParam2` (flicker speed) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":5000, "intParam2":50}` |
 | `BAR_GRAPH` | Displays a "charging" bar that fills from left to right. | `stringParam` (label), `intParam` (start %), `intParam2` (duration) | `{"command":"BAR_GRAPH", "stringParam":"LOAD", "intParam":0, "intParam2":3000}` |
 | `SCANNER` | Creates a back-and-forth scanning light effect ("Knight Rider"). | `stringParam` (character), `intParam` (duration), `intParam2` (speed) | `{"command":"SCANNER", "stringParam":"-", "intParam":10000, "intParam2":50}` |
-| `COUNTDOWN` | Displays a countdown from a set number. | `stringParam` (label), `intParam` (start number), `intParam2` (delay per number) | `{"command":"COUNTDOWN", "stringParam":"T-", "intParam":10, "intParam2":1000}` |
+| `COUNTDOWN` | Displays a countdown from a set number. | `stringParam` (prefix), `targetSegment` (optional, default: -1), `intParam` (start number), `intParam2` (delay per number) | `{"command":"COUNTDOWN", "stringParam":"T-", "intParam":10, "intParam2":1000}` |
 | `CLEAR_SEGMENT` | Clears the text from a specific segment or the entire row. | `targetSegment` (optional, default: 0) | `{"command":"CLEAR_SEGMENT", "targetSegment": 1}` |
 | `RESTORE_ROW` | Restores the target row to its normal display (clock, weather, etc.). | (none) | `{"command":"RESTORE_ROW"}` |
 | `RESTORE_ALL_ROWS` | Restores all three display rows to their normal function. | (none) | `{"command":"RESTORE_ALL_ROWS"}` |
@@ -198,7 +198,7 @@ trigger:
     below: 0
 action:
   - service: mqtt.publish
-    data:
+    data_template:
       topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
       payload: >
         [
@@ -273,7 +273,7 @@ trigger:
     entity_id: calendar.your_calendar # <-- Change this to your calendar entity
 action:
   - service: mqtt.publish
-    data:
+    data_template:
       topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
       payload: >
         [
