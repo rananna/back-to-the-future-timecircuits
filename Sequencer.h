@@ -108,6 +108,7 @@ struct SequencerTrack {
 
     float barGraphPercentage = 0.0f;
     unsigned long lastBarGraphUpdate = 0;
+    unsigned long barGraphStartTime = 0; // New timer for bar graph animation
 
     unsigned long lastFlickerUpdate = 0;
     std::string flickerOriginalText;
@@ -173,6 +174,7 @@ struct SequencerTrack {
         lastWipeUpdate = 0;
         barGraphPercentage = 0.0f;
         lastBarGraphUpdate = 0;
+        barGraphStartTime = 0;
         lastFlickerUpdate = 0;
         flickerOriginalText.clear();
         scrambleCharIndex = 0;
