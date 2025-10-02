@@ -1269,7 +1269,7 @@ void handleSequencerCommand(const std::string& payload) {
     } else if (payload == "Party Mode") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Party Mode'");
         json_to_parse = R"([
-            {"targetRow":0, "commands":[{"command":"MARQUEE", "stringParam":"PARTY TIME!"}, {"command":"LOOP_START"}, {"command":"PULSE", "targetSegment":-1, "intParam":1000}, {"command":"WAIT", "intParam":1000}, {"command":"LOOP_END"}]},
+            {"targetRow":0, "commands":[{"command":"MARQUEE", "stringParam":"PARTY TIME"}, {"command":"LOOP_START"}, {"command":"PULSE", "targetSegment":-1, "intParam":1000}, {"command":"WAIT", "intParam":1000}, {"command":"LOOP_END"}]},
             {"targetRow":1, "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"DANCE"}, {"command":"WAIT", "intParam":2000}, {"command":"MARQUEE", "stringParam":"PARTY"}, {"command":"WAIT", "intParam":2000}, {"command":"LOOP_END"}]},
             {"targetRow":2, "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"WOOHOO"}, {"command":"WAIT", "intParam":5000}, {"command":"LOOP_END"}]}
         ])";
