@@ -100,7 +100,8 @@ enum DisplayModeSetting {
   DMS_NORMAL_CLOCK,
   DMS_STOCK_TICKER,
   DMS_WEATHER,
-  DMS_DATA_LINK
+  DMS_DATA_LINK,
+  DMS_MAX
 };
 
 struct DataPoint {
