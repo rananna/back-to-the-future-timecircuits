@@ -1148,6 +1148,7 @@ void loop() {
     // ensure it always comes back online.
     if (webServerRestartRequired) {
         Log_printf(LOG_LEVEL_INFO, "Restarting web server as requested...");
+        delay(500); // Add a small delay to allow the port to be released
         server.begin();
         webServerRestartRequired = false; // Reset the flag
         Log_printf(LOG_LEVEL_INFO, "Web server restarted.");
