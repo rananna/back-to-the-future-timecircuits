@@ -44,7 +44,6 @@ SELECTS: tuple[BTTFTimeCircuitsSelectEntityDescription, ...] = (
             "Party Mode",
             "Countdown",
             "Knight Rider",
-            "Cylon",
             "Lightning",
             "Loading",
             "Error",
