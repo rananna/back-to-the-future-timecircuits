@@ -1253,39 +1253,49 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_COUNTDOWN:
-                // --- FIX: Use if/else if to ensure initialization and updates are mutually exclusive ---
-                if (!track.stepInitialized) {
-                    // This block runs ONCE when the command starts.
-                    track.countdownValue = step.intParam; // Set the starting number.
-                    track.countdownLastUpdate = millis(); // Set the initial timer.
-                    // Display the starting number immediately.
-                    std::string val_str = std::to_string(track.countdownValue);
-                    if (step.targetSegment == -1) {
-                        std::string padded_str = std::string(13 - val_str.length(), ' ') + val_str;
-                        updateDisplaySegment(step.targetRow, step.targetSegment, padded_str);
-                    } else {
-                        updateDisplaySegment(step.targetRow, step.targetSegment, val_str);
-                    }
-                    track.stepInitialized = true; // Mark as initialized.
-                } else if (millis() - track.countdownLastUpdate >= (unsigned long)step.intParam2) {
-                    // This block runs on subsequent loops, after the delay has passed.
-                    track.countdownValue--; // Decrement the number.
-                    track.countdownLastUpdate = millis(); // Reset the timer for the next interval.
-                    // Display the new number.
-                    if (track.countdownValue >= 0) {
-                        std::string val_str = std::to_string(track.countdownValue);
-                        if (step.targetSegment == -1) {
-                            std::string padded_str = std::string(13 - val_str.length(), ' ') + val_str;
-                            updateDisplaySegment(step.targetRow, step.targetSegment, padded_str);
+                { // Scope for local variables
+                    // Helper lambda to format and display the countdown string
+                    auto display_countdown = [&](int value) {
+                        // Combine the prefix text (if any) with the current countdown value
+                        std::string text_to_display = step.stringParam + " " + std::to_string(value);
+
+                        // Right-align the combined string on the 13-character display
+                        if (text_to_display.length() > 13) {
+                            // If the string is too long, truncate from the left
+                            text_to_display = text_to_display.substr(text_to_display.length() - 13);
                         } else {
-                            updateDisplaySegment(step.targetRow, step.targetSegment, val_str);
+                            // Otherwise, pad with spaces on the left
+                            text_to_display = std::string(13 - text_to_display.length(), ' ') + text_to_display;
+                        }
+
+                        // This command is assumed to always target the full row
+                        updateDisplaySegment(step.targetRow, -1, text_to_display);
+                    };
+
+                    // Validate the delay parameter. If it's invalid (e.g., negative), default to 1000ms.
+                    unsigned long countdown_delay = (step.intParam2 > 0) ? (unsigned long)step.intParam2 : 1000;
+
+                    if (!track.stepInitialized) {
+                        // Initialization: Set the starting value and display it immediately.
+                        track.countdownValue = step.intParam;
+                        track.countdownLastUpdate = millis();
+                        display_countdown(track.countdownValue);
+                        track.stepInitialized = true;
+                    } else if (millis() - track.countdownLastUpdate >= countdown_delay) {
+                        // Update: Decrement the value after the delay has passed.
+                        track.countdownValue--;
+                        track.countdownLastUpdate = millis(); // Reset timer for the next interval
+
+                        // Display the new value as long as the countdown is not finished.
+                        if (track.countdownValue >= 0) {
+                            display_countdown(track.countdownValue);
                         }
                     }
-                }
 
-                // This check runs every time and advances the sequence when the countdown is finished.
-                if (track.countdownValue < 0) {
-                    advance_step = true;
+                    // Completion Check: Advance to the next step when the countdown finishes.
+                    if (track.countdownValue < 0) {
+                        advance_step = true;
+                    }
                 }
                 break;
 
