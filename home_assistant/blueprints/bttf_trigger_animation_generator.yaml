@@ -1,0 +1,45 @@
+blueprint:
+  name: BTTF Time Circuits - Trigger Built-in Animation
+  description: >-
+    Select and run one of the device's pre-programmed, multi-track animations.
+    These are complex sequences like the time travel or intruder alert effects.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT Topic
+      description: The MQTT topic to publish the sequencer command to.
+      default: "bttf-time-circuits/cmnd/sequencer"
+    animation:
+      name: Animation to Trigger
+      description: The built-in animation to run.
+      selector:
+        select:
+          options:
+            - label: "Time Travel"
+              value: "TimeTravel"
+            - label: "Re-entry"
+              value: "Reentry"
+            - label: "Intruder Alert"
+              value: "IntruderAlert"
+            - label: "Flux Capacitor Charge"
+              value: "FluxCapacitor"
+            - label: "Tornado Flicker"
+              value: "TornadoFlicker"
+            - label: "All Displays Random"
+              value: "AllDisplaysRandom"
+            - label: "Debug Effects"
+              value: "DebugEffects"
+            - label: "Debug Logic"
+              value: "DebugLogic"
+            - label: "Debug Parallel Logic"
+              value: "DebugParallelLogic"
+            - label: "Debug Stress"
+              value: "DebugStress"
+
+mode: single
+
+sequence:
+  - service: mqtt.publish
+    data:
+      topic: !input mqtt_topic
+      payload: !input animation

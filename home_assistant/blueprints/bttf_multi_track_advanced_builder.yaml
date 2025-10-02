@@ -1,0 +1,163 @@
+blueprint:
+  name: BTTF Time Circuits - Multi-Track Advanced Builder
+  description: >-
+    The ultimate power-user blueprint for creating complex, parallel animations.
+    Define a sequence of commands for each of the three display rows (tracks) to run simultaneously.
+    For each step, choose a command and fill in only the required parameters.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT Topic
+      description: The MQTT topic to publish the sequencer command to.
+      default: "bttf-time-circuits/cmnd/sequencer"
+
+    # =================================================================================
+    # == TRACK 1 (TOP ROW)
+    # =================================================================================
+    track_1_step_1_command:
+      name: "[Top Row | Step 1] Command"
+      description: "First command for the top row."
+      default: "NONE"
+      selector:
+        select:
+          options: [ "NONE", "SET_TEXT", "MARQUEE", "SCRAMBLE_TEXT", "TYPEWRITER", "COUNTDOWN", "WAIT", "SOUND", "FLASH", "PULSE", "FADE_IN", "FADE_OUT", "CLEAR_SEGMENT", "RESTORE_ROW" ]
+    track_1_step_1_string:
+      name: "[Top Row | Step 1] Text/String (Supports Templates)"
+      default: ""
+    track_1_step_1_int1:
+      name: "[Top Row | Step 1] Integer 1 (e.g., Speed/Duration ms)"
+      default: 0
+    track_1_step_1_int2:
+      name: "[Top Row | Step 1] Integer 2 (e.g., Countdown Speed ms)"
+      default: 0
+
+    track_1_step_2_command:
+      name: "[Top Row | Step 2] Command"
+      default: "NONE"
+      selector:
+        select:
+          options: [ "NONE", "SET_TEXT", "MARQUEE", "SCRAMBLE_TEXT", "TYPEWRITER", "COUNTDOWN", "WAIT", "SOUND", "FLASH", "PULSE", "FADE_IN", "FADE_OUT", "CLEAR_SEGMENT", "RESTORE_ROW" ]
+    track_1_step_2_string:
+      name: "[Top Row | Step 2] Text/String (Supports Templates)"
+      default: ""
+    track_1_step_2_int1:
+      name: "[Top Row | Step 2] Integer 1 (e.g., Speed/Duration ms)"
+      default: 0
+    track_1_step_2_int2:
+      name: "[Top Row | Step 2] Integer 2 (e.g., Countdown Speed ms)"
+      default: 0
+
+    # =================================================================================
+    # == TRACK 2 (MIDDLE ROW)
+    # =================================================================================
+    track_2_step_1_command:
+      name: "[Middle Row | Step 1] Command"
+      description: "First command for the middle row."
+      default: "NONE"
+      selector:
+        select:
+          options: [ "NONE", "SET_TEXT", "MARQUEE", "SCRAMBLE_TEXT", "TYPEWRITER", "COUNTDOWN", "WAIT", "SOUND", "FLASH", "PULSE", "FADE_IN", "FADE_OUT", "CLEAR_SEGMENT", "RESTORE_ROW" ]
+    track_2_step_1_string:
+      name: "[Middle Row | Step 1] Text/String (Supports Templates)"
+      default: ""
+    track_2_step_1_int1:
+      name: "[Middle Row | Step 1] Integer 1 (e.g., Speed/Duration ms)"
+      default: 0
+    track_2_step_1_int2:
+      name: "[Middle Row | Step 1] Integer 2 (e.g., Countdown Speed ms)"
+      default: 0
+
+    track_2_step_2_command:
+      name: "[Middle Row | Step 2] Command"
+      default: "NONE"
+      selector:
+        select:
+          options: [ "NONE", "SET_TEXT", "MARQUEE", "SCRAMBLE_TEXT", "TYPEWRITER", "COUNTDOWN", "WAIT", "SOUND", "FLASH", "PULSE", "FADE_IN", "FADE_OUT", "CLEAR_SEGMENT", "RESTORE_ROW" ]
+    track_2_step_2_string:
+      name: "[Middle Row | Step 2] Text/String (Supports Templates)"
+      default: ""
+    track_2_step_2_int1:
+      name: "[Middle Row | Step 2] Integer 1 (e.g., Speed/Duration ms)"
+      default: 0
+    track_2_step_2_int2:
+      name: "[Middle Row | Step 2] Integer 2 (e.g., Countdown Speed ms)"
+      default: 0
+
+    # =================================================================================
+    # == TRACK 3 (BOTTOM ROW)
+    # =================================================================================
+    track_3_step_1_command:
+      name: "[Bottom Row | Step 1] Command"
+      description: "First command for the bottom row."
+      default: "NONE"
+      selector:
+        select:
+          options: [ "NONE", "SET_TEXT", "MARQUEE", "SCRAMBLE_TEXT", "TYPEWRITER", "COUNTDOWN", "WAIT", "SOUND", "FLASH", "PULSE", "FADE_IN", "FADE_OUT", "CLEAR_SEGMENT", "RESTORE_ROW" ]
+    track_3_step_1_string:
+      name: "[Bottom Row | Step 1] Text/String (Supports Templates)"
+      default: ""
+    track_3_step_1_int1:
+      name: "[Bottom Row | Step 1] Integer 1 (e.g., Speed/Duration ms)"
+      default: 0
+    track_3_step_1_int2:
+      name: "[Bottom Row | Step 1] Integer 2 (e.g., Countdown Speed ms)"
+      default: 0
+
+    track_3_step_2_command:
+      name: "[Bottom Row | Step 2] Command"
+      default: "NONE"
+      selector:
+        select:
+          options: [ "NONE", "SET_TEXT", "MARQUEE", "SCRAMBLE_TEXT", "TYPEWRITER", "COUNTDOWN", "WAIT", "SOUND", "FLASH", "PULSE", "FADE_IN", "FADE_OUT", "CLEAR_SEGMENT", "RESTORE_ROW" ]
+    track_3_step_2_string:
+      name: "[Bottom Row | Step 2] Text/String (Supports Templates)"
+      default: ""
+    track_3_step_2_int1:
+      name: "[Bottom Row | Step 2] Integer 1 (e.g., Speed/Duration ms)"
+      default: 0
+    track_3_step_2_int2:
+      name: "[Bottom Row | Step 2] Integer 2 (e.g., Countdown Speed ms)"
+      default: 0
+
+mode: single
+
+sequence:
+  - service: mqtt.publish
+    data:
+      topic: !input mqtt_topic
+      payload: >
+        {%- macro build_step(command, target_row, string_param, int_param_1, int_param_2) -%}
+          {%- if command and command != 'NONE' -%}
+            {%- set step = {'command': command} -%}
+            {%- if command not in ['WAIT', 'SOUND'] -%}
+              {%- do step.update({'targetRow': target_row, 'targetSegment': -1}) -%}
+            {%- endif -%}
+            {%- if string_param -%}
+              {%- do step.update({'stringParam': string_param}) -%}
+            {%- endif -%}
+            {%- if int_param_1 != 0 -%}
+              {%- do step.update({'intParam': int_param_1}) -%}
+            {%- endif -%}
+            {%- if int_param_2 != 0 -%}
+              {%- do step.update({'intParam2': int_param_2}) -%}
+            {%- endif -%}
+            {{- step -}}
+          {%- endif -%}
+        {%- endmacro -%}
+        {%- set track1_steps = [
+          build_step(!input track_1_step_1_command, 'TOP', !input track_1_step_1_string, !input track_1_step_1_int1, !input track_1_step_1_int2),
+          build_step(!input track_1_step_2_command, 'TOP', !input track_1_step_2_string, !input track_1_step_2_int1, !input track_1_step_2_int2)
+        ] | selectattr('command', 'defined') | list -%}
+        {%- set track2_steps = [
+          build_step(!input track_2_step_1_command, 'MIDDLE', !input track_2_step_1_string, !input track_2_step_1_int1, !input track_2_step_1_int2),
+          build_step(!input track_2_step_2_command, 'MIDDLE', !input track_2_step_2_string, !input track_2_step_2_int1, !input track_2_step_2_int2)
+        ] | selectattr('command', 'defined') | list -%}
+        {%- set track3_steps = [
+          build_step(!input track_3_step_1_command, 'BOTTOM', !input track_3_step_1_string, !input track_3_step_1_int1, !input track_3_step_1_int2),
+          build_step(!input track_3_step_2_command, 'BOTTOM', !input track_3_step_2_string, !input track_3_step_2_int1, !input track_3_step_2_int2)
+        ] | selectattr('command', 'defined') | list -%}
+        {%- set all_tracks = [] -%}
+        {%- if track1_steps -%}{%- do all_tracks.append(track1_steps) -%}{%- endif -%}
+        {%- if track2_steps -%}{%- do all_tracks.append(track2_steps) -%}{%- endif -%}
+        {%- if track3_steps -%}{%- do all_tracks.append(track3_steps) -%}{%- endif -%}
+        {{ {'tracks': all_tracks} | to_json }}
