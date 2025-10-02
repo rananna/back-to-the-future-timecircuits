@@ -158,15 +158,16 @@ This section details each blueprint, its purpose, and its configuration options.
 
 #### Display Home Assistant Sensor
 * **File:** [`bttf_display_sensor_generator.yaml`](bttf_display_sensor_generator.yaml)
-* **Description:** The easiest way to display a sensor's value. It uses a dropdown entity selector, so you can just pick any entity from your HA instance and see its state on the display.
+* **Description:** The easiest way to display a sensor's value. It uses a dropdown entity selector, so you can just pick any entity from your HA instance and see its state on the display. You can also add text before and after the value.
 * **When to use it:** For quickly showing sensor data like temperature, humidity, or power usage without writing any templates.
 
 **Inputs:**
 *   `mqtt_topic`: The base MQTT topic for your device.
 *   `target_row`: The display row to show the sensor value on.
-*   `entity_id`: The Home Assistant entity to display the state of.
+*   `entity_to_display`: The Home Assistant entity to display the state of.
 *   `prefix`: Optional text to display before the sensor value.
 *   `postfix`: Optional text to display after the sensor value.
+*   `restore_row_after_a_delay`: If enabled, the row will be restored to its previous state after the specified duration.
 *   `duration`: How long the text should remain on screen (in seconds).
 
 **Example Usage:**
@@ -174,32 +175,35 @@ This section details each blueprint, its purpose, and its configuration options.
 - service: script.bttf_time_circuits_display_home_assistant_sensor
   data:
     target_row: "TOP"
-    entity_id: sensor.outside_temperature
+    entity_to_display: sensor.outside_temperature
     prefix: "OUT:"
     postfix: "C"
+    restore_row_after_a_delay: true
     duration: 15
 ```
 
 ---
 
 #### Display Text from a Helper
-* **File:** [`bttf_dynamic_text_generator.yaml`](bttf_dynamic_text_generator.yaml)
+* **File:** [`bttf_display_text_helper_generator.yaml`](bttf_display_text_helper_generator.yaml)
 * **Description:** Displays the current value of an `input_text` helper entity. This is a powerful feature that allows you to change the message an automation displays directly from your dashboard.
 * **When to use it:** For creating a "message of the day," a dynamic status panel, or any message that needs to be updated frequently without editing automations.
 
 **Inputs:**
 *   `mqtt_topic`: The base MQTT topic for your device.
 *   `target_row`: The display row to show the text on.
-*   `input_text_entity`: The `input_text` helper entity to read the message from.
-*   `duration`: How long the text should remain on screen (in seconds).
+*   `text_helper`: The `input_text` helper entity to read the message from.
+*   `animation_style`: How the text should be displayed (Instant, Marquee, or Scramble).
+*   `speed`: The speed of the animation effect in milliseconds (for Marquee or Scramble).
 
 **Example Usage:**
 ```yaml
 - service: script.bttf_time_circuits_display_text_from_a_helper
   data:
     target_row: "BOTTOM"
-    input_text_entity: input_text.time_circuits_message
-    duration: 30
+    text_helper: input_text.time_circuits_message
+    animation_style: "MARQUEE"
+    speed: 120
 ```
 
 ---

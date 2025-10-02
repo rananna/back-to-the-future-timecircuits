@@ -26,6 +26,18 @@ blueprint:
       description: "The sensor or entity whose state you want to display (max 13 characters)."
       selector:
         entity:
+    prefix:
+      name: Prefix
+      description: "Optional text to display before the sensor value."
+      default: ""
+      selector:
+        text:
+    postfix:
+      name: Postfix
+      description: "Optional text to display after the sensor value."
+      default: ""
+      selector:
+        text:
     restore_row:
       name: Restore Row After a Delay
       description: "If enabled, the row will be restored to its previous state after the specified duration."
@@ -50,12 +62,13 @@ sequence:
       topic: !input mqtt_topic
       payload: >
         {%- set entity_state = states(entity_to_display) -%}
+        {%- set final_text = (prefix | string) + (entity_state | string) + (postfix | string) -%}
         {%- set steps = [
           {
             "command": "SET_TEXT",
             "targetRow": target_row,
             "targetSegment": -1,
-            "stringParam": entity_state
+            "stringParam": final_text
           }
         ] -%}
         {%- if restore_row -%}
