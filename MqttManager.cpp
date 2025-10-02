@@ -1331,7 +1331,8 @@ void handleSequencerCommand(const std::string& payload) {
             ]},
             {"targetRow":2, "commands":[
                 {"command":"WAIT", "intParam":3000},
-                {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}
+                {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"},
+                {"command":"WAIT", "intParam":1500}
             ]}
         ])";
     } else if (payload == "Error") {
