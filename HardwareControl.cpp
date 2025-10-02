@@ -86,6 +86,27 @@ static bool i2c_2_initialized = false;
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification) {
   display.clear();
 
+  // --- FIX: Robustly handle blanking for flashing effects ---
+  // If the text is null, empty, or just spaces, ensure the display is cleared and stop.
+  // This avoids potential I2C issues with writing empty buffers on certain rows.
+  if (text == nullptr) {
+    return; // Already cleared
+  }
+  int text_len = strlen(text);
+  if (text_len == 0) {
+    return; // Already cleared
+  }
+  bool is_blank = true;
+  for (int i = 0; i < text_len; i++) {
+    if (text[i] != ' ') {
+      is_blank = false;
+      break;
+    }
+  }
+  if (is_blank) {
+    return; // Already cleared
+  }
+
   // --- FIX: Safely handle strings to prevent overflow and ensure truncation ---
   char buffer[5];
   strncpy(buffer, text, 4); // Copy at most 4 characters
