@@ -49,17 +49,17 @@ sequence:
             [
               {
                 "command": "SET_TEXT",
-                "targetRow": !input target_row,
+                "targetRow": target_row,
                 "targetSegment": -1,
-                "stringParam": !input text_to_display
+                "stringParam": text_to_display
               },
               {
                 "command": "WAIT",
-                "intParam": {{ (!input duration * 1000) | int }}
+                "intParam": (duration * 1000) | int
               },
               {
                 "command": "RESTORE_ROW",
-                "targetRow": !input target_row
+                "targetRow": target_row
               }
             ]
           ]

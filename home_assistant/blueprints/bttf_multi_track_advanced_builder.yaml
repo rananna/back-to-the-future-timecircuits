@@ -145,16 +145,16 @@ sequence:
           {%- endif -%}
         {%- endmacro -%}
         {%- set track1_steps = [
-          build_step(!input track_1_step_1_command, 'TOP', !input track_1_step_1_string, !input track_1_step_1_int1, !input track_1_step_1_int2),
-          build_step(!input track_1_step_2_command, 'TOP', !input track_1_step_2_string, !input track_1_step_2_int1, !input track_1_step_2_int2)
+          build_step(track_1_step_1_command, 'TOP', track_1_step_1_string, track_1_step_1_int1, track_1_step_1_int2),
+          build_step(track_1_step_2_command, 'TOP', track_1_step_2_string, track_1_step_2_int1, track_1_step_2_int2)
         ] | selectattr('command', 'defined') | list -%}
         {%- set track2_steps = [
-          build_step(!input track_2_step_1_command, 'MIDDLE', !input track_2_step_1_string, !input track_2_step_1_int1, !input track_2_step_1_int2),
-          build_step(!input track_2_step_2_command, 'MIDDLE', !input track_2_step_2_string, !input track_2_step_2_int1, !input track_2_step_2_int2)
+          build_step(track_2_step_1_command, 'MIDDLE', track_2_step_1_string, track_2_step_1_int1, track_2_step_1_int2),
+          build_step(track_2_step_2_command, 'MIDDLE', track_2_step_2_string, track_2_step_2_int1, track_2_step_2_int2)
         ] | selectattr('command', 'defined') | list -%}
         {%- set track3_steps = [
-          build_step(!input track_3_step_1_command, 'BOTTOM', !input track_3_step_1_string, !input track_3_step_1_int1, !input track_3_step_1_int2),
-          build_step(!input track_3_step_2_command, 'BOTTOM', !input track_3_step_2_string, !input track_3_step_2_int1, !input track_3_step_2_int2)
+          build_step(track_3_step_1_command, 'BOTTOM', track_3_step_1_string, track_3_step_1_int1, track_3_step_1_int2),
+          build_step(track_3_step_2_command, 'BOTTOM', track_3_step_2_string, track_3_step_2_int1, track_3_step_2_int2)
         ] | selectattr('command', 'defined') | list -%}
         {%- set all_tracks = [] -%}
         {%- if track1_steps -%}{%- do all_tracks.append(track1_steps) -%}{%- endif -%}

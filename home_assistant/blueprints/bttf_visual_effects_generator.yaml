@@ -72,17 +72,17 @@ sequence:
     data:
       topic: !input mqtt_topic
       payload: >
-        {%- set step = {'command': !input effect, 'targetRow': !input target_row, 'targetSegment': -1} -%}
+        {%- set step = {'command': effect, 'targetRow': target_row, 'targetSegment': -1} -%}
         {%- if text_to_display != "" -%}
           {%- do step.update({'stringParam': text_to_display}) -%}
         {%- endif -%}
         {%- if effect == 'TYPEWRITER' -%}
-          {%- do step.update({'intParam': !input param1}) -%}
+          {%- do step.update({'intParam': param1}) -%}
         {%- elif effect == 'BAR_GRAPH' -%}
-          {%- do step.update({'intParam': !input param1, 'intParam2': !input param2}) -%}
+          {%- do step.update({'intParam': param1, 'intParam2': param2}) -%}
         {%- endif -%}
         {%- set steps = [step] -%}
         {%- if restore_row -%}
-          {%- set steps = steps + [{"command": "RESTORE_ROW", "targetRow": !input target_row}] -%}
+          {%- set steps = steps + [{"command": "RESTORE_ROW", "targetRow": target_row}] -%}
         {%- endif -%}
         {{ {"tracks": [steps]} | to_json }}

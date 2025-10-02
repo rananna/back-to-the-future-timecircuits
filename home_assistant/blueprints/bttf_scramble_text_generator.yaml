@@ -51,16 +51,16 @@ sequence:
         {%- set steps = [
           {
             "command": "SCRAMBLE_TEXT",
-            "targetRow": !input target_row,
+            "targetRow": target_row,
             "targetSegment": -1,
-            "stringParam": !input text_to_display,
-            "intParam": !input lock_in_speed
+            "stringParam": text_to_display,
+            "intParam": lock_in_speed
           }
         ] -%}
         {%- if restore_row -%}
           {%- set steps = steps + [{
             "command": "RESTORE_ROW",
-            "targetRow": !input target_row
+            "targetRow": target_row
           }] -%}
         {%- endif -%}
         {{ {"tracks": [steps]} | to_json }}

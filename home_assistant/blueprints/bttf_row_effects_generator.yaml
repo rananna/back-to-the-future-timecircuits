@@ -56,10 +56,10 @@ sequence:
             "tracks": [
               [
                 {
-                  "command": !input effect,
-                  "targetRow": !input target_row,
+                  "command": effect,
+                  "targetRow": target_row,
                   "targetSegment": -1,
-                  "intParam": !input action | int
+                  "intParam": action | int
                 }
               ]
             ]

@@ -29,8 +29,6 @@ blueprint:
               value: "AllDisplaysRandom"
             - label: "Debug Effects"
               value: "DebugEffects"
-            - label: "Debug Logic"
-              value: "DebugLogic"
             - label: "Debug Parallel Logic"
               value: "DebugParallelLogic"
             - label: "Debug Stress"
