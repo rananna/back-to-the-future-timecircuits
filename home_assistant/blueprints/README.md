@@ -7,19 +7,19 @@ This collection of Home Assistant **script blueprints** makes it easy to create 
 - [Installation](#installation)
 - [Using Templates to Display Entity Data](#using-templates-to-display-entity-data)
 - [Available Blueprints](#available-blueprints)
-  - [Simple & Common Effects](#simple--common-effects)
+  - [General Purpose](#general-purpose)
     - [Simple Text Sequence](#simple-text-sequence)
     - [Marquee Text Sequence](#marquee-text-sequence)
     - [Scramble Text Sequence](#scramble-text-sequence)
     - [Countdown Sequence](#countdown-sequence)
-  - [Entity & Helper Focused](#entity--helper-focused)
-    - [Display Home Assistant Sensor](#display-home-assistant-sensor)
-    - [Display Text from a Helper](#display-text-from-a-helper)
-  - [Advanced & Themed Effects](#advanced--themed-effects)
     - [Trigger Built-in Animation](#trigger-built-in-animation)
+  - [Advanced](#advanced)
     - [Visual Effects Generator](#visual-effects-generator)
     - [Row Effects Generator](#row-effects-generator)
     - [Multi-Track Advanced Builder](#multi-track-advanced-builder)
+  - [Helpers & Integrations](#helpers--integrations)
+    - [Display Home Assistant Sensor](#display-home-assistant-sensor)
+    - [Display Text from a Helper](#display-text-from-a-helper)
 
 ---
 
@@ -56,7 +56,8 @@ Music: {{ state_attr('media_player.living_room', 'media_title') }}
 
 This section details each blueprint, its purpose, and its configuration options.
 
-### Simple & Common Effects
+### General Purpose
+*These blueprints cover the most common and straightforward use cases.*
 
 ---
 
@@ -84,7 +85,7 @@ This section details each blueprint, its purpose, and its configuration options.
 
 #### Marquee Text Sequence
 * **File:** [`bttf_marquee_sequence_generator.yaml`](bttf_marquee_sequence_generator.yaml)
-* **Description:** Creates a scrolling text animation (a marquee) on a selected row.
+* **Description:** Creates a scrolling text animation (a marquee) on a selected row. After the message scrolls completely, the row can be automatically restored to its previous state.
 * **When to use it:** Perfect for longer messages that don't fit on the 13-character display, such as song titles, news headlines, or detailed status updates.
 
 **Inputs:**
@@ -92,6 +93,7 @@ This section details each blueprint, its purpose, and its configuration options.
 *   `target_row`: The display row to scroll the text on.
 *   `text_to_display`: The text to scroll. Supports templates and can be longer than 13 characters.
 *   `speed`: The delay between each step of the scroll animation (in milliseconds). Lower is faster.
+*   `restore_row`: If enabled (the default), the row will be restored to its previous state after the marquee finishes.
 
 **Example Usage:**
 ```yaml
@@ -100,6 +102,7 @@ This section details each blueprint, its purpose, and its configuration options.
     target_row: "TOP"
     text_to_display: "Now playing: {{ state_attr('media_player.living_room', 'media_title') }}"
     speed: 150
+    restore_row: true
 ```
 
 ---
@@ -115,6 +118,7 @@ This section details each blueprint, its purpose, and its configuration options.
 *   `text_to_display`: The final text to be revealed (max 13 characters, supports templates).
 *   `lock_in_speed`: The delay between each character being revealed (in milliseconds).
 *   `scramble_speed`: The speed of the random character flicker (in milliseconds).
+*   `restore_row`: If enabled (the default), the row will be restored to its previous state after the animation finishes.
 
 **Example Usage:**
 ```yaml
@@ -124,13 +128,14 @@ This section details each blueprint, its purpose, and its configuration options.
     text_to_display: "ACCESS GRANTED"
     lock_in_speed: 100
     scramble_speed: 50
+    restore_row: true
 ```
 
 ---
 
 #### Countdown Sequence
 * **File:** [`bttf_countdown_generator.yaml`](bttf_countdown_generator.yaml)
-* **Description:** Displays a numerical countdown on a selected row.
+* **Description:** Displays a numerical countdown on a selected row. Can optionally display text at the end and then restore the row.
 * **When to use it:** Great for automations with a time component, such as "DISARMING IN 10..." or "SYSTEM REBOOT IN 5...".
 
 **Inputs:**
@@ -139,6 +144,7 @@ This section details each blueprint, its purpose, and its configuration options.
 *   `start_number`: The number to start counting down from.
 *   `end_text`: Optional text to display when the countdown finishes (e.g., "LIFTOFF").
 *   `countdown_delay`: The delay between each number change (in milliseconds).
+*   `restore_row`: If enabled (the default), the row will be restored to its previous state after the countdown finishes.
 
 **Example Usage:**
 ```yaml
@@ -148,67 +154,8 @@ This section details each blueprint, its purpose, and its configuration options.
     start_number: 10
     end_text: "HAPPY NEW YEAR"
     countdown_delay: 1000
+    restore_row: false # Keep "HAPPY NEW YEAR" on the display
 ```
-
----
-
-### Entity & Helper Focused
-
----
-
-#### Display Home Assistant Sensor
-* **File:** [`bttf_display_sensor_generator.yaml`](bttf_display_sensor_generator.yaml)
-* **Description:** The easiest way to display a sensor's value. It uses a dropdown entity selector, so you can just pick any entity from your HA instance and see its state on the display. You can also add text before and after the value.
-* **When to use it:** For quickly showing sensor data like temperature, humidity, or power usage without writing any templates.
-
-**Inputs:**
-*   `mqtt_topic`: The base MQTT topic for your device.
-*   `target_row`: The display row to show the sensor value on.
-*   `entity_to_display`: The Home Assistant entity to display the state of.
-*   `prefix`: Optional text to display before the sensor value.
-*   `postfix`: Optional text to display after the sensor value.
-*   `restore_row`: If enabled, the row will be restored to its previous state after the specified duration.
-*   `duration`: How long the text should remain on screen (in seconds).
-
-**Example Usage:**
-```yaml
-- service: script.bttf_time_circuits_display_home_assistant_sensor
-  data:
-    target_row: "TOP"
-    entity_to_display: sensor.outside_temperature
-    prefix: "OUT:"
-    postfix: "C"
-    restore_row: true
-    duration: 15
-```
-
----
-
-#### Display Text from a Helper
-* **File:** [`bttf_display_text_helper_generator.yaml`](bttf_display_text_helper_generator.yaml)
-* **Description:** Displays the current value of an `input_text` helper entity. This is a powerful feature that allows you to change the message an automation displays directly from your dashboard.
-* **When to use it:** For creating a "message of the day," a dynamic status panel, or any message that needs to be updated frequently without editing automations.
-
-**Inputs:**
-*   `mqtt_topic`: The base MQTT topic for your device.
-*   `target_row`: The display row to show the text on.
-*   `text_helper`: The `input_text` helper entity to read the message from.
-*   `animation_style`: How the text should be displayed (`Set Text (Instant)`, `Marquee`, or `Scramble`).
-*   `speed`: For `Marquee` or `Scramble`, the speed of the animation effect in milliseconds.
-
-**Example Usage:**
-```yaml
-- service: script.bttf_time_circuits_display_text_from_a_helper
-  data:
-    target_row: "BOTTOM"
-    text_helper: input_text.time_circuits_message
-    animation_style: "MARQUEE"
-    speed: 120
-```
-
----
-
-### Advanced & Themed Effects
 
 ---
 
@@ -230,33 +177,36 @@ This section details each blueprint, its purpose, and its configuration options.
 
 ---
 
+### Advanced
+*These blueprints provide more powerful and creative control over the device's animations.*
+
+---
+
 #### Visual Effects Generator
 * **File:** [`bttf_visual_effects_generator.yaml`](bttf_visual_effects_generator.yaml)
-* **Description:** A themed blueprint that groups several creative text-based visual effects into a single place. Only the parameters for the selected effect will be used.
+* **Description:** A themed blueprint that groups several creative text-based visual effects into one place. For effects with a natural end (like Typewriter), the blueprint automatically calculates the duration. For continuous effects (like Scanner), you must provide a manual duration.
 * **When to use it:** For adding more creative flair to your text displays beyond the standard animations.
 
 **Inputs:**
 *   `mqtt_topic`: The base MQTT topic for your device.
 *   `target_row`: The display row for the effect.
-*   `effect`: The visual effect to use (`Typewriter`, `Crossfade`, `Scanner`, `Bar Graph`).
-*   `text_to_display`: The text for the effect.
+*   `effect`: The visual effect to use (`Typewriter`, `Crossfade Text`, `Scanner`, `Bar Graph`).
+*   `text_to_display`: The text for the effect (not used by Scanner).
 *   `typewriter_delay`: [Typewriter] The delay between each character appearing (ms).
 *   `crossfade_duration`: [Crossfade] The duration of the fade effect (ms).
 *   `bargraph_percentage`: [Bar Graph] The percentage (0-100) at which the bar graph should start.
 *   `bargraph_duration`: [Bar Graph] The total time for the bar graph animation to complete (ms).
 *   `restore_row`: If enabled, restores the row after the effect.
-*   `duration`: If `restore_row` is enabled, how long to wait before restoring (seconds).
+*   `duration`: **[Scanner only]** If `restore_row` is enabled, this is how long the continuous effect will run before the row is restored (in seconds). This setting is ignored by other effects.
 
-**Example Usage (Typewriter):**
+**Example Usage (Scanner):**
 ```yaml
 - service: script.bttf_time_circuits_visual_effects_generator
   data:
     target_row: "MIDDLE"
-    effect: "TYPEWRITER"
-    text_to_display: "SYSTEM ONLINE"
-    typewriter_delay: 150
+    effect: "SCANNER"
     restore_row: true
-    duration: 5
+    duration: 10 # Let the scanner run for 10 seconds before restoring the row
 ```
 
 ---
@@ -310,4 +260,65 @@ This section details each blueprint, its purpose, and its configuration options.
         {"command": "WAIT", "intParam": 10000},
         {"command": "RESTORE_ROW", "targetRow": "BOTTOM"}
       ]
+```
+
+---
+
+### Helpers & Integrations
+*These blueprints are designed to connect the Time Circuits display with other parts of Home Assistant, like entities and helpers.*
+
+---
+
+#### Display Home Assistant Sensor
+* **File:** [`bttf_display_sensor_generator.yaml`](bttf_display_sensor_generator.yaml)
+* **Description:** Provides an easy way to display a sensor's value. It uses a dropdown entity selector, so you can just pick any entity from your HA instance and see its state on the display. This script performs a **one-time write**; to keep the value updated, you must re-run the script (e.g., in response to a state-change automation).
+* **When to use it:** For showing sensor data like temperature, humidity, or power usage. It's best used inside an automation that triggers when the sensor's state changes.
+
+**Inputs:**
+*   `mqtt_topic`: The base MQTT topic for your device.
+*   `target_row`: The display row to show the sensor value on.
+*   `entity_to_display`: The Home Assistant entity to display the state of.
+*   `prefix`: Optional text to display before the sensor value.
+*   `postfix`: Optional text to display after the sensor value.
+*   `restore_row`: If enabled, the row will be restored to its previous state after the specified duration. Defaults to `false`, leaving the sensor value on the display.
+*   `duration`: If `restore_row` is enabled, this is how long the sensor value should remain on screen.
+
+**Example Usage (Persistent):**
+```yaml
+# This service call will put "OUT: 21.5C" on the top row and leave it there.
+# Best used in an automation that triggers when sensor.outside_temperature changes.
+- service: script.bttf_time_circuits_display_home_assistant_sensor
+  data:
+    target_row: "TOP"
+    entity_to_display: sensor.outside_temperature
+    prefix: "OUT: "
+    postfix: "C"
+    restore_row: false
+```
+
+---
+
+#### Display Text from a Helper
+* **File:** [`bttf_display_text_helper_generator.yaml`](bttf_display_text_helper_generator.yaml)
+* **Description:** Displays the current value of an `input_text` helper entity. This script performs a **one-time write** of the helper's current text. To keep the display updated, you must re-run the script whenever the helper changes.
+* **When to use it:** For creating a "message of the day," a dynamic status panel, or any message that needs to be updated frequently without editing automations. Best used inside an automation that triggers on the state change of the `input_text` helper.
+
+**Inputs:**
+*   `mqtt_topic`: The base MQTT topic for your device.
+*   `target_row`: The display row to show the text on.
+*   `text_helper`: The `input_text` helper entity to read the message from.
+*   `animation_style`: How the text should be displayed (`Set Text (Instant)`, `Marquee`, or `Scramble`).
+*   `speed`: For `Marquee` or `Scramble`, the speed of the animation effect in milliseconds.
+
+**Example Usage:**
+```yaml
+# This service call will take the text from the input_text.time_circuits_message
+# helper and scroll it on the bottom row.
+# Best used in an automation that triggers when that helper's state changes.
+- service: script.bttf_time_circuits_display_text_from_a_helper
+  data:
+    target_row: "BOTTOM"
+    text_helper: input_text.time_circuits_message
+    animation_style: "MARQUEE"
+    speed: 120
 ```
