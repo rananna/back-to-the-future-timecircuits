@@ -64,31 +64,37 @@ sequence:
     data_template:
       topic: !input mqtt_topic
       payload: >
-        {%- set countdown_step = {
+        {%- set steps = [] -%}
+        {# Add the core countdown command #}
+        {%- set steps = steps + [{
           "command": "COUNTDOWN",
           "targetRow": target_row,
           "targetSegment": -1,
           "intParam": start_number,
           "intParam2": countdown_delay
-        } -%}
-        {%- set steps = [countdown_step] -%}
+        }] -%}
+
+        {# Wait for the countdown to finish before proceeding #}
+        {%- set countdown_duration = (start_number * countdown_delay) | int -%}
+        {%- set steps = steps + [{"command": "WAIT", "intParam": countdown_duration}] -%}
+
+        {# If there is end text, display it and wait again #}
         {%- if end_text != "" -%}
-          {%- set set_text_step = {
+          {%- set steps = steps + [{
             "command": "SET_TEXT",
             "targetRow": target_row,
             "targetSegment": -1,
             "stringParam": end_text
-          } -%}
-          {%- set steps = steps + [set_text_step] -%}
+          }] -%}
+          {%- set text_duration = (end_text_duration * 1000) | int -%}
+          {%- if text_duration > 0 and restore_row -%}
+            {%- set steps = steps + [{"command": "WAIT", "intParam": text_duration}] -%}
+          {%- endif -%}
         {%- endif -%}
+
+        {# Finally, if requested, restore the row to its previous state #}
         {%- if restore_row -%}
-          {# Wait for the countdown and optional end text to complete before restoring the row #}
-          {%- set countdown_duration = (start_number * countdown_delay) | int -%}
-          {%- set text_duration = (end_text_duration * 1000) | int if end_text != "" else 0 -%}
-          {%- set total_wait = countdown_duration + text_duration -%}
-          {%- set steps = steps + [
-            {"command": "WAIT", "intParam": total_wait},
-            {"command": "RESTORE_ROW", "targetRow": target_row}
-          ] -%}
+          {%- set steps = steps + [{"command": "RESTORE_ROW", "targetRow": target_row}] -%}
         {%- endif -%}
+
         {{ {"tracks": [steps]} | to_json }}
