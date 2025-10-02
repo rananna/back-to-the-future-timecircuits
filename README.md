@@ -8,34 +8,26 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 
 ## Getting Started
 
-To build your own Time Circuits replica, follow these steps:
+For complete, step-by-step instructions, please see the [**Full Installation Guide**](docs/getting-started/installation.md).
 
-1.  **Gather the hardware:** See the [Bill of Materials](docs/reference/PINOUT.md) for the list of required components.
-2.  **Assemble the circuit:** Follow the [hardware assembly instructions](docs/reference/PINOUT.md).
-3.  **Install the firmware:** Use the [Installation Guide](docs/INSTALLATION.md) to flash the ESP32.
-4.  **Configure your device:** Connect to the web interface to set up Wi-Fi and other options.
-
-For complete, step-by-step instructions, please refer to the [**Full Installation Guide**](docs/INSTALLATION.md).
+1.  **Hardware & Assembly:** Start with the [Bill of Materials & Hardware Guide](docs/getting-started/hardware.md).
+2.  **Installation:** Follow the [Firmware Installation Guide](docs/getting-started/installation.md).
+3.  **Updating:** Learn how to [Update Your Firmware](docs/getting-started/updating.md).
 
 ## Documentation
 
-This project is extensively documented to help you from installation to advanced customization.
+This project is extensively documented. Once you're set up, explore the guides to get the most out of your Time Circuits.
 
-### User Guides
+### User Guide
+- **[Web Interface](docs/user-guide/web-interface.md)**: Learn how to use the web UI for configuration.
+- **[Home Assistant Integration](docs/user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant.
+- **[Troubleshooting](docs/user-guide/troubleshooting.md)**: Solutions to common problems.
 
-- **[Installation Guide](docs/INSTALLATION.md)**: Step-by-step instructions to get your Time Circuits up and running.
-- **[Usage Guide](docs/USAGE.md)**: Learn how to use the web interface and basic features.
-- **[Home Assistant Integration](docs/home-assistant.md)**: Detailed guide on integrating with Home Assistant.
-- **[Updating Guide](docs/UPDATING.md)**: How to update your device to the latest firmware.
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)**: Solutions to common problems.
-
-### Technical Reference
-
-- **[Configuration](docs/reference/CONFIGURATION.md)**: Advanced configuration options.
-- **[Sequencer API](docs/reference/SEQUENCER.md)**: Create custom animations using the powerful sequencer.
-- **[Advanced MQTT](docs/reference/ADVANCED_MQTT.md)**: For advanced users who want to integrate with other systems.
-- **[Hardware & Pinout](docs/reference/PINOUT.md)**: Detailed hardware specifications and pinout diagrams.
-- **[Development Guide](docs/DEVELOPMENT.md)**: Information for developers who want to contribute to the project.
+### Developer & Advanced Topics
+- **[Sequencer API](docs/developer/sequencer-api.md)**: Create custom animations using the powerful sequencer.
+- **[MQTT API](docs/developer/mqtt-api.md)**: A complete reference for the MQTT API.
+- **[Configuration Files](docs/developer/configuration.md)**: Details on advanced configuration files.
+- **[Contributing Guide](docs/developer/contributing.md)**: Information for developers who want to contribute.
 
 ## Features
 
