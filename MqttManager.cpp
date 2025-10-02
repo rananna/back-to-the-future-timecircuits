@@ -639,9 +639,12 @@ void handleHaDiscovery() {
     if (!mqttClient.connected()) {
         // Log this event, as it indicates a potential issue if it happens frequently.
         Log_printf(LOG_LEVEL_WARN, "HA Discovery: Paused. MQTT client is not connected.");
-        // We stop the discovery process entirely to prevent it from retrying immediately
-        // on the next loop iteration. It will be restarted upon successful reconnection.
-        haDiscoveryState = HA_DISCOVERY_IDLE;
+        // If discovery was running, reset it to idle so it can restart on reconnect.
+        // If it was already complete, do nothing. This prevents the state from being
+        // reset during the intentional disconnect/reconnect for mDNS startup.
+        if (haDiscoveryState == HA_DISCOVERY_RUNNING) {
+            haDiscoveryState = HA_DISCOVERY_IDLE;
+        }
         return;
     }
 
