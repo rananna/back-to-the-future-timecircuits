@@ -569,19 +569,48 @@ void generateDebugStressSequence(SequencerTrack tracks[3]) {
 // --- New Thematic Animation Generators ---
 
 void generateLightning(SequencerTrack tracks[3]) {
-    int s = 0;
-    // Start with a sound effect for thunder
-    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/lightning.mp3");
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
-    // Random flashes on all displays
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
-    // A big flash to simulate a lightning strike
-    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 150, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // Start with a single sound effect on the main track
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "/lightning.mp3");
+
+    // Pre-load all displays with a static, lightning-like pattern.
+    // This gives the subsequent FLASH and FLICKER commands something visible to work with.
+    const char* lightning_pattern = "/\\/\\/\\/\\/\\/\\";
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, lightning_pattern);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, lightning_pattern);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, lightning_pattern);
+
+    // Add a small initial delay to let the sound start and text appear.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
+
+    // --- Main loop for the lightning storm effect ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 15, 0); // Loop 15 times for a decent duration
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 15, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 15, 0);
+
+    // Track 0 (Top Row)
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 150, 50); // Flicker for 150ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, random(50, 200), 0);      // Wait a random amount of time
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 100, 0);                // Big flash for 100ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, random(100, 300), 0);     // Wait again
+
+    // Track 1 (Middle Row)
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50); // Flicker for 200ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, random(75, 250), 0);      // Wait a random amount of time
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 150, 0);                // Big flash for 150ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, random(50, 250), 0);      // Wait again
+
+    // Track 2 (Bottom Row)
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100, 50); // Flicker for 100ms
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, random(100, 200), 0);     // Wait a random amount of time
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 120, 0);                // Big flash for 120ms
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, random(150, 350), 0);     // Wait again
+
+    // End the loops on all tracks
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 void generateScanner(SequencerTrack tracks[3]) {
