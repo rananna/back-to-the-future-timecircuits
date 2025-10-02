@@ -600,17 +600,29 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
             } else {
                 SequencerTrack& track = sequencerTracks[0];
                 // Month (Segment 0)
-                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(destRow.month, "   ", 1);
-                else if (!manualDisplayText[0][0].empty()) printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
+                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) {
+                    printToDisplay(destRow.month, "   ", 1);
+                } else {
+                    printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
+                }
                 // Day (Segment 1)
-                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(destRow.day, "  ", 2);
-                else if (!manualDisplayText[0][1].empty()) printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
+                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) {
+                    printToDisplay(destRow.day, "  ", 2);
+                } else {
+                    printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
+                }
                 // Year (Segment 2)
-                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(destRow.year, "    ");
-                else if (!manualDisplayText[0][2].empty()) printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
+                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) {
+                    printToDisplay(destRow.year, "    ");
+                } else {
+                    printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
+                }
                 // Time (Segment 3)
-                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(destRow.time, "    ");
-                else if (!manualDisplayText[0][3].empty()) printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
+                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) {
+                    printToDisplay(destRow.time, "    ");
+                } else {
+                    printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
+                }
             }
             if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                 destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
@@ -626,17 +638,29 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
             } else {
                 SequencerTrack& track = sequencerTracks[1];
                 // Month (Segment 0)
-                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(presRow.month, "   ", 1);
-                else if (!manualDisplayText[1][0].empty()) printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
+                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) {
+                    printToDisplay(presRow.month, "   ", 1);
+                } else {
+                    printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
+                }
                 // Day (Segment 1)
-                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(presRow.day, "  ", 2);
-                else if (!manualDisplayText[1][1].empty()) printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
+                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) {
+                    printToDisplay(presRow.day, "  ", 2);
+                } else {
+                    printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
+                }
                 // Year (Segment 2)
-                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(presRow.year, "    ");
-                else if (!manualDisplayText[1][2].empty()) printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
+                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) {
+                    printToDisplay(presRow.year, "    ");
+                } else {
+                    printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
+                }
                 // Time (Segment 3)
-                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(presRow.time, "    ");
-                else if (!manualDisplayText[1][3].empty()) printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
+                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) {
+                    printToDisplay(presRow.time, "    ");
+                } else {
+                    printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
+                }
             }
             if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                 presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
@@ -661,17 +685,29 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
         } else {
             SequencerTrack& track = sequencerTracks[2];
             // Month (Segment 0)
-            if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(lastRow.month, "   ", 1);
-            else if (!manualDisplayText[2][0].empty()) printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
+            if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) {
+                printToDisplay(lastRow.month, "   ", 1);
+            } else {
+                printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
+            }
             // Day (Segment 1)
-            if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(lastRow.day, "  ", 2);
-            else if (!manualDisplayText[2][1].empty()) printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
+            if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) {
+                printToDisplay(lastRow.day, "  ", 2);
+            } else {
+                printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
+            }
             // Year (Segment 2)
-            if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(lastRow.year, "    ");
-            else if (!manualDisplayText[2][2].empty()) printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
+            if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) {
+                printToDisplay(lastRow.year, "    ");
+            } else {
+                printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
+            }
             // Time (Segment 3)
-            if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(lastRow.time, "    ");
-            else if (!manualDisplayText[2][3].empty()) printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
+            if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) {
+                printToDisplay(lastRow.time, "    ");
+            } else {
+                printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
+            }
         }
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
             lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();

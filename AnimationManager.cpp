@@ -1840,6 +1840,23 @@ void handleAllSequencerMarquees() {
                 if ((unsigned)track.marqueeScrollPosition > track.marqueeText.length() - 13) {
                     track.isMarqueeActive = false;
                     Log_printf(LOG_LEVEL_INFO, "SEQ: Marquee finished on track %d.", i);
+
+                    // --- FIX: Instead of leaving the display blank, center the original text ---
+                    SequenceStep& step = track.steps[track.currentStep];
+                    std::string originalText = step.stringParam;
+                    std::string centeredText;
+
+                    if (originalText.length() < 13) {
+                        int padding = (13 - originalText.length()) / 2;
+                        centeredText = std::string(padding, ' ') + originalText;
+                        while (centeredText.length() < 13) {
+                            centeredText += " ";
+                        }
+                    } else {
+                        centeredText = originalText.substr(0, 13);
+                    }
+                    updateDisplaySegment(i, -1, centeredText);
+
                 } else {
                     // Get the 13-character segment to display
                     std::string displayText = track.marqueeText.substr(track.marqueeScrollPosition, 13);
