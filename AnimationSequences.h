@@ -39,7 +39,6 @@ enum AnimationType {
     // --- Special Debug Sequences ---
     ANIMATION_DEBUG,
     ANIMATION_DEBUG_EFFECTS,
-    ANIMATION_DEBUG_LOGIC,
     ANIMATION_DEBUG_PARALLEL_LOGIC,
     ANIMATION_DEBUG_STRESS
 };
