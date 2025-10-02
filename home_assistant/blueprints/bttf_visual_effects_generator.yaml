@@ -117,7 +117,7 @@ sequence:
           {%- if effect == 'TYPEWRITER' -%}
             {%- set wait_step.duration = (text_to_display | length) * typewriter_delay -%}
           {%- elif effect == 'CROSSFADE_TEXT' -%}
-            {%- set wait_step.duration = crossfade_duration -%}
+            {%- set wait_step.duration = crossfade_duration * 2 -%}
           {%- elif effect == 'BAR_GRAPH' -%}
             {%- set wait_step.duration = bargraph_duration -%}
           {%- else -%}

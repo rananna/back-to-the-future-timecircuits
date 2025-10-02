@@ -25,18 +25,18 @@ blueprint:
       description: "The final text to be revealed (max 13 characters). Supports Home Assistant templates."
       selector:
         text:
-    lock_in_speed:
-      name: Lock-in Speed (milliseconds)
-      description: "The delay between each character being revealed, in milliseconds. A lower number is faster."
+    reveal_delay:
+      name: Reveal Delay (ms)
+      description: "The delay between each character being revealed, in milliseconds. Lower is faster."
       default: 75
       selector:
         number:
           min: 20
           max: 1000
           unit_of_measurement: "ms"
-    scramble_speed:
-      name: Scramble Speed (milliseconds)
-      description: "The speed of the random character flicker, in milliseconds. A lower number is faster."
+    flicker_speed:
+      name: Flicker Speed (ms)
+      description: "The speed of the random character flicker, in milliseconds. Lower is faster."
       default: 50
       selector:
         number:
@@ -63,13 +63,13 @@ sequence:
             "targetRow": target_row,
             "targetSegment": -1,
             "stringParam": text_to_display,
-            "intParam": lock_in_speed,
-            "intParam2": scramble_speed
+            "intParam": flicker_speed,
+            "intParam2": reveal_delay
           }
         ] -%}
         {%- if restore_row -%}
           {# Wait for the scramble animation to complete before restoring the row #}
-          {%- set wait_duration = (text_to_display | length) * lock_in_speed -%}
+          {%- set wait_duration = (text_to_display | length) * reveal_delay -%}
           {%- set steps = steps + [
             {"command": "WAIT", "intParam": wait_duration | int},
             {"command": "RESTORE_ROW", "targetRow": target_row}
