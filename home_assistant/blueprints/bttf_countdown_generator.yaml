@@ -41,6 +41,15 @@ blueprint:
           min: 50
           max: 5000
           unit_of_measurement: "ms"
+    end_text_duration:
+      name: End Text Duration (seconds)
+      description: "How long the end text should be displayed before the row is restored. Only used if End Text is provided."
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: "s"
     restore_row:
       name: Restore Row After Countdown
       description: "If enabled, the row will be restored to its previous state after the countdown finishes."
@@ -55,22 +64,30 @@ sequence:
     data_template:
       topic: !input mqtt_topic
       payload: >
-        {%- set step = {
+        {%- set countdown_step = {
           "command": "COUNTDOWN",
           "targetRow": target_row,
           "targetSegment": -1,
           "intParam": start_number,
           "intParam2": countdown_delay
         } -%}
+        {%- set steps = [countdown_step] -%}
         {%- if end_text != "" -%}
-          {%- do step.update({'stringParam': end_text}) -%}
+          {%- set set_text_step = {
+            "command": "SET_TEXT",
+            "targetRow": target_row,
+            "targetSegment": -1,
+            "stringParam": end_text
+          } -%}
+          {%- set steps = steps + [set_text_step] -%}
         {%- endif -%}
-        {%- set steps = [step] -%}
         {%- if restore_row -%}
-          {# Wait for the countdown to complete before restoring the row #}
-          {%- set wait_duration = (start_number * countdown_delay) | int -%}
+          {# Wait for the countdown and optional end text to complete before restoring the row #}
+          {%- set countdown_duration = (start_number * countdown_delay) | int -%}
+          {%- set text_duration = (end_text_duration * 1000) | int if end_text != "" else 0 -%}
+          {%- set total_wait = countdown_duration + text_duration -%}
           {%- set steps = steps + [
-            {"command": "WAIT", "intParam": wait_duration},
+            {"command": "WAIT", "intParam": total_wait},
             {"command": "RESTORE_ROW", "targetRow": target_row}
           ] -%}
         {%- endif -%}
