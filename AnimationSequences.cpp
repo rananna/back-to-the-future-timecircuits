@@ -382,102 +382,46 @@ void generateDebugSequence(SequencerTrack tracks[3]) {
  * currently running test. This is useful for debugging individual effects.
  */
 void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
-    int s = 0;
-    // --- WIPE ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "WIPE");
-    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 1, -1, 100, 0, "WIPE TEST");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "WIPE DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- SCROLL_IN ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCROLL IN");
-    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 1, -1, 75, 0, "SCROLL IN TEST");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 3000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SCROLL IN DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- CROSSFADE ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "CROSSFADE");
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FROM THIS");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_CROSSFADE_TEXT, 1, -1, 2000, 0, "TO THIS");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "CROSSFADE DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- TYPEWRITER ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TYPEWRITER");
-    s = add_step(tracks[0], s, SEQ_CMD_TYPEWRITER, 1, -1, 150, 0, "TYPEWRITER TEST");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 3000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TYPEWRITER DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- FADE ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "FADE");
-    s = add_step(tracks[0], s, SEQ_CMD_FADE_OUT, 1, -1, 1500, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_FADE_IN, 1, -1, 1500, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FADE DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- PULSE ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "PULSE");
-    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 1, -1, 4000, 750);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PULSE DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- FLASH ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "FLASH");
-    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 1, -1, 4000, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FLASH DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- RANDOM_FLICKER ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "RANDOM FLICKER");
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, ""); // Clear middle row
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 50, 0); // Loop for 5 seconds (50 * 100ms)
-    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 1, 0, 0, 0); // Restore row to clear previous flicker
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 80, 50); // Flicker middle row for 80ms
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0); // Clean up display
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "R_FLICKER DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- RANDOM_FLICKER_TEXT ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "FLICKER");
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 4000, 100);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FLICKER DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- SCRAMBLE_TEXT (FIX VERIFICATION) ---
-    // This test uses a slow lock-in speed (500ms per character) to make it easy
-    // to visually verify that the progressive reveal is working correctly.
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCRAMBLE FIX");
-    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 500, "PROGRESSIVE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 8000, 0); // Wait long enough for the full effect
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SCRAMBLE DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- SCANNER ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCANNER");
-    s = add_step(tracks[0], s, SEQ_CMD_SCANNER, 1, -1, 4000, 80, "---");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SCANNER DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- BAR_GRAPH ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "BAR GRAPH");
-    s = add_step(tracks[0], s, SEQ_CMD_BAR_GRAPH, 1, -1, 4000, 250, "BAR GRAPH");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "BAR GRAPH DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- SET_BRIGHTNESS ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "BRIGHTNESS");
-    s = add_step(tracks[0], s, SEQ_CMD_SET_BRIGHTNESS, 0, 0, 1, 0); // Dim
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1500, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_BRIGHTNESS, 0, 0, 7, 0); // Bright
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1500, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "BRIGHTNESS DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- Final Step ---
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "EFFECTS DONE");
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "");
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // Announce the test
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "EFFECTS TEST");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PARALLEL RUN");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "-------------");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
+
+
+    // Track 0: Wipe, Typewriter, Crossfade
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 75, 0, "WIPE TEST");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 100, 0, "TYPEWRITER");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_CROSSFADE_TEXT, 0, -1, 2000, 0, "CROSSFADE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TRACK 0 DONE");
+
+
+    // Track 1: Scramble, Scanner, Bar Graph
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 250, "SCRAMBLE");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 4000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 4000, 80, "<->");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 4000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 1, -1, 4000, 0, "BAR GRAPH");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 4000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TRACK 1 DONE");
+
+    // Track 2: Fade, Pulse, Flash
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_OUT, 2, -1, 1500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_IN, 2, -1, 1500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 4000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 4000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 4000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 4000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TRACK 2 DONE");
 }
 
 
@@ -524,6 +468,51 @@ void generateDebugParallelLogicSequence(SequencerTrack tracks[3]) {
  * leaks, or other instability issues that only appear under high load.
  * It is not designed to be visually coherent.
  */
+void generateDebugLogicSequence(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // Announce the test
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "LOGIC TEST");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PARALLEL RUN");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "-------------");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
+
+    // Track 0: Nested loops and MQTT publish
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 2, 0); // Outer loop
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, 0, 0, 0, "LOOP");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 3, 0); // Inner loop
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, 0, 200, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 300, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0); // End inner
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0); // End outer
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "MQTT...");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_MQTT_PUBLISH, 0, 0, 0, 0, "timecircuits/test", "Track 0 Done");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TRACK 0 DONE");
+
+    // Track 1: Countdown and restore row
+    s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, -1, 10, 500); // Countdown from 10, 0.5s interval
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "RESTORE...");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RESTORE_ROW, 1, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TRACK 1 DONE");
+
+    // Track 2: Display HA Sensor and restore all
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, 0, 0, 0, "GET HA");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_DISPLAY_HA_SENSOR, 2, 2, 0, 0, "sensor.time", "");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 3000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "RESTORE ALL..");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TRACK 2 DONE");
+}
+
 void generateDebugStressSequence(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
@@ -690,6 +679,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         // --- Special Debug Sequences ---
         case ANIMATION_DEBUG:                   generateDebugSequence(tracks); break;
         case ANIMATION_DEBUG_EFFECTS:           generateDebugEffectsSequence(tracks); break;
+        case ANIMATION_DEBUG_LOGIC:             generateDebugLogicSequence(tracks); break;
         case ANIMATION_DEBUG_PARALLEL_LOGIC:    generateDebugParallelLogicSequence(tracks); break;
         case ANIMATION_DEBUG_STRESS:            generateDebugStressSequence(tracks); break;
 
