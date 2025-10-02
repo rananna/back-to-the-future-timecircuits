@@ -48,24 +48,16 @@ sequence:
     data_template:
       topic: !input mqtt_topic
       payload: >
-        {{
+        {%- set steps = [
           {
-            "tracks": [
-              [
-                {
-                  "command": effect,
-                  "targetRow": target_row,
-                  "targetSegment": -1
-                },
-                {
-                  "command": "WAIT",
-                  "intParam": (duration * 1000) | int
-                },
-                {
-                  "command": "RESTORE_ROW",
-                  "targetRow": target_row
-                }
-              ]
-            ]
-          } | to_json
-        }}
+            "command": effect,
+            "targetRow": target_row,
+            "targetSegment": -1,
+            "intParam": (duration * 1000) | int
+          },
+          {
+            "command": "RESTORE_ROW",
+            "targetRow": target_row
+          }
+        ] -%}
+        {{ {"tracks": [steps]} | to_json }}
