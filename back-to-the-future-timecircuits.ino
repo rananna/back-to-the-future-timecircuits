@@ -193,6 +193,7 @@ volatile bool saveSettingsRequested = false;
 // This string buffers the JSON payload from the web UI to be saved.
 String settingsToSaveJson;
 
+bool webServerRestartRequired = false;
 bool isDisplayAsleep = false;
 unsigned long bootStateStartTime = 0;
 unsigned long lastPresetCycleTime = 0;
@@ -1251,6 +1252,7 @@ void loop() {
                         Log_printf(LOG_LEVEL_INFO, "HA Discovery complete. Temporarily disconnecting services to start mDNS...");
                         // --- FIX START: Stop Web Server and MQTT Client to free memory ---
                         server.end();
+                        webServerRestartRequired = true; // Set the flag to restart the server
                         mqttClient.disconnect();
                         delay(250); // Allow time for buffers to be freed.
 
@@ -1266,8 +1268,19 @@ void loop() {
                         // to prevent the main loop from stopping mDNS on the next iteration.
                         Log_printf(LOG_LEVEL_INFO, "Reconnecting services after mDNS attempt...");
                         reconnectMqtt(); // This attempts to reconnect immediately.
-                        server.begin(); // Restart the web server
+                        // server.begin(); // Restart is now handled by a separate flag check
                         // --- FIX END ---
+                    }
+
+                    // --- NEW: Handle Web Server Restart ---
+                    // If the web server was stopped (e.g., to free memory for mDNS), this flag
+                    // will be set. We handle the restart here, decoupled from other logic, to
+                    // ensure it always comes back online.
+                    if (webServerRestartRequired) {
+                        Log_printf(LOG_LEVEL_INFO, "Restarting web server as requested...");
+                        server.begin();
+                        webServerRestartRequired = false; // Reset the flag
+                        Log_printf(LOG_LEVEL_INFO, "Web server restarted.");
                     }
 
                     // If we are connected, ensure the failure counter is reset.
