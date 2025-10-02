@@ -521,33 +521,9 @@ void generateDebugParallelLogicSequence(SequencerTrack tracks[3]) {
     // 3. Test TRIGGER_ANIMATION (Global)
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: TRIGGER");
     // This command will stop all current tracks and start the LIGHTNING animation.
+    // Any commands after this on this track will NOT be executed. This is the
+    // intended final step of this test sequence.
     s0 = add_step(tracks[0], s0, SEQ_CMD_TRIGGER_ANIMATION, 0, 0, ANIMATION_LIGHTNING, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 5000, 0); // Wait for lightning to run
-
-    // 4. Test DISPLAY_HA_SENSOR (on the top row)
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: HA_SENSOR");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_DISPLAY_HA_SENSOR, 0, -1, 4000, 0, "sensor.time");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 4500, 0);
-
-    // 5. Test RESTORE_ALL_ROWS
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: RST_ALL");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-
-    // 6. Test COUNTDOWN (on the top row)
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: COUNTDOWN");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_COUNTDOWN, 0, -1, 5, 500); // Countdown from 5, 500ms interval
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 3000, 0); // Wait for it to finish
-
-    // 7. Test MQTT_PUBLISH
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "T0: MQTT_PUB");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_MQTT_PUBLISH, 0, 0, 0, 0, "timecircuits/debug", "Debug sequence test message");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-
-    // --- Final Step ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TEST COMPLETE");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TEST COMPLETE");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TEST COMPLETE");
 }
 
 /**
