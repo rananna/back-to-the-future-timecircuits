@@ -993,7 +993,7 @@ void handleSequencer() {
                 if (track.flashEndTimes[s] != 0 && millis() > track.flashEndTimes[s]) {
                     track.isFlashing[s] = false;
                     needsDisplayUpdate = true;
-                } else if (millis() - track.lastFlashToggle[s] > 50) {
+                } else if (millis() - track.lastFlashToggle[s] > 75) {
                     track.flashStates[s] = !track.flashStates[s];
                     track.lastFlashToggle[s] = millis();
                     needsDisplayUpdate = true;
@@ -1178,7 +1178,23 @@ void handleSequencer() {
                         track.lastPulseToggle[step.targetSegment] = millis();
                     }
                     track.stepInitialized = true;
-                    advance_step = true;
+                } else {
+                    // --- FIX: This is now a blocking command. Check for completion. ---
+                    bool stillPulsing = false;
+                    if (step.targetSegment == -1) {
+                        for (int s = 0; s < 4; s++) {
+                            if (track.isPulsing[s]) {
+                                stillPulsing = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        stillPulsing = track.isPulsing[step.targetSegment];
+                    }
+
+                    if (!stillPulsing) {
+                        advance_step = true;
+                    }
                 }
                 break;
 
@@ -1203,7 +1219,23 @@ void handleSequencer() {
                         track.lastFlashToggle[step.targetSegment] = millis();
                     }
                     track.stepInitialized = true;
-                    advance_step = true;
+                } else {
+                    // --- FIX: This is now a blocking command. Check for completion. ---
+                    bool stillFlashing = false;
+                    if (step.targetSegment == -1) {
+                        for (int s = 0; s < 4; s++) {
+                            if (track.isFlashing[s]) {
+                                stillFlashing = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        stillFlashing = track.isFlashing[step.targetSegment];
+                    }
+
+                    if (!stillFlashing) {
+                        advance_step = true;
+                    }
                 }
                 break;
 
