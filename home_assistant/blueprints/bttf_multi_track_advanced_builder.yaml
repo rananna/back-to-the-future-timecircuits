@@ -126,38 +126,52 @@ sequence:
     data:
       topic: !input mqtt_topic
       payload: >
-        {%- macro build_step(command, target_row, string_param, int_param_1, int_param_2) -%}
-          {%- if command and command != 'NONE' -%}
-            {%- set step = {'command': command} -%}
-            {%- if command not in ['WAIT', 'SOUND'] -%}
-              {%- do step.update({'targetRow': target_row, 'targetSegment': -1}) -%}
-            {%- endif -%}
-            {%- if string_param -%}
-              {%- do step.update({'stringParam': string_param}) -%}
-            {%- endif -%}
-            {%- if int_param_1 != 0 -%}
-              {%- do step.update({'intParam': int_param_1}) -%}
-            {%- endif -%}
-            {%- if int_param_2 != 0 -%}
-              {%- do step.update({'intParam2': int_param_2}) -%}
-            {%- endif -%}
-            {{- step -}}
-          {%- endif -%}
-        {%- endmacro -%}
-        {%- set track1_steps = [
-          build_step(track_1_step_1_command, 'TOP', track_1_step_1_string, track_1_step_1_int1, track_1_step_1_int2),
-          build_step(track_1_step_2_command, 'TOP', track_1_step_2_string, track_1_step_2_int1, track_1_step_2_int2)
-        ] | selectattr('command', 'defined') | list -%}
-        {%- set track2_steps = [
-          build_step(track_2_step_1_command, 'MIDDLE', track_2_step_1_string, track_2_step_1_int1, track_2_step_1_int2),
-          build_step(track_2_step_2_command, 'MIDDLE', track_2_step_2_string, track_2_step_2_int1, track_2_step_2_int2)
-        ] | selectattr('command', 'defined') | list -%}
-        {%- set track3_steps = [
-          build_step(track_3_step_1_command, 'BOTTOM', track_3_step_1_string, track_3_step_1_int1, track_3_step_1_int2),
-          build_step(track_3_step_2_command, 'BOTTOM', track_3_step_2_string, track_3_step_2_int1, track_3_step_2_int2)
-        ] | selectattr('command', 'defined') | list -%}
+        {%- set tracks_config = [
+          {
+            'name': 'TOP',
+            'steps_config': [
+              { 'command': track_1_step_1_command, 'string': track_1_step_1_string, 'int1': track_1_step_1_int1, 'int2': track_1_step_1_int2 },
+              { 'command': track_1_step_2_command, 'string': track_1_step_2_string, 'int1': track_1_step_2_int1, 'int2': track_1_step_2_int2 }
+            ]
+          },
+          {
+            'name': 'MIDDLE',
+            'steps_config': [
+              { 'command': track_2_step_1_command, 'string': track_2_step_1_string, 'int1': track_2_step_1_int1, 'int2': track_2_step_1_int2 },
+              { 'command': track_2_step_2_command, 'string': track_2_step_2_string, 'int1': track_2_step_2_int1, 'int2': track_2_step_2_int2 }
+            ]
+          },
+          {
+            'name': 'BOTTOM',
+            'steps_config': [
+              { 'command': track_3_step_1_command, 'string': track_3_step_1_string, 'int1': track_3_step_1_int1, 'int2': track_3_step_1_int2 },
+              { 'command': track_3_step_2_command, 'string': track_3_step_2_string, 'int1': track_3_step_2_int1, 'int2': track_3_step_2_int2 }
+            ]
+          }
+        ] -%}
         {%- set all_tracks = [] -%}
-        {%- if track1_steps -%}{%- do all_tracks.append(track1_steps) -%}{%- endif -%}
-        {%- if track2_steps -%}{%- do all_tracks.append(track2_steps) -%}{%- endif -%}
-        {%- if track3_steps -%}{%- do all_tracks.append(track3_steps) -%}{%- endif -%}
+        {%- for track_config in tracks_config -%}
+          {%- set steps = [] -%}
+          {%- for step_config in track_config.steps_config -%}
+            {%- if step_config.command and step_config.command != 'NONE' -%}
+              {%- set step = {'command': step_config.command} -%}
+              {%- if step_config.command not in ['WAIT', 'SOUND'] -%}
+                {%- do step.update({'targetRow': track_config.name, 'targetSegment': -1}) -%}
+              {%- endif -%}
+              {%- if step_config.string -%}
+                {%- do step.update({'stringParam': step_config.string}) -%}
+              {%- endif -%}
+              {%- if step_config.int1 != 0 -%}
+                {%- do step.update({'intParam': step_config.int1}) -%}
+              {%- endif -%}
+              {%- if step_config.int2 != 0 -%}
+                {%- do step.update({'intParam2': step_config.int2}) -%}
+              {%- endif -%}
+              {%- do steps.append(step) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {%- if steps -%}
+            {%- do all_tracks.append(steps) -%}
+          {%- endif -%}
+        {%- endfor -%}
         {{ {'tracks': all_tracks} | to_json }}
