@@ -1255,7 +1255,7 @@ void handleSequencerCommand(const std::string& payload) {
     } else if (payload == "Time Travel") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Time Travel'");
         json_to_parse = R"([
-            {"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":8000}]},
+            {"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"GO", "intParam":0, "intParam2":8000}]},
             {"targetRow": 1, "commands": [{"command": "MARQUEE", "stringParam": "TIME TRAVEL ACTIVATED"}, {"command": "WAIT", "intParam": 1000}, {"command": "MARQUEE", "stringParam": "88 MPH"}]},
             {"targetRow": 2, "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 8000}]}
         ])";
