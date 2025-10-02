@@ -74,6 +74,7 @@ void stopAllSequences();
 // --- NEW: Function declaration for the startup test ---
 void runSequencerTest();
 void runCrossfadeTest();
+void runWipeTest();
 
 // --- NEW: Functions for sequencer-driven marquee ---
 void startSequencerMarquee(SequencerTrack& track, const std::string& text);

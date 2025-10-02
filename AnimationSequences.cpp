@@ -513,6 +513,27 @@ void generateDebugLogicSequence(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TRACK 2 DONE");
 }
 
+void generateDebugWipeSequence(SequencerTrack tracks[3]) {
+    int s0 = 0;
+
+    // Announce the test
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "WIPE TEST");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
+
+    // Test 1: Short string to test the bounds check fix
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SHORT WIPE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 100, 0, "SHORT");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 3000, 0); // Wait to observe
+
+    // Test 2: Full-length string to test for regressions
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "LONG WIPE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 100, 0, "LONG_WIPE_TEST");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 3000, 0); // Wait to observe
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TEST DONE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "");
+}
+
 void generateDebugStressSequence(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
@@ -682,6 +703,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_DEBUG_LOGIC:             generateDebugLogicSequence(tracks); break;
         case ANIMATION_DEBUG_PARALLEL_LOGIC:    generateDebugParallelLogicSequence(tracks); break;
         case ANIMATION_DEBUG_STRESS:            generateDebugStressSequence(tracks); break;
+        case ANIMATION_DEBUG_WIPE:              generateDebugWipeSequence(tracks); break;
 
         case ANIMATION_RANDOM_FLICKER:          generateRandomFlicker(tracks); break;
         default:
