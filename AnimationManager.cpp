@@ -1860,8 +1860,16 @@ void triggerAnimation(AnimationType animType) {
     // with the new animation.
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d. All current tracks will be replaced.", (int)animType);
 
-    // Generate the requested animation into a temporary set of tracks.
-    SequencerTrack temp_tracks[3];
+    // --- FIX: Allocate temp_tracks on the heap to prevent stack overflow ---
+    // The SequencerTrack struct is very large (approx 5.5KB), so creating an
+    // array of 3 on the stack (16.5KB) exceeds the ESP32's stack limit.
+    SequencerTrack* temp_tracks = new SequencerTrack[3];
+    if (!temp_tracks) {
+        Log_printf(LOG_LEVEL_ERROR, "CRITICAL: Failed to allocate memory for temp_tracks in triggerAnimation. Aborting.");
+        return;
+    }
+
+    // Generate the requested animation into the temporary heap-allocated tracks.
     generateAnimationSequence(animType, temp_tracks);
 
     // Stop ALL currently running tracks to prepare for the new animation.
@@ -1885,6 +1893,9 @@ void triggerAnimation(AnimationType animType) {
              sequencerTracks[j].originalBrightness = currentSettings.brightness;
         }
     }
+
+    // --- FIX: Clean up the heap-allocated memory ---
+    delete[] temp_tracks;
 }
 
 void startSequencerMarquee(SequencerTrack& track, const std::string& text) {
