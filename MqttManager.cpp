@@ -744,6 +744,15 @@ void reconnectMqtt() {
       // All control is now handled via the wildcard command_topic subscription
       // and the datapoint marquee text entities.
     }
+
+    // --- FIX: Add a delay before publishing all states ---
+    // This gives the client time to process incoming subscription ACK messages from the broker
+    // before we flood the outgoing buffer with all of the state messages. This prevents the
+    // client from blocking and causing a keep-alive timeout (ERR: 128).
+    Log_printf(LOG_LEVEL_INFO, "MQTT: All topics subscribed. Pausing for 1 second before publishing all states...");
+    delay(1000);
+    mqttClient.loop(); // Process incoming ACKs during the delay
+
     publishAllHaStates();
   } else {
     const char* error_str = "Unknown";
