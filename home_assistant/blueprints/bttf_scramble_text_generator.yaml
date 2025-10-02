@@ -68,8 +68,8 @@ sequence:
           }
         ] -%}
         {%- if restore_row -%}
-          {# Wait for the scramble animation to complete before restoring the row #}
-          {%- set wait_duration = (text_to_display | length) * reveal_delay -%}
+          {# Wait for the scramble animation to complete before restoring the row. Add one extra interval to ensure the final text is readable. #}
+          {%- set wait_duration = ((text_to_display | length) + 1) * reveal_delay -%}
           {%- set steps = steps + [
             {"command": "WAIT", "intParam": wait_duration | int},
             {"command": "RESTORE_ROW", "targetRow": target_row}
