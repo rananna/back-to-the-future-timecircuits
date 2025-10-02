@@ -1142,6 +1142,17 @@ void loop() {
         handleBackgroundSave();
     }
 
+    // --- NEW: Handle Web Server Restart ---
+    // If the web server was stopped (e.g., to free memory for mDNS), this flag
+    // will be set. We handle the restart here, decoupled from other logic, to
+    // ensure it always comes back online.
+    if (webServerRestartRequired) {
+        Log_printf(LOG_LEVEL_INFO, "Restarting web server as requested...");
+        server.begin();
+        webServerRestartRequired = false; // Reset the flag
+        Log_printf(LOG_LEVEL_INFO, "Web server restarted.");
+    }
+
     // This state machine manages the WiFi connection process in a non-blocking way.
     // This state machine manages the WiFi connection process in a non-blocking way.
     // It handles the initial connection attempt, starting the WiFiManager portal if
@@ -1270,17 +1281,6 @@ void loop() {
                         reconnectMqtt(); // This attempts to reconnect immediately.
                         // server.begin(); // Restart is now handled by a separate flag check
                         // --- FIX END ---
-                    }
-
-                    // --- NEW: Handle Web Server Restart ---
-                    // If the web server was stopped (e.g., to free memory for mDNS), this flag
-                    // will be set. We handle the restart here, decoupled from other logic, to
-                    // ensure it always comes back online.
-                    if (webServerRestartRequired) {
-                        Log_printf(LOG_LEVEL_INFO, "Restarting web server as requested...");
-                        server.begin();
-                        webServerRestartRequired = false; // Reset the flag
-                        Log_printf(LOG_LEVEL_INFO, "Web server restarted.");
                     }
 
                     // If we are connected, ensure the failure counter is reset.
