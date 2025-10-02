@@ -1278,12 +1278,12 @@ void handleSequencerCommand(const std::string& payload) {
     } else if (payload == "Knight Rider") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Knight Rider'");
         json_to_parse = R"([
-            {"targetRow":2, "commands":[{"command":"SCANNER", "intParam":100, "intParam2":10000}]}
+            {"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}
         ])";
     } else if (payload == "Cylon") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Cylon'");
         json_to_parse = R"([
-            {"targetRow":1, "commands":[{"command":"SCANNER", "intParam":200, "intParam2":10000}]}
+            {"targetRow":1, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":200}]}
         ])";
     } else if (payload == "Lightning") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Lightning'");
