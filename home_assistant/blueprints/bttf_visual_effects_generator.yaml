@@ -69,7 +69,7 @@ mode: single
 
 sequence:
   - service: mqtt.publish
-    data:
+    data_template:
       topic: !input mqtt_topic
       payload: >
         {%- set step = {'command': effect, 'targetRow': target_row, 'targetSegment': -1} -%}

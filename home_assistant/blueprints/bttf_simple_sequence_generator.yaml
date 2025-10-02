@@ -41,7 +41,7 @@ mode: single
 
 sequence:
   - service: mqtt.publish
-    data:
+    data_template:
       topic: !input mqtt_topic
       payload: >
         {%- set payload_dict = {
