@@ -28,8 +28,12 @@ blueprint:
         number:
           min: 1
           max: 9999
-    speed:
-      name: Countdown Speed (milliseconds)
+    end_text:
+      name: End Text
+      description: "Optional text to display when the countdown finishes (e.g., 'LIFTOFF')."
+      default: ""
+    countdown_delay:
+      name: Countdown Delay (milliseconds)
       description: "The delay between each number change. 1000ms = 1 second."
       default: 1000
       selector:
@@ -48,18 +52,20 @@ mode: single
 
 sequence:
   - service: mqtt.publish
-    data:
+    data_template:
       topic: !input mqtt_topic
       payload: >
-        {%- set steps = [
-          {
-            "command": "COUNTDOWN",
-            "targetRow": target_row,
-            "targetSegment": -1,
-            "intParam": start_number,
-            "intParam2": speed
-          }
-        ] -%}
+        {%- set step = {
+          "command": "COUNTDOWN",
+          "targetRow": target_row,
+          "targetSegment": -1,
+          "intParam": start_number,
+          "intParam2": countdown_delay
+        } -%}
+        {%- if end_text != "" -%}
+          {%- do step.update({'stringParam': end_text}) -%}
+        {%- endif -%}
+        {%- set steps = [step] -%}
         {%- if restore_row -%}
           {%- set steps = steps + [{
             "command": "RESTORE_ROW",

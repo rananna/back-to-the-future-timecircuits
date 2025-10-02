@@ -2,7 +2,7 @@ blueprint:
   name: BTTF Time Circuits - Visual Effects Generator
   description: >-
     Creates a script to run various visual text effects like Typewriter, Crossfade, Scanner, or Bar Graph.
-    Refer to the parameter descriptions to see which ones are used by your selected effect.
+    Only the parameters for the selected effect will be used.
   domain: script
   input:
     mqtt_topic:
@@ -38,32 +38,59 @@ blueprint:
               value: "BAR_GRAPH"
     text_to_display:
       name: Text to Display
-      description: "For Typewriter/Crossfade: the text to show. For Bar Graph: text to overlay. Supports templates."
+      description: "Required for Typewriter, Crossfade, and Bar Graph (as overlay text). Supports templates."
       default: ""
-    param1:
-      name: "Parameter 1 (Speed / Percentage)"
-      description: "For Typewriter: speed (ms). For Bar Graph: starting percentage (0-100). Not used by others."
+    typewriter_delay:
+      name: "[Typewriter] Delay"
+      description: "The delay between each character appearing, in milliseconds. Lower is faster."
       default: 75
       selector:
         number:
-          min: 0
-          max: 1000
-          unit_of_measurement: "ms / %"
-    param2:
-      name: "Parameter 2 (Duration)"
-      description: "For Bar Graph: animation duration (ms). Not used by others."
+          min: 20
+          max: 500
+          unit_of_measurement: "ms"
+    crossfade_duration:
+      name: "[Crossfade] Duration"
+      description: "The duration of the fade effect, in milliseconds."
       default: 1000
       selector:
         number:
+          min: 100
+          max: 5000
+          unit_of_measurement: "ms"
+    bargraph_percentage:
+      name: "[Bar Graph] Starting Percentage"
+      description: "The percentage (0-100) at which the bar graph should start."
+      default: 0
+      selector:
+        number:
           min: 0
+          max: 100
+          unit_of_measurement: "%"
+    bargraph_duration:
+      name: "[Bar Graph] Animation Duration"
+      description: "The total time for the bar graph animation to complete, in milliseconds."
+      default: 2000
+      selector:
+        number:
+          min: 100
           max: 10000
           unit_of_measurement: "ms"
     restore_row:
       name: Restore Row After Effect
-      description: "If enabled, the row will be restored to its previous state after the effect finishes."
+      description: "If enabled, the row will be restored to its previous state after a delay."
       default: true
       selector:
         boolean: {}
+    duration:
+      name: Display Duration (seconds)
+      description: "If 'Restore Row' is enabled, this is how long the effect will be visible before restoring. Make sure this is longer than any effect animation duration."
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: "s"
 
 mode: single
 
@@ -77,12 +104,17 @@ sequence:
           {%- do step.update({'stringParam': text_to_display}) -%}
         {%- endif -%}
         {%- if effect == 'TYPEWRITER' -%}
-          {%- do step.update({'intParam': param1}) -%}
+          {%- do step.update({'intParam': typewriter_delay}) -%}
+        {%- elif effect == 'CROSSFADE_TEXT' -%}
+          {%- do step.update({'intParam': crossfade_duration}) -%}
         {%- elif effect == 'BAR_GRAPH' -%}
-          {%- do step.update({'intParam': param1, 'intParam2': param2}) -%}
+          {%- do step.update({'intParam': bargraph_percentage, 'intParam2': bargraph_duration}) -%}
         {%- endif -%}
         {%- set steps = [step] -%}
         {%- if restore_row -%}
-          {%- set steps = steps + [{"command": "RESTORE_ROW", "targetRow": target_row}] -%}
+          {%- set steps = steps + [
+            {"command": "WAIT", "intParam": (duration * 1000) | int},
+            {"command": "RESTORE_ROW", "targetRow": target_row}
+          ] -%}
         {%- endif -%}
         {{ {"tracks": [steps]} | to_json }}

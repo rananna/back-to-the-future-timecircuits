@@ -91,7 +91,7 @@ This section details each blueprint, its purpose, and its configuration options.
 *   `mqtt_topic`: The base MQTT topic for your device.
 *   `target_row`: The display row to scroll the text on.
 *   `text_to_display`: The text to scroll. Supports templates and can be longer than 13 characters.
-*   `scroll_speed`: The delay between each step of the scroll animation (in milliseconds).
+*   `speed`: The delay between each step of the scroll animation (in milliseconds). Lower is faster.
 
 **Example Usage:**
 ```yaml
@@ -99,7 +99,7 @@ This section details each blueprint, its purpose, and its configuration options.
   data:
     target_row: "TOP"
     text_to_display: "Now playing: {{ state_attr('media_player.living_room', 'media_title') }}"
-    scroll_speed: 150
+    speed: 150
 ```
 
 ---
@@ -137,7 +137,7 @@ This section details each blueprint, its purpose, and its configuration options.
 *   `mqtt_topic`: The base MQTT topic for your device.
 *   `target_row`: The display row for the countdown.
 *   `start_number`: The number to start counting down from.
-*   `end_text`: Text to display when the countdown finishes (e.g., "LIFTOFF").
+*   `end_text`: Optional text to display when the countdown finishes (e.g., "LIFTOFF").
 *   `countdown_delay`: The delay between each number change (in milliseconds).
 
 **Example Usage:**
@@ -167,7 +167,7 @@ This section details each blueprint, its purpose, and its configuration options.
 *   `entity_to_display`: The Home Assistant entity to display the state of.
 *   `prefix`: Optional text to display before the sensor value.
 *   `postfix`: Optional text to display after the sensor value.
-*   `restore_row_after_a_delay`: If enabled, the row will be restored to its previous state after the specified duration.
+*   `restore_row`: If enabled, the row will be restored to its previous state after the specified duration.
 *   `duration`: How long the text should remain on screen (in seconds).
 
 **Example Usage:**
@@ -178,7 +178,7 @@ This section details each blueprint, its purpose, and its configuration options.
     entity_to_display: sensor.outside_temperature
     prefix: "OUT:"
     postfix: "C"
-    restore_row_after_a_delay: true
+    restore_row: true
     duration: 15
 ```
 
@@ -193,8 +193,8 @@ This section details each blueprint, its purpose, and its configuration options.
 *   `mqtt_topic`: The base MQTT topic for your device.
 *   `target_row`: The display row to show the text on.
 *   `text_helper`: The `input_text` helper entity to read the message from.
-*   `animation_style`: How the text should be displayed (Instant, Marquee, or Scramble).
-*   `speed`: The speed of the animation effect in milliseconds (for Marquee or Scramble).
+*   `animation_style`: How the text should be displayed (`Set Text (Instant)`, `Marquee`, or `Scramble`).
+*   `speed`: For `Marquee` or `Scramble`, the speed of the animation effect in milliseconds.
 
 **Example Usage:**
 ```yaml
@@ -232,7 +232,7 @@ This section details each blueprint, its purpose, and its configuration options.
 
 #### Visual Effects Generator
 * **File:** [`bttf_visual_effects_generator.yaml`](bttf_visual_effects_generator.yaml)
-* **Description:** A themed blueprint that groups several creative text-based visual effects into a single place.
+* **Description:** A themed blueprint that groups several creative text-based visual effects into a single place. Only the parameters for the selected effect will be used.
 * **When to use it:** For adding more creative flair to your text displays beyond the standard animations.
 
 **Inputs:**
@@ -240,7 +240,12 @@ This section details each blueprint, its purpose, and its configuration options.
 *   `target_row`: The display row for the effect.
 *   `effect`: The visual effect to use (`Typewriter`, `Crossfade`, `Scanner`, `Bar Graph`).
 *   `text_to_display`: The text for the effect.
-*   `...other options`: Additional options vary by effect (e.g., speed, duration).
+*   `typewriter_delay`: [Typewriter] The delay between each character appearing (ms).
+*   `crossfade_duration`: [Crossfade] The duration of the fade effect (ms).
+*   `bargraph_percentage`: [Bar Graph] The percentage (0-100) at which the bar graph should start.
+*   `bargraph_duration`: [Bar Graph] The total time for the bar graph animation to complete (ms).
+*   `restore_row`: If enabled, restores the row after the effect.
+*   `duration`: If `restore_row` is enabled, how long to wait before restoring (seconds).
 
 **Example Usage (Typewriter):**
 ```yaml
@@ -250,28 +255,30 @@ This section details each blueprint, its purpose, and its configuration options.
     effect: "TYPEWRITER"
     text_to_display: "SYSTEM ONLINE"
     typewriter_delay: 150
+    restore_row: true
+    duration: 5
 ```
 
 ---
 
 #### Row Effects Generator
 * **File:** [`bttf_row_effects_generator.yaml`](bttf_row_effects_generator.yaml)
-* **Description:** Starts or stops continuous, attention-grabbing effects like `PULSE` or `FLASH` on an entire row.
-* **When to use it:** For creating persistent alerts, like making a row flash red while an alarm is active. **Note:** These effects run until they are explicitly stopped by running the blueprint again with the `STOP` command.
+* **Description:** Runs a one-shot, attention-grabbing effect on an entire row, like a slow pulse or a rapid flash, for a specific duration.
+* **When to use it:** For creating temporary, noticeable alerts, like making a row flash for 5 seconds when an alarm is triggered.
 
 **Inputs:**
 *   `mqtt_topic`: The base MQTT topic for your device.
 *   `target_row`: The display row for the effect.
 *   `effect`: The effect to apply (`PULSE`, `FLASH`).
-*   `action`: Whether to `START` or `STOP` the effect.
+*   `duration`: How long the effect should run before the row is automatically restored (in seconds).
 
-**Example Usage (Start):**
+**Example Usage:**
 ```yaml
 - service: script.bttf_time_circuits_row_effects_generator
   data:
     target_row: "BOTTOM"
     effect: "FLASH"
-    action: "START"
+    duration: 5
 ```
 
 ---
@@ -283,9 +290,9 @@ This section details each blueprint, its purpose, and its configuration options.
 
 **Inputs:**
 *   `mqtt_topic`: The base MQTT topic for your device.
-*   `track_1_commands`: A JSON-formatted string of commands for the Top row.
-*   `track_2_commands`: A JSON-formatted string of commands for the Middle row.
-*   `track_3_commands`: A JSON-formatted string of commands for the Bottom row.
+*   `track_1_commands`: A JSON-formatted array of commands for the Top row.
+*   `track_2_commands`: A JSON-formatted array of commands for the Middle row.
+*   `track_3_commands`: A JSON-formatted array of commands for the Bottom row.
 
 **Example Usage:**
 ```yaml
@@ -293,14 +300,14 @@ This section details each blueprint, its purpose, and its configuration options.
   data:
     track_1_commands: >
       [
-        {"command": "MARQUEE", "stringParam": "INTRUDER ALERT", "intParam": 100},
+        {"command": "MARQUEE", "targetRow": "TOP", "stringParam": "INTRUDER ALERT", "intParam": 100},
         {"command": "WAIT", "intParam": 10000},
-        {"command": "RESTORE_ROW"}
+        {"command": "RESTORE_ROW", "targetRow": "TOP"}
       ]
     track_3_commands: >
       [
-        {"command": "FLASH"},
+        {"command": "FLASH", "targetRow": "BOTTOM"},
         {"command": "WAIT", "intParam": 10000},
-        {"command": "RESTORE_ROW"}
+        {"command": "RESTORE_ROW", "targetRow": "BOTTOM"}
       ]
 ```

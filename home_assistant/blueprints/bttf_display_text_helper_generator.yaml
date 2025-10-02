@@ -58,13 +58,14 @@ sequence:
       topic: !input mqtt_topic
       payload: >
         {%- set helper_text = states(text_helper) -%}
-        {%- set steps = [
-          {
-            "command": animation_style,
-            "targetRow": target_row,
-            "targetSegment": -1,
-            "stringParam": helper_text,
-            "intParam": speed
-          }
-        ] -%}
+        {%- set step = {
+          "command": animation_style,
+          "targetRow": target_row,
+          "targetSegment": -1,
+          "stringParam": helper_text
+        } -%}
+        {%- if animation_style in ['MARQUEE', 'SCRAMBLE_TEXT'] -%}
+          {%- do step.update({'intParam': speed}) -%}
+        {%- endif -%}
+        {%- set steps = [step] -%}
         {{ {"tracks": [steps]} | to_json }}
