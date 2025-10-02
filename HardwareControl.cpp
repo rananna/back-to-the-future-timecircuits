@@ -87,7 +87,7 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
   display.clear();
 
   // --- FIX: Robustly handle blanking for flashing effects ---
-  // If the text is null, empty, or just spaces, ensure the display is cleared and stop.
+  // If the text is null or empty, ensure the display is cleared and stop.
   // This avoids potential I2C issues with writing empty buffers on certain rows.
   if (text == nullptr) {
     return; // Already cleared
@@ -96,16 +96,9 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
   if (text_len == 0) {
     return; // Already cleared
   }
-  bool is_blank = true;
-  for (int i = 0; i < text_len; i++) {
-    if (text[i] != ' ') {
-      is_blank = false;
-      break;
-    }
-  }
-  if (is_blank) {
-    return; // Already cleared
-  }
+  // NOTE: The check for a string containing only spaces was removed.
+  // This was preventing the PULSE effect from working, as it relies on
+  // writing a blank string ("   ") to the display to turn it off.
 
   // --- FIX: Safely handle strings to prevent overflow and ensure truncation ---
   char buffer[5];
