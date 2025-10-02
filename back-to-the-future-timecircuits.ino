@@ -1245,12 +1245,25 @@ void loop() {
                 } else {
                     // --- mDNS Management: Start mDNS only after HA discovery is complete ---
                     // This prevents a memory allocation race condition on the ESP32.
+                    // We temporarily disconnect MQTT to free its large buffers, start mDNS,
+                    // and then immediately reconnect.
                     if (!mDnsIsActive && isHaDiscoveryComplete()) {
+                        Log_printf(LOG_LEVEL_INFO, "HA Discovery complete. Temporarily disconnecting MQTT to start mDNS...");
+                        mqttClient.disconnect();
+                        delay(250); // Allow time for buffers to be freed.
+
                         if (MDNS.begin("BTTF_TC")) {
                             MDNS.addService("http", "tcp", 80);
                             mDnsIsActive = true;
-                            Log_printf(LOG_LEVEL_INFO, "mDNS service started after HA discovery.");
+                            Log_printf(LOG_LEVEL_INFO, "mDNS service started successfully.");
+                        } else {
+                            Log_printf(LOG_LEVEL_ERROR, "mDNS failed to start even after freeing MQTT memory.");
                         }
+
+                        // Whether mDNS succeeded or not, we must reconnect to MQTT immediately
+                        // to prevent the main loop from stopping mDNS on the next iteration.
+                        Log_printf(LOG_LEVEL_INFO, "Reconnecting MQTT after mDNS attempt...");
+                        reconnectMqtt(); // This attempts to reconnect immediately.
                     }
 
                     // If we are connected, ensure the failure counter is reset.
