@@ -429,10 +429,16 @@ void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 4000, 0);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "FLASH DONE");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    // --- RANDOM_FLICKER (NEW TEST) ---
+    // --- RANDOM_FLICKER ---
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "RANDOM FLICKER");
-    s = add_step(tracks[0], s, SEQ_CMD_TRIGGER_ANIMATION, 0, 0, ANIMATION_RANDOM_FLICKER, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 10000, 0); // Wait for the animation to run
+    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, ""); // Clear middle row
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 50, 0); // Loop for 5 seconds (50 * 100ms)
+    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 1, 0, 0, 0); // Restore row to clear previous flicker
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 80, 50); // Flicker middle row for 80ms
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0); // Clean up display
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "R_FLICKER DONE");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
     // --- RANDOM_FLICKER_TEXT ---
