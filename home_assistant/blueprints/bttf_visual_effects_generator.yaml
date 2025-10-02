@@ -115,7 +115,8 @@ sequence:
           {#- For effects with a defined duration, wait for them to finish. For continuous effects, use the manual duration. -#}
           {%- set wait_step = namespace(duration=0) -%}
           {%- if effect == 'TYPEWRITER' -%}
-            {%- set wait_step.duration = (text_to_display | length) * typewriter_delay -%}
+            {#- Add 1 second to the end to ensure the full text is readable -#}
+            {%- set wait_step.duration = ((text_to_display | length) * typewriter_delay) + 1000 -%}
           {%- elif effect == 'CROSSFADE_TEXT' -%}
             {%- set wait_step.duration = crossfade_duration * 2 -%}
           {%- elif effect == 'BAR_GRAPH' -%}
