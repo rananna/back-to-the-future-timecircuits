@@ -1276,7 +1276,7 @@ void handleSequencerCommand(const std::string& payload) {
     } else if (payload == "Countdown") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Countdown'");
         json_to_parse = R"([
-            {"targetRow":1, "commands":[{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}, {"command":"MARQUEE", "stringParam":"LIFTOFF!"}, {"command":"SOUND", "stringParam":"engine_rev.mp3"}]}
+            {"targetRow":1, "commands":[{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}, {"command":"MARQUEE", "stringParam":"LIFTOFF"}, {"command":"SOUND", "stringParam":"engine_rev.mp3"}]}
         ])";
     } else if (payload == "Knight Rider") {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Knight Rider'");
