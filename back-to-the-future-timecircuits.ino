@@ -1092,7 +1092,6 @@ void handleDisplay() {
             updateStockTickerDisplay();
             break;
         case STATE_DATA_LINK:
-            fetchDataLink();
             updateMarqueeDisplay();
             break;
         case STATE_WEATHER:
