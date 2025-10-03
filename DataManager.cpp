@@ -442,9 +442,9 @@ static bool fetchWeatherDataFromApi() {
             break;
         }
 
-        // Use a stack-allocated buffer for headers to avoid heap fragmentation.
-        // Increased from 2048 to 4096 to handle larger API response headers.
-        char header_buf[4096];
+        // Use a static buffer for headers to avoid stack overflow. This is critical on ESP32
+        // where the stack is limited. Increased from 2048 to 4096 to handle larger API response headers.
+        static char header_buf[4096];
         int http_status = 0;
         size_t header_len = 0;
         unsigned long header_read_start_time = millis();
