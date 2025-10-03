@@ -32,8 +32,11 @@ static std::mutex httpClientMutex;
 
 // --- Extern Global Variables ---
 // These are defined in the main .ino file and are made available here.
-extern volatile bool saveSettingsRequested;
-extern String settingsToSaveJson;
+
+// --- Forward Declarations ---
+// These functions are defined in the main .ino file and are called from here.
+void applyAndSaveSettings(JsonVariant& json);
+void startStyledAnimation();
 
 
 /**
@@ -980,59 +983,17 @@ void setupWebRoutes() {
   server.addHandler(refreshWeatherHandler);
 
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    JsonObject obj = json.as<JsonObject>();
+    Log_printf(LOG_LEVEL_INFO, "--- Web Save Started ---");
+    // Directly apply and save the settings from the received JSON.
+    // This avoids using global variables and intermediate buffers, preventing memory issues.
+    applyAndSaveSettings(json);
 
-    // The main save logic is in the main loop, but we need to update the
-    // stock manager's state immediately so the UI feels responsive.
-    if (!obj["stockAssets"].isNull()) {
-        JsonArray assets = obj["stockAssets"].as<JsonArray>();
-        std::vector<String> symbols;
-        for (JsonVariant v : assets) {
-            JsonObject assetObj = v.as<JsonObject>();
-            String symbol;
-            if (assetObj["symbol"].is<JsonObject>()) {
-                // Handle {"symbol": {"symbol": "MSFT", ...}}
-                symbol = assetObj["symbol"]["symbol"].as<String>();
-            } else {
-                // Handle {"symbol": "MSFT"}
-                symbol = assetObj["symbol"].as<String>();
-            }
-
-            if (!symbol.isEmpty()) {
-                symbols.push_back(symbol);
-            }
-        }
-        // This single call now handles adding, removing, reordering, and saving.
-        stockManager.updateAndSaveAssets(symbols);
-    }
-
-    // Explicitly update the stock manager's API key.
-    if (!obj["financialModelingPrepApiKey"].isNull()) {
-        stockManager.setApiKey(obj["financialModelingPrepApiKey"].as<String>());
-    }
-
-    // --- START: MODIFICATION - Explicitly update stock refresh interval ---
-    // The stock refresh interval is also updated here immediately to ensure
-    // that any changes are applied, even if the main settings save process
-    // is delayed or interrupted.
-    if (!obj["stockRefreshInterval"].isNull()) {
-        int newInterval = obj["stockRefreshInterval"].as<int>();
-        if (newInterval > 0) {
-            currentSettings.stockRefreshInterval = newInterval;
-            stockManager.setRefreshInterval(newInterval);
-        }
-    }
-    // --- END: MODIFICATION ---
-
-    // Re-serialize the parsed JSON from the request back into our global string buffer.
-    settingsToSaveJson = ""; // Clear any previous data.
-    serializeJson(json, settingsToSaveJson);
-
-    // Set the volatile flag to true. The main loop will see this and handle the save.
-    saveSettingsRequested = true;
+    // After saving, trigger the confirmation animation to provide user feedback.
+    startStyledAnimation();
 
     // Immediately send a response to the client to unblock the UI.
-    request->send(200, "text/plain", "Settings Save Queued!");
+    request->send(200, "text/plain", "Settings Saved!");
+    Log_printf(LOG_LEVEL_INFO, "--- Web Save Finished ---");
   });
   server.addHandler(saveSettingsHandler);
 
