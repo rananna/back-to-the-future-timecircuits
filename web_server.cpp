@@ -542,6 +542,7 @@ void setupWebRoutes() {
 
   // Attach the WebSocket event handler.
   ws.onEvent(onWsEvent);
+  ws.setPingInterval(10); // Send a ping every 10s to keep connection alive
   server.addHandler(&ws);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ 
