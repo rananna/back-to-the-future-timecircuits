@@ -187,11 +187,9 @@ unsigned long styledAnimationStartTime = 0;
 AnimationPhase currentStyledPhase = ANIM_INACTIVE;
 
 // --- Asynchronous Settings Save Mechanism ---
-// This flag is set by the web server when a save request is received.
-// The main loop then handles the actual saving process in the background.
-volatile bool saveSettingsRequested = false;
-// This string buffers the JSON payload from the web UI to be saved.
-String settingsToSaveJson;
+// Settings are now applied and saved directly in the web server request handler
+// to avoid using global variables and intermediate string buffers, which can
+// cause memory issues on the ESP32.
 
 bool webServerRestartRequired = false;
 bool isDisplayAsleep = false;
@@ -261,21 +259,10 @@ void audioTask(void *pvParameters) {
 // Forward declaration for the function that applies settings from a JSON object.
 void applySettingsFromJson(const JsonObject& obj);
 
-// This helper function now contains the memory-intensive JSON parsing.
-// It returns true on success and false on failure.
-bool applyAndSaveSettings() {
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, settingsToSaveJson);
-
-    // Clear the large JSON string from memory as soon as it has been parsed.
-    settingsToSaveJson = "";
-
-    if (error) {
-        Log_printf(LOG_LEVEL_ERROR, "applyAndSaveSettings: deserializeJson() failed: %s", error.c_str());
-        return false;
-    }
-
-    JsonObject obj = doc.as<JsonObject>();
+// This function applies settings from a JSON object and saves them.
+// It is called directly from the web server handler.
+void applyAndSaveSettings(JsonVariant& json) {
+    JsonObject obj = json.as<JsonObject>();
 
     // Apply the new settings from the JSON object.
     applySettingsFromJson(obj);
@@ -285,29 +272,6 @@ bool applyAndSaveSettings() {
 
     // Set the volume (might have changed).
     audio.setVolume(currentSettings.notificationVolume);
-
-    return true;
-}
-
-/**
- * @brief Handles the asynchronous saving of settings requested from the web UI.
- * @details This function is called from the main loop when the `saveSettingsRequested`
- * flag is true. It calls a helper function to perform the memory-intensive parsing
- * and saving, and once that is complete and the memory has been freed, it triggers
- * the confirmation animation.
- */
-void handleBackgroundSave() {
-    saveSettingsRequested = false; // Reset the flag immediately.
-    Log_printf(LOG_LEVEL_INFO, "--- Background Save Started ---");
-
-    // The 8KB DynamicJsonDocument is allocated and freed entirely inside this function call.
-    if (applyAndSaveSettings()) {
-        // By the time we are here, the large memory buffer is gone.
-        // Now it's safe to start the memory-intensive confirmation animation.
-        startStyledAnimation();
-    }
-
-    Log_printf(LOG_LEVEL_INFO, "--- Background Save Finished ---");
 }
 
 /**
@@ -475,8 +439,21 @@ void applySettingsFromJson(const JsonObject& obj) {
         JsonArray arr = obj["stockAssets"].as<JsonArray>();
         std::vector<String> symbols;
         for (JsonVariant v : arr) {
-            symbols.push_back(v.as<String>());
+            JsonObject assetObj = v.as<JsonObject>();
+            String symbol;
+            if (assetObj["symbol"].is<JsonObject>()) {
+                // Handle {"symbol": {"symbol": "MSFT", ...}}
+                symbol = assetObj["symbol"]["symbol"].as<String>();
+            } else {
+                // Handle {"symbol": "MSFT"}
+                symbol = assetObj["symbol"].as<String>();
+            }
+
+            if (!symbol.isEmpty()) {
+                symbols.push_back(symbol);
+            }
         }
+        // This single call now handles adding, removing, reordering, and saving.
         stockManager.updateAndSaveAssets(symbols);
     }
 
@@ -1154,11 +1131,6 @@ void loop() {
 
     // Clean up disconnected WebSocket clients and send pings
     ws.cleanupClients();
-    
-    // Check if a settings save has been requested by the web server
-    if (saveSettingsRequested) {
-        handleBackgroundSave();
-    }
 
     // --- NEW: Handle Web Server Restart ---
     // If the web server was stopped (e.g., to free memory for mDNS), this flag
