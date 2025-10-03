@@ -390,7 +390,7 @@ void applySettingsFromJson(const JsonObject& obj) {
     // --- FIX: Handle display mode changes from the "Data Link" page ---
     // The Data Link UI sends boolean flags instead of a single displayMode integer.
     // This logic correctly interprets those flags to set the right mode.
-    if (obj.containsKey("weatherModeEnabled") || obj.containsKey("stockTickerModeEnabled") || obj.containsKey("dataLinkEnabled")) {
+    if (!obj["weatherModeEnabled"].isNull() || !obj["stockTickerModeEnabled"].isNull() || !obj["dataLinkEnabled"].isNull()) {
         if (obj["stockTickerModeEnabled"] | false) {
             currentSettings.displayMode = DMS_STOCK_TICKER;
         } else if (obj["weatherModeEnabled"] | false) {
@@ -1151,6 +1151,9 @@ bool isAnySequenceActive() {
 
 void loop() {
     vTaskDelay(1); // Yield to other tasks, making the system responsive.
+
+    // Clean up disconnected WebSocket clients and send pings
+    ws.cleanupClients();
     
     // Check if a settings save has been requested by the web server
     if (saveSettingsRequested) {
