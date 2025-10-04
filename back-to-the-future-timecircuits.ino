@@ -1276,9 +1276,9 @@ void loop() {
                         Log_printf(LOG_LEVEL_INFO, "HA Discovery complete. Temporarily disconnecting services to start mDNS...");
                         // --- FIX START: Stop Web Server and MQTT Client to free memory ---
                         server.end();
+                        webServerRestartRequired = true; // Set the flag to restart the server
                         mqttClient.disconnect();
-                        Log_printf(LOG_LEVEL_INFO, "Web server and MQTT stopped for mDNS startup.");
-                        delay(500); // Increased delay for stability
+                        delay(250); // Allow time for buffers to be freed.
 
                         if (MDNS.begin("BTTF_TC")) {
                             MDNS.addService("http", "tcp", 80);
@@ -1288,9 +1288,11 @@ void loop() {
                             Log_printf(LOG_LEVEL_ERROR, "mDNS failed to start even after freeing memory.");
                         }
 
-                        // Set the flag to restart the web server on the next loop iteration.
-                        // The main MQTT connection logic will handle the reconnect automatically.
-                        webServerRestartRequired = true;
+                        // Whether mDNS succeeded or not, we must reconnect to MQTT immediately
+                        // to prevent the main loop from stopping mDNS on the next iteration.
+                        Log_printf(LOG_LEVEL_INFO, "Reconnecting services after mDNS attempt...");
+                        reconnectMqtt(); // This attempts to reconnect immediately.
+                        // server.begin(); // Restart is now handled by a separate flag check
                         // --- FIX END ---
                     }
 
