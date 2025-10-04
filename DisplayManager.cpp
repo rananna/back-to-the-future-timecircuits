@@ -945,12 +945,16 @@ void handleWeatherDisplay() {
                                 // Format sunrise
                                 localtime_r(&sunrise, &timeinfo);
                                 strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
-                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "SUNRISE %s, SUNSET ", timeStr);
+                                char* p_sunrise = timeStr;
+                                if (p_sunrise[0] == ' ') p_sunrise++;
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "SUNRISE %s, SUNSET ", p_sunrise);
 
                                 // Format sunset
                                 localtime_r(&sunset, &timeinfo);
                                 strftime(timeStr, sizeof(timeStr), currentSettings.displayFormat24h ? "%H%M" : "%l%M%p", &timeinfo);
-                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s", timeStr);
+                                char* p_sunset = timeStr;
+                                if (p_sunset[0] == ' ') p_sunset++;
+                                snprintf(weatherBuffer + strlen(weatherBuffer), sizeof(weatherBuffer) - strlen(weatherBuffer), "%s", p_sunset);
 
                                 // Restore the original timezone for the main clock display
                                 setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
