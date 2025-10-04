@@ -1,4 +1,5 @@
 #include "StockManager.h"
+#include "SizedStream.h"
 #include "DebugLog.h"
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -757,18 +758,27 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
         CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
 
         bool is_chunked = (strcasestr(header_buf, "Transfer-Encoding: chunked") != NULL);
+        long content_length = -1;
+        const char* cl_header = strcasestr(header_buf, "Content-Length: ");
+        if (cl_header) {
+            content_length = atol(cl_header + 16);
+        }
 
         JsonDocument doc;
         DeserializationError error;
 
-        // For single symbol lookups, the API returns a single JSON object.
-        // The parseJsonResponse function is designed to handle this.
-
         // Stream the response directly to the JSON parser to conserve memory.
         if (is_chunked) {
+            Log_printf(LOG_LEVEL_DEBUG, "Using DechunkingStream for parsing.");
             DechunkingStream dechunking_stream(combined_stream);
             error = deserializeJson(doc, dechunking_stream);
+        } else if (content_length >= 0) {
+            Log_printf(LOG_LEVEL_DEBUG, "Using SizedStream for parsing with length: %ld", content_length);
+            SizedStream sized_stream(combined_stream, content_length);
+            error = deserializeJson(doc, sized_stream);
         } else {
+            // Fallback for non-chunked responses without Content-Length
+            Log_printf(LOG_LEVEL_WARN, "No Content-Length or chunked encoding. Parsing might be unreliable.");
             error = deserializeJson(doc, combined_stream);
         }
 
