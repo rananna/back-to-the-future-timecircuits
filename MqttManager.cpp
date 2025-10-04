@@ -958,7 +958,13 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             }
 
             if (currentSettings.displayMode != oldMode) {
+                // Publish the change back to HA to confirm state
                 publishDisplayMode(currentSettings.displayMode);
+
+                // --- NEW: Broadcast the change to all connected WebSocket clients ---
+                broadcastWsStateUpdate("displayMode", currentSettings.displayMode);
+
+                // Persist the change to NVS
                 settingsChanged = true;
             }
         } else if (component == "weather_city") {

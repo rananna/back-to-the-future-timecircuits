@@ -57,17 +57,40 @@ function initWebSocket() {
                 showMessage(`Preset cycled to: ${msg.name}`, 'info');
             }
         } else if (msg.action === 'stateUpdate') {
-            const el = document.getElementById(msg.key);
-            if (el) {
-                if (el.type === 'checkbox') {
-                    el.checked = msg.value;
-                } else {
-                    el.value = msg.value;
+            // --- START: MODIFICATION - Specific handler for displayMode ---
+            if (msg.key === 'displayMode') {
+                const displayMode = parseInt(msg.value, 10);
+                // Get the checkbox elements
+                const stockTickerModeEnabled = document.getElementById('stockTickerModeEnabled');
+                const weatherModeEnabled = document.getElementById('weatherModeEnabled');
+                const dataLinkEnabled = document.getElementById('dataLinkEnabled');
+
+                if (stockTickerModeEnabled && weatherModeEnabled && dataLinkEnabled) {
+                    // Set the state of each checkbox based on the received value
+                    stockTickerModeEnabled.checked = (displayMode === 1);
+                    weatherModeEnabled.checked = (displayMode === 2);
+                    dataLinkEnabled.checked = (displayMode === 3);
+
+                    // Trigger change events to ensure the UI updates correctly
+                    stockTickerModeEnabled.dispatchEvent(new Event('change'));
+                    weatherModeEnabled.dispatchEvent(new Event('change'));
+                    dataLinkEnabled.dispatchEvent(new Event('change'));
                 }
-                // Trigger an event to update any associated UI elements (like value spans)
-                el.dispatchEvent(new Event('input'));
-                el.dispatchEvent(new Event('change'));
+            } else {
+                // Keep the generic handler for other state updates
+                const el = document.getElementById(msg.key);
+                if (el) {
+                    if (el.type === 'checkbox') {
+                        el.checked = msg.value;
+                    } else {
+                        el.value = msg.value;
+                    }
+                    // Trigger an event to update any associated UI elements (like value spans)
+                    el.dispatchEvent(new Event('input'));
+                    el.dispatchEvent(new Event('change'));
+                }
             }
+            // --- END: MODIFICATION ---
         } else if (msg.action === 'weatherUpdate') {
             console.log("CLIENT_DEBUG: Received weatherUpdate:", msg.data);
             updateWeatherUI(msg.data);
