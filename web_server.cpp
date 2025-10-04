@@ -36,6 +36,7 @@ static std::mutex httpClientMutex;
 // --- Forward Declarations ---
 // These functions are defined in the main .ino file and are called from here.
 void applyAndSaveSettings(JsonVariant& json);
+void startStyledAnimation();
 
 
 /**
@@ -989,6 +990,14 @@ void setupWebRoutes() {
 
     // Now, process the settings in the background.
     applyAndSaveSettings(json);
+
+    // After saving, check if this was a time travel request
+    JsonObject obj = json.as<JsonObject>();
+    if (obj["timeTravelEngaged"] | false) {
+        startTimeTravelAnimation();
+    } else {
+        startStyledAnimation();
+    }
   });
   server.addHandler(saveSettingsHandler);
 
