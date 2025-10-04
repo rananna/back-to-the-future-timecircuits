@@ -924,6 +924,9 @@ void setup() {
     delay(1000); // Wait for serial monitor to connect.
 
     Log_printf(LOG_LEVEL_INFO, "Initializing watchdog with %d second timeout...", WDT_TIMEOUT);
+    // De-initialize the watchdog timer first to prevent an error if it's already running.
+    // This can happen if the ESP-IDF default watchdog is enabled.
+    esp_task_wdt_deinit();
     // New configuration struct for the watchdog timer
     esp_task_wdt_config_t wdt_config = {
         .timeout_ms = WDT_TIMEOUT * 1000,
