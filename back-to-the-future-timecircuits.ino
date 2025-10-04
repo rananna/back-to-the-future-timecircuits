@@ -924,8 +924,14 @@ void setup() {
     delay(1000); // Wait for serial monitor to connect.
 
     Log_printf(LOG_LEVEL_INFO, "Initializing watchdog with %d second timeout...", WDT_TIMEOUT);
-    esp_task_wdt_init(WDT_TIMEOUT, true); // true = panic on timeout
-    esp_task_wdt_add(NULL);               // Subscribe the current task (the main loop) to the watchdog
+    // New configuration struct for the watchdog timer
+    esp_task_wdt_config_t wdt_config = {
+        .timeout_ms = WDT_TIMEOUT * 1000,
+        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,    // Watch idle tasks on all cores
+        .trigger_panic = true,
+    };
+    ESP_ERROR_CHECK(esp_task_wdt_init(&wdt_config)); // Initialize WDT with the new config struct
+    esp_task_wdt_add(NULL);         // Subscribe the current task (the main loop) to the watchdog
     Log_printf(LOG_LEVEL_INFO, "Watchdog initialized.");
 
     // Get MAC address early for MQTT Unique ID. This is more reliable than WiFi.macAddress().
