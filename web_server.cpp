@@ -983,33 +983,18 @@ void setupWebRoutes() {
   server.addHandler(refreshWeatherHandler);
 
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    Log_printf(LOG_LEVEL_INFO, "DIAG: --- /api/saveSettings endpoint hit ---");
-
-    // --- START: FIX - Removed risky JSON serialization to prevent heap allocation failure ---
-    // The following lines were removed as they could cause a crash on the ESP32
-    // when saving complex settings due to large memory allocation on the heap.
-    // String payload;
-    // serializeJson(json, payload);
-    // Log_printf(LOG_LEVEL_INFO, "DIAG: Received payload: %s", payload.c_str());
-    // --- END: FIX ---
-
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Calling applyAndSaveSettings...");
     applyAndSaveSettings(json);
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Returned from applyAndSaveSettings.");
 
     // After saving, check if this was a time travel request
     JsonObject obj = json.as<JsonObject>();
     if (obj["timeTravelEngaged"] | false) {
-        Log_printf(LOG_LEVEL_INFO, "DIAG: timeTravelEngaged is true. Calling startTimeTravelAnimation().");
         startTimeTravelAnimation();
     } else {
-        Log_printf(LOG_LEVEL_INFO, "DIAG: timeTravelEngaged is false or missing. Calling startStyledAnimation().");
         startStyledAnimation();
     }
 
     // Immediately send a response to the client to unblock the UI.
     request->send(200, "text/plain", "Settings Saved!");
-    Log_printf(LOG_LEVEL_INFO, "DIAG: --- /api/saveSettings finished ---");
   });
   server.addHandler(saveSettingsHandler);
 
