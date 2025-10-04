@@ -995,6 +995,9 @@ void setupWebRoutes() {
 
     // Immediately send a response to the client to unblock the UI.
     request->send(200, "text/plain", "Settings Saved!");
+
+    // Signal that the web server should be restarted to prevent a hang from memory fragmentation.
+    webServerRestartRequired = true;
   });
   server.addHandler(saveSettingsHandler);
 

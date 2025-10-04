@@ -194,7 +194,7 @@ AnimationPhase currentStyledPhase = ANIM_INACTIVE;
 // to avoid using global variables and intermediate string buffers, which can
 // cause memory issues on the ESP32.
 
-bool webServerRestartRequired = false;
+volatile bool webServerRestartRequired = false;
 bool isDisplayAsleep = false;
 unsigned long bootStateStartTime = 0;
 unsigned long lastPresetCycleTime = 0;

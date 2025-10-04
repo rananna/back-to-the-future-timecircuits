@@ -29,6 +29,7 @@ extern bool timeSynchronized;
 extern bool ntpSyncRequested;
 extern PubSubClient mqttClient;
 extern bool mqttReconnectRequired;
+extern volatile bool webServerRestartRequired;
 extern const char TZ_JSON[] PROGMEM;
 
 extern std::string lastCityName;
