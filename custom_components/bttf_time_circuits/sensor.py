@@ -23,9 +23,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 # Define the sensor descriptions
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BTTFTimeCircuitsSensorEntityDescription(SensorEntityDescription):
     """A class that describes BTTF Time Circuits sensor entities."""
+
+    value_type: str | None = None
 
 
 SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
@@ -33,16 +35,19 @@ SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
         key="dest_year",
         name="Destination Year",
         icon="mdi:calendar",
+        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="dest_month",
         name="Destination Month",
         icon="mdi:calendar",
+        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="dest_day",
         name="Destination Day",
         icon="mdi:calendar",
+        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="dest_time",
@@ -53,16 +58,19 @@ SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
         key="pres_year",
         name="Present Year",
         icon="mdi:calendar",
+        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="pres_month",
         name="Present Month",
         icon="mdi:calendar",
+        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="pres_day",
         name="Present Day",
         icon="mdi:calendar",
+        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="pres_time",
@@ -73,16 +81,19 @@ SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
         key="last_year",
         name="Last Departed Year",
         icon="mdi:calendar",
+        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="last_month",
         name="Last Departed Month",
         icon="mdi:calendar",
+        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="last_day",
         name="Last Departed Day",
         icon="mdi:calendar",
+        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="last_time",
@@ -134,7 +145,19 @@ class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
             """Handle new MQTT messages."""
-            self._attr_native_value = msg.payload
+            if self.entity_description.value_type == "int":
+                try:
+                    self._attr_native_value = int(msg.payload)
+                except (ValueError, TypeError):
+                    _LOGGER.warning(
+                        "Received non-integer value for %s: %s",
+                        self.entity_id,
+                        msg.payload,
+                    )
+                    self._attr_native_value = None
+            else:
+                self._attr_native_value = msg.payload
+
             self.async_write_ha_state()
 
         await mqtt.async_subscribe(self.hass, state_topic, message_received, 1)
