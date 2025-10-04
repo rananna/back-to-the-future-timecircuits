@@ -319,10 +319,13 @@ void handleWeatherTimeout() {
 void applySettingsFromJson(const JsonObject& obj) {
     Log_printf(LOG_LEVEL_INFO, "DIAG: Entered applySettingsFromJson.");
 
-    // Log the received JSON object for inspection
-    String jsonData;
-    serializeJson(obj, jsonData);
-    Log_printf(LOG_LEVEL_INFO, "DIAG: JSON object to apply: %s", jsonData.c_str());
+    // --- START: FIX - Removed risky JSON serialization to prevent heap allocation failure ---
+    // The following lines were removed as they could cause a crash on the ESP32
+    // when saving complex settings due to large memory allocation on the heap.
+    // String jsonData;
+    // serializeJson(obj, jsonData);
+    // Log_printf(LOG_LEVEL_INFO, "DIAG: JSON object to apply: %s", jsonData.c_str());
+    // --- END: FIX ---
 
     // --- Input Validation Lambdas ---
     auto validateAndSet = [&](const char* key, int& setting, int min, int max) {
@@ -1464,7 +1467,8 @@ std::vector<Preset> getFullPresetList() {
     String presetsJson = preferences.getString("customPresets", "[]");
     preferences.end();
 
-    JsonDocument doc;
+    // --- FIX: Use stack-allocated JsonDocument (v7 syntax) to prevent heap fragmentation ---
+    JsonDocument doc(2048);
     DeserializationError error = deserializeJson(doc, presetsJson);
 
     if (!error) {
