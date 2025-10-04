@@ -985,10 +985,13 @@ void setupWebRoutes() {
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
     Log_printf(LOG_LEVEL_INFO, "DIAG: --- /api/saveSettings endpoint hit ---");
 
-    // Log the incoming JSON payload
-    String payload;
-    serializeJson(json, payload);
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Received payload: %s", payload.c_str());
+    // --- START: FIX - Removed risky JSON serialization to prevent heap allocation failure ---
+    // The following lines were removed as they could cause a crash on the ESP32
+    // when saving complex settings due to large memory allocation on the heap.
+    // String payload;
+    // serializeJson(json, payload);
+    // Log_printf(LOG_LEVEL_INFO, "DIAG: Received payload: %s", payload.c_str());
+    // --- END: FIX ---
 
     Log_printf(LOG_LEVEL_INFO, "DIAG: Calling applyAndSaveSettings...");
     applyAndSaveSettings(json);
