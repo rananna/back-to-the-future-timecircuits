@@ -192,6 +192,7 @@ AnimationPhase currentStyledPhase = ANIM_INACTIVE;
 // cause memory issues on the ESP32.
 
 bool webServerRestartRequired = false;
+volatile bool webServerRestartAfterSave = false;
 bool isDisplayAsleep = false;
 unsigned long bootStateStartTime = 0;
 unsigned long lastPresetCycleTime = 0;
@@ -1172,6 +1173,20 @@ void loop() {
         server.begin();
         webServerRestartRequired = false; // Reset the flag
         Log_printf(LOG_LEVEL_INFO, "Web server restarted.");
+    }
+
+    // --- FIX: Handle Web Server Restart After Save ---
+    // This block checks if a settings save has just completed and, if so,
+    // performs a clean restart of the web server. This is a crucial fix to
+    // prevent memory fragmentation from hanging the server, ensuring the UI
+    // remains accessible after saving.
+    if (webServerRestartAfterSave) {
+        Log_printf(LOG_LEVEL_INFO, "Restarting web server after settings save to prevent memory fragmentation issues...");
+        server.end(); // Stop the server
+        delay(1000);  // Delay to ensure the port is fully released
+        server.begin(); // Restart the server
+        webServerRestartAfterSave = false; // Reset the flag
+        Log_printf(LOG_LEVEL_INFO, "Web server restarted successfully after save.");
     }
 
     // This state machine manages the WiFi connection process in a non-blocking way.

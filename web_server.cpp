@@ -32,6 +32,7 @@ static std::mutex httpClientMutex;
 
 // --- Extern Global Variables ---
 // These are defined in the main .ino file and are made available here.
+extern volatile bool webServerRestartAfterSave;
 
 // --- Forward Declarations ---
 // These functions are defined in the main .ino file and are called from here.
@@ -1009,7 +1010,13 @@ void setupWebRoutes() {
 
     // Immediately send a response to the client to unblock the UI.
     request->send(200, "text/plain", "Settings Saved!");
-    Log_printf(LOG_LEVEL_INFO, "DIAG: --- /api/saveSettings finished ---");
+
+    // --- FIX: Trigger a web server restart ---
+    // Set the flag to true *after* sending the response. The main loop will
+    // detect this flag and execute a clean restart of the server, preventing
+    // a hang caused by memory fragmentation from the save operation.
+    webServerRestartAfterSave = true;
+    Log_printf(LOG_LEVEL_INFO, "DIAG: --- /api/saveSettings finished, flagged for server restart ---");
   });
   server.addHandler(saveSettingsHandler);
 
