@@ -452,7 +452,7 @@ async function saveSettings() {
     });
     settings.stockAssets = stockAssets;
 
-    if (settings.displayMode === 2) { // Data Link Mode
+    if (settings.displayMode === 3) { // Data Link Mode
         const numDataPoints = getIntValue('numDataPoints', 0);
         settings.numDataPoints = numDataPoints;
         settings.dataPoints = [];
