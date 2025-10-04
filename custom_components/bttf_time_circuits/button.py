@@ -27,8 +27,6 @@ _LOGGER = logging.getLogger(__name__)
 class BTTFTimeCircuitsButtonEntityDescription(ButtonEntityDescription):
     """A class that describes BTTF Time Circuits button entities."""
 
-    datetime_str: str | None = None
-
 
 BUTTONS: tuple[BTTFTimeCircuitsButtonEntityDescription, ...] = (
     BTTFTimeCircuitsButtonEntityDescription(
@@ -41,24 +39,6 @@ BUTTONS: tuple[BTTFTimeCircuitsButtonEntityDescription, ...] = (
         key="favorite_radio_station",
         name="Favorite Radio Station",
         icon="mdi:star",
-    ),
-    BTTFTimeCircuitsButtonEntityDescription(
-        key="set_destination_1955",
-        name="Set Destination to 1955",
-        icon="mdi:calendar-arrow-left",
-        datetime_str="1955-11-05 06:00:00",
-    ),
-    BTTFTimeCircuitsButtonEntityDescription(
-        key="set_destination_2015",
-        name="Set Destination to 2015",
-        icon="mdi:calendar-arrow-right",
-        datetime_str="2015-10-21 07:28:00",
-    ),
-    BTTFTimeCircuitsButtonEntityDescription(
-        key="set_destination_1885",
-        name="Set Destination to 1885",
-        icon="mdi:calendar-arrow-left",
-        datetime_str="1885-09-02 08:00:00",
     ),
     BTTFTimeCircuitsButtonEntityDescription(
         key="reboot_device",
@@ -96,8 +76,6 @@ async def async_setup_entry(
     for description in BUTTONS:
         if description.key == "favorite_radio_station":
             entities.append(BTTFTimeCircuitsFavoriteButton(device, description))
-        elif description.datetime_str:
-            entities.append(BTTFTimeCircuitsFamousDateButton(device, description))
         else:
             entities.append(BTTFTimeCircuitsMqttButton(device, description))
     async_add_entities(entities)
@@ -163,29 +141,3 @@ class BTTFTimeCircuitsFavoriteButton(BTTFTimeCircuitsEntity, ButtonEntity):
                 blocking=True,
             )
 
-
-class BTTFTimeCircuitsFamousDateButton(BTTFTimeCircuitsEntity, ButtonEntity):
-    """Representation of a Famous Date button."""
-
-    entity_description: BTTFTimeCircuitsButtonEntityDescription
-
-    def __init__(
-        self,
-        device: BTTFTimeCircuitsDevice,
-        description: BTTFTimeCircuitsButtonEntityDescription,
-    ) -> None:
-        """Initialize the button."""
-        self.entity_description = description
-        super().__init__(device)
-
-    async def async_press(self) -> None:
-        """Handle the button press by calling the set_destination_time service."""
-        if self.entity_description.datetime_str:
-            dt_obj = dt_util.parse_datetime(self.entity_description.datetime_str)
-            await self.hass.services.async_call(
-                DOMAIN,
-                "set_destination_time",
-                {"datetime": dt_obj},
-                target={"device_id": self._device.device_id},
-                blocking=True,
-            )
