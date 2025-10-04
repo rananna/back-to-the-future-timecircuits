@@ -262,23 +262,16 @@ void applySettingsFromJson(const JsonObject& obj);
 // This function applies settings from a JSON object and saves them.
 // It is called directly from the web server handler.
 void applyAndSaveSettings(JsonVariant& json) {
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Entered applyAndSaveSettings.");
     JsonObject obj = json.as<JsonObject>();
 
     // Apply the new settings from the JSON object.
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Calling applySettingsFromJson...");
     applySettingsFromJson(obj);
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Returned from applySettingsFromJson.");
 
     // Save the newly applied settings to NVS.
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Calling saveSettings...");
     saveSettings();
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Returned from saveSettings.");
 
     // Set the volume (might have changed).
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Setting volume.");
     audio.setVolume(currentSettings.notificationVolume);
-    Log_printf(LOG_LEVEL_INFO, "DIAG: Exiting applyAndSaveSettings.");
 }
 
 /**
@@ -534,117 +527,45 @@ void applySettingsFromJson(const JsonObject& obj) {
  * against its previously saved value and only writes if the value has actually changed.
  */
 void saveSettings() {
-    Log_printf(LOG_LEVEL_INFO, "--- Saving Settings ---");
     preferences.begin(PREFERENCES_NAMESPACE, false);
 
-    // --- Save each setting directly and log it ---
-    Log_printf(LOG_LEVEL_INFO, "Saving destYear: %d", currentSettings.destinationYear);
     preferences.putInt("destYear", currentSettings.destinationYear);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving destTzIndex: %d", currentSettings.destinationTimezoneIndex);
     preferences.putInt("destTzIndex", currentSettings.destinationTimezoneIndex);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving lastYear: %d", currentSettings.lastTimeDepartedYear);
     preferences.putInt("lastYear", currentSettings.lastTimeDepartedYear);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving lastMonth: %d", currentSettings.lastTimeDepartedMonth);
     preferences.putInt("lastMonth", currentSettings.lastTimeDepartedMonth);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving lastDay: %d", currentSettings.lastTimeDepartedDay);
     preferences.putInt("lastDay", currentSettings.lastTimeDepartedDay);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving lastHour: %d", currentSettings.lastTimeDepartedHour);
     preferences.putInt("lastHour", currentSettings.lastTimeDepartedHour);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving lastMinute: %d", currentSettings.lastTimeDepartedMinute);
     preferences.putInt("lastMinute", currentSettings.lastTimeDepartedMinute);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving brightness: %d", currentSettings.brightness);
     preferences.putUChar("brightness", currentSettings.brightness);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving volume: %d", currentSettings.notificationVolume);
     preferences.putUChar("volume", currentSettings.notificationVolume);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving soundToggle: %s", currentSettings.timeTravelSoundToggle ? "true" : "false");
     preferences.putBool("soundToggle", currentSettings.timeTravelSoundToggle);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving presTzIndex: %d", currentSettings.presentTimezoneIndex);
     preferences.putInt("presTzIndex", currentSettings.presentTimezoneIndex);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving format24h: %s", currentSettings.displayFormat24h ? "true" : "false");
     preferences.putBool("format24h", currentSettings.displayFormat24h);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving animInterval: %d", currentSettings.timeTravelAnimationInterval);
     preferences.putInt("animInterval", currentSettings.timeTravelAnimationInterval);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving mqttBroker: %s", currentSettings.mqttBroker.c_str());
     preferences.putString("mqttBroker", currentSettings.mqttBroker.c_str());
-
-    Log_printf(LOG_LEVEL_INFO, "Saving mqttPort: %d", currentSettings.mqttPort);
     preferences.putInt("mqttPort", currentSettings.mqttPort);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving mqttUser: %s", currentSettings.mqttUser.c_str());
     preferences.putString("mqttUser", currentSettings.mqttUser.c_str());
-
-    Log_printf(LOG_LEVEL_INFO, "Saving mqttPass: (hidden)");
     preferences.putString("mqttPass", currentSettings.mqttPassword.c_str());
-
-    Log_printf(LOG_LEVEL_INFO, "Saving displayMode: %d", currentSettings.displayMode);
     preferences.putInt("displayMode", currentSettings.displayMode);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving cityName: %s", currentSettings.cityName.c_str());
     preferences.putString("cityName", currentSettings.cityName.c_str());
-
-    Log_printf(LOG_LEVEL_INFO, "Saving useMetric: %s", currentSettings.useMetricUnits ? "true" : "false");
     preferences.putBool("useMetric", currentSettings.useMetricUnits);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving latitude: %f", currentSettings.latitude);
     preferences.putFloat("latitude", currentSettings.latitude);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving longitude: %f", currentSettings.longitude);
     preferences.putFloat("longitude", currentSettings.longitude);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving departureHour: %d", currentSettings.departureHour);
     preferences.putInt("depHour", currentSettings.departureHour);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving departureMinute: %d", currentSettings.departureMinute);
     preferences.putInt("depMinute", currentSettings.departureMinute);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving arrivalHour: %d", currentSettings.arrivalHour);
     preferences.putInt("arrHour", currentSettings.arrivalHour);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving arrivalMinute: %d", currentSettings.arrivalMinute);
     preferences.putInt("arrMinute", currentSettings.arrivalMinute);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving presetCycleInterval: %d", currentSettings.presetCycleInterval);
     preferences.putInt("presetCycle", currentSettings.presetCycleInterval);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving theme: %d", currentSettings.theme);
     preferences.putInt("theme", currentSettings.theme);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving timeTravelAnimationDuration: %d", currentSettings.timeTravelAnimationDuration);
     preferences.putInt("animDuration", currentSettings.timeTravelAnimationDuration);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving animationStyle: %d", currentSettings.animationStyle);
     preferences.putInt("animStyle", currentSettings.animationStyle);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving dataLinkTargetRow: %d", currentSettings.dataLinkTargetRow);
     preferences.putInt("dlTargetRow", currentSettings.dataLinkTargetRow);
-
-    Log_printf(LOG_LEVEL_INFO, "Saving stockRow1_symbol: %s", currentSettings.stockRow1_symbol.c_str());
     preferences.putString("stockRow1Symbol", currentSettings.stockRow1_symbol.c_str());
-
-    Log_printf(LOG_LEVEL_INFO, "Saving stockRow2_symbol: %s", currentSettings.stockRow2_symbol.c_str());
     preferences.putString("stockRow2Symbol", currentSettings.stockRow2_symbol.c_str());
-
-    Log_printf(LOG_LEVEL_INFO, "Saving stockRow3_symbol: %s", currentSettings.stockRow3_symbol.c_str());
     preferences.putString("stockRow3Symbol", currentSettings.stockRow3_symbol.c_str());
-
-    Log_printf(LOG_LEVEL_INFO, "Saving numDataPoints: %d", currentSettings.numDataPoints);
     preferences.putInt("numDataPoints", currentSettings.numDataPoints);
 
-    // --- FIX: Use a char buffer and snprintf to avoid heap fragmentation from String concatenation in a loop ---
-    char key_buffer[20]; // A buffer large enough for the longest key, e.g., "dp4_scrollTxt"
+    char key_buffer[20];
     for (int i = 0; i < 5; i++) {
         snprintf(key_buffer, sizeof(key_buffer), "dp%d_en", i);
         preferences.putBool(key_buffer, currentSettings.dataPoints[i].enabled);
@@ -669,7 +590,6 @@ void saveSettings() {
     }
 
 	preferences.end();
-    Log_printf(LOG_LEVEL_INFO, "--- Settings Saved ---");
 
     // After saving, immediately apply the timezone setting to the system.
     setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -1467,8 +1387,9 @@ std::vector<Preset> getFullPresetList() {
     String presetsJson = preferences.getString("customPresets", "[]");
     preferences.end();
 
-    // --- FIX: Use stack-allocated JsonDocument (v7 syntax) to prevent heap fragmentation ---
-    JsonDocument doc(2048);
+    // In ArduinoJson v7, JsonDocument manages its own memory on the heap.
+    // The constructor no longer takes a size, so a default instance is created.
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, presetsJson);
 
     if (!error) {
