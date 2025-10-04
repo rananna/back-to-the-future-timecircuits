@@ -479,9 +479,27 @@ void applySettingsFromJson(const JsonObject& obj) {
                 if (!dp["dataSourceType"].isNull()) currentSettings.dataPoints[i].dataSourceType = (DataSourceType)(dp["dataSourceType"].as<int>());
                 currentSettings.dataPoints[i].scrollSpeed = dp["scrollSpeed"] | 150;
                 if (!dp["mqttTopic"].isNull()) currentSettings.dataPoints[i].mqttTopic = dp["mqttTopic"].as<std::string>();
-                if (!dp["scrollingText"].isNull()) currentSettings.dataPoints[i].scrollingText = dp["scrollingText"].as<std::string>();
-                if (!dp["prefixText"].isNull()) currentSettings.dataPoints[i].prefixText = dp["prefixText"].as<std::string>();
-                if (!dp["suffixText"].isNull()) currentSettings.dataPoints[i].suffixText = dp["suffixText"].as<std::string>();
+                if (!dp["scrollingText"].isNull()) {
+                    std::string newText = dp["scrollingText"].as<std::string>();
+                    if (currentSettings.dataPoints[i].scrollingText != newText) {
+                        currentSettings.dataPoints[i].scrollingText = newText;
+                        isMarqueeBufferDirty = true;
+                    }
+                }
+                if (!dp["prefixText"].isNull()) {
+                    std::string newPrefix = dp["prefixText"].as<std::string>();
+                    if (currentSettings.dataPoints[i].prefixText != newPrefix) {
+                        currentSettings.dataPoints[i].prefixText = newPrefix;
+                        isMarqueeBufferDirty = true;
+                    }
+                }
+                if (!dp["suffixText"].isNull()) {
+                    std::string newSuffix = dp["suffixText"].as<std::string>();
+                    if (currentSettings.dataPoints[i].suffixText != newSuffix) {
+                        currentSettings.dataPoints[i].suffixText = newSuffix;
+                        isMarqueeBufferDirty = true;
+                    }
+                }
             } else {
                 currentSettings.dataPoints[i] = {}; // Clear unused data points
             }

@@ -1089,7 +1089,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                 topicStr == currentSettings.dataPoints[i].mqttTopic.c_str()) {
                 currentSettings.dataPoints[i].scrollingText = message.c_str();
                 isMarqueeBufferDirty = true; // Set the dirty flag to force a re-render
-                saveSettings(); // Persist the new text
                 break; // Exit the loop since we found the matching topic
             }
         }
