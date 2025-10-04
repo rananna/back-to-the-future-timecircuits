@@ -262,16 +262,23 @@ void applySettingsFromJson(const JsonObject& obj);
 // This function applies settings from a JSON object and saves them.
 // It is called directly from the web server handler.
 void applyAndSaveSettings(JsonVariant& json) {
+    Log_printf(LOG_LEVEL_INFO, "DIAG: Entered applyAndSaveSettings.");
     JsonObject obj = json.as<JsonObject>();
 
     // Apply the new settings from the JSON object.
+    Log_printf(LOG_LEVEL_INFO, "DIAG: Calling applySettingsFromJson...");
     applySettingsFromJson(obj);
+    Log_printf(LOG_LEVEL_INFO, "DIAG: Returned from applySettingsFromJson.");
 
     // Save the newly applied settings to NVS.
+    Log_printf(LOG_LEVEL_INFO, "DIAG: Calling saveSettings...");
     saveSettings();
+    Log_printf(LOG_LEVEL_INFO, "DIAG: Returned from saveSettings.");
 
     // Set the volume (might have changed).
+    Log_printf(LOG_LEVEL_INFO, "DIAG: Setting volume.");
     audio.setVolume(currentSettings.notificationVolume);
+    Log_printf(LOG_LEVEL_INFO, "DIAG: Exiting applyAndSaveSettings.");
 }
 
 /**
@@ -310,7 +317,12 @@ void handleWeatherTimeout() {
  * @param obj A const reference to the JsonObject containing the new settings.
  */
 void applySettingsFromJson(const JsonObject& obj) {
-    Log_printf(LOG_LEVEL_DEBUG, "Applying settings from JSON object.");
+    Log_printf(LOG_LEVEL_INFO, "DIAG: Entered applySettingsFromJson.");
+
+    // Log the received JSON object for inspection
+    String jsonData;
+    serializeJson(obj, jsonData);
+    Log_printf(LOG_LEVEL_INFO, "DIAG: JSON object to apply: %s", jsonData.c_str());
 
     // --- Input Validation Lambdas ---
     auto validateAndSet = [&](const char* key, int& setting, int min, int max) {

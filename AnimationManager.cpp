@@ -126,6 +126,7 @@ void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
  * called on each iteration of the main loop.
  */
 void startTimeTravelAnimation() {
+    Log_printf(LOG_LEVEL_INFO, "DIAG: startTimeTravelAnimation() called.");
     // Attempt to take the mutex. If we can't get it, another task is trying
     // to start an animation, so we should just exit.
     if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
@@ -267,6 +268,7 @@ void handleDisplayAnimation() {
  * @brief Initiates the styled animation sequence for scheduled events.
  */
 void startStyledAnimation() {
+    Log_printf(LOG_LEVEL_INFO, "DIAG: startStyledAnimation() called.");
     // Attempt to take the mutex. If we can't get it, another task is trying
     // to start an animation, so we should just exit.
     if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
