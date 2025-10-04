@@ -37,6 +37,7 @@
 #include <cctype>
 #include <LCBUrl.h>
 #include <ArduinoOTA.h>
+#include "esp_task_wdt.h"
 
 #include "MqttManager.h"
 #include "HardwareControl.h"
@@ -91,6 +92,8 @@ const std::vector<Preset> moviePresets = {
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2
 #endif
+
+#define WDT_TIMEOUT 10 // Watchdog timeout in seconds
 
 // --- SYSTEM CONSTANTS ---
 const unsigned long WIFI_CONNECT_TIMEOUT = 15000;       // Time in ms to wait for WiFi before starting the captive portal.
@@ -868,6 +871,11 @@ void setup() {
     Serial.begin(115200);
     delay(1000); // Wait for serial monitor to connect.
 
+    Log_printf(LOG_LEVEL_INFO, "Initializing watchdog with %d second timeout...", WDT_TIMEOUT);
+    esp_task_wdt_init(WDT_TIMEOUT, true); // true = panic on timeout
+    esp_task_wdt_add(NULL);               // Subscribe the current task (the main loop) to the watchdog
+    Log_printf(LOG_LEVEL_INFO, "Watchdog initialized.");
+
     // Get MAC address early for MQTT Unique ID. This is more reliable than WiFi.macAddress().
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
@@ -1077,6 +1085,9 @@ bool isAnySequenceActive() {
 }
 
 void loop() {
+    // Feed the watchdog to prevent a reset. This must be the first action in the loop.
+    esp_task_wdt_reset();
+
     vTaskDelay(1); // Yield to other tasks, making the system responsive.
 
     // Clean up disconnected WebSocket clients and send pings
