@@ -275,6 +275,13 @@ void applyAndSaveSettings(JsonVariant& json) {
 
     // Set the volume (might have changed).
     audio.setVolume(currentSettings.notificationVolume);
+
+    // After saving, check if this was a time travel request
+    if (obj["timeTravelEngaged"] | false) {
+        startTimeTravelAnimation();
+    } else {
+        startStyledAnimation();
+    }
 }
 
 /**
