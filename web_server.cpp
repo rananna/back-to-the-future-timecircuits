@@ -983,6 +983,12 @@ void setupWebRoutes() {
   server.addHandler(refreshWeatherHandler);
 
   AsyncCallbackJsonWebHandler* saveSettingsHandler = new AsyncCallbackJsonWebHandler("/api/saveSettings", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    // --- FIX: Respond immediately to prevent UI hanging from race condition ---
+    // The main loop might restart the web server for mDNS before this handler completes.
+    // Sending the response first ensures the UI doesn't get stuck waiting.
+    request->send(200, "text/plain", "Settings Saved!");
+
+    // Now, process the settings in the background.
     applyAndSaveSettings(json);
 
     // After saving, check if this was a time travel request
@@ -992,9 +998,6 @@ void setupWebRoutes() {
     } else {
         startStyledAnimation();
     }
-
-    // Immediately send a response to the client to unblock the UI.
-    request->send(200, "text/plain", "Settings Saved!");
   });
   server.addHandler(saveSettingsHandler);
 
