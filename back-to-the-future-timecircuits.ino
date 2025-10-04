@@ -639,15 +639,30 @@ void saveSettings() {
 
     Log_printf(LOG_LEVEL_INFO, "Saving numDataPoints: %d", currentSettings.numDataPoints);
     preferences.putInt("numDataPoints", currentSettings.numDataPoints);
+
+    // --- FIX: Use a char buffer and snprintf to avoid heap fragmentation from String concatenation in a loop ---
+    char key_buffer[20]; // A buffer large enough for the longest key, e.g., "dp4_scrollTxt"
     for (int i = 0; i < 5; i++) {
-        String prefix = "dp" + String(i) + "_";
-        preferences.putBool((prefix + "en").c_str(), currentSettings.dataPoints[i].enabled);
-        preferences.putInt((prefix + "srcType").c_str(), currentSettings.dataPoints[i].dataSourceType);
-        preferences.putString((prefix + "topic").c_str(), currentSettings.dataPoints[i].mqttTopic.c_str());
-        preferences.putString((prefix + "scrollTxt").c_str(), currentSettings.dataPoints[i].scrollingText.c_str());
-        preferences.putInt((prefix + "scroll").c_str(), currentSettings.dataPoints[i].scrollSpeed);
-        preferences.putString((prefix + "prefix").c_str(), currentSettings.dataPoints[i].prefixText.c_str());
-        preferences.putString((prefix + "suffix").c_str(), currentSettings.dataPoints[i].suffixText.c_str());
+        snprintf(key_buffer, sizeof(key_buffer), "dp%d_en", i);
+        preferences.putBool(key_buffer, currentSettings.dataPoints[i].enabled);
+
+        snprintf(key_buffer, sizeof(key_buffer), "dp%d_srcType", i);
+        preferences.putInt(key_buffer, currentSettings.dataPoints[i].dataSourceType);
+
+        snprintf(key_buffer, sizeof(key_buffer), "dp%d_topic", i);
+        preferences.putString(key_buffer, currentSettings.dataPoints[i].mqttTopic.c_str());
+
+        snprintf(key_buffer, sizeof(key_buffer), "dp%d_scrollTxt", i);
+        preferences.putString(key_buffer, currentSettings.dataPoints[i].scrollingText.c_str());
+
+        snprintf(key_buffer, sizeof(key_buffer), "dp%d_scroll", i);
+        preferences.putInt(key_buffer, currentSettings.dataPoints[i].scrollSpeed);
+
+        snprintf(key_buffer, sizeof(key_buffer), "dp%d_prefix", i);
+        preferences.putString(key_buffer, currentSettings.dataPoints[i].prefixText.c_str());
+
+        snprintf(key_buffer, sizeof(key_buffer), "dp%d_suffix", i);
+        preferences.putString(key_buffer, currentSettings.dataPoints[i].suffixText.c_str());
     }
 
 	preferences.end();
