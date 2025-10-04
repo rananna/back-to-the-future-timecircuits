@@ -1190,7 +1190,9 @@ void updateMarqueeDisplay() {
             }
             case M_PAUSED: {
                 if (millis() - lastMarqueeStateChange > pauseDuration) {
-                    currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
+                    if (currentSettings.numDataPoints > 0) {
+                        currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
+                    }
                     marqueeState = M_START_PAGE;
                 }
                 break;
