@@ -204,6 +204,91 @@ void publishDisplayMode(int mode) {
     }
 }
 
+/**
+ * @brief Publishes the current state of the 24h format setting.
+ * @param enabled True if 24-hour format is enabled, false otherwise.
+ */
+void publishDisplayFormat(bool enabled) {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    String topic = base_topic + "/24h_format/state";
+    mqttClient.publish(topic.c_str(), enabled ? "ON" : "OFF", true);
+}
+
+/**
+ * @brief Publishes the current state of the time travel sound toggle setting.
+ * @param enabled True if sounds are enabled, false otherwise.
+ */
+void publishSoundToggle(bool enabled) {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    String topic = base_topic + "/sound_toggle/state";
+    mqttClient.publish(topic.c_str(), enabled ? "ON" : "OFF", true);
+}
+
+/**
+ * @brief Publishes the current brightness level.
+ * @param brightness The brightness level (0-7).
+ */
+void publishBrightness(uint8_t brightness) {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    String topic = base_topic + "/brightness/state";
+    char payload[4];
+    snprintf(payload, sizeof(payload), "%d", brightness);
+    mqttClient.publish(topic.c_str(), payload, true);
+}
+
+/**
+ * @brief Publishes the current animation interval.
+ * @param interval The interval in minutes.
+ */
+void publishAnimationInterval(int interval) {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    String topic = base_topic + "/animation_interval/state";
+    char payload[8];
+    snprintf(payload, sizeof(payload), "%d", interval);
+    mqttClient.publish(topic.c_str(), payload, true);
+}
+
+/**
+ * @brief Publishes the current animation duration.
+ * @param duration The duration in milliseconds.
+ */
+void publishAnimationDuration(int duration) {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    String topic = base_topic + "/animation_duration/state";
+    char payload[8];
+    snprintf(payload, sizeof(payload), "%d", duration);
+    mqttClient.publish(topic.c_str(), payload, true);
+}
+
+/**
+ * @brief Publishes the current stock refresh interval.
+ * @param interval The interval in minutes.
+ */
+void publishStockRefresh(int interval) {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    String topic = base_topic + "/stock_refresh/state";
+    char payload[8];
+    snprintf(payload, sizeof(payload), "%d", interval);
+    mqttClient.publish(topic.c_str(), payload, true);
+}
+
+/**
+ * @brief Publishes the current weather city.
+ * @param city The name of the city.
+ */
+void publishWeatherCity(const std::string& city) {
+    if (!mqttClient.connected()) return;
+    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    String topic = base_topic + "/weather_city/state";
+    mqttClient.publish(topic.c_str(), city.c_str(), true);
+}
+
 void publishHaDiagnosticAttributes() {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;

@@ -358,6 +358,12 @@ void applySettingsFromJson(const JsonObject& obj) {
     }
     std::string oldCityName = currentSettings.cityName;
     int oldDisplayMode = currentSettings.displayMode;
+    bool oldSoundToggle = currentSettings.timeTravelSoundToggle;
+    bool old24hFormat = currentSettings.displayFormat24h;
+    uint8_t oldBrightness = currentSettings.brightness;
+    int oldAnimInterval = currentSettings.timeTravelAnimationInterval;
+    int oldAnimDuration = currentSettings.timeTravelAnimationDuration;
+    int oldStockRefresh = currentSettings.stockRefreshInterval;
 
     // --- Apply All Settings from JSON ---
     validateAndSet("displayMode", currentSettings.displayMode, 0, DMS_MAX - 1);
@@ -537,6 +543,34 @@ void applySettingsFromJson(const JsonObject& obj) {
 
     if (oldDisplayMode != currentSettings.displayMode) {
         publishDisplayMode(currentSettings.displayMode);
+    }
+
+    if (oldSoundToggle != currentSettings.timeTravelSoundToggle) {
+        publishSoundToggle(currentSettings.timeTravelSoundToggle);
+    }
+
+    if (old24hFormat != currentSettings.displayFormat24h) {
+        publishDisplayFormat(currentSettings.displayFormat24h);
+    }
+
+    if (oldBrightness != currentSettings.brightness) {
+        publishBrightness(currentSettings.brightness);
+    }
+
+    if (oldAnimInterval != currentSettings.timeTravelAnimationInterval) {
+        publishAnimationInterval(currentSettings.timeTravelAnimationInterval);
+    }
+
+    if (oldAnimDuration != currentSettings.timeTravelAnimationDuration) {
+        publishAnimationDuration(currentSettings.timeTravelAnimationDuration);
+    }
+
+    if (oldStockRefresh != currentSettings.stockRefreshInterval) {
+        publishStockRefresh(currentSettings.stockRefreshInterval);
+    }
+
+    if (oldCityName != currentSettings.cityName) {
+        publishWeatherCity(currentSettings.cityName);
     }
 }
 
