@@ -77,6 +77,8 @@ SELECTS: tuple[BTTFTimeCircuitsSelectEntityDescription, ...] = (
             "Electric Surge",
             "Flip-Disc Display",
             "Interference Pattern",
+            "---",
+            "Randomize All",
         ],
     ),
 )

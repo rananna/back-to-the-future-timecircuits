@@ -150,5 +150,14 @@
   {
     "name": "Interference Pattern",
     "payload": "Interference Pattern"
+  },
+  {
+    "name": "---",
+    "payload": "separator",
+    "disabled": true
+  },
+  {
+    "name": "Randomize All",
+    "payload": "Randomize All"
   }
 ]
