@@ -1523,6 +1523,10 @@ void handlePresetCycling() {
         // The display will be updated automatically on the next loop iteration.
         // No need to call saveSettings() here, as this isn't a persistent change.
         broadcastPresetUpdate(nextPreset.name, nextPreset.year, nextPreset.month, nextPreset.day, nextPreset.hour, nextPreset.minute);
+
+        // --- START: MODIFICATION - Trigger animation on preset cycle ---
+        startStyledAnimation();
+        // --- END: MODIFICATION ---
     }
 }
 

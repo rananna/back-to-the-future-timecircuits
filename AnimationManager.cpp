@@ -270,11 +270,13 @@ void handleDisplayAnimation() {
 void startStyledAnimation() {
     Log_printf(LOG_LEVEL_INFO, "DIAG: startStyledAnimation() called for style ID %d.", currentSettings.animationStyle);
 
-    // --- START: FIX - ENHANCEMENT - Randomizer and Dispatcher Logic ---
+    // --- START: MODIFICATION - True randomization ---
+    // Use a local variable to hold the animation for this specific run.
+    // This prevents the saved "Randomize All" setting from being overwritten.
+    AnimationType animationToRun = currentSettings.animationStyle;
 
-    // First, handle the "Randomize All" case by picking a new style.
-    // This now includes all modern animations, excluding debug sequences.
-    if (currentSettings.animationStyle == ANIMATION_RANDOMIZE_ALL) {
+    // First, handle the "Randomize All" case by picking a new style for this run.
+    if (animationToRun == ANIMATION_RANDOMIZE_ALL) {
         const int validAnimationStyles[] = {
             // Legacy Animations
             ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
@@ -293,15 +295,15 @@ void startStyledAnimation() {
         };
         int numStyles = sizeof(validAnimationStyles) / sizeof(validAnimationStyles[0]);
         int randomIndex = random(0, numStyles);
-        // Overwrite the current animation style with the randomly selected one.
-        currentSettings.animationStyle = (AnimationType)validAnimationStyles[randomIndex];
-        Log_printf(LOG_LEVEL_INFO, "Randomize All selected. New style is %d.", currentSettings.animationStyle);
+        // Assign the randomly selected style to our local variable for this run only.
+        animationToRun = (AnimationType)validAnimationStyles[randomIndex];
+        Log_printf(LOG_LEVEL_INFO, "Randomize All selected. New style for this run is %d.", animationToRun);
     }
 
     // Second, check if the selected animation (either user-selected or randomized)
     // is a modern, sequencer-based one.
-    if (currentSettings.animationStyle >= ANIMATION_ALL_DISPLAYS_RANDOM) {
-        triggerAnimation(currentSettings.animationStyle);
+    if (animationToRun >= ANIMATION_ALL_DISPLAYS_RANDOM) {
+        triggerAnimation(animationToRun);
         return; // Exit, as the modern sequencer handles everything from here.
     }
 
@@ -327,7 +329,7 @@ void startStyledAnimation() {
     updateHaStatus("Animating");
 
     // The randomAnimationStyle is now only used by the legacy handler.
-    randomAnimationStyle = currentSettings.animationStyle;
+    randomAnimationStyle = animationToRun;
 }
 
 /**
