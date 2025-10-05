@@ -23,7 +23,7 @@ static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, in
 
 // Helper to add the introductory sound effect steps
 static int add_intro_sound_steps(SequencerTrack& track, int step_idx) {
-    step_idx = add_step(track, step_idx, SEQ_CMD_SOUND, 0, 0, 0, 0, "/electric_sparks.mp3");
+    step_idx = add_step(track, step_idx, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     step_idx = add_step(track, step_idx, SEQ_CMD_WAIT, 0, 0, 1000, 0);
     return step_idx;
 }
@@ -238,7 +238,7 @@ void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][
 
 void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
-    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/countdown.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 13, 0);
     for (int i = 0; i < 13; i++) {
         char text[14] = "             ";
@@ -318,7 +318,7 @@ void generateCountdown(SequencerTrack tracks[3]) {
     // --- FIX: The COUNTDOWN command now correctly handles the full sequence including '0'.
     // No need for a separate SET_TEXT command.
     s = add_step(tracks[0], s, SEQ_CMD_COUNTDOWN, 1, -1, 10, 1000);
-    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/engine_rev.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "LIFTOFF!");
 }
 
@@ -327,7 +327,7 @@ void generateSystemError(SequencerTrack tracks[3]) {
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 100, 200, "ERROR");
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "ERROR");
     s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "SYSTEM MALFUNCTION");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SOUND, 0, 0, 0, 0, "/error_beeps.mp3");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
 }
 
 // --- New Thematic Animation Generators ---
@@ -336,7 +336,7 @@ void generateLightning(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
     // A more dramatic, multi-stage lightning effect.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "/lightning.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
 
     // --- Stage 1: Initial Strike ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "  DANGER!    ");
@@ -368,7 +368,7 @@ void generateLightning(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 
     // --- Stage 3: The "1.21 Gigawatts" Moment ---
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SOUND, 0, 0, 0, 0, "/electric_sparks.mp3");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 100, "  1.21 GW!!  ");
 
     // While the middle row is scrambling, keep flashing the top and bottom
@@ -391,7 +391,7 @@ void generateScanner(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
     // Announce the animation and play a sound
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "/scanner.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SCANNER");
     s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SCANNER");
     s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "SCANNER");
@@ -412,7 +412,7 @@ void generateScanner(SequencerTrack tracks[3]) {
 void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     // Simulate traveling through a time vortex
-    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/time_travel.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
     s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 0, -1, 50, 0, time_strings[0]);
     s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 1, -1, 50, 0, time_strings[1]);
@@ -424,7 +424,7 @@ void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[
 void generateFluxCapacitorOverload(SequencerTrack tracks[3]) {
     int s = 0;
     // Show the Flux Capacitor pulsing with energy
-    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/flux_capacitor.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
     s = add_step(tracks[0], s, SEQ_CMD_PULSE, 0, -1, 500, 250);
     s = add_step(tracks[0], s, SEQ_CMD_PULSE, 1, -1, 500, 250);
@@ -436,7 +436,7 @@ void generateFluxCapacitorOverload(SequencerTrack tracks[3]) {
 void generateFireTrails(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     // Burn the date onto the display with a fire trail effect
-    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "/fire_trails.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 0, -1, 100, 0, time_strings[0]);
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 1, -1, 100, 0, time_strings[1]);
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 2, -1, 100, 0, time_strings[2]);

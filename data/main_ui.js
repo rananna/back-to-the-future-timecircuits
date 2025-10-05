@@ -93,8 +93,11 @@ async function populateSequences() {
             sequences.forEach(sequence => {
                 const option = document.createElement('option');
                 option.textContent = sequence.name;
-                // Store the raw JSON payload string in the value attribute
                 option.value = sequence.payload;
+                // If a sequence is marked as disabled (e.g., a separator), disable the option
+                if (sequence.disabled) {
+                    option.disabled = true;
+                }
                 select.appendChild(option);
             });
         }
