@@ -1154,18 +1154,6 @@ void loop() {
     // Clean up disconnected WebSocket clients and send pings
     ws.cleanupClients();
 
-    // --- NEW: Handle Web Server Restart ---
-    // If the web server was stopped (e.g., to free memory for mDNS), this flag
-    // will be set. We handle the restart here, decoupled from other logic, to
-    // ensure it always comes back online.
-    if (webServerRestartRequired) {
-        Log_printf(LOG_LEVEL_INFO, "Restarting web server as requested...");
-        delay(3000); // Increase delay to 3s to allow the port to be released more reliably
-        server.begin();
-        webServerRestartRequired = false; // Reset the flag
-        Log_printf(LOG_LEVEL_INFO, "Web server restarted.");
-    }
-
     // This state machine manages the WiFi connection process in a non-blocking way.
     // This state machine manages the WiFi connection process in a non-blocking way.
     // It handles the initial connection attempt, starting the WiFiManager portal if
@@ -1270,30 +1258,16 @@ void loop() {
                 } else {
                     // --- mDNS Management: Start mDNS only after HA discovery is complete ---
                     // This prevents a memory allocation race condition on the ESP32.
-                    // We temporarily disconnect MQTT to free its large buffers, start mDNS,
-                    // and then immediately reconnect.
+                    // We start mDNS after HA discovery is complete.
                     if (!mDnsIsActive && isHaDiscoveryComplete()) {
-                        Log_printf(LOG_LEVEL_INFO, "HA Discovery complete. Temporarily disconnecting services to start mDNS...");
-                        // --- FIX START: Stop Web Server and MQTT Client to free memory ---
-                        server.end();
-                        webServerRestartRequired = true; // Set the flag to restart the server
-                        mqttClient.disconnect();
-                        delay(250); // Allow time for buffers to be freed.
-
+                        Log_printf(LOG_LEVEL_INFO, "HA Discovery complete. Starting mDNS...");
                         if (MDNS.begin("BTTF_TC")) {
                             MDNS.addService("http", "tcp", 80);
                             mDnsIsActive = true;
                             Log_printf(LOG_LEVEL_INFO, "mDNS service started successfully.");
                         } else {
-                            Log_printf(LOG_LEVEL_ERROR, "mDNS failed to start even after freeing memory.");
+                            Log_printf(LOG_LEVEL_ERROR, "mDNS failed to start.");
                         }
-
-                        // Whether mDNS succeeded or not, we must reconnect to MQTT immediately
-                        // to prevent the main loop from stopping mDNS on the next iteration.
-                        Log_printf(LOG_LEVEL_INFO, "Reconnecting services after mDNS attempt...");
-                        reconnectMqtt(); // This attempts to reconnect immediately.
-                        // server.begin(); // Restart is now handled by a separate flag check
-                        // --- FIX END ---
                     }
 
                     // If we are connected, ensure the failure counter is reset.
