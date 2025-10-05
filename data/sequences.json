@@ -52,27 +52,103 @@
     "payload": "Wormhole Collapse"
   },
   {
-    "name": "Debug",
-    "payload": "Debug"
+    "name": "All Displays Random",
+    "payload": "All Displays Random"
   },
   {
-    "name": "Debug Effects",
-    "payload": "DebugEffects"
+    "name": "Time Travel Tunnel",
+    "payload": "Time Travel Tunnel"
   },
   {
-    "name": "Debug Logic",
-    "payload": "DebugLogic"
+    "name": "Fire Trails",
+    "payload": "Fire Trails"
   },
   {
-    "name": "Debug Parallel Logic",
-    "payload": "DebugParallelLogic"
+    "name": "Sparkle Reveal",
+    "payload": "Sparkle Reveal"
   },
   {
-    "name": "Debug Stress",
-    "payload": "DebugStress"
+    "name": "Sequential Flicker",
+    "payload": "Sequential Flicker"
   },
   {
-    "name": "Debug Wipe",
-    "payload": "DebugWipe"
+    "name": "Random Flicker",
+    "payload": "Random Flicker"
+  },
+  {
+    "name": "Counting Up",
+    "payload": "Counting Up"
+  },
+  {
+    "name": "Wave Flicker",
+    "payload": "Wave Flicker"
+  },
+  {
+    "name": "Tornado Flicker",
+    "payload": "Tornado Flicker"
+  },
+  {
+    "name": "Capacitor Charge-Up",
+    "payload": "Capacitor Charge-Up"
+  },
+  {
+    "name": "Digital Rain",
+    "payload": "Digital Rain"
+  },
+  {
+    "name": "Waveform Collapse",
+    "payload": "Waveform Collapse"
+  },
+  {
+    "name": "Timeline Skim",
+    "payload": "Timeline Skim"
+  },
+  {
+    "name": "Temporal Desync",
+    "payload": "Temporal Desync"
+  },
+  {
+    "name": "Glitchy Jump-Cut",
+    "payload": "Glitchy Jump-Cut"
+  },
+  {
+    "name": "Plasma Warm-Up",
+    "payload": "Plasma Warm-Up"
+  },
+  {
+    "name": "Time Warp Streaks",
+    "payload": "Time Warp Streaks"
+  },
+  {
+    "name": "Character Scanline",
+    "payload": "Character Scanline"
+  },
+  {
+    "name": "Focus In",
+    "payload": "Focus In"
+  },
+  {
+    "name": "Code Breaker",
+    "payload": "Code Breaker"
+  },
+  {
+    "name": "Temporal Paradox",
+    "payload": "Temporal Paradox"
+  },
+  {
+    "name": "Digit Cascade",
+    "payload": "Digit Cascade"
+  },
+  {
+    "name": "Electric Surge",
+    "payload": "Electric Surge"
+  },
+  {
+    "name": "Flip-Disc Display",
+    "payload": "Flip-Disc Display"
+  },
+  {
+    "name": "Interference Pattern",
+    "payload": "Interference Pattern"
   }
 ]
