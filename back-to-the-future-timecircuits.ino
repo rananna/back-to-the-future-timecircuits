@@ -408,30 +408,6 @@ void applySettingsFromJson(const JsonObject& obj) {
     if (!obj["timeTravelSoundToggle"].isNull()) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
     validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
     if (!obj["displayFormat24h"].isNull()) currentSettings.displayFormat24h = obj["displayFormat24h"];
-    validateAndSet("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
-    validateAndSet("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear, 0, 9999);
-    validateAndSet("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth, 1, 12);
-    validateAndSet("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay, 1, 31);
-    validateAndSet("lastTimeDepartedHour", currentSettings.lastTimeDepartedHour, 0, 23);
-    validateAndSet("lastTimeDepartedMinute", currentSettings.lastTimeDepartedMinute, 0, 59);
-    validateAndSet("presetCycleInterval", currentSettings.presetCycleInterval, 0, 1440);
-    validateAndSet("departureHour", currentSettings.departureHour, 0, 23);
-    validateAndSet("departureMinute", currentSettings.departureMinute, 0, 59);
-    validateAndSet("arrivalHour", currentSettings.arrivalHour, 0, 23);
-    validateAndSet("arrivalMinute", currentSettings.arrivalMinute, 0, 59);
-    validateAndSetUChar("brightness", currentSettings.brightness, 0, 7);
-    if (hardwareInitialized) {
-        applyBrightness();
-    }
-    validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
-    validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
-    int tempAnimationStyle = currentSettings.animationStyle;
-    validateAndSet("animationStyle", tempAnimationStyle, 0, 27);
-    currentSettings.animationStyle = (AnimationType)tempAnimationStyle;
-    validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
-    if (!obj["timeTravelSoundToggle"].isNull()) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
-    validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
-    if (!obj["displayFormat24h"].isNull()) currentSettings.displayFormat24h = obj["displayFormat24h"];
     if (!obj["mqttBroker"].isNull()) currentSettings.mqttBroker = obj["mqttBroker"].as<std::string>();
     currentSettings.mqttPort = obj["mqttPort"] | 1883;
     if (!obj["mqttUser"].isNull()) currentSettings.mqttUser = obj["mqttUser"].as<std::string>();
