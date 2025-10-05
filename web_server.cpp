@@ -457,6 +457,10 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                     Log_printf(LOG_LEVEL_INFO, "WebSocket: Run sequence command received.");
                     handleSequencerCommand(payload.c_str());
                 }
+            } else if (action == "preview_animation") {
+                int animationId = doc["payload"];
+                Log_printf(LOG_LEVEL_INFO, "WebSocket: Preview animation command received for ID: %d", animationId);
+                triggerAnimation(static_cast<AnimationType>(animationId));
             }
         }
     }
