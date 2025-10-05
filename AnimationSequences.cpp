@@ -24,7 +24,7 @@ static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, in
 // Helper to add the introductory sound effect steps
 static int add_intro_sound_steps(SequencerTrack& track, int step_idx) {
     step_idx = add_step(track, step_idx, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
-    step_idx = add_step(track, step_idx, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    // No wait, let the sound play as the animation starts
     return step_idx;
 }
 
@@ -313,21 +313,22 @@ void generateDigitalRain(SequencerTrack tracks[3]) {
 
 void generateCountdown(SequencerTrack tracks[3]) {
     int s = 0;
+    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "COUNTDOWN");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1500, 0);
     // --- FIX: The COUNTDOWN command now correctly handles the full sequence including '0'.
     // No need for a separate SET_TEXT command.
     s = add_step(tracks[0], s, SEQ_CMD_COUNTDOWN, 1, -1, 10, 1000);
-    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0); // Brief pause before liftoff
     s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "LIFTOFF!");
 }
 
 void generateSystemError(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 100, 200, "ERROR");
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "ERROR");
     s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "SYSTEM MALFUNCTION");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
 }
 
 // --- New Thematic Animation Generators ---

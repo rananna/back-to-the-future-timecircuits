@@ -5,6 +5,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        .footer-save-wrapper {
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 1rem;
+            background-color: rgba(17, 17, 17, 0.9);
+            border-top: 1px solid #333;
+            text-align: center;
+            z-index: 1000;
+        }
+        #saveSettingsBtn {
+            width: auto;
+            padding: 15px 30px;
+            font-size: 1.2em;
+        }
+    </style>
     <script src="/ui_functions.js"></script>
 </head>
 <body class="theme-time-circuits">
@@ -158,10 +176,6 @@
                         <span class="slider round"></span>
                     </label>
                 </div>
-                </div>
-                <div class="setting-sub-group">
-                    <h4>Effects</h4>
-                </div>
                 <div class="setting-sub-group">
                     <h4>Animation Sequences</h4>
                     <div class="sequence-container">
@@ -170,6 +184,7 @@
                         </select>
                         <button id="runSequenceBtn" class="action-button">Run</button>
                     </div>
+                    <div style="height: 20px;"></div>
                 </div>
             </div>
             <div class="setting-group">
@@ -532,6 +547,8 @@
                 </table>
             </div>
         </div>
+    </div>
+    <div class="footer-save-wrapper">
         <button id="saveSettingsBtn" disabled>Save & Engage Time Circuits</button>
     </div>
     <div id="customConfirm" class="modal">
