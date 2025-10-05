@@ -1327,37 +1327,12 @@ body.time-travel-active {
     color: var(--text-color);
 }
 
-.contextual-save-wrapper {
-    text-align: right;
-    margin-top: 20px;
-}
-
-.contextual-save {
-    width: auto;
-    padding: 8px 15px;
-    font-size: 0.9em;
-    margin-top: 0;
-    display: inline-block;
-}
 /* ... (all existing CSS rules) ... */
 
 .hourly-temp {
     font-size: 1em;
     font-weight: bold;
     color: var(--text-color);
-}
-
-.contextual-save-wrapper {
-    text-align: right;
-    margin-top: 20px;
-}
-
-.contextual-save {
-    width: auto;
-    padding: 8px 15px;
-    font-size: 0.9em;
-    margin-top: 0;
-    display: inline-block;
 }
 
 .animation-style-container, .sequence-container {
@@ -1819,4 +1794,24 @@ body.time-travel-active {
     color: var(--text-color);
     font-style: italic;
     opacity: 0.9;
+}
+
+/* --- Sticky Footer --- */
+.footer-save-wrapper {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 1rem;
+    background-color: rgba(17, 17, 17, 0.9);
+    border-top: 1px solid #333;
+    text-align: center;
+    z-index: 1000;
+    box-sizing: border-box; /* Ensures padding is included in the width */
+}
+
+#saveSettingsBtn {
+    width: auto;
+    padding: 15px 30px;
+    font-size: 1.2em;
 }
