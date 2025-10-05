@@ -1806,15 +1806,6 @@ void runCrossfadeTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Crossfade Fix Test Started ---");
 }
 
-/**
- * @brief Configures and runs a test for the WIPE command.
- * @details This test runs the debug wipe sequence to validate the bounds check.
- */
-void runWipeTest() {
-    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Wipe Fix Test ---");
-    triggerAnimation(ANIMATION_DEBUG_WIPE);
-    Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Wipe Fix Test Started ---");
-}
 
 /**
  * @brief Configures and runs a startup test to verify parallel sequence execution.
