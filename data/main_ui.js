@@ -1314,7 +1314,7 @@ function previewAnimationStyle() {
     if (ws && ws.readyState === WebSocket.OPEN) {
         // Construct the command payload.
         const command = {
-            action: 'preview_animation',
+            action: 'preview_legacy_animation',
             payload: parseInt(animationId, 10) // Ensure the ID is sent as an integer.
         };
         // Send the command to the device.
