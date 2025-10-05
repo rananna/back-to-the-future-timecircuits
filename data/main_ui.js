@@ -261,7 +261,6 @@ async function applySettings(timecircuits, temporal, datalink) {
         ['timeTravelSoundToggle', 'displayFormat24h'].forEach(id => {
             document.getElementById(id).checked = temporal[id];
         });
-        document.getElementById('animationStyleSelect').value = temporal.animationStyle;
     }
 
     // Update the Last Departed display
@@ -557,9 +556,6 @@ function attachEventListeners() {
             showMessage('Wizard target deselected.', 'info', 2000);
         }
     });
-
-    // Animation preview button
-    document.getElementById('previewAnimationBtn').onclick = previewAnimationStyle;
 
     // Firmware upload form
     document.getElementById('firmware-upload-form').onsubmit = handleFirmwareUpload;
@@ -1298,33 +1294,6 @@ function duplicateDataPoint(event) {
         showMessage(`Data Point ${sourceIndex + 1} duplicated to Data Point ${targetIndex + 1}.`, 'success');
         if (!isLoading) setSettingsChanged(true);
     });
-}
-
-/**
- * @brief Sends a command to the device to preview a specific animation style.
- * @details This function reads the selected animation style from the dropdown,
- * constructs a JSON message, and sends it over the WebSocket connection to
- * trigger the animation on the physical device.
- */
-function previewAnimationStyle() {
-    // Get the selected animation style ID from the dropdown.
-    const animationId = document.getElementById('animationStyleSelect').value;
-
-    // Check if the WebSocket is connected and ready to send.
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        // Construct the command payload.
-        const command = {
-            action: 'preview_legacy_animation',
-            payload: parseInt(animationId, 10) // Ensure the ID is sent as an integer.
-        };
-        // Send the command to the device.
-        ws.send(JSON.stringify(command));
-        // Provide feedback to the user that the command was sent.
-        showMessage('Previewing animation on device...', 'info');
-    } else {
-        // If the WebSocket is not ready, inform the user.
-        showMessage('WebSocket not connected. Cannot preview animation.', 'error');
-    }
 }
 
 // The old getDataPointFromUI function is now replaced by the more comprehensive one above.

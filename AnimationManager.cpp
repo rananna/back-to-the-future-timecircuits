@@ -268,36 +268,15 @@ void handleDisplayAnimation() {
  * @brief Initiates the styled animation sequence for scheduled events.
  */
 void startStyledAnimation() {
-    Log_printf(LOG_LEVEL_INFO, "DIAG: startStyledAnimation() called.");
-    // Attempt to take the mutex. If we can't get it, another task is trying
-    // to start an animation, so we should just exit.
-    if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
-        Serial.println("ANIM_LOG: Styled animation mutex grab FAILED.");
-        return;
-    }
-    Serial.println("ANIM_LOG: Styled animation mutex grab SUCCESS.");
+    Log_printf(LOG_LEVEL_INFO, "DIAG: startStyledAnimation() called for style ID %d.", currentSettings.animationStyle);
 
-    // We have the mutex, now we can safely check the animation flags.
-    if (isStyledAnimating || isAnimating) {
-        xSemaphoreGive(xAnimationStartMutex); // Release the mutex before returning.
-        return;
-    }
+    // --- START: FIX - ENHANCEMENT - Randomizer and Dispatcher Logic ---
 
-    // Set the animation flag to prevent other tasks from starting another animation.
-    isStyledAnimating = true;
-
-    // The critical section is over, release the mutex.
-    xSemaphoreGive(xAnimationStartMutex);
-
-    getFormattedTimeStrings(old_dest_str, old_pres_str, old_last_str);
-
-    styledAnimationStartTime = millis();
-    currentStyledPhase = ANIM_START; // Set initial phase to ANIM_START
-    updateHaStatus("Animating");
-
-    // Set the animation style for this run
-    if (currentSettings.animationStyle == ANIMATION_ALL_DISPLAYS_RANDOM) {
+    // First, handle the "Randomize All" case by picking a new style.
+    // This now includes all modern animations, excluding debug sequences.
+    if (currentSettings.animationStyle == ANIMATION_RANDOMIZE_ALL) {
         const int validAnimationStyles[] = {
+            // Legacy Animations
             ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
             ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
             ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
@@ -305,14 +284,50 @@ void startStyledAnimation() {
             ANIMATION_GLITCHY_JUMP_CUT, ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS,
             ANIMATION_CHARACTER_SCANLINE, ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER,
             ANIMATION_TEMPORAL_PARADOX, ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE,
-            ANIMATION_FLIP_DISC_DISPLAY, ANIMATION_INTERFERENCE_PATTERN
+            ANIMATION_FLIP_DISC_DISPLAY, ANIMATION_INTERFERENCE_PATTERN,
+            // Modern Sequencer Animations
+            ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
+            ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD,
+            ANIMATION_FIRE_TRAILS, ANIMATION_SPARKLE_REVEAL, ANIMATION_COUNTDOWN,
+            ANIMATION_SYSTEM_ERROR,
         };
         int numStyles = sizeof(validAnimationStyles) / sizeof(validAnimationStyles[0]);
         int randomIndex = random(0, numStyles);
-        randomAnimationStyle = validAnimationStyles[randomIndex];
-    } else {
-        randomAnimationStyle = currentSettings.animationStyle;
+        // Overwrite the current animation style with the randomly selected one.
+        currentSettings.animationStyle = (AnimationType)validAnimationStyles[randomIndex];
+        Log_printf(LOG_LEVEL_INFO, "Randomize All selected. New style is %d.", currentSettings.animationStyle);
     }
+
+    // Second, check if the selected animation (either user-selected or randomized)
+    // is a modern, sequencer-based one.
+    if (currentSettings.animationStyle >= ANIMATION_ALL_DISPLAYS_RANDOM) {
+        triggerAnimation(currentSettings.animationStyle);
+        return; // Exit, as the modern sequencer handles everything from here.
+    }
+
+    // If we're here, it's a legacy animation. Proceed with the old state machine.
+    if (xSemaphoreTake(xAnimationStartMutex, (TickType_t)10) != pdTRUE) {
+        Serial.println("ANIM_LOG: Styled animation mutex grab FAILED.");
+        return;
+    }
+    Serial.println("ANIM_LOG: Styled animation mutex grab SUCCESS.");
+
+    if (isStyledAnimating || isAnimating) {
+        xSemaphoreGive(xAnimationStartMutex);
+        return;
+    }
+
+    isStyledAnimating = true;
+    xSemaphoreGive(xAnimationStartMutex);
+
+    getFormattedTimeStrings(old_dest_str, old_pres_str, old_last_str);
+
+    styledAnimationStartTime = millis();
+    currentStyledPhase = ANIM_START;
+    updateHaStatus("Animating");
+
+    // The randomAnimationStyle is now only used by the legacy handler.
+    randomAnimationStyle = currentSettings.animationStyle;
 }
 
 /**

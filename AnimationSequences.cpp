@@ -330,243 +330,6 @@ void generateSystemError(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_SOUND, 0, 0, 0, 0, "/error_beeps.mp3");
 }
 
-// --- Special Debugging Sequences ---
-
-/**
- * @brief (DEBUG) A general stress-test sequence.
- * @details This sequence is designed to test multiple complex features at once.
- * - Track 0: Runs a nested loop with sound effects to test timing and loop control.
- * - Track 1: Displays a very long scrolling marquee text to stress the buffer and timing for this effect.
- * - Track 2: Runs a parallel scramble text animation to ensure multiple complex animations can run together.
- */
-void generateDebugSequence(SequencerTrack tracks[3]) {
-    int s0 = 0, s1 = 0, s2 = 0;
-
-    // Announce the main test
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "DEBUG TEST");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "STRESS TEST");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "RUNNING...");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-
-    // Track 0: Complex nested loops with sound
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "NESTED LOOPS");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "/time_travel.mp3");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 3, 0); // Outer loop
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0); // Inner loop
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, 0, 100, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0); // End inner loop
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0); // End outer loop
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "LOOPS DONE");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-
-    // Track 1: Long scrolling text
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "LONG MARQUEE");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "ROADS? WHERE WE'RE GOING, WE DON'T NEED ROADS. THIS IS A TEST OF THE EMERGENCY BROADCAST SYSTEM. THIS IS ONLY A TEST.");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "MARQUEE DONE");
-
-    // Track 2: Parallel scramble text
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "SCRAMBLE");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 150, "PARALLEL TEST");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 4000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "SCRAMBLE DONE");
-}
-
-/**
- * @brief (DEBUG) A comprehensive, sequential showcase of all visual effects.
- * @details This sequence demonstrates each visual effect one after another on the
- * center display, with the top and bottom displays showing the name of the
- * currently running test. This is useful for debugging individual effects.
- */
-void generateDebugEffectsSequence(SequencerTrack tracks[3]) {
-    int s0 = 0, s1 = 0, s2 = 0;
-
-    // Announce the test
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "EFFECTS TEST");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PARALLEL RUN");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "-------------");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
-
-
-    // Track 0: Wipe, Typewriter, Crossfade
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 75, 0, "WIPE TEST");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 100, 0, "TYPEWRITER");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_CROSSFADE_TEXT, 0, -1, 2000, 0, "CROSSFADE");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TRACK 0 DONE");
-
-
-    // Track 1: Scramble, Scanner, Bar Graph
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 250, "SCRAMBLE");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 4000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 4000, 80, "<->");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 4000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 1, -1, 4000, 0, "BAR GRAPH");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 4000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TRACK 1 DONE");
-
-    // Track 2: Fade, Pulse, Flash
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_OUT, 2, -1, 1500, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 500, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_IN, 2, -1, 1500, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 4000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 4000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 4000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 4000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TRACK 2 DONE");
-}
-
-
-/**
- * @brief (DEBUG) A robust, parallel test for the sequencer's logic commands.
- * @details This test is designed to correctly test the parallel execution
- * of the sequencer. It runs three distinct, long-running, and non-conflicting
- * animations on each of the three display rows to demonstrate that the sequencer
- * can handle them all at once without interference.
- * - Track 0: A long scrolling marquee text.
- * - Track 1: A 20-second countdown.
- * - Track 2: A 20-second scanner effect.
- */
-void generateDebugParallelLogicSequence(SequencerTrack tracks[3]) {
-    int s0 = 0, s1 = 0, s2 = 0;
-
-    // Announce the test
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "PARALLEL LOGIC");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PARALLEL LOGIC");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "PARALLEL LOGIC");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
-
-
-    // Track 0: Long Marquee
-    s0 = add_step(tracks[0], s0, SEQ_CMD_MARQUEE, 0, -1, 0, 0, "TRACK 0: A VERY LONG MARQUEE TO TEST PARALLEL EXECUTION");
-
-    // Track 1: Countdown
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TRACK 1: COUNT");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, -1, 20, 1000, ""); // Countdown from 20, 1s interval
-
-    // Track 2: Scanner
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TRACK 2: SCAN");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCANNER, 2, -1, 20000, 80, "<=>"); // Scan for 20s
-}
-
-/**
- * @brief (DEBUG) A chaotic stress-test sequence.
- * @details This sequence runs a long loop, firing off random animations on random
- * tracks with random timings. Its purpose is to uncover race conditions, memory
- * leaks, or other instability issues that only appear under high load.
- * It is not designed to be visually coherent.
- */
-void generateDebugLogicSequence(SequencerTrack tracks[3]) {
-    int s0 = 0, s1 = 0, s2 = 0;
-
-    // Announce the test
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "LOGIC TEST");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "PARALLEL RUN");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "-------------");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
-
-    // Track 0: Nested loops and MQTT publish
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 2, 0); // Outer loop
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, 0, 0, 0, "LOOP");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 3, 0); // Inner loop
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, 0, 200, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 300, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0); // End inner
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0); // End outer
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "MQTT...");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_MQTT_PUBLISH, 0, 0, 0, 0, "timecircuits/test", "Track 0 Done");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TRACK 0 DONE");
-
-    // Track 1: Countdown and restore row
-    s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, -1, 10, 500); // Countdown from 10, 0.5s interval
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "RESTORE...");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RESTORE_ROW, 1, 0, 0, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TRACK 1 DONE");
-
-    // Track 2: Display HA Sensor and restore all
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, 0, 0, 0, "GET HA");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_DISPLAY_HA_SENSOR, 2, 2, 0, 0, "sensor.time", "");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 3000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "RESTORE ALL..");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TRACK 2 DONE");
-}
-
-void generateDebugWipeSequence(SequencerTrack tracks[3]) {
-    int s0 = 0;
-
-    // Announce the test
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "WIPE TEST");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-
-    // Test 1: Short string to test the bounds check fix
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "SHORT WIPE");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 100, 0, "SHORT");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 3000, 0); // Wait to observe
-
-    // Test 2: Full-length string to test for regressions
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "LONG WIPE");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 100, 0, "LONG_WIPE_TEST");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 3000, 0); // Wait to observe
-
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TEST DONE");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "");
-}
-
-void generateDebugStressSequence(SequencerTrack tracks[3]) {
-    int s0 = 0, s1 = 0, s2 = 0;
-
-    // Announce the test
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "STRESS TEST");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "RANDOM CHAOS");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "RUNNING...");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
-
-    // List of visual effects to choose from randomly
-    // --- FIX: Declare as static const to prevent stack allocation ---
-    static const SequenceCommand effects[] = {
-        SEQ_CMD_WIPE, SEQ_CMD_SCROLL_IN, SEQ_CMD_TYPEWRITER, SEQ_CMD_FADE_OUT,
-        SEQ_CMD_PULSE, SEQ_CMD_FLASH, SEQ_CMD_RANDOM_FLICKER_TEXT, SEQ_CMD_SCRAMBLE_TEXT,
-        SEQ_CMD_SCANNER, SEQ_CMD_BAR_GRAPH
-    };
-    int num_effects = sizeof(effects) / sizeof(effects[0]);
-
-    for (int i = 0; i < 50; ++i) { // Run 50 random commands
-        int track_idx = random(0, 3);
-        int effect_idx = random(0, num_effects);
-        int duration = random(500, 2000);
-        int interval = random(50, 250);
-
-        int* s_ptr = (track_idx == 0) ? &s0 : (track_idx == 1) ? &s1 : &s2;
-        SequencerTrack& track = tracks[track_idx];
-
-        *s_ptr = add_step(track, *s_ptr, effects[effect_idx], track_idx, -1, duration, interval, "STRESS");
-        *s_ptr = add_step(track, *s_ptr, SEQ_CMD_WAIT, track_idx, 0, duration, 0);
-    }
-}
-
 // --- New Thematic Animation Generators ---
 
 void generateLightning(SequencerTrack tracks[3]) {
@@ -705,50 +468,46 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         tracks[i].reset();
     }
 
+    // --- FIX: A correct switch statement with all cases and a proper default ---
     switch (animType) {
+        // Legacy Animations (for Randomize All)
         case ANIMATION_SEQUENTIAL_FLICKER:      generateSequentialFlicker(tracks, time_strings); break;
-        case ANIMATION_TORNADO_FLICKER:         generateTornadoFlicker(tracks); break;
-        case ANIMATION_ALL_DISPLAYS_RANDOM:     generateAllDisplaysRandom(tracks, time_strings); break;
-        case ANIMATION_CAPACITOR_CHARGE_UP:     generateCapacitorChargeUp(tracks); break;
-        case ANIMATION_WAVEFORM_COLLAPSE:       generateWaveformCollapse(tracks); break;
-        case ANIMATION_WAVE_FLICKER:            generateWaveFlicker(tracks); break;
-        case ANIMATION_CODE_BREAKER:            generateCodeBreaker(tracks, time_strings); break;
-        case ANIMATION_FLIP_DISC_DISPLAY:       generateFlipDisc(tracks, time_strings); break;
-        case ANIMATION_CHARACTER_SCANLINE:      generateCharacterScanline(tracks, time_strings); break;
-        case ANIMATION_TEMPORAL_PARADOX:        generateTemporalParadox(tracks, time_strings); break;
-        case ANIMATION_INTERFERENCE_PATTERN:    generateInterferencePattern(tracks, time_strings); break;
-        case ANIMATION_TIME_WARP_STREAKS:       generateTimeWarpStreaks(tracks, time_strings); break;
-        case ANIMATION_FOCUS_IN:                generateFocusIn(tracks, time_strings); break;
-        case ANIMATION_ELECTRIC_SURGE:          generateElectricSurge(tracks, time_strings); break;
-        case ANIMATION_DIGIT_CASCADE:           generateDigitCascade(tracks, time_strings); break;
-        case ANIMATION_PLASMA_WARM_UP:          generatePlasmaWarmup(tracks); break;
-        case ANIMATION_GLITCHY_JUMP_CUT:        generateGlitchyJumpCut(tracks); break;
+        case ANIMATION_RANDOM_FLICKER:          generateRandomFlicker(tracks); break;
         case ANIMATION_COUNTING_UP:             generateCountingUp(tracks); break;
+        case ANIMATION_WAVE_FLICKER:            generateWaveFlicker(tracks); break;
+        case ANIMATION_TORNADO_FLICKER:         generateTornadoFlicker(tracks); break;
+        case ANIMATION_CAPACITOR_CHARGE_UP:     generateCapacitorChargeUp(tracks); break;
+        case ANIMATION_DIGITAL_RAIN:            generateDigitalRain(tracks); break;
+        case ANIMATION_WAVEFORM_COLLAPSE:       generateWaveformCollapse(tracks); break;
         case ANIMATION_TIMELINE_SKIM:           generateTimelineSkim(tracks, time_strings); break;
         case ANIMATION_TEMPORAL_DESYNC:         generateTemporalDesync(tracks); break;
-        case ANIMATION_DIGITAL_RAIN:            generateDigitalRain(tracks); break;
-        case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(tracks, time_strings); break;
+        case ANIMATION_GLITCHY_JUMP_CUT:        generateGlitchyJumpCut(tracks); break;
+        case ANIMATION_PLASMA_WARM_UP:          generatePlasmaWarmup(tracks); break;
+        case ANIMATION_TIME_WARP_STREAKS:       generateTimeWarpStreaks(tracks, time_strings); break;
+        case ANIMATION_CHARACTER_SCANLINE:      generateCharacterScanline(tracks, time_strings); break;
+        case ANIMATION_FOCUS_IN:                generateFocusIn(tracks, time_strings); break;
+        case ANIMATION_CODE_BREAKER:            generateCodeBreaker(tracks, time_strings); break;
+        case ANIMATION_TEMPORAL_PARADOX:        generateTemporalParadox(tracks, time_strings); break;
+        case ANIMATION_DIGIT_CASCADE:           generateDigitCascade(tracks, time_strings); break;
+        case ANIMATION_ELECTRIC_SURGE:          generateElectricSurge(tracks, time_strings); break;
+        case ANIMATION_FLIP_DISC_DISPLAY:       generateFlipDisc(tracks, time_strings); break;
+        case ANIMATION_INTERFERENCE_PATTERN:    generateInterferencePattern(tracks, time_strings); break;
 
-        // New thematic animations
+        // Modern Sequencer Animations
+        case ANIMATION_ALL_DISPLAYS_RANDOM:     generateAllDisplaysRandom(tracks, time_strings); break;
         case ANIMATION_LIGHTNING:               generateLightning(tracks); break;
         case ANIMATION_SCANNER:                 generateScanner(tracks); break;
         case ANIMATION_TIME_TRAVEL_TUNNEL:      generateTimeTravelTunnel(tracks, time_strings); break;
         case ANIMATION_FLUX_CAPACITOR_OVERLOAD: generateFluxCapacitorOverload(tracks); break;
         case ANIMATION_FIRE_TRAILS:             generateFireTrails(tracks, time_strings); break;
+        case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(tracks, time_strings); break;
         case ANIMATION_COUNTDOWN:               generateCountdown(tracks); break;
         case ANIMATION_SYSTEM_ERROR:            generateSystemError(tracks); break;
 
-        // --- Special Debug Sequences ---
-        case ANIMATION_DEBUG:                   generateDebugSequence(tracks); break;
-        case ANIMATION_DEBUG_EFFECTS:           generateDebugEffectsSequence(tracks); break;
-        case ANIMATION_DEBUG_LOGIC:             generateDebugLogicSequence(tracks); break;
-        case ANIMATION_DEBUG_PARALLEL_LOGIC:    generateDebugParallelLogicSequence(tracks); break;
-        case ANIMATION_DEBUG_STRESS:            generateDebugStressSequence(tracks); break;
-        case ANIMATION_DEBUG_WIPE:              generateDebugWipeSequence(tracks); break;
-
-        case ANIMATION_RANDOM_FLICKER:          generateRandomFlicker(tracks); break;
+        // Default case
         default:
-            generateTornadoFlicker(tracks);
+            // Default to a visually interesting and non-destructive animation.
+            generateAllDisplaysRandom(tracks, time_strings);
             break;
     }
 
