@@ -923,6 +923,10 @@ void setup() {
     Serial.begin(115200);
     delay(1000); // Wait for serial monitor to connect.
 
+    // --- FIX: Seed the random number generator at boot ---
+    // Use an unconnected analog pin to get a source of entropy.
+    randomSeed(analogRead(0));
+
     Log_printf(LOG_LEVEL_INFO, "Initializing watchdog with %d second timeout...", WDT_TIMEOUT);
     // De-initialize the watchdog timer first to prevent an error if it's already running.
     // This can happen if the ESP-IDF default watchdog is enabled.
