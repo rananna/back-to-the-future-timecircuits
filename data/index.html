@@ -5,24 +5,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        .footer-save-wrapper {
-            position: sticky;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            padding: 1rem;
-            background-color: rgba(17, 17, 17, 0.9);
-            border-top: 1px solid #333;
-            text-align: center;
-            z-index: 1000;
-        }
-        #saveSettingsBtn {
-            width: auto;
-            padding: 15px 30px;
-            font-size: 1.2em;
-        }
-    </style>
     <script src="/ui_functions.js"></script>
 </head>
 <body class="theme-time-circuits">
@@ -91,9 +73,6 @@
                         <input type="number" id="destinationYear" class="time-circuit-input" min="1000" max="9999" value="1955">
                     </div>
                 </div>
-                <div class="contextual-save-wrapper">
-                    <button class="action-button contextual-save" onclick="saveSettings()">Save Destination</button>
-                </div>
             </div>
             <div class="setting-group" id="lastDepartedSettings">
                 <h3>Last Time Departed & Presets</h3>
@@ -137,9 +116,6 @@
                 <label for="presetCycleInterval">Cycle Presets Every (min, 0=Off): <span id="presetCycleIntervalValue">10</span></label>
                 <div class="slider-container">
                     <input type="range" id="presetCycleInterval" min="0" max="60">
-                </div>
-                <div class="contextual-save-wrapper">
-                    <button class="action-button contextual-save" onclick="saveSettings()">Save Presets & Cycle</button>
                 </div>
             </div>
         </div>
@@ -235,9 +211,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="contextual-save-wrapper">
-                <button class="action-button contextual-save" onclick="saveSettings()">Save Temporal Settings</button>
             </div>
         </div>
         <div id="DataLink" class="tab-content">
@@ -391,9 +364,6 @@
                     </div>
                 </div>
             </div>
-            <div class="contextual-save-wrapper">
-                <button class="action-button contextual-save" onclick="saveSettings()">Save Data Link Settings</button>
-            </div>
         </div>
         <div id="System" class="tab-content">
             <div class="setting-group" id="presentTimeSettings">
@@ -402,9 +372,6 @@
                 <label for="presentTimezoneSelect">Time Zone:</label>
                 <select id="presentTimezoneSelect"></select>
                 <button id="syncNtpBtn">Calibrate Present Time</button>
-                <div class="contextual-save-wrapper">
-                    <button class="action-button contextual-save" onclick="saveSettings()">Save Time Settings</button>
-                </div>
             </div>
             <div class="setting-group">
                 <h3>System Status</h3>
@@ -549,7 +516,7 @@
         </div>
     </div>
     <div class="footer-save-wrapper">
-        <button id="saveSettingsBtn" disabled>Save & Engage Time Circuits</button>
+        <button id="saveSettingsBtn" disabled>Save Settings</button>
     </div>
     <div id="customConfirm" class="modal">
         <div class="modal-content">
