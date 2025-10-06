@@ -457,7 +457,6 @@ void applySettingsFromJson(const JsonObject& obj) {
     bool oldSoundToggle = currentSettings.timeTravelSoundToggle;
     bool old24hFormat = currentSettings.displayFormat24h;
     uint8_t oldBrightness = currentSettings.brightness;
-    int oldAnimDuration = currentSettings.timeTravelAnimationDuration;
     int oldStockRefresh = currentSettings.stockRefreshInterval;
 
     // --- Apply All Settings from JSON ---
@@ -494,7 +493,6 @@ void applySettingsFromJson(const JsonObject& obj) {
     if (hardwareInitialized) {
         applyBrightness();
     }
-    validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
     int tempAnimationStyle = currentSettings.animationStyle;
     validateAndSet("animationStyle", tempAnimationStyle, 0, 27);
     currentSettings.animationStyle = (AnimationType)tempAnimationStyle;
@@ -670,10 +668,6 @@ void applySettingsFromJson(const JsonObject& obj) {
         publishBrightness(currentSettings.brightness);
     }
 
-    if (oldAnimDuration != currentSettings.timeTravelAnimationDuration) {
-        publishAnimationDuration(currentSettings.timeTravelAnimationDuration);
-    }
-
     if (oldStockRefresh != currentSettings.stockRefreshInterval) {
         publishStockRefresh(currentSettings.stockRefreshInterval);
     }
@@ -720,7 +714,6 @@ void saveSettings() {
     preferences.putInt("arrMinute", currentSettings.arrivalMinute);
     preferences.putInt("presetCycle", currentSettings.presetCycleInterval);
     preferences.putInt("theme", currentSettings.theme);
-    preferences.putInt("animDuration", currentSettings.timeTravelAnimationDuration);
     preferences.putInt("animStyle", currentSettings.animationStyle);
     preferences.putInt("animSequence", currentSettings.animationSequence);
     preferences.putInt("dlTargetRow", currentSettings.dataLinkTargetRow);
@@ -919,9 +912,7 @@ void loadSettings() {
         currentSettings.theme = preferences.getInt("theme", THEME_TIME_CIRCUITS);
         Log_printf(LOG_LEVEL_INFO, "Loaded theme: %d", currentSettings.theme);
 
-        currentSettings.timeTravelAnimationDuration = preferences.getInt("animDuration", 4000);
-        Log_printf(LOG_LEVEL_INFO, "Loaded animDuration: %d", currentSettings.timeTravelAnimationDuration);
-
+        currentSettings.timeTravelAnimationDuration = 4000; // Hardcode to default
         currentSettings.animationStyle = (AnimationType)preferences.getInt("animStyle", ANIMATION_SEQUENTIAL_FLICKER);
         Log_printf(LOG_LEVEL_INFO, "Loaded animStyle: %d", currentSettings.animationStyle);
 

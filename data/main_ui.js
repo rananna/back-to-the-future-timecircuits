@@ -256,7 +256,7 @@ async function applySettings(timecircuits, temporal, datalink) {
     if (temporal) {
         document.getElementById('departureTime').value = `${String(temporal.departureHour).padStart(2, '0')}:${String(temporal.departureMinute).padStart(2, '0')}`;
         document.getElementById('arrivalTime').value = `${String(temporal.arrivalHour).padStart(2, '0')}:${String(temporal.arrivalMinute).padStart(2, '0')}`;
-        ['brightness', 'notificationVolume', 'timeTravelAnimationDuration', 'timeTravelAnimationInterval', 'presetCycleInterval'].forEach(id => {
+        ['brightness', 'notificationVolume', 'timeTravelAnimationInterval', 'presetCycleInterval'].forEach(id => {
             const slider = document.getElementById(id);
             if (slider) {
                 slider.value = temporal[id];
