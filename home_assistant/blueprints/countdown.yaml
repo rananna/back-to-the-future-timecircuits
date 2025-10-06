@@ -61,8 +61,8 @@ mode: single
 
 sequence:
   - service: mqtt.publish
-    data_template:
-      topic: !input mqtt_topic
+    data:
+      topic: "{{ mqtt_topic }}"
       payload: >
         {%- set commands = [] -%}
         {%- set countdown_command = {'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_number, 'intParam2': countdown_delay} -%}
