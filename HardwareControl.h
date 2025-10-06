@@ -132,6 +132,7 @@ struct ClockSettings {
     int timeTravelAnimationDuration;
     int timeTravelAnimationInterval;
     AnimationType animationStyle;
+    AnimationType animationSequence;
     bool timeTravelSoundToggle;
     int presetCycleInterval;
     bool displayFormat24h;

@@ -404,6 +404,11 @@ void applySettingsFromJson(const JsonObject& obj) {
     int tempAnimationStyle = currentSettings.animationStyle;
     validateAndSet("animationStyle", tempAnimationStyle, 0, 27);
     currentSettings.animationStyle = (AnimationType)tempAnimationStyle;
+
+    int tempAnimationSequence = currentSettings.animationSequence;
+    validateAndSet("animationSequence", tempAnimationSequence, 0, 100); // Assuming a max of 100 sequences for now
+    currentSettings.animationSequence = (AnimationType)tempAnimationSequence;
+
     validateAndSetUChar("notificationVolume", currentSettings.notificationVolume, 0, 21);
     if (!obj["timeTravelSoundToggle"].isNull()) currentSettings.timeTravelSoundToggle = obj["timeTravelSoundToggle"];
     validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
@@ -614,6 +619,7 @@ void saveSettings() {
     preferences.putInt("theme", currentSettings.theme);
     preferences.putInt("animDuration", currentSettings.timeTravelAnimationDuration);
     preferences.putInt("animStyle", currentSettings.animationStyle);
+    preferences.putInt("animSequence", currentSettings.animationSequence);
     preferences.putInt("dlTargetRow", currentSettings.dataLinkTargetRow);
     preferences.putString("stockRow1Symbol", currentSettings.stockRow1_symbol.c_str());
     preferences.putString("stockRow2Symbol", currentSettings.stockRow2_symbol.c_str());
@@ -688,6 +694,7 @@ void loadSettings() {
         currentSettings.timeTravelAnimationInterval = 15;
         currentSettings.timeTravelAnimationDuration = 4000;
         currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
+        currentSettings.animationSequence = ANIMATION_RANDOMIZE_ALL;
         currentSettings.displayMode = DMS_NORMAL_CLOCK;
         currentSettings.dataLinkTargetRow = 2;
         currentSettings.stockRefreshInterval = 10;
@@ -815,6 +822,9 @@ void loadSettings() {
 
         currentSettings.animationStyle = (AnimationType)preferences.getInt("animStyle", ANIMATION_SEQUENTIAL_FLICKER);
         Log_printf(LOG_LEVEL_INFO, "Loaded animStyle: %d", currentSettings.animationStyle);
+
+        currentSettings.animationSequence = (AnimationType)preferences.getInt("animSequence", ANIMATION_RANDOMIZE_ALL);
+        Log_printf(LOG_LEVEL_INFO, "Loaded animSequence: %d", currentSettings.animationSequence);
 
         currentSettings.dataLinkTargetRow = preferences.getInt("dlTargetRow", 2);
         Log_printf(LOG_LEVEL_INFO, "Loaded dlTargetRow: %d", currentSettings.dataLinkTargetRow);
@@ -1525,7 +1535,7 @@ void handlePresetCycling() {
         broadcastPresetUpdate(nextPreset.name, nextPreset.year, nextPreset.month, nextPreset.day, nextPreset.hour, nextPreset.minute);
 
         // --- START: MODIFICATION - Trigger animation on preset cycle ---
-        startStyledAnimation();
+        triggerAnimation(currentSettings.animationSequence);
         // --- END: MODIFICATION ---
     }
 }

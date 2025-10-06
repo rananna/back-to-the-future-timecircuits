@@ -264,6 +264,14 @@ async function applySettings(timecircuits, temporal, datalink) {
         ['timeTravelSoundToggle', 'displayFormat24h'].forEach(id => {
             document.getElementById(id).checked = temporal[id];
         });
+        // --- START: MODIFICATION - Set the sequence dropdown from settings ---
+        if (temporal.hasOwnProperty('animationSequence')) {
+            const sequenceSelect = document.getElementById('sequenceSelect');
+            if (sequenceSelect) {
+                sequenceSelect.value = temporal.animationSequence;
+            }
+        }
+        // --- END: MODIFICATION ---
     }
 
     // Update the Last Departed display

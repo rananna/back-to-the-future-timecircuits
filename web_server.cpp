@@ -504,6 +504,7 @@ void sendFullSettingsToClient(uint32_t clientId) {
     doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
     doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
     doc["animationStyle"] = currentSettings.animationStyle;
+    doc["animationSequence"] = currentSettings.animationSequence;
     doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
     doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
@@ -1005,7 +1006,8 @@ void setupWebRoutes() {
     if (obj["timeTravelEngaged"] | false) {
         startTimeTravelAnimation();
     } else {
-        startStyledAnimation();
+        // --- FIX: Use the new animationSequence setting for the save button animation ---
+        triggerAnimation(currentSettings.animationSequence);
     }
   });
   server.addHandler(saveSettingsHandler);
