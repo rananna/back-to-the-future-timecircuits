@@ -21,6 +21,10 @@ document.addEventListener('DOMContentLoaded', async () => {
  */
 async function initializeUI() {
     try {
+        // Populate sequences first to avoid a race condition where settings are applied
+        // to the sequence dropdown before it has been populated with options.
+        await populateSequences();
+
         // Define the API endpoints to fetch initial data from
         const initialEndpoints = [
             '/api/settings/BTTF_TC', '/api/settings/temporal',
@@ -41,8 +45,6 @@ async function initializeUI() {
         // Populate the timezone and preset dropdowns
         populateTimezoneSelects(timezones);
         populatePresetsSelect(presets);
-        // Populate sequences first to avoid race condition
-        await populateSequences();
         // Apply the fetched settings to the UI
         await applySettings(timecircuits, temporal, datalink);
         // Make the header clocks visible
