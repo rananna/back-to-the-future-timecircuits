@@ -74,11 +74,10 @@ sequence:
           "intParam2": countdown_delay
         }] -%}
 
-        {# Wait for the countdown to finish before proceeding. A countdown from N to 0 takes N+1 steps. #}
-        {%- set countdown_duration = ((start_number + 1) * countdown_delay) | int -%}
-        {%- set steps = steps + [{"command": "WAIT", "intParam": countdown_duration}] -%}
+        {# The COUNTDOWN command is blocking. A WAIT command must be inserted *after* it to allow the final number to be displayed before moving to the next step. #}
+        {%- set steps = steps + [{"command": "WAIT", "intParam": countdown_delay}] -%}
 
-        {# If there is end text, display it and wait again #}
+        {# If there is end text, display it and wait again. #}
         {%- if end_text != "" -%}
           {%- set steps = steps + [{
             "command": "SET_TEXT",
