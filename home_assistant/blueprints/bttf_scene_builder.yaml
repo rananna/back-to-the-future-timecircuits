@@ -49,24 +49,24 @@ blueprint:
               value: "BAR_GRAPH"
     top_text_to_display:
       name: "[Top Row] Text to Display"
-      description: "Text for the effect. Supports templates."
+      description: "Text for the effect (supports templates). This is overridden if you select an Entity below."
       default: ""
     top_entity_to_display:
       name: "[Top Row] Entity to Display (Optional)"
-      description: "If selected, its state will be used as the text."
+      description: "If selected, the entity's state will be used as the text for the chosen effect."
       selector:
         entity: {}
     top_prefix:
       name: "[Top Row] Entity Prefix"
-      description: "Optional text to display before the sensor value."
+      description: "Optional text to display before the entity's value (e.g., 'Temp: ')."
       default: ""
     top_postfix:
       name: "[Top Row] Entity Postfix"
-      description: "Optional text to display after the sensor value."
+      description: "Optional text to display after the entity's value (e.g., '°C')."
       default: ""
     top_speed:
-      name: "[Top Row] Speed/Delay (ms)"
-      description: "Flicker/character speed for Marquee, Scramble, Typewriter."
+      name: "[Top Row] [Marquee/Scramble/Typewriter] Speed/Delay (ms)"
+      description: "Marquee/Scramble: Flicker speed. Typewriter: Delay between characters. Lower is faster."
       default: 100
       selector:
         number:
@@ -74,8 +74,8 @@ blueprint:
           max: 1000
           unit_of_measurement: "ms"
     top_reveal_delay:
-      name: "[Top Row] Scramble Reveal Delay (ms)"
-      description: "Delay between each character locking in."
+      name: "[Top Row] [Scramble] Reveal Delay (ms)"
+      description: "Delay between each character locking in. Lower is faster."
       default: 100
       selector:
         number:
@@ -180,24 +180,24 @@ blueprint:
               value: "BAR_GRAPH"
     middle_text_to_display:
       name: "[Middle Row] Text to Display"
-      description: "Text for the effect. Supports templates."
+      description: "Text for the effect (supports templates). This is overridden if you select an Entity below."
       default: ""
     middle_entity_to_display:
       name: "[Middle Row] Entity to Display (Optional)"
-      description: "If selected, its state will be used as the text."
+      description: "If selected, the entity's state will be used as the text for the chosen effect."
       selector:
         entity: {}
     middle_prefix:
       name: "[Middle Row] Entity Prefix"
-      description: "Optional text to display before the sensor value."
+      description: "Optional text to display before the entity's value (e.g., 'Temp: ')."
       default: ""
     middle_postfix:
       name: "[Middle Row] Entity Postfix"
-      description: "Optional text to display after the sensor value."
+      description: "Optional text to display after the entity's value (e.g., '°C')."
       default: ""
     middle_speed:
-      name: "[Middle Row] Speed/Delay (ms)"
-      description: "Flicker/character speed for Marquee, Scramble, Typewriter."
+      name: "[Middle Row] [Marquee/Scramble/Typewriter] Speed/Delay (ms)"
+      description: "Marquee/Scramble: Flicker speed. Typewriter: Delay between characters. Lower is faster."
       default: 100
       selector:
         number:
@@ -205,8 +205,8 @@ blueprint:
           max: 1000
           unit_of_measurement: "ms"
     middle_reveal_delay:
-      name: "[Middle Row] Scramble Reveal Delay (ms)"
-      description: "Delay between each character locking in."
+      name: "[Middle Row] [Scramble] Reveal Delay (ms)"
+      description: "Delay between each character locking in. Lower is faster."
       default: 100
       selector:
         number:
@@ -214,8 +214,8 @@ blueprint:
           max: 1000
           unit_of_measurement: "ms"
     middle_crossfade_duration:
-      name: "[Middle Row] Crossfade Duration (ms)"
-      description: "Duration of the fade in/out effect."
+      name: "[Middle Row] [Crossfade] Duration (ms)"
+      description: "The duration of the fade in/out effect."
       default: 1000
       selector:
         number:
@@ -223,14 +223,16 @@ blueprint:
           max: 5000
           unit_of_measurement: "ms"
     middle_start_number:
-      name: "[Middle Row] Countdown Start Number"
+      name: "[Middle Row] [Countdown] Start Number"
+      description: "The number to start counting down from."
       default: 10
       selector:
         number:
           min: 1
           max: 9999
     middle_countdown_delay:
-      name: "[Middle Row] Countdown Delay (ms)"
+      name: "[Middle Row] [Countdown] Countdown Delay (ms)"
+      description: "The delay between each number change. 1000ms = 1 second."
       default: 1000
       selector:
         number:
@@ -238,11 +240,12 @@ blueprint:
           max: 5000
           unit_of_measurement: "ms"
     middle_end_text:
-      name: "[Middle Row] Countdown End Text"
+      name: "[Middle Row] [Countdown] End Text"
       description: "Optional text to display when the countdown finishes."
       default: ""
     middle_bargraph_percentage:
-      name: "[Middle Row] Bar Graph Percentage"
+      name: "[Middle Row] [Bar Graph] Starting Percentage"
+      description: "The percentage (0-100) at which the bar graph should start."
       default: 0
       selector:
         number:
@@ -250,7 +253,8 @@ blueprint:
           max: 100
           unit_of_measurement: "%"
     middle_bargraph_duration:
-      name: "[Middle Row] Bar Graph Duration (ms)"
+      name: "[Middle Row] [Bar Graph] Animation Duration (ms)"
+      description: "The total time for the bar graph animation to complete."
       default: 2000
       selector:
         number:
@@ -259,7 +263,7 @@ blueprint:
           unit_of_measurement: "ms"
     middle_duration:
       name: "[Middle Row] Display Duration (s)"
-      description: "Duration for Set Text, Pulse, Flash, Scanner, and Countdown End Text."
+      description: "How long the effect should be visible. Used by Set Text, Pulse, Flash, Scanner, and Countdown End Text."
       default: 5
       selector:
         number:
@@ -311,24 +315,24 @@ blueprint:
               value: "BAR_GRAPH"
     bottom_text_to_display:
       name: "[Bottom Row] Text to Display"
-      description: "Text for the effect. Supports templates."
+      description: "Text for the effect (supports templates). This is overridden if you select an Entity below."
       default: ""
     bottom_entity_to_display:
       name: "[Bottom Row] Entity to Display (Optional)"
-      description: "If selected, its state will be used as the text."
+      description: "If selected, the entity's state will be used as the text for the chosen effect."
       selector:
         entity: {}
     bottom_prefix:
       name: "[Bottom Row] Entity Prefix"
-      description: "Optional text to display before the sensor value."
+      description: "Optional text to display before the entity's value (e.g., 'Temp: ')."
       default: ""
     bottom_postfix:
       name: "[Bottom Row] Entity Postfix"
-      description: "Optional text to display after the sensor value."
+      description: "Optional text to display after the entity's value (e.g., '°C')."
       default: ""
     bottom_speed:
-      name: "[Bottom Row] Speed/Delay (ms)"
-      description: "Flicker/character speed for Marquee, Scramble, Typewriter."
+      name: "[Bottom Row] [Marquee/Scramble/Typewriter] Speed/Delay (ms)"
+      description: "Marquee/Scramble: Flicker speed. Typewriter: Delay between characters. Lower is faster."
       default: 100
       selector:
         number:
@@ -336,8 +340,8 @@ blueprint:
           max: 1000
           unit_of_measurement: "ms"
     bottom_reveal_delay:
-      name: "[Bottom Row] Scramble Reveal Delay (ms)"
-      description: "Delay between each character locking in."
+      name: "[Bottom Row] [Scramble] Reveal Delay (ms)"
+      description: "Delay between each character locking in. Lower is faster."
       default: 100
       selector:
         number:
@@ -345,8 +349,8 @@ blueprint:
           max: 1000
           unit_of_measurement: "ms"
     bottom_crossfade_duration:
-      name: "[Bottom Row] Crossfade Duration (ms)"
-      description: "Duration of the fade in/out effect."
+      name: "[Bottom Row] [Crossfade] Duration (ms)"
+      description: "The duration of the fade in/out effect."
       default: 1000
       selector:
         number:
@@ -354,14 +358,16 @@ blueprint:
           max: 5000
           unit_of_measurement: "ms"
     bottom_start_number:
-      name: "[Bottom Row] Countdown Start Number"
+      name: "[Bottom Row] [Countdown] Start Number"
+      description: "The number to start counting down from."
       default: 10
       selector:
         number:
           min: 1
           max: 9999
     bottom_countdown_delay:
-      name: "[Bottom Row] Countdown Delay (ms)"
+      name: "[Bottom Row] [Countdown] Countdown Delay (ms)"
+      description: "The delay between each number change. 1000ms = 1 second."
       default: 1000
       selector:
         number:
@@ -369,11 +375,12 @@ blueprint:
           max: 5000
           unit_of_measurement: "ms"
     bottom_end_text:
-      name: "[Bottom Row] Countdown End Text"
+      name: "[Bottom Row] [Countdown] End Text"
       description: "Optional text to display when the countdown finishes."
       default: ""
     bottom_bargraph_percentage:
-      name: "[Bottom Row] Bar Graph Percentage"
+      name: "[Bottom Row] [Bar Graph] Starting Percentage"
+      description: "The percentage (0-100) at which the bar graph should start."
       default: 0
       selector:
         number:
@@ -381,7 +388,8 @@ blueprint:
           max: 100
           unit_of_measurement: "%"
     bottom_bargraph_duration:
-      name: "[Bottom Row] Bar Graph Duration (ms)"
+      name: "[Bottom Row] [Bar Graph] Animation Duration (ms)"
+      description: "The total time for the bar graph animation to complete."
       default: 2000
       selector:
         number:
@@ -390,7 +398,7 @@ blueprint:
           unit_of_measurement: "ms"
     bottom_duration:
       name: "[Bottom Row] Display Duration (s)"
-      description: "Duration for Set Text, Pulse, Flash, Scanner, and Countdown End Text."
+      description: "How long the effect should be visible. Used by Set Text, Pulse, Flash, Scanner, and Countdown End Text."
       default: 5
       selector:
         number:
@@ -411,19 +419,22 @@ sequence:
     data_template:
       topic: !input mqtt_topic
       payload: >
-        {%- macro build_track(target_row, effect, restore_row, text_to_display, entity_to_display, prefix, postfix, speed, reveal_delay, crossfade_duration, start_number, countdown_delay, end_text, bargraph_percentage, bargraph_duration, duration) -%}
+        {%- macro build_commands(effect, restore_row, text_to_display, entity_to_display, prefix, postfix, speed, reveal_delay, crossfade_duration, start_number, countdown_delay, end_text, bargraph_percentage, bargraph_duration, duration) -%}
+          {#- Step 1: Determine the final text. Use the entity state if provided, otherwise use the text input. -#}
           {%- set ns = namespace(final_text=text_to_display) -%}
           {%- if entity_to_display and states(entity_to_display) -%}
             {%- set ns.final_text = prefix ~ states(entity_to_display) ~ postfix -%}
           {%- endif -%}
 
-          {%- set command = {'command': effect, 'targetRow': target_row, 'targetSegment': -1} -%}
-          {%- if effect == 'SET_TEXT' -%}
+          {#- Step 2: Build the primary command. It does NOT include targetRow. -#}
+          {%- set command = {'command': effect, 'targetSegment': -1} -%}
+
+          {#- Add text parameter if used by the effect. -#}
+          {%- if effect in ['SET_TEXT', 'MARQUEE', 'SCRAMBLE_TEXT', 'TYPEWRITER', 'CROSSFADE_TEXT', 'BAR_GRAPH'] -%}
             {%- do command.update({'stringParam': ns.final_text}) -%}
-          {%- elif effect in ['MARQUEE', 'SCRAMBLE_TEXT', 'TYPEWRITER', 'CROSSFADE_TEXT', 'BAR_GRAPH'] -%}
-            {%- do command.update({'stringParam': text_to_display}) -%}
           {%- endif -%}
 
+          {#- Add effect-specific numeric/timing parameters -#}
           {%- if effect == 'MARQUEE' or effect == 'TYPEWRITER' -%}
             {%- do command.update({'intParam': speed}) -%}
           {%- elif effect == 'SCRAMBLE_TEXT' -%}
@@ -438,53 +449,66 @@ sequence:
             {%- do command.update({'intParam': bargraph_percentage, 'intParam2': bargraph_duration}) -%}
           {%- endif -%}
 
-          {%- set steps = [command] -%}
+          {%- set commands = [command] -%}
 
+          {#- Step 3: Add subsequent commands like WAIT and RESTORE_ROW if needed -#}
           {%- if restore_row -%}
             {%- set wait = namespace(duration=0) -%}
+
+            {#- A. Blocking commands with a built-in duration (PULSE, FLASH) don't need a separate WAIT step. -#}
+
+            {#- B. Commands that need a calculated WAIT duration. -#}
             {%- if effect == 'MARQUEE' -%}
               {%- set wait.duration = speed * (ns.final_text | length + 26) -%}
             {%- elif effect == 'SCRAMBLE_TEXT' -%}
-              {%- set wait.duration = (reveal_delay * (text_to_display | length + 1)) -%}
+              {%- set wait.duration = (reveal_delay * (ns.final_text | length + 1)) -%}
             {%- elif effect == 'TYPEWRITER' -%}
-              {%- set wait.duration = (speed * (text_to_display | length)) + 1000 -%}
+              {%- set wait.duration = (speed * (ns.final_text | length)) + 1000 -%}
             {%- elif effect == 'CROSSFADE_TEXT' -%}
               {%- set wait.duration = crossfade_duration * 2 -%}
             {%- elif effect == 'BAR_GRAPH' -%}
               {%- set wait.duration = bargraph_duration -%}
+
+            {#- C. Commands with special multi-step logic (like displaying text after a countdown). -#}
             {%- elif effect == 'COUNTDOWN' -%}
-              {%- set steps = steps + [{"command": "WAIT", "intParam": countdown_delay}] -%}
+              {#- The COUNTDOWN command is blocking, so no WAIT is needed for the countdown itself. -#}
+              {#- If there is end text, add a command to display it, then wait for the user-defined duration. -#}
               {%- if end_text != "" -%}
-                {%- set steps = steps + [{"command": "SET_TEXT", "targetRow": target_row, "targetSegment": -1, "stringParam": end_text}] -%}
+                {%- set commands = commands + [{"command": "SET_TEXT", "targetSegment": -1, "stringParam": end_text}] -%}
                 {%- set wait.duration = duration * 1000 -%}
               {%- endif -%}
+
+            {#- D. Commands that use the simple manual duration input. -#}
             {%- elif effect in ['SET_TEXT', 'SCANNER'] -%}
               {%- set wait.duration = duration * 1000 -%}
             {%- endif -%}
 
+            {#- Add the main WAIT step if a duration was calculated or set above. -#}
             {%- if wait.duration > 0 -%}
-              {%- set steps = steps + [{"command": "WAIT", "intParam": wait.duration | int }] -%}
+              {%- set commands = commands + [{"command": "WAIT", "intParam": wait.duration | int }] -%}
             {%- endif -%}
-            {%- set steps = steps + [{"command": "RESTORE_ROW", "targetRow": target_row}] -%}
+
+            {#- Add the final restore command. It does not need a targetRow. -#}
+            {%- set commands = commands + [{"command": "RESTORE_ROW"}] -%}
           {%- endif -%}
-          {{- steps -}}
+          {{- commands -}}
         {%- endmacro -%}
 
         {%- set all_tracks = [] -%}
 
         {%- if enable_top_row -%}
-          {%- set top_track = build_track('TOP', top_effect, top_restore_row, top_text_to_display, top_entity_to_display, top_prefix, top_postfix, top_speed, top_reveal_delay, top_crossfade_duration, top_start_number, top_countdown_delay, top_end_text, top_bargraph_percentage, top_bargraph_duration, top_duration) | from_yaml -%}
-          {%- if top_track -%}{%- do all_tracks.append(top_track) -%}{%- endif -%}
+          {%- set top_commands = build_commands(top_effect, top_restore_row, top_text_to_display, top_entity_to_display, top_prefix, top_postfix, top_speed, top_reveal_delay, top_crossfade_duration, top_start_number, top_countdown_delay, top_end_text, top_bargraph_percentage, top_bargraph_duration, top_duration) | from_yaml -%}
+          {%- if top_commands -%}{%- do all_tracks.append({"targetRow": "TOP", "commands": top_commands}) -%}{%- endif -%}
         {%- endif -%}
 
         {%- if enable_middle_row -%}
-          {%- set middle_track = build_track('MIDDLE', middle_effect, middle_restore_row, middle_text_to_display, middle_entity_to_display, middle_prefix, middle_postfix, middle_speed, middle_reveal_delay, middle_crossfade_duration, middle_start_number, middle_countdown_delay, middle_end_text, middle_bargraph_percentage, middle_bargraph_duration, middle_duration) | from_yaml -%}
-          {%- if middle_track -%}{%- do all_tracks.append(middle_track) -%}{%- endif -%}
+          {%- set middle_commands = build_commands(middle_effect, middle_restore_row, middle_text_to_display, middle_entity_to_display, middle_prefix, middle_postfix, middle_speed, middle_reveal_delay, middle_crossfade_duration, middle_start_number, middle_countdown_delay, middle_end_text, middle_bargraph_percentage, middle_bargraph_duration, middle_duration) | from_yaml -%}
+          {%- if middle_commands -%}{%- do all_tracks.append({"targetRow": "MIDDLE", "commands": middle_commands}) -%}{%- endif -%}
         {%- endif -%}
 
         {%- if enable_bottom_row -%}
-          {%- set bottom_track = build_track('BOTTOM', bottom_effect, bottom_restore_row, bottom_text_to_display, bottom_entity_to_display, bottom_prefix, bottom_postfix, bottom_speed, bottom_reveal_delay, bottom_crossfade_duration, bottom_start_number, bottom_countdown_delay, bottom_end_text, bottom_bargraph_percentage, bottom_bargraph_duration, bottom_duration) | from_yaml -%}
-          {%- if bottom_track -%}{%- do all_tracks.append(bottom_track) -%}{%- endif -%}
+          {%- set bottom_commands = build_commands(bottom_effect, bottom_restore_row, bottom_text_to_display, bottom_entity_to_display, bottom_prefix, bottom_postfix, bottom_speed, bottom_reveal_delay, bottom_crossfade_duration, bottom_start_number, bottom_countdown_delay, bottom_end_text, bottom_bargraph_percentage, bottom_bargraph_duration, bottom_duration) | from_yaml -%}
+          {%- if bottom_commands -%}{%- do all_tracks.append({"targetRow": "BOTTOM", "commands": bottom_commands}) -%}{%- endif -%}
         {%- endif -%}
 
         {{ {'tracks': all_tracks} | to_json }}
