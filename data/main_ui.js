@@ -41,6 +41,8 @@ async function initializeUI() {
         // Populate the timezone and preset dropdowns
         populateTimezoneSelects(timezones);
         populatePresetsSelect(presets);
+        // Populate sequences first to avoid race condition
+        await populateSequences();
         // Apply the fetched settings to the UI
         await applySettings(timecircuits, temporal, datalink);
         // Make the header clocks visible
@@ -51,7 +53,6 @@ async function initializeUI() {
 
         // Populate radio stations
         populateRadioStations();
-        populateSequences();
 
         // Start fetching real-time data
         fetchTime();
@@ -267,7 +268,8 @@ async function applySettings(timecircuits, temporal, datalink) {
         // --- START: MODIFICATION - Set the sequence dropdown from settings ---
         if (temporal.hasOwnProperty('animationSequence')) {
             const sequenceSelect = document.getElementById('sequenceSelect');
-            if (sequenceSelect) {
+            // Add a guard clause to ensure the select has options before setting the value
+            if (sequenceSelect && sequenceSelect.options.length > 1) {
                 sequenceSelect.value = temporal.animationSequence;
             }
         }
