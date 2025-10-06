@@ -18,22 +18,8 @@ This document provides some guidelines for contributing to the project.
 4.  If you've added a new user-facing feature, please update the relevant documentation in the `docs/` directory.
 5.  Submit your pull request with a clear description of the changes you've made.
 
-## Adding New Sequencer Commands & Animations
+## Advanced Contributions
 
-The command sequencer is a core part of this project and a great place to contribute.
-
-### Adding a New Sequencer Command
-
-1.  **Define the Command Enum**: Add a new entry to the `SequenceCommand` enum in `AnimationManager.h`.
-2.  **Implement the Logic**: Add a new `case` to the `switch` statement in the `handleSequencer` function in `AnimationManager.cpp`. This is where you'll implement the logic for your new command.
-3.  **Document the Command**: Add a new row to the command reference table in `docs/developer/sequencer-api.md`.
-
-### Adding a New Built-in Animation
-
-1.  **Create a Generator Function**: In `AnimationSequences.cpp`, create a new function (e.g., `generateMyCoolAnimation(SequencerTrack tracks[3])`) that uses the `add_step` helper to build your animation sequence across the three tracks.
-2.  **Define the AnimationType**: Add a new entry to the `AnimationType` enum in `AnimationSequences.h`.
-3.  **Register the Animation**: Add a new `case` to the `switch` statement in the `generateAnimationSequence` function in `AnimationSequences.cpp` that calls your new generator function.
-4.  **Add to `Randomize All`**: If your animation is suitable for general use, consider adding its `AnimationType` to the `validAnimationStyles` array in `generateAnimationSequence` so it can be triggered by the "Randomize All" feature.
-5.  **Document the Animation**: Add a new row to the "Available Animations" table in `docs/developer/sequencer-api.md`.
+For more technical contributions, such as adding new sequencer commands or modifying the firmware, please see the **[Developer Guide](docs/developer/developer-guide.md)** for detailed instructions and a technical deep-dive.
 
 Thank you again for your interest in contributing!

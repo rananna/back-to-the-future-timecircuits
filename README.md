@@ -41,6 +41,7 @@ This project is extensively documented. Once you're set up, explore the guides t
 -   **[Troubleshooting Guide](docs/user-guide/troubleshooting.md)**: Solutions to common problems.
 
 ### **Developer & Advanced Topics**
+-   **[Developer Guide](docs/developer/developer-guide.md)**: A technical deep-dive into the firmware architecture.
 -   **[Sequencer API Reference](docs/developer/sequencer-api.md)**: Create custom animations using the powerful sequencer.
 -   **[Raw MQTT API Reference](docs/developer/mqtt-api.md)**: A complete reference for the low-level MQTT API.
 

@@ -80,18 +80,6 @@ The sequencer, managed by `handleSequencer()` in the main `.ino` file, processes
 
 Each command in the sequence can perform an action like displaying text, flashing a segment, playing a sound, or pausing. For a complete list of available commands and their parameters, refer to the **[🏠 Home Assistant Integration Guide](home-assistant.md)**, which details the `bttf_time_circuits.run_sequence` service.
 
-***
-
-## 🤝 Contribution Guidelines
-
-We welcome contributions to this project! Please follow these guidelines:
-
-1.  **Fork & Branch**: Fork the repository and create a new branch for your work (`feature/your-feature` or `bugfix/your-fix`).
-2.  **Code Style**: Please adhere to the existing code style. The code uses a consistent, well-commented, and modular format.
-3.  **Test Your Changes**: Before submitting, ensure your changes work as expected and do not introduce any new bugs.
-4.  **Pull Request**: Open a pull request with a clear title and a detailed description of your changes. Explain the "what" and "why" of your contribution.
-
-***
 
 ## 🌐 Frontend Web Interface
 
@@ -129,3 +117,23 @@ If you wanted to add a new setting to the web interface, you would typically fol
     *   In `web_server.cpp`, update the `/api/saveSettings` handler to parse the new setting from the incoming JSON and save it.
     *   Update the appropriate `/api/settings/...` GET endpoint to include your new setting so it can be loaded by the frontend.
     *   Update `saveSettings()` and `loadSettings()` in the main `.ino` file to persist your new setting to the device's non-volatile storage.
+
+***
+
+## 💡 Adding New Sequencer Commands & Animations
+
+The command sequencer is a core part of this project and a great place to contribute.
+
+### Adding a New Sequencer Command
+
+1.  **Define the Command Enum**: Add a new entry to the `SequenceCommand` enum in `AnimationManager.h`.
+2.  **Implement the Logic**: Add a new `case` to the `switch` statement in the `handleSequencer` function in `AnimationManager.cpp`. This is where you'll implement the logic for your new command.
+3.  **Document the Command**: Add a new row to the command reference table in `docs/developer/sequencer-api.md`.
+
+### Adding a New Built-in Animation
+
+1.  **Create a Generator Function**: In `AnimationSequences.cpp`, create a new function (e.g., `generateMyCoolAnimation(SequencerTrack tracks[3])`) that uses the `add_step` helper to build your animation sequence across the three tracks.
+2.  **Define the AnimationType**: Add a new entry to the `AnimationType` enum in `AnimationSequences.h`.
+3.  **Register the Animation**: Add a new `case` to the `switch` statement in the `generateAnimationSequence` function in `AnimationSequences.cpp` that calls your new generator function.
+4.  **Add to `Randomize All`**: If your animation is suitable for general use, consider adding its `AnimationType` to the `validAnimationStyles` array in `generateAnimationSequence` so it can be triggered by the "Randomize All" feature.
+5.  **Document the Animation**: Add a new row to the "Available Animations" table in `docs/developer/sequencer-api.md`.
