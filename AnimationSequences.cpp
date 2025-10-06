@@ -48,7 +48,8 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
+    // The C++ for loop below generates the full animation sequence.
+    // The previous SEQ_CMD_LOOP commands were redundant and caused a buffer overflow.
     for (int i = 0; i < 4; i++) {
         s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, i, 100, 50);
         s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
@@ -57,7 +58,6 @@ void generateTornadoFlicker(SequencerTrack tracks[3]) {
         s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, i, 100, 50);
         s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
     }
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
 void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings[3][17]) {
@@ -122,9 +122,8 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
     const char* waves[] = {"-------------", " ---     --- ", "  ---   ---  ", "   -------   ", "  ---   ---  ", " ---     --- "};
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 16, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 16, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 16, 0);
+    // The C++ for loop generates the full animation. The SEQ_CMD_LOOP commands
+    // were redundant and caused a buffer overflow.
     for (int i = 0; i < 6; i++) {
         std::string wave_str(waves[i]);
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, wave_str.c_str());
@@ -136,9 +135,6 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
         s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100, 0);
         s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100, 0);
     }
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 void generateWaveFlicker(SequencerTrack tracks[3]) {
@@ -238,20 +234,13 @@ void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][
 }
 
 void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s = 0;
-    s = add_step(tracks[0], s, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 13, 0);
-    for (int i = 0; i < 13; i++) {
-        char text[14] = "             ";
-        text[i] = time_strings[0][i];
-        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, text);
-        text[i] = time_strings[1][i];
-        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, text);
-        text[i] = time_strings[2][i];
-        s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, text);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 75, 0);
-    }
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    int s0 = 0, s1 = 0, s2 = 0;
+    // This implementation now uses the much cleaner and more efficient TYPEWRITER command.
+    // The previous version was inefficient and risked a buffer overflow.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "electric_sparks.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 75, 0, time_strings[0]);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_TYPEWRITER, 1, -1, 75, 0, time_strings[1]);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_TYPEWRITER, 2, -1, 75, 0, time_strings[2]);
 }
 
 void generatePlasmaWarmup(SequencerTrack tracks[3]) {
