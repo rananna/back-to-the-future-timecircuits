@@ -63,7 +63,7 @@ trigger:
     below: 0
 action:
   - service: mqtt.publish
-    data_template:
+    data: # Use data, not the deprecated data_template
       topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command"
       payload: >
         {
@@ -132,13 +132,13 @@ This table details every command available in the sequencer.
 It is critical to understand the difference between **blocking** and **non-blocking** commands when creating sequences. This determines whether the sequencer waits for a command to finish before moving to the next step.
 
 *   **Non-Blocking Commands**: These commands execute instantly and the sequencer immediately moves to the next command in the track.
-    *   **Commands**: `SET_TEXT`, `MARQUEE`, `SOUND`
+    *   **Commands**: `SET_TEXT`, `CLEAR_SEGMENT`, `SET_BRIGHTNESS`, `RESTORE_ROW`, `RESTORE_ALL_ROWS`, `SOUND`, `MQTT_PUBLISH`, `LOOP_START`, `LOOP_END`.
     *   **Behavior**: If you want a non-blocking command's effect to be visible for a certain duration, you **must** follow it with a `WAIT` command. Without a `WAIT`, the effect might be immediately replaced by the next command in the sequence.
     *   **Example**: To show "HELLO" for 2 seconds, you need two steps: `{"command":"SET_TEXT", "stringParam":"HELLO"}` followed by `{"command":"WAIT", "intParam":2000}`.
 
 *   **Blocking Commands**: These commands run for a specific duration, and the sequencer will **not** execute the next command until the current one is complete.
-    *   **Commands**: `PULSE`, `FLASH`, `SCANNER`, `COUNTDOWN`, `FADE_IN`, `FADE_OUT`.
-    *   **Behavior**: The duration of these effects is built into the command itself, typically using the `intParam`. You do **not** need to add a separate `WAIT` command after them for their own duration.
+    *   **Commands**: `WAIT`, `FADE_IN`, `FADE_OUT`, `PULSE`, `FLASH`, `MARQUEE`, `SCANNER`, `COUNTDOWN`, `TYPEWRITER`, `WIPE`, `SCROLL_IN`, `CROSSFADE_TEXT`, `RANDOM_FLICKER_TEXT`, `SCRAMBLE_TEXT`, `BAR_GRAPH`, `DISPLAY_HA_SENSOR`.
+    *   **Behavior**: The duration of these effects is built into the command itself, typically using the `intParam` and/or `intParam2`. You do **not** need to add a separate `WAIT` command after them for their own duration.
     *   **Example**: `{"command":"PULSE", "intParam":5000}` will pulse the display for 5 seconds. The sequencer will automatically wait for those 5 seconds before proceeding.
 
 ---
@@ -147,20 +147,20 @@ It is critical to understand the difference between **blocking** and **non-block
 
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
-| `SET_TEXT` | Instantly displays static text on a segment or the full row. | `stringParam`, `targetSegment` (optional, default: -1) | `{"command":"SET_TEXT", "stringParam":"SYSTEM READY"}` |
-| `MARQUEE` | Scrolls text across the target row. **Note:** After scrolling, it leaves the original text centered on the display, allowing you to chain effects like `PULSE`. | `stringParam` | `{"command":"MARQUEE", "stringParam":"A VERY LONG MESSAGE"}` |
-| `SCRAMBLE_TEXT` | Reveals text one character at a time with a scrambling effect. | `stringParam`, `intParam` (flicker speed ms), `intParam2` (reveal delay ms) | `{"command":"SCRAMBLE_TEXT", "stringParam":"ACCESSING", "intParam":50, "intParam2":150}` |
-| `TYPEWRITER` | Reveals text one character at a time, like a typewriter. | `stringParam`, `intParam` (delay ms) | `{"command":"TYPEWRITER", "stringParam":"LOADING...", "intParam":100}` |
-| `WIPE` | Reveals text with a wipe effect from left to right. | `stringParam`, `intParam` (delay ms) | `{"command":"WIPE", "stringParam":"AUTHORIZED", "intParam":75}` |
-| `SCROLL_IN` | Scrolls text in from the right and stops with the text justified to the right. | `stringParam`, `intParam` (delay ms) | `{"command":"SCROLL_IN", "stringParam":"WELCOME", "intParam":60}` |
-| `CROSSFADE_TEXT` | Fades from the current text to new text. | `stringParam`, `intParam` (duration ms) | `{"command":"CROSSFADE_TEXT", "stringParam":"NEW TEXT", "intParam":1500}` |
-| `RANDOM_FLICKER_TEXT` | Fills the display with random characters that flicker rapidly. If `stringParam` is empty, it intelligently flickers the existing display text. | `stringParam` (character set), `intParam` (duration ms), `intParam2` (flicker speed ms) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":5000, "intParam2":50}` |
-| `BAR_GRAPH` | Displays a "charging" bar that fills from left to right. | `stringParam` (label), `intParam` (duration ms), `intParam2` (speed ms) | `{"command":"BAR_GRAPH", "stringParam":"LOAD", "intParam":3000, "intParam2":50}` |
-| `SCANNER` | Creates a "Knight Rider" style scanning effect. **This is a blocking command.** | `stringParam` (character), `intParam` (duration ms), `intParam2` (speed ms) | `{"command":"SCANNER", "stringParam":"-", "intParam":10000, "intParam2":50}` |
-| `COUNTDOWN` | Displays a countdown. For numbers > 20, it shows digits. For 20-0, it spells out the word (e.g., "TWENTY"). **This is a blocking command.** | `intParam` (start number), `intParam2` (delay per number ms) | `{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}` |
-| `CLEAR_SEGMENT` | Clears the text from a specific segment or the entire row. | `targetSegment` (optional, default: -1) | `{"command":"CLEAR_SEGMENT", "targetSegment": 1}` |
-| `RESTORE_ROW` | Restores the target row to its normal display (clock, weather, etc.). | (none) | `{"command":"RESTORE_ROW"}` |
-| `RESTORE_ALL_ROWS` | Restores all three display rows to their normal function. | (none) | `{"command":"RESTORE_ALL_ROWS"}` |
+| `SET_TEXT` | **(Non-Blocking)** Instantly displays static text on a segment or the full row. | `stringParam`, `targetSegment` (optional, default: -1) | `{"command":"SET_TEXT", "stringParam":"SYSTEM READY"}` |
+| `MARQUEE` | **(Blocking)** Scrolls text across the target row. After scrolling, it leaves the original text centered on the display. | `stringParam` | `{"command":"MARQUEE", "stringParam":"A VERY LONG MESSAGE"}` |
+| `SCRAMBLE_TEXT` | **(Blocking)** Reveals text one character at a time with a scrambling effect. | `stringParam`, `intParam` (flicker speed ms), `intParam2` (reveal delay ms) | `{"command":"SCRAMBLE_TEXT", "stringParam":"ACCESSING", "intParam":50, "intParam2":150}` |
+| `TYPEWRITER` | **(Blocking)** Reveals text one character at a time, like a typewriter. | `stringParam`, `intParam` (delay ms) | `{"command":"TYPEWRITER", "stringParam":"LOADING...", "intParam":100}` |
+| `WIPE` | **(Blocking)** Reveals text with a wipe effect from left to right. | `stringParam`, `intParam` (delay ms) | `{"command":"WIPE", "stringParam":"AUTHORIZED", "intParam":75}` |
+| `SCROLL_IN` | **(Blocking)** Scrolls text in from the right and stops with the text justified to the right. | `stringParam`, `intParam` (delay ms) | `{"command":"SCROLL_IN", "stringParam":"WELCOME", "intParam":60}` |
+| `CROSSFADE_TEXT` | **(Blocking)** Fades from the current text to new text. | `stringParam`, `intParam` (duration ms) | `{"command":"CROSSFADE_TEXT", "stringParam":"NEW TEXT", "intParam":1500}` |
+| `RANDOM_FLICKER_TEXT` | **(Blocking)** Fills the display with random characters that flicker rapidly. If `stringParam` is empty, it intelligently flickers the existing display text. | `stringParam` (char set), `intParam` (flicker speed ms), `intParam2` (duration ms) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":5000}` |
+| `BAR_GRAPH` | **(Blocking)** Displays a "charging" bar that fills over time. Can have a centered label overlaid. | `stringParam` (label), `intParam` (start percentage 0-100), `intParam2` (duration ms) | `{"command":"BAR_GRAPH", "stringParam":"LOAD", "intParam":0, "intParam2":3000}` |
+| `SCANNER` | **(Blocking)** Creates a "Knight Rider" style scanning effect. | `stringParam` (character), `intParam` (duration ms), `intParam2` (speed ms) | `{"command":"SCANNER", "stringParam":"-", "intParam":10000, "intParam2":50}` |
+| `COUNTDOWN` | **(Blocking)** Displays a countdown. For numbers > 20, it shows digits. For 20-0, it spells out the word (e.g., "TWENTY"). | `intParam` (start number), `intParam2` (delay per number ms) | `{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}` |
+| `CLEAR_SEGMENT` | **(Non-Blocking)** Clears the text from a specific segment or the entire row. | `targetSegment` (optional, default: -1) | `{"command":"CLEAR_SEGMENT", "targetSegment": 1}` |
+| `RESTORE_ROW` | **(Non-Blocking)** Restores the target row to its normal display (clock, weather, etc.). | (none) | `{"command":"RESTORE_ROW"}` |
+| `RESTORE_ALL_ROWS` | **(Non-Blocking)** Restores all three display rows to their normal function. | (none) | `{"command":"RESTORE_ALL_ROWS"}` |
 
 ---
 
@@ -168,15 +168,15 @@ It is critical to understand the difference between **blocking** and **non-block
 
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
-| `FADE_IN` | Fades the display brightness from 0 to the current setting. **This is a blocking command.** | `intParam` (duration ms) | `{"command":"FADE_IN", "intParam":2000}` |
-| `FADE_OUT`| Fades the display brightness from the current setting to 0. **This is a blocking command.** | `intParam` (duration ms) | `{"command":"FADE_OUT", "intParam":2000}` |
-| `PULSE` | Makes a segment (or row) blink slowly (750ms interval). **This is a blocking command.** | `targetSegment`, `intParam` (duration ms) | `{"command":"PULSE", "targetSegment":-1, "intParam":5000}` |
-| `FLASH` | Makes a segment (or row) flash brightly and rapidly (75ms interval). **This is a blocking command.** | `targetSegment`, `intParam` (duration ms) | `{"command":"FLASH", "targetSegment":2, "intParam":1000}` |
-| `SET_BRIGHTNESS` | Instantly sets the global display brightness. | `intParam` (0-7) | `{"command":"SET_BRIGHTNESS", "intParam":7}` |
-| `SOUND` | Plays a sound effect from the device's filesystem. This command is non-blocking. | `stringParam` (path, e.g., `/REMOTE.mp3`) | `{"command":"SOUND", "stringParam":"/CONFIRM_ON.mp3"}` |
-| `WAIT` | Pauses the current track for a set amount of time. | `intParam` (duration ms) | `{"command":"WAIT", "intParam":500}` |
-| `LOOP_START` | Marks the beginning of a loop. | `intParam` (number of loops) | `{"command":"LOOP_START", "intParam":5}` |
-| `LOOP_END` | Marks the end of a loop, jumping back to `LOOP_START`. | (none) | `{"command":"LOOP_END"}` |
+| `FADE_IN` | **(Blocking)** Fades the display brightness from 0 to the current setting. | `intParam` (duration ms) | `{"command":"FADE_IN", "intParam":2000}` |
+| `FADE_OUT`| **(Blocking)** Fades the display brightness from the current setting to 0. | `intParam` (duration ms) | `{"command":"FADE_OUT", "intParam":2000}` |
+| `PULSE` | **(Blocking)** Makes a segment (or row) blink slowly (750ms interval). | `targetSegment`, `intParam` (duration ms) | `{"command":"PULSE", "targetSegment":-1, "intParam":5000}` |
+| `FLASH` | **(Blocking)** Makes a segment (or row) flash brightly and rapidly (75ms interval). | `targetSegment`, `intParam` (duration ms) | `{"command":"FLASH", "targetSegment":2, "intParam":1000}` |
+| `SET_BRIGHTNESS` | **(Non-Blocking)** Instantly sets the global display brightness. | `intParam` (0-7) | `{"command":"SET_BRIGHTNESS", "intParam":7}` |
+| `SOUND` | **(Non-Blocking)** Plays a sound effect from the device's filesystem. | `stringParam` (path, e.g., `/REMOTE.mp3`) | `{"command":"SOUND", "stringParam":"/CONFIRM_ON.mp3"}` |
+| `WAIT` | **(Blocking)** Pauses the current track for a set amount of time. | `intParam` (duration ms) | `{"command":"WAIT", "intParam":500}` |
+| `LOOP_START` | **(Non-Blocking)** Marks the beginning of a loop. | `intParam` (number of loops) | `{"command":"LOOP_START", "intParam":5}` |
+| `LOOP_END` | **(Non-Blocking)** Marks the end of a loop, jumping back to `LOOP_START`. | (none) | `{"command":"LOOP_END"}` |
 
 ---
 
@@ -184,9 +184,9 @@ It is critical to understand the difference between **blocking** and **non-block
 
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
-| `TRIGGER_ANIMATION` | **Advanced Use.** Stops the current sequence and runs a built-in animation by its numeric `AnimationType` ID. See `AnimationSequences.h` for the full enum list. | `intParam` (AnimationType ID) | `{"command":"TRIGGER_ANIMATION", "intParam": 2}` |
-| `MQTT_PUBLISH` | Publishes a payload to a specific MQTT topic. | `stringParam` (topic), `stringParam2` (payload) | `{"command":"MQTT_PUBLISH", "stringParam":"home/alarm", "stringParam2":"DISARMED"}` |
-| `DISPLAY_HA_SENSOR` | Fetches and displays the state of a Home Assistant entity. The device must be subscribed to the entity's state topic. | `stringParam` (entity_id), `targetSegment` | `{"command":"DISPLAY_HA_SENSOR", "stringParam":"sensor.outside_temp", "targetSegment":0}` |
+| `TRIGGER_ANIMATION` | **(Global Takeover)** Stops ALL current sequences and runs a new built-in animation by its numeric `AnimationType` ID. Any steps after this command on the same track will not be executed. | `intParam` (AnimationType ID) | `{"command":"TRIGGER_ANIMATION", "intParam": 2}` |
+| `MQTT_PUBLISH` | **(Non-Blocking)** Publishes a payload to a specific MQTT topic. | `stringParam` (topic), `stringParam2` (payload) | `{"command":"MQTT_PUBLISH", "stringParam":"home/alarm", "stringParam2":"DISARMED"}` |
+| `DISPLAY_HA_SENSOR` | **(Blocking)** Fetches and displays the state of a Home Assistant entity. The device must be subscribed to the entity's state topic. Times out after 5 seconds if no value is received. | `stringParam` (entity_id), `targetSegment` | `{"command":"DISPLAY_HA_SENSOR", "stringParam":"sensor.outside_temp", "targetSegment":0}` |
 
 ---
 
