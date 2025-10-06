@@ -3,10 +3,13 @@ blueprint:
   description: A blueprint to run a countdown on one of the display rows.
   domain: script
   input:
-    mqtt_topic:
-      name: MQTT Topic
-      description: The MQTT topic to publish the sequencer command to.
-      default: "bttf-time-circuits/cmnd/sequencer"
+    base_topic:
+      name: MQTT Base Topic
+      description: The base topic for your Time Circuits MQTT integration.
+      default: "bttf-time-circuits"
+    device_id:
+      name: Device ID
+      description: The unique device ID for your Time Circuits clock.
     target_row:
       name: Target Row
       description: "The display row to show the countdown on."
@@ -62,7 +65,7 @@ mode: single
 sequence:
   - service: mqtt.publish
     data:
-      topic: "{{ mqtt_topic }}"
+      topic: "{{ base_topic }}/{{ device_id }}/cmnd/sequencer"
       payload: >
         {%- set commands = [] -%}
         {%- set countdown_command = {'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_number, 'intParam2': countdown_delay} -%}
