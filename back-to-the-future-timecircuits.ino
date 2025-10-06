@@ -1489,7 +1489,7 @@ void loop() {
                             }
                         } else if (isStyledAnimating) {
                             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                                handleStyledAnimation();
+                                handleDisplayAnimation();
                                 xSemaphoreGive(xDisplayDataMutex);
                             }
                         } else {
