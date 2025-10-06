@@ -1,9 +1,9 @@
 blueprint:
-  name: BTTF Time Circuits - Multi-Track Advanced Builder
+  name: BTTF Time Circuits - Multi-Track Sequence Builder
   description: >-
-    The ultimate power-user blueprint for creating complex, parallel animations.
-    Define a sequence of commands for each of the three display rows (tracks) to run simultaneously.
-    This blueprint is for advanced users comfortable with the device's sequencer commands.
+    Create complex, parallel animations by defining a sequence of commands for each of the three display rows (tracks) to run simultaneously.
+
+    This blueprint is for advanced users. See the documentation for a full list of commands and examples.
   domain: script
   input:
     mqtt_topic:
@@ -12,21 +12,21 @@ blueprint:
       default: "bttf-time-circuits/cmnd/sequencer"
     track_1_commands:
       name: Top Row Commands (JSON Array)
-      description: "A JSON-formatted array of commands for the top display row. See documentation for examples. Supports templates."
+      description: "A JSON-formatted array of commands for the top display row. Supports templates."
       selector:
         text:
           multiline: true
       default: "[]"
     track_2_commands:
       name: Middle Row Commands (JSON Array)
-      description: "A JSON-formatted array of commands for the middle display row. See documentation for examples. Supports templates."
+      description: "A JSON-formatted array of commands for the middle display row. Supports templates."
       selector:
         text:
           multiline: true
       default: "[]"
     track_3_commands:
       name: Bottom Row Commands (JSON Array)
-      description: "A JSON-formatted array of commands for the bottom display row. See documentation for examples. Supports templates."
+      description: "A JSON-formatted array of commands for the bottom display row. Supports templates."
       selector:
         text:
           multiline: true

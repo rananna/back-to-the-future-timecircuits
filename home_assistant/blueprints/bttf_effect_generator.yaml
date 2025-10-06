@@ -1,0 +1,277 @@
+blueprint:
+  name: BTTF Time Circuits - Universal Effect Generator
+  description: >-
+    A universal script generator for running any single-track effect, such as displaying text, showing sensor values, or playing visual animations.
+
+    Select an effect and fill in only the parameters for that effect.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT Topic
+      description: The MQTT topic to publish the sequencer command to.
+      default: "bttf-time-circuits/cmnd/sequencer"
+    target_row:
+      name: Target Row
+      description: The display row to show the effect on.
+      selector:
+        select:
+          options:
+            - label: "Top (Destination Time)"
+              value: "TOP"
+            - label: "Middle (Present Time)"
+              value: "MIDDLE"
+            - label: "Bottom (Last Time Departed)"
+              value: "BOTTOM"
+    effect:
+      name: Effect
+      description: "Select the effect to run. Inputs for the selected effect will appear below."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - label: "Set Text (Instant)"
+              value: "SET_TEXT"
+            - label: "Display Text from Helper"
+              value: "SET_TEXT_HELPER"
+            - label: "Display Home Assistant Sensor"
+              value: "DISPLAY_HA_SENSOR"
+            - label: "Marquee (Scroll)"
+              value: "MARQUEE"
+            - label: "Scramble Text"
+              value: "SCRAMBLE_TEXT"
+            - label: "Countdown"
+              value: "COUNTDOWN"
+            - label: "Pulse"
+              value: "PULSE"
+            - label: "Flash"
+              value: "FLASH"
+            - label: "Typewriter"
+              value: "TYPEWRITER"
+            - label: "Crossfade Text"
+              value: "CROSSFADE_TEXT"
+            - label: "Scanner"
+              value: "SCANNER"
+            - label: "Bar Graph"
+              value: "BAR_GRAPH"
+
+    # Text/Sensor Inputs
+    text_to_display:
+      name: "[Text] Text to Display"
+      description: "Text to display. Required for Set Text, Marquee, Scramble, Typewriter, Crossfade, and Bar Graph. Supports templates."
+      default: ""
+    text_helper:
+      name: "[Helper] Text Helper Entity"
+      description: "The 'input_text' helper that holds the message you want to display."
+      selector:
+        entity:
+          domain: input_text
+    sensor_entity:
+      name: "[Sensor] Sensor Entity"
+      description: "The sensor whose state you want to display."
+      selector:
+        entity: {}
+    sensor_prefix:
+      name: "[Sensor] Prefix"
+      description: "Optional text to display before the sensor value."
+      default: ""
+    sensor_postfix:
+      name: "[Sensor] Postfix"
+      description: "Optional text to display after the sensor value."
+      default: ""
+
+    # Animation Parameters
+    speed:
+      name: "[Marquee/Scramble] Animation Speed (ms)"
+      description: "For Marquee or Scramble, the speed of the effect. Lower is faster."
+      default: 75
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    flicker_speed:
+      name: "[Scramble] Flicker Speed (ms)"
+      description: "The speed of the scramble flicker effect. Lower is faster."
+      default: 50
+      selector:
+        number:
+          min: 10
+          max: 500
+          unit_of_measurement: "ms"
+    reveal_delay:
+      name: "[Scramble] Reveal Delay (ms)"
+      description: "The delay between each character being revealed."
+      default: 150
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    countdown_start:
+      name: "[Countdown] Start Number"
+      description: "The number to count down from (e.g., 10)."
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 99
+    countdown_delay:
+      name: "[Countdown] Delay (ms)"
+      description: "The delay between each number in the countdown."
+      default: 1000
+      selector:
+        number:
+          min: 100
+          max: 5000
+          unit_of_measurement: "ms"
+    end_text:
+      name: "[Countdown] End Text"
+      description: "The text to display after the countdown finishes (e.g., 'LIFTOFF')."
+      default: ""
+    pulse_duration:
+      name: "[Pulse/Flash] Duration (ms)"
+      description: "The total duration for the Pulse or Flash effect."
+      default: 5000
+      selector:
+        number:
+          min: 100
+          max: 30000
+          unit_of_measurement: "ms"
+    typewriter_delay:
+      name: "[Typewriter] Delay (ms)"
+      description: "The delay between each character appearing. Lower is faster."
+      default: 75
+      selector:
+        number:
+          min: 20
+          max: 500
+          unit_of_measurement: "ms"
+    crossfade_duration:
+      name: "[Crossfade] Duration (ms)"
+      description: "The duration of the fade effect."
+      default: 1000
+      selector:
+        number:
+          min: 100
+          max: 5000
+          unit_of_measurement: "ms"
+    bargraph_percentage:
+      name: "[Bar Graph] Starting Percentage"
+      description: "The percentage (0-100) at which the bar graph should start."
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    bargraph_duration:
+      name: "[Bar Graph] Animation Duration (ms)"
+      description: "The total time for the bar graph animation to complete."
+      default: 2000
+      selector:
+        number:
+          min: 100
+          max: 10000
+          unit_of_measurement: "ms"
+
+    # General Options
+    restore_row:
+      name: Restore Row After Effect
+      description: "If enabled, the row will be restored to its previous state after the effect."
+      default: true
+      selector:
+        boolean: {}
+    duration:
+      name: "[Scanner] Display Duration (seconds)"
+      description: "For continuous effects like Scanner, this is how long it will be visible before restoring."
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: "s"
+
+mode: single
+
+sequence:
+  - service: mqtt.publish
+    data_template:
+      topic: !input mqtt_topic
+      payload: >
+        {%- set command = effect if effect != 'SET_TEXT_HELPER' else 'SET_TEXT' -%}
+        {%- set step = {'command': command, 'targetRow': target_row, 'targetSegment': -1} -%}
+        {%- set text = text_to_display -%}
+        {%- if effect == 'SET_TEXT_HELPER' -%}
+          {%- set text = states(text_helper) -%}
+        {%- elif effect == 'DISPLAY_HA_SENSOR' -%}
+          {%- set text = sensor_prefix ~ states(sensor_entity) ~ sensor_postfix -%}
+        {%- endif -%}
+
+        {#- Add stringParam if applicable -#}
+        {%- if text != "" and command not in ['PULSE', 'FLASH', 'SCANNER'] -%}
+          {%- do step.update({'stringParam': text}) -%}
+        {%- elif command in ['PULSE', 'FLASH'] and text != "" -%}
+          {# For pulse/flash, text is a separate setup step #}
+        {%- endif -%}
+
+        {#- Add intParams based on effect type -#}
+        {%- if command == 'MARQUEE' -%}
+          {%- do step.update({'intParam': speed}) -%}
+        {%- elif command == 'SCRAMBLE_TEXT' -%}
+          {%- do step.update({'intParam': flicker_speed, 'intParam2': reveal_delay}) -%}
+        {%- elif command == 'COUNTDOWN' -%}
+          {%- do step.update({'intParam': countdown_start, 'intParam2': countdown_delay}) -%}
+        {%- elif command in ['PULSE', 'FLASH'] -%}
+          {%- do step.update({'intParam': pulse_duration}) -%}
+        {%- elif command == 'TYPEWRITER' -%}
+          {%- do step.update({'intParam': typewriter_delay}) -%}
+        {%- elif command == 'CROSSFADE_TEXT' -%}
+          {%- do step.update({'intParam': crossfade_duration}) -%}
+        {%- elif command == 'BAR_GRAPH' -%}
+          {%- do step.update({'intParam': bargraph_percentage, 'intParam2': bargraph_duration}) -%}
+        {%- endif -%}
+
+        {#- Build the sequence of steps -#}
+        {%- set steps = [] -%}
+        {%- if command in ['PULSE', 'FLASH'] and text != "" -%}
+          {%- set setup_step = {'command': 'SET_TEXT', 'targetRow': target_row, 'targetSegment': -1, 'stringParam': text} -%}
+          {%- set steps = steps + [setup_step] -%}
+        {%- endif -%}
+        {%- set steps = steps + [step] -%}
+
+        {#- Handle post-animation steps (wait, restore, end text) -#}
+        {%- if restore_row or (command == 'COUNTDOWN' and end_text != '') -%}
+          {%- set wait_step = namespace(duration=0) -%}
+          {%- if command == 'MARQUEE' -%}
+            {%- set wait_step.duration = ((text | length) + 26) * speed -%}
+          {%- elif command == 'SCRAMBLE_TEXT' -%}
+            {%- set wait_step.duration = ((text | length) + 1) * reveal_delay -%}
+          {%- elif command == 'COUNTDOWN' -%}
+            {%- set wait_step.duration = (countdown_start + 1) * countdown_delay -%}
+          {%- elif command in ['PULSE', 'FLASH'] -%}
+            {%- set wait_step.duration = pulse_duration -%}
+          {%- elif command == 'TYPEWRITER' -%}
+            {%- set wait_step.duration = ((text | length) * typewriter_delay) + 1000 -%}
+          {%- elif command == 'CROSSFADE_TEXT' -%}
+            {%- set wait_step.duration = crossfade_duration * 2 -%}
+          {%- elif command == 'BAR_GRAPH' -%}
+            {%- set wait_step.duration = bargraph_duration -%}
+          {%- else -%}
+            {%- set wait_step.duration = duration * 1000 -%}
+          {%- endif -%}
+
+          {%- if wait_step.duration > 0 -%}
+            {%- set steps = steps + [{'command': 'WAIT', 'intParam': wait_step.duration | int}] -%}
+          {%- endif -%}
+
+          {%- if command == 'COUNTDOWN' and end_text != '' -%}
+            {%- set end_text_step = {'command': 'SET_TEXT', 'targetRow': target_row, 'targetSegment': -1, 'stringParam': end_text} -%}
+            {%- set steps = steps + [end_text_step] -%}
+          {%- endif -%}
+
+          {%- if restore_row -%}
+            {%- set steps = steps + [{'command': 'RESTORE_ROW', 'targetRow': target_row}] -%}
+          {%- endif -%}
+        {%- endif -%}
+
+        {{ {"tracks": [steps]} | to_json }}
