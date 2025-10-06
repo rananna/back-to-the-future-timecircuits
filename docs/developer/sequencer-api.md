@@ -13,6 +13,81 @@ This guide provides a complete reference for the sequencer's capabilities, inclu
 
 ---
 
+### **Using the Sequencer with Home Assistant**
+
+The real power of the sequencer is unlocked when you integrate it with Home Assistant. You can make the clock react to any event, sensor, or trigger in your smart home.
+
+#### **1. The Easy Way: Using Blueprints**
+
+For the vast majority of users, the easiest and recommended way to use the sequencer is with our pre-built **Home Assistant Blueprints**. These provide a user-friendly interface for common tasks like displaying text, showing sensor values, and running countdowns, without needing to write any code.
+
+*   **To get started, see the [Home Assistant Blueprints README](../../home_assistant/blueprints/README.md).**
+
+#### **2. The Powerful Way: Crafting Custom Sequences**
+
+For ultimate flexibility, you can bypass the blueprints and send commands directly to the MQTT API. This allows you to build complex, multi-track animations and use Home Assistant templates to include dynamic data from your entities right in the display.
+
+There are two ways to do this:
+*   **Trigger a Built-in Animation**: Send the name of a pre-programmed animation as a simple string.
+*   **Send a Custom JSON Payload**: Construct a detailed JSON object to control animations with precision.
+
+##### **Advanced Example: Triggering a Built-in Animation**
+
+This is perfect for common alerts and effects. You simply send the animation's name as the payload.
+
+```yaml
+alias: Trigger Intruder Alert on Break-in
+trigger:
+  - platform: state
+    entity_id: binary_sensor.front_door_contact
+    to: 'on'
+condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_away
+action:
+  - service: mqtt.publish
+    data:
+      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command"
+      payload: "Intruder Alert"
+```
+
+##### **Advanced Example: Crafting a Custom JSON Sequence**
+You can build your own sequences directly in your automation's YAML.
+
+```yaml
+alias: Display Freezing Temperature Alert
+trigger:
+  - platform: numeric_state
+    entity_id: sensor.outside_temperature
+    below: 0
+action:
+  - service: mqtt.publish
+    data_template:
+      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command"
+      payload: >
+        {
+          "tracks": [
+            {
+              "targetRow": "TOP",
+              "commands": [
+                {
+                  "command": "MARQUEE",
+                  "stringParam": "FREEZING TEMP: {{ states('sensor.outside_temperature') }}°C"
+                },
+                {
+                  "command": "PULSE",
+                  "targetSegment": -1,
+                  "intParam": 5000
+                }
+              ]
+            }
+          ]
+        }
+```
+
+---
+
 ### **Payload Structure: Custom JSON Sequences**
 
 To create a custom sequence, you send a JSON payload to the MQTT topic. The root of the payload is an object that must contain a `tracks` key. The value is an array `[]` of one or more *track objects*. Each track object defines a sequence of commands that will run on a specific display row. Because each track runs independently, you can use them to create parallel animations on different rows.
@@ -34,34 +109,8 @@ A track object has the following structure:
 }
 ```
 
-*   `targetRow`: **(Required)** The display row to run this sequence on. Accepts `"TOP"`, `"MIDDLE"`, or `"BOTTOM"`.
+*   `targetRow`: **(Required)** A number `0-2` or string `"TOP"`, `"MIDDLE"`, `"BOTTOM"` specifying the display row.
 *   `commands`: **(Required)** An array of command objects that will be executed in order on the `targetRow`.
-
-#### **Example: Parallel Sequences**
-
-Here is an example of a payload that runs two sequences at the same time:
-1.  On the top row, it scrolls a message.
-2.  On the bottom row, it shows a charging bar graph and then flashes.
-
-```json
-{
-  "tracks": [
-    {
-      "targetRow": "TOP",
-      "commands": [
-        { "command": "MARQUEE", "stringParam": "PARALLEL SEQUENCING" }
-      ]
-    },
-    {
-      "targetRow": "BOTTOM",
-      "commands": [
-        { "command": "BAR_GRAPH", "stringParam": "CHARGING", "intParam": 5000, "intParam2": 50 },
-        { "command": "FLASH", "targetSegment": -1, "intParam": 500 }
-      ]
-    }
-  ]
-}
-```
 
 ---
 
@@ -129,27 +178,21 @@ This table details every command available in the sequencer.
 
 The firmware includes a collection of pre-programmed animations that can be triggered by sending their `Animation Name` as a plain string payload to the `.../sequencer/command` MQTT topic.
 
-*   **Example Payload**: `"Lightning"`
+*   **Example Payload**: `"Intruder Alert"`
 
 There are three types of built-in animations, each with a different origin in the code.
+
+> **Note on availability:** Not all animations defined in the firmware are available via a string name. Some complex animations (like `Scanner`, `Flux Capacitor Overload`, `System Error`, etc.) can only be started using the `TRIGGER_ANIMATION` command with the appropriate numeric `AnimationType` ID.
 
 #### **1. Modern Generated Animations**
 These are complex, multi-track animations generated by C++ functions in `AnimationSequences.cpp`. They represent the most advanced visual effects.
 
-> **✨ Special Animation: `Randomize All`**
-> Sending a payload of `"Randomize All"` will cause the device to pick one of the other animations from the **Modern Generated** or **Legacy** lists at random and run it. This is a great way to add variety to your automations.
-
 | Animation Name | Description |
 | :--- | :--- |
-| `Time Circuits Lock-In` | The classic BTTF effect. All three rows simultaneously scramble and lock in the current time, character by character. |
-| `Lightning` | A chaotic, multi-stage lightning storm effect with loud crackling sounds and intense, random flashes across all displays. |
-| `Scanner` | A Cylon-style red scanner (`---`) that sweeps back and forth across all three display rows in unison. |
+| `All Displays Random` | The classic BTTF effect. All three rows simultaneously scramble and lock in the current time, character by character. Also known as `Time Circuits Lock-In`. |
 | `Time Travel Tunnel` | Simulates traveling through a time vortex by repeatedly scrolling the current time in from the right on all three rows. |
-| `Flux Capacitor Overload` | All displays pulse with intense energy, simulating a Flux Capacitor overload with a synchronized, slow pulsing effect. |
 | `Fire Trails` | "Burns" the current time onto the display with a fiery `WIPE` effect that reveals the text from left to right on all three rows. |
 | `Sparkle Reveal` | A subtle reveal where the time appears out of a field of sparkling lights. The display flickers with random dots before wiping to reveal the current time. |
-| `Countdown` | Displays "COUNTDOWN" on the middle row, then shows a 10-second countdown (spelling out the numbers), ending with a "LIFTOFF!" marquee. |
-| `System Error` | A system malfunction theme. The top row scrambles to show "ERROR" while the middle row scrolls "SYSTEM MALFUNCTION". |
 
 #### **2. JSON Alias Animations**
 These names are shortcuts defined in `MqttManager.cpp` that trigger a hardcoded JSON payload. They are useful for common, multi-track scenarios.
@@ -159,8 +202,10 @@ These names are shortcuts defined in `MqttManager.cpp` that trigger a hardcoded 
 | `Intruder Alert` | A three-row alert with marquees, sound, and scrambling text. |
 | `Time Travel` | A classic 88MPH sequence with a bar graph, marquee, and flashing lights. |
 | `Party Mode` | A looping animation with marquees and pulsing lights for a party atmosphere. |
+| `Countdown` | Displays "COUNTDOWN" on the middle row, then shows a 10-second countdown (spelling out the numbers), ending with a "LIFTOFF!" marquee. |
 | `Knight Rider` | A scanner effect on the bottom row. |
 | `Cylon` | A scanner effect on the middle row. |
+| `Lightning` | A chaotic, multi-stage lightning storm effect with loud crackling sounds and intense, random flashes across all displays. |
 | `Loading` | A sequential "loading" message on all three rows. |
 | `Error` | A simpler error message with scrambling text and a marquee. |
 | `Flux Capacitor Charge-Up` | A charging bar graph on the bottom row with flashing on the top two. |
@@ -169,7 +214,7 @@ These names are shortcuts defined in `MqttManager.cpp` that trigger a hardcoded 
 | `Wormhole Collapse`| All three rows flicker and then fade out sequentially. |
 
 #### **3. Legacy Animations**
-These names trigger older, single-purpose animation functions. They are generally simpler and often affect all three displays at once. They are included in the `Randomize All` pool.
+These names trigger older, single-purpose animation functions from the original firmware. They are generally simpler and often affect all three displays at once. They are included in the `Randomize All` pool when triggering animations from the Web UI.
 
 | Animation Name | Description |
 | :--- | :--- |
@@ -194,67 +239,3 @@ These names trigger older, single-purpose animation functions. They are generall
 | `Electric Surge` | A rapid series of bright flashes that cascade down the displays. |
 | `Flip-Disc Display` | Simulates an old-school flip-disc board with a wipe effect. |
 | `Interference Pattern` | The middle row flickers with the current time while the outer rows show random symbols. |
-
----
-
-### **Using the Sequencer with Home Assistant**
-
-The real power of the sequencer is unlocked when you integrate it with Home Assistant. By using the `mqtt.publish` service in your automations, you can make the clock react to any event, sensor, or trigger in your smart home.
-
-#### **1. The Easy Way: Triggering Built-in Animations**
-
-The simplest method is to trigger one of the [Built-in Animations](#built-in-animations). This is perfect for common alerts and effects.
-
-**Automation Example:**
-```yaml
-alias: Trigger Lightning on Break-in
-trigger:
-  - platform: state
-    entity_id: binary_sensor.front_door_contact
-    to: 'on'
-condition:
-  - condition: state
-    entity_id: alarm_control_panel.home_alarm
-    state: armed_away
-action:
-  - service: mqtt.publish
-    data:
-      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
-      payload: "Lightning"
-```
-
-#### **2. The Powerful Way: Crafting Custom JSON Sequences**
-
-For ultimate flexibility, you can build your own sequences directly in your automation's YAML. This allows you to use Home Assistant templates to include dynamic data from your entities right in the display.
-
-**Automation Example:**
-```yaml
-alias: Display Freezing Temperature Alert
-trigger:
-  - platform: numeric_state
-    entity_id: sensor.outside_temperature
-    below: 0
-action:
-  - service: mqtt.publish
-    data_template:
-      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
-      payload: >
-        {
-          "tracks": [
-            {
-              "targetRow": "TOP",
-              "commands": [
-                {
-                  "command": "MARQUEE",
-                  "stringParam": "FREEZING TEMP: {{ states('sensor.outside_temperature') }}°C"
-                },
-                {
-                  "command": "PULSE",
-                  "targetSegment": -1,
-                  "intParam": 5000
-                }
-              ]
-            }
-          ]
-        }
-```

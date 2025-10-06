@@ -55,6 +55,34 @@ Alert: The {{ trigger.to_state.name }} was opened!
 
 ---
 
+## Advanced Usage: Triggering Built-in Animations
+
+Beyond the blueprints, you can also trigger a wide variety of pre-programmed, named animations for more cinematic effects (e.g., `Intruder Alert`, `Time Travel`, `Lightning`). This is useful when you want a cool visual effect without building a complex sequence yourself.
+
+You can do this by calling the `mqtt.publish` service directly in your automations.
+
+**Automation Example:**
+```yaml
+alias: Trigger Intruder Alert on Break-in
+trigger:
+  - platform: state
+    entity_id: binary_sensor.front_door_contact
+    to: 'on'
+condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_away
+action:
+  - service: mqtt.publish
+    data:
+      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command"
+      payload: "Intruder Alert"
+```
+
+For a complete, up-to-date list of all the available animation names you can use in the `payload`, please see the "Built-in Animations" section of the main Sequencer API documentation.
+
+---
+
 ## Sequencer Command Reference
 
 The blueprints expose the full power of the device's command sequencer. For a complete list of all available commands (like `SET_TEXT`, `PULSE`, `COUNTDOWN`, etc.) and their parameters, please see the canonical documentation here:
