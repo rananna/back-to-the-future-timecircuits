@@ -22,37 +22,16 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 | 6 | [220-330Ω Resistors](https://www.aliexpress.com/item/1005002091320103.html) | Current-limiting resistors for the LEDs. |
 | 1 set| [Dupont Jumper Wires](https://www.aliexpress.com/item/1005003641187997.html) | For connecting all components. |
 | 1 | 5V Power Supply | A supply rated for at least **2A** is recommended. |
-
-> [!NOTE]
-> **Component Showcase & Display Comparison**
->
-> *   ***Image Placeholder:*** *A photo showing the required ESP32-S3 module, I2S amplifier, speaker, and a side-by-side comparison of the correct 14-segment display versus an incorrect 7-segment display.*
+| 1 | Micro USB Cable | Use a high-quality cable that supports both power and data transfer. Low-quality "charge-only" cables will not work for flashing the firmware. |
 
 ---
 ## 🔌 Wiring & Schematics
 
 ![schematic diagram](../images/bttf_bb.png)
 
-This project uses two separate I2C buses to manage all 12 displays without address conflicts.
+This project uses two separate I2C buses to manage all 12 displays without address conflicts. The pinout is specifically for the **required** ESP32-S3 board.
 
-> [!WARNING]
-> The following pinout is specifically for the **required** ESP32-S3 board. This project is not compatible with other ESP32 models.
-
-| Component | ESP32 Pin | Notes |
-| :--- | :--- | :--- |
-| **I2C Bus 1 (SDA)** | `GPIO 8` | Connects to the SDA pin of the 8 "Destination" and "Present" row displays. |
-| **I2C Bus 1 (SCL)** | `GPIO 9` | Connects to the SCL pin of the 8 "Destination" and "Present" row displays. |
-| **I2C Bus 2 (SDA)** | `GPIO 10` | Connects to the SDA pin of the 4 "Last Time Departed" row displays. |
-| **I2C Bus 2 (SCL)** | `GPIO 11` | Connects to the SCL pin of the 4 "Last Time Departed" row displays. |
-| **I2S DIN (Data)** | `GPIO 17` | Connects to the **DIN** pin of the MAX98357A. |
-| **I2S BCLK (Bit Clock)**| `GPIO 16` | Connects to the **BCLK** pin of the MAX98357A. |
-| **I2S LRC (Word Select)**|`GPIO 15` | Connects to the **LRC** pin of the MAX98357A. |
-| **I2S SD (Shutdown)** | `GPIO 18` | Connects to the **SD** pin of the MAX98357A. |
-| **Destination AM/PM**| `GPIO 13/14` | Connects to the anode (+) of the Destination row LEDs. |
-| **Present AM/PM** | `GPIO 38/39` | Connects to the anode (+) of the Present row LEDs. |
-| **Last Dept. AM/PM** | `GPIO 4/6` | Connects to the anode (+) of the Last Departed row LEDs. |
-| **Power (+5V)** | `5V` | Connects to the VCC/VIN pin of all components. |
-| **Ground (GND)** | `GND` | Connects all GND pins to a common ground rail. |
+**➡️ For the complete pinout reference, see the [Hardware & Pinout Guide](./hardware.md).**
 
 ---
 ## 🔩 3D Printed Case & Assembly
@@ -65,8 +44,6 @@ A 3D printed enclosure is highly recommended for a professional finish.
 * **Filament**: PLA or PETG are suitable.
 * **Resolution**: A layer height of 0.2mm provides a good balance between speed and quality.
 * **Assembly Order**: It is highly recommended to install the LEDs into the case *first*, as they are difficult to access once the display modules are in place.
-
-> ***Image Placeholder:*** *A photo showing the fully wired electronics mounted inside the 3D-printed enclosure before the front panel is attached. This gives a clear reference for the final assembly stage.*
 
 ---
 ## 💾 Software Installation
@@ -95,13 +72,11 @@ This project relies on several external libraries that can be installed directly
     *   `Adafruit GFX Library`
     *   `Adafruit LED Backpack`
     *   `WiFiManager` by tzapu
-    *   `ArduinoJson` by Benoit Blanchon (v6.x or v7.x)
+    *   `ArduinoJson` by Benoit Blanchon (**v7.x recommended**)
     *   `ESPAsyncWebServer` by ESP32-Community
     *   `AsyncTCP` by ESP32-Community
     *   `PubSubClient` by Nick O'Leary
     *   `ESP32-audioI2S` by schreibfaul
-
-> ***Image Placeholder:*** *A screenshot of the Arduino IDE's Library Manager showing a search for one of the required libraries (e.g., "ESP32-audioI2S").*
 
 </details>
 
@@ -111,8 +86,6 @@ This project relies on several external libraries that can be installed directly
 > [!WARNING]
 > **Critical Step: Address Configuration**
 > Each of the 12 display modules must be configured with a unique I2C address so the firmware can communicate with it. This is done by creating "solder bridges" on the address jumpers on the back of each display's circuit board. A solder bridge is simply a small blob of solder that connects the two pads.
->
-> ***Image Placeholder:*** *A high-resolution, close-up image of the back of an Adafruit HT16K33 display, clearly highlighting the A0, A1, and A2 solder pads. An annotated version showing a properly created solder bridge would be ideal.*
 >
 > **How it Works**: This project uses two separate I2C buses to avoid conflicts. The "Destination" and "Present" displays are on one bus, while the "Last Time Departed" displays are on another. Because they are on separate buses, their addresses can overlap without causing issues.
 >

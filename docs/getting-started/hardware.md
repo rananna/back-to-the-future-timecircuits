@@ -27,7 +27,7 @@ The following pinout is the official, recommended configuration for this project
 
 ## Pinout Configuration
 
-This project is designed **exclusively for the ESP32-S3** microcontroller. The pin assignments below are fixed and are defined as constants at the top of the main `back-to-the-future-timecircuits.ino` firmware file.
+This project is designed **exclusively for the ESP32-S3** microcontroller. The pin assignments below are fixed and are defined as constants at the top of the `HardwareControl.h` firmware file.
 
 > [!WARNING]
 > Attempting to use a different model of ESP32 is not supported and will likely result in hardware conflicts or a non-functional build, as the pinout has been specifically chosen to work with the ESP32-S3's unique features and avoid conflicts with its native USB controller.

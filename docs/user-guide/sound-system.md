@@ -1,53 +1,77 @@
-# 🔊 Sound System & TTS Guide
+# 🔊 Sound System Guide
 
-The Time Circuits clock features a sophisticated sound system that can play built-in sound effects or generate speech from text, all controllable via MQTT. This guide explains how to use these features to add an audible dimension to your clock.
+The Time Circuits clock features a sophisticated sound system that can play built-in sound effects, stream internet radio, and use Text-to-Speech (TTS).
 
----
+The recommended way to control audio is through the **Home Assistant integration**, which provides a unified `media_player` entity.
 
-### **Playing Sound Effects**
-
-The clock comes with a variety of pre-loaded sound effects from the movies. You can trigger any of these sounds by publishing a command to a specific MQTT topic.
-
-*   **MQTT Topic**: `bttf-time-circuits/[DEVICE_ID]/audio/play/command`
-*   **Payload**: The full path to the sound file you want to play.
-
-The sound files are stored in the device's internal filesystem. To play a sound, you must provide the exact filename, including the leading slash.
-
-**Example:**
-To play the "remote control" sound effect, you would send:
-
-*   **Topic**: `bttf-time-circuits/ab12cd34ef56/audio/play/command`
-*   **Payload**: `/REMOTE.mp3`
-
-#### **Finding Available Sounds**
-A complete list of the available sound files can be found by browsing the `extra sound files/` directory in the project's source code.
+### **Table of Contents**
+1. [Using the Home Assistant Media Player](#-using-the-home-assistant-media-player)
+2. [Available Sound Effects](#-available-sound-effects)
+3. [Advanced Control (Raw MQTT)](#-advanced-control-raw-mqtt)
 
 ---
+## 📢 Using the Home Assistant Media Player
 
-### **Text-to-Speech (TTS)**
+The `media_player.bttf_time_circuits` entity is your central hub for all audio.
 
-The clock can also convert text into spoken words using a Text-to-Speech (TTS) engine. This is a powerful feature for creating custom announcements or alerts. The audio is streamed from a public web service, so an active internet connection is required.
+### **1. Playing Sound Effects**
+You can play any of the built-in sound effects by calling the `media_player.play_media` service with a `media_content_type` of `music`.
 
-*   **MQTT Topic**: `bttf-time-circuits/[DEVICE_ID]/audio/tts/command`
-*   **Payload**: The text string you want the clock to say.
+**Example:** Play an alarm sound in an automation.
+```yaml
+- service: media_player.play_media
+  target:
+    entity_id: media_player.bttf_time_circuits
+  data:
+    media_content_id: "electric_sparks.mp3"
+    media_content_type: "music"
+```
 
-**Example:**
-To make the clock say "Great Scott!", you would send:
+### **2. Playing Radio Streams**
+Use the same `media_player.play_media` service with a `media_content_type` of `url`.
 
-*   **Topic**: `bttf-time-circuits/ab12cd34ef56/audio/tts/command`
-*   **Payload**: `Great Scott!`
+**Example:** Play an 80s radio station.
+```yaml
+- service: media_player.play_media
+  target:
+    entity_id: media_player.bttf_time_circuits
+  data:
+    media_content_id: "http://d.liveatc.net/kcrw_eclectic" # Example Stream URL
+    media_content_type: "url"
+```
 
-The system will automatically handle connecting to the TTS service, generating the audio, and playing it through the clock's speaker.
+### **3. Text-to-Speech (TTS)**
+Use your favorite TTS service in Home Assistant to make the clock speak.
 
+**Example:** Announce when the washer is done.
+```yaml
+- service: tts.google_en_com # Or any other TTS service
+  data:
+    entity_id: media_player.bttf_time_circuits
+    message: "Great Scott! The washing machine is finished."
+```
 ---
 
-### **Monitoring Audio State**
+## 🎶 Available Sound Effects
 
-The clock reports its current audio state to an MQTT topic, which is useful for knowing when a sound has finished playing.
+The following sound files are pre-loaded on the device and can be used with the `media_player.play_media` service. Use the exact filename as the `media_content_id`.
 
-*   **MQTT Topic**: `bttf-time-circuits/[DEVICE_ID]/audio/state`
-*   **Payloads**:
-    *   `PLAYING`: Indicates that a sound effect or TTS message is currently playing.
-    *   `IDLE`: Indicates that the audio system is not currently active.
+| Filename | Description |
+| :--- | :--- |
+| `arrival_chime.mp3`| The gentle chime that plays upon arrival. |
+| `electric_sparks.mp3`| Generic electrical sounds, used in many animations. |
+| `engine_rev.mp3` | The sound of the DeLorean's engine revving. |
+| `flux_capacitor_power_on.mp3`| The distinctive hum of the Flux Capacitor powering up. |
+| `hum.mp3` | A low, steady electrical hum. |
+| `keypad_beeps.mp3`| The sound of the keypad being used to enter a date. |
+| `lock_on.mp3` | A confirmation beep. |
+| `relay_activation.mp3`| The sound of relays clicking on. |
+| `sys_beep.mp3` | A simple system beep. |
+| `time_travel.mp3` | The main, iconic time travel sound effect. |
 
-You can subscribe to this topic in your automation system to trigger actions after a sound or speech command has completed.
+---
+## ⚙️ Advanced Control (Raw MQTT)
+
+For users not using Home Assistant or for more advanced scripting, you can control the sound system by publishing directly to the device's raw MQTT topics.
+
+**➡️ For a complete list of audio topics and their payloads, please see the [Raw MQTT Topics API Reference](../developer/mqtt-api.md#audio--tts-topics).**
