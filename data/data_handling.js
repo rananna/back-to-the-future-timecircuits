@@ -57,7 +57,7 @@ function initWebSocket() {
                 showMessage(`Preset cycled to: ${msg.name}`, 'info');
             }
         } else if (msg.action === 'stateUpdate') {
-            // --- START: MODIFICATION - Specific handler for displayMode ---
+            // --- START: MODIFICATION - Specific handlers for certain state updates ---
             if (msg.key === 'displayMode') {
                 const displayMode = parseInt(msg.value, 10);
                 // Get the checkbox elements
@@ -75,6 +75,13 @@ function initWebSocket() {
                     stockTickerModeEnabled.dispatchEvent(new Event('change'));
                     weatherModeEnabled.dispatchEvent(new Event('change'));
                     dataLinkEnabled.dispatchEvent(new Event('change'));
+                }
+            } else if (msg.key === 'animationSequence') {
+                const sequenceSelect = document.getElementById('sequenceSelect');
+                if (sequenceSelect) {
+                    sequenceSelect.value = msg.value;
+                    // Manually trigger a change event to update the UI state (e.g., enable save button)
+                    sequenceSelect.dispatchEvent(new Event('change'));
                 }
             } else {
                 // Keep the generic handler for other state updates
