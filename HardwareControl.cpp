@@ -14,6 +14,9 @@
 #include "AnimationManager.h"
 #include "driver/i2c.h"
 
+// --- NEW: Make the hardware mutex available in this file ---
+extern SemaphoreHandle_t xDisplayHardwareMutex;
+
 void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str) {
     struct tm dest_timeinfo, present_timeinfo, last_time_departed_info;
     time_t now_t;
@@ -136,7 +139,7 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
  */
 bool setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by setupPhysicalDisplay"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return false; }
 
     // --- SAFER I2C INITIALIZATION ---
     // Only initialize the I2C buses if they haven't been already.
@@ -186,6 +189,7 @@ bool setupPhysicalDisplay() {
     pinMode(I2S_SD_PIN, OUTPUT);
     digitalWrite(I2S_SD_PIN, HIGH);
 
+    xSemaphoreGive(xDisplayHardwareMutex);
     return true; // All displays initialized successfully
   #else
     return true; // If hardware is disabled, we consider it "initialized" successfully.
@@ -200,7 +204,7 @@ bool setupPhysicalDisplay() {
  */
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by updateDisplayRow"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     char buffer[5];
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
@@ -288,7 +292,7 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
     row.day.writeDisplay();
     row.year.writeDisplay();
     row.time.writeDisplay();
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by updateDisplayRow"); }
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
@@ -303,14 +307,14 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
  */
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateTemporalLockOn"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         // 50% chance to show the correct time, 50% chance to show random "garbage" data.
         if (random(100) < 50) {
             updateDisplayRow(row, timeinfo, year, showDecimal);
         } else {
             animateDisplayRowRandomly(row);
         }
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateTemporalLockOn"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
     #endif
 }
 
@@ -318,7 +322,7 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year,
 
 void animateDisplayRowRandomly(DisplayRow& row) {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateDisplayRowRandomly"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     char buffer[5];
 
     // Animate year
@@ -342,8 +346,9 @@ void animateDisplayRowRandomly(DisplayRow& row) {
     row.month.writeDisplay();
     row.day.writeDisplay();
     row.time.writeDisplay();
+
+    xSemaphoreGive(xDisplayHardwareMutex);
     vTaskDelay(pdMS_TO_TICKS(1));
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateDisplayRowRandomly"); }
   #endif
 }
 /**
@@ -355,7 +360,7 @@ void animateDisplayRowRandomly(DisplayRow& row) {
  */
 void displaySpeed(int speed) {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by displaySpeed"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     char speedBuffer[5];
     sprintf(speedBuffer, "%02d", speed);
 
@@ -371,12 +376,12 @@ void displaySpeed(int speed) {
     lastRow.day.writeDisplay();
     lastRow.year.writeDisplay();
     lastRow.time.writeDisplay();
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by displaySpeed"); }
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 void displaySpeedRamp(int speed) {
 #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by displaySpeedRamp"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         char speedBuffer[5];
         sprintf(speedBuffer, "%02d", speed);
 
@@ -392,13 +397,13 @@ void displaySpeedRamp(int speed) {
         lastRow.day.writeDisplay();
         lastRow.year.writeDisplay();
         lastRow.time.writeDisplay();
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by displaySpeedRamp"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
 #endif
 }
 
 void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateAllRowsTimelineSkim"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         float progress = (float)elapsed / duration;
         progress = 1 - pow(1 - progress, 3); // Ease-out curve
 
@@ -433,15 +438,15 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
             rows[i]->month.writeDisplay();
             rows[i]->day.writeDisplay();
             rows[i]->time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(4));
         }
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateAllRowsTimelineSkim"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
+        vTaskDelay(pdMS_TO_TICKS(4));
     #endif
 }
 
 void flashAllDisplays() {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by flashAllDisplays"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
         for (int i=0; i<3; ++i) {
             // Directly manipulate the display buffer to turn on all 16 segments (16 bits).
@@ -458,13 +463,13 @@ void flashAllDisplays() {
             rows[i]->year.writeDisplay();
             rows[i]->time.writeDisplay();
         }
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by flashAllDisplays"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
     #endif
 }
 
 void animateTornadoFlicker() {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateTornadoFlicker"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     char buffer[5];
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
@@ -510,8 +515,9 @@ void animateTornadoFlicker() {
     lastRow.month.writeDisplay();
     lastRow.day.writeDisplay();
     lastRow.time.writeDisplay();
+
+    xSemaphoreGive(xDisplayHardwareMutex);
     vTaskDelay(pdMS_TO_TICKS(1));
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateTornadoFlicker"); }
   #endif
 }
 
@@ -522,7 +528,7 @@ void animateTornadoFlicker() {
  */
 void animateCorruptedData() {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateCorruptedData"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         const int numChars = strlen(chars);
 
@@ -547,15 +553,15 @@ void animateCorruptedData() {
             rows[i]->day.writeDisplay();
             rows[i]->year.writeDisplay();
             rows[i]->time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
         }
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateCorruptedData"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
+        vTaskDelay(pdMS_TO_TICKS(2));
     #endif
 }
 
 void animateLockOnSequence(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateLockOnSequence"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         // Define the phases for the lock-on sequence
         unsigned long yearPhaseDuration = duration * 0.45;
         unsigned long monthPhaseDuration = duration * 0.35;
@@ -617,7 +623,6 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
             rows[i]->day.writeDisplay();
             rows[i]->year.writeDisplay();
             rows[i]->time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
         }
 
         // Restore the original timezone
@@ -626,7 +631,8 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
             tzset();
             xSemaphoreGive(xTimeLibMutex);
         }
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateLockOnSequence"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
+        vTaskDelay(pdMS_TO_TICKS(2));
     #endif
 }
 
@@ -635,17 +641,17 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
  */
 void blankDisplayRow(DisplayRow& row) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by blankDisplayRow"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         row.month.clear(); row.day.clear(); row.year.clear(); row.time.clear();
         row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+        xSemaphoreGive(xDisplayHardwareMutex);
         vTaskDelay(pdMS_TO_TICKS(2));
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by blankDisplayRow"); }
     #endif
 }
 
 void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateUnstableSkim"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         static int blankingRow = -1;
         static unsigned long blankingStartTime = 0;
 
@@ -692,15 +698,15 @@ void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYea
             rows[i]->month.writeDisplay();
             rows[i]->day.writeDisplay();
             rows[i]->time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(4));
         }
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateUnstableSkim"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
+        vTaskDelay(pdMS_TO_TICKS(4));
     #endif
 }
 
 void animateTemporalDesync() {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateTemporalDesync"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
 
         // Helper lambda to update a row with a time skimming effect
         auto updateRowWithSkimmingTime = [&](DisplayRow& row, time_t baseTime, long timeMultiplier) {
@@ -725,7 +731,6 @@ void animateTemporalDesync() {
             row.day.writeDisplay();
             row.year.writeDisplay();
             row.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(1));
         };
 
         time_t baseTime = 1445433600; // Approx Oct 21, 2015
@@ -739,13 +744,14 @@ void animateTemporalDesync() {
         // Row 3 (Bottom): Skimming backwards
         updateRowWithSkimmingTime(lastRow, baseTime, -60); // 1 minute backwards per ms
 
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateTemporalDesync"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
+        vTaskDelay(pdMS_TO_TICKS(1));
     #endif
 }
 
 void animateRandomRealTimes() {
 #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateRandomRealTimes"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
         for (int i = 0; i < 3; ++i) {
             struct tm timeinfo;
@@ -755,15 +761,15 @@ void animateRandomRealTimes() {
             timeinfo.tm_hour = random(0, 24);
             timeinfo.tm_min = random(0, 60);
             updateDisplayRow(*rows[i], timeinfo, year, false);
-            vTaskDelay(pdMS_TO_TICKS(1));
         }
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateRandomRealTimes"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
+        vTaskDelay(pdMS_TO_TICKS(1));
 #endif
 }
 
 void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateCapacitorChargeUp"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         int phase = elapsed / (duration / 3);
         float progress = (float)(elapsed % (duration / 3)) / (duration / 3);
         int charsToShow = progress * 16;
@@ -799,8 +805,8 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
             fillRow(presRow, 16);
             fillRow(destRow, charsToShow);
         }
+        xSemaphoreGive(xDisplayHardwareMutex);
         vTaskDelay(pdMS_TO_TICKS(1));
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateCapacitorChargeUp"); }
     #endif
 }
 
@@ -817,7 +823,7 @@ static bool rain_initialized = false;
 
 void animateDigitalRain(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateDigitalRain"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
 
         if (!rain_initialized) {
             for (int i = 0; i < MAX_RAINDROPS; i++) {
@@ -891,15 +897,14 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
         presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
         lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
 
+        xSemaphoreGive(xDisplayHardwareMutex);
         vTaskDelay(pdMS_TO_TICKS(40)); // Control animation speed to ~25 FPS
-
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateDigitalRain"); }
     #endif
 }
 
 void animateWaveformCollapse(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateWaveformCollapse"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         // Define clean, 13-character patterns for a "collapsing" and "expanding" wave.
         const char* waves[] = {
             "-------------",
@@ -945,14 +950,14 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
         drawWave(destRow, false);
         drawWave(presRow, true);
         drawWave(lastRow, false);
+        xSemaphoreGive(xDisplayHardwareMutex);
         vTaskDelay(pdMS_TO_TICKS(1));
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateWaveformCollapse"); }
     #endif
 }
 
 void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateTimelineSkim"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         float progress = (float)elapsed / duration;
         progress = 1 - pow(1 - progress, 3);
 
@@ -977,14 +982,14 @@ void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYea
 
         sprintf(buffer, "%02d%02d", random(0, 24), random(0, 60));
         printToDisplay(lastRow.time, buffer); lastRow.time.writeDisplay();
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateTimelineSkim"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
     #endif
 }
 // In HardwareControl.cpp
 
 void blankAllDisplays() {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by blankAllDisplays"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     destRow.month.clear(); destRow.day.clear(); destRow.year.clear(); destRow.time.clear();
     presRow.month.clear(); presRow.day.clear(); presRow.year.clear(); presRow.time.clear();
     lastRow.month.clear(); lastRow.day.clear(); lastRow.year.clear(); lastRow.time.clear();
@@ -992,20 +997,19 @@ void blankAllDisplays() {
     destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
     vTaskDelay(pdMS_TO_TICKS(2));
     presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-    vTaskDelay(pdMS_TO_TICKS(2));
     lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
+    xSemaphoreGive(xDisplayHardwareMutex);
     vTaskDelay(pdMS_TO_TICKS(2));
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by blankAllDisplays"); }
   #endif
 }
 void display88MphSpeed(float speed) {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by display88MphSpeed"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     printToDisplay(lastRow.day, "88", 2);
     printToDisplay(lastRow.year, "MPH");
     lastRow.day.writeDisplay();
     lastRow.year.writeDisplay();
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by display88MphSpeed"); }
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
@@ -1060,7 +1064,7 @@ void playSound(const char* filepath, bool fromMqtt) {
 }
 void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor) {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by typeTextOnDisplay"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
 
     int len = strlen(text);
     // The total visual width of a row is 13 characters (3 for month, 2 for day, 4 for year, 4 for time)
@@ -1115,12 +1119,12 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
         // Delay to create the typing effect
         vTaskDelay(pdMS_TO_TICKS(typeDelay));
     }
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by typeTextOnDisplay"); }
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 void animateFluxCapacitor() {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateFluxCapacitor"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     static int frame = 0;
     // Simple 3-frame pulse effect
     if (frame == 0) {
@@ -1141,12 +1145,12 @@ void animateFluxCapacitor() {
     presRow.month.writeDisplay();
     presRow.day.writeDisplay();
     presRow.year.writeDisplay();
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateFluxCapacitor"); }
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 void displayStaticFluxText() {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by displayStaticFluxText"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         printToDisplay(presRow.month, "FLX", 1);
         printToDisplay(presRow.day, "CP", 2);
         printToDisplay(presRow.year, "ACTV");
@@ -1155,12 +1159,12 @@ void displayStaticFluxText() {
         presRow.day.writeDisplay();
         presRow.year.writeDisplay();
         presRow.time.writeDisplay();
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by displayStaticFluxText"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
     #endif
 }
 void applyBrightness() {
   #if ENABLE_HARDWARE
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by applyBrightness"); }
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     uint8_t brightnessValue = currentSettings.brightness;
 
     // Apply the new brightness level to all 12 display segments
@@ -1194,13 +1198,13 @@ void applyBrightness() {
     lastRow.day.writeDisplay();
     lastRow.year.writeDisplay();
     lastRow.time.writeDisplay();
-    if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by applyBrightness"); }
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
 void animateSequentialFlicker(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateSequentialFlicker"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         float progress = (float)elapsed / duration;
         int segmentsToShow = (int)(progress * 12);
 
@@ -1329,6 +1333,8 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
             all_displays[i]->writeDisplay();
         }
 
+        xSemaphoreGive(xDisplayHardwareMutex);
+
         // Reset timezone
         if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
             setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
@@ -1336,13 +1342,12 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
             xSemaphoreGive(xTimeLibMutex);
         }
         vTaskDelay(pdMS_TO_TICKS(1));
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateSequentialFlicker"); }
     #endif
 }
 
 void animateCountingUp(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Acquired by animateCountingUp"); }
+        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
         char buffer[5];
 
@@ -1376,14 +1381,15 @@ void animateCountingUp(unsigned long elapsed, int duration) {
             rows[i]->day.writeDisplay();
             rows[i]->year.writeDisplay();
             rows[i]->time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(4));
         }
-        if (bootState != BOOT_INACTIVE) { Serial.println("MUTEX_LOG: Released by animateCountingUp"); }
+        xSemaphoreGive(xDisplayHardwareMutex);
+        vTaskDelay(pdMS_TO_TICKS(4));
     #endif
 }
 
 void animateGlitchyJumpCut(unsigned long elapsed, int duration) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1421,6 +1427,7 @@ void animateGlitchyJumpCut(unsigned long elapsed, int duration) {
         // Settle on the correct time at the very end.
         updateNormalClockDisplay(true, true, true);
     }
+    xSemaphoreGive(xDisplayHardwareMutex);
     // Add a small delay to control the frame rate of the glitches.
     vTaskDelay(pdMS_TO_TICKS(20));
   #endif
@@ -1428,6 +1435,7 @@ void animateGlitchyJumpCut(unsigned long elapsed, int duration) {
 
 void animatePlasmaWarmUp(unsigned long elapsed, int duration) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1466,12 +1474,14 @@ void animatePlasmaWarmUp(unsigned long elapsed, int duration) {
         updateNormalClockDisplay(true, true, true);
         applyBrightness(); // Restore full brightness
     }
+    xSemaphoreGive(xDisplayHardwareMutex);
     vTaskDelay(pdMS_TO_TICKS(30));
   #endif
 }
 
 void animateTimeWarpStreaks(unsigned long elapsed, int duration, const char* final_dest, const char* final_pres, const char* final_last) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1496,12 +1506,13 @@ void animateTimeWarpStreaks(unsigned long elapsed, int duration, const char* fin
     streakRow(destRow, final_dest);
     streakRow(presRow, final_pres);
     streakRow(lastRow, final_last);
-
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
 void animateCharacterScanline(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1528,11 +1539,13 @@ void animateCharacterScanline(unsigned long elapsed, int duration, const char* d
     scanlineRow(destRow, dest_str, charsToShow);
     scanlineRow(presRow, pres_str, charsToShow);
     scanlineRow(lastRow, last_str, charsToShow);
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
 void animateFocusIn(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1574,11 +1587,13 @@ void animateFocusIn(unsigned long elapsed, int duration, const char* dest_str, c
     focusRow(destRow, dest_str, charsToFocus);
     focusRow(presRow, pres_str, charsToFocus);
     focusRow(lastRow, last_str, charsToFocus);
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
 void animateCodeBreaker(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1620,11 +1635,13 @@ void animateCodeBreaker(unsigned long elapsed, int duration, const char* dest_st
     codeBreakerRow(destRow, dest_str, charsToLock);
     codeBreakerRow(presRow, pres_str, charsToLock);
     codeBreakerRow(lastRow, last_str, charsToLock);
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
 void animateTemporalParadox(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     // The animation will flicker between the two states every 200ms
     bool show_swapped = (elapsed / 200) % 2 == 0;
 
@@ -1654,12 +1671,14 @@ void animateTemporalParadox(unsigned long elapsed, int duration, const char* des
     // Glitch the last row to add to the unstable feeling
     animateDisplayRowRandomly(lastRow);
 
+    xSemaphoreGive(xDisplayHardwareMutex);
     vTaskDelay(pdMS_TO_TICKS(50));
   #endif
 }
 
 void animateDigitCascade(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1721,11 +1740,13 @@ void animateDigitCascade(unsigned long elapsed, int duration, const char* dest_s
     cascadeRow(destRow, dest_str, 0);
     cascadeRow(presRow, pres_str, 4);
     cascadeRow(lastRow, last_str, 8);
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
 void animateElectricSurge(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1762,11 +1783,13 @@ void animateElectricSurge(unsigned long elapsed, int duration, const char* dest_
     surgeRow(destRow, dest_str, old_dest_str);
     surgeRow(presRow, pres_str, old_pres_str);
     surgeRow(lastRow, last_str, old_last_str);
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
 void animateFlipDiscDisplay(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1808,11 +1831,13 @@ void animateFlipDiscDisplay(unsigned long elapsed, int duration, const char* des
     flipRow(destRow, dest_str);
     flipRow(presRow, pres_str);
     flipRow(lastRow, last_str);
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
 void animateInterferencePattern(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     float progress = (float)elapsed / duration;
     if (progress > 1.0) progress = 1.0;
 
@@ -1845,6 +1870,7 @@ void animateInterferencePattern(unsigned long elapsed, int duration, const char*
     interferenceRow(destRow, dest_str);
     interferenceRow(presRow, pres_str);
     interferenceRow(lastRow, last_str);
+    xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
 
