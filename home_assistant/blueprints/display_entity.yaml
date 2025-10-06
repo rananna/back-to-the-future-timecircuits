@@ -78,8 +78,8 @@ mode: single
 
 sequence:
   - service: mqtt.publish
-    data_template:
-      topic: !input mqtt_topic
+    data:
+      topic: "{{ mqtt_topic }}"
       payload: >
         {%- set text_to_display = prefix ~ states(entity_to_display) ~ postfix -%}
         {%- set command = {'command': effect, 'targetSegment': -1, 'stringParam': text_to_display} -%}

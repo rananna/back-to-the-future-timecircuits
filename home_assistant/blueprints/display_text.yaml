@@ -70,8 +70,8 @@ mode: single
 
 sequence:
   - service: mqtt.publish
-    data_template:
-      topic: !input mqtt_topic
+    data:
+      topic: "{{ mqtt_topic }}"
       payload: >
         {%- set command = {'command': effect, 'targetSegment': -1, 'stringParam': text_to_display} -%}
         {%- set commands = [] -%}
