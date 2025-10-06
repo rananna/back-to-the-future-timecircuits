@@ -79,11 +79,13 @@ action:
       payload: "Intruder Alert"
 ```
 
-For a complete, up-to-date list of all the available animation names you can use in the `payload`, please see the "Built-in Animations" section of the main Sequencer API documentation.
+For a complete, up-to-date list of all the available animation names you can use in the `payload`, please see the canonical list in the main API documentation:
+
+**[Developer Docs: Built-in Animations List](../../docs/developer/sequencer-api.md#built-in-named-animations)**
 
 ---
 
-## Sequencer Command Reference
+## Full Command Reference
 
 The blueprints expose the full power of the device's command sequencer. For a complete list of all available commands (like `SET_TEXT`, `PULSE`, `COUNTDOWN`, etc.) and their parameters, please see the canonical documentation here:
 

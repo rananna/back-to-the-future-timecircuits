@@ -10,7 +10,7 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 
 -   **Faithful Replica**: A true-to-the-movies design with three rows of 14-segment displays and iconic AM/PM indicators.
 -   **Cinematic Boot Sequence**: A full, multi-stage boot-up sequence with synchronized sounds and visuals.
--   **Powerful Animation Sequencer**: A flexible, built-in animation engine that allows you to create complex, multi-track animations with over 20 different commands.
+-   **Powerful Animation Sequencer**: A flexible, built-in animation engine that allows you to create complex, multi-track animations with over 25 different commands.
 -   **Comprehensive Web UI**: An easy-to-use web interface for configuration, preset management, sound control, and triggering animations.
 -   **Full MQTT Control**: A low-level MQTT API that exposes every feature for integration with any smart home system.
 -   **Native Home Assistant Integration**: Seamless integration with Home Assistant, featuring powerful **Blueprints** that make creating custom animations and notifications incredibly simple.

@@ -22,7 +22,7 @@ The firmware is organized into a modular structure to separate concerns and impr
 
 To get started with development, you will need the following:
 
-* **Arduino IDE or PlatformIO**: The firmware is built for the ESP32 platform.
+* **Arduino IDE**: The firmware is built for the ESP32 platform using the Arduino IDE. PlatformIO is not officially supported.
 * **ESP32 Board Manager**: Add the ESP32 board manager to your IDE.
 * **Libraries**: The following third-party libraries are required. Most can be installed via the Arduino Library Manager.
     * `Adafruit GFX Library`
@@ -41,7 +41,7 @@ The project uses a custom partition scheme to allocate more space for the filesy
 
 ### Over-The-Air (OTA) Updates
 
-This project supports multiple methods for updating the firmware and filesystem. For detailed, user-focused instructions on how to perform an update, please see the **[🚀 Updating Guide](UPDATING.md)**.
+This project supports multiple methods for updating the firmware and filesystem. For detailed, user-focused instructions on how to perform an update, please see the **[🚀 Updating Guide](../getting-started/updating.md)**.
 
 ***
 
@@ -76,9 +76,11 @@ Securely connecting to modern APIs via HTTPS (SSL/TLS) is one of the most memory
 
 The firmware includes a powerful, command-driven sequencer for creating complex, timed animations and effects. This is the mechanism behind the iconic time travel sequence and the advanced automations available in Home Assistant.
 
-The sequencer, managed by `handleSequencer()` in the main `.ino` file, processes a JSON-formatted array of commands. This entire system is exposed via the `bttf_time_circuits/sequencer/command` MQTT topic, allowing for precise, scripted control over the hardware. This is essential for creating the screen-accurate cinematic moments from the films and enables users to design their own complex notification sequences.
+The sequencer is the powerful, command-driven engine behind all complex animations. Its main processing loop is the `handleSequencer()` function (located in `AnimationManager.cpp`), which is called on every iteration of the main `loop()` in the `.ino` file.
 
-Each command in the sequence can perform an action like displaying text, flashing a segment, playing a sound, or pausing. For a complete list of available commands and their parameters, refer to the **[🏠 Home Assistant Integration Guide](home-assistant.md)**, which details the `bttf_time_circuits.run_sequence` service.
+This system is exposed via the `bttf_time_circuits/sequencer/command` MQTT topic, allowing for precise, scripted control over the hardware. This is essential for creating screen-accurate cinematic moments and enables users to design their own complex notification sequences.
+
+Each command in the sequence can perform an action like displaying text, flashing a segment, playing a sound, or pausing. For a complete list of available commands and their parameters, refer to the canonical **[Sequencer API Reference](sequencer-api.md)**.
 
 
 ## 🌐 Frontend Web Interface
@@ -126,7 +128,7 @@ The command sequencer is a core part of this project and a great place to contri
 
 ### Adding a New Sequencer Command
 
-1.  **Define the Command Enum**: Add a new entry to the `SequenceCommand` enum in `AnimationManager.h`.
+1.  **Define the Command Enum**: Add a new entry to the `SequenceCommand` enum in `Sequencer.h`.
 2.  **Implement the Logic**: Add a new `case` to the `switch` statement in the `handleSequencer` function in `AnimationManager.cpp`. This is where you'll implement the logic for your new command.
 3.  **Document the Command**: Add a new row to the command reference table in `docs/developer/sequencer-api.md`.
 
