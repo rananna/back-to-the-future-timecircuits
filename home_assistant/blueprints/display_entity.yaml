@@ -4,10 +4,13 @@ blueprint:
     A simple blueprint for displaying the state of a Home Assistant entity on one of the Time Circuits rows.
   domain: script
   input:
-    mqtt_topic:
-      name: MQTT Topic
-      description: The MQTT topic to publish the sequencer command to.
-      default: "bttf-time-circuits/cmnd/sequencer"
+    base_topic:
+      name: MQTT Base Topic
+      description: The base topic for your Time Circuits MQTT integration.
+      default: "bttf-time-circuits"
+    device_id:
+      name: Device ID
+      description: The unique device ID for your Time Circuits clock.
     target_row:
       name: Target Row
       description: "The display row to show the entity state on."
@@ -79,7 +82,7 @@ mode: single
 sequence:
   - service: mqtt.publish
     data:
-      topic: "{{ mqtt_topic }}"
+      topic: "{{ base_topic }}/{{ device_id }}/cmnd/sequencer"
       payload: >
         {%- set text_to_display = prefix ~ states(entity_to_display) ~ postfix -%}
         {%- set command = {'command': effect, 'targetSegment': -1, 'stringParam': text_to_display} -%}
