@@ -76,39 +76,43 @@ sequence:
     data:
       topic: "{{ base_topic }}/{{ device_id }}/cmnd/sequencer"
       payload: >
-        {%- set command = {'command': effect, 'targetSegment': -1, 'stringParam': text_to_display} -%}
-        {%- set commands = [] -%}
+        {%- macro generate_sequence_payload(effect, text_to_display, duration, marquee_speed, restore_row) -%}
+          {%- set command = {'command': effect, 'targetSegment': -1, 'stringParam': text_to_display} -%}
+          {%- set commands = [] -%}
 
-        {# Set parameters based on effect type #}
-        {%- if effect == 'MARQUEE' -%}
-          {%- do command.update({'intParam': marquee_speed}) -%}
-        {%- elif effect in ['PULSE', 'FLASH'] -%}
-          {%- do command.update({'intParam': duration * 1000}) -%}
-        {%- endif -%}
-
-        {# Add the main command #}
-        {%- set commands = commands + [command] -%}
-
-        {# Handle row restoration #}
-        {%- if restore_row -%}
-          {%- set wait_duration = namespace(ms=0) -%}
-
-          {# Non-blocking effects require a WAIT command to be effective #}
+          {# Set parameters based on effect type #}
           {%- if effect == 'MARQUEE' -%}
-            {# Marquee duration is based on text length and speed #}
-            {%- set wait_duration.ms = marquee_speed * (text_to_display | length + 26) -%}
-          {%- elif effect == 'SET_TEXT' -%}
-            {# Static text needs a wait to be visible for the specified duration #}
-            {%- set wait_duration.ms = duration * 1000 -%}
+            {%- do command.update({'intParam': marquee_speed}) -%}
+          {%- elif effect in ['PULSE', 'FLASH'] -%}
+            {%- do command.update({'intParam': duration * 1000}) -%}
           {%- endif -%}
 
-          {# Add WAIT command if a duration was calculated (i.e. for non-blocking effects) #}
-          {%- if wait_duration.ms > 0 -%}
-            {%- set commands = commands + [{'command': 'WAIT', 'intParam': wait_duration.ms | int}] -%}
+          {# Add the main command #}
+          {%- set commands = commands + [command] -%}
+
+          {# Handle row restoration #}
+          {%- if restore_row -%}
+            {%- set wait_duration = namespace(ms=0) -%}
+
+            {# Non-blocking effects require a WAIT command to be effective #}
+            {%- if effect == 'MARQUEE' -%}
+              {# Marquee duration is based on text length and speed #}
+              {%- set wait_duration.ms = marquee_speed * (text_to_display | length + 26) -%}
+            {%- elif effect == 'SET_TEXT' -%}
+              {# Static text needs a wait to be visible for the specified duration #}
+              {%- set wait_duration.ms = duration * 1000 -%}
+            {%- endif -%}
+
+            {# Add WAIT command if a duration was calculated (i.e. for non-blocking effects) #}
+            {%- if wait_duration.ms > 0 -%}
+              {%- set commands = commands + [{'command': 'WAIT', 'intParam': wait_duration.ms | int}] -%}
+            {%- endif -%}
+
+            {# Add the final command to restore the row to its previous state #}
+            {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
           {%- endif -%}
 
-          {# Add the final command to restore the row to its previous state #}
-          {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
-        {%- endif -%}
+          {{- {'tracks': [{'targetRow': target_row, 'commands': commands}]} | to_json -}}
+        {%- endmacro -%}
 
-        {{ {'tracks': [{'targetRow': target_row, 'commands': commands}]} | to_json }}
+        {{- generate_sequence_payload(effect, text_to_display, duration, marquee_speed, restore_row) -}}
