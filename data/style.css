@@ -160,7 +160,7 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     margin: 0;
-    padding: 20px;
+    padding: 20px 20px 120px 20px; /* Added 120px bottom padding for the fixed footer */
     display: flex;
     justify-content: center;
     align-items: flex-start;
@@ -1798,16 +1798,17 @@ body.time-travel-active {
 
 /* --- Sticky Footer --- */
 .footer-save-wrapper {
-    position: sticky;
+    position: fixed; /* Changed from sticky to fixed */
     bottom: 0;
     left: 0;
     width: 100%;
     padding: 1rem;
-    background-color: rgba(17, 17, 17, 0.9);
-    border-top: 1px solid #333;
+    background-color: rgba(17, 17, 17, 0.95); /* Slightly less transparent */
+    border-top: 1px solid #444; /* Darker border */
     text-align: center;
     z-index: 1000;
-    box-sizing: border-box; /* Ensures padding is included in the width */
+    box-sizing: border-box;
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.5); /* Add a shadow for depth */
 }
 
 #saveSettingsBtn {
