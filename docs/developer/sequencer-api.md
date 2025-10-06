@@ -127,6 +127,22 @@ This table details every command available in the sequencer.
 
 ---
 
+### **Understanding Blocking vs. Non-Blocking Commands**
+
+It is critical to understand the difference between **blocking** and **non-blocking** commands when creating sequences. This determines whether the sequencer waits for a command to finish before moving to the next step.
+
+*   **Non-Blocking Commands**: These commands execute instantly and the sequencer immediately moves to the next command in the track.
+    *   **Commands**: `SET_TEXT`, `MARQUEE`, `SOUND`
+    *   **Behavior**: If you want a non-blocking command's effect to be visible for a certain duration, you **must** follow it with a `WAIT` command. Without a `WAIT`, the effect might be immediately replaced by the next command in the sequence.
+    *   **Example**: To show "HELLO" for 2 seconds, you need two steps: `{"command":"SET_TEXT", "stringParam":"HELLO"}` followed by `{"command":"WAIT", "intParam":2000}`.
+
+*   **Blocking Commands**: These commands run for a specific duration, and the sequencer will **not** execute the next command until the current one is complete.
+    *   **Commands**: `PULSE`, `FLASH`, `SCANNER`, `COUNTDOWN`, `FADE_IN`, `FADE_OUT`.
+    *   **Behavior**: The duration of these effects is built into the command itself, typically using the `intParam`. You do **not** need to add a separate `WAIT` command after them for their own duration.
+    *   **Example**: `{"command":"PULSE", "intParam":5000}` will pulse the display for 5 seconds. The sequencer will automatically wait for those 5 seconds before proceeding.
+
+---
+
 #### **Text and Display Commands**
 
 | Command | Description | Parameters | Example |

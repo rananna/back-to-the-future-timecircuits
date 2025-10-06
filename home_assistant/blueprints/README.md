@@ -81,7 +81,7 @@ action:
 
 For a complete, up-to-date list of all the available animation names you can use in the `payload`, please see the canonical list in the main API documentation:
 
-**[Developer Docs: Built-in Animations List](../../docs/developer/sequencer-api.md#built-in-named-animations)**
+**[Developer Docs: Built-in Animations List](../../docs/developer/sequencer-api.md#built-in-animations)**
 
 ---
 
