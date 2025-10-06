@@ -17,6 +17,11 @@
 // --- NEW: Make the hardware mutex available in this file ---
 extern SemaphoreHandle_t xDisplayHardwareMutex;
 
+// --- FORWARD DECLARATIONS for internal, non-locking functions ---
+void updateDisplayRow_internal(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal);
+void blankDisplayRow_internal(DisplayRow& row);
+
+
 void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str) {
     struct tm dest_timeinfo, present_timeinfo, last_time_departed_info;
     time_t now_t;
@@ -202,9 +207,8 @@ bool setupPhysicalDisplay() {
  * @param year The four-digit year to display.
  * @param showDecimal A boolean flag to control the blinking colon on the time display.
  */
-void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
+void updateDisplayRow_internal(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
   #if ENABLE_HARDWARE
-    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
     char buffer[5];
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
@@ -292,6 +296,13 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
     row.day.writeDisplay();
     row.year.writeDisplay();
     row.time.writeDisplay();
+  #endif
+}
+
+void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
+  #if ENABLE_HARDWARE
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
+    updateDisplayRow_internal(row, timeinfo, year, showDecimal);
     xSemaphoreGive(xDisplayHardwareMutex);
   #endif
 }
@@ -310,7 +321,7 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year,
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
         // 50% chance to show the correct time, 50% chance to show random "garbage" data.
         if (random(100) < 50) {
-            updateDisplayRow(row, timeinfo, year, showDecimal);
+            updateDisplayRow_internal(row, timeinfo, year, showDecimal);
         } else {
             animateDisplayRowRandomly(row);
         }
@@ -637,15 +648,24 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
 }
 
 /**
- * @brief Blanks all four segments of a single display row.
+ * @brief Blanks all four segments of a single display row (INTERNAL, NO MUTEX).
+ */
+void blankDisplayRow_internal(DisplayRow& row) {
+    #if ENABLE_HARDWARE
+        row.month.clear(); row.day.clear(); row.year.clear(); row.time.clear();
+        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+        vTaskDelay(pdMS_TO_TICKS(2));
+    #endif
+}
+
+/**
+ * @brief Blanks all four segments of a single display row (Public, thread-safe).
  */
 void blankDisplayRow(DisplayRow& row) {
     #if ENABLE_HARDWARE
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
-        row.month.clear(); row.day.clear(); row.year.clear(); row.time.clear();
-        row.month.writeDisplay(); row.day.writeDisplay(); row.year.writeDisplay(); row.time.writeDisplay();
+        blankDisplayRow_internal(row);
         xSemaphoreGive(xDisplayHardwareMutex);
-        vTaskDelay(pdMS_TO_TICKS(2));
     #endif
 }
 
@@ -680,7 +700,7 @@ void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYea
         DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
         for (int i=0; i<3; ++i) {
             if (i == blankingRow) {
-                blankDisplayRow(*rows[i]);
+                blankDisplayRow_internal(*rows[i]);
                 continue; // Skip the rest of the drawing for this row
             }
 
@@ -760,7 +780,7 @@ void animateRandomRealTimes() {
             int year = random(1885, 2085);
             timeinfo.tm_hour = random(0, 24);
             timeinfo.tm_min = random(0, 60);
-            updateDisplayRow(*rows[i], timeinfo, year, false);
+            updateDisplayRow_internal(*rows[i], timeinfo, year, false);
         }
         xSemaphoreGive(xDisplayHardwareMutex);
         vTaskDelay(pdMS_TO_TICKS(1));
