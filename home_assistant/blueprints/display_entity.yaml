@@ -85,26 +85,35 @@ sequence:
         {%- set command = {'command': effect, 'targetSegment': -1, 'stringParam': text_to_display} -%}
         {%- set commands = [] -%}
 
+        {# Set parameters based on effect type #}
         {%- if effect == 'MARQUEE' -%}
           {%- do command.update({'intParam': marquee_speed}) -%}
         {%- elif effect in ['PULSE', 'FLASH'] -%}
           {%- do command.update({'intParam': duration * 1000}) -%}
         {%- endif -%}
 
+        {# Add the main command #}
         {%- set commands = commands + [command] -%}
 
+        {# Handle row restoration #}
         {%- if restore_row -%}
           {%- set wait_duration = namespace(ms=0) -%}
+
+          {# Non-blocking effects require a WAIT command to be effective #}
           {%- if effect == 'MARQUEE' -%}
+            {# Marquee duration is based on text length and speed #}
             {%- set wait_duration.ms = marquee_speed * (text_to_display | length + 26) -%}
-          {%- elif effect in ['SET_TEXT', 'PULSE', 'FLASH'] -%}
+          {%- elif effect == 'SET_TEXT' -%}
+            {# Static text needs a wait to be visible for the specified duration #}
             {%- set wait_duration.ms = duration * 1000 -%}
           {%- endif -%}
 
+          {# Add WAIT command if a duration was calculated (i.e. for non-blocking effects) #}
           {%- if wait_duration.ms > 0 -%}
             {%- set commands = commands + [{'command': 'WAIT', 'intParam': wait_duration.ms | int}] -%}
           {%- endif -%}
 
+          {# Add the final command to restore the row to its previous state #}
           {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
         {%- endif -%}
 
