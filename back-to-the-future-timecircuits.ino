@@ -1478,6 +1478,12 @@ std::vector<Preset> getFullPresetList() {
  * update cycle.
  */
 void handlePresetCycling() {
+    // --- FIX: Prevent preset cycling from running during the boot animation ---
+    // The bootSequenceCompleted flag is set to true only after the entire boot
+    // sequence has finished.
+    if (!bootSequenceCompleted) {
+        return;
+    }
     // --- START: MODIFICATION ---
     // Only cycle presets when in normal clock mode. This prevents interference with
     // other modes that use the last time departed row for their own display.
