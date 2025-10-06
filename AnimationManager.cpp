@@ -1631,11 +1631,15 @@ void triggerAnimation(AnimationType animType) {
         return;
     }
 
-    // Stop ALL currently running tracks to prepare for the new animation.
-    stopAllSequences();
+    // --- FIX: Generate the animation into the temporary buffer *before* stopping the old one. ---
+    // This prevents use-after-free issues where stopAllSequences() might clear a string
+    // that is still referenced by a track that is about to be replaced.
 
     // Generate the requested animation into the temporary heap-allocated tracks.
     generateAnimationSequence(animType, temp_tracks);
+
+    // Now that the new animation is prepared, stop all currently running tracks.
+    stopAllSequences();
 
     // Copy the steps from ALL generated tracks to the main sequencer tracks.
     for (int j = 0; j < 3; ++j) {
