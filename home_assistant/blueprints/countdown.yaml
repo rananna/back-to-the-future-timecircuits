@@ -55,6 +55,10 @@ blueprint:
               value: "SET_TEXT"
             - label: "Marquee (Scrolling Text)"
               value: "MARQUEE"
+            - label: "Pulse"
+              value: "PULSE"
+            - label: "Flash"
+              value: "FLASH"
     end_text_marquee_speed:
       name: "End Text Marquee Speed (ms)"
       description: "The scroll speed for the marquee effect. Lower is faster."
@@ -66,7 +70,7 @@ blueprint:
           unit_of_measurement: "ms"
     end_text_duration:
       name: "End Text Display Duration (s)"
-      description: "How long to display the static end text for."
+      description: "Duration for Set Text, Pulse, and Flash effects."
       default: 5
       selector:
         number:
@@ -87,40 +91,46 @@ sequence:
     data:
       topic: "{{ base_topic }}/{{ device_id }}/cmnd/sequencer"
       payload: >
-        {%- set commands = [] -%}
-        {%- set countdown_command = {'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_number, 'intParam2': countdown_delay} -%}
-        {%- set commands = commands + [countdown_command] -%}
+        {%- macro generate_countdown_payload() -%}
+          {%- set commands = [] -%}
+          {%- set countdown_command = {'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_number, 'intParam2': countdown_delay} -%}
+          {%- set commands = commands + [countdown_command] -%}
 
-        {%- if end_text != "" -%}
-          {# Create the base command for the end text #}
-          {%- set end_text_command = {'command': end_text_effect, 'targetSegment': -1, 'stringParam': end_text} -%}
+          {%- if end_text != "" -%}
+            {# Create the base command for the end text #}
+            {%- set end_text_command = {'command': end_text_effect, 'targetSegment': -1, 'stringParam': end_text} -%}
 
-          {# Set parameters based on the chosen effect #}
-          {%- if end_text_effect == 'MARQUEE' -%}
-            {%- do end_text_command.update({'intParam': end_text_marquee_speed}) -%}
+            {# Set parameters based on the chosen effect #}
+            {%- if end_text_effect == 'MARQUEE' -%}
+              {%- do end_text_command.update({'intParam': end_text_marquee_speed}) -%}
+            {%- elif end_text_effect in ['PULSE', 'FLASH'] -%}
+              {%- do end_text_command.update({'intParam': end_text_duration * 1000}) -%}
+            {%- endif -%}
+
+            {# Add the main command for the end text #}
+            {%- set commands = commands + [end_text_command] -%}
+
+            {# Non-blocking effects require a WAIT command to be effective #}
+            {%- set wait_duration = namespace(ms=0) -%}
+            {%- if end_text_effect == 'MARQUEE' -%}
+              {# Marquee duration is based on text length and speed #}
+              {%- set wait_duration.ms = end_text_marquee_speed * (end_text | length + 26) -%}
+            {%- elif end_text_effect == 'SET_TEXT' -%}
+              {# Static text needs a wait to be visible for the specified duration #}
+              {%- set wait_duration.ms = end_text_duration * 1000 -%}
+            {%- endif -%}
+
+            {# Add WAIT command if a duration was calculated #}
+            {%- if wait_duration.ms > 0 -%}
+              {%- set commands = commands + [{'command': 'WAIT', 'intParam': wait_duration.ms | int}] -%}
+            {%- endif -%}
           {%- endif -%}
 
-          {# Add the main command for the end text #}
-          {%- set commands = commands + [end_text_command] -%}
-
-          {# Non-blocking effects require a WAIT command to be effective #}
-          {%- set wait_duration = namespace(ms=0) -%}
-          {%- if end_text_effect == 'MARQUEE' -%}
-            {# Marquee duration is based on text length and speed #}
-            {%- set wait_duration.ms = end_text_marquee_speed * (end_text | length + 26) -%}
-          {%- elif end_text_effect == 'SET_TEXT' -%}
-            {# Static text needs a wait to be visible for the specified duration #}
-            {%- set wait_duration.ms = end_text_duration * 1000 -%}
+          {%- if restore_row -%}
+            {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
           {%- endif -%}
 
-          {# Add WAIT command if a duration was calculated #}
-          {%- if wait_duration.ms > 0 -%}
-            {%- set commands = commands + [{'command': 'WAIT', 'intParam': wait_duration.ms | int}] -%}
-          {%- endif -%}
-        {%- endif -%}
+          {{- {'tracks': [{'targetRow': target_row, 'commands': commands}]} | to_json -}}
+        {%- endmacro -%}
 
-        {%- if restore_row -%}
-          {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
-        {%- endif -%}
-
-        {{ {'tracks': [{'targetRow': target_row, 'commands': commands}]} | to_json }}
+        {{- generate_countdown_payload() -}}
