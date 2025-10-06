@@ -52,7 +52,6 @@ void publishDisplayMode(int mode);
 void publishDisplayFormat(bool enabled);
 void publishSoundToggle(bool enabled);
 void publishBrightness(uint8_t brightness);
-void publishAnimationInterval(int interval);
 void publishAnimationDuration(int duration);
 void publishStockRefresh(int interval);
 void publishWeatherCity(const std::string& city);

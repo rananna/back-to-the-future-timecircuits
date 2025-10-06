@@ -331,6 +331,99 @@ void generateSystemError(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "SYSTEM MALFUNCTION");
 }
 
+void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string) {
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, json_string);
+
+    if (error) {
+        Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Failed to parse JSON sequence: %s", error.c_str());
+        return;
+    }
+
+    JsonArray track_definitions = doc.as<JsonArray>();
+    if (track_definitions.isNull()) {
+        Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Payload is not a JSON array of track definitions.");
+        return;
+    }
+
+    for (JsonObject track_def : track_definitions) {
+        int targetRow = -1;
+        if (track_def["targetRow"].is<int>()) {
+            targetRow = track_def["targetRow"].as<int>();
+        } else if (track_def["targetRow"].is<const char*>()) {
+            std::string rowStr = track_def["targetRow"].as<std::string>();
+            if (rowStr == "TOP") targetRow = 0;
+            else if (rowStr == "MIDDLE") targetRow = 1;
+            else if (rowStr == "BOTTOM") targetRow = 2;
+        }
+
+        if (targetRow < 0 || targetRow > 2) {
+            Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Skipping track with invalid targetRow.");
+            continue;
+        }
+
+        if (tracks[targetRow].isActive) {
+            Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Ignoring new sequence for row %d, one is already active.", targetRow);
+            continue;
+        }
+
+        JsonArray commands = track_def["commands"].as<JsonArray>();
+        if (commands.isNull()) {
+            Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Skipping track for row %d: missing 'commands' array.", targetRow);
+            continue;
+        }
+
+        int step_idx = 0;
+        for (JsonObject command : commands) {
+            const char* cmd = command["command"];
+            if (!cmd) {
+                Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Skipping invalid command in track %d: missing 'command' key.", targetRow);
+                continue;
+            }
+
+            SequenceCommand seq_cmd = SEQ_CMD_NONE;
+            if (strcmp(cmd, "SET_TEXT") == 0) seq_cmd = SEQ_CMD_SET_TEXT;
+            else if (strcmp(cmd, "CLEAR_SEGMENT") == 0) seq_cmd = SEQ_CMD_CLEAR_SEGMENT;
+            else if (strcmp(cmd, "SET_BRIGHTNESS") == 0) seq_cmd = SEQ_CMD_SET_BRIGHTNESS;
+            else if (strcmp(cmd, "RESTORE_ROW") == 0) seq_cmd = SEQ_CMD_RESTORE_ROW;
+            else if (strcmp(cmd, "RESTORE_ALL_ROWS") == 0) seq_cmd = SEQ_CMD_RESTORE_ALL_ROWS;
+            else if (strcmp(cmd, "WAIT") == 0) seq_cmd = SEQ_CMD_WAIT;
+            else if (strcmp(cmd, "SOUND") == 0) seq_cmd = SEQ_CMD_SOUND;
+            else if (strcmp(cmd, "LOOP_START") == 0) seq_cmd = SEQ_CMD_LOOP_START;
+            else if (strcmp(cmd, "LOOP_END") == 0) seq_cmd = SEQ_CMD_LOOP_END;
+            else if (strcmp(cmd, "FADE_IN") == 0) seq_cmd = SEQ_CMD_FADE_IN;
+            else if (strcmp(cmd, "FADE_OUT") == 0) seq_cmd = SEQ_CMD_FADE_OUT;
+            else if (strcmp(cmd, "PULSE") == 0) seq_cmd = SEQ_CMD_PULSE;
+            else if (strcmp(cmd, "FLASH") == 0) seq_cmd = SEQ_CMD_FLASH;
+            else if (strcmp(cmd, "MARQUEE") == 0) seq_cmd = SEQ_CMD_MARQUEE;
+            else if (strcmp(cmd, "COUNTDOWN") == 0) seq_cmd = SEQ_CMD_COUNTDOWN;
+            else if (strcmp(cmd, "SCANNER") == 0) seq_cmd = SEQ_CMD_SCANNER;
+            else if (strcmp(cmd, "TYPEWRITER") == 0) seq_cmd = SEQ_CMD_TYPEWRITER;
+            else if (strcmp(cmd, "WIPE") == 0) seq_cmd = SEQ_CMD_WIPE;
+            else if (strcmp(cmd, "SCROLL_IN") == 0) seq_cmd = SEQ_CMD_SCROLL_IN;
+            else if (strcmp(cmd, "CROSSFADE_TEXT") == 0) seq_cmd = SEQ_CMD_CROSSFADE_TEXT;
+            else if (strcmp(cmd, "RANDOM_FLICKER_TEXT") == 0) seq_cmd = SEQ_CMD_RANDOM_FLICKER_TEXT;
+            else if (strcmp(cmd, "SCRAMBLE_TEXT") == 0) seq_cmd = SEQ_CMD_SCRAMBLE_TEXT;
+            else if (strcmp(cmd, "BAR_GRAPH") == 0) seq_cmd = SEQ_CMD_BAR_GRAPH;
+            else if (strcmp(cmd, "TRIGGER_ANIMATION") == 0) seq_cmd = SEQ_CMD_TRIGGER_ANIMATION;
+            else if (strcmp(cmd, "MQTT_PUBLISH") == 0) seq_cmd = SEQ_CMD_MQTT_PUBLISH;
+            else if (strcmp(cmd, "DISPLAY_HA_SENSOR") == 0) seq_cmd = SEQ_CMD_DISPLAY_HA_SENSOR;
+            else {
+                Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Unknown sequencer command '%s' in track %d.", cmd, targetRow);
+                continue;
+            }
+
+            step_idx = add_step(tracks[targetRow], step_idx, seq_cmd, targetRow,
+                command["targetSegment"] | -1,
+                command["intParam"] | 0,
+                command["intParam2"] | 0,
+                command["stringParam"] | "",
+                command["stringParam2"] | ""
+            );
+        }
+    }
+}
+
 // --- New Thematic Animation Generators ---
 
 void generateLightning(SequencerTrack tracks[3]) {
@@ -503,7 +596,39 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
 
     // --- FIX: A correct switch statement with all cases and a proper default ---
     switch (animType) {
-        // Legacy Animations (for Randomize All)
+        // --- JSON-based Named Sequences ---
+        case ANIMATION_INTRUDER_ALERT:
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"MARQUEE", "stringParam":"INTRUDER ALERT"}, {"command":"SOUND", "stringParam":"electric_sparks.mp3"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":100, "intParam2":400}]}, {"targetRow":"BOTTOM", "commands":[{"command":"MARQUEE", "stringParam":"LOCKDOWN INITIATED"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]}])");
+            break;
+        case ANIMATION_TIME_TRAVEL:
+            parseSequenceFromJson(tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":8000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 1000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":1000}, {"command": "SET_TEXT", "stringParam": "88 MPH"}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 8000}]}])");
+            break;
+        case ANIMATION_PARTY_MODE:
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"MARQUEE", "stringParam":"PARTY TIME"}, {"command":"LOOP_START"}, {"command":"PULSE", "targetSegment":-1, "intParam":1000}, {"command":"WAIT", "intParam":1000}, {"command":"LOOP_END"}]}, {"targetRow":"MIDDLE", "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"DANCE"}, {"command":"WAIT", "intParam":2000}, {"command":"MARQUEE", "stringParam":"PARTY"}, {"command":"WAIT", "intParam":2000}, {"command":"LOOP_END"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"WOOHOO"}, {"command":"WAIT", "intParam":5000}, {"command":"LOOP_END"}]}])");
+            break;
+        case ANIMATION_KNIGHT_RIDER:
+            parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}])");
+            break;
+        case ANIMATION_LOADING:
+            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":1500}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":1500}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":1500}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":1500}]}])");
+            break;
+        case ANIMATION_ERROR:
+            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":200}, {"command":"SET_TEXT", "stringParam":"ERROR"}]}, {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION"}]}, {"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"electric_sparks.mp3"}]}])");
+            break;
+        case ANIMATION_FLUX_CHARGE:
+            parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":5000}]}, {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}])");
+            break;
+        case ANIMATION_TACHYONS:
+            parseSequenceFromJson(tracks, R"([{"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS ON", "intParam":150, "intParam2":250}, {"command":"SOUND", "stringParam":"hum.mp3"},{"command":"WAIT", "intParam":3000}]}])");
+            break;
+        case ANIMATION_DATA_STREAM:
+            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}])");
+            break;
+        case ANIMATION_WORMHOLE_COLLAPSE:
+            parseSequenceFromJson(tracks, R"([{"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "arrival_chime.mp3"}, {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "FADE_OUT", "intParam": 2000}]}, {"targetRow": 1, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 500}, {"command": "FADE_OUT", "intParam": 3000}]}, {"targetRow": 2, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 1000}, {"command": "FADE_OUT", "intParam": 3000}]}])");
+            break;
+
+        // Legacy C++ Generated Animations (for Randomize All)
         case ANIMATION_SEQUENTIAL_FLICKER:      generateSequentialFlicker(tracks, time_strings); break;
         case ANIMATION_RANDOM_FLICKER:          generateRandomFlicker(tracks); break;
         case ANIMATION_COUNTING_UP:             generateCountingUp(tracks); break;
@@ -526,7 +651,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_FLIP_DISC_DISPLAY:       generateFlipDisc(tracks, time_strings); break;
         case ANIMATION_INTERFERENCE_PATTERN:    generateInterferencePattern(tracks, time_strings); break;
 
-        // Modern Sequencer Animations
+        // Modern C++ Generated Sequencer Animations
         case ANIMATION_ALL_DISPLAYS_RANDOM:     generateAllDisplaysRandom(tracks, time_strings); break;
         case ANIMATION_LIGHTNING:               generateLightning(tracks); break;
         case ANIMATION_SCANNER:                 generateScanner(tracks); break;

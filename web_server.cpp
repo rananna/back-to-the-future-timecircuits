@@ -461,11 +461,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 int animationId = doc["payload"];
                 Log_printf(LOG_LEVEL_INFO, "WebSocket: Preview animation command received for ID: %d", animationId);
                 triggerAnimation(static_cast<AnimationType>(animationId));
-            } else if (action == "preview_legacy_animation") {
-                int animationId = doc["payload"];
-                Log_printf(LOG_LEVEL_INFO, "WebSocket: Preview legacy animation command received for ID: %d", animationId);
-                currentSettings.animationStyle = (AnimationType)animationId;
-                startStyledAnimation();
             }
         }
     }
@@ -1014,8 +1009,8 @@ void setupWebRoutes() {
   server.addHandler(saveSettingsHandler);
 
   server.on("/api/triggerAnimation", HTTP_POST, [](AsyncWebServerRequest *request){
-    Log_printf(LOG_LEVEL_INFO, "DIAG: /api/triggerAnimation endpoint hit. Calling startTimeTravelAnimation().");
-    startTimeTravelAnimation();
+    Log_printf(LOG_LEVEL_INFO, "DIAG: /api/triggerAnimation endpoint hit. Calling triggerAnimation().");
+    triggerAnimation(currentSettings.animationSequence);
     request->send(200, "text/plain", "Animation triggered!");
   });
 

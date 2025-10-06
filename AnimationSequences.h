@@ -55,4 +55,7 @@ enum AnimationType {
 // Main function to generate a sequence based on type
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]);
 
+// --- NEW: Centralized JSON Parser ---
+void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string);
+
 #endif // ANIMATION_SEQUENCES_H
