@@ -253,19 +253,6 @@ void publishAnimationInterval(int interval) {
 }
 
 /**
- * @brief Publishes the current animation duration.
- * @param duration The duration in milliseconds.
- */
-void publishAnimationDuration(int duration) {
-    if (!mqttClient.connected()) return;
-    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    String topic = base_topic + "/animation_duration/state";
-    char payload[8];
-    snprintf(payload, sizeof(payload), "%d", duration);
-    mqttClient.publish(topic.c_str(), payload, true);
-}
-
-/**
  * @brief Publishes the current stock refresh interval.
  * @param interval The interval in minutes.
  */
@@ -443,7 +430,6 @@ void cleanupOldDataPointSensors() {
 void publishNumberConfigsDiscovery() {
     const char* number_configs[][5] = {
         {"animation_interval", "Animation Interval", "mdi:clock-in", "min", "0,120,1"},
-        {"animation_duration", "Animation Duration", "mdi:movie-filter", "ms", "1000,10000,100"},
         {"stock_refresh", "Stock Refresh", "mdi:chart-line", "min", "1,60,1"}
     };
     for (auto const& cfg : number_configs) {
@@ -1068,9 +1054,6 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "animation_interval") {
             currentSettings.timeTravelAnimationInterval = std::stoi(message);
             settingsChanged = true;
-        } else if (component == "animation_duration") {
-            currentSettings.timeTravelAnimationDuration = std::stoi(message);
-            settingsChanged = true;
         } else if (component == "stock_refresh") {
             currentSettings.stockRefreshInterval = std::stoi(message);
             settingsChanged = true;
@@ -1265,8 +1248,6 @@ void publishAllHaStates() {
     mqttClient.publish((base_topic + "/24h_format/state").c_str(), currentSettings.displayFormat24h ? "ON" : "OFF", true);
     itoa(currentSettings.timeTravelAnimationInterval, payload, 10);
     mqttClient.publish((base_topic + "/animation_interval/state").c_str(), payload, true);
-    itoa(currentSettings.timeTravelAnimationDuration, payload, 10);
-    mqttClient.publish((base_topic + "/animation_duration/state").c_str(), payload, true);
     itoa(currentSettings.stockRefreshInterval, payload, 10);
     mqttClient.publish((base_topic + "/stock_refresh/state").c_str(), payload, true);
     
