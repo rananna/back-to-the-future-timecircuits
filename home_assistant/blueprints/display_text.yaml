@@ -44,6 +44,8 @@ blueprint:
       name: "Text to Display"
       description: "The message to display. Supports templates."
       default: ""
+      selector:
+        text: {}
     duration:
       name: "Display Duration (s)"
       description: "Duration for Set Text, Pulse, and Flash effects."
