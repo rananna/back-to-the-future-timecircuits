@@ -1,0 +1,490 @@
+blueprint:
+  name: BTTF Time Circuits - Scene Builder
+  description: >-
+    A user-friendly blueprint for creating complex, multi-track animations.
+    Configure each of the three display rows independently using simple forms.
+    This is the recommended way to build custom scenes with parallel effects.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT Topic
+      description: The MQTT topic to publish the sequencer command to.
+      default: "bttf-time-circuits/cmnd/sequencer"
+
+    # =================================================================================
+    # == TOP ROW (DESTINATION TIME)
+    # =================================================================================
+    enable_top_row:
+      name: "[Top Row] Enable Track"
+      description: "Enable this track to include it in the animation sequence."
+      default: false
+      selector:
+        boolean: {}
+    top_effect:
+      name: "[Top Row] Effect Type"
+      description: "Select the type of effect to generate for the top row."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - label: "Set Text / Display Sensor"
+              value: "SET_TEXT"
+            - label: "Marquee (Scrolling Text)"
+              value: "MARQUEE"
+            - label: "Scramble Text"
+              value: "SCRAMBLE_TEXT"
+            - label: "Countdown"
+              value: "COUNTDOWN"
+            - label: "Pulse Row"
+              value: "PULSE"
+            - label: "Flash Row"
+              value: "FLASH"
+            - label: "Typewriter"
+              value: "TYPEWRITER"
+            - label: "Crossfade Text"
+              value: "CROSSFADE_TEXT"
+            - label: "Scanner"
+              value: "SCANNER"
+            - label: "Bar Graph"
+              value: "BAR_GRAPH"
+    top_text_to_display:
+      name: "[Top Row] Text to Display"
+      description: "Text for the effect. Supports templates."
+      default: ""
+    top_entity_to_display:
+      name: "[Top Row] Entity to Display (Optional)"
+      description: "If selected, its state will be used as the text."
+      selector:
+        entity: {}
+    top_prefix:
+      name: "[Top Row] Entity Prefix"
+      description: "Optional text to display before the sensor value."
+      default: ""
+    top_postfix:
+      name: "[Top Row] Entity Postfix"
+      description: "Optional text to display after the sensor value."
+      default: ""
+    top_speed:
+      name: "[Top Row] Speed/Delay (ms)"
+      description: "Flicker/character speed for Marquee, Scramble, Typewriter."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    top_reveal_delay:
+      name: "[Top Row] Scramble Reveal Delay (ms)"
+      description: "Delay between each character locking in."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    top_crossfade_duration:
+      name: "[Top Row] Crossfade Duration (ms)"
+      description: "Duration of the fade in/out effect."
+      default: 1000
+      selector:
+        number:
+          min: 100
+          max: 5000
+          unit_of_measurement: "ms"
+    top_start_number:
+      name: "[Top Row] Countdown Start Number"
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 9999
+    top_countdown_delay:
+      name: "[Top Row] Countdown Delay (ms)"
+      default: 1000
+      selector:
+        number:
+          min: 50
+          max: 5000
+          unit_of_measurement: "ms"
+    top_end_text:
+      name: "[Top Row] Countdown End Text"
+      description: "Optional text to display when the countdown finishes."
+      default: ""
+    top_bargraph_percentage:
+      name: "[Top Row] Bar Graph Percentage"
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    top_bargraph_duration:
+      name: "[Top Row] Bar Graph Duration (ms)"
+      default: 2000
+      selector:
+        number:
+          min: 100
+          max: 10000
+          unit_of_measurement: "ms"
+    top_duration:
+      name: "[Top Row] Display Duration (s)"
+      description: "Duration for Set Text, Pulse, Flash, Scanner, and Countdown End Text."
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: "s"
+    top_restore_row:
+      name: "[Top Row] Restore Row After Effect"
+      description: "If enabled, the row will be restored to its previous state."
+      default: true
+      selector:
+        boolean: {}
+
+    # =================================================================================
+    # == MIDDLE ROW (PRESENT TIME)
+    # =================================================================================
+    enable_middle_row:
+      name: "[Middle Row] Enable Track"
+      description: "Enable this track to include it in the animation sequence."
+      default: false
+      selector:
+        boolean: {}
+    middle_effect:
+      name: "[Middle Row] Effect Type"
+      description: "Select the type of effect to generate for the middle row."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - label: "Set Text / Display Sensor"
+              value: "SET_TEXT"
+            - label: "Marquee (Scrolling Text)"
+              value: "MARQUEE"
+            - label: "Scramble Text"
+              value: "SCRAMBLE_TEXT"
+            - label: "Countdown"
+              value: "COUNTDOWN"
+            - label: "Pulse Row"
+              value: "PULSE"
+            - label: "Flash Row"
+              value: "FLASH"
+            - label: "Typewriter"
+              value: "TYPEWRITER"
+            - label: "Crossfade Text"
+              value: "CROSSFADE_TEXT"
+            - label: "Scanner"
+              value: "SCANNER"
+            - label: "Bar Graph"
+              value: "BAR_GRAPH"
+    middle_text_to_display:
+      name: "[Middle Row] Text to Display"
+      description: "Text for the effect. Supports templates."
+      default: ""
+    middle_entity_to_display:
+      name: "[Middle Row] Entity to Display (Optional)"
+      description: "If selected, its state will be used as the text."
+      selector:
+        entity: {}
+    middle_prefix:
+      name: "[Middle Row] Entity Prefix"
+      description: "Optional text to display before the sensor value."
+      default: ""
+    middle_postfix:
+      name: "[Middle Row] Entity Postfix"
+      description: "Optional text to display after the sensor value."
+      default: ""
+    middle_speed:
+      name: "[Middle Row] Speed/Delay (ms)"
+      description: "Flicker/character speed for Marquee, Scramble, Typewriter."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    middle_reveal_delay:
+      name: "[Middle Row] Scramble Reveal Delay (ms)"
+      description: "Delay between each character locking in."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    middle_crossfade_duration:
+      name: "[Middle Row] Crossfade Duration (ms)"
+      description: "Duration of the fade in/out effect."
+      default: 1000
+      selector:
+        number:
+          min: 100
+          max: 5000
+          unit_of_measurement: "ms"
+    middle_start_number:
+      name: "[Middle Row] Countdown Start Number"
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 9999
+    middle_countdown_delay:
+      name: "[Middle Row] Countdown Delay (ms)"
+      default: 1000
+      selector:
+        number:
+          min: 50
+          max: 5000
+          unit_of_measurement: "ms"
+    middle_end_text:
+      name: "[Middle Row] Countdown End Text"
+      description: "Optional text to display when the countdown finishes."
+      default: ""
+    middle_bargraph_percentage:
+      name: "[Middle Row] Bar Graph Percentage"
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    middle_bargraph_duration:
+      name: "[Middle Row] Bar Graph Duration (ms)"
+      default: 2000
+      selector:
+        number:
+          min: 100
+          max: 10000
+          unit_of_measurement: "ms"
+    middle_duration:
+      name: "[Middle Row] Display Duration (s)"
+      description: "Duration for Set Text, Pulse, Flash, Scanner, and Countdown End Text."
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: "s"
+    middle_restore_row:
+      name: "[Middle Row] Restore Row After Effect"
+      description: "If enabled, the row will be restored to its previous state."
+      default: true
+      selector:
+        boolean: {}
+
+    # =================================================================================
+    # == BOTTOM ROW (LAST TIME DEPARTED)
+    # =================================================================================
+    enable_bottom_row:
+      name: "[Bottom Row] Enable Track"
+      description: "Enable this track to include it in the animation sequence."
+      default: false
+      selector:
+        boolean: {}
+    bottom_effect:
+      name: "[Bottom Row] Effect Type"
+      description: "Select the type of effect to generate for the bottom row."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - label: "Set Text / Display Sensor"
+              value: "SET_TEXT"
+            - label: "Marquee (Scrolling Text)"
+              value: "MARQUEE"
+            - label: "Scramble Text"
+              value: "SCRAMBLE_TEXT"
+            - label: "Countdown"
+              value: "COUNTDOWN"
+            - label: "Pulse Row"
+              value: "PULSE"
+            - label: "Flash Row"
+              value: "FLASH"
+            - label: "Typewriter"
+              value: "TYPEWRITER"
+            - label: "Crossfade Text"
+              value: "CROSSFADE_TEXT"
+            - label: "Scanner"
+              value: "SCANNER"
+            - label: "Bar Graph"
+              value: "BAR_GRAPH"
+    bottom_text_to_display:
+      name: "[Bottom Row] Text to Display"
+      description: "Text for the effect. Supports templates."
+      default: ""
+    bottom_entity_to_display:
+      name: "[Bottom Row] Entity to Display (Optional)"
+      description: "If selected, its state will be used as the text."
+      selector:
+        entity: {}
+    bottom_prefix:
+      name: "[Bottom Row] Entity Prefix"
+      description: "Optional text to display before the sensor value."
+      default: ""
+    bottom_postfix:
+      name: "[Bottom Row] Entity Postfix"
+      description: "Optional text to display after the sensor value."
+      default: ""
+    bottom_speed:
+      name: "[Bottom Row] Speed/Delay (ms)"
+      description: "Flicker/character speed for Marquee, Scramble, Typewriter."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    bottom_reveal_delay:
+      name: "[Bottom Row] Scramble Reveal Delay (ms)"
+      description: "Delay between each character locking in."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    bottom_crossfade_duration:
+      name: "[Bottom Row] Crossfade Duration (ms)"
+      description: "Duration of the fade in/out effect."
+      default: 1000
+      selector:
+        number:
+          min: 100
+          max: 5000
+          unit_of_measurement: "ms"
+    bottom_start_number:
+      name: "[Bottom Row] Countdown Start Number"
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 9999
+    bottom_countdown_delay:
+      name: "[Bottom Row] Countdown Delay (ms)"
+      default: 1000
+      selector:
+        number:
+          min: 50
+          max: 5000
+          unit_of_measurement: "ms"
+    bottom_end_text:
+      name: "[Bottom Row] Countdown End Text"
+      description: "Optional text to display when the countdown finishes."
+      default: ""
+    bottom_bargraph_percentage:
+      name: "[Bottom Row] Bar Graph Percentage"
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    bottom_bargraph_duration:
+      name: "[Bottom Row] Bar Graph Duration (ms)"
+      default: 2000
+      selector:
+        number:
+          min: 100
+          max: 10000
+          unit_of_measurement: "ms"
+    bottom_duration:
+      name: "[Bottom Row] Display Duration (s)"
+      description: "Duration for Set Text, Pulse, Flash, Scanner, and Countdown End Text."
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: "s"
+    bottom_restore_row:
+      name: "[Bottom Row] Restore Row After Effect"
+      description: "If enabled, the row will be restored to its previous state."
+      default: true
+      selector:
+        boolean: {}
+
+mode: single
+
+sequence:
+  - service: mqtt.publish
+    data_template:
+      topic: !input mqtt_topic
+      payload: >
+        {%- macro build_track(target_row, effect, restore_row, text_to_display, entity_to_display, prefix, postfix, speed, reveal_delay, crossfade_duration, start_number, countdown_delay, end_text, bargraph_percentage, bargraph_duration, duration) -%}
+          {%- set ns = namespace(final_text=text_to_display) -%}
+          {%- if entity_to_display and states(entity_to_display) -%}
+            {%- set ns.final_text = prefix ~ states(entity_to_display) ~ postfix -%}
+          {%- endif -%}
+
+          {%- set command = {'command': effect, 'targetRow': target_row, 'targetSegment': -1} -%}
+          {%- if effect == 'SET_TEXT' -%}
+            {%- do command.update({'stringParam': ns.final_text}) -%}
+          {%- elif effect in ['MARQUEE', 'SCRAMBLE_TEXT', 'TYPEWRITER', 'CROSSFADE_TEXT', 'BAR_GRAPH'] -%}
+            {%- do command.update({'stringParam': text_to_display}) -%}
+          {%- endif -%}
+
+          {%- if effect == 'MARQUEE' or effect == 'TYPEWRITER' -%}
+            {%- do command.update({'intParam': speed}) -%}
+          {%- elif effect == 'SCRAMBLE_TEXT' -%}
+            {%- do command.update({'intParam': speed, 'intParam2': reveal_delay}) -%}
+          {%- elif effect == 'COUNTDOWN' -%}
+            {%- do command.update({'intParam': start_number, 'intParam2': countdown_delay}) -%}
+          {%- elif effect == 'PULSE' or effect == 'FLASH' -%}
+            {%- do command.update({'intParam': duration * 1000}) -%}
+          {%- elif effect == 'CROSSFADE_TEXT' -%}
+            {%- do command.update({'intParam': crossfade_duration}) -%}
+          {%- elif effect == 'BAR_GRAPH' -%}
+            {%- do command.update({'intParam': bargraph_percentage, 'intParam2': bargraph_duration}) -%}
+          {%- endif -%}
+
+          {%- set steps = [command] -%}
+
+          {%- if restore_row -%}
+            {%- set wait = namespace(duration=0) -%}
+            {%- if effect == 'MARQUEE' -%}
+              {%- set wait.duration = speed * (ns.final_text | length + 26) -%}
+            {%- elif effect == 'SCRAMBLE_TEXT' -%}
+              {%- set wait.duration = (reveal_delay * (text_to_display | length + 1)) -%}
+            {%- elif effect == 'TYPEWRITER' -%}
+              {%- set wait.duration = (speed * (text_to_display | length)) + 1000 -%}
+            {%- elif effect == 'CROSSFADE_TEXT' -%}
+              {%- set wait.duration = crossfade_duration * 2 -%}
+            {%- elif effect == 'BAR_GRAPH' -%}
+              {%- set wait.duration = bargraph_duration -%}
+            {%- elif effect == 'COUNTDOWN' -%}
+              {%- set steps = steps + [{"command": "WAIT", "intParam": countdown_delay}] -%}
+              {%- if end_text != "" -%}
+                {%- set steps = steps + [{"command": "SET_TEXT", "targetRow": target_row, "targetSegment": -1, "stringParam": end_text}] -%}
+                {%- set wait.duration = duration * 1000 -%}
+              {%- endif -%}
+            {%- elif effect in ['SET_TEXT', 'SCANNER'] -%}
+              {%- set wait.duration = duration * 1000 -%}
+            {%- endif -%}
+
+            {%- if wait.duration > 0 -%}
+              {%- set steps = steps + [{"command": "WAIT", "intParam": wait.duration | int }] -%}
+            {%- endif -%}
+            {%- set steps = steps + [{"command": "RESTORE_ROW", "targetRow": target_row}] -%}
+          {%- endif -%}
+          {{- steps -}}
+        {%- endmacro -%}
+
+        {%- set all_tracks = [] -%}
+
+        {%- if enable_top_row -%}
+          {%- set top_track = build_track('TOP', top_effect, top_restore_row, top_text_to_display, top_entity_to_display, top_prefix, top_postfix, top_speed, top_reveal_delay, top_crossfade_duration, top_start_number, top_countdown_delay, top_end_text, top_bargraph_percentage, top_bargraph_duration, top_duration) | from_yaml -%}
+          {%- if top_track -%}{%- do all_tracks.append(top_track) -%}{%- endif -%}
+        {%- endif -%}
+
+        {%- if enable_middle_row -%}
+          {%- set middle_track = build_track('MIDDLE', middle_effect, middle_restore_row, middle_text_to_display, middle_entity_to_display, middle_prefix, middle_postfix, middle_speed, middle_reveal_delay, middle_crossfade_duration, middle_start_number, middle_countdown_delay, middle_end_text, middle_bargraph_percentage, middle_bargraph_duration, middle_duration) | from_yaml -%}
+          {%- if middle_track -%}{%- do all_tracks.append(middle_track) -%}{%- endif -%}
+        {%- endif -%}
+
+        {%- if enable_bottom_row -%}
+          {%- set bottom_track = build_track('BOTTOM', bottom_effect, bottom_restore_row, bottom_text_to_display, bottom_entity_to_display, bottom_prefix, bottom_postfix, bottom_speed, bottom_reveal_delay, bottom_crossfade_duration, bottom_start_number, bottom_countdown_delay, bottom_end_text, bottom_bargraph_percentage, bottom_bargraph_duration, bottom_duration) | from_yaml -%}
+          {%- if bottom_track -%}{%- do all_tracks.append(bottom_track) -%}{%- endif -%}
+        {%- endif -%}
+
+        {{ {'tracks': all_tracks} | to_json }}

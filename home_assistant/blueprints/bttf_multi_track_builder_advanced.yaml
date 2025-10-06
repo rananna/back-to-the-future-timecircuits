@@ -1,10 +1,9 @@
 blueprint:
-  name: BTTF Time Circuits - Multi-Track Sequence Builder
+  name: BTTF Time Circuits - Advanced Multi-Track Builder (JSON)
   description: >-
-    The ultimate power-user blueprint for creating complex, parallel animations.
-    Define a sequence of commands for each of the three display rows (tracks) to run simultaneously.
-    This blueprint is for advanced users comfortable with the device's sequencer commands. For the full command reference,
-    see the developer documentation.
+    [ADVANCED] A power-user blueprint for creating complex, parallel animations by writing raw JSON command arrays.
+    For a user-friendly form-based experience, the "Scene Builder" blueprint is recommended for most use cases.
+    This blueprint is for advanced users who need to use complex templates or dynamic JSON generation.
   domain: script
   input:
     mqtt_topic:

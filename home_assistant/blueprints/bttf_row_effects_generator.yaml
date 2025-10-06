@@ -1,9 +1,9 @@
 blueprint:
-  name: BTTF Time Circuits - Universal Effect Generator
+  name: BTTF Time Circuits - Row Effects Generator
   description: >-
-    A universal script generator for creating a wide variety of single-track visual effects and text displays.
-    Select an effect type, and only the relevant options will appear. This blueprint consolidates the functionality
-    of several older blueprints into one easy-to-use tool.
+    A script generator for creating a wide variety of visual effects on a single display row.
+    Select an effect type, and only the relevant options will appear. This is the primary tool for
+    notifications and single-row animations.
   domain: script
   input:
     mqtt_topic:
