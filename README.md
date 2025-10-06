@@ -47,14 +47,8 @@ This project has deep integration with Home Assistant, allowing you to control t
 
 ### Sequencer Blueprints
 
-To make creating custom animations as easy as possible, this project now includes a comprehensive library of Home Assistant script blueprints. These blueprints provide a user-friendly UI to generate animation sequences without needing to write any code.
+To make creating custom animations as easy as possible, this project includes a comprehensive library of Home Assistant script blueprints. These blueprints provide a user-friendly UI to generate complex animation sequences without needing to write any code.
 
-**[Click here to view the documentation and available blueprints](./home_assistant/blueprints/README.md)**
-
-This library includes blueprints for:
-- Simple text and marquee effects
-- Displaying sensor values and dynamic text from helpers
-- Triggering built-in cinematic animations
-- Advanced multi-track sequences
+**[Click here to view the full list of blueprints and their documentation.](./home_assistant/blueprints/README.md)**
 
 We highly recommend using these blueprints to get the most out of your device.
