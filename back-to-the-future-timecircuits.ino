@@ -155,7 +155,6 @@ void startAudioStream(const char* url, bool is_tts);
 void stopAudioStream();
 void wifiManagerTask(void *pvParameters);
 void updateDisplaySegment(int row, int segment, const std::string& text);
-void handleScheduledAnimation();
 
 // --- GLOBAL DATA STRUCTURES & SETTINGS ---
 
@@ -198,7 +197,6 @@ volatile bool webServerRestartRequired = false;
 bool isDisplayAsleep = false;
 unsigned long bootStateStartTime = 0;
 unsigned long lastPresetCycleTime = 0;
-unsigned long lastScheduledAnimationTime = 0;
 bool isEchoEffectActive = false;
 unsigned long echoEffectStartTime = 0;
 unsigned long lastEchoCheckTime = 0;
@@ -459,7 +457,6 @@ void applySettingsFromJson(const JsonObject& obj) {
     bool oldSoundToggle = currentSettings.timeTravelSoundToggle;
     bool old24hFormat = currentSettings.displayFormat24h;
     uint8_t oldBrightness = currentSettings.brightness;
-    int oldAnimInterval = currentSettings.timeTravelAnimationInterval;
     int oldAnimDuration = currentSettings.timeTravelAnimationDuration;
     int oldStockRefresh = currentSettings.stockRefreshInterval;
 
@@ -498,7 +495,6 @@ void applySettingsFromJson(const JsonObject& obj) {
         applyBrightness();
     }
     validateAndSet("timeTravelAnimationDuration", currentSettings.timeTravelAnimationDuration, 0, 30000);
-    validateAndSet("timeTravelAnimationInterval", currentSettings.timeTravelAnimationInterval, 0, 1440);
     int tempAnimationStyle = currentSettings.animationStyle;
     validateAndSet("animationStyle", tempAnimationStyle, 0, 27);
     currentSettings.animationStyle = (AnimationType)tempAnimationStyle;
@@ -674,10 +670,6 @@ void applySettingsFromJson(const JsonObject& obj) {
         publishBrightness(currentSettings.brightness);
     }
 
-    if (oldAnimInterval != currentSettings.timeTravelAnimationInterval) {
-        publishAnimationInterval(currentSettings.timeTravelAnimationInterval);
-    }
-
     if (oldAnimDuration != currentSettings.timeTravelAnimationDuration) {
         publishAnimationDuration(currentSettings.timeTravelAnimationDuration);
     }
@@ -713,7 +705,6 @@ void saveSettings() {
     preferences.putBool("soundToggle", currentSettings.timeTravelSoundToggle);
     preferences.putInt("presTzIndex", currentSettings.presentTimezoneIndex);
     preferences.putBool("format24h", currentSettings.displayFormat24h);
-    preferences.putInt("animInterval", currentSettings.timeTravelAnimationInterval);
     preferences.putString("mqttBroker", currentSettings.mqttBroker.c_str());
     preferences.putInt("mqttPort", currentSettings.mqttPort);
     preferences.putString("mqttUser", currentSettings.mqttUser.c_str());
@@ -803,7 +794,6 @@ void loadSettings() {
         currentSettings.presetCycleInterval = 10;
         currentSettings.displayFormat24h = false;
         currentSettings.theme = THEME_TIME_CIRCUITS;
-        currentSettings.timeTravelAnimationInterval = 15;
         currentSettings.timeTravelAnimationDuration = 4000;
         currentSettings.animationStyle = ANIMATION_SEQUENTIAL_FLICKER;
         currentSettings.animationSequence = ANIMATION_RANDOMIZE_ALL;
@@ -1454,7 +1444,6 @@ void loop() {
             }
             // --- END: MODIFICATION ---
 
-            handleScheduledAnimation();
             static unsigned long lastNtpUpdate = 0;
             if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
                 if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
@@ -1658,27 +1647,6 @@ void handlePresetCycling() {
     }
 }
 
-/**
- * @brief Checks if a scheduled time travel animation should be triggered.
- * @details This function is called in the main loop and uses the
- * `timeTravelAnimationInterval` setting to automatically start the
- * animation sequence after the specified number of minutes.
- */
-void handleScheduledAnimation() {
-    if (currentSettings.timeTravelAnimationInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating || isAnySequenceActive()) {
-        return;
-    }
-
-    // NEW: Reset the timer once right after the boot sequence completes.
-    if (lastScheduledAnimationTime == 0 && bootState == BOOT_INACTIVE) {
-        lastScheduledAnimationTime = millis();
-    }
-
-    if (lastScheduledAnimationTime > 0 && (millis() - lastScheduledAnimationTime > (unsigned long)currentSettings.timeTravelAnimationInterval * 60000)) {
-        startStyledAnimation();
-        lastScheduledAnimationTime = millis();
-    }
-}
 
 void handleSleepSchedule() {
   if (!timeSynchronized || isAnySequenceActive()) return;

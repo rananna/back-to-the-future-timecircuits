@@ -51,8 +51,6 @@ extern bool bootSequenceCompleted;
 // --- Function Declarations for animations and effects ---
 void startTimeTravelAnimation();
 void handleDisplayAnimation();
-void startStyledAnimation();
-void handleStyledAnimation();
 void handleTemporalEcho();
 void runBootSequence();
 void handleBootSequence();
