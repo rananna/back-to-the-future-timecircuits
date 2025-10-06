@@ -273,6 +273,8 @@ async function applySettings(timecircuits, temporal, datalink) {
             // Add a guard clause to ensure the select has options before setting the value
             if (sequenceSelect && sequenceSelect.options.length > 1) {
                 sequenceSelect.value = temporal.animationSequence;
+                // --- NEW: Dispatch a change event to ensure UI consistency ---
+                sequenceSelect.dispatchEvent(new Event('change'));
             }
         }
         // --- END: MODIFICATION ---
