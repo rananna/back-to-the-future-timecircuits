@@ -1631,11 +1631,11 @@ void triggerAnimation(AnimationType animType) {
         return;
     }
 
-    // Generate the requested animation into the temporary heap-allocated tracks.
-    generateAnimationSequence(animType, temp_tracks);
-
     // Stop ALL currently running tracks to prepare for the new animation.
     stopAllSequences();
+
+    // Generate the requested animation into the temporary heap-allocated tracks.
+    generateAnimationSequence(animType, temp_tracks);
 
     // Copy the steps from ALL generated tracks to the main sequencer tracks.
     for (int j = 0; j < 3; ++j) {
