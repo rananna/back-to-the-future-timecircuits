@@ -12,16 +12,16 @@ blueprint:
       default: "bttf-time-circuits/cmnd/sequencer"
     target_row:
       name: Target Row
-      description: The display row to show the effect on.
+      description: The display row to run the effect on.
       selector:
         select:
           options:
             - label: "Top (Destination Time)"
-              value: "TOP"
+              value: 0
             - label: "Middle (Present Time)"
-              value: "MIDDLE"
+              value: 1
             - label: "Bottom (Last Time Departed)"
-              value: "BOTTOM"
+              value: 2
     effect:
       name: Effect Type
       description: "Select the type of effect to generate. Based on your selection, different options will appear below."
@@ -166,19 +166,21 @@ sequence:
       topic: !input mqtt_topic
       payload: >
         {%- set ns = namespace(final_text=text_to_display) -%}
-        {%- if entity_to_display -%}
+        {%- if entity_to_display and entity_to_display != 'binary_sensor.time_circuits_is_online' -%}
           {%- set ns.final_text = prefix ~ states(entity_to_display) ~ postfix -%}
         {%- endif -%}
 
-        {#- Step 1: Build the primary command -#}
-        {%- set command = {'command': effect, 'targetRow': target_row, 'targetSegment': -1} -%}
+        {#- Step 1: Build the primary command. It does NOT include targetRow, which is added later. -#}
+        {%- set command = {'command': effect, 'targetSegment': -1} -%}
+
+        {#- Add text parameter if used by the effect -#}
         {%- if effect == 'SET_TEXT' -%}
           {%- do command.update({'stringParam': ns.final_text}) -%}
         {%- elif effect in ['MARQUEE', 'SCRAMBLE_TEXT', 'TYPEWRITER', 'CROSSFADE_TEXT', 'BAR_GRAPH'] -%}
           {%- do command.update({'stringParam': text_to_display}) -%}
         {%- endif -%}
 
-        {#- Add effect-specific parameters -#}
+        {#- Add effect-specific numeric/timing parameters -#}
         {%- if effect == 'MARQUEE' or effect == 'TYPEWRITER' -%}
           {%- do command.update({'intParam': speed}) -%}
         {%- elif effect == 'SCRAMBLE_TEXT' -%}
@@ -193,15 +195,15 @@ sequence:
           {%- do command.update({'intParam': bargraph_percentage, 'intParam2': bargraph_duration}) -%}
         {%- endif -%}
 
-        {%- set steps = [command] -%}
+        {%- set commands = [command] -%}
 
-        {#- Step 2: Add WAIT and RESTORE_ROW commands if needed -#}
+        {#- Step 2: Add subsequent commands like WAIT and RESTORE_ROW if needed -#}
         {%- if restore_row -%}
           {%- set wait = namespace(duration=0) -%}
 
-          {#- A. Blocking commands with built-in duration (PULSE, FLASH) don't need a separate WAIT step. -#}
+          {#- A. Blocking commands with a built-in duration (PULSE, FLASH) don't need a separate WAIT step. -#}
 
-          {#- B. Commands that need a calculated WAIT duration. -#}
+          {#- B. Commands that need a calculated WAIT duration because the device doesn't know when they will end. -#}
           {%- if effect == 'MARQUEE' -%}
             {%- set wait.duration = speed * (ns.final_text | length + 26) -%}
           {%- elif effect == 'SCRAMBLE_TEXT' -%}
@@ -213,28 +215,28 @@ sequence:
           {%- elif effect == 'BAR_GRAPH' -%}
             {%- set wait.duration = bargraph_duration -%}
 
-          {#- C. Commands with special multi-step logic. -#}
+          {#- C. Commands with special multi-step logic (like displaying text after a countdown). -#}
           {%- elif effect == 'COUNTDOWN' -%}
-            {#- The COUNTDOWN command is blocking. Wait for the final number to display. -#}
-            {%- set steps = steps + [{"command": "WAIT", "intParam": countdown_delay}] -%}
-            {#- If there is end text, display it and wait again. -#}
+            {#- The COUNTDOWN command is blocking, so no WAIT is needed for the countdown itself. -#}
+            {#- If there is end text, add a command to display it, then wait for the user-defined duration. -#}
             {%- if end_text != "" -%}
-              {%- set steps = steps + [{"command": "SET_TEXT", "targetRow": target_row, "targetSegment": -1, "stringParam": end_text}] -%}
+              {%- set commands = commands + [{"command": "SET_TEXT", "targetSegment": -1, "stringParam": end_text}] -%}
               {%- set wait.duration = duration * 1000 -%}
             {%- endif -%}
 
-          {#- D. Commands that use the manual duration input. -#}
+          {#- D. Commands that use the simple manual duration input. -#}
           {%- elif effect in ['SET_TEXT', 'SCANNER'] -%}
             {%- set wait.duration = duration * 1000 -%}
           {%- endif -%}
 
-          {#- Add the main WAIT step if a duration was calculated/set -#}
+          {#- Add the main WAIT step if a duration was calculated or set above. -#}
           {%- if wait.duration > 0 -%}
-            {%- set steps = steps + [{"command": "WAIT", "intParam": wait.duration | int }] -%}
+            {%- set commands = commands + [{"command": "WAIT", "intParam": wait.duration | int }] -%}
           {%- endif -%}
 
-          {#- Step 3: Add the final restore command -#}
-          {%- set steps = steps + [{"command": "RESTORE_ROW", "targetRow": target_row}] -%}
+          {#- Step 3: Add the final restore command. It does not need a targetRow. -#}
+          {%- set commands = commands + [{"command": "RESTORE_ROW"}] -%}
         {%- endif -%}
 
-        {{ {"tracks": [steps]} | to_json }}
+        {#- Step 4: Assemble the final JSON payload. It must be an array containing one track object. -#}
+        {{ [{"targetRow": target_row, "commands": commands}] | to_json }}
