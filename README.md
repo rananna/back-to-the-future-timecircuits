@@ -55,6 +55,15 @@ This project features a native Home Assistant integration that provides a seamle
 **➡️ For full setup instructions, see the [Home Assistant Integration Guide](docs/user-guide/home-assistant.md).**
 
 ---
+## 💬 Community & Support
+
+Have a question, found a bug, or have a great idea for a new feature? We'd love to hear from you!
+
+-   **Report a Bug:** If you've found a bug, please [open an issue](https://github.com/rananna/back-to-the-future-timecircuits/issues/new?template=bug_report.md) and provide as much detail as possible.
+-   **Request a Feature:** If you have an idea for a new feature, please [open an issue](https://github.com/rananna/back-to-the-future-timecircuits/issues/new?template=feature_request.md) to start a discussion.
+-   **Ask a Question:** For general questions and support, please [start a discussion](https://github.com/rananna/back-to-the-future-timecircuits/discussions) on our community forum.
+
+---
 ## 🤝 Contributing
 
 Contributions are welcome! Whether you're fixing a bug, adding a new feature, or improving the documentation, your help is appreciated.
