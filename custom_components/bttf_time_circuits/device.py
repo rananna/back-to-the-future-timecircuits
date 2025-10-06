@@ -109,10 +109,7 @@ class BTTFTimeCircuitsDevice:
 
         user_cmd = command.get("command")
         if not user_cmd or user_cmd.lower() not in COMMAND_MAP:
-            # _LOGGER is defined in __init__.py, but we can't access it here.
-            # Let's use the logging module directly.
-            import logging
-            logging.getLogger(__name__).warning("Skipping unknown sequence command: %s", user_cmd)
+            _LOGGER.warning("Skipping unknown sequence command: %s", user_cmd)
             return None
 
         firmware_cmd = {"command": COMMAND_MAP[user_cmd.lower()]}
@@ -125,16 +122,14 @@ class BTTFTimeCircuitsDevice:
         elif firmware_cmd["command"] in ["SOUND", "MARQUEE"]:
             param = command.get("effect") or command.get("sound") or command.get("text")
             if not param:
-                import logging
-                logging.getLogger(__name__).warning("Command '%s' requires an 'effect' or 'text' parameter.", user_cmd)
+                _LOGGER.warning("Command '%s' requires an 'effect' or 'text' parameter.", user_cmd)
                 return None
             firmware_cmd["stringParam"] = str(param)
 
         elif firmware_cmd["command"] in ["FLASH", "PULSE"]:
             segment_name = command.get("segment")
             if not segment_name or segment_name.lower() not in SEGMENT_MAP:
-                import logging
-                logging.getLogger(__name__).warning("Command '%s' requires a valid 'segment' parameter.", user_cmd)
+                _LOGGER.warning("Command '%s' requires a valid 'segment' parameter.", user_cmd)
                 return None
 
             firmware_cmd["targetSegment"] = SEGMENT_MAP[segment_name.lower()]
@@ -148,10 +143,7 @@ class BTTFTimeCircuitsDevice:
         """Handle the run_sequence service call."""
         sequence = call.data.get("sequence")
         if not isinstance(sequence, list):
-            # _LOGGER is defined in __init__.py, but we can't access it here.
-            # Let's use the logging module directly.
-            import logging
-            logging.getLogger(__name__).error("The 'sequence' must be a list of commands.")
+            _LOGGER.error("The 'sequence' must be a list of commands.")
             return
 
         translated_commands = []
@@ -162,8 +154,7 @@ class BTTFTimeCircuitsDevice:
             command_name = user_command.get("command")
 
             if command_name == "message":
-                import logging
-                logging.getLogger(__name__).warning(
+                _LOGGER.warning(
                     "The 'message' command is not supported in a sequence. "
                     "Use the 'text.set_value' or 'bttf_time_circuits.set_status_display' "
                     "service to set display text directly."
@@ -178,8 +169,7 @@ class BTTFTimeCircuitsDevice:
                 translated_commands.append(translated)
 
         if not translated_commands:
-            import logging
-            logging.getLogger(__name__).warning("Sequence contained no valid commands to execute.")
+            _LOGGER.warning("Sequence contained no valid commands to execute.")
             return
 
         target_row = call.data.get("target_row", 2)
