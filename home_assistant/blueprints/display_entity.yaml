@@ -1,0 +1,111 @@
+blueprint:
+  name: "BTTF Time Circuits: Display Entity"
+  description: >-
+    A simple blueprint for displaying the state of a Home Assistant entity on one of the Time Circuits rows.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT Topic
+      description: The MQTT topic to publish the sequencer command to.
+      default: "bttf-time-circuits/cmnd/sequencer"
+    target_row:
+      name: Target Row
+      description: "The display row to show the entity state on."
+      default: "TOP"
+      selector:
+        select:
+          options:
+            - label: "Top Row (Destination Time)"
+              value: "TOP"
+            - label: "Middle Row (Present Time)"
+              value: "MIDDLE"
+            - label: "Bottom Row (Last Time Departed)"
+              value: "BOTTOM"
+    entity_to_display:
+      name: "Entity to Display"
+      description: "The entity whose state you want to display."
+      selector:
+        entity: {}
+    prefix:
+      name: "Prefix"
+      description: "Optional text to display before the entity's value (e.g., 'Temp: ')."
+      default: ""
+    postfix:
+      name: "Postfix"
+      description: "Optional text to display after the entity's value (e.g., '°C')."
+      default: ""
+    effect:
+      name: "Effect Type"
+      description: "The visual effect to use for the message."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - label: "Set Text (Static)"
+              value: "SET_TEXT"
+            - label: "Marquee (Scrolling Text)"
+              value: "MARQUEE"
+            - label: "Pulse"
+              value: "PULSE"
+            - label: "Flash"
+              value: "FLASH"
+    duration:
+      name: "Display Duration (s)"
+      description: "Duration for Set Text, Pulse, and Flash effects."
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: "s"
+    marquee_speed:
+      name: "Marquee Speed (ms)"
+      description: "The scroll speed for the marquee effect. Lower is faster."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    restore_row:
+      name: "Restore Row After Effect"
+      description: "If enabled, the row will be restored to its previous state."
+      default: true
+      selector:
+        boolean: {}
+
+mode: single
+
+sequence:
+  - service: mqtt.publish
+    data_template:
+      topic: !input mqtt_topic
+      payload: >
+        {%- set text_to_display = prefix ~ states(entity_to_display) ~ postfix -%}
+        {%- set command = {'command': effect, 'targetSegment': -1, 'stringParam': text_to_display} -%}
+        {%- set commands = [] -%}
+
+        {%- if effect == 'MARQUEE' -%}
+          {%- do command.update({'intParam': marquee_speed}) -%}
+        {%- elif effect in ['PULSE', 'FLASH'] -%}
+          {%- do command.update({'intParam': duration * 1000}) -%}
+        {%- endif -%}
+
+        {%- set commands = commands + [command] -%}
+
+        {%- if restore_row -%}
+          {%- set wait_duration = namespace(ms=0) -%}
+          {%- if effect == 'MARQUEE' -%}
+            {%- set wait_duration.ms = marquee_speed * (text_to_display | length + 26) -%}
+          {%- elif effect == 'SET_TEXT' -%}
+            {%- set wait_duration.ms = duration * 1000 -%}
+          {%- endif -%}
+
+          {%- if wait_duration.ms > 0 -%}
+            {%- set commands = commands + [{'command': 'WAIT', 'intParam': wait_duration.ms | int}] -%}
+          {%- endif -%}
+
+          {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
+        {%- endif -%}
+
+        {{ {'tracks': [{'targetRow': target_row, 'commands': commands}]} | to_json }}
