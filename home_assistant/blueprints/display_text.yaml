@@ -88,7 +88,7 @@ sequence:
           {%- set wait_duration = namespace(ms=0) -%}
           {%- if effect == 'MARQUEE' -%}
             {%- set wait_duration.ms = marquee_speed * (text_to_display | length + 26) -%}
-          {%- elif effect == 'SET_TEXT' -%}
+          {%- elif effect in ['SET_TEXT', 'PULSE', 'FLASH'] -%}
             {%- set wait_duration.ms = duration * 1000 -%}
           {%- endif -%}
 
