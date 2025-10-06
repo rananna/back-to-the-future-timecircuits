@@ -1,0 +1,240 @@
+blueprint:
+  name: BTTF Time Circuits - Universal Effect Generator
+  description: >-
+    A universal script generator for creating a wide variety of single-track visual effects and text displays.
+    Select an effect type, and only the relevant options will appear. This blueprint consolidates the functionality
+    of several older blueprints into one easy-to-use tool.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT Topic
+      description: The MQTT topic to publish the sequencer command to.
+      default: "bttf-time-circuits/cmnd/sequencer"
+    target_row:
+      name: Target Row
+      description: The display row to show the effect on.
+      selector:
+        select:
+          options:
+            - label: "Top (Destination Time)"
+              value: "TOP"
+            - label: "Middle (Present Time)"
+              value: "MIDDLE"
+            - label: "Bottom (Last Time Departed)"
+              value: "BOTTOM"
+    effect:
+      name: Effect Type
+      description: "Select the type of effect to generate. Based on your selection, different options will appear below."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - label: "Set Text / Display Sensor"
+              value: "SET_TEXT"
+            - label: "Marquee (Scrolling Text)"
+              value: "MARQUEE"
+            - label: "Scramble Text"
+              value: "SCRAMBLE_TEXT"
+            - label: "Countdown"
+              value: "COUNTDOWN"
+            - label: "Pulse Row"
+              value: "PULSE"
+            - label: "Flash Row"
+              value: "FLASH"
+            - label: "Typewriter"
+              value: "TYPEWRITER"
+            - label: "Crossfade Text"
+              value: "CROSSFADE_TEXT"
+            - label: "Scanner"
+              value: "SCANNER"
+            - label: "Bar Graph"
+              value: "BAR_GRAPH"
+
+    # --- Text/Entity Inputs (conditionally used) ---
+    text_to_display:
+      name: Text to Display
+      description: "Text for the effect. Used by Set Text, Marquee, Scramble, Typewriter, Crossfade, and Bar Graph (as overlay). Supports templates."
+      default: ""
+    entity_to_display:
+      name: "[Set Text] Entity to Display (Optional)"
+      description: "If you select an entity, its state will be used as the text, overriding the 'Text to Display' field above."
+      selector:
+        entity: {}
+    prefix:
+      name: "[Set Text] Entity Prefix"
+      description: "Optional text to display before the sensor value (e.g., 'Temp: ')."
+      default: ""
+    postfix:
+      name: "[Set Text] Entity Postfix"
+      description: "Optional text to display after the sensor value (e.g., '°C')."
+      default: ""
+
+    # --- Timing and Animation Parameters (conditionally used) ---
+    speed:
+      name: "[Marquee/Scramble/Typewriter] Speed/Delay (ms)"
+      description: "Marquee/Scramble: Flicker speed. Typewriter: Delay between characters. Lower is faster."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    reveal_delay:
+      name: "[Scramble] Reveal Delay (ms)"
+      description: "Delay between each character locking in. Lower is faster."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
+    crossfade_duration:
+      name: "[Crossfade] Duration (ms)"
+      description: "The duration of the fade in/out effect."
+      default: 1000
+      selector:
+        number:
+          min: 100
+          max: 5000
+          unit_of_measurement: "ms"
+
+    # --- Countdown Parameters ---
+    start_number:
+      name: "[Countdown] Start Number"
+      description: "The number to start counting down from."
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 9999
+    countdown_delay:
+      name: "[Countdown] Countdown Delay (ms)"
+      description: "The delay between each number change. 1000ms = 1 second."
+      default: 1000
+      selector:
+        number:
+          min: 50
+          max: 5000
+          unit_of_measurement: "ms"
+    end_text:
+      name: "[Countdown] End Text"
+      description: "Optional text to display when the countdown finishes."
+      default: ""
+
+    # --- Bar Graph Parameters ---
+    bargraph_percentage:
+      name: "[Bar Graph] Starting Percentage"
+      description: "The percentage (0-100) at which the bar graph should start."
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    bargraph_duration:
+      name: "[Bar Graph] Animation Duration (ms)"
+      description: "The total time for the bar graph animation to complete."
+      default: 2000
+      selector:
+        number:
+          min: 100
+          max: 10000
+          unit_of_measurement: "ms"
+
+    # --- General Duration & Restore ---
+    duration:
+      name: Display Duration (seconds)
+      description: "How long the effect should be visible before restoring. Used by Set Text, Pulse, Flash, Scanner, and Countdown End Text."
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: "s"
+    restore_row:
+      name: Restore Row After Effect
+      description: "If enabled, the row will be restored to its previous state after the effect finishes."
+      default: true
+      selector:
+        boolean: {}
+
+mode: single
+
+sequence:
+  - service: mqtt.publish
+    data_template:
+      topic: !input mqtt_topic
+      payload: >
+        {%- set ns = namespace(final_text=text_to_display) -%}
+        {%- if entity_to_display -%}
+          {%- set ns.final_text = prefix ~ states(entity_to_display) ~ postfix -%}
+        {%- endif -%}
+
+        {#- Step 1: Build the primary command -#}
+        {%- set command = {'command': effect, 'targetRow': target_row, 'targetSegment': -1} -%}
+        {%- if effect == 'SET_TEXT' -%}
+          {%- do command.update({'stringParam': ns.final_text}) -%}
+        {%- elif effect in ['MARQUEE', 'SCRAMBLE_TEXT', 'TYPEWRITER', 'CROSSFADE_TEXT', 'BAR_GRAPH'] -%}
+          {%- do command.update({'stringParam': text_to_display}) -%}
+        {%- endif -%}
+
+        {#- Add effect-specific parameters -#}
+        {%- if effect == 'MARQUEE' or effect == 'TYPEWRITER' -%}
+          {%- do command.update({'intParam': speed}) -%}
+        {%- elif effect == 'SCRAMBLE_TEXT' -%}
+          {%- do command.update({'intParam': speed, 'intParam2': reveal_delay}) -%}
+        {%- elif effect == 'COUNTDOWN' -%}
+          {%- do command.update({'intParam': start_number, 'intParam2': countdown_delay}) -%}
+        {%- elif effect == 'PULSE' or effect == 'FLASH' -%}
+          {%- do command.update({'intParam': duration * 1000}) -%}
+        {%- elif effect == 'CROSSFADE_TEXT' -%}
+          {%- do command.update({'intParam': crossfade_duration}) -%}
+        {%- elif effect == 'BAR_GRAPH' -%}
+          {%- do command.update({'intParam': bargraph_percentage, 'intParam2': bargraph_duration}) -%}
+        {%- endif -%}
+
+        {%- set steps = [command] -%}
+
+        {#- Step 2: Add WAIT and RESTORE_ROW commands if needed -#}
+        {%- if restore_row -%}
+          {%- set wait = namespace(duration=0) -%}
+
+          {#- A. Blocking commands with built-in duration (PULSE, FLASH) don't need a separate WAIT step. -#}
+
+          {#- B. Commands that need a calculated WAIT duration. -#}
+          {%- if effect == 'MARQUEE' -%}
+            {%- set wait.duration = speed * (ns.final_text | length + 26) -%}
+          {%- elif effect == 'SCRAMBLE_TEXT' -%}
+            {%- set wait.duration = (reveal_delay * (text_to_display | length + 1)) -%}
+          {%- elif effect == 'TYPEWRITER' -%}
+            {%- set wait.duration = (speed * (text_to_display | length)) + 1000 -%}
+          {%- elif effect == 'CROSSFADE_TEXT' -%}
+            {%- set wait.duration = crossfade_duration * 2 -%}
+          {%- elif effect == 'BAR_GRAPH' -%}
+            {%- set wait.duration = bargraph_duration -%}
+
+          {#- C. Commands with special multi-step logic. -#}
+          {%- elif effect == 'COUNTDOWN' -%}
+            {#- The COUNTDOWN command is blocking. Wait for the final number to display. -#}
+            {%- set steps = steps + [{"command": "WAIT", "intParam": countdown_delay}] -%}
+            {#- If there is end text, display it and wait again. -#}
+            {%- if end_text != "" -%}
+              {%- set steps = steps + [{"command": "SET_TEXT", "targetRow": target_row, "targetSegment": -1, "stringParam": end_text}] -%}
+              {%- set wait.duration = duration * 1000 -%}
+            {%- endif -%}
+
+          {#- D. Commands that use the manual duration input. -#}
+          {%- elif effect in ['SET_TEXT', 'SCANNER'] -%}
+            {%- set wait.duration = duration * 1000 -%}
+          {%- endif -%}
+
+          {#- Add the main WAIT step if a duration was calculated/set -#}
+          {%- if wait.duration > 0 -%}
+            {%- set steps = steps + [{"command": "WAIT", "intParam": wait.duration | int }] -%}
+          {%- endif -%}
+
+          {#- Step 3: Add the final restore command -#}
+          {%- set steps = steps + [{"command": "RESTORE_ROW", "targetRow": target_row}] -%}
+        {%- endif -%}
+
+        {{ {"tracks": [steps]} | to_json }}
