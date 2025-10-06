@@ -509,6 +509,8 @@ void handleStyledAnimation() {
  * suggesting a temporary instability in the timeline.
  */
 void handleTemporalEcho() {
+    // --- FIX: Do not run this effect if the boot sequence hasn't finished ---
+    if (!bootSequenceCompleted) return;
     if (!isEchoEffectActive || isAnimating || isStyledAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
     if (millis() - echoEffectStartTime > 3000) { // Effect lasts for 3 seconds
