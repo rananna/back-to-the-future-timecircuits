@@ -1,0 +1,82 @@
+blueprint:
+  name: "BTTF Time Circuits: Countdown Timer"
+  description: A blueprint to run a countdown on one of the display rows.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT Topic
+      description: The MQTT topic to publish the sequencer command to.
+      default: "bttf-time-circuits/cmnd/sequencer"
+    target_row:
+      name: Target Row
+      description: "The display row to show the countdown on."
+      default: "TOP"
+      selector:
+        select:
+          options:
+            - label: "Top Row (Destination Time)"
+              value: "TOP"
+            - label: "Middle Row (Present Time)"
+              value: "MIDDLE"
+            - label: "Bottom Row (Last Time Departed)"
+              value: "BOTTOM"
+    start_number:
+      name: "Start Number"
+      description: "The number to start counting down from."
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 9999
+    countdown_delay:
+      name: "Countdown Delay (ms)"
+      description: "The delay between each number change. 1000ms = 1 second."
+      default: 1000
+      selector:
+        number:
+          min: 50
+          max: 5000
+          unit_of_measurement: "ms"
+    end_text:
+      name: "End Text"
+      description: "Optional text to display when the countdown finishes."
+      default: "LIFTOFF"
+    end_text_duration:
+      name: "End Text Display Duration (s)"
+      description: "How long to display the end text for."
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: "s"
+    restore_row:
+      name: "Restore Row After Effect"
+      description: "If enabled, the row will be restored to its previous state."
+      default: true
+      selector:
+        boolean: {}
+
+mode: single
+
+sequence:
+  - service: mqtt.publish
+    data_template:
+      topic: !input mqtt_topic
+      payload: >
+        {%- set commands = [] -%}
+        {%- set countdown_command = {'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_number, 'intParam2': countdown_delay} -%}
+        {%- set commands = commands + [countdown_command] -%}
+
+        {%- if end_text != "" -%}
+          {%- set end_text_command = {'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': end_text} -%}
+          {%- set commands = commands + [end_text_command] -%}
+          {%- set wait_command = {'command': 'WAIT', 'intParam': end_text_duration * 1000} -%}
+          {%- set commands = commands + [wait_command] -%}
+        {%- endif -%}
+
+        {%- if restore_row -%}
+          {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
+        {%- endif -%}
+
+        {{ {'tracks': [{'targetRow': target_row, 'commands': commands}]} | to_json }}
