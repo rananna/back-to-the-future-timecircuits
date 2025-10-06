@@ -6,11 +6,11 @@ This project features a native Home Assistant integration that provides a seamle
 1. [Features](#-features)
 2. [Prerequisites](#-prerequisites)
 3. [Setup & Installation](#-setup--installation)
-4. [Core Entities & Controls](#-core-entities--controls)
-5. [Using the Media Player](#-using-the-media-player)
-6. [Sending Notifications](#-sending-notifications)
-7. [Advanced Control via MQTT](#-advanced-control-via-mqtt)
-8. [Powerful Automations with Blueprints](#-powerful-automations-with-blueprints)
+4. [The Easy Way: Using Blueprints](#-the-easy-way-using-blueprints)
+5. [Core Entities & Controls](#-core-entities--controls)
+6. [Using the Media Player](#-using-the-media-player)
+7. [Sending Notifications](#-sending-notifications)
+8. [Advanced Control via MQTT](#-advanced-control-via-mqtt)
 9. [Automation Examples](#-automation-examples)
 10. [Troubleshooting](#troubleshooting)
 
@@ -20,6 +20,7 @@ This project features a native Home Assistant integration that provides a seamle
 The custom component provides a rich, native Home Assistant experience:
 
 *   **Simple Setup**: Add the integration directly from the Home Assistant UI. No more YAML for setup!
+*   **Powerful Blueprints**: A set of pre-built blueprints to easily create custom animations and notifications without writing any code.
 *   **Unified Audio Control**: A single `media_player` entity for playing sound effects, streaming radio, and using Text-to-Speech (TTS).
 *   **Native Notifications**: A built-in `notify` service to easily send alerts and messages to the clock's display.
 *   **Seamless OTA Updates**: An `update` entity that tells you when new firmware is available and lets you install it with one click.
@@ -57,9 +58,24 @@ Your Time Circuits clock will now appear as a new device in Home Assistant, with
 
 ---
 
+## 🤖 The Easy Way: Using Blueprints
+
+For most automations, the easiest and most powerful way to create custom animations and notifications is with our **Home Assistant Blueprints**.
+
+These blueprints provide a simple, form-based UI inside Home Assistant, allowing you to build complex, multi-track animations without writing any code.
+
+**Key Features:**
+*   **User-Friendly Forms**: No more complex JSON or YAML. Just fill out the fields.
+*   **Parallel Animations**: Easily create effects that run on all three display rows at the same time.
+*   **Template Support**: Dynamically display sensor data or other entity states in your messages.
+
+> **To get started, please see the complete [Home Assistant Blueprints Guide](../../home_assistant/blueprints/README.md).**
+
+---
+
 ## 🎮 Core Entities & Controls
 
-The integration creates a device with a rich set of entities to control every aspect of the clock. A few key entities are highlighted below.
+The integration creates a device with a rich set of entities to control every aspect of the clock. You can use these entities in your own automations if you prefer not to use the blueprints.
 
 | Entity Type | Name | Description |
 | :--- | :--- | :--- |
@@ -143,27 +159,13 @@ This is the easiest way to display a temporary message. Use the built-in `notify
 
 ## ⚙️ Advanced Control via MQTT
 
-For the most advanced automations, you can bypass the standard entities and publish directly to the clock's raw MQTT topics. This gives you access to the powerful **Command Sequencer**.
+For the most advanced automations, you can bypass the blueprints and standard entities to publish directly to the clock's raw MQTT topics. This gives you access to the powerful **Command Sequencer**, which allows you to create custom animations and trigger pre-programmed cinematic effects.
 
 *   **Topic**: `bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command`
 *   **Payload**: A string with the name of a built-in animation, or a JSON array for a custom sequence.
 
-> **For a complete guide on the sequencer, including all commands, parameters, and examples, please see the [🤖 Command Sequencer API Reference](./sequencer-api.md).**
+> **For a complete guide on the sequencer, including all commands, parameters, a full list of built-in animation names, and examples, please see the [🤖 Sequencer API Reference](../developer/sequencer-api.md).**
 
-#### **Available Built-in Animations**
-The following named animations can be triggered with a simple string payload.
-
-| Sequence Name | Description |
-| :--- | :--- |
-| `Time Circuits Lock-In` | The classic BTTF effect. All three rows simultaneously scramble and lock in the current time, character by character. |
-| `Lightning` | A chaotic, multi-stage lightning storm effect with loud crackling sounds and intense, random flashes across all displays. |
-| `Scanner` | A Cylon-style red scanner (`---`) that sweeps back and forth across all three display rows in unison. |
-| `Time Travel Tunnel` | Simulates traveling through a time vortex by repeatedly scrolling the current time in from the right on all three rows. |
-| `Flux Capacitor Overload` | All displays pulse with intense energy, simulating a Flux Capacitor overload with a synchronized, slow pulsing effect. |
-| `Fire Trails` | "Burns" the current time onto the display with a fiery `WIPE` effect that reveals the text from left to right on all three rows. |
-| `Sparkle Reveal` | A subtle reveal where the time appears out of a field of sparkling lights. The display flickers with random dots before wiping to reveal the current time. |
-| `Countdown` | Displays "COUNTDOWN" on the middle row, then shows a 10-second countdown (spelling out the numbers), ending with a "LIFTOFF!" marquee. |
-| `System Error` | A system malfunction theme. The top row scrambles to show "ERROR" while the middle row scrolls "SYSTEM MALFUNCTION". |
 
 #### **Example: Triggering a Named Sequence via MQTT**
 This automation triggers the **Intruder Alert** sequence.
@@ -176,28 +178,13 @@ This automation triggers the **Intruder Alert** sequence.
 
 ---
 
-## 🤖 Powerful Automations with Blueprints
-
-While you can control everything with the entities and MQTT topics described above, the easiest and most powerful way to create custom animations and notifications is with our **Home Assistant Blueprints**.
-
-These blueprints provide a simple, form-based UI inside Home Assistant, allowing you to build complex, multi-track animations without writing any code.
-
-**Key Features:**
-*   **User-Friendly Forms**: No more complex JSON or YAML. Just fill out the fields.
-*   **Parallel Animations**: Easily create effects that run on all three display rows at the same time.
-*   **Template Support**: Dynamically display sensor data or other entity states in your messages.
-
-> **To get started, please see the complete [Home Assistant Blueprints Guide](../../home_assistant/blueprints/README.md).**
-
----
-
 ## 💡 Automation Examples
 
-Here are a few ideas to get you started with the new integration.
+Here are a few ideas to get you started.
 
 <details>
 <summary><strong>1. "It's 10:04 PM!" - The Lightning Strike</strong></summary>
-This automation triggers the "Lightning" sequence every night at 10:04 PM, just like in the movie.
+This automation triggers the "Lightning" sequence every night at 10:04 PM, just like in the movie. It uses the advanced `mqtt.publish` service.
 
 ```yaml
 alias: "BTTF - Lightning Strike at 10:04 PM"
@@ -214,7 +201,7 @@ action:
 
 <details>
 <summary><strong>2. "Now Playing" Marquee</strong></summary>
-This automation displays the currently playing song from a media player on the bottom display row.
+This automation displays the currently playing song from a media player on the bottom display row using the standard text entities.
 
 ```yaml
 alias: "BTTF - Now Playing Marquee"
@@ -235,7 +222,7 @@ action:
 
 <details>
 <summary><strong>3. Low Memory Reboot Warning</strong></summary>
-This automation monitors the clock's free memory and, if it gets too low, displays a warning and then safely reboots the device.
+This automation monitors the clock's free memory and, if it gets too low, displays a warning using the `notify` service and then safely reboots the device.
 
 ```yaml
 alias: "BTTF - Low Memory Reboot"

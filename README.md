@@ -13,7 +13,7 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 -   **Powerful Animation Sequencer**: A flexible, built-in animation engine that allows you to create complex, multi-track animations with over 20 different commands.
 -   **Comprehensive Web UI**: An easy-to-use web interface for configuration, preset management, sound control, and triggering animations.
 -   **Full MQTT Control**: A low-level MQTT API that exposes every feature for integration with any smart home system.
--   **Native Home Assistant Integration**: A seamless integration that provides a rich media player, notification services, and dozens of entities for deep automation.
+-   **Native Home Assistant Integration**: Seamless integration with Home Assistant, featuring powerful **Blueprints** that make creating custom animations and notifications incredibly simple.
 -   **Integrated Sound System**: Plays built-in sound effects, streams internet radio, and works with Home Assistant's Text-to-Speech (TTS) services.
 -   **Data Display Modes**: Display real-time stock quotes, live weather forecasts, or custom marquee messages on the displays.
 -   **Over-the-Air (OTA) Updates**: Update the firmware directly from the web interface or Home Assistant.
@@ -36,8 +36,8 @@ This project is extensively documented. Once you're set up, explore the guides t
 
 ### **User Guides**
 -   **[Web Interface Guide](docs/user-guide/web-interface.md)**: Learn how to use the web UI for configuration.
--   **[Configuration Reference](docs/user-guide/configuration.md)**: A detailed reference for all configuration options.
 -   **[Home Assistant Integration](docs/user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant.
+-   **[Home Assistant Blueprints](home_assistant/blueprints/README.md)**: Get started quickly with our easy-to-use automation blueprints.
 -   **[Sound System Guide](docs/user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
 -   **[Troubleshooting Guide](docs/user-guide/troubleshooting.md)**: Solutions to common problems.
 
@@ -50,9 +50,11 @@ This project is extensively documented. Once you're set up, explore the guides t
 
 ## 🏠 Home Assistant Integration
 
-This project features a native Home Assistant integration that provides a seamless and powerful way to control your Time Circuits clock. The integration creates a device with dozens of entities, a media player for all audio, and custom notification services.
+This project is designed for a seamless and powerful Home Assistant experience. The easiest way to get started is by using our **pre-built blueprints**, which provide a simple UI for creating custom automations without any code.
 
-**➡️ For full setup instructions, see the [Home Assistant Integration Guide](docs/user-guide/home-assistant.md).**
+The integration also creates a device with dozens of entities, a media player for all audio, and custom notification services for more advanced control.
+
+**➡️ To get started, see the [Home Assistant Integration Guide](docs/user-guide/home-assistant.md).**
 
 ---
 ## 💬 Community & Support
