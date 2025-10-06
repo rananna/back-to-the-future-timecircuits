@@ -37,7 +37,19 @@ enum AnimationType {
     ANIMATION_COUNTDOWN,
     ANIMATION_SYSTEM_ERROR,
 
-    // --- Special Debug Sequences ---
+    // --- Named Sequences from UI ---
+    ANIMATION_INTRUDER_ALERT,
+    ANIMATION_TIME_TRAVEL,
+    ANIMATION_PARTY_MODE,
+    ANIMATION_KNIGHT_RIDER,
+    ANIMATION_LOADING,
+    ANIMATION_ERROR,
+    ANIMATION_FLUX_CHARGE,
+    ANIMATION_TACHYONS,
+    ANIMATION_DATA_STREAM,
+    ANIMATION_WORMHOLE_COLLAPSE,
+
+    ANIMATION_TYPE_MAX // Keep this at the end for validation
 };
 
 // Main function to generate a sequence based on type

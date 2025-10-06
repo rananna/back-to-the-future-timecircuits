@@ -9,8 +9,12 @@
 #include <WiFiClientSecure.h>
 #include "HardwareControl.h"
 #include "MqttManager.h"
+#include "AnimationSequences.h"
 #include <string>
 #include <ArduinoOTA.h>
+
+// Forward declaration for the helper function defined in the main .ino file
+const char* animationTypeToString(AnimationType type);
 
 
 #define THEME_PREF_KEY "ui_theme"
