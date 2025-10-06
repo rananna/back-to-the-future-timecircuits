@@ -44,9 +44,29 @@ blueprint:
       name: "End Text"
       description: "Optional text to display when the countdown finishes."
       default: "LIFTOFF"
+    end_text_effect:
+      name: "End Text Effect"
+      description: "The visual effect to use for the end text."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - label: "Set Text (Static)"
+              value: "SET_TEXT"
+            - label: "Marquee (Scrolling Text)"
+              value: "MARQUEE"
+    end_text_marquee_speed:
+      name: "End Text Marquee Speed (ms)"
+      description: "The scroll speed for the marquee effect. Lower is faster."
+      default: 100
+      selector:
+        number:
+          min: 20
+          max: 1000
+          unit_of_measurement: "ms"
     end_text_duration:
       name: "End Text Display Duration (s)"
-      description: "How long to display the end text for."
+      description: "How long to display the static end text for."
       default: 5
       selector:
         number:
@@ -72,10 +92,31 @@ sequence:
         {%- set commands = commands + [countdown_command] -%}
 
         {%- if end_text != "" -%}
-          {%- set end_text_command = {'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': end_text} -%}
+          {# Create the base command for the end text #}
+          {%- set end_text_command = {'command': end_text_effect, 'targetSegment': -1, 'stringParam': end_text} -%}
+
+          {# Set parameters based on the chosen effect #}
+          {%- if end_text_effect == 'MARQUEE' -%}
+            {%- do end_text_command.update({'intParam': end_text_marquee_speed}) -%}
+          {%- endif -%}
+
+          {# Add the main command for the end text #}
           {%- set commands = commands + [end_text_command] -%}
-          {%- set wait_command = {'command': 'WAIT', 'intParam': end_text_duration * 1000} -%}
-          {%- set commands = commands + [wait_command] -%}
+
+          {# Non-blocking effects require a WAIT command to be effective #}
+          {%- set wait_duration = namespace(ms=0) -%}
+          {%- if end_text_effect == 'MARQUEE' -%}
+            {# Marquee duration is based on text length and speed #}
+            {%- set wait_duration.ms = end_text_marquee_speed * (end_text | length + 26) -%}
+          {%- elif end_text_effect == 'SET_TEXT' -%}
+            {# Static text needs a wait to be visible for the specified duration #}
+            {%- set wait_duration.ms = end_text_duration * 1000 -%}
+          {%- endif -%}
+
+          {# Add WAIT command if a duration was calculated #}
+          {%- if wait_duration.ms > 0 -%}
+            {%- set commands = commands + [{'command': 'WAIT', 'intParam': wait_duration.ms | int}] -%}
+          {%- endif -%}
         {%- endif -%}
 
         {%- if restore_row -%}
