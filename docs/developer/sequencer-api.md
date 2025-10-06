@@ -2,14 +2,14 @@
 
 The command sequencer is one of the most powerful features of the Time Circuits clock, allowing you to script complex, multi-step, and even parallel animations. You can create custom alerts, intricate visual effects, and timed sequences to integrate the clock into your smart home in creative ways.
 
-This guide provides a complete reference for the sequencer's capabilities, including the payload structure, a full list of commands, and the available named sequences.
+This guide provides a complete reference for the sequencer's capabilities, including the payload structure, a full list of commands, and the available built-in animations.
 
 ---
 
 ### **MQTT API Endpoint**
 
 *   **Topic**: `bttf-time-circuits/[DEVICE_ID]/sequence/command`
-*   **Payload**: A JSON array of *track objects*, or a string with a [Named Sequence](#named-sequences).
+*   **Payload**: A JSON array of *track objects*, or a string with a [Built-in Animation](#built-in-animations) name.
 
 ---
 
@@ -83,7 +83,7 @@ This table details every command available in the sequencer.
 | `WIPE` | Reveals text with a wipe effect from left to right. | `stringParam`, `intParam` (delay) | `{"command":"WIPE", "stringParam":"AUTHORIZED", "intParam":75}` |
 | `SCROLL_IN` | Scrolls text in from the right and stops. | `stringParam`, `intParam` (delay) | `{"command":"SCROLL_IN", "stringParam":"WELCOME", "intParam":60}` |
 | `CROSSFADE_TEXT` | Fades from the current text to new text. | `stringParam`, `targetSegment` (optional, default: -1), `intParam` (duration) | `{"command":"CROSSFADE_TEXT", "stringParam":"NEW TEXT", "intParam":1500}` |
-| `RANDOM_FLICKER_TEXT` | Fills the display with random characters that flicker rapidly. | `stringParam` (ignored), `intParam` (flicker speed), `intParam2` (duration) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":5000}` |
+| `RANDOM_FLICKER_TEXT` | Fills the display with random characters that flicker rapidly. If `stringParam` is empty, it flickers the existing text. | `stringParam` (character set), `intParam` (flicker speed), `intParam2` (duration) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":5000}` |
 | `BAR_GRAPH` | Displays a "charging" bar that fills from left to right. | `stringParam` (label), `intParam` (start %), `intParam2` (duration) | `{"command":"BAR_GRAPH", "stringParam":"LOAD", "intParam":0, "intParam2":3000}` |
 | `SCANNER` | Creates a back-and-forth scanning light effect ("Knight Rider"). | `stringParam` (character), `intParam` (duration), `intParam2` (speed) | `{"command":"SCANNER", "stringParam":"-", "intParam":10000, "intParam2":50}` |
 | `COUNTDOWN` | Displays a countdown. For numbers > 20, it shows digits. For 20-0, it spells out the word (e.g., "TWENTY"). | `targetSegment` (optional, default: -1), `intParam` (start number), `intParam2` (delay per number) | `{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}` |
@@ -113,43 +113,55 @@ This table details every command available in the sequencer.
 
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
-| `TRIGGER_ANIMATION` | Stops the sequencer and runs one of the built-in cinematic animations. | `intParam` (AnimationType enum value) | `{"command":"TRIGGER_ANIMATION", "intParam":1}` |
+| `TRIGGER_ANIMATION` | Stops the sequencer and runs one of the built-in cinematic animations. | `stringParam` (Animation Name) | `{"command":"TRIGGER_ANIMATION", "stringParam":"Lightning"}` |
 | `MQTT_PUBLISH` | Publishes a payload to a specific MQTT topic. | `stringParam` (topic), `stringParam2` (payload) | `{"command":"MQTT_PUBLISH", "stringParam":"home/alarm", "stringParam2":"DISARMED"}` |
 | `DISPLAY_HA_SENSOR` | Fetches and displays the state of a Home Assistant entity. | `stringParam` (entity_id), `targetSegment` | `{"command":"DISPLAY_HA_SENSOR", "stringParam":"sensor.outside_temp", "targetSegment":0}` |
 
 ---
 
-### **Payload Structure: Named Sequences**
+### **Built-in Animations**
 
-For convenience, a number of pre-programmed sequences can be triggered simply by sending the name of the sequence as a plain string payload (not JSON).
+The firmware includes a large collection of pre-programmed, multi-track animations that can be triggered by sending their `Animation Name` as a plain string payload to the MQTT command topic.
 
-*   **Payload**: `"Intruder Alert"`
+*   **Payload**: `"Time Travel Tunnel"`
 
-#### **Available Named Sequences**
+You can also use the `Randomize All` animation name, which will cause the device to pick one of the other animations from this list at random.
 
-| Name | Description |
+#### **Available Animations**
+
+| Animation Name | Description |
 | :--- | :--- |
-| `Intruder Alert` | A multi-row alert with marquees, scrambles, and sounds. |
-| `Time Travel` | Simulates the 88MPH time travel sequence with sounds and effects. |
-| `Party Mode` | A looping sequence with pulsing lights and scrolling text. |
-| `Countdown` | A 10-second countdown on the middle row, ending with a sound. |
-| `Knight Rider` | A classic red scanner effect on the middle or bottom row. |
-| `Cylon` | A wider, slower, red scanner effect. |
-| `Lightning` | Simulates a lightning storm with flashes and crackle sounds across all displays. |
-| `Loading` | A sequential boot-up style text animation. |
-| `Error` | A system malfunction theme with scrambled text and error sounds. |
-| `Flux Capacitor Charge-Up` | A charging bar on the bottom row with sound and light effects. |
-| `Tachyons Detected` | A sci-fi themed text scramble effect. |
-| `Data Stream` | Fills all displays with rapidly flickering random characters. |
-| `Wormhole Collapse` | A multi-row fade-out and flicker effect. |
-
-#### **Debug Sequences**
-These are primarily for development and testing but can be triggered by anyone.
-*   `Debug`: Runs a basic test of the sequencer.
-*   `DebugEffects`: Showcases a variety of visual effects sequentially.
-*   `DebugParallelLogic`: Tests the parallel execution of logic commands.
-*   `DebugStress`: Triggers a chaotic sequence of random animations to stress-test the system.
-*   `CrossfadeTest`: Specifically demonstrates the `CROSSFADE_TEXT` command.
+| `Randomize All` | **Special animation.** Triggers a random animation from this list. |
+| `Time Circuits Lock-In` | The classic BTTF effect. All three rows scramble and lock in the current time. |
+| `Lightning` | A chaotic, multi-stage lightning storm effect with flashes and sounds. |
+| `Scanner` | A Cylon-style red scanner that sweeps across all three displays. |
+| `Time Travel Tunnel` | Simulates traveling through a time vortex with scrolling text and sounds. |
+| `Flux Capacitor Overload` | All displays pulse with intense energy, simulating a Flux Capacitor overload. |
+| `Fire Trails` | "Burns" the current time onto the display with a fiery `WIPE` effect. |
+| `Sparkle Reveal` | A subtle reveal where the time appears out of a field of sparkling lights. |
+| `Countdown` | A 10-second countdown on the middle row, ending with a "LIFTOFF!" marquee. |
+| `System Error` | A system malfunction theme with scrambled text and error messages. |
+| `Sequential Flicker` | The segments of each row appear one after the other in a quick sequence. |
+| `Random Flicker` | A continuous loop of random characters glitching on random display rows. |
+| `Tornado Flicker` | A chaotic animation where random characters flicker up and down the display columns. |
+| `Capacitor Charge Up` | All three rows fill up with a `BAR_GRAPH` effect, like a capacitor charging. |
+| `Waveform Collapse` | Displays a symmetrical waveform pattern that collapses and expands. |
+| `Timeline Skim` | All rows flicker with random data before locking in the current time with a `TYPEWRITER` effect. |
+| `Time Warp Streaks` | The current time scrolls in from the right side of the display on all rows. |
+| `Code Breaker` | A slower, more deliberate version of the `Time Circuits Lock-In` scramble. |
+| `Flip Disc Display` | Simulates an old-school flip-disc (or Solari) board, revealing the time with a `WIPE` effect. |
+| `Character Scanline` | Reveals the current time one character at a time, like a `TYPEWRITER`. |
+| `Electric Surge` | A rapid series of bright `FLASH` effects that cascade down the displays. |
+| `Digital Rain` | Fills all displays with continuously flickering random characters, like the Matrix. |
+| `Temporal Desync` | All three rows start counting up at different, random speeds, creating a desynchronized effect. |
+| `Glitchy Jump Cut` | A chaotic loop of random flickering and flashing effects. |
+| `Plasma Warm-Up` | A slow, pulsing `FADE_IN` and `FADE_OUT` effect across all displays. |
+| `Interference Pattern` | The middle row shows the time while the top and bottom rows flicker with random "junk" characters. |
+| `Temporal Paradox` | The top and middle rows swap their times and flicker, creating a "paradox" effect. |
+| `Digit Cascade` | The characters of the current time appear to "fall" into place one column at a time. |
+| `Focus In` | The time is revealed one row at a time with a slow `SCRAMBLE_TEXT` effect. |
+| `Wave Flicker` | A looping animation that flickers different wave-like patterns on the displays. |
+| `Counting Up` | All three displays start rapidly counting up from zero. |
 
 ---
 
@@ -159,15 +171,15 @@ The real power of the sequencer is unlocked when you integrate it with Home Assi
 
 Here are a few examples to get you started.
 
-#### **1. The Easy Way: Triggering Named Sequences**
+#### **1. The Easy Way: Triggering Built-in Animations**
 
-The simplest method is to trigger one of the built-in [Named Sequences](#available-named-sequences). This is perfect for common alerts and effects.
+The simplest method is to trigger one of the [Built-in Animations](#built-in-animations). This is perfect for common alerts and effects.
 
-**Use Case:** Create an "Intruder Alert" when a door sensor is tripped while your alarm is armed.
+**Use Case:** Create a "Lightning" effect when a door sensor is tripped while your alarm is armed.
 
 **Automation Example:**
 ```yaml
-alias: Trigger Intruder Alert on Break-in
+alias: Trigger Lightning on Break-in
 trigger:
   - platform: state
     entity_id: binary_sensor.front_door_contact
@@ -180,7 +192,7 @@ action:
   - service: mqtt.publish
     data:
       topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
-      payload: "Intruder Alert"
+      payload: "Lightning"
 ```
 
 #### **2. The Powerful Way: Crafting Custom JSON Sequences**
