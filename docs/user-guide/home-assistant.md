@@ -10,8 +10,9 @@ This project features a native Home Assistant integration that provides a seamle
 5. [Using the Media Player](#-using-the-media-player)
 6. [Sending Notifications](#-sending-notifications)
 7. [Advanced Control via MQTT](#-advanced-control-via-mqtt)
-8. [Automation Examples](#-automation-examples)
-9. [Troubleshooting](#troubleshooting)
+8. [Powerful Automations with Blueprints](#-powerful-automations-with-blueprints)
+9. [Automation Examples](#-automation-examples)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 ## ✨ Features
@@ -172,6 +173,21 @@ This automation triggers the **Intruder Alert** sequence.
     topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command"
     payload: "Intruder Alert"
 ```
+
+---
+
+## 🤖 Powerful Automations with Blueprints
+
+While you can control everything with the entities and MQTT topics described above, the easiest and most powerful way to create custom animations and notifications is with our **Home Assistant Blueprints**.
+
+These blueprints provide a simple, form-based UI inside Home Assistant, allowing you to build complex, multi-track animations without writing any code.
+
+**Key Features:**
+*   **User-Friendly Forms**: No more complex JSON or YAML. Just fill out the fields.
+*   **Parallel Animations**: Easily create effects that run on all three display rows at the same time.
+*   **Template Support**: Dynamically display sensor data or other entity states in your messages.
+
+> **To get started, please see the complete [Home Assistant Blueprints Guide](../../home_assistant/blueprints/README.md).**
 
 ---
 
