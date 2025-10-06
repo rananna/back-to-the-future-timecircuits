@@ -77,17 +77,17 @@ This table details every command available in the sequencer.
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
 | `SET_TEXT` | Instantly displays static text on a segment or the full row. | `stringParam`, `targetSegment` (optional, default: -1) | `{"command":"SET_TEXT", "stringParam":"SYSTEM READY"}` |
-| `MARQUEE` | Scrolls text across the entire target row. | `stringParam`, `targetSegment` (optional, default: -1) | `{"command":"MARQUEE", "stringParam":"A VERY LONG MESSAGE"}` |
-| `SCRAMBLE_TEXT` | Reveals text one character at a time with a scrambling effect. | `stringParam`, `targetSegment` (optional, default: -1), `intParam` (flicker speed), `intParam2` (reveal delay) | `{"command":"SCRAMBLE_TEXT", "stringParam":"ACCESSING", "intParam":50, "intParam2":150}` |
-| `TYPEWRITER` | Reveals text one character at a time, like a typewriter. | `stringParam`, `targetSegment` (optional, default: -1), `intParam` (delay) | `{"command":"TYPEWRITER", "stringParam":"LOADING...", "intParam":100}` |
-| `WIPE` | Reveals text with a wipe effect from left to right. | `stringParam`, `intParam` (delay) | `{"command":"WIPE", "stringParam":"AUTHORIZED", "intParam":75}` |
-| `SCROLL_IN` | Scrolls text in from the right and stops. | `stringParam`, `intParam` (delay) | `{"command":"SCROLL_IN", "stringParam":"WELCOME", "intParam":60}` |
-| `CROSSFADE_TEXT` | Fades from the current text to new text. | `stringParam`, `targetSegment` (optional, default: -1), `intParam` (duration) | `{"command":"CROSSFADE_TEXT", "stringParam":"NEW TEXT", "intParam":1500}` |
-| `RANDOM_FLICKER_TEXT` | Fills the display with random characters that flicker rapidly. If `stringParam` is empty, it flickers the existing text. | `stringParam` (character set), `intParam` (flicker speed), `intParam2` (duration) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":5000}` |
-| `BAR_GRAPH` | Displays a "charging" bar that fills from left to right. | `stringParam` (label), `intParam` (start %), `intParam2` (duration) | `{"command":"BAR_GRAPH", "stringParam":"LOAD", "intParam":0, "intParam2":3000}` |
-| `SCANNER` | Creates a back-and-forth scanning light effect ("Knight Rider"). | `stringParam` (character), `intParam` (duration), `intParam2` (speed) | `{"command":"SCANNER", "stringParam":"-", "intParam":10000, "intParam2":50}` |
-| `COUNTDOWN` | Displays a countdown. For numbers > 20, it shows digits. For 20-0, it spells out the word (e.g., "TWENTY"). | `targetSegment` (optional, default: -1), `intParam` (start number), `intParam2` (delay per number) | `{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}` |
-| `CLEAR_SEGMENT` | Clears the text from a specific segment or the entire row. | `targetSegment` (optional, default: 0) | `{"command":"CLEAR_SEGMENT", "targetSegment": 1}` |
+| `MARQUEE` | Scrolls text across the target row. **Note:** After scrolling, it leaves the original text centered on the display, allowing you to chain effects like `PULSE`. | `stringParam` | `{"command":"MARQUEE", "stringParam":"A VERY LONG MESSAGE"}` |
+| `SCRAMBLE_TEXT` | Reveals text one character at a time with a scrambling effect. | `stringParam`, `intParam` (flicker speed ms), `intParam2` (reveal delay ms) | `{"command":"SCRAMBLE_TEXT", "stringParam":"ACCESSING", "intParam":50, "intParam2":150}` |
+| `TYPEWRITER` | Reveals text one character at a time, like a typewriter. | `stringParam`, `intParam` (delay ms) | `{"command":"TYPEWRITER", "stringParam":"LOADING...", "intParam":100}` |
+| `WIPE` | Reveals text with a wipe effect from left to right. | `stringParam`, `intParam` (delay ms) | `{"command":"WIPE", "stringParam":"AUTHORIZED", "intParam":75}` |
+| `SCROLL_IN` | Scrolls text in from the right and stops with the text justified to the right. | `stringParam`, `intParam` (delay ms) | `{"command":"SCROLL_IN", "stringParam":"WELCOME", "intParam":60}` |
+| `CROSSFADE_TEXT` | Fades from the current text to new text. | `stringParam`, `intParam` (duration ms) | `{"command":"CROSSFADE_TEXT", "stringParam":"NEW TEXT", "intParam":1500}` |
+| `RANDOM_FLICKER_TEXT` | Fills the display with random characters that flicker rapidly. If `stringParam` is empty, it intelligently flickers the existing display text. | `stringParam` (character set), `intParam` (flicker speed ms), `intParam2` (duration ms) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":5000}` |
+| `BAR_GRAPH` | Displays a "charging" bar that fills from left to right. | `stringParam` (label), `intParam` (start %), `intParam2` (duration ms) | `{"command":"BAR_GRAPH", "stringParam":"LOAD", "intParam":0, "intParam2":3000}` |
+| `SCANNER` | Creates a "Knight Rider" style scanning effect. **This is a blocking command.** | `stringParam` (character), `intParam` (duration ms), `intParam2` (speed ms) | `{"command":"SCANNER", "stringParam":"-", "intParam":10000, "intParam2":50}` |
+| `COUNTDOWN` | Displays a countdown. For numbers > 20, it shows digits. For 20-0, it spells out the word (e.g., "TWENTY"). **This is a blocking command.** | `intParam` (start number), `intParam2` (delay per number ms) | `{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}` |
+| `CLEAR_SEGMENT` | Clears the text from a specific segment or the entire row. | `targetSegment` (optional, default: -1) | `{"command":"CLEAR_SEGMENT", "targetSegment": 1}` |
 | `RESTORE_ROW` | Restores the target row to its normal display (clock, weather, etc.). | (none) | `{"command":"RESTORE_ROW"}` |
 | `RESTORE_ALL_ROWS` | Restores all three display rows to their normal function. | (none) | `{"command":"RESTORE_ALL_ROWS"}` |
 
@@ -97,13 +97,13 @@ This table details every command available in the sequencer.
 
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
-| `FADE_IN` | Fades the global brightness from 0 to the current setting. | `intParam` (duration) | `{"command":"FADE_IN", "intParam":2000}` |
-| `FADE_OUT`| Fades the global brightness from the current setting to 0. | `intParam` (duration) | `{"command":"FADE_OUT", "intParam":2000}` |
-| `PULSE` | Makes a segment (or row) blink slowly. | `targetSegment`, `intParam` (duration) | `{"command":"PULSE", "targetSegment":-1, "intParam":5000}` |
-| `FLASH` | Makes a segment (or row) flash brightly and rapidly. | `targetSegment`, `intParam` (duration) | `{"command":"FLASH", "targetSegment":2, "intParam":1000}` |
-| `SET_BRIGHTNESS` | Sets the global display brightness. | `intParam` (0-7) | `{"command":"SET_BRIGHTNESS", "intParam":7}` |
-| `SOUND` | Plays a sound effect from the device's filesystem. | `stringParam` (path, e.g., `/REMOTE.mp3`) | `{"command":"SOUND", "stringParam":"/CONFIRM_ON.mp3"}` |
-| `WAIT` | Pauses the current track for a set amount of time. | `intParam` (duration) | `{"command":"WAIT", "intParam":500}` |
+| `FADE_IN` | Fades the display brightness from 0 to the current setting. **This is a blocking command.** | `intParam` (duration ms) | `{"command":"FADE_IN", "intParam":2000}` |
+| `FADE_OUT`| Fades the display brightness from the current setting to 0. **This is a blocking command.** | `intParam` (duration ms) | `{"command":"FADE_OUT", "intParam":2000}` |
+| `PULSE` | Makes a segment (or row) blink slowly. **This is a blocking command.** | `targetSegment`, `intParam` (duration ms) | `{"command":"PULSE", "targetSegment":-1, "intParam":5000}` |
+| `FLASH` | Makes a segment (or row) flash brightly and rapidly. **This is a blocking command.** | `targetSegment`, `intParam` (duration ms) | `{"command":"FLASH", "targetSegment":2, "intParam":1000}` |
+| `SET_BRIGHTNESS` | Instantly sets the global display brightness. | `intParam` (0-7) | `{"command":"SET_BRIGHTNESS", "intParam":7}` |
+| `SOUND` | Plays a sound effect from the device's filesystem. This command is non-blocking. | `stringParam` (path, e.g., `/REMOTE.mp3`) | `{"command":"SOUND", "stringParam":"/CONFIRM_ON.mp3"}` |
+| `WAIT` | Pauses the current track for a set amount of time. | `intParam` (duration ms) | `{"command":"WAIT", "intParam":500}` |
 | `LOOP_START` | Marks the beginning of a loop. | `intParam` (number of loops) | `{"command":"LOOP_START", "intParam":5}` |
 | `LOOP_END` | Marks the end of a loop, jumping back to `LOOP_START`. | (none) | `{"command":"LOOP_END"}` |
 
@@ -113,55 +113,43 @@ This table details every command available in the sequencer.
 
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
-| `TRIGGER_ANIMATION` | Stops the sequencer and runs one of the built-in cinematic animations. | `stringParam` (Animation Name) | `{"command":"TRIGGER_ANIMATION", "stringParam":"Lightning"}` |
+| `TRIGGER_ANIMATION` | **Advanced Use.** Stops the sequencer and runs a built-in animation by its numeric ID. To trigger by name, send the name as a top-level string payload instead. | `intParam` (AnimationType ID) | `{"command":"TRIGGER_ANIMATION", "intParam": 2}` |
 | `MQTT_PUBLISH` | Publishes a payload to a specific MQTT topic. | `stringParam` (topic), `stringParam2` (payload) | `{"command":"MQTT_PUBLISH", "stringParam":"home/alarm", "stringParam2":"DISARMED"}` |
-| `DISPLAY_HA_SENSOR` | Fetches and displays the state of a Home Assistant entity. | `stringParam` (entity_id), `targetSegment` | `{"command":"DISPLAY_HA_SENSOR", "stringParam":"sensor.outside_temp", "targetSegment":0}` |
+| `DISPLAY_HA_SENSOR` | Fetches and displays the state of a Home Assistant entity. The device must be subscribed to the entity's state topic. | `stringParam` (entity_id), `targetSegment` | `{"command":"DISPLAY_HA_SENSOR", "stringParam":"sensor.outside_temp", "targetSegment":0}` |
 
 ---
 
 ### **Built-in Animations**
 
-The firmware includes a large collection of pre-programmed, multi-track animations that can be triggered by sending their `Animation Name` as a plain string payload to the MQTT command topic.
+The firmware includes a collection of pre-programmed, multi-track animations that can be triggered by sending their `Animation Name` as a plain string payload to the `.../sequencer/command` MQTT topic.
 
-*   **Payload**: `"Time Travel Tunnel"`
+*   **Example Payload**: `"Lightning"`
 
-You can also use the `Randomize All` animation name, which will cause the device to pick one of the other animations from this list at random.
+> **✨ Special Animation: `Randomize All`**
+> Sending a payload of `"Randomize All"` will cause the device to pick one of the other animations from this list at random and run it. This is a great way to add variety to your automations.
 
 #### **Available Animations**
 
 | Animation Name | Description |
 | :--- | :--- |
-| `Randomize All` | **Special animation.** Triggers a random animation from this list. |
-| `Time Circuits Lock-In` | The classic BTTF effect. All three rows scramble and lock in the current time. |
-| `Lightning` | A chaotic, multi-stage lightning storm effect with flashes and sounds. |
-| `Scanner` | A Cylon-style red scanner that sweeps across all three displays. |
-| `Time Travel Tunnel` | Simulates traveling through a time vortex with scrolling text and sounds. |
-| `Flux Capacitor Overload` | All displays pulse with intense energy, simulating a Flux Capacitor overload. |
-| `Fire Trails` | "Burns" the current time onto the display with a fiery `WIPE` effect. |
-| `Sparkle Reveal` | A subtle reveal where the time appears out of a field of sparkling lights. |
-| `Countdown` | A 10-second countdown on the middle row, ending with a "LIFTOFF!" marquee. |
-| `System Error` | A system malfunction theme with scrambled text and error messages. |
-| `Sequential Flicker` | The segments of each row appear one after the other in a quick sequence. |
-| `Random Flicker` | A continuous loop of random characters glitching on random display rows. |
-| `Tornado Flicker` | A chaotic animation where random characters flicker up and down the display columns. |
-| `Capacitor Charge Up` | All three rows fill up with a `BAR_GRAPH` effect, like a capacitor charging. |
-| `Waveform Collapse` | Displays a symmetrical waveform pattern that collapses and expands. |
-| `Timeline Skim` | All rows flicker with random data before locking in the current time with a `TYPEWRITER` effect. |
-| `Time Warp Streaks` | The current time scrolls in from the right side of the display on all rows. |
-| `Code Breaker` | A slower, more deliberate version of the `Time Circuits Lock-In` scramble. |
-| `Flip Disc Display` | Simulates an old-school flip-disc (or Solari) board, revealing the time with a `WIPE` effect. |
-| `Character Scanline` | Reveals the current time one character at a time, like a `TYPEWRITER`. |
-| `Electric Surge` | A rapid series of bright `FLASH` effects that cascade down the displays. |
-| `Digital Rain` | Fills all displays with continuously flickering random characters, like the Matrix. |
-| `Temporal Desync` | All three rows start counting up at different, random speeds, creating a desynchronized effect. |
-| `Glitchy Jump Cut` | A chaotic loop of random flickering and flashing effects. |
-| `Plasma Warm-Up` | A slow, pulsing `FADE_IN` and `FADE_OUT` effect across all displays. |
-| `Interference Pattern` | The middle row shows the time while the top and bottom rows flicker with random "junk" characters. |
-| `Temporal Paradox` | The top and middle rows swap their times and flicker, creating a "paradox" effect. |
-| `Digit Cascade` | The characters of the current time appear to "fall" into place one column at a time. |
-| `Focus In` | The time is revealed one row at a time with a slow `SCRAMBLE_TEXT` effect. |
-| `Wave Flicker` | A looping animation that flickers different wave-like patterns on the displays. |
-| `Counting Up` | All three displays start rapidly counting up from zero. |
+| `Time Circuits Lock-In` | The classic BTTF effect. All three rows simultaneously scramble and lock in the current time, character by character. |
+| `Lightning` | A chaotic, multi-stage lightning storm effect with loud crackling sounds and intense, random flashes across all displays. |
+| `Scanner` | A Cylon-style red scanner (`---`) that sweeps back and forth across all three display rows in unison. |
+| `Time Travel Tunnel` | Simulates traveling through a time vortex by repeatedly scrolling the current time in from the right on all three rows. |
+| `Flux Capacitor Overload` | All displays pulse with intense energy, simulating a Flux Capacitor overload with a synchronized, slow pulsing effect. |
+| `Fire Trails` | "Burns" the current time onto the display with a fiery `WIPE` effect that reveals the text from left to right on all three rows. |
+| `Sparkle Reveal` | A subtle reveal where the time appears out of a field of sparkling lights. The display flickers with random dots before wiping to reveal the current time. |
+| `Countdown` | Displays "COUNTDOWN" on the middle row, then shows a 10-second countdown (spelling out the numbers), ending with a "LIFTOFF!" marquee. |
+| `System Error` | A system malfunction theme. The top row scrambles to show "ERROR" while the middle row scrolls "SYSTEM MALFUNCTION". |
+| `Sequential Flicker` | The segments of each row appear one after the other in a quick, sequential pattern, revealing the full time. |
+| `Random Flicker` | A continuous, 10-second loop of random characters glitching on a single, randomly-chosen display row. |
+| `Tornado Flicker` | A chaotic animation where random characters flicker up and down the display columns, creating a "tornado" effect. |
+| `Capacitor Charge Up` | All three rows fill up with a `BAR_GRAPH` effect from left to right, as if a capacitor is charging. |
+| `Waveform Collapse` | Displays a symmetrical waveform pattern that collapses and expands across all three rows. |
+| `Code Breaker` | A slower, more deliberate version of the `Time Circuits Lock-In`, revealing the time with a much slower scramble effect. |
+| `Flip Disc Display` | Simulates an old-school flip-disc (or Solari) board, revealing the time with a `WIPE` effect on all three rows. |
+| `Electric Surge` | A rapid series of bright `FLASH` effects that cascade down the displays from top to bottom. |
+| `Digital Rain` | Fills all displays with continuously flickering random characters for 10 seconds, similar to the Matrix effect. |
 
 ---
 

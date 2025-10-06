@@ -71,46 +71,122 @@ The integration also creates several "device triggers" in Home Assistant, which 
 
 ---
 
-## 2. Advanced MQTT API
+## 2. Raw MQTT Topics API
 
-For advanced users, the clock exposes a powerful, low-level MQTT API that allows for direct scripting and control.
+For advanced users, developers, or integration with systems other than Home Assistant, the clock exposes a powerful, low-level MQTT API. This API allows for direct scripting and control of nearly every feature of the device.
 
-### Command Sequencer
+> **Topic Structure**
+> All topics follow the format: `bttf-time-circuits/YOUR_DEVICE_ID/COMMAND_NAME/command`.
+> You must replace `YOUR_DEVICE_ID` with the actual ID of your device (e.g., its MAC address).
 
-The command sequencer is a powerful engine that allows you to script complex, multi-step, and even parallel animations. You can create custom alerts, intricate visual effects, and timed sequences by sending a JSON payload or a named command to a single MQTT topic.
+---
 
-This feature is highly capable, with over 20 commands and a dozen pre-programmed named sequences.
+### **Command Reference**
 
-**For a complete guide on the sequencer, including all commands, parameters, and examples, please see the [Command Sequencer API Reference](./sequencer-api.md).**
+#### **Primary Control Topics**
 
-### Manual Display Override
+| Command Name | Payload | Description |
+| :--- | :--- | :--- |
+| `sequencer` | String or JSON | **The most powerful topic.** Triggers a built-in named animation (string payload) or a custom multi-track sequence (JSON payload). See the [**Sequencer API Reference**](./sequencer-api.md) for full details. |
+| `display_mode` | String | Sets the main operating mode of the clock. Accepts `"Normal Clock"`, `"Stock Ticker"`, `"Weather"`, or `"Data Link"`. |
+| `profile` | String | Applies a pre-configured bundle of settings. Accepts `"Standard"`, `"Cinematic"`, `"Silent Night"`, `"Unstable"`, or `"Custom"`. |
+| `override_switch` | `ON` or `OFF` | Enables or disables the full-display override mode. When `ON`, the clock will display the text from the `override_line_X` topics instead of the time. |
+| `override_line_1` | String | Sets the 13-character text for the top display row when the override switch is on. |
+| `override_line_2` | String | Sets the 13-character text for the middle display row when the override switch is on. |
+| `override_line_3` | String | Sets the 13-character text for the bottom display row when the override switch is on. |
 
-This feature gives you direct, granular control over the text shown on each of the 12 display segments. When you send a command to this endpoint, it will override whatever is currently being shown on that segment (e.g., the time, weather, or stock data) and display your custom text instead.
+---
+#### **Settings & Configuration Topics**
 
-This override is **persistent** until you clear it by sending an empty string.
+| Command Name | Payload | Description |
+| :--- | :--- | :--- |
+| `brightness` | Number (0-7) | Sets the display brightness. |
+| `volume` | Number (0-21) | Sets the audio volume. |
+| `24h_format` | `ON` or `OFF` | Toggles 24-hour time format. |
+| `sound_toggle` | `ON` or `OFF` | Enables or disables the main time travel animation sounds. |
+| `temporal_echo` | `ON` or `OFF` | Toggles the "temporal echo" visual effect after an animation. |
+| `animation_interval` | Number | Sets the interval in minutes for the animation to auto-play (0 = off). |
+| `animation_duration` | Number | Sets the duration in milliseconds for the main time travel animation. |
+| `weather_city` | String | Sets the city for the weather display mode. |
+| `stock_refresh` | Number | Sets the refresh interval in minutes for the stock ticker mode (1-60). |
 
-*   **MQTT Topic**: `bttf-time-circuits/[DEVICE_ID]/display/manual/command`
-*   **Payload**: A JSON object specifying the target and the text.
+---
+#### **Direct Action Topics**
 
-The JSON payload must contain three fields:
-*   `row`: The display row to target (0-2).
-*   `segment`: The segment of the row to target (0-3).
-*   `text`: The string to display. The text will be automatically converted to uppercase and truncated to fit the segment. To clear an override, send an empty string (`""`).
+| Command Name | Payload | Description |
+| :--- | :--- | :--- |
+| `trigger_animation` | `PRESS` | Triggers the main cinematic time travel animation. |
+| `reboot_device` | `PRESS` | Reboots the ESP32. |
+| `force_ntp_sync` | `PRESS` | Manually forces a time sync with NTP servers. |
+| `save_all_settings`| `PRESS` | Saves all current settings from RAM to persistent memory. |
+| `factory_reset` | `PRESS` | **Use with caution!** Resets all settings to factory defaults. |
+| `weather_refresh` | `PRESS` | Manually triggers a refresh of the weather data. |
+| `discover` | `ON` | Triggers the Home Assistant discovery process again. |
 
-#### **Example Override**
+---
+#### **Direct Display Text Topics**
 
-This example will write the text "FAIL" to the segment that normally shows the current year (middle row, third segment).
+You can write text to any of the 12 individual display segments. This is a low-level override that is active until cleared with an empty string. The `COMMAND_NAME` is a combination of the row and segment.
 
-*   **Topic**: `bttf-time-circuits/ab12cd34ef56/display/manual/command`
-*   **Payload**:
-    ```json
-    {"row":1, "segment":2, "text":"FAIL"}
-    ```
+*   **Rows**: `dest`, `pres`, `last`
+*   **Segments**: `month`, `day`, `year`, `time`
 
-To clear this override and return the segment to its normal function, you would send:
+**Example Topic:** `bttf-time-circuits/YOUR_DEVICE_ID/pres_year/command`
+*   **Payload**: A string of text to display. The text will be automatically converted to uppercase and truncated to fit the segment.
 
-*   **Topic**: `bttf-time-circuits/ab12cd34ef56/display/manual/command`
-*   **Payload**:
-    ```json
-    {"row":1, "segment":2, "text":""}
-    ```
+---
+#### **Audio & TTS Topics**
+
+| Command Name | Payload | Description |
+| :--- | :--- | :--- |
+| `play_sound` | String | Plays one of the built-in sound effects by its filename (e.g., `REMOTE.mp3`). |
+| `tts` | String (URL or JSON) | Plays audio from a URL. Can be a raw URL or a JSON object from Home Assistant's `tts.google_translate_say` service (`{"media_id": "URL"}`). |
+| `radio` | String (URL or `stop`) | Starts playing an internet radio stream from a URL, or stops the current stream. |
+| `radio_stations` | JSON Array | Sends a list of radio stations to the device for use in the web UI. |
+
+---
+### **Practical Examples**
+
+Here are some copy-and-paste examples for common actions using `mosquitto_pub`. Remember to replace `YOUR_DEVICE_ID` and `YOUR_BROKER_IP`.
+
+#### **Example 1: Display a "High Temp" Alert**
+
+This example uses the override feature to display a persistent alert across all three rows.
+
+```bash
+# Enable the override mode
+mosquitto_pub -h YOUR_BROKER_IP -t "bttf-time-circuits/YOUR_DEVICE_ID/override_switch/command" -m "ON"
+
+# Set the text for each line
+mosquitto_pub -h YOUR_BROKER_IP -t "bttf-time-circuits/YOUR_DEVICE_ID/override_line_1/command" -m "  HIGH TEMP  "
+mosquitto_pub -h YOUR_BROKER_IP -t "bttf-time-circuits/YOUR_DEVICE_ID/override_line_2/command" -m "    ALERT    "
+mosquitto_pub -h YOUR_BROKER_IP -t "bttf-time-circuits/YOUR_DEVICE_ID/override_line_3/command" -m "  INSIDE     "
+
+# To clear the alert, simply turn the override switch off
+mosquitto_pub -h YOUR_BROKER_IP -t "bttf-time-circuits/YOUR_DEVICE_ID/override_switch/command" -m "OFF"
+```
+
+#### **Example 2: Set the Brightness to Maximum**
+
+```bash
+mosquitto_pub -h YOUR_BROKER_IP -t "bttf-time-circuits/YOUR_DEVICE_ID/brightness/command" -m "7"
+```
+
+#### **Example 3: Trigger the "Lightning" Animation**
+
+This uses the sequencer topic with a string payload.
+
+```bash
+mosquitto_pub -h YOUR_BROKER_IP -t "bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command" -m "Lightning"
+```
+
+#### **Example 4: Play a TTS Message**
+
+This example shows how to send a URL (e.g., from a TTS service) to be played on the clock's speaker.
+
+```bash
+# This URL would typically be generated by your home automation system
+TTS_URL="http://your-home-assistant:8123/api/tts_proxy/a1b2c3d4e5_google_translate.mp3"
+
+mosquitto_pub -h YOUR_BROKER_IP -t "bttf-time-circuits/YOUR_DEVICE_ID/tts/command" -m "$TTS_URL"
+```
