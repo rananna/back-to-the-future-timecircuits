@@ -1,3 +1,4 @@
+#include <ArduinoJson.h>
 #include "AnimationSequences.h"
 #include "HardwareControl.h"
 #include "DisplayManager.h"
