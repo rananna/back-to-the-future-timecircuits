@@ -1354,6 +1354,22 @@ void handleSequencerCommand(const std::string& payload) {
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Sparkle Reveal'");
         generateAnimationSequence(ANIMATION_SPARKLE_REVEAL, sequencerTracks);
         return;
+    } else if (payload == "Lightning") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Lightning'");
+        generateAnimationSequence(ANIMATION_LIGHTNING, sequencerTracks);
+        return;
+    } else if (payload == "Scanner") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Scanner'");
+        generateAnimationSequence(ANIMATION_SCANNER, sequencerTracks);
+        return;
+    } else if (payload == "Flux Capacitor Overload") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'Flux Capacitor Overload'");
+        generateAnimationSequence(ANIMATION_FLUX_CAPACITOR_OVERLOAD, sequencerTracks);
+        return;
+    } else if (payload == "System Error") {
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence 'System Error'");
+        generateAnimationSequence(ANIMATION_SYSTEM_ERROR, sequencerTracks);
+        return;
     }
 
 
