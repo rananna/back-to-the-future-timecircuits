@@ -36,6 +36,7 @@ This project is extensively documented. Once you're set up, explore the guides t
 
 ### **User Guides**
 -   **[Web Interface Guide](docs/user-guide/web-interface.md)**: Learn how to use the web UI for configuration.
+-   **[Configuration Reference](docs/user-guide/configuration.md)**: A detailed reference for all configuration options.
 -   **[Home Assistant Integration](docs/user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant.
 -   **[Sound System Guide](docs/user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
 -   **[Troubleshooting Guide](docs/user-guide/troubleshooting.md)**: Solutions to common problems.
