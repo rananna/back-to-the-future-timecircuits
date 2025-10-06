@@ -581,10 +581,10 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         };
         int numStyles = sizeof(validAnimationStyles) / sizeof(validAnimationStyles[0]);
         int randomIndex = random(0, numStyles);
-        // Recursively call this function with the new, randomly selected type.
-        // This avoids duplicating the entire switch statement and centralizes the logic.
-        generateAnimationSequence(validAnimationStyles[randomIndex], tracks);
-        return; // Exit after the recursive call is done.
+        // Overwrite the animType with the new, randomly selected type.
+        // This avoids a recursive call which can lead to a stack overflow.
+        animType = validAnimationStyles[randomIndex];
+        // --- Let the function fall through to the main switch statement ---
     }
     // --- END: MODIFICATION ---
 
