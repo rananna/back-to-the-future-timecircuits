@@ -8,53 +8,59 @@ This guide provides a complete reference for the sequencer's capabilities, inclu
 
 ### **MQTT API Endpoint**
 
-*   **Topic**: `bttf-time-circuits/[DEVICE_ID]/sequence/command`
-*   **Payload**: A JSON array of *track objects*, or a string with a [Built-in Animation](#built-in-animations) name.
+*   **Topic**: `bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command`
+*   **Payload**: A JSON object defining a sequence, or a string with a [Built-in Animation](#built-in-animations) name.
 
 ---
 
-### **Payload Structure: JSON Tracks**
+### **Payload Structure: Custom JSON Sequences**
 
-To create a custom sequence, you send a JSON payload to the MQTT topic. The root of the payload is an array `[]` that can contain one or more *track objects*. Each track object defines a sequence of commands that will run on a specific display row. Because each track runs independently, you can use them to create parallel animations on different rows.
+To create a custom sequence, you send a JSON payload to the MQTT topic. The root of the payload is an object that must contain a `tracks` key. The value is an array `[]` of one or more *track objects*. Each track object defines a sequence of commands that will run on a specific display row. Because each track runs independently, you can use them to create parallel animations on different rows.
 
 A track object has the following structure:
 
 ```json
 {
-  "targetRow": 0,
-  "commands": [
-    { "command": "SET_TEXT", "stringParam": "HELLO WORLD" },
-    { "command": "WAIT", "intParam": 2000 },
-    { "command": "CLEAR_SEGMENT", "targetSegment": -1 }
+  "tracks": [
+    {
+      "targetRow": "TOP",
+      "commands": [
+        { "command": "SET_TEXT", "stringParam": "HELLO WORLD" },
+        { "command": "WAIT", "intParam": 2000 },
+        { "command": "CLEAR_SEGMENT", "targetSegment": -1 }
+      ]
+    }
   ]
 }
 ```
 
-*   `targetRow`: **(Required)** The display row to run this sequence on (`0` for Top, `1` for Middle, `2` for Bottom).
+*   `targetRow`: **(Required)** The display row to run this sequence on. Accepts `"TOP"`, `"MIDDLE"`, or `"BOTTOM"`.
 *   `commands`: **(Required)** An array of command objects that will be executed in order on the `targetRow`.
 
 #### **Example: Parallel Sequences**
 
 Here is an example of a payload that runs two sequences at the same time:
-1.  On the top row (`targetRow: 0`), it scrolls a message.
-2.  On the bottom row (`targetRow: 2`), it shows a charging bar graph and then flashes.
+1.  On the top row, it scrolls a message.
+2.  On the bottom row, it shows a charging bar graph and then flashes.
 
 ```json
-[
-  {
-    "targetRow": 0,
-    "commands": [
-      { "command": "MARQUEE", "stringParam": "PARALLEL SEQUENCING" }
-    ]
-  },
-  {
-    "targetRow": 2,
-    "commands": [
-      { "command": "BAR_GRAPH", "stringParam": "CHARGING", "intParam": 0, "intParam2": 5000 },
-      { "command": "FLASH", "targetSegment": -1, "intParam": 500 }
-    ]
-  }
-]
+{
+  "tracks": [
+    {
+      "targetRow": "TOP",
+      "commands": [
+        { "command": "MARQUEE", "stringParam": "PARALLEL SEQUENCING" }
+      ]
+    },
+    {
+      "targetRow": "BOTTOM",
+      "commands": [
+        { "command": "BAR_GRAPH", "stringParam": "CHARGING", "intParam": 5000, "intParam2": 50 },
+        { "command": "FLASH", "targetSegment": -1, "intParam": 500 }
+      ]
+    }
+  ]
+}
 ```
 
 ---
@@ -65,7 +71,7 @@ This table details every command available in the sequencer.
 
 #### **Parameters**
 
-*   `targetRow`: Specified in the parent track object. Determines which of the 3 display rows the command runs on.
+*   `targetRow`: Specified in the parent track object. Determines which display row the command runs on.
 *   `targetSegment`: An integer specifying which segment of the row to target. `0`=Month, `1`=Day, `2`=Year, `3`=Time. A value of `-1` targets the **entire row**.
 *   `stringParam`, `stringParam2`: A string value used for text, MQTT topics/payloads, or sound file paths.
 *   `intParam`, `intParam2`: An integer value, typically used for durations (in milliseconds), speeds, counts, or brightness levels.
@@ -83,8 +89,8 @@ This table details every command available in the sequencer.
 | `WIPE` | Reveals text with a wipe effect from left to right. | `stringParam`, `intParam` (delay ms) | `{"command":"WIPE", "stringParam":"AUTHORIZED", "intParam":75}` |
 | `SCROLL_IN` | Scrolls text in from the right and stops with the text justified to the right. | `stringParam`, `intParam` (delay ms) | `{"command":"SCROLL_IN", "stringParam":"WELCOME", "intParam":60}` |
 | `CROSSFADE_TEXT` | Fades from the current text to new text. | `stringParam`, `intParam` (duration ms) | `{"command":"CROSSFADE_TEXT", "stringParam":"NEW TEXT", "intParam":1500}` |
-| `RANDOM_FLICKER_TEXT` | Fills the display with random characters that flicker rapidly. If `stringParam` is empty, it intelligently flickers the existing display text. | `stringParam` (character set), `intParam` (flicker speed ms), `intParam2` (duration ms) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":5000}` |
-| `BAR_GRAPH` | Displays a "charging" bar that fills from left to right. | `stringParam` (label), `intParam` (start %), `intParam2` (duration ms) | `{"command":"BAR_GRAPH", "stringParam":"LOAD", "intParam":0, "intParam2":3000}` |
+| `RANDOM_FLICKER_TEXT` | Fills the display with random characters that flicker rapidly. If `stringParam` is empty, it intelligently flickers the existing display text. | `stringParam` (character set), `intParam` (duration ms), `intParam2` (flicker speed ms) | `{"command":"RANDOM_FLICKER_TEXT", "intParam":5000, "intParam2":50}` |
+| `BAR_GRAPH` | Displays a "charging" bar that fills from left to right. | `stringParam` (label), `intParam` (duration ms), `intParam2` (speed ms) | `{"command":"BAR_GRAPH", "stringParam":"LOAD", "intParam":3000, "intParam2":50}` |
 | `SCANNER` | Creates a "Knight Rider" style scanning effect. **This is a blocking command.** | `stringParam` (character), `intParam` (duration ms), `intParam2` (speed ms) | `{"command":"SCANNER", "stringParam":"-", "intParam":10000, "intParam2":50}` |
 | `COUNTDOWN` | Displays a countdown. For numbers > 20, it shows digits. For 20-0, it spells out the word (e.g., "TWENTY"). **This is a blocking command.** | `intParam` (start number), `intParam2` (delay per number ms) | `{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}` |
 | `CLEAR_SEGMENT` | Clears the text from a specific segment or the entire row. | `targetSegment` (optional, default: -1) | `{"command":"CLEAR_SEGMENT", "targetSegment": 1}` |
@@ -99,8 +105,8 @@ This table details every command available in the sequencer.
 | :--- | :--- | :--- | :--- |
 | `FADE_IN` | Fades the display brightness from 0 to the current setting. **This is a blocking command.** | `intParam` (duration ms) | `{"command":"FADE_IN", "intParam":2000}` |
 | `FADE_OUT`| Fades the display brightness from the current setting to 0. **This is a blocking command.** | `intParam` (duration ms) | `{"command":"FADE_OUT", "intParam":2000}` |
-| `PULSE` | Makes a segment (or row) blink slowly. **This is a blocking command.** | `targetSegment`, `intParam` (duration ms) | `{"command":"PULSE", "targetSegment":-1, "intParam":5000}` |
-| `FLASH` | Makes a segment (or row) flash brightly and rapidly. **This is a blocking command.** | `targetSegment`, `intParam` (duration ms) | `{"command":"FLASH", "targetSegment":2, "intParam":1000}` |
+| `PULSE` | Makes a segment (or row) blink slowly (750ms interval). **This is a blocking command.** | `targetSegment`, `intParam` (duration ms) | `{"command":"PULSE", "targetSegment":-1, "intParam":5000}` |
+| `FLASH` | Makes a segment (or row) flash brightly and rapidly (75ms interval). **This is a blocking command.** | `targetSegment`, `intParam` (duration ms) | `{"command":"FLASH", "targetSegment":2, "intParam":1000}` |
 | `SET_BRIGHTNESS` | Instantly sets the global display brightness. | `intParam` (0-7) | `{"command":"SET_BRIGHTNESS", "intParam":7}` |
 | `SOUND` | Plays a sound effect from the device's filesystem. This command is non-blocking. | `stringParam` (path, e.g., `/REMOTE.mp3`) | `{"command":"SOUND", "stringParam":"/CONFIRM_ON.mp3"}` |
 | `WAIT` | Pauses the current track for a set amount of time. | `intParam` (duration ms) | `{"command":"WAIT", "intParam":500}` |
@@ -113,7 +119,7 @@ This table details every command available in the sequencer.
 
 | Command | Description | Parameters | Example |
 | :--- | :--- | :--- | :--- |
-| `TRIGGER_ANIMATION` | **Advanced Use.** Stops the sequencer and runs a built-in animation by its numeric ID. To trigger by name, send the name as a top-level string payload instead. | `intParam` (AnimationType ID) | `{"command":"TRIGGER_ANIMATION", "intParam": 2}` |
+| `TRIGGER_ANIMATION` | **Advanced Use.** Stops the current sequence and runs a built-in animation by its numeric `AnimationType` ID. See `AnimationSequences.h` for the full enum list. | `intParam` (AnimationType ID) | `{"command":"TRIGGER_ANIMATION", "intParam": 2}` |
 | `MQTT_PUBLISH` | Publishes a payload to a specific MQTT topic. | `stringParam` (topic), `stringParam2` (payload) | `{"command":"MQTT_PUBLISH", "stringParam":"home/alarm", "stringParam2":"DISARMED"}` |
 | `DISPLAY_HA_SENSOR` | Fetches and displays the state of a Home Assistant entity. The device must be subscribed to the entity's state topic. | `stringParam` (entity_id), `targetSegment` | `{"command":"DISPLAY_HA_SENSOR", "stringParam":"sensor.outside_temp", "targetSegment":0}` |
 
@@ -121,14 +127,17 @@ This table details every command available in the sequencer.
 
 ### **Built-in Animations**
 
-The firmware includes a collection of pre-programmed, multi-track animations that can be triggered by sending their `Animation Name` as a plain string payload to the `.../sequencer/command` MQTT topic.
+The firmware includes a collection of pre-programmed animations that can be triggered by sending their `Animation Name` as a plain string payload to the `.../sequencer/command` MQTT topic.
 
 *   **Example Payload**: `"Lightning"`
 
-> **✨ Special Animation: `Randomize All`**
-> Sending a payload of `"Randomize All"` will cause the device to pick one of the other animations from this list at random and run it. This is a great way to add variety to your automations.
+There are three types of built-in animations, each with a different origin in the code.
 
-#### **Available Animations**
+#### **1. Modern Generated Animations**
+These are complex, multi-track animations generated by C++ functions in `AnimationSequences.cpp`. They represent the most advanced visual effects.
+
+> **✨ Special Animation: `Randomize All`**
+> Sending a payload of `"Randomize All"` will cause the device to pick one of the other animations from the **Modern Generated** or **Legacy** lists at random and run it. This is a great way to add variety to your automations.
 
 | Animation Name | Description |
 | :--- | :--- |
@@ -141,15 +150,50 @@ The firmware includes a collection of pre-programmed, multi-track animations tha
 | `Sparkle Reveal` | A subtle reveal where the time appears out of a field of sparkling lights. The display flickers with random dots before wiping to reveal the current time. |
 | `Countdown` | Displays "COUNTDOWN" on the middle row, then shows a 10-second countdown (spelling out the numbers), ending with a "LIFTOFF!" marquee. |
 | `System Error` | A system malfunction theme. The top row scrambles to show "ERROR" while the middle row scrolls "SYSTEM MALFUNCTION". |
-| `Sequential Flicker` | The segments of each row appear one after the other in a quick, sequential pattern, revealing the full time. |
-| `Random Flicker` | A continuous, 10-second loop of random characters glitching on a single, randomly-chosen display row. |
-| `Tornado Flicker` | A chaotic animation where random characters flicker up and down the display columns, creating a "tornado" effect. |
-| `Capacitor Charge Up` | All three rows fill up with a `BAR_GRAPH` effect from left to right, as if a capacitor is charging. |
-| `Waveform Collapse` | Displays a symmetrical waveform pattern that collapses and expands across all three rows. |
-| `Code Breaker` | A slower, more deliberate version of the `Time Circuits Lock-In`, revealing the time with a much slower scramble effect. |
-| `Flip Disc Display` | Simulates an old-school flip-disc (or Solari) board, revealing the time with a `WIPE` effect on all three rows. |
-| `Electric Surge` | A rapid series of bright `FLASH` effects that cascade down the displays from top to bottom. |
-| `Digital Rain` | Fills all displays with continuously flickering random characters for 10 seconds, similar to the Matrix effect. |
+
+#### **2. JSON Alias Animations**
+These names are shortcuts defined in `MqttManager.cpp` that trigger a hardcoded JSON payload. They are useful for common, multi-track scenarios.
+
+| Animation Name | Description |
+| :--- | :--- |
+| `Intruder Alert` | A three-row alert with marquees, sound, and scrambling text. |
+| `Time Travel` | A classic 88MPH sequence with a bar graph, marquee, and flashing lights. |
+| `Party Mode` | A looping animation with marquees and pulsing lights for a party atmosphere. |
+| `Knight Rider` | A scanner effect on the bottom row. |
+| `Cylon` | A scanner effect on the middle row. |
+| `Loading` | A sequential "loading" message on all three rows. |
+| `Error` | A simpler error message with scrambling text and a marquee. |
+| `Flux Capacitor Charge-Up` | A charging bar graph on the bottom row with flashing on the top two. |
+| `Tachyons Detected` | A scrambling message on the middle row with a sound effect. |
+| `Data Stream` | All three rows flicker with random characters for 10 seconds. |
+| `Wormhole Collapse`| All three rows flicker and then fade out sequentially. |
+
+#### **3. Legacy Animations**
+These names trigger older, single-purpose animation functions. They are generally simpler and often affect all three displays at once. They are included in the `Randomize All` pool.
+
+| Animation Name | Description |
+| :--- | :--- |
+| `Sequential Flicker` | Reveals the current time segment by segment. |
+| `Random Flicker` | A continuous loop of random characters glitching on a random display row. |
+| `Counting Up` | All three displays rapidly count up. |
+| `Wave Flicker` | Displays a flickering wave pattern. |
+| `Tornado Flicker` | Random characters flicker up and down the display columns. |
+| `Capacitor Charge-Up` | All three rows fill with a bar graph effect. |
+| `Digital Rain` | All displays fill with continuously flickering random characters (Matrix-style). |
+| `Waveform Collapse` | A symmetrical waveform pattern collapses and expands. |
+| `Timeline Skim` | Displays flicker randomly, then reveal the time with a typewriter effect. |
+| `Temporal Desync` | All three displays count up at different, unsynchronized speeds. |
+| `Glitchy Jump-Cut` | A chaotic loop of random flickering and flashing. |
+| `Plasma Warm-Up` | A slow fade-in and fade-out effect. |
+| `Time Warp Streaks` | The current time scrolls in from the right on all three rows. |
+| `Character Scanline` | Reveals the current time with a typewriter effect on all rows. |
+| `Focus In` | Reveals the current time on each row sequentially with a scramble effect. |
+| `Code Breaker` | A slower, more deliberate version of the `Time Circuits Lock-In` effect. |
+| `Temporal Paradox` | The top and middle rows swap their text while the bottom row flickers. |
+| `Digit Cascade` | Reveals the time one character at a time, cascading down the displays. |
+| `Electric Surge` | A rapid series of bright flashes that cascade down the displays. |
+| `Flip-Disc Display` | Simulates an old-school flip-disc board with a wipe effect. |
+| `Interference Pattern` | The middle row flickers with the current time while the outer rows show random symbols. |
 
 ---
 
@@ -157,13 +201,9 @@ The firmware includes a collection of pre-programmed, multi-track animations tha
 
 The real power of the sequencer is unlocked when you integrate it with Home Assistant. By using the `mqtt.publish` service in your automations, you can make the clock react to any event, sensor, or trigger in your smart home.
 
-Here are a few examples to get you started.
-
 #### **1. The Easy Way: Triggering Built-in Animations**
 
 The simplest method is to trigger one of the [Built-in Animations](#built-in-animations). This is perfect for common alerts and effects.
-
-**Use Case:** Create a "Lightning" effect when a door sensor is tripped while your alarm is armed.
 
 **Automation Example:**
 ```yaml
@@ -187,8 +227,6 @@ action:
 
 For ultimate flexibility, you can build your own sequences directly in your automation's YAML. This allows you to use Home Assistant templates to include dynamic data from your entities right in the display.
 
-**Use Case:** Display the outside temperature on the top row when it drops below freezing.
-
 **Automation Example:**
 ```yaml
 alias: Display Freezing Temperature Alert
@@ -201,159 +239,22 @@ action:
     data_template:
       topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
       payload: >
-        [
-          {
-            "targetRow": 0,
-            "commands": [
-              {
-                "command": "MARQUEE",
-                "stringParam": "FREEZING TEMP: {{ states('sensor.outside_temperature') }}°C"
-              },
-              {
-                "command": "PULSE",
-                "targetSegment": -1,
-                "intParam": 5000
-              }
-            ]
-          }
-        ]
-```
-
-#### **3. Advanced Integration: The `DISPLAY_HA_SENSOR` Command**
-
-For a more direct integration, the `DISPLAY_HA_SENSOR` command tells the clock to fetch the state of an entity itself. This is useful for simple, non-templated displays.
-
-**Use Case:** Briefly show the current power consumption on the middle row's "Year" segment.
-
-**Automation Example:**
-```yaml
-alias: Flash Power Usage
-trigger:
-  - platform: state
-    entity_id: sensor.smart_plug_power
-    to: 'on'
-action:
-  - service: mqtt.publish
-    data:
-      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
-      payload: >
-        [
-          {
-            "targetRow": 1,
-            "commands": [
-              {
-                "command": "DISPLAY_HA_SENSOR",
-                "stringParam": "sensor.total_power_consumption",
-                "targetSegment": 2
-              },
-              {
-                "command": "WAIT",
-                "intParam": 10000
-              },
-              {
-                "command": "RESTORE_ROW"
-              }
-            ]
-          }
-        ]
-```
-
-#### **More Automation Examples**
-
-Here are some more copy-paste-ready examples to inspire your own creations.
-
-##### **Calendar Event Reminder**
-This automation triggers 10 minutes before an event on your calendar and scrolls the event's summary on the top row.
-```yaml
-alias: Display Calendar Event Reminder
-trigger:
-  - platform: calendar
-    event: start
-    offset: "-0:10:00"
-    entity_id: calendar.your_calendar # <-- Change this to your calendar entity
-action:
-  - service: mqtt.publish
-    data_template:
-      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
-      payload: >
-        [
-          {
-            "targetRow": 0,
-            "commands": [
-              {
-                "command": "SOUND",
-                "stringParam": "/REMINDER.mp3"
-              },
-              {
-                "command": "MARQUEE",
-                "stringParam": "EVENT: {{ trigger.calendar_event.summary }}"
-              }
-            ]
-          }
-        ]
-```
-
-##### **Laundry Cycle Finished**
-This automation uses a power-monitoring smart plug to detect when a washing machine has finished its cycle (i.e., power usage drops to near-zero for a few minutes). It then scrolls a message and plays a sound.
-```yaml
-alias: Notify When Laundry is Done
-trigger:
-  - platform: numeric_state
-    entity_id: sensor.washing_machine_power # <-- Change this to your power sensor
-    below: 2.5
-    for:
-      minutes: 2
-condition:
-  - condition: numeric_state
-    entity_id: sensor.washing_machine_power
-    above: 100 # Only trigger if it was previously running
-action:
-  - service: mqtt.publish
-    data:
-      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
-      payload: >
-        [
-          {
-            "targetRow": 2,
-            "commands": [
-              {
-                "command": "SOUND",
-                "stringParam": "/CHIME.mp3"
-              },
-              {
-                "command": "MARQUEE",
-                "stringParam": "LAUNDRY CYCLE COMPLETE"
-              }
-            ]
-          }
-        ]
-```
-
-##### **Garbage Day Reminder**
-This automation triggers every Wednesday at 7:00 PM and scrolls a reminder to take out the trash on the bottom display.
-```yaml
-alias: Weekly Garbage Day Reminder
-trigger:
-  - platform: time
-    at: "19:00:00"
-condition:
-  - condition: time
-    weekday:
-      - wed # Trigger on Wednesdays
-action:
-  - service: mqtt.publish
-    data:
-      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequence/command"
-      payload: >
-        [
-          {
-            "targetRow": 2,
-            "commands": [
-              {
-                "command": "MARQUEE",
-                "stringParam": "REMINDER: TAKE OUT THE TRASH"
-              }
-            ]
-          }
-        ]
+        {
+          "tracks": [
+            {
+              "targetRow": "TOP",
+              "commands": [
+                {
+                  "command": "MARQUEE",
+                  "stringParam": "FREEZING TEMP: {{ states('sensor.outside_temperature') }}°C"
+                },
+                {
+                  "command": "PULSE",
+                  "targetSegment": -1,
+                  "intParam": 5000
+                }
+              ]
+            }
+          ]
+        }
 ```
