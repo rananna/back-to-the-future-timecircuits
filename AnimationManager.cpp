@@ -270,38 +270,13 @@ void handleDisplayAnimation() {
 void startStyledAnimation() {
     Log_printf(LOG_LEVEL_INFO, "DIAG: startStyledAnimation() called for style ID %d.", currentSettings.animationStyle);
 
-    // --- START: MODIFICATION - True randomization ---
-    // Use a local variable to hold the animation for this specific run.
-    // This prevents the saved "Randomize All" setting from being overwritten.
+    // --- START: MODIFICATION - Centralized Randomization ---
+    // The randomization logic is now handled by generateAnimationSequence.
+    // This function now just decides whether to call the modern sequencer
+    // or the legacy state machine.
     AnimationType animationToRun = currentSettings.animationStyle;
 
-    // First, handle the "Randomize All" case by picking a new style for this run.
-    if (animationToRun == ANIMATION_RANDOMIZE_ALL) {
-        const int validAnimationStyles[] = {
-            // Legacy Animations
-            ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
-            ANIMATION_COUNTING_UP, ANIMATION_WAVE_FLICKER,
-            ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_DIGITAL_RAIN,
-            ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC,
-            ANIMATION_GLITCHY_JUMP_CUT, ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS,
-            ANIMATION_CHARACTER_SCANLINE, ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER,
-            ANIMATION_TEMPORAL_PARADOX, ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE,
-            ANIMATION_FLIP_DISC_DISPLAY, ANIMATION_INTERFERENCE_PATTERN,
-            // Modern Sequencer Animations
-            ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
-            ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD,
-            ANIMATION_FIRE_TRAILS, ANIMATION_SPARKLE_REVEAL, ANIMATION_COUNTDOWN,
-            ANIMATION_SYSTEM_ERROR,
-        };
-        int numStyles = sizeof(validAnimationStyles) / sizeof(validAnimationStyles[0]);
-        int randomIndex = random(0, numStyles);
-        // Assign the randomly selected style to our local variable for this run only.
-        animationToRun = (AnimationType)validAnimationStyles[randomIndex];
-        Log_printf(LOG_LEVEL_INFO, "Randomize All selected. New style for this run is %d.", animationToRun);
-    }
-
-    // Second, check if the selected animation (either user-selected or randomized)
-    // is a modern, sequencer-based one.
+    // Check if the selected animation is a modern, sequencer-based one.
     if (animationToRun >= ANIMATION_ALL_DISPLAYS_RANDOM) {
         triggerAnimation(animationToRun);
         return; // Exit, as the modern sequencer handles everything from here.

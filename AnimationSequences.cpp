@@ -462,6 +462,38 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
 // --- Main Generation Function ---
 
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
+    // --- START: MODIFICATION - Centralized Randomization ---
+    if (animType == ANIMATION_RANDOMIZE_ALL) {
+        const AnimationType validAnimationStyles[] = {
+            // A curated list of interesting and stable animations suitable for this feature
+            ANIMATION_ALL_DISPLAYS_RANDOM,
+            ANIMATION_LIGHTNING,
+            ANIMATION_SCANNER,
+            ANIMATION_TIME_TRAVEL_TUNNEL,
+            ANIMATION_FLUX_CAPACITOR_OVERLOAD,
+            ANIMATION_FIRE_TRAILS,
+            ANIMATION_SPARKLE_REVEAL,
+            ANIMATION_SYSTEM_ERROR,
+            ANIMATION_SEQUENTIAL_FLICKER,
+            ANIMATION_TORNADO_FLICKER,
+            ANIMATION_CAPACITOR_CHARGE_UP,
+            ANIMATION_WAVEFORM_COLLAPSE,
+            ANIMATION_TIMELINE_SKIM,
+            ANIMATION_TIME_WARP_STREAKS,
+            ANIMATION_CHARACTER_SCANLINE,
+            ANIMATION_CODE_BREAKER,
+            ANIMATION_ELECTRIC_SURGE,
+            ANIMATION_FLIP_DISC_DISPLAY
+        };
+        int numStyles = sizeof(validAnimationStyles) / sizeof(validAnimationStyles[0]);
+        int randomIndex = random(0, numStyles);
+        // Recursively call this function with the new, randomly selected type.
+        // This avoids duplicating the entire switch statement and centralizes the logic.
+        generateAnimationSequence(validAnimationStyles[randomIndex], tracks);
+        return; // Exit after the recursive call is done.
+    }
+    // --- END: MODIFICATION ---
+
     char time_strings[3][17];
     getFormattedTimeStrings(time_strings[0], time_strings[1], time_strings[2]);
 
