@@ -1597,6 +1597,11 @@ std::vector<Preset> getFullPresetList() {
  * update cycle.
  */
 void handlePresetCycling() {
+    // --- FIX: Prevent starting a new cycle while the system is stabilizing from a previous one ---
+    if (justFinishedAnimation) {
+        return;
+    }
+
     // --- FIX: Prevent preset cycling from running during the boot animation ---
     // The bootSequenceCompleted flag is set to true only after the entire boot
     // sequence has finished.
