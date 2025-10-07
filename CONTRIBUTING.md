@@ -28,20 +28,26 @@ For instructions on how to set up your development environment, including hardwa
 ## Pull Request Process
 
 1.  **Fork & Branch**: Fork the repository and create a new branch from `main` for your changes.
-2.  **Make Changes**: Make your changes, adhering to the coding standards below.
-3.  **Update Documentation**: If your changes affect user-facing features, please update the relevant documentation in the `docs/` directory.
+2.  **Make Your Changes**: Make your changes, adhering to the coding and documentation standards below.
+3.  **Update Documentation**: **This is important.** If your changes affect user-facing features, APIs, or the project's architecture, update the relevant documentation. See the Documentation Guidelines below.
 4.  **Submit Pull Request**: Ensure your pull request has a clear title and a detailed description of the changes. Reference any relevant issues.
 
 ## Coding Standards
 
 *   **Style**: Please adhere to the existing code style. The project uses a style based on the Google C++ Style Guide.
 *   **Comments**: Write clear and concise comments to explain complex logic.
-*   **Commit Messages**: Write clear and descriptive commit messages. The first line should be a short summary (50 characters or less), followed by a blank line and a more detailed explanation if necessary.
+*   **Commit Messages**: Write clear and descriptive commit messages. The first line should be a short summary (50 characters or less), followed by a a more detailed explanation if necessary.
 
 ## Documentation Guidelines
 
-*   All user-facing features should be documented in the `docs/user-guide/` directory.
-*   Technical details and API references should be documented in the `docs/developer/` directory.
-*   Please ensure that all links in the documentation are up-to-date and working correctly.
+Keeping our documentation in sync with our code is critical. Good documentation empowers users and developers, reduces support questions, and makes the project easier to contribute to.
+
+-   **Update Docs with Code**: All pull requests that introduce or change a feature, API, or user-facing behavior **must** include corresponding documentation updates in the same PR.
+-   **Where to Document**:
+    -   User-facing features or configuration changes go in `docs/user-guide/`.
+    -   Technical details, architecture changes, or API modifications go in `docs/developer/`.
+    -   The main `README.md` should only be updated for high-level changes.
+-   **Clarity and Conciseness**: Write clearly and simply. Avoid jargon where possible.
+-   **Check for Broken Links**: Please ensure that all links in the documentation are up-to-date and working correctly.
 
 Thank you again for your interest in contributing!
