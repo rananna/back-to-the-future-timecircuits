@@ -18,42 +18,26 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 
 ---
 
-## Documentation
+## Getting Started
 
-This project is extensively documented. The guides are structured to walk you from initial setup to advanced customization.
+This project is extensively documented to guide you from initial setup to advanced customization.
 
-### **1. Getting Started**
-First-time setup and installation guides.
+**1. Build and Install**
 
 -   **[Hardware & Pinout Guide](docs/getting-started/hardware.md)**: A list of required components and wiring diagrams.
 -   **[Firmware Installation Guide](docs/getting-started/installation.md)**: Step-by-step instructions for flashing the firmware.
--   **[Updating Guide](docs/getting-started/updating.md)**: Learn how to update the firmware and filesystem.
 
-### **2. User Guides**
-Learn how to use the features of your Time Circuits.
+**2. Configure and Use**
 
 -   **[Web Interface Guide](docs/user-guide/web-interface.md)**: A complete tour of the web UI for configuration.
--   **[Home Assistant Integration](docs/user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant.
--   **[Home Assistant Blueprints](home_assistant/blueprints/README.md)**: **(Recommended for HA users)** Get started quickly with our easy-to-use automation blueprints.
+-   **[Home Assistant Integration](docs/user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant, **including Blueprints**.
 -   **[Sound System Guide](docs/user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
--   **[Troubleshooting Guide](docs/user-guide/troubleshooting.md)**: Solutions to common problems.
 
-### **3. Developer & Advanced Topics**
-For those who want to contribute or create advanced custom integrations.
+**3. Advanced Topics & Development**
 
 -   **[Developer Guide](docs/developer/developer-guide.md)**: A technical deep-dive into the firmware architecture.
 -   **[Sequencer API Reference](docs/developer/sequencer-api.md)**: Create custom animations using the powerful sequencer.
 -   **[Raw MQTT API Reference](docs/developer/mqtt-api.md)**: A complete reference for the low-level MQTT API.
-
----
-
-## 🏠 Home Assistant Integration
-
-This project is designed for a seamless and powerful Home Assistant experience. The easiest way to get started is by using our **pre-built blueprints**, which provide a simple UI for creating custom automations without any code.
-
-The integration also creates a device with dozens of entities, a media player for all audio, and custom notification services for more advanced control.
-
-**➡️ To get started, see the [Home Assistant Integration Guide](docs/user-guide/home-assistant.md) and the [Blueprints README](home_assistant/blueprints/README.md).**
 
 ---
 ## 💬 Community & Support
