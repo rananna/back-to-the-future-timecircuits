@@ -12,6 +12,7 @@
 #include "DisplayManager.h"
 #include "LittleFS.h"
 #include "AnimationManager.h"
+#include "MqttManager.h"
 #include "driver/i2c.h"
 
 // --- NEW: Make the hardware mutex available in this file ---
@@ -804,6 +805,10 @@ void display88MphSpeed(float speed) {
 
 void playSound(const char* filepath, bool fromMqtt, int volume) {
     #if ENABLE_HARDWARE
+        if (isRadioStreaming) {
+            Log_printf(LOG_LEVEL_INFO, "Radio is streaming, skipping sound effect: %s", filepath);
+            return;
+        }
         char fullPath[MAX_FILENAME_LENGTH];
         if (filepath[0] == '/') {
             strncpy(fullPath, filepath, MAX_FILENAME_LENGTH);

@@ -585,6 +585,13 @@ void applySettingsFromJson(const JsonObject& obj) {
         stockManager.updateAndSaveAssets(symbols);
     }
 
+    if (!obj["favoriteRadioName"].isNull()) {
+        currentSettings.favoriteRadioName = obj["favoriteRadioName"].as<std::string>();
+    }
+    if (!obj["favoriteRadioUrl"].isNull()) {
+        currentSettings.favoriteRadioUrl = obj["favoriteRadioUrl"].as<std::string>();
+    }
+
     int numPoints = obj["numDataPoints"] | 0;
     currentSettings.numDataPoints = (numPoints < 0) ? 0 : (numPoints > 5 ? 5 : numPoints);
     if (!obj["dataPoints"].isNull()) {
@@ -721,6 +728,8 @@ void saveSettings() {
     preferences.putString("stockRow2Symbol", currentSettings.stockRow2_symbol.c_str());
     preferences.putString("stockRow3Symbol", currentSettings.stockRow3_symbol.c_str());
     preferences.putInt("numDataPoints", currentSettings.numDataPoints);
+    preferences.putString("favRadioName", currentSettings.favoriteRadioName.c_str());
+    preferences.putString("favRadioUrl", currentSettings.favoriteRadioUrl.c_str());
 
     char key_buffer[20];
     for (int i = 0; i < 5; i++) {
@@ -809,6 +818,8 @@ void loadSettings() {
             currentSettings.dataPoints[i] = {};
             currentSettings.dataPoints[i].enabled = false;
         }
+        currentSettings.favoriteRadioName = "80s Hits";
+        currentSettings.favoriteRadioUrl = "http://80s.radionomy.com/80-s-Hits";
         // Now that defaults are populated in currentSettings, save them.
         saveSettings();
     } else {
@@ -933,6 +944,14 @@ void loadSettings() {
         tempString = preferences.getString("stockRow3Symbol", "");
         currentSettings.stockRow3_symbol = tempString.c_str();
         Log_printf(LOG_LEVEL_INFO, "Loaded stockRow3Symbol: %s", currentSettings.stockRow3_symbol.c_str());
+
+        tempString = preferences.getString("favRadioName", "80s Hits");
+        currentSettings.favoriteRadioName = tempString.c_str();
+        Log_printf(LOG_LEVEL_INFO, "Loaded favRadioName: %s", currentSettings.favoriteRadioName.c_str());
+
+        tempString = preferences.getString("favRadioUrl", "http://80s.radionomy.com/80-s-Hits");
+        currentSettings.favoriteRadioUrl = tempString.c_str();
+        Log_printf(LOG_LEVEL_INFO, "Loaded favRadioUrl: %s", currentSettings.favoriteRadioUrl.c_str());
 
         // Restore loading data points
         currentSettings.numDataPoints = preferences.getInt("numDataPoints", 0);

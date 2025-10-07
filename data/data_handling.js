@@ -437,6 +437,10 @@ async function saveSettings() {
     settings.timeTravelSoundToggle = getChecked('timeTravelSoundToggle');
     settings.displayFormat24h = getChecked('displayFormat24h');
 
+    // Radio Settings
+    settings.favoriteRadioName = getValue('favoriteRadioName');
+    settings.favoriteRadioUrl = getValue('favoriteRadioUrl');
+
     // --- Determine Display Mode ---
     if (getChecked('stockTickerModeEnabled')) {
         settings.displayMode = 1;

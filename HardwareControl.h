@@ -57,6 +57,7 @@ struct ClockSettings {
     float latitude; float longitude; int stockRefreshInterval; std::string financialModelingPrepApiKey;
     std::string stockRow1_symbol; std::string stockRow2_symbol; std::string stockRow3_symbol;
     DataPoint dataPoints[5]; int theme; int dataLinkTargetRow; int displayMode;
+    std::string favoriteRadioName; std::string favoriteRadioUrl;
 };
 
 struct StockData { std::string symbol; std::string price; std::string change_percent; bool dataValid = false; };

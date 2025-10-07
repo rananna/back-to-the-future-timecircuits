@@ -53,9 +53,6 @@ async function initializeUI() {
         // Initialize the WebSocket connection
         initWebSocket();
 
-        // Populate radio stations
-        populateRadioStations();
-
         // Start fetching real-time data
         fetchTime();
         setInterval(fetchTime, 1000); // Fetch time every second
@@ -110,40 +107,6 @@ async function populateSequences() {
     }
 }
 
-/**
- * Populates the radio station table with data from the server.
- */
-async function populateRadioStations() {
-    try {
-        const response = await fetch('/api/radio_stations');
-        if (!response.ok) {
-            throw new Error('Failed to fetch radio stations');
-        }
-        const stations = await response.json();
-        const tableBody = document.getElementById('stationsTable').querySelector('tbody');
-        tableBody.innerHTML = ''; // Clear existing rows
-
-        if (stations && stations.length > 0) {
-            stations.forEach((station, index) => {
-                const row = tableBody.insertRow();
-                row.innerHTML = `
-                    <td>${station.name}</td>
-                    <td>${station.url}</td>
-                    <td class="actions">
-                        <button class="action-button play-station-btn" data-url="${station.url}">Play</button>
-                        <button class="action-button edit-station-btn" data-index="${index}" data-name="${station.name}" data-url="${station.url}">Edit</button>
-                        <button class="delete-button delete-station-btn" data-index="${index}">Delete</button>
-                    </td>
-                `;
-            });
-        }
-        // Re-attach event listeners for the new buttons
-        attachStationButtonListeners();
-    } catch (error) {
-        console.error("CLIENT_DEBUG: Failed to populate radio stations:", error);
-        showMessage('Could not load radio stations.', 'error');
-    }
-}
 
 /**
  * Populates the timezone select dropdowns with data from the server.
@@ -278,6 +241,8 @@ async function applySettings(timecircuits, temporal, datalink) {
             }
         }
         // --- END: MODIFICATION ---
+        document.getElementById('favoriteRadioName').value = temporal.favoriteRadioName || '';
+        document.getElementById('favoriteRadioUrl').value = temporal.favoriteRadioUrl || '';
     }
 
     // Update the Last Departed display
@@ -579,13 +544,13 @@ function attachEventListeners() {
 
     // Radio control button
     document.getElementById('radioControlBtn').onclick = (e) => {
-        ws.send(JSON.stringify({ action: 'stop_radio' }));
+        const state = e.target.dataset.state;
+        if (state === 'stopped') {
+            ws.send(JSON.stringify({ action: 'play_favorite_radio' }));
+        } else {
+            ws.send(JSON.stringify({ action: 'stop_radio' }));
+        }
     };
-
-    // Station form modal listeners
-    document.getElementById('addStationBtn').onclick = openStationForm;
-    document.querySelector('#stationFormContainer .close-button').onclick = closeStationForm;
-    document.getElementById('saveStationBtn').onclick = saveStation;
 
     // Run sequence button
     document.getElementById('runSequenceBtn').onclick = () => {
@@ -600,113 +565,6 @@ function attachEventListeners() {
     };
 }
 
-/**
- * Attaches event listeners to the dynamically created station buttons.
- */
-function attachStationButtonListeners() {
-    document.querySelectorAll('.play-station-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            const url = e.target.dataset.url;
-            if (url) {
-                ws.send(JSON.stringify({ action: 'play_radio', url: url }));
-            }
-        };
-    });
-
-    document.querySelectorAll('.edit-station-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            const index = e.target.dataset.index;
-            const name = e.target.dataset.name;
-            const url = e.target.dataset.url;
-            openStationForm(index, name, url);
-        };
-    });
-
-    document.querySelectorAll('.delete-station-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            const index = e.target.dataset.index;
-            if (confirm('Are you sure you want to delete this station?')) {
-                deleteStation(index);
-            }
-        };
-    });
-}
-
-/**
- * Opens the station form modal, optionally pre-filling it for editing.
- * @param {number} [index=-1] The index of the station to edit.
- * @param {string} [name=''] The name of the station.
- * @param {string} [url=''] The URL of the station.
- */
-function openStationForm(index = -1, name = '', url = '') {
-    document.getElementById('stationFormTitle').textContent = index === -1 ? 'Add Station' : 'Edit Station';
-    document.getElementById('stationIndex').value = index;
-    document.getElementById('stationName').value = name;
-    document.getElementById('stationURL').value = url;
-    document.getElementById('stationFormContainer').style.display = 'block';
-}
-
-/**
- * Closes the station form modal.
- */
-function closeStationForm() {
-    document.getElementById('stationFormContainer').style.display = 'none';
-}
-
-/**
- * Saves a station (either new or existing) to the server.
- */
-async function saveStation() {
-    const name = document.getElementById('stationName').value;
-    const url = document.getElementById('stationURL').value;
-    const index = parseInt(document.getElementById('stationIndex').value, 10);
-
-    if (!name || !url) {
-        showMessage('Name and URL are required.', 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/station/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, url, index })
-        });
-        if (response.ok) {
-            showMessage('Station saved successfully.', 'success');
-            closeStationForm();
-            // The backend will broadcast an update, so we don't need to call populateRadioStations() here.
-        } else {
-            throw new Error('Failed to save station');
-        }
-    } catch (error) {
-        console.error("CLIENT_DEBUG: Failed to save station:", error);
-        showMessage('Error saving station.', 'error');
-    }
-}
-
-/**
- * Deletes a station from the server.
- * @param {number} index The index of the station to delete.
- */
-async function deleteStation(index) {
-    try {
-        const response = await fetch('/api/station/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ index })
-        });
-        if (response.ok) {
-            showMessage('Station deleted successfully.', 'success');
-             // The backend will broadcast an update, so we don't need to call populateRadioStations() here.
-        } else {
-            throw new Error('Failed to delete station');
-        }
-    } catch (error) {
-        console.error("CLIENT_DEBUG: Failed to delete station:", error);
-        showMessage('Error deleting station.', 'error');
-    }
-}
 
 /**
  * Handles the change event of the preset select dropdown.
