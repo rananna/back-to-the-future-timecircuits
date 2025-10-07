@@ -855,7 +855,7 @@ void handleSequencer() {
 
             case SEQ_CMD_SOUND:
                 if (!track.stepInitialized) {
-                    playSound(step.stringParam.c_str());
+                    playSound(step.stringParam);
                     track.stepInitialized = true;
                     advance_step = true;
                 }
@@ -1128,7 +1128,7 @@ void handleSequencer() {
                     advance_step = true;
                 } else {
                     if (millis() - track.lastScannerUpdate > (unsigned long)step.intParam2) {
-                        std::string visual = step.stringParam;
+                        std::string visual(step.stringParam);
                         if (visual.empty()) visual = "#";
                         int visual_len = visual.length();
                         std::string scan_str(13, ' '); // 13 spaces
@@ -1166,12 +1166,12 @@ void handleSequencer() {
                     updateDisplaySegment(step.targetRow, step.targetSegment, ""); // Clear segment first
                     track.stepInitialized = true;
                 }
-                if ((unsigned)track.typewriterIndex >= step.stringParam.length()) {
+                if ((unsigned)track.typewriterIndex >= strlen(step.stringParam)) {
                     advance_step = true;
                 } else {
                     if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
                         track.typewriterIndex++;
-                        updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam.substr(0, track.typewriterIndex));
+                        updateDisplaySegment(step.targetRow, step.targetSegment, std::string(step.stringParam).substr(0, track.typewriterIndex));
                         track.lastTypewriterUpdate = millis();
                     }
                 }
@@ -1190,7 +1190,7 @@ void handleSequencer() {
                         std::string wipe_str = "             ";
                         for(int j=0; j < track.wipeSegment; j++) {
                             // --- FIX: Add bounds check to prevent reading past the end of the string ---
-                            if (j < (int)step.stringParam.length()) {
+                            if (j < (int)strlen(step.stringParam)) {
                                 wipe_str[j] = step.stringParam[j];
                             }
                         }
@@ -1220,8 +1220,8 @@ void handleSequencer() {
                     if (animElapsed >= totalDuration) {
                         // Ensure the bar is 100% full at the end
                         std::string final_bar = "|||||||||||||"; // Use '|' character
-                        if (!step.stringParam.empty()) {
-                            int text_len = step.stringParam.length();
+                        if (step.stringParam[0] != '\0') {
+                            int text_len = strlen(step.stringParam);
                             int start_pos = (13 - text_len) / 2;
                             if (start_pos < 0) start_pos = 0;
                             final_bar.replace(start_pos, text_len, step.stringParam);
@@ -1245,8 +1245,8 @@ void handleSequencer() {
                         }
 
                         // Overlay the text if it exists
-                        if (!step.stringParam.empty()) {
-                            int text_len = step.stringParam.length();
+                        if (step.stringParam[0] != '\0') {
+                            int text_len = strlen(step.stringParam);
                             int start_pos = (13 - text_len) / 2;
                             if (start_pos < 0) start_pos = 0;
                             bar.replace(start_pos, text_len, step.stringParam);
@@ -1259,7 +1259,7 @@ void handleSequencer() {
 
             case SEQ_CMD_RANDOM_FLICKER_TEXT:
                 if (!track.stepInitialized) {
-                    if (step.stringParam.empty()) {
+                    if (step.stringParam[0] == '\0') {
                         // If no string is provided, intelligently decide which text to use.
                         // First, check if there's already manual text on the display for this row.
                         std::string currentManualText = getFullRowText(step.targetRow);
@@ -1303,14 +1303,14 @@ void handleSequencer() {
 
             case SEQ_CMD_SCRAMBLE_TEXT:
                 if (!track.stepInitialized) {
-                    track.scrambleCurrentText = std::string(step.stringParam.length(), ' ');
+                    track.scrambleCurrentText = std::string(strlen(step.stringParam), ' ');
                     track.scrambleCharIndex = 0;
                     track.lastScrambleUpdate = millis();
                     track.lastScrambleLockInTime = millis();
                     track.stepInitialized = true;
                 }
 
-                if ((unsigned)track.scrambleCharIndex >= step.stringParam.length()) {
+                if ((unsigned)track.scrambleCharIndex >= strlen(step.stringParam)) {
                     // Animation is complete, ensure final text is displayed and advance.
                     updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
                     advance_step = true;
@@ -1318,7 +1318,7 @@ void handleSequencer() {
                     // Check if it's time to lock in the next character.
                     if (millis() - track.lastScrambleLockInTime >= (unsigned long)step.intParam2) {
                         // --- FIX: Lock in the character before incrementing the index ---
-                        if (track.scrambleCharIndex < step.stringParam.length()) {
+                        if ((unsigned)track.scrambleCharIndex < strlen(step.stringParam)) {
                             track.scrambleCurrentText[track.scrambleCharIndex] = step.stringParam[track.scrambleCharIndex];
                         }
                         track.scrambleCharIndex++;
@@ -1346,12 +1346,12 @@ void handleSequencer() {
                     track.lastTypewriterUpdate = millis();
                     track.stepInitialized = true;
                 }
-                if ((unsigned)track.typewriterIndex >= step.stringParam.length()) {
+                if ((unsigned)track.typewriterIndex >= strlen(step.stringParam)) {
                     advance_step = true;
                 } else {
                     if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
                         track.typewriterIndex++;
-                        std::string text = step.stringParam.substr(0, track.typewriterIndex);
+                        std::string text = std::string(step.stringParam).substr(0, track.typewriterIndex);
                         while(text.length() < 13) text = " " + text;
                         updateDisplaySegment(step.targetRow, 0, text.substr(0,3));
                         updateDisplaySegment(step.targetRow, 1, text.substr(3,2));
