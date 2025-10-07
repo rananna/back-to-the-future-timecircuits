@@ -197,7 +197,6 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
         lastRow.day.writeDisplay();
         lastRow.year.writeDisplay();
         lastRow.time.writeDisplay();
-        vTaskDelay(pdMS_TO_TICKS(2));
         xSemaphoreGive(xDisplayHardwareMutex);
     }
     delay(duration);
@@ -576,144 +575,71 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
         }
     };
 
-    if (timeSynchronized) {
-        time_t now_t;
-        struct tm dest_timeinfo, present_timeinfo;
+    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+        if (timeSynchronized) {
+            time_t now_t;
+            struct tm dest_timeinfo, present_timeinfo;
 
-        if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-            time(&now_t);
-            // --- Destination Time ---
-            setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-            tzset();
-            localtime_r(&now_t, &dest_timeinfo);
-            // --- Present Time ---
-            setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-            tzset();
-            localtime_r(&now_t, &present_timeinfo);
-            xSemaphoreGive(xTimeLibMutex);
-        }
-
-        if (updateDest) {
-            dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
-            if (!isRowInManualMode[0]) {
-                printRow(destRow, dest_timeinfo, currentSettings.destinationYear, true, 0);
-            } else {
-                SequencerTrack& track = sequencerTracks[0];
-                // Month (Segment 0)
-                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) {
-                    printToDisplay(destRow.month, "   ", 1);
-                } else {
-                    printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
-                }
-                // Day (Segment 1)
-                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) {
-                    printToDisplay(destRow.day, "  ", 2);
-                } else {
-                    printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
-                }
-                // Year (Segment 2)
-                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) {
-                    printToDisplay(destRow.year, "    ");
-                } else {
-                    printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
-                }
-                // Time (Segment 3)
-                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) {
-                    printToDisplay(destRow.time, "    ");
-                } else {
-                    printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
-                }
+            if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+                time(&now_t);
+                setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+                tzset();
+                localtime_r(&now_t, &dest_timeinfo);
+                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                tzset();
+                localtime_r(&now_t, &present_timeinfo);
+                xSemaphoreGive(xTimeLibMutex);
             }
-            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+
+            if (updateDest) {
+                dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
+                if (!isRowInManualMode[0]) {
+                    printRow(destRow, dest_timeinfo, currentSettings.destinationYear, true, 0);
+                } else {
+                    SequencerTrack& track = sequencerTracks[0];
+                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(destRow.month, "   ", 1); else printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
+                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(destRow.day, "  ", 2); else printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
+                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(destRow.year, "    "); else printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
+                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(destRow.time, "    "); else printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
+                }
                 destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(2));
-                xSemaphoreGive(xDisplayHardwareMutex);
             }
-        }
 
-        if (updatePres) {
-            bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
-            if (!isRowInManualMode[1]) {
-                printRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent, 1);
-            } else {
-                SequencerTrack& track = sequencerTracks[1];
-                // Month (Segment 0)
-                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) {
-                    printToDisplay(presRow.month, "   ", 1);
+            if (updatePres) {
+                bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
+                if (!isRowInManualMode[1]) {
+                    printRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent, 1);
                 } else {
-                    printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
+                    SequencerTrack& track = sequencerTracks[1];
+                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(presRow.month, "   ", 1); else printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
+                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(presRow.day, "  ", 2); else printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
+                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(presRow.year, "    "); else printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
+                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(presRow.time, "    "); else printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
                 }
-                // Day (Segment 1)
-                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) {
-                    printToDisplay(presRow.day, "  ", 2);
-                } else {
-                    printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
-                }
-                // Year (Segment 2)
-                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) {
-                    printToDisplay(presRow.year, "    ");
-                } else {
-                    printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
-                }
-                // Time (Segment 3)
-                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) {
-                    printToDisplay(presRow.time, "    ");
-                } else {
-                    printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
-                }
-            }
-            if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                 presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
-                vTaskDelay(pdMS_TO_TICKS(2));
-                xSemaphoreGive(xDisplayHardwareMutex);
             }
         }
-    }
 
-    // --- Last Time Departed ---
-    // This is not dependent on NTP sync, so it can be updated immediately.
-    if (updateLast) {
-        struct tm lastTimeDepartedInfo = {0};
-        lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
-        lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
-        lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
-        lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
-        lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
+        if (updateLast) {
+            struct tm lastTimeDepartedInfo = {0};
+            lastTimeDepartedInfo.tm_year = currentSettings.lastTimeDepartedYear - 1900;
+            lastTimeDepartedInfo.tm_mon = currentSettings.lastTimeDepartedMonth - 1;
+            lastTimeDepartedInfo.tm_mday = currentSettings.lastTimeDepartedDay;
+            lastTimeDepartedInfo.tm_hour = currentSettings.lastTimeDepartedHour;
+            lastTimeDepartedInfo.tm_min = currentSettings.lastTimeDepartedMinute;
 
-        if (!isRowInManualMode[2]) {
-            printRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true, 2);
-        } else {
-            SequencerTrack& track = sequencerTracks[2];
-            // Month (Segment 0)
-            if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) {
-                printToDisplay(lastRow.month, "   ", 1);
+            if (!isRowInManualMode[2]) {
+                printRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true, 2);
             } else {
-                printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
+                SequencerTrack& track = sequencerTracks[2];
+                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(lastRow.month, "   ", 1); else printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
+                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(lastRow.day, "  ", 2); else printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
+                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(lastRow.year, "    "); else printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
+                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(lastRow.time, "    "); else printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
             }
-            // Day (Segment 1)
-            if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) {
-                printToDisplay(lastRow.day, "  ", 2);
-            } else {
-                printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
-            }
-            // Year (Segment 2)
-            if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) {
-                printToDisplay(lastRow.year, "    ");
-            } else {
-                printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
-            }
-            // Time (Segment 3)
-            if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) {
-                printToDisplay(lastRow.time, "    ");
-            } else {
-                printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
-            }
-        }
-        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
             lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
-            vTaskDelay(pdMS_TO_TICKS(2));
-            xSemaphoreGive(xDisplayHardwareMutex);
         }
+        xSemaphoreGive(xDisplayHardwareMutex);
     }
 #endif
 }
