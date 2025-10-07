@@ -311,6 +311,7 @@ void publishOverrideSwitchDiscovery();
 void cleanupOldOverrideMessageEntity();
 void publishOverrideLineTextEntitiesDiscovery();
 void cleanupOldMediaPlayerEntities();
+void publishMediaPlayerDiscovery();
 void publishDisplayModeSelectorDiscovery();
 void publishWeatherEntitiesDiscovery();
 void publishAudioStatusSensorDiscovery();
@@ -580,6 +581,75 @@ void cleanupOldMediaPlayerEntities() {
     clearHaEntity("sensor", "audio_status");
 }
 
+/**
+ * @brief Publishes the discovery message for the media_player entity.
+ * @details This creates a media_player in Home Assistant that can be used to
+ * control audio playback on the device, specifically for playing the favorite
+ * radio station. It includes the full device object to ensure it's correctly
+ * associated with the main Time Circuits device.
+ */
+void publishMediaPlayerDiscovery() {
+    // While `prepareHaDiscovery` should have already added the device object to the
+    // global `discoveryDoc`, we explicitly re-add it here to ensure the media_player
+    // discovery payload is always complete, resolving an issue where the parent device
+    // was not appearing in Home Assistant.
+    JsonObject device = discoveryDoc["device"].to<JsonObject>();
+    device["identifiers"] = MQTT_UNIQUE_ID;
+    device["name"] = "Time Circuits";
+    device["model"] = "BTTF Clock v1";
+    device["manufacturer"] = "Doc Brown Industries";
+    device["sw_version"] = "2.0";
+    String ip_addr = WiFi.localIP().toString();
+    if (ip_addr != "0.0.0.0") {
+        device["configuration_url"] = "http://" + ip_addr + "/";
+    }
+
+    discoveryDoc["name"] = "Time Circuits Radio";
+    String media_player_id = String(MQTT_UNIQUE_ID) + "_media_player";
+    discoveryDoc["unique_id"] = media_player_id;
+    discoveryDoc["object_id"] = media_player_id;
+
+    // Command topic to receive play/pause/stop commands
+    discoveryDoc["command_topic"] = device_base_topic + "/radio/command";
+    // State topic to report the current status (playing, paused, idle)
+    discoveryDoc["state_topic"] = device_base_topic + "/audio/state";
+
+    // Supported commands
+    JsonArray supported_commands = discoveryDoc["supported_features"].to<JsonArray>();
+    supported_commands.add("play");
+    supported_commands.add("stop");
+    supported_commands.add("play_media");
+    supported_commands.add("volume_set");
+    supported_commands.add("select_source");
+
+    // Mapping HA commands to firmware commands
+    discoveryDoc["payload_play"] = "play_favorite_radio";
+    discoveryDoc["payload_stop"] = "stop";
+
+    // Define the list of available sources (radio stations)
+    JsonArray sources = discoveryDoc["source_list"].to<JsonArray>();
+    sources.add("Favorite Radio Station");
+
+    discoveryDoc["icon"] = "mdi:radio";
+    discoveryDoc["entity_category"] = "config";
+
+    publishDiscoveryMessage(discoveryDoc, "media_player");
+
+    // Cleanup for the next function. We only remove the keys specific to this entity.
+    // The 'device' and 'availability' objects are left untouched for the next function.
+    discoveryDoc.remove("name");
+    discoveryDoc.remove("unique_id");
+    discoveryDoc.remove("object_id");
+    discoveryDoc.remove("command_topic");
+    discoveryDoc.remove("state_topic");
+    discoveryDoc.remove("supported_features");
+    discoveryDoc.remove("payload_play");
+    discoveryDoc.remove("payload_stop");
+    discoveryDoc.remove("source_list");
+    discoveryDoc.remove("icon");
+    discoveryDoc.remove("entity_category");
+}
+
 void publishDisplayModeSelectorDiscovery() {
     discoveryDoc["name"] = "Display Mode";
     String display_mode_id = String(MQTT_UNIQUE_ID) + "_display_mode";
@@ -679,6 +749,7 @@ void (*discovery_functions[])() = {
     cleanupOldOverrideMessageEntity,
     publishOverrideLineTextEntitiesDiscovery,
     cleanupOldMediaPlayerEntities,
+    publishMediaPlayerDiscovery,
     publishDisplayModeSelectorDiscovery,
     publishWeatherEntitiesDiscovery,
     publishAudioStatusSensorDiscovery,
