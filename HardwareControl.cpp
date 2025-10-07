@@ -802,7 +802,7 @@ void display88MphSpeed(float speed) {
     }
 }
 
-void playSound(const char* filepath, bool fromMqtt) {
+void playSound(const char* filepath, bool fromMqtt, int volume) {
     #if ENABLE_HARDWARE
         char fullPath[MAX_FILENAME_LENGTH];
         if (filepath[0] == '/') {
@@ -811,7 +811,7 @@ void playSound(const char* filepath, bool fromMqtt) {
             snprintf(fullPath, MAX_FILENAME_LENGTH, "/%s", filepath);
         }
         fullPath[MAX_FILENAME_LENGTH - 1] = '\0';
-        Log_printf(LOG_LEVEL_INFO, "Request to play sound: %s (fromMqtt: %s)", fullPath, fromMqtt ? "true" : "false");
+        Log_printf(LOG_LEVEL_INFO, "Request to play sound: %s (fromMqtt: %s, volume: %d)", fullPath, fromMqtt ? "true" : "false", volume);
         if (audio.isRunning()) {
             Log_printf(LOG_LEVEL_DEBUG, "Audio is already running. Stopping current sound.");
             audio.stopSong();
@@ -825,11 +825,19 @@ void playSound(const char* filepath, bool fromMqtt) {
         isPlayingSound = true;
         digitalWrite(I2S_SD_PIN, HIGH);
         vTaskDelay(pdMS_TO_TICKS(10));
-        audio.setVolume(currentSettings.notificationVolume);
+
+        // --- NEW: Volume override logic ---
+        int final_volume = (volume == -1) ? currentSettings.notificationVolume : volume;
+        if (final_volume > 21) {
+            Log_printf(LOG_LEVEL_WARN, "Requested volume %d exceeds max of 21. Capping.", final_volume);
+            final_volume = 21;
+        }
+        audio.setVolume(final_volume);
+
         strncpy(currentSoundFile, fullPath, MAX_FILENAME_LENGTH - 1);
         currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
         if (audio.connecttoFS(LittleFS, currentSoundFile)) {
-            Log_printf(LOG_LEVEL_INFO, "Started playing: %s", currentSoundFile);
+            Log_printf(LOG_LEVEL_INFO, "Started playing: %s with volume %d", currentSoundFile, final_volume);
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Failed to connect to audio file: %s", currentSoundFile);
             currentSoundFile[0] = '\0';
