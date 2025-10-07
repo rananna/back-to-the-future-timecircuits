@@ -945,11 +945,11 @@ void loadSettings() {
         currentSettings.stockRow3_symbol = tempString.c_str();
         Log_printf(LOG_LEVEL_INFO, "Loaded stockRow3Symbol: %s", currentSettings.stockRow3_symbol.c_str());
 
-        tempString = preferences.getString("favRadioName", "80s Hits");
+        tempString = preferences.getString("favRadioName", "CBC KINGSTON");
         currentSettings.favoriteRadioName = tempString.c_str();
         Log_printf(LOG_LEVEL_INFO, "Loaded favRadioName: %s", currentSettings.favoriteRadioName.c_str());
 
-        tempString = preferences.getString("favRadioUrl", "http://80s.radionomy.com/80-s-Hits");
+        tempString = preferences.getString("favRadioUrl", "http://playerservices.streamtheworld.com/pls/CBCKFM_CBC.pls");
         currentSettings.favoriteRadioUrl = tempString.c_str();
         Log_printf(LOG_LEVEL_INFO, "Loaded favRadioUrl: %s", currentSettings.favoriteRadioUrl.c_str());
 

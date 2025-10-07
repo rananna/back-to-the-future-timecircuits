@@ -11,6 +11,7 @@ from homeassistant.components.button import (
     ButtonEntity,
     ButtonEntityDescription,
 )
+from homeassistant.components.media_player import MediaType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -136,8 +137,12 @@ class BTTFTimeCircuitsFavoriteButton(BTTFTimeCircuitsEntity, ButtonEntity):
         if media_player_entity_id:
             await self.hass.services.async_call(
                 "media_player",
-                "favorite_radio_station",
-                {"entity_id": media_player_entity_id},
+                "play_media",
+                {
+                    "entity_id": media_player_entity_id,
+                    "media_content_id": "Favorite Radio Station",
+                    "media_content_type": MediaType.CHANNEL,
+                },
                 blocking=True,
             )
 
