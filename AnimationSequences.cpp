@@ -484,14 +484,15 @@ void generateLightning(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 
     // --- Stage 3: The "1.21 Gigawatts" Moment ---
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 100, "  1.21 GW!!  ");
+    // Make the scramble duration (13 chars * 115ms) ~1500ms to match the flash commands.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 115, "  1.21 GW!!  ");
 
     // While the middle row is scrambling, keep flashing the top and bottom
     s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1500, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 1500, 0);
 
     // --- Stage 4: Final Power Surge ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0); // Wait for scramble to finish
+    // All tracks are now synchronized after Stage 3. No extra wait is needed.
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SYSTEMS LIVE ");
     s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "  1.21 GW!!  ");
     s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "-------------");
