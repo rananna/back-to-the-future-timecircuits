@@ -74,8 +74,23 @@ The best way to contribute new visual effects is by using the modern sequencer s
 
 ### Adding a New Built-in Named Animation
 
-1.  **Create Generator Function**: In `AnimationSequences.cpp`, create a new function (e.g., `generateMyCoolAnimation(SequencerTrack tracks[3])`) that uses the `add_step` helper to build your animation.
-2.  **Define `AnimationType`**: Add a new entry to the `AnimationType` enum in `AnimationSequences.h`.
-3.  **Register Animation**: Add a `case` to the `switch` statement in `generateAnimationSequence()` in `AnimationSequences.cpp` that calls your new generator function.
-4.  **Expose via MQTT (Optional)**: To make the animation triggerable by a simple string, add an `else if` block to `handleSequencerCommand()` in `MqttManager.cpp` that calls `generateAnimationSequence` with your new `AnimationType`.
+There are two ways to add a new named animation, depending on its complexity.
+
+#### 1. Add a C++ Generated Animation
+
+This is the preferred method for complex animations requiring logic, randomness, or high performance.
+
+1.  **Create Generator Function**: In `AnimationSequences.cpp`, create a new C++ function (e.g., `generateMyCoolAnimation(SequencerTrack tracks[3])`) that uses the `add_step` helper to build your sequence.
+2.  **Define `AnimationType`**: Add a new entry to the `AnimationType` enum in `AnimationSequences.h`. This gives your animation a unique ID.
+3.  **Register Animation**: In `AnimationSequences.cpp`, add a `case` to the `switch` statement inside the `generateAnimationSequence()` function. This `case` should match your new `AnimationType` and call your generator function.
+4.  **Add to `sequences.json`**: Add an entry for your new animation in the `data/sequences.json` file. The `value` should be the string name you want to use (e.g., "My Cool Animation"), and the `name` should be a user-friendly label for the UI. The firmware will automatically map this string name to the `AnimationType` enum you created.
 5.  **Document**: Add the new animation to the "Built-in Animations" list in `docs/developer/sequencer-api.md`.
+
+#### 2. Add a JSON-Defined Animation
+
+This method is ideal for simple, declarative sequences that don't require complex C++ logic.
+
+1.  **Define `AnimationType`**: Add a new entry to the `AnimationType` enum in `AnimationSequences.h`.
+2.  **Add JSON Case**: In `AnimationSequences.cpp`, add a `case` to the `switch` statement inside `generateAnimationSequence()`. In this case, call `parseSequenceFromJson(tracks, "...")` with your complete JSON sequence as a raw string literal.
+3.  **Add to `sequences.json`**: Add an entry for your new animation in `data/sequences.json`.
+4.  **Document**: Add the new animation to the "Built-in Animations" list in `docs/developer/sequencer-api.md`.
