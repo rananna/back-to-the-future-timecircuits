@@ -38,16 +38,6 @@ NUMBERS: tuple[BTTFTimeCircuitsNumberEntityDescription, ...] = (
         mode=NumberMode.SLIDER,
     ),
     BTTFTimeCircuitsNumberEntityDescription(
-        key="animation_interval",
-        name="Animation Interval",
-        icon="mdi:clock-in",
-        native_min_value=0,
-        native_max_value=120,
-        native_step=1,
-        native_unit_of_measurement="min",
-        mode=NumberMode.SLIDER,
-    ),
-    BTTFTimeCircuitsNumberEntityDescription(
         key="stock_refresh",
         name="Stock Refresh",
         icon="mdi:chart-line",
