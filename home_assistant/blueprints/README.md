@@ -1,92 +1,175 @@
 # BTTF Time Circuits - Home Assistant Blueprints
 
-Welcome! This directory contains a collection of Home Assistant **script blueprints** that make it easy to create and run custom animations on your BTTF Time Circuits device.
+Welcome, time traveler! This guide is your flux capacitor for integrating the BTTF Time Circuits clock with Home Assistant. These blueprints are designed to make it incredibly simple to display information, create alerts, and run animations, turning your device from a cool clock into a dynamic, interactive part of your smart home.
 
-To provide the best experience, we offer a set of focused blueprints for common tasks. This approach keeps things simple for everyday notifications and automations.
-
-## Which Blueprint Should I Use?
-
-Here's a quick guide to help you choose the right blueprint for your needs:
-
-| Your Goal                                       | Recommended Blueprint                                   |
-| ------------------------------------------------- | ------------------------------------------------------- |
-| "I want to display a simple text message."        | [**Display Text**](./display_text.yaml)                 |
-| "I want to show a sensor's value on the display." | [**Display Entity**](./display_entity.yaml)             |
-| "I want to run a countdown timer."                | [**Countdown Timer**](./countdown.yaml)                 |
+Whether you want to see the outside temperature, get a visual alert when the doorbell rings, or run a countdown to movie night, you've come to the right place.
 
 ---
 
 ## Installation
 
-1.  **Copy Blueprints**: Copy the `.yaml` files from this directory into the `/config/blueprints/script/` directory of your Home Assistant installation. You can choose to copy all of them, or just the ones you need. The Samba share, FTP, or File Editor add-ons are useful for this.
-2.  **Reload Blueprints**: In the Home Assistant UI, navigate to **Settings** -> **Automations & Scenes** -> **Blueprints**. Click the three-dot menu in the bottom-right corner and select **Reload Blueprints**.
-3.  **Create a Script**: The blueprints you copied will appear in the list. Click **Create Script** on the one you wish to use. This configured script can then be run from your dashboards or called as a service in other automations.
+Getting started is as easy as a 1.21-gigawatt lightning strike (and much safer).
+
+1.  **Copy Blueprints**: Copy the `.yaml` files from this directory into your Home Assistant's `/config/blueprints/script/` directory. The easiest way to do this is with the Samba Share, FTP, or File Editor add-ons. You can copy all of them, or just the ones you need.
+2.  **Reload Blueprints**: In the Home Assistant UI, go to **Settings** -> **Automations & Scenes** -> **Blueprints**. Click the three-dot menu in the corner and select **Reload Blueprints**.
+3.  **Create a Script**: The blueprints will now appear in your list. Click **Create Script** on the one you want to use, fill in the options, and save it. This script is now ready to be called from your dashboards or, more powerfully, from automations.
 
 ---
 
-## Core Concepts
+## Core Concepts: Scripts vs. Automations
 
-It's important to understand two key concepts about how these blueprints work:
+To unlock the full potential of your Time Circuits, it's crucial to understand how Home Assistant uses scripts and automations together.
 
-**1. Scripts are "One-Shot"**
+**1. Scripts are "One-Shot" Actions**
 
-The blueprints create a Home Assistant **Script**. When you run a script (either manually or from an automation), it executes its sequence of commands once and then stops. It does not continuously run in the background.
+Think of a blueprint script as a single, specific mission: "Show this text now." When you run the script, it executes its commands (e.g., display a temperature reading) and then it's done. It doesn't keep running or update automatically.
 
-*   **Example:** If you create a script to show the temperature, it will fetch the temperature *at that moment*, display it, and finish. The display will not automatically update if the temperature changes later.
+**2. Automations Provide the Brains**
 
-**2. Automations are for Dynamic Updates**
+Automations are the engine of your smart home. They watch for triggers (like a sensor changing, a time of day, or a button press) and then perform actions, such as running one of your blueprint scripts.
 
-To make the display dynamic and responsive to your home, you must use **Automations** to trigger these scripts. An automation can watch for a specific event (like a sensor changing or a door opening) and then run the corresponding script.
-
-*   **Example:** To create a dynamic temperature display, you would use the **Display Entity** blueprint to create a script. Then, you would create an **Automation** that triggers whenever `sensor.outside_temperature` changes its state. The automation's action would be to call the script you created. This way, every time the temperature updates, the script re-runs and sends the new value to the display.
+> **The Pattern:** You create a **Script** from a blueprint to define *what* you want to happen. Then, you create an **Automation** to decide *when* it should happen.
 
 ---
 
-## Using Templates to Display Entity Data
+## Blueprint Guide: Display Text
 
-A key feature of these blueprints is the ability to use [Home Assistant templates](https://www.home-assistant.io/docs/configuration/templating/) in any text field. This allows you to create dynamic messages that include sensor values, device states, or attributes.
+This is your workhorse for displaying any custom message. It's perfect for alerts, notifications, and simple status messages.
 
-While the **Display Entity** blueprint is the easiest way to show sensor data, templates are useful in other blueprints as well.
+*   **Inputs:**
+    *   `Device ID`: The unique identifier for your Time Circuits clock.
+    *   `Display Row`: Which of the three rows (Top, Middle, Bottom) to use.
+    *   `Text`: The message to display. You can use Home Assistant templates here!
+    *   `Effect`: An optional visual effect (e.g., Pulse, Flash, Marquee).
+    *   `Duration (seconds)`: How long the text should remain visible.
+    *   `Sound Effect`: An optional sound to play from the device's library.
+    *   `Restore Row`: If checked, the row will return to its previous state (e.g., the clock) after the duration.
 
-**Example: Dynamic alert message in the "Display Text" blueprint**
-```jinja
-Alert: The {{ trigger.to_state.name }} was opened!
-```
+*   **Automation Example: Front Door Alert**
+    This automation displays "FRONT DOOR OPEN" on the middle row when the front door is opened. It stays visible for 10 seconds, then the row reverts to the clock.
+
+    ```yaml
+    alias: Alert - Front Door Opened
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.front_door_contact
+        to: 'on'
+    action:
+      - service: script.your_display_text_script_name # <-- Change this!
+        data:
+          row: Middle
+          text: FRONT DOOR OPEN
+          duration: 10
+          effect: Flash
+    ```
+
+## Blueprint Guide: Display Entity
+
+This blueprint is the easiest way to show the state or value of any Home Assistant entity on your display.
+
+*   **Inputs:**
+    *   `Device ID`, `Display Row`, `Effect`, `Duration`, `Sound`, `Restore Row`: Same as the Display Text blueprint.
+    *   `Entity`: The sensor or entity you want to display.
+    *   `Prefix / Suffix`: Optional text to add before or after the entity's value (e.g., a "°F" suffix for temperature).
+
+*   **Automation Example: Dynamic Temperature Display**
+    This automation runs the script whenever the outside temperature sensor changes, keeping the display on the top row always up-to-date.
+
+    ```yaml
+    alias: Update Outside Temperature Display
+    trigger:
+      - platform: state
+        entity_id: sensor.outside_temperature
+    action:
+      - service: script.your_display_entity_script_name # <-- Change this!
+        data:
+          row: Top
+          entity: sensor.outside_temperature
+          suffix: " F"
+          restore_row: false # Keep the value on screen
+    ```
+
+## Blueprint Guide: Countdown Timer
+
+Perfect for building anticipation for movie night, a gaming session, or just counting down to dinner time.
+
+*   **Inputs:**
+    *   `Device ID`, `Display Row`, `Sound`: Same as the other blueprints.
+    *   `Duration (seconds)`: The total length of the countdown.
+    *   `Prefix`: Optional text to show before the countdown number (e.g., "T-MINUS").
+    *   `Completion Text`: A message to display when the countdown hits zero.
+
+*   **Automation Example: Movie Night Countdown**
+    When you turn on the "Movie Night" switch, this automation starts a 10-second countdown on the bottom row, ending with the message "SHOWTIME!".
+
+    ```yaml
+    alias: Movie Night Countdown
+    trigger:
+      - platform: state
+        entity_id: input_boolean.movie_night
+        to: 'on'
+    action:
+      - service: script.your_countdown_script_name # <-- Change this!
+        data:
+          row: Bottom
+          duration_seconds: 10
+          prefix: "STARTING IN"
+          completion_text: "SHOWTIME!"
+          sound: Time Travel
+    ```
 
 ---
 
-## Advanced Usage: Triggering Built-in Animations
+## Advanced Usage: Built-in Animations
 
-Beyond the blueprints, you can also trigger a wide variety of pre-programmed, named animations for more cinematic effects (e.g., `Intruder Alert`, `Time Travel`, `Lightning`). This is useful when you want a cool visual effect without building a complex sequence yourself.
+For more cinematic flair, you can trigger the device's spectacular built-in animations directly. These are perfect for special scenes or alerts where you want maximum visual impact.
 
-You can do this by calling the `mqtt.publish` service directly in your automations.
+This is done by calling the `mqtt.publish` service in your automation. You send the name of the animation as the payload.
 
-**Automation Example:**
-```yaml
-alias: Trigger Intruder Alert on Break-in
-trigger:
-  - platform: state
-    entity_id: binary_sensor.front_door_contact
-    to: 'on'
-condition:
-  - condition: state
-    entity_id: alarm_control_panel.home_alarm
-    state: armed_away
-action:
-  - service: mqtt.publish
-    data:
-      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command"
-      payload: "Intruder Alert"
-```
+*   **Automation Example: Trigger Intruder Alert**
+    If the alarm is armed and a door opens, this triggers the high-energy "Intruder Alert" sequence.
 
-For a complete, up-to-date list of all the available animation names you can use in the `payload`, please see the canonical list in the main API documentation:
+    ```yaml
+    alias: Trigger Intruder Alert on Break-in
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.front_door_contact
+        to: 'on'
+    condition:
+      - condition: state
+        entity_id: alarm_control_panel.home_alarm
+        state: armed_away
+    action:
+      - service: mqtt.publish
+        data:
+          topic: "bttf-time-circuits/YOUR_DEVICE_ID/cmnd/sequencer"
+          payload: "Intruder Alert"
+    ```
+
+For a complete list of all animation names, see the official developer documentation.
 
 **[Developer Docs: Built-in Animations List](../../docs/developer/sequencer-api.md#built-in-animations)**
 
 ---
 
-## Full Command Reference
+## FAQ & Troubleshooting
 
-The blueprints expose the full power of the device's command sequencer. For a complete list of all available commands (like `SET_TEXT`, `PULSE`, `COUNTDOWN`, etc.) and their parameters, please see the canonical documentation here:
+*   **How do I find my Device ID?**
+    Your clock's unique Device ID can be found in two places:
+    1.  In the device's Web Interface, under **Settings -> Device**.
+    2.  It's the same as the `base_topic` you configured in the device's `config.json` file.
 
-**[Developer Docs: Sequencer API Command Reference](../../docs/developer/sequencer-api.md#command-reference)**
+*   **Why does my text disappear immediately?**
+    This usually happens when using the `SET_TEXT` effect (or no effect at all). This command is non-blocking, meaning it executes and immediately moves on. The blueprint's `Duration (seconds)` input solves this by automatically adding a `WAIT` command. If your text isn't staying visible, ensure you have set a `Duration` greater than zero. Effects like `PULSE`, `MARQUEE`, and `COUNTDOWN` are blocking; they run for their own specific length and do not require an additional `WAIT`.
+
+*   **Can I combine sensor data with my own text?**
+    Absolutely! All text fields in the blueprints support Home Assistant templates. This lets you build rich, dynamic strings.
+
+    *Example for the "Display Text" blueprint:*
+    ```jinja
+    Garage is {{ states('cover.garage_door') }}. Temp: {{ states('sensor.garage_temp') }}°F
+    ```
+
+*   **Where can I learn about all the sequencer commands?**
+    If you want to go beyond the blueprints and build your own complex sequences from scratch, the full command reference is the place to start.
+    **[Developer Docs: Sequencer API Command Reference](../../docs/developer/sequencer-api.md#command-reference)**
