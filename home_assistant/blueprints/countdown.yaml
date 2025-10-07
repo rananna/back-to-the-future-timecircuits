@@ -112,10 +112,7 @@ sequence:
 
             {# Non-blocking effects require a WAIT command to be effective #}
             {%- set wait_duration = namespace(ms=0) -%}
-            {%- if end_text_effect == 'MARQUEE' -%}
-              {# Marquee duration is based on text length and speed #}
-              {%- set wait_duration.ms = end_text_marquee_speed * (end_text | length + 26) -%}
-            {%- elif end_text_effect == 'SET_TEXT' -%}
+            {%- if end_text_effect == 'SET_TEXT' -%}
               {# Static text needs a wait to be visible for the specified duration #}
               {%- set wait_duration.ms = end_text_duration * 1000 -%}
             {%- endif -%}
