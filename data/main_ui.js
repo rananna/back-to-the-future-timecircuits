@@ -1346,6 +1346,7 @@ function fetchSystemStatus() {
             const hours = Math.floor((uptime % 86400) / 3600);
             const minutes = Math.floor((uptime % 3600) / 60);
             document.getElementById('deviceUptime').textContent = `${days}d ${hours}h ${minutes}m`;
+            document.getElementById('deviceId').textContent = data.deviceId;
         })
         .catch(err => {
             console.warn("CLIENT_DEBUG: Could not fetch system status:", err);
@@ -1353,6 +1354,7 @@ function fetchSystemStatus() {
             document.getElementById('freeMemory').textContent = 'Error';
             document.getElementById('wifiSignal').textContent = 'Error';
             document.getElementById('deviceUptime').textContent = 'Error';
+            document.getElementById('deviceId').textContent = 'Error';
         });
 }
 

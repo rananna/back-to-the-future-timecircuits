@@ -1124,6 +1124,7 @@ void setupWebRoutes() {
     doc["freeHeap"] = ESP.getFreeHeap();
     doc["rssi"] = WiFi.RSSI();
     doc["uptime"] = millis() / 1000;
+    doc["deviceId"] = MQTT_UNIQUE_ID;
     String jsonString;
     serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
