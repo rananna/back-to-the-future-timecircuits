@@ -1633,6 +1633,9 @@ void handlePresetCycling() {
         broadcastPresetUpdate(nextPreset.name, nextPreset.year, nextPreset.month, nextPreset.day, nextPreset.hour, nextPreset.minute);
 
         // --- START: MODIFICATION - Trigger animation on preset cycle ---
+        if (currentSettings.timeTravelSoundToggle) {
+            playSound("electric_sparks.mp3", false, -1);
+        }
         triggerAnimation(currentSettings.animationSequence);
         // --- END: MODIFICATION ---
     }
