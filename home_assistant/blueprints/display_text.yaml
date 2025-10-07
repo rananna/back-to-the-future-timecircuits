@@ -92,21 +92,13 @@ sequence:
           {# Add the main command #}
           {%- set commands = commands + [command] -%}
 
+          {# Non-blocking SET_TEXT effect requires a WAIT command to be visible for the specified duration #}
+          {%- if effect == 'SET_TEXT' -%}
+            {%- set commands = commands + [{'command': 'WAIT', 'intParam': duration * 1000 | int}] -%}
+          {%- endif -%}
+
           {# Handle row restoration #}
           {%- if restore_row -%}
-            {%- set wait_duration = namespace(ms=0) -%}
-
-            {# Non-blocking effects require a WAIT command to be effective #}
-            {%- if effect == 'SET_TEXT' -%}
-              {# Static text needs a wait to be visible for the specified duration #}
-              {%- set wait_duration.ms = duration * 1000 -%}
-            {%- endif -%}
-
-            {# Add WAIT command if a duration was calculated (i.e. for non-blocking effects) #}
-            {%- if wait_duration.ms > 0 -%}
-              {%- set commands = commands + [{'command': 'WAIT', 'intParam': wait_duration.ms | int}] -%}
-            {%- endif -%}
-
             {# Add the final command to restore the row to its previous state #}
             {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
           {%- endif -%}
