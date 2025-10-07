@@ -70,6 +70,17 @@ struct WeatherData {
 
 struct DisplayRow { Adafruit_AlphaNum4 month; Adafruit_AlphaNum4 day; Adafruit_AlphaNum4 year; Adafruit_AlphaNum4 time; };
 
+// Digital Rain Effect
+#define MAX_RAINDROPS 50
+struct Raindrop {
+    int column;
+    float y;
+    float speed;
+    bool active;
+};
+extern Raindrop raindrops[MAX_RAINDROPS];
+extern bool rain_initialized;
+
 #if ENABLE_HARDWARE
 #include <freertos/semphr.h>
 extern TwoWire I2C_1; extern TwoWire I2C_2;
