@@ -27,6 +27,9 @@ extern Audio audio;
 #include <Preferences.h>
 #include <LCBUrl.h> 
 
+// Forward declaration for the function defined later in the file.
+void ensureBaseDiscoveryConfig();
+
 String currentProfileName = "Standard";
 String lastDepartedPreset = "None";
 
