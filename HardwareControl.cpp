@@ -53,6 +53,8 @@ void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str) {
 
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
+Raindrop raindrops[MAX_RAINDROPS];
+bool rain_initialized = false;
 TwoWire I2C_1 = TwoWire(0);
 TwoWire I2C_2 = TwoWire(1);
 DisplayRow destRow;
