@@ -818,9 +818,15 @@ void playSound(const char* filepath, bool fromMqtt, int volume) {
         fullPath[MAX_FILENAME_LENGTH - 1] = '\0';
         Log_printf(LOG_LEVEL_INFO, "Request to play sound: %s (fromMqtt: %s, volume: %d)", fullPath, fromMqtt ? "true" : "false", volume);
         if (audio.isRunning()) {
-            Log_printf(LOG_LEVEL_DEBUG, "Audio is already running. Stopping current sound.");
-            audio.stopSong();
-            vTaskDelay(pdMS_TO_TICKS(10));
+            Log_printf(LOG_LEVEL_DEBUG, "Audio is already running. Stopping current sound via centralized handler.");
+            // --- FIX: Replace direct audio.stopSong() with the centralized stopAudioStream function ---
+            // This is the core of the fix. Instead of directly interacting with the audio
+            // library, we now call the single, authoritative function in MqttManager.cpp.
+            // This ensures that all state variables (isRadioStreaming, metadata, etc.)
+            // are reset correctly, preventing race conditions and state corruption.
+            // The 'false' parameter indicates this is a permanent stop, not a temporary pause.
+            stopAudioStream(false);
+            vTaskDelay(pdMS_TO_TICKS(50)); // Allow a moment for the audio task to process the stop command
         }
         if (!LittleFS.exists(fullPath)) {
             Log_printf(LOG_LEVEL_WARN, "Audio file not found: %s", fullPath);
