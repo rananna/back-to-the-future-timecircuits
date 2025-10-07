@@ -817,10 +817,15 @@ void playSound(const char* filepath, bool fromMqtt, int volume) {
         }
         fullPath[MAX_FILENAME_LENGTH - 1] = '\0';
         Log_printf(LOG_LEVEL_INFO, "Request to play sound: %s (fromMqtt: %s, volume: %d)", fullPath, fromMqtt ? "true" : "false", volume);
+        // --- FIX: Centralize audio control to prevent race conditions ---
+        // Instead of calling audio.stopSong() directly, we use the centralized
+        // stopAudioStream function. This ensures that all audio state is properly
+        // reset and prevents conflicts with network streams. A 'false' parameter
+        // indicates this is a permanent stop for the current track.
         if (audio.isRunning()) {
-            Log_printf(LOG_LEVEL_DEBUG, "Audio is already running. Stopping current sound.");
-            audio.stopSong();
-            vTaskDelay(pdMS_TO_TICKS(10));
+            Log_printf(LOG_LEVEL_DEBUG, "Audio is already running. Stopping via centralized handler before playing new sound.");
+            stopAudioStream(false);
+            vTaskDelay(pdMS_TO_TICKS(50)); // Allow time for audio tasks to fully stop
         }
         if (!LittleFS.exists(fullPath)) {
             Log_printf(LOG_LEVEL_WARN, "Audio file not found: %s", fullPath);
