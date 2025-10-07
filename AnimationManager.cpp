@@ -339,10 +339,13 @@ void handleBootSequence() {
                 printToDisplay(presRow.year, "BOOT");
                 printToDisplay(presRow.time, "ING ");
                 // Only write the present time row to the display
-                presRow.month.writeDisplay();
-                presRow.day.writeDisplay();
-                presRow.year.writeDisplay();
-                presRow.time.writeDisplay();
+                if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                    presRow.month.writeDisplay();
+                    presRow.day.writeDisplay();
+                    presRow.year.writeDisplay();
+                    presRow.time.writeDisplay();
+                    xSemaphoreGive(xDisplayHardwareMutex);
+                }
                 playSound("/hum.mp3");
                 stateActionCompleted = true;
             }
@@ -378,14 +381,17 @@ void handleBootSequence() {
                     printToDisplay(presRow.year, "ACTI");
                     printToDisplay(presRow.time, "VATE");
                     // Explicitly write to the display hardware
-                    destRow.month.writeDisplay();
-                    destRow.day.writeDisplay();
-                    destRow.year.writeDisplay();
-                    destRow.time.writeDisplay();
-                    presRow.month.writeDisplay();
-                    presRow.day.writeDisplay();
-                    presRow.year.writeDisplay();
-                    presRow.time.writeDisplay();
+                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        destRow.month.writeDisplay();
+                        destRow.day.writeDisplay();
+                        destRow.year.writeDisplay();
+                        destRow.time.writeDisplay();
+                        presRow.month.writeDisplay();
+                        presRow.day.writeDisplay();
+                        presRow.year.writeDisplay();
+                        presRow.time.writeDisplay();
+                        xSemaphoreGive(xDisplayHardwareMutex);
+                    }
 
                     stateActionCompleted = true;
                 }
@@ -430,10 +436,13 @@ void handleBootSequence() {
                         printToDisplay(presRow.day, "");
                         printToDisplay(presRow.year, "");
                         printToDisplay(presRow.time, "");
-                        presRow.month.writeDisplay();
-                        presRow.day.writeDisplay();
-                        presRow.year.writeDisplay();
-                        presRow.time.writeDisplay();
+                        if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                            presRow.month.writeDisplay();
+                            presRow.day.writeDisplay();
+                            presRow.year.writeDisplay();
+                            presRow.time.writeDisplay();
+                            xSemaphoreGive(xDisplayHardwareMutex);
+                        }
                     }
                 }
             } else {
@@ -456,27 +465,30 @@ void handleBootSequence() {
                 if (currentSecond != lastDiagSecond) {
                     blankAllDisplays();
 
-                    if (currentSecond == 0) {
-                        printToDisplay(destRow.month, " CPU");
-                        printToDisplay(destRow.day, " OK");
-                        destRow.month.writeDisplay();
-                        destRow.day.writeDisplay();
-                    } else if (currentSecond == 1) {
-                        printToDisplay(presRow.month, " MEM");
-                        printToDisplay(presRow.day, " OK");
-                        presRow.month.writeDisplay();
-                        presRow.day.writeDisplay();
-                    } else if (currentSecond == 2) {
-                        printToDisplay(lastRow.month, " WFI");
-                        printToDisplay(lastRow.day, " OK");
-                        lastRow.month.writeDisplay();
-                        lastRow.day.writeDisplay();
-                    } else if (currentSecond == 3) {
-                        // For variety, put the last message back on the top row
-                        printToDisplay(destRow.month, " MQT");
-                        printToDisplay(destRow.day, " OK");
-                        destRow.month.writeDisplay();
-                        destRow.day.writeDisplay();
+                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        if (currentSecond == 0) {
+                            printToDisplay(destRow.month, " CPU");
+                            printToDisplay(destRow.day, " OK");
+                            destRow.month.writeDisplay();
+                            destRow.day.writeDisplay();
+                        } else if (currentSecond == 1) {
+                            printToDisplay(presRow.month, " MEM");
+                            printToDisplay(presRow.day, " OK");
+                            presRow.month.writeDisplay();
+                            presRow.day.writeDisplay();
+                        } else if (currentSecond == 2) {
+                            printToDisplay(lastRow.month, " WFI");
+                            printToDisplay(lastRow.day, " OK");
+                            lastRow.month.writeDisplay();
+                            lastRow.day.writeDisplay();
+                        } else if (currentSecond == 3) {
+                            // For variety, put the last message back on the top row
+                            printToDisplay(destRow.month, " MQT");
+                            printToDisplay(destRow.day, " OK");
+                            destRow.month.writeDisplay();
+                            destRow.day.writeDisplay();
+                        }
+                        xSemaphoreGive(xDisplayHardwareMutex);
                     }
                     lastDiagSecond = currentSecond;
                 }
@@ -507,12 +519,15 @@ void handleBootSequence() {
 
                     displaySpeedRamp(speed);
 
-                    printToDisplay(destRow.month, "SYS");
-                    printToDisplay(destRow.day, "IS");
-                    printToDisplay(presRow.year, "LIVE");
-                    printToDisplay(presRow.time, " NOW");
-                    destRow.year.writeDisplay();
-                    destRow.time.writeDisplay();
+                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        printToDisplay(destRow.month, "SYS");
+                        printToDisplay(destRow.day, "IS");
+                        printToDisplay(presRow.year, "LIVE");
+                        printToDisplay(presRow.time, " NOW");
+                        destRow.year.writeDisplay();
+                        destRow.time.writeDisplay();
+                        xSemaphoreGive(xDisplayHardwareMutex);
+                    }
                 //}
                 if (elapsed > BOOT_FINAL_CHECKS_DURATION) {
                     bootState = BOOT_TEMPORAL_DISPLACEMENT;
@@ -552,25 +567,30 @@ void handleBootSequence() {
                 if (!stateActionCompleted) {
                     // --- FIX: Display text immediately without waiting for audio ---
                     blankAllDisplays();
-                    printToDisplay(destRow.year, "ARRI");
-                    printToDisplay(destRow.time, "VAL");
-                    printToDisplay(presRow.year, "OUTA");
-                    printToDisplay(presRow.time, "TIME");
+                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        printToDisplay(destRow.year, "ARRI");
+                        printToDisplay(destRow.time, "VAL");
+                        printToDisplay(presRow.year, "OUTA");
+                        printToDisplay(presRow.time, "TIME");
 
-                    destRow.year.writeDisplay();
-                    destRow.time.writeDisplay();
-                    presRow.year.writeDisplay();
-                    presRow.time.writeDisplay();
-
+                        destRow.year.writeDisplay();
+                        destRow.time.writeDisplay();
+                        presRow.year.writeDisplay();
+                        presRow.time.writeDisplay();
+                        xSemaphoreGive(xDisplayHardwareMutex);
+                    }
                     stateActionCompleted = true; // Mark that the initial action is done
                 }
 
                 // Display the "WELCOME" message after a delay
                 if (elapsed > 2000) { // Show "WELCOME" after 2 seconds
-                    printToDisplay(lastRow.year, " WEL");
-                    printToDisplay(lastRow.time, "COME");
-                    lastRow.year.writeDisplay();
-                    lastRow.time.writeDisplay();
+                    if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
+                        printToDisplay(lastRow.year, " WEL");
+                        printToDisplay(lastRow.time, "COME");
+                        lastRow.year.writeDisplay();
+                        lastRow.time.writeDisplay();
+                        xSemaphoreGive(xDisplayHardwareMutex);
+                    }
                 }
 
                 // Transition to the next state after the full duration
