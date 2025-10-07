@@ -112,34 +112,19 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
 
 void publishHaPresetSelector() {
     if (!mqttClient.connected()) return;
-
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    JsonDocument doc; // Use a single document
 
-    // --- Start with the standard device and availability info ---
-    JsonObject device = doc["device"].to<JsonObject>();
-    device["identifiers"] = MQTT_UNIQUE_ID;
-    device["name"] = "Time Circuits";
-    device["model"] = "BTTF Clock v1";
-    device["manufacturer"] = "Doc Brown Industries";
-    device["sw_version"] = "2.0";
-
-    JsonObject availability = doc["availability"].to<JsonObject>();
-    availability["topic"] = device_base_topic + "/status";
-    availability["payload_available"] = "online";
-    availability["payload_not_available"] = "offline";
-
-    // --- Add entity-specific config ---
-    doc["name"] = "Last Departed Preset";
+    // --- Add entity-specific config to the global discoveryDoc ---
+    discoveryDoc["name"] = "Last Departed Preset";
     String preset_selector_id = String(MQTT_UNIQUE_ID) + "_preset_selector";
-    doc["unique_id"] = preset_selector_id;
-    doc["object_id"] = preset_selector_id;
-    doc["command_topic"] = device_base_topic + "/preset_selector/command";
-    doc["state_topic"] = device_base_topic + "/preset_selector/state";
-    doc["icon"] = "mdi:history";
-    doc["entity_category"] = "config";
+    discoveryDoc["unique_id"] = preset_selector_id;
+    discoveryDoc["object_id"] = preset_selector_id;
+    discoveryDoc["command_topic"] = device_base_topic + "/preset_selector/command";
+    discoveryDoc["state_topic"] = device_base_topic + "/preset_selector/state";
+    discoveryDoc["icon"] = "mdi:history";
+    discoveryDoc["entity_category"] = "config";
 
-    JsonArray options = doc["options"].to<JsonArray>();
+    JsonArray options = discoveryDoc["options"].to<JsonArray>();
     options.add("Einstein's Test (1985)");
     options.add("Marty's First Jump (1985)");
     options.add("Arrival in Past (1955)");
@@ -163,36 +148,49 @@ void publishHaPresetSelector() {
     }
 
     // --- Publish ---
-    publishDiscoveryMessage(doc, "select");
+    publishDiscoveryMessage(discoveryDoc, "select");
+
+    // --- Cleanup ---
+    discoveryDoc.remove("name");
+    discoveryDoc.remove("unique_id");
+    discoveryDoc.remove("object_id");
+    discoveryDoc.remove("command_topic");
+    discoveryDoc.remove("state_topic");
+    discoveryDoc.remove("icon");
+    discoveryDoc.remove("entity_category");
+    discoveryDoc.remove("options");
 }
 
 void publishDeviceTriggers() {
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    JsonDocument doc; // Use a single, larger doc
 
-    // --- Base Device Info (Identifier only is sufficient for triggers) ---
-    JsonObject device = doc["device"].to<JsonObject>();
-    device["identifiers"] = MQTT_UNIQUE_ID;
-
-    // --- Base Trigger Info ---
-    doc["automation_type"] = "trigger";
-    doc["topic"] = device_base_topic + "/events";
+    // --- Base Trigger Info (using global discoveryDoc) ---
+    discoveryDoc["automation_type"] = "trigger";
+    discoveryDoc["topic"] = device_base_topic + "/events";
 
     // --- Loop through triggers, adding/removing specific fields ---
     const char* trigger_types[] = {"animation_started", "animation_completed", "sleep_mode_entered", "sleep_mode_exited", "preset_changed"};
     const char* trigger_subtypes[] = {"anim_started", "anim_completed", "sleep_entered", "sleep_exited", "preset_changed"};
 
     for(int i = 0; i < sizeof(trigger_types)/sizeof(trigger_types[0]); ++i) {
-        doc["type"] = trigger_types[i];
+        discoveryDoc["type"] = trigger_types[i];
+        discoveryDoc["subtype"] = trigger_subtypes[i];
         String object_id = String(MQTT_UNIQUE_ID) + "_" + trigger_subtypes[i];
-        doc["object_id"] = object_id;
-        doc["unique_id"] = object_id;
-        // No "name" needed for device triggers, HA uses "type" and "subtype"
+        discoveryDoc["object_id"] = object_id;
+        discoveryDoc["unique_id"] = object_id;
 
-        publishDiscoveryMessage(doc, "device_automation");
+        publishDiscoveryMessage(discoveryDoc, "device_automation");
 
-        // No need to remove fields here since they are just overwritten in the next loop iteration
+        // Clean up entity-specific fields for the next iteration/function
+        discoveryDoc.remove("type");
+        discoveryDoc.remove("subtype");
+        discoveryDoc.remove("object_id");
+        discoveryDoc.remove("unique_id");
     }
+
+    // Clean up fields common to all triggers in this function
+    discoveryDoc.remove("automation_type");
+    discoveryDoc.remove("topic");
 }
 
 void publishDisplayMode(int mode) {
@@ -332,6 +330,10 @@ void prepareHaDiscovery() {
     device["model"] = "BTTF Clock v1";
     device["manufacturer"] = "Doc Brown Industries";
     device["sw_version"] = "2.0";
+    String ip_addr = WiFi.localIP().toString();
+    if (ip_addr != "0.0.0.0") {
+        device["configuration_url"] = "http://" + ip_addr + "/";
+    }
     device["icon"] = "mdi:car-clock";
     JsonObject availability = discoveryDoc["availability"].to<JsonObject>();
     availability["topic"] = device_base_topic + "/status";
