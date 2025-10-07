@@ -6,13 +6,14 @@ This project features a native Home Assistant integration that provides a seamle
 1. [Features](#-features)
 2. [Prerequisites](#-prerequisites)
 3. [Setup & Installation](#-setup--installation)
-4. [The Easy Way: Using Blueprints](#-the-easy-way-using-blueprints)
-5. [Core Entities & Controls](#-core-entities--controls)
-6. [Using the Media Player](#-using-the-media-player)
-7. [Sending Notifications](#-sending-notifications)
-8. [Advanced Control via MQTT](#-advanced-control-via-mqtt)
-9. [Automation Examples](#-automation-examples)
-10. [Troubleshooting](#troubleshooting)
+4. [Finding Your Device ID](#-finding-your-device-id)
+5. [The Easy Way: Using Blueprints](#-the-easy-way-using-blueprints)
+6. [Core Entities & Controls](#-core-entities--controls)
+7. [Using the Media Player](#-using-the-media-player)
+8. [Sending Notifications](#-sending-notifications)
+9. [Advanced Control via MQTT](#-advanced-control-via-mqtt)
+10. [Automation Examples](#-automation-examples)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 ## ✨ Features
@@ -58,18 +59,28 @@ Your Time Circuits clock will now appear as a new device in Home Assistant, with
 
 ---
 
+## 🆔 Finding Your Device ID
+
+Your clock's unique **Device ID** is essential for using blueprints and sending advanced MQTT commands. You can find it in the clock's Web UI.
+
+1.  Connect to the clock's Wi-Fi network or access it via its local network IP address.
+2.  Navigate to the **Settings** page.
+3.  The Device ID is displayed prominently at the top of the page. It's the same as the "MQTT Base Topic".
+
+![Finding the Device ID](https://raw.githubusercontent.com/rananna/back-to-the-future-timecircuits/main/images/documentation/web-ui-device-id.png)
+
+---
+
 ## 🤖 The Easy Way: Using Blueprints
 
-For most automations, the easiest and most powerful way to create custom animations and notifications is with our **Home Assistant Blueprints**.
+For most automations, the easiest and most powerful way to create custom animations and notifications is with our **Home Assistant Blueprints**. They provide a simple, form-based UI inside Home Assistant, allowing you to build complex effects without writing any code.
 
-These blueprints provide a simple, form-based UI inside Home Assistant, allowing you to build complex, multi-track animations without writing any code.
+#### **Blueprint Installation**
+1.  **Copy Files**: Copy the `.yaml` files from the [`home_assistant/blueprints`](../../home_assistant/blueprints/) directory into your Home Assistant's `/config/blueprints/script/` directory. The easiest way to do this is with the Samba Share or File Editor add-ons.
+2.  **Reload Blueprints**: In the Home Assistant UI, go to **Settings** -> **Automations & Scenes** -> **Blueprints**. Click the three-dot menu and select **Reload Blueprints**.
+3.  **Create a Script**: The blueprints will now appear in your list. Click **Create Script** on the one you want to use, fill in the options, and save it. This script is now ready to be called from your dashboards or automations.
 
-**Key Features:**
-*   **User-Friendly Forms**: No more complex JSON or YAML. Just fill out the fields.
-*   **Parallel Animations**: Easily create effects that run on all three display rows at the same time.
-*   **Template Support**: Dynamically display sensor data or other entity states in your messages.
-
-> **To get started, please see the complete [Home Assistant Blueprints Guide](../../home_assistant/blueprints/README.md).**
+> **For a complete guide to what each blueprint does and more advanced examples, please see the [Home Assistant Blueprints README](../../home_assistant/blueprints/README.md).**
 
 ---
 
@@ -79,16 +90,17 @@ The integration creates a device with a rich set of entities to control every as
 
 | Entity Type | Name | Description |
 | :--- | :--- | :--- |
-| **Switch** | `Override Switch` | Enables the full-display override mode for custom messages. |
-| **Text** | `Override Line 1-3` | Sets the text for the three display rows when the override switch is on. |
-| **Select** | `Display Mode` | Sets the main operating mode of the clock (`Normal Clock`, `Stock Ticker`, `Weather`, `Data Link`). |
-| **Text** | `(all 12 segments)` | Provides direct control over every display segment (e.g., `Destination Month`, `Present Day`). |
+| **Select** | `Display Mode` | Sets the main operating mode of the clock. Choose between `Normal Clock`, `Stock Ticker`, `Weather`, or `Data Link`. |
+| **Text** | `Data Point 1-5 Marquee` | Sets the scrolling text for one of the five "Data Link" pages. This is the recommended way to display custom marquee text. |
+| **Switch** | `Data Point 1-5 Enabled`| Enables or disables one of the five "Data Link" pages. |
+| **Text** | `(all 12 segments)` | Provides direct, granular control over every individual display segment (e.g., `Destination Month`, `Present Day`). Useful for hyper-specific automations. |
 | **Number** | `Brightness` | Adjusts the brightness of the displays (0-7). |
 | **Number** | `Volume` | Adjusts the volume of the speaker (0-21). |
-| **Button** | `Trigger Animation` | Manually starts the full time travel animation sequence. |
+| **Button** | `Engage Time Circuits` | Manually starts the full time travel animation sequence. |
 | **Button** | `Reboot Device` | Restarts the clock. |
 | **Sensor** | `Status` | Monitors the clock's current state (e.g., `Idle`, `Animating`, `Asleep`) and has useful attributes like `free_heap` and `wifi_rssi`. |
 | **Update** | `Firmware` | Notifies you when a new firmware version is available and allows for one-click OTA updates. |
+| **Switch** | `Time Circuits On/Off`| A master switch to turn the displays on or off. Note: This is an internal toggle and may be overridden by other automations. |
 
 ---
 
@@ -242,6 +254,31 @@ action:
   - service: button.press
     target:
       entity_id: button.bttf_time_circuits_reboot_device
+```
+</details>
+
+<details>
+<summary><strong>4. Dynamic Weather Alert</strong></summary>
+This automation uses a template to show a dynamic weather alert on the top row if it starts raining. It combines a static message with the current temperature, plays a sound, and restores the display after 30 minutes. This example uses the **Display Text Blueprint**.
+
+First, create a script using the `display_text.yaml` blueprint and name it `Display Text on Time Circuits`. Then, create the following automation:
+
+```yaml
+alias: "BTTF - Weather Alert on Rain"
+trigger:
+  - platform: state
+    entity_id: weather.home
+    to: "rainy"
+action:
+  - service: script.display_text_on_time_circuits # Your script's name
+    data:
+      device_id: "YOUR_DEVICE_ID"
+      row: Top
+      text: "RAIN {{ states('sensor.outside_temperature') }}°F"
+      effect: Marquee
+      duration_seconds: 1800 # 30 minutes
+      sound: "weather_alert.mp3"
+      restore_row: true
 ```
 </details>
 
