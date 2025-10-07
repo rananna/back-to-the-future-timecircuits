@@ -346,7 +346,7 @@ void handleBootSequence() {
                     presRow.time.writeDisplay();
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
-                playSound("/hum.mp3", false, 21);
+                playSound("/hum.mp3", false, 15);
                 stateActionCompleted = true;
             }
             if (elapsed > BOOT_AWAIT_HUM_DURATION) {
@@ -372,8 +372,8 @@ void handleBootSequence() {
                     playSound("/relay_activation.mp3", false, -1);
                     blankAllDisplays();
                     // Instantly display the text instead of typing it out
-                    printToDisplay(destRow.month, "TIM");
-                    printToDisplay(destRow.day, "E ");
+                    printToDisplay(destRow.month, " TIM");
+                    printToDisplay(destRow.day, " E  ");
                     printToDisplay(destRow.year, "CIRC");
                     printToDisplay(destRow.time, "UITS");
                     printToDisplay(presRow.month, "");
@@ -520,8 +520,8 @@ void handleBootSequence() {
                     displaySpeedRamp(speed);
 
                     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-                        printToDisplay(destRow.month, "SYS");
-                        printToDisplay(destRow.day, "IS");
+                        printToDisplay(destRow.month, " SYS");
+                        printToDisplay(destRow.day, " IS");
                         printToDisplay(presRow.year, "LIVE");
                         printToDisplay(presRow.time, " NOW");
                         destRow.year.writeDisplay();
