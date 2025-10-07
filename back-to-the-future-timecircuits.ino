@@ -1663,13 +1663,13 @@ void handleSleepSchedule() {
         digitalWrite(PRES_PM_PIN, LOW);
         digitalWrite(LAST_AM_PIN, LOW);
         digitalWrite(LAST_PM_PIN, LOW);
-        playSound("/SLEEP_ON.mp3");
+        playSound("/SLEEP_ON.mp3", false, -1);
     }
     updateHaStatus("Asleep");
   } else if (!shouldBeAsleep && isDisplayAsleep) {
     isDisplayAsleep = false;
     if (hardwareInitialized) {
-        playSound("/CONFIRM_ON.mp3");
+        playSound("/CONFIRM_ON.mp3", false, -1);
     }
     updateHaStatus("Idle");
   }

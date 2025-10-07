@@ -1010,7 +1010,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             mqttClient.publish((base_topic + "preset_selector/state").c_str(), message.c_str(), true);
         } else if (component == "play_sound") {
             if (message != "None" && hardwareInitialized) {
-                playSound((message + ".mp3").c_str(), true);
+                playSound((message + ".mp3").c_str(), true, -1);
             }
             mqttClient.publish((base_topic + "play_sound/state").c_str(), "None", true);
         } else if (component == "sound_toggle") {

@@ -107,7 +107,7 @@ static int randomAnimationStyle = -1;
 // --- TIME TRAVEL ANIMATION ---
 void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
     if (hardwareInitialized && currentSettings.timeTravelSoundToggle) {
-        playSound(filename);
+        playSound(filename, false, -1);
     }
     nextPhaseAfterSound = nextPhase;
     currentPhase = ANIM_WAIT_FOR_SOUND;
@@ -187,10 +187,10 @@ void handleDisplayAnimation() {
         if (currentSettings.timeTravelSoundToggle) {
             switch (currentPhase) {
                 case ANIM_POWER_UP:
-                    playSound("engine_rev.mp3");
+                    playSound("engine_rev.mp3", false, -1);
                     break;
                 case ANIM_ARRIVAL:
-                    playSound("time_travel.mp3");
+                    playSound("time_travel.mp3", false, -1);
                     break;
                 default:
                     break; // No sound for other states
@@ -346,7 +346,7 @@ void handleBootSequence() {
                     presRow.time.writeDisplay();
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
-                playSound("/hum.mp3");
+                playSound("/hum.mp3", false, 21);
                 stateActionCompleted = true;
             }
             if (elapsed > BOOT_AWAIT_HUM_DURATION) {
@@ -369,7 +369,7 @@ void handleBootSequence() {
                 const int holdDuration = 5000; // Keep the message on screen for 5 seconds
 
                 if (!stateActionCompleted) {
-                    playSound("/relay_activation.mp3");
+                    playSound("/relay_activation.mp3", false, -1);
                     blankAllDisplays();
                     // Instantly display the text instead of typing it out
                     printToDisplay(destRow.month, "TIM");
@@ -407,7 +407,7 @@ void handleBootSequence() {
         case BOOT_FLUX_CAPACITOR_IGNITION:
             // This state now ONLY starts the sound and waits for it to begin playing.
             if (!stateActionCompleted) {
-                playSound("/flux_capacitor_power_on.mp3");
+                playSound("/flux_capacitor_power_on.mp3", false, -1);
                 stateActionCompleted = true;
             }
             // Once the audio is confirmed to be running, move to the animation state.
@@ -456,7 +456,7 @@ void handleBootSequence() {
         case BOOT_DIAGNOSTICS:
             {
                 if (!stateActionCompleted) {
-                    playSound("/keypad_beeps.mp3");
+                    playSound("/keypad_beeps.mp3", false, -1);
                     stateActionCompleted = true;
                 }
 
@@ -502,7 +502,7 @@ void handleBootSequence() {
         case BOOT_FINAL_CHECKS:
             {
                 if (!stateActionCompleted) {
-                    playSound("/engine_rev.mp3");
+                    playSound("/engine_rev.mp3", false, -1);
                     stateActionCompleted = true;
                 }
                 //if (audio.isRunning()) {
@@ -538,7 +538,7 @@ void handleBootSequence() {
         case BOOT_TEMPORAL_DISPLACEMENT:
             {
                 if (!stateActionCompleted) {
-                    playSound("/time_travel.mp3");
+                    playSound("/time_travel.mp3", false, -1);
                     stateActionCompleted = true;
                 }
                 //if (audio.isRunning()) {
@@ -553,7 +553,7 @@ void handleBootSequence() {
         case BOOT_ARRIVAL:
             {
                 if (!stateActionCompleted) {
-                    playSound("/arrival_chime.mp3");
+                    playSound("/arrival_chime.mp3", false, -1);
                     stateActionCompleted = true;
                 }
                 if (elapsed > 2000) { // Failsafe timeout of 2s
@@ -875,7 +875,7 @@ void handleSequencer() {
 
             case SEQ_CMD_SOUND:
                 if (!track.stepInitialized) {
-                    playSound(step.stringParam);
+                    playSound(step.stringParam, false, -1);
                     track.stepInitialized = true;
                     advance_step = true;
                 }

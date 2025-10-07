@@ -102,7 +102,7 @@ void animateDigitalRain(unsigned long elapsed, int duration);
 void animateWaveformCollapse(unsigned long elapsed, int duration);
 void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear);
 void blankAllDisplays();
-void playSound(const char* filepath, bool fromMqtt = false);
+void playSound(const char* filepath, bool fromMqtt = false, int volume = -1);
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification = 0);
 void displaySpeed(int speed);
 void displaySpeedRamp(int speed);
