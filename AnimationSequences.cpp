@@ -556,6 +556,20 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
 }
 
 
+void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+    const int flicker_interval = 50; // ms for flicker effect refresh rate
+    const int total_duration = 2000; // 2 seconds total animation time
+    const int num_chars = 13; // Standard display width
+    const int lock_in_interval = total_duration / num_chars; // ms per character reveal
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, lock_in_interval, time_strings[0]);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, flicker_interval, lock_in_interval, time_strings[1]);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, lock_in_interval, time_strings[2]);
+}
+
+
 // --- Main Generation Function ---
 
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
@@ -665,6 +679,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(tracks, time_strings); break;
         case ANIMATION_COUNTDOWN:               generateCountdown(tracks); break;
         case ANIMATION_SYSTEM_ERROR:            generateSystemError(tracks); break;
+        case ANIMATION_TIME_CIRCUITS_LOCK_IN:   generateTimeCircuitsLockIn(tracks, time_strings); break;
 
         // Default case
         default:

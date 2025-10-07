@@ -49,6 +49,8 @@ enum AnimationType {
     ANIMATION_DATA_STREAM,
     ANIMATION_WORMHOLE_COLLAPSE,
 
+    ANIMATION_TIME_CIRCUITS_LOCK_IN,
+
     ANIMATION_TYPE_MAX // Keep this at the end for validation
 };
 

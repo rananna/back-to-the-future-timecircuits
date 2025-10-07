@@ -1002,8 +1002,8 @@ void setupWebRoutes() {
     if (obj["timeTravelEngaged"] | false) {
         startTimeTravelAnimation();
     } else {
-        // --- FIX: Use the new animationSequence setting for the save button animation ---
-        triggerAnimation(currentSettings.animationSequence);
+        // --- Trigger the specific lock-in animation on save ---
+        triggerAnimation(ANIMATION_TIME_CIRCUITS_LOCK_IN);
     }
   });
   server.addHandler(saveSettingsHandler);
