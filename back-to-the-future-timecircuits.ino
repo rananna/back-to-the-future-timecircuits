@@ -818,8 +818,8 @@ void loadSettings() {
             currentSettings.dataPoints[i] = {};
             currentSettings.dataPoints[i].enabled = false;
         }
-        currentSettings.favoriteRadioName = "80s Hits";
-        currentSettings.favoriteRadioUrl = "http://80s.radionomy.com/80-s-Hits";
+        currentSettings.favoriteRadioName = "CBC KINGSTON";
+        currentSettings.favoriteRadioUrl = "http://playerservices.streamtheworld.com/pls/CBCKFM_CBC.pls";
         // Now that defaults are populated in currentSettings, save them.
         saveSettings();
     } else {
