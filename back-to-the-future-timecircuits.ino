@@ -1597,6 +1597,14 @@ std::vector<Preset> getFullPresetList() {
  * update cycle.
  */
 void handlePresetCycling() {
+    // --- FIX: Prevent preset cycling from running if a sound is already playing ---
+    // This is the core fix for the race condition crash. If audio from a previous
+    // cycle (or any other source) is still playing, we must not start another
+    // animation sequence, as this can lead to resource contention and crashes.
+    if (audio.isRunning()) {
+        return;
+    }
+
     // --- FIX: Prevent preset cycling from running during the boot animation ---
     // The bootSequenceCompleted flag is set to true only after the entire boot
     // sequence has finished.
