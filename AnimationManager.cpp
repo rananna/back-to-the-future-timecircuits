@@ -372,8 +372,8 @@ void handleBootSequence() {
                     playSound("/relay_activation.mp3");
                     blankAllDisplays();
                     // Instantly display the text instead of typing it out
-                    printToDisplay(destRow.month, "");
-                    printToDisplay(destRow.day, " TM");
+                    printToDisplay(destRow.month, "TIM");
+                    printToDisplay(destRow.day, "E ");
                     printToDisplay(destRow.year, "CIRC");
                     printToDisplay(destRow.time, "UITS");
                     printToDisplay(presRow.month, "");
