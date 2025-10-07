@@ -210,6 +210,7 @@ int marqueeScrollPosition = 0;
 int marqueeScrollPositionYear = 0;
 volatile bool isFetchingData = false;
 volatile bool isFetchingWeather = false;
+volatile bool justFinishedAnimation = false;
 
 int dataPointFetchFailures[5] = {0, 0, 0, 0, 0};
 const int MAX_FETCH_FAILURES = 3;
@@ -1513,9 +1514,16 @@ void loop() {
                                     // to have full control of the display. The handleSequencer()
                                     // function will handle the necessary display updates.
                                 } else {
-                                    // No sequence is running. Proceed with the normal display logic.
-                                    updateDisplayState();
-                                    handleDisplay();
+                                    // --- FIX: Race Condition After Animation ---
+                                    // If an animation just finished, skip one display cycle
+                                    // to ensure all cleanup is complete before redrawing.
+                                    if (justFinishedAnimation) {
+                                        justFinishedAnimation = false;
+                                    } else {
+                                        // No sequence is running. Proceed with the normal display logic.
+                                        updateDisplayState();
+                                        handleDisplay();
+                                    }
                                 }
                                 // --- END: MODIFICATION ---
                             }

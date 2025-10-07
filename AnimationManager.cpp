@@ -1523,6 +1523,7 @@ void stopAndCleanupTrack(int trackIndex) {
         Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Cleaning up and restoring pre-animation display mode: %d", preAnimationDisplayMode);
         comprehensiveAnimationCleanup(); // Full cleanup of all states
         currentSettings.displayMode = preAnimationDisplayMode;
+        justFinishedAnimation = true; // --- FIX: Signal that an animation just completed
         // The main loop will now handle updating the display according to the restored mode.
         // NOTE: broadcastAnimationComplete() is now called from the SEQ_CMD_END handler
         // to prevent premature completion signals when one sequence triggers another.
