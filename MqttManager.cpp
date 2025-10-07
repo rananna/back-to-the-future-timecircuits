@@ -111,6 +111,7 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
 }
 
 void publishHaPresetSelector() {
+    ensureBaseDiscoveryConfig();
     if (!mqttClient.connected()) return;
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
 
@@ -162,6 +163,7 @@ void publishHaPresetSelector() {
 }
 
 void publishDeviceTriggers() {
+    ensureBaseDiscoveryConfig();
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
 
     // --- Base Trigger Info (using global discoveryDoc) ---
@@ -320,11 +322,16 @@ void publishPresetSelectorDiscovery();
 
 
 /**
- * @brief Prepares the shared JSON document for HA discovery messages.
+ * @brief Ensures the base device and availability config is present in the discovery document.
+ * @details This function is designed to be called before publishing any discovery
+ * message. It adds the common 'device' and 'availability' objects to the global
+ * discoveryDoc without clearing it, making it safe to use repeatedly.
  */
-void prepareHaDiscovery() {
+void ensureBaseDiscoveryConfig() {
+    // Set the base topic string, as it's used in the availability topic.
     device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    discoveryDoc.clear();
+
+    // Add or overwrite the 'device' object.
     JsonObject device = discoveryDoc["device"].to<JsonObject>();
     device["identifiers"] = MQTT_UNIQUE_ID;
     device["name"] = "Time Circuits";
@@ -336,13 +343,24 @@ void prepareHaDiscovery() {
         device["configuration_url"] = "http://" + ip_addr + "/";
     }
     device["icon"] = "mdi:car-clock";
+
+    // Add or overwrite the 'availability' object.
     JsonObject availability = discoveryDoc["availability"].to<JsonObject>();
     availability["topic"] = device_base_topic + "/status";
     availability["payload_available"] = "online";
     availability["payload_not_available"] = "offline";
 }
 
+/**
+ * @brief Prepares the shared JSON document for HA discovery messages.
+ */
+void prepareHaDiscovery() {
+    discoveryDoc.clear();
+    ensureBaseDiscoveryConfig();
+}
+
 void publishStatusSensorDiscovery() {
+    ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Status";
     String status_id = String(MQTT_UNIQUE_ID) + "_status";
     discoveryDoc["unique_id"] = status_id;
@@ -355,6 +373,7 @@ void publishStatusSensorDiscovery() {
 }
 
 void publishTimeDisplayEntitiesDiscovery() {
+    ensureBaseDiscoveryConfig();
     const char* rows[] = {"dest", "pres", "last"};
     const char* row_names[] = {"Destination", "Present", "Last Departed"};
     const char* segments[] = {"month", "day", "year", "time"};
@@ -392,6 +411,7 @@ void cleanupOldEntities() {
 }
 
 void publishDataPointSwitchesDiscovery() {
+    ensureBaseDiscoveryConfig();
     for (int i=0; i < 5; ++i) {
         discoveryDoc["name"] = "Data Point " + String(i + 1) + " Enabled";
         String id_suffix = "datapoint_" + String(i) + "_enabled";
@@ -408,6 +428,7 @@ void publishDataPointSwitchesDiscovery() {
 }
 
 void publishDataPointMarqueesDiscovery() {
+    ensureBaseDiscoveryConfig();
     for (int i=0; i < 5; ++i) {
         discoveryDoc["name"] = "Data Point " + String(i + 1) + " Marquee";
         String id_suffix = "datapoint_" + String(i) + "_marquee";
@@ -431,6 +452,7 @@ void cleanupOldDataPointSensors() {
 }
 
 void publishNumberConfigsDiscovery() {
+    ensureBaseDiscoveryConfig();
     const char* number_configs[][5] = {
         {"animation_interval", "Animation Interval", "mdi:clock-in", "min", "0,120,1"},
         {"stock_refresh", "Stock Refresh", "mdi:chart-line", "min", "1,60,1"}
@@ -458,6 +480,7 @@ void publishNumberConfigsDiscovery() {
 }
 
 void publishSwitchConfigsDiscovery() {
+    ensureBaseDiscoveryConfig();
      const char* switch_configs[][3] = {
         {"24h_format", "24-Hour Format", "mdi:clock-time-twelve-outline"}
     };
@@ -476,6 +499,7 @@ void publishSwitchConfigsDiscovery() {
 }
     
 void publishButtonConfigsDiscovery() {
+    ensureBaseDiscoveryConfig();
     const char* button_configs[][3] = {
         {"trigger_animation", "Trigger Animation", "mdi:movie-play"},
         {"reboot_device", "Reboot Device", "mdi:restart"},
@@ -498,6 +522,7 @@ void publishButtonConfigsDiscovery() {
 }
 
 void publishSequencerButtonDiscovery() {
+    ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Trigger Sequence";
     String sequencer_id = String(MQTT_UNIQUE_ID) + "_sequencer";
     discoveryDoc["unique_id"] = sequencer_id;
@@ -511,6 +536,7 @@ void publishSequencerButtonDiscovery() {
 }
     
 void publishTemporalEchoSwitchDiscovery() {
+    ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Temporal Echo Effect";
     String temporal_echo_id = String(MQTT_UNIQUE_ID) + "_temporal_echo";
     discoveryDoc["unique_id"] = temporal_echo_id;
@@ -524,6 +550,7 @@ void publishTemporalEchoSwitchDiscovery() {
 }
 
 void publishProfileSelectorDiscovery() {
+    ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Profile";
     String profile_id = String(MQTT_UNIQUE_ID) + "_profile";
     discoveryDoc["unique_id"] = profile_id;
@@ -543,6 +570,7 @@ void publishProfileSelectorDiscovery() {
 }
     
 void publishOverrideSwitchDiscovery() {
+    ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Override Switch";
     String override_switch_id = String(MQTT_UNIQUE_ID) + "_override_switch";
     discoveryDoc["unique_id"] = override_switch_id;
@@ -560,6 +588,7 @@ void cleanupOldOverrideMessageEntity() {
 }
 
 void publishOverrideLineTextEntitiesDiscovery() {
+    ensureBaseDiscoveryConfig();
     for (int i = 1; i <= 3; i++) {
         discoveryDoc["name"] = "Override Message Line " + String(i);
         String id_suffix = "override_line_" + String(i);
@@ -589,20 +618,10 @@ void cleanupOldMediaPlayerEntities() {
  * associated with the main Time Circuits device.
  */
 void publishMediaPlayerDiscovery() {
-    // While `prepareHaDiscovery` should have already added the device object to the
-    // global `discoveryDoc`, we explicitly re-add it here to ensure the media_player
-    // discovery payload is always complete, resolving an issue where the parent device
-    // was not appearing in Home Assistant.
-    JsonObject device = discoveryDoc["device"].to<JsonObject>();
-    device["identifiers"] = MQTT_UNIQUE_ID;
-    device["name"] = "Time Circuits";
-    device["model"] = "BTTF Clock v1";
-    device["manufacturer"] = "Doc Brown Industries";
-    device["sw_version"] = "2.0";
-    String ip_addr = WiFi.localIP().toString();
-    if (ip_addr != "0.0.0.0") {
-        device["configuration_url"] = "http://" + ip_addr + "/";
-    }
+    // This is the core fix. By calling this function here, we guarantee that the
+    // discovery payload for the media_player will always contain the essential
+    // 'device' and 'availability' objects, just like every other entity.
+    ensureBaseDiscoveryConfig();
 
     discoveryDoc["name"] = "Time Circuits Radio";
     String media_player_id = String(MQTT_UNIQUE_ID) + "_media_player";
@@ -651,6 +670,7 @@ void publishMediaPlayerDiscovery() {
 }
 
 void publishDisplayModeSelectorDiscovery() {
+    ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Display Mode";
     String display_mode_id = String(MQTT_UNIQUE_ID) + "_display_mode";
     discoveryDoc["unique_id"] = display_mode_id;
@@ -669,6 +689,7 @@ void publishDisplayModeSelectorDiscovery() {
 }
 
 void publishWeatherEntitiesDiscovery() {
+    ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Weather City";
     String weather_city_id = String(MQTT_UNIQUE_ID) + "_weather_city";
     discoveryDoc["unique_id"] = weather_city_id;
@@ -693,6 +714,7 @@ void publishWeatherEntitiesDiscovery() {
 }
 
 void publishAudioStatusSensorDiscovery() {
+    ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Audio Stream Status";
     String audio_status_id = String(MQTT_UNIQUE_ID) + "_audio_status";
     discoveryDoc["unique_id"] = audio_status_id;
@@ -704,6 +726,7 @@ void publishAudioStatusSensorDiscovery() {
 }
 
 void publishRadioSensorsDiscovery() {
+    ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Radio Station";
     String radio_station_id = String(MQTT_UNIQUE_ID) + "_radio_station_name";
     discoveryDoc["unique_id"] = radio_station_id;
