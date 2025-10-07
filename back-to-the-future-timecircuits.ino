@@ -1587,8 +1587,8 @@ void handlePresetCycling() {
     if (lastPresetCycleTime == 0 && bootState == BOOT_INACTIVE) {
         lastPresetCycleTime = millis();
     }
-    // Return if cycling is disabled, an animation is playing, the display is asleep, or a sequence is active
-    if (currentSettings.presetCycleInterval == 0 || isAnimating || isDisplayAsleep || isStyledAnimating || isAnySequenceActive()) {
+    // Return if cycling is disabled or the display is asleep
+    if (currentSettings.presetCycleInterval == 0 || isDisplayAsleep) {
         return;
     }
 
