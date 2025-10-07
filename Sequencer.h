@@ -47,15 +47,68 @@ enum SequenceCommand {
     SEQ_CMD_RESTORE_ALL_ROWS
 };
 
+// --- FIX: Define max string length for sequencer commands ---
+#define MAX_SEQ_STRING_LEN 64
+
 // Represents a single step in a sequence
 struct SequenceStep {
     SequenceCommand command;
     int targetRow;
     int targetSegment;
     int intParam;
-    int intParam2; // Added for commands needing a second integer
-    std::string stringParam;
-    std::string stringParam2; // Added for commands needing a second string
+    int intParam2;
+    // --- FIX: Use fixed-size char arrays to prevent memory corruption ---
+    // Storing const char* from temporary std::string objects led to dangling pointers.
+    // These arrays ensure the string data is safely copied and owned by the step.
+    char stringParam[MAX_SEQ_STRING_LEN];
+    char stringParam2[MAX_SEQ_STRING_LEN];
+
+    /**
+     * @brief Default constructor. Initializes the step to a safe, empty state.
+     */
+    SequenceStep() :
+        command(SEQ_CMD_NONE),
+        targetRow(0),
+        targetSegment(0),
+        intParam(0),
+        intParam2(0)
+    {
+        stringParam[0] = '\0';
+        stringParam2[0] = '\0';
+    }
+
+    /**
+     * @brief Constructs a sequence step and safely copies string parameters.
+     *
+     * @param cmd The command to execute.
+     * @param row The target display row (0-2).
+     * @param seg The target segment (-1 for whole row).
+     * @param p1 First integer parameter.
+     * @param p2 Second integer parameter.
+     * @param s1 First string parameter. Safely copied.
+     * @param s2 Second string parameter. Safely copied.
+     */
+    SequenceStep(SequenceCommand cmd, int row, int seg, int p1, int p2, const char* s1, const char* s2) :
+        command(cmd),
+        targetRow(row),
+        targetSegment(seg),
+        intParam(p1),
+        intParam2(p2)
+    {
+        if (s1) {
+            strncpy(stringParam, s1, MAX_SEQ_STRING_LEN - 1);
+            stringParam[MAX_SEQ_STRING_LEN - 1] = '\0'; // Ensure null termination
+        } else {
+            stringParam[0] = '\0';
+        }
+
+        if (s2) {
+            strncpy(stringParam2, s2, MAX_SEQ_STRING_LEN - 1);
+            stringParam2[MAX_SEQ_STRING_LEN - 1] = '\0'; // Ensure null termination
+        } else {
+            stringParam2[0] = '\0';
+        }
+    }
 };
 
 // Represents a single track of commands for one display row
@@ -189,7 +242,7 @@ struct SequencerTrack {
         haStateReceived = false;
 
         for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
-            steps[i] = { SEQ_CMD_NONE, 0, 0, 0, 0, "", "" };
+            steps[i] = SequenceStep(); // Use the default constructor
         }
     }
 };

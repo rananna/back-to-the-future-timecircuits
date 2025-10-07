@@ -14,11 +14,12 @@ static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, in
         // Log a warning that the sequence is too long.
         Log_printf(LOG_LEVEL_WARN, "SEQ_GEN: Sequence has too many steps! Truncating. Max is %d.", MAX_SEQUENCE_STEPS);
         // Overwrite the last step with an END command to ensure graceful termination.
-        track.steps[MAX_SEQUENCE_STEPS - 1] = {SEQ_CMD_END, 0, 0, 0, 0, "", ""};
+        track.steps[MAX_SEQUENCE_STEPS - 1] = SequenceStep(SEQ_CMD_END, 0, 0, 0, 0, "", "");
         // Return the index without advancing it to prevent further writes.
         return step_idx;
     }
-    track.steps[step_idx] = {cmd, row, seg, p1, p2, s1, s2};
+    // --- FIX: Use the SequenceStep constructor to safely copy all parameters ---
+    track.steps[step_idx] = SequenceStep(cmd, row, seg, p1, p2, s1, s2);
     return step_idx + 1;
 }
 
@@ -68,7 +69,8 @@ void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings
     const int num_chars = 13; // Standard display width
     const int lock_in_interval = total_duration / num_chars; // ms per character reveal
 
-    // Ensure strings are 13 characters for the animation timing
+    // --- FIX: Store substrings in local variables to guarantee pointer validity ---
+    // Although the temporary from substr() should live long enough, this is safer.
     std::string dest_str = std::string(time_strings[0]).substr(0, num_chars);
     std::string pres_str = std::string(time_strings[1]).substr(0, num_chars);
     std::string last_str = std::string(time_strings[2]).substr(0, num_chars);
@@ -85,29 +87,38 @@ void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings
     std::string dest_str(time_strings[0]);
     std::string pres_str(time_strings[1]);
     std::string last_str(time_strings[2]);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 0, 0, 0, dest_str.substr(0, 3).c_str());
+
+    // --- FIX: Store substrings in a local variable before passing .c_str() ---
+    // This prevents passing a pointer from a temporary std::string created by substr(),
+    // which could lead to a dangling pointer. The SequenceStep constructor now copies
+    // the data, but it's safest to guarantee the source pointer is always valid.
+    std::string temp;
+
+    temp = dest_str.substr(0, 3); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 0, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 1, 0, 0, dest_str.substr(3, 2).c_str());
+    temp = dest_str.substr(3, 2); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 1, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 2, 0, 0, dest_str.substr(5, 4).c_str());
+    temp = dest_str.substr(5, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 2, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 3, 0, 0, dest_str.substr(9, 4).c_str());
+    temp = dest_str.substr(9, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 3, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 0, 0, 0, pres_str.substr(0, 3).c_str());
+
+    temp = pres_str.substr(0, 3); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 0, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 1, 0, 0, pres_str.substr(3, 2).c_str());
+    temp = pres_str.substr(3, 2); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 1, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 2, 0, 0, pres_str.substr(5, 4).c_str());
+    temp = pres_str.substr(5, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 2, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 3, 0, 0, pres_str.substr(9, 4).c_str());
+    temp = pres_str.substr(9, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 3, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 0, 0, 0, last_str.substr(0, 3).c_str());
+
+    temp = last_str.substr(0, 3); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 0, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 1, 0, 0, last_str.substr(3, 2).c_str());
+    temp = last_str.substr(3, 2); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 1, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 2, 0, 0, last_str.substr(5, 4).c_str());
+    temp = last_str.substr(5, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 2, 0, 0, temp.c_str());
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 3, 0, 0, last_str.substr(9, 4).c_str());
+    temp = last_str.substr(9, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 3, 0, 0, temp.c_str());
 }
 
 void generateCapacitorChargeUp(SequencerTrack tracks[3]) {
@@ -122,15 +133,18 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
     const char* waves[] = {"-------------", " ---     --- ", "  ---   ---  ", "   -------   ", "  ---   ---  ", " ---     --- "};
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    // The C++ for loop generates the full animation. The SEQ_CMD_LOOP commands
-    // were redundant and caused a buffer overflow.
+
     for (int i = 0; i < 6; i++) {
+        // --- FIX: Use local std::string to guarantee pointer validity ---
         std::string wave_str(waves[i]);
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, wave_str.c_str());
         s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, wave_str.c_str());
+
         std::string inverted_str;
         for(char c : wave_str) { inverted_str += (c == '-') ? ' ' : '-'; }
         s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, inverted_str.c_str());
+
+        // Add waits to each track to keep them in sync
         s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
         s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100, 0);
         s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100, 0);
