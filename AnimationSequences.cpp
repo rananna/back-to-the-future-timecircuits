@@ -335,6 +335,28 @@ void generateSystemError(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "SYSTEM MALFUNCTION");
 }
 
+void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // Use a relay sound for the "lock in" effect
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "relay_activation.mp3");
+
+    const int flicker_interval = 50; // ms for flicker effect refresh rate
+    const int total_duration = 2000; // 2 seconds total animation time
+    const int num_chars = 13;        // Standard display width
+    const int lock_in_interval = total_duration / num_chars; // ms per character reveal (~154ms)
+
+    // Ensure pointers to string data are valid for the lifetime of the step
+    std::string dest_str = std::string(time_strings[0]).substr(0, num_chars);
+    std::string pres_str = std::string(time_strings[1]).substr(0, num_chars);
+    std::string last_str = std::string(time_strings[2]).substr(0, num_chars);
+
+    // Add the scramble command to each track to run in parallel
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, lock_in_interval, dest_str.c_str());
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, flicker_interval, lock_in_interval, pres_str.c_str());
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, lock_in_interval, last_str.c_str());
+}
+
 void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, json_string);
@@ -665,6 +687,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(tracks, time_strings); break;
         case ANIMATION_COUNTDOWN:               generateCountdown(tracks); break;
         case ANIMATION_SYSTEM_ERROR:            generateSystemError(tracks); break;
+        case ANIMATION_TIME_CIRCUITS_LOCK_IN:   generateTimeCircuitsLockIn(tracks, time_strings); break;
 
         // Default case
         default:
