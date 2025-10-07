@@ -794,10 +794,6 @@ void reconnectMqtt() {
     audio_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/play_sound/command";
     mqttClient.subscribe(audio_topic.c_str());
 
-    String radio_stations_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/radio_stations/command";
-    mqttClient.subscribe(radio_stations_topic.c_str());
-    Log_printf(LOG_LEVEL_DEBUG, "Subscribed to radio stations command topic: %s", radio_stations_topic.c_str());
-
     String sequencer_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/sequencer/command";
     mqttClient.subscribe(sequencer_topic.c_str());
     Log_printf(LOG_LEVEL_DEBUG, "Subscribed to sequencer command topic: %s", sequencer_topic.c_str());
@@ -1118,27 +1114,17 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             }
         } else if (component == "radio") {
             Log_printf(LOG_LEVEL_INFO, "Handling radio command. Payload: %s", message.c_str());
-            if (message == "stop") {
-                Log_printf(LOG_LEVEL_INFO, "Stopping audio stream via user command.");
+            if (message == "stop" || message == "STOP" || message == "PAUSE") {
+                Log_printf(LOG_LEVEL_INFO, "Stopping audio stream via MQTT user command.");
                 stopAudioStream(false); // false = not a temporary stop
-            } else {
-                Log_printf(LOG_LEVEL_INFO, "Starting radio stream.");
-                startAudioStream(message.c_str(), false);
+            } else if (message == "PLAY" || message == "play_favorite_radio") {
+                Log_printf(LOG_LEVEL_INFO, "MQTT: Play favorite radio command received.");
+                if (!currentSettings.favoriteRadioUrl.empty()) {
+                    startAudioStream(currentSettings.favoriteRadioUrl.c_str(), false);
+                } else {
+                    Log_printf(LOG_LEVEL_WARN, "Favorite radio URL is not set. Cannot play.");
+                }
             }
-        } else if (component == "radio_stations") {
-            Log_printf(LOG_LEVEL_INFO, "Received radio stations list. Saving to LittleFS.");
-            File file = LittleFS.open("/radio_stations.json", "w");
-            if (!file) {
-                Log_printf(LOG_LEVEL_ERROR, "Failed to open radio_stations.json for writing");
-                return;
-            }
-            if (file.print(message.c_str())) {
-                Log_printf(LOG_LEVEL_INFO, "Successfully wrote radio stations to LittleFS.");
-                broadcastRadioStationsUpdated();
-            } else {
-                Log_printf(LOG_LEVEL_ERROR, "Failed to write radio stations to LittleFS.");
-            }
-            file.close();
         }
     } else {
     // --- START: New logic for HA Sensor command in Sequencer ---

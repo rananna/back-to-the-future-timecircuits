@@ -442,11 +442,12 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                     delete params;
                      Log_printf(LOG_LEVEL_ERROR, "Failed to create API test task!");
                 }
-            } else if (action == "play_radio") {
-                String url = doc["url"];
-                if (url.length() > 0) {
-                    Log_printf(LOG_LEVEL_INFO, "WebSocket: Play radio command received for URL: %s", url.c_str());
-                    startAudioStream(url.c_str(), false);
+            } else if (action == "play_favorite_radio") {
+                Log_printf(LOG_LEVEL_INFO, "WebSocket: Play favorite radio command received.");
+                if (!currentSettings.favoriteRadioUrl.empty()) {
+                    startAudioStream(currentSettings.favoriteRadioUrl.c_str(), false);
+                } else {
+                    Log_printf(LOG_LEVEL_WARN, "Favorite radio URL is not set. Cannot play.");
                 }
             } else if (action == "stop_radio") {
                 Log_printf(LOG_LEVEL_INFO, "WebSocket: Stop radio command received.");
@@ -503,6 +504,8 @@ void sendFullSettingsToClient(uint32_t clientId) {
     doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
     doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
     doc["displayFormat24h"] = currentSettings.displayFormat24h;
+    doc["favoriteRadioName"] = currentSettings.favoriteRadioName.c_str();
+    doc["favoriteRadioUrl"] = currentSettings.favoriteRadioUrl.c_str();
 
     // --- Add Data Link and other settings ---
     doc["displayMode"] = currentSettings.displayMode;

@@ -45,8 +45,8 @@ SOUND_EFFECTS = [
     "time_travel",
 ]
 
-STORAGE_KEY = f"{DOMAIN}_favorites"
-STORAGE_VERSION = 1
+# The new source list, combining sound effects and the single favorite station.
+SOURCE_LIST = SOUND_EFFECTS + ["Favorite Radio Station"]
 
 
 MEDIA_PLAYER_DESCRIPTION = MediaPlayerEntityDescription(
@@ -65,7 +65,7 @@ async def async_setup_entry(
     _LOGGER.debug("media_player.async_setup_entry")
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
     async_add_entities(
-        [BTTFTimeCircuitsMediaPlayer(device, config_entry, MEDIA_PLAYER_DESCRIPTION)]
+        [BTTFTimeCircuitsMediaPlayer(device, MEDIA_PLAYER_DESCRIPTION)]
     )
 
 
@@ -75,14 +75,13 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
     entity_description: MediaPlayerEntityDescription
 
     _attr_supported_features = SUPPORTED_FEATURES
-    _attr_source_list = SOUND_EFFECTS
+    _attr_source_list = SOURCE_LIST
 
     _attr_should_poll = False
 
     def __init__(
         self,
         device: BTTFTimeCircuitsDevice,
-        config_entry: ConfigEntry,
         description: MediaPlayerEntityDescription,
     ) -> None:
         """Initialize the media player."""
@@ -91,23 +90,15 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         )
         self.entity_description = description
         super().__init__(device)
-        self.config_entry = config_entry
         self._attr_volume_level = 0.5  # Default volume
         self._attr_state = "idle"
         self._attr_media_content_id = None
         self._attr_media_content_type = None
         self._attr_media_title = None
 
-        self._radio_stations: list[dict[str, str]] = []
-
     async def async_added_to_hass(self) -> None:
         """Subscribe to MQTT events."""
         await super().async_added_to_hass()
-
-        self._update_radio_stations()
-        self.async_on_remove(
-            self.config_entry.add_update_listener(self._on_options_update)
-        )
 
         @callback
         def audio_state_received(msg: mqtt.ReceiveMessage) -> None:
@@ -134,26 +125,6 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             volume_state_received,
             1,
         )
-
-    async def _on_options_update(
-        self, hass: HomeAssistant, entry: ConfigEntry
-    ) -> None:
-        """Handle options update."""
-        self._update_radio_stations()
-        self.async_write_ha_state()
-        await self._publish_radio_stations()
-
-    def _update_radio_stations(self) -> None:
-        """Update the radio stations from the config entry."""
-        self._radio_stations = self.config_entry.options.get("radio_stations", [])
-        radio_station_names = [station["name"] for station in self._radio_stations]
-        self._attr_source_list = SOUND_EFFECTS + radio_station_names
-
-    async def _publish_radio_stations(self) -> None:
-        """Publish the list of radio stations to MQTT."""
-        command_topic = f"{self._device.base_topic}/radio_stations/command"
-        payload = json.dumps(self._radio_stations)
-        await mqtt.async_publish(self.hass, command_topic, payload, 1, True)
 
     async def async_set_volume_level(self, volume: float) -> None:
         """Set the volume level."""
@@ -197,17 +168,14 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             await mqtt.async_publish(self.hass, command_topic, media_id, 1, False)
             return
 
-        # Case 2: Radio station by channel name. This handles `media_type: channel`
-        # which is used when selecting a radio station from the source list.
-        if media_type == MediaType.CHANNEL:
-            station_url = next(
-                (s["url"] for s in self._radio_stations if s["name"] == media_id), None
+        # Case 2: Favorite Radio Station. This handles `media_type: channel`
+        # which is used when selecting from the source list.
+        if media_type == MediaType.CHANNEL and media_id == "Favorite Radio Station":
+            self._attr_media_title = "Favorite Radio Station"
+            command_topic = f"{self._device.base_topic}/radio/command"
+            await mqtt.async_publish(
+                self.hass, command_topic, "play_favorite_radio", 1, False
             )
-            if station_url:
-                # Recursively call this function with the correct media type and URL
-                await self.async_play_media(MediaType.URL, station_url)
-            else:
-                _LOGGER.warning(f"Unknown radio station channel selected: {media_id}")
             return
 
         # Case 3: TTS from Home Assistant. This handles `media_type: audio/...`
@@ -224,7 +192,7 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             )
             return
 
-        # Case 4: Radio Stream URL
+        # Case 4: Direct Radio Stream URL (e.g., from a script)
         if media_type == MediaType.URL or media_type == MediaType.MUSIC:
             self._attr_media_title = f"Radio: {media_id}"
             command_topic = f"{self._device.base_topic}/radio/command"
@@ -233,11 +201,8 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
 
     async def async_select_source(self, source: str) -> None:
         """Select a source to play."""
-        station_url = next(
-            (s["url"] for s in self._radio_stations if s["name"] == source), None
-        )
-        if station_url:
-            await self.async_play_media(MediaType.URL, station_url)
+        if source == "Favorite Radio Station":
+            await self.async_play_media(MediaType.CHANNEL, source)
         elif source in SOUND_EFFECTS:
             await self.async_play_media("sound", source)
         else:
