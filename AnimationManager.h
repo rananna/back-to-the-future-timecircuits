@@ -47,6 +47,8 @@ extern SemaphoreHandle_t xAnimationStartMutex;
 
 // --- NEW: Flag to track boot sequence completion ---
 extern bool bootSequenceCompleted;
+// --- NEW: A flag to signal that an animation has just finished to prevent race conditions ---
+extern volatile bool justFinishedAnimation;
 
 // --- Function Declarations for animations and effects ---
 void startTimeTravelAnimation();
