@@ -749,10 +749,11 @@ void handleSequencer() {
 
         // --- NEW: Check for track timeout ---
         if (track.isActive && (millis() - track.trackStartTime > MAX_SEQUENCE_DURATION)) {
-            Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d timed out after %d ms. Aborting.", i, MAX_SEQUENCE_DURATION);
-            stopAndCleanupTrack(i);
+            Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d timed out after %d ms. Aborting ALL tracks.", i, MAX_SEQUENCE_DURATION);
+            stopAllSequences(); // --- FIX: Call master cleanup for safety.
+            broadcastAnimationComplete(); // --- FIX: Notify UI of completion.
             needsDisplayUpdate = true;
-            continue; // Skip to the next track
+            break; // --- FIX: All tracks are stopped, so exit the loop.
         }
 
         // --- Handle active effects for this track ---
