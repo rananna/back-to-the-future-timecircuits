@@ -597,6 +597,11 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
                  "\r\n",
                  clean_symbol.c_str(), _api_key.c_str());
 
+        // --- NEW: Log the URL for debugging ---
+        char url_log[256];
+        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/search-symbol?query=%s&limit=1&apikey=REDACTED", clean_symbol.c_str());
+        Log_printf(LOG_LEVEL_INFO, "Validating symbol with URL: %s", url_log);
+
         if (esp_tls_conn_write(tls_search, request, strlen(request)) < 0) {
             Log_printf(LOG_LEVEL_ERROR, "Search esp_tls_conn_write failed.");
             goto cleanup;
