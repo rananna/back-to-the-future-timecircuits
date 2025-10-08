@@ -93,7 +93,7 @@ const std::vector<Preset> moviePresets = {
 #define LED_BUILTIN 2
 #endif
 
-#define WDT_TIMEOUT 10 // Watchdog timeout in seconds
+#define WDT_TIMEOUT 20 // Watchdog timeout in seconds
 
 // --- SYSTEM CONSTANTS ---
 const unsigned long WIFI_CONNECT_TIMEOUT = 15000;       // Time in ms to wait for WiFi before starting the captive portal.
