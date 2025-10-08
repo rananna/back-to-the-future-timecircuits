@@ -100,20 +100,34 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
   if (text == nullptr) {
     return;
   }
-  int text_len = strlen(text);
-  if (text_len == 0) {
-    return;
-  }
+
+  // Copy the input text to a temporary buffer, truncating to 4 characters.
   char buffer[5];
   strncpy(buffer, text, 4);
   buffer[4] = '\0';
+
+  // Sanitize the buffer to replace unsupported characters.
+  for (int i = 0; i < strlen(buffer); i++) {
+    if (buffer[i] == '!') {
+      buffer[i] = ' '; // Replace '!' with a space.
+    }
+  }
+
   int len = strlen(buffer);
+  if (len == 0) {
+    // If the buffer is empty after sanitization (e.g., input was "!"),
+    // there's nothing to display, so we can return early.
+    return;
+  }
+
   int startPos = 0;
-  if (justification == 1) {
+  if (justification == 1) { // Right justification
     startPos = 4 - len;
-  } else if (justification == 2) {
+  } else if (justification == 2) { // Center justification
     startPos = (4 - len) / 2;
   }
+
+  // Write the sanitized and justified text to the display buffer.
   for (int i = 0; i < 4; i++) {
     if (i >= startPos && i < (startPos + len)) {
       display.writeDigitAscii(i, buffer[i - startPos]);
