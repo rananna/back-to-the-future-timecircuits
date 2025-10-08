@@ -50,6 +50,9 @@ extern bool bootSequenceCompleted;
 // --- NEW: A flag to signal that an animation has just finished to prevent race conditions ---
 extern volatile bool justFinishedAnimation;
 
+// --- NEW: Track the currently running animation type for logging ---
+extern AnimationType currentAnimationType;
+
 // --- Function Declarations for animations and effects ---
 void startTimeTravelAnimation();
 void handleDisplayAnimation();

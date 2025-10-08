@@ -13,6 +13,9 @@ bool bootSequenceCompleted = false;
 #include "DisplayManager.h"
 #include "MqttManager.h"
 
+// --- NEW: Track the currently running animation type for logging ---
+AnimationType currentAnimationType = ANIMATION_TYPE_MAX; // Initialize to a known invalid state
+
 // --- NEW: Extern declaration to access the pre-animation display mode ---
 extern int preAnimationDisplayMode;
 #include <WiFi.h>
@@ -1521,6 +1524,12 @@ void stopAndCleanupTrack(int trackIndex) {
 
     // If no other tracks are active, restore the original display mode.
     if (!anyOtherTrackActive) {
+        // --- NEW: Log the completion of the animation ---
+        if (currentAnimationType != ANIMATION_TYPE_MAX) {
+            Log_printf(LOG_LEVEL_INFO, "SEQ: Animation %d (%s) completed.", (int)currentAnimationType, animationTypeToString(currentAnimationType));
+            currentAnimationType = ANIMATION_TYPE_MAX; // Reset to invalid state
+        }
+
         Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Cleaning up and restoring pre-animation display mode: %d", preAnimationDisplayMode);
         comprehensiveAnimationCleanup(); // Full cleanup of all states
         currentSettings.displayMode = preAnimationDisplayMode;
@@ -1642,7 +1651,10 @@ void runSequencerTest() {
 void triggerAnimation(AnimationType animType) {
     // This function is a full takeover. It replaces all running tracks
     // with the new animation.
-    Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d. All current tracks will be replaced.", (int)animType);
+    Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
+
+    // --- NEW: Store the current animation type for logging completion ---
+    currentAnimationType = animType;
 
     // --- FIX: Allocate temp_tracks on the heap to prevent stack overflow ---
     // The SequencerTrack struct is very large (approx 5.5KB), so creating an
