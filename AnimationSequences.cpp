@@ -715,10 +715,13 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
 // --- Main Generation Function ---
 
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
-    // --- START: MODIFICATION - Centralized Randomization ---
-    if (animType == ANIMATION_RANDOMIZE_ALL) {
-        const AnimationType validAnimationStyles[] = {
-            // A curated list of interesting and stable animations suitable for this feature
+    // --- FIX: Replace recursive randomization with an iterative approach ---
+    // This loop ensures that if we are asked to randomize, we pick a concrete
+    // animation and never get stuck in a recursive loop, which prevents a stack overflow.
+    while (animType == ANIMATION_RANDOMIZE_ALL) {
+        // A curated list of interesting and stable C++ animations suitable for this feature.
+        // JSON-based animations are excluded as they are generally for specific UI triggers.
+        const AnimationType cpp_animations[] = {
             ANIMATION_ALL_DISPLAYS_RANDOM,
             ANIMATION_LIGHTNING,
             ANIMATION_SCANNER,
@@ -726,26 +729,28 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
             ANIMATION_FLUX_CAPACITOR_OVERLOAD,
             ANIMATION_FIRE_TRAILS,
             ANIMATION_SPARKLE_REVEAL,
-            ANIMATION_SYSTEM_ERROR,
             ANIMATION_SEQUENTIAL_FLICKER,
+            ANIMATION_RANDOM_FLICKER,
             ANIMATION_TORNADO_FLICKER,
             ANIMATION_CAPACITOR_CHARGE_UP,
             ANIMATION_WAVEFORM_COLLAPSE,
             ANIMATION_TIMELINE_SKIM,
+            ANIMATION_TEMPORAL_DESYNC,
+            ANIMATION_GLITCHY_JUMP_CUT,
+            ANIMATION_PLASMA_WARM_UP,
             ANIMATION_TIME_WARP_STREAKS,
             ANIMATION_CHARACTER_SCANLINE,
+            ANIMATION_FOCUS_IN,
             ANIMATION_CODE_BREAKER,
+            ANIMATION_TEMPORAL_PARADOX,
+            ANIMATION_DIGIT_CASCADE,
             ANIMATION_ELECTRIC_SURGE,
-            ANIMATION_FLIP_DISC_DISPLAY
+            ANIMATION_FLIP_DISC_DISPLAY,
+            ANIMATION_INTERFERENCE_PATTERN
         };
-        int numStyles = sizeof(validAnimationStyles) / sizeof(validAnimationStyles[0]);
-        int randomIndex = random(0, numStyles);
-        // Overwrite the animType with the new, randomly selected type.
-        // This avoids a recursive call which can lead to a stack overflow.
-        animType = validAnimationStyles[randomIndex];
-        // --- Let the function fall through to the main switch statement ---
+        int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
+        animType = cpp_animations[random(0, num_cpp_animations)];
     }
-    // --- END: MODIFICATION ---
 
     char time_strings[3][17];
     getFormattedTimeStrings(time_strings[0], time_strings[1], time_strings[2]);
