@@ -420,14 +420,22 @@ async function saveSettings() {
     settings.favoriteRadioUrl = getValue('favoriteRadioUrl');
 
     // --- Determine Display Mode ---
-    if (getChecked('stockTickerModeEnabled')) {
-        settings.displayMode = 1;
-    } else if (getChecked('weatherModeEnabled')) {
-        settings.displayMode = 2;
-    } else if (getChecked('dataLinkEnabled')) {
-        settings.displayMode = 3;
-    } else {
-        settings.displayMode = 0;
+    // Only set the display mode if the controls for it exist on the current page.
+    // This prevents saving settings from other pages from incorrectly resetting the mode to 'Normal Clock'.
+    const stockTickerCheckbox = getEl('stockTickerModeEnabled');
+    const weatherCheckbox = getEl('weatherModeEnabled');
+    const dataLinkCheckbox = getEl('dataLinkEnabled');
+
+    if (stockTickerCheckbox || weatherCheckbox || dataLinkCheckbox) {
+        if (getChecked('stockTickerModeEnabled')) {
+            settings.displayMode = 1;
+        } else if (getChecked('weatherModeEnabled')) {
+            settings.displayMode = 2;
+        } else if (getChecked('dataLinkEnabled')) {
+            settings.displayMode = 3;
+        } else {
+            settings.displayMode = 0;
+        }
     }
 
     // --- Data Link, Weather & Stock Ticker Settings ---

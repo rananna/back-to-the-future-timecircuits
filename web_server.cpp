@@ -683,7 +683,7 @@ void setupWebRoutes() {
   });
 
   server.on("/api/stocks", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (currentSettings.displayMode != DMS_STOCK_TICKER || stockManager.getAssets().empty()) {
+    if (stockManager.getAssets().empty()) {
         request->send(200, "application/json", "[]");
         return;
     }
