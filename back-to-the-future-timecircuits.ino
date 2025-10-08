@@ -474,6 +474,13 @@ void applySettingsFromJson(const JsonObject& obj) {
     if (!obj["mqttPassword"].isNull()) currentSettings.mqttPassword = obj["mqttPassword"].as<std::string>();
     if (!obj["cityName"].isNull()) {
         std::string newCityName = obj["cityName"].as<std::string>();
+        // --- START: FIX - Shorten long city names from UI lookups ---
+        // The UI lookup can return "City, State, Country". We only want the city part.
+        size_t commaPos = newCityName.find(',');
+        if (commaPos != std::string::npos) {
+            newCityName = newCityName.substr(0, commaPos);
+        }
+        // --- END: FIX ---
         if (newCityName != oldCityName) {
             lastCityName = "";
             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
@@ -610,6 +617,23 @@ void applySettingsFromJson(const JsonObject& obj) {
 
     if (oldDisplayMode != currentSettings.displayMode) {
         publishDisplayMode(currentSettings.displayMode);
+        // --- START: FIX - Update Last Time Departed row when mode changes ---
+        // This makes the display immediately reflect the selected mode.
+        switch (currentSettings.displayMode) {
+            case DMS_WEATHER:
+                updateDisplaySegment(2, -1, "   WEATHER   ");
+                break;
+            case DMS_STOCK_TICKER:
+                updateDisplaySegment(2, -1, "   STOCKS    ");
+                break;
+            case DMS_DATA_LINK:
+                updateDisplaySegment(2, -1, "  DATA LINK  ");
+                break;
+            default: // DMS_NORMAL_CLOCK
+                restoreDisplayRow(2);
+                break;
+        }
+        // --- END: FIX ---
     }
 
     if (oldSoundToggle != currentSettings.timeTravelSoundToggle) {
