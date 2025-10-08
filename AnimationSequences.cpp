@@ -279,9 +279,10 @@ void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
 void generateCountingUp(SequencerTrack tracks[3]) {
     int s0=0, s1=0, s2=0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_COUNTDOWN, 0, -1, 99999999, 1);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, -1, 99999999, 1);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_COUNTDOWN, 2, -1, 99999999, 1);
+    // --- FIX: Replace hang-guaranteed countdown with a finite visual effect ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
 }
 
 void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][17]) {
@@ -301,9 +302,10 @@ void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][1
 void generateTemporalDesync(SequencerTrack tracks[3]) {
     int s0=0, s1=0, s2=0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_COUNTDOWN, 0, -1, 99999999, 100);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, -1, 99999999, 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_COUNTDOWN, 2, -1, 99999999, 200);
+    // --- FIX: Replace hang-guaranteed countdown with a finite visual effect ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 100);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 200);
 }
 
 void generateDigitalRain(SequencerTrack tracks[3]) {
@@ -675,7 +677,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
             parseSequenceFromJson(tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":8000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 1000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":1000}, {"command": "SET_TEXT", "stringParam": "88 MPH"}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 8000}]}])");
             break;
         case ANIMATION_PARTY_MODE:
-            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"MARQUEE", "stringParam":"PARTY TIME"}, {"command":"LOOP_START"}, {"command":"PULSE", "targetSegment":-1, "intParam":1000}, {"command":"WAIT", "intParam":1000}, {"command":"LOOP_END"}]}, {"targetRow":"MIDDLE", "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"DANCE"}, {"command":"WAIT", "intParam":2000}, {"command":"MARQUEE", "stringParam":"PARTY"}, {"command":"WAIT", "intParam":2000}, {"command":"LOOP_END"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"LOOP_START"}, {"command":"MARQUEE", "stringParam":"WOOHOO"}, {"command":"WAIT", "intParam":5000}, {"command":"LOOP_END"}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"MARQUEE", "stringParam":"PARTY TIME"}, {"command":"LOOP_START", "intParam":5}, {"command":"PULSE", "targetSegment":-1, "intParam":1000}, {"command":"WAIT", "intParam":1000}, {"command":"LOOP_END"}]}, {"targetRow":"MIDDLE", "commands":[{"command":"LOOP_START", "intParam":5}, {"command":"MARQUEE", "stringParam":"DANCE"}, {"command":"WAIT", "intParam":2000}, {"command":"MARQUEE", "stringParam":"PARTY"}, {"command":"WAIT", "intParam":2000}, {"command":"LOOP_END"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"LOOP_START", "intParam":5}, {"command":"MARQUEE", "stringParam":"WOOHOO"}, {"command":"WAIT", "intParam":5000}, {"command":"LOOP_END"}]}])");
             break;
         case ANIMATION_KNIGHT_RIDER:
             parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}])");
