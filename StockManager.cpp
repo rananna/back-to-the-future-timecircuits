@@ -572,7 +572,8 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
     }
 
     String exchange = "";
-    char header_buf[2048];
+    // Allocate buffer statically to prevent stack overflow in the task.
+    static char header_buf[2048];
     char* body_start_ptr = NULL;
     size_t header_len = 0;
 
@@ -708,7 +709,8 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
     }
 
     FetchStatus status = FETCH_FAILED;
-    char header_buf[2048];
+    // Allocate buffers statically to prevent stack overflow in the task.
+    static char header_buf[2048];
     char* body_start_ptr = NULL;
     size_t header_len = 0;
 
@@ -727,7 +729,8 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
 
         Log_printf(LOG_LEVEL_DEBUG, "Stock TLS connection established.");
 
-        char request[2048];
+        // Allocate buffers statically to prevent stack overflow in the task.
+        static char request[2048];
         char url_log[512];
         char* symbols_str_buf = NULL; // This is no longer used but kept to avoid breaking cleanup logic.
 
