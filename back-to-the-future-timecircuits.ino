@@ -191,7 +191,6 @@ AnimationPhase currentStyledPhase = ANIM_INACTIVE;
 // to avoid using global variables and intermediate string buffers, which can
 // cause memory issues on the ESP32.
 
-volatile bool webServerRestartRequired = false;
 bool isDisplayAsleep = false;
 unsigned long bootStateStartTime = 0;
 unsigned long lastPresetCycleTime = 0;
@@ -1275,18 +1274,24 @@ void loop() {
 
                 logConnectedPrinted = true;
 
+                // --- NEW: Start mDNS once on successful WiFi connection ---
+                if (!mDnsIsActive) {
+                    Log_printf(LOG_LEVEL_INFO, "Starting mDNS service...");
+                    if (MDNS.begin("BTTF_TC")) {
+                        MDNS.addService("http", "tcp", 80);
+                        mDnsIsActive = true;
+                        Log_printf(LOG_LEVEL_INFO, "mDNS service started successfully.");
+                    } else {
+                        Log_printf(LOG_LEVEL_ERROR, "mDNS failed to start.");
+                    }
+                }
+
                 ntpSyncRequested = true;
                 runBootSequence();
             }
             if (!currentSettings.mqttBroker.empty()) {
                 unsigned long now = millis();
                 if (!mqttClient.connected()) {
-                    // --- mDNS Management: Stop mDNS when MQTT is disconnected ---
-                    if (mDnsIsActive) {
-                        MDNS.end();
-                        mDnsIsActive = false;
-                        Log_printf(LOG_LEVEL_INFO, "mDNS service stopped to conserve memory during MQTT reconnect.");
-                    }
 
                     // Check if we are in a hold-off period (circuit breaker is tripped)
                     if (mqttHoldoffUntil > 0 && now < mqttHoldoffUntil) {
@@ -1332,20 +1337,6 @@ void loop() {
                         }
                     }
                 } else {
-                    // --- mDNS Management: Start mDNS only after HA discovery is complete ---
-                    // This prevents a memory allocation race condition on the ESP32.
-                    // We start mDNS after HA discovery is complete.
-                    if (!mDnsIsActive && isHaDiscoveryComplete()) {
-                        Log_printf(LOG_LEVEL_INFO, "HA Discovery complete. Starting mDNS...");
-                        if (MDNS.begin("BTTF_TC")) {
-                            MDNS.addService("http", "tcp", 80);
-                            mDnsIsActive = true;
-                            Log_printf(LOG_LEVEL_INFO, "mDNS service started successfully.");
-                        } else {
-                            Log_printf(LOG_LEVEL_ERROR, "mDNS failed to start.");
-                        }
-                    }
-
                     // If we are connected, ensure the failure counter is reset.
                     if (mqttConsecutiveFails > 0) {
                         Log_printf(LOG_LEVEL_INFO, "MQTT: Re-established connection. Resetting failure counter.");
