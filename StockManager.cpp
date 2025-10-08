@@ -515,7 +515,7 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
         char request[512];
         String clean_symbol = getSimpleSymbolFromString(symbol);
         snprintf(request, sizeof(request),
-                 "GET /stable/quote?symbol=%s&apikey=%s HTTP/1.1\r\n"
+                 "GET /stable/search-symbol?query=%s&limit=1&apikey=%s HTTP/1.1\r\n"
                  "Host: financialmodelingprep.com\r\n"
                  "Connection: close\r\n"
                  "\r\n",
