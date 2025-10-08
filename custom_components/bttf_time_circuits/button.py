@@ -14,6 +14,7 @@ from homeassistant.components.button import (
 from homeassistant.components.media_player import MediaType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
@@ -129,7 +130,7 @@ class BTTFTimeCircuitsFavoriteButton(BTTFTimeCircuitsEntity, ButtonEntity):
     async def async_press(self) -> None:
         """Handle the button press by calling the media_player service."""
         # Find the media_player entity associated with this device
-        entity_registry = self.hass.helpers.entity_registry.async_get(self.hass)
+        entity_registry = er.async_get(self.hass)
         media_player_entity_id = entity_registry.async_get_entity_id(
             "media_player", DOMAIN, f"{DOMAIN}_{self._device.device_id}_media_player"
         )
