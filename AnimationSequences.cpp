@@ -608,19 +608,39 @@ void generateLightning(SequencerTrack tracks[3]) {
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 300, 0);
 
     // --- Stage 2: Building Chaos ---
+    // --- FIX: Synchronize parallel loops to prevent race conditions ---
+    // Pre-calculate random durations for each track's commands within the loop.
+    int flicker_d0 = random(100, 200); int wait_d0 = random(50, 150);
+    int flicker_d1 = random(100, 250); int wait_d1 = random(50, 200);
+    int flicker_d2 = random(100, 300); int wait_d2 = random(50, 250);
+
+    // Calculate the total duration for each track's loop iteration.
+    int total_d0 = flicker_d0 + wait_d0;
+    int total_d1 = flicker_d1 + wait_d1;
+    int total_d2 = flicker_d2 + wait_d2;
+
+    // Find the maximum duration among all tracks.
+    int max_duration = std::max({total_d0, total_d1, total_d2});
+
+    // Add the LOOP_START command to all tracks.
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 10, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 10, 0);
 
-    // Flicker all rows with random timings to create a chaotic effect.
-    // The command will use the text already on the display.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, random(100, 200), 50);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, random(50, 150), 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, random(100, 250), 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, random(50, 200), 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, random(100, 300), 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, random(50, 250), 0);
+    // Add commands to each track, using the pre-calculated durations.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, flicker_d0, 50);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, wait_d0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, flicker_d1, 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, wait_d1, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, flicker_d2, 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, wait_d2, 0);
 
+    // Add padding WAIT commands to synchronize the end of the loop for each track.
+    if (total_d0 < max_duration) { s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, max_duration - total_d0, 0); }
+    if (total_d1 < max_duration) { s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, max_duration - total_d1, 0); }
+    if (total_d2 < max_duration) { s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, max_duration - total_d2, 0); }
+
+    // Add the LOOP_END command to all tracks.
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
