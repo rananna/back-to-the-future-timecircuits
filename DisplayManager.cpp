@@ -8,6 +8,16 @@
  * actually write to the displays.
  */
 
+/**
+ * @file DisplayManager.cpp
+ * @brief Manages the content displayed on the time circuits during normal operation.
+ * @details This module is responsible for rendering the standard clock display, as well
+ * as handling the logic for alternative display modes like the stock ticker, weather
+ * forecast, and data-driven marquee. It acts as a high-level controller for what
+ * should be shown, calling the lower-level functions in HardwareControl.cpp to
+ * actually write to the displays.
+ */
+
 #include "DebugLog.h"
 #include "DisplayManager.h"
 #include "DataManager.h"
@@ -185,6 +195,16 @@ bool weatherDataUpdated = false;
 std::string manualDisplayText[3][4];
 bool isRowInManualMode[3] = {false, false, false};
 
+/**
+ * @brief Displays a temporary, static message on the bottom display row.
+ * @details This is a utility function for showing a short-lived message that will be
+ * automatically cleared after the specified duration.
+ * @param month Text for the month segment (3 chars).
+ * @param day Text for the day segment (2 chars).
+ * @param year Text for the year segment (4 chars).
+ * @param time Text for the time segment (4 chars).
+ * @param duration The time in milliseconds to display the message.
+ */
 void showTemporaryMessage(const char* month, const char* day, const char* year, const char* time, int duration) {
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
@@ -203,6 +223,11 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
 #endif
 }
 
+/**
+ * @brief Converts an Open-Meteo weather code into a human-readable string.
+ * @param code The integer weather code from the API.
+ * @return A C-string with the weather description (e.g., "PARTLY CLOUDY").
+ */
 const char* getWeatherDescriptionForCode(int code) {
     switch (code) {
         case 0: return "CLEAR SKY";
@@ -223,6 +248,11 @@ const char* getWeatherDescriptionForCode(int code) {
     }
 }
 
+/**
+ * @brief Converts an Open-Meteo weather code into a 2-character icon for display.
+ * @param code The integer weather code from the API.
+ * @return A 2-character C-string icon (e.g., "CL" for cloudy).
+ */
 const char* getIconForWeatherCode(int code) {
     // ... function content remains the same ...
     switch (code) {
@@ -242,6 +272,13 @@ const char* getIconForWeatherCode(int code) {
     }
 }
 
+/**
+ * @brief Manages the display logic for the stock ticker mode.
+ * @details This function implements the state machine for the stock ticker. It keeps the
+ * top two rows as a normal clock and uses the bottom row to scroll through stock data
+ * fetched by the `StockManager`. It handles states for connecting, scrolling data, and
+ * pausing between tickers.
+ */
 void updateStockTickerDisplay() {
     if (isDisplayAsleep || isAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
@@ -366,6 +403,12 @@ void updateStockTickerDisplay() {
 #endif
 }
 
+/**
+ * @brief Displays a high-priority, persistent override message on all three rows.
+ * @details This function is used for critical alerts or messages sent via MQTT/API.
+ * It takes precedence over all other display modes. It supports both static, centered
+ * text for short messages and a scrolling marquee for longer messages.
+ */
 void displayOverrideMessage() {
     if (!hardwareInitialized) return;
 #if ENABLE_HARDWARE
@@ -439,6 +482,16 @@ void displayOverrideMessage() {
 #endif
 }
 
+/**
+ * @brief Sets or clears manual text for a specific display segment or an entire row.
+ * @details This is a key function for sequencer-based animations and external control.
+ * It updates an internal buffer (`manualDisplayText`) with the given text and sets a
+ * flag (`isRowInManualMode`) that causes the main display loop to show this text
+ * instead of the normal clock time for that row.
+ * @param row The target display row (0-2).
+ * @param segment The target segment (0-3), or -1 to update the entire row at once.
+ * @param text The text to display. An empty string clears the manual override for that segment.
+ */
 void updateDisplaySegment(int row, int segment, const std::string& text) {
     if (row < 0 || row > 2) { // Invalid row
         return;
@@ -477,6 +530,13 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
     updateNormalClockDisplay();
 }
 
+/**
+ * @brief Restores a display row to its normal clock function.
+ * @details This function clears any manual text overrides for the specified row and
+ * resets its mode, causing it to display the standard time information again on the
+ * next display update cycle.
+ * @param row The display row (0-2) to restore.
+ */
 void restoreDisplayRow(int row) {
     if (row < 0 || row > 2) return;
 
@@ -498,6 +558,18 @@ void restoreDisplayRow(int row) {
  * for calculating the correct times for all three rows (Destination, Present, and
  * Last Time Departed), handling timezone conversions, and displaying them. It also
  * manages the logic for overriding a specific row with manually set text.
+ * @param updateDest If true, the destination time row is updated.
+ * @param updatePres If true, the present time row is updated.
+ * @param updateLast If true, the last time departed row is updated.
+ */
+/**
+ * @brief The internal implementation for updating the three main time circuit displays.
+ * @details This is the core rendering function. It calculates the correct times for all
+ * three rows (Destination, Present, and Last Time Departed), handling timezone conversions,
+ * 24-hour format, and AM/PM LEDs. It also manages the logic for overriding a specific
+ * row with manually set text from the sequencer or an external source. It's called by
+ * the public `updateNormalClockDisplay` wrapper and other display modes that need to
+ * show a partial clock (like the stock ticker).
  * @param updateDest If true, the destination time row is updated.
  * @param updatePres If true, the present time row is updated.
  * @param updateLast If true, the last time departed row is updated.
@@ -644,6 +716,16 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
 #endif
 }
 
+/**
+ * @brief A thread-safe public wrapper for updating the main clock display.
+ * @details This function acquires the display data mutex before calling the internal
+ * `updateNormalClockDisplay_internal` function, ensuring that display updates do not
+
+ * conflict with other tasks that might be modifying display-related data.
+ * @param updateDest If true, the destination time row is updated.
+ * @param updatePres If true, the present time row is updated.
+ * @param updateLast If true, the last time departed row is updated.
+ */
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
 #if ENABLE_HARDWARE
   if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
@@ -653,6 +735,13 @@ void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast)
 #endif
 }
 
+/**
+ * @brief Manages the display logic for the weather mode.
+ * @details This function implements a state machine for the weather display. It handles
+ * states for fetching data, displaying scrolling weather information pages (current,
+ * forecast, etc.), pausing between pages, and showing error messages. It uses the
+ * bottom display row, leaving the top two as a clock.
+ */
 void handleWeatherDisplay() {
 #if ENABLE_HARDWARE
     // When the weather display is active, we must explicitly turn off the AM/PM LEDs for the last row,
@@ -985,6 +1074,13 @@ void handleWeatherDisplay() {
 #endif
 }
 
+/**
+ * @brief Manages the display logic for the Data Link marquee mode.
+ * @details This function implements a state machine that scrolls through user-configured
+ * data points on the bottom display row. It handles states for starting a new page,
+ * scrolling the text, and pausing before moving to the next page. It keeps the top
+ * two rows as a standard clock display.
+ */
 void updateMarqueeDisplay() {
 #if ENABLE_HARDWARE
     // In marquee mode, the top two rows (Destination and Present Time) should always show the clock.

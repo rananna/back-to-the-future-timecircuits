@@ -1,9 +1,13 @@
+/**
+ * @file This script is the main entry point for the Time Circuits web UI.
+ * @summary It handles UI initialization, event listeners, WebSocket communication,
+ * and fetching/displaying data from the device's API endpoints.
+ * @author B. Anan
+ */
+
 // Global state for the animation preview interval
 let animationPreviewInterval = null;
 
-/**
- * Initializes the UI when the DOM is fully loaded.
- */
 document.addEventListener('DOMContentLoaded', async () => {
     // Check if the server is ready before initializing the UI
     const isReady = await checkServerReady();
@@ -17,7 +21,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Initializes the main UI components and fetches initial data.
+ * Initializes the main UI components by fetching all necessary data from the device,
+ * populating dropdowns, applying settings, and setting up event listeners and
+ * the WebSocket connection. This function orchestrates the entire startup sequence.
  */
 async function initializeUI() {
     try {
@@ -76,8 +82,9 @@ async function initializeUI() {
 }
 
 /**
-/**
- * Populates the sequence select dropdown with data from the server.
+ * Fetches the list of available animation sequences from the device and populates
+ * the sequence selector dropdown menu. It also handles disabled options, which act
+ * as separators in the UI.
  */
 async function populateSequences() {
     try {
@@ -108,10 +115,6 @@ async function populateSequences() {
 }
 
 
-/**
- * Populates the timezone select dropdowns with data from the server.
- * @param {object} data The timezone data from the server.
- */
 function populateTimezoneSelects(data) {
     // Clear the global array and selectors
     timezoneOptions = [];
@@ -145,10 +148,6 @@ function populateTimezoneSelects(data) {
 
 }
 
-/**
- * Populates the preset select dropdown with custom presets from the server.
- * @param {Array} data The array of custom presets.
- */
 function populatePresetsSelect(data) {
     const select = document.getElementById('presetDateSelect');
     // Remove any existing custom presets
@@ -168,14 +167,6 @@ function populatePresetsSelect(data) {
     }
 }
 
-/**
- * Updates the "Last Time Departed" display.
- * @param {number} year The year.
- * @param {number} month The month.
- * @param {number} day The day.
- * @param {number} hour The hour.
- * @param {number} minute The minute.
- */
 function updateLastDepartedDisplay(year, month, day, hour, minute) {
     // Check if 24-hour format is enabled
     const is24h = document.getElementById('displayFormat24h').checked;
@@ -202,12 +193,6 @@ function updateLastDepartedDisplay(year, month, day, hour, minute) {
     document.getElementById('lastTimeDepartedMinute').textContent = minute;
 }
 
-/**
- * Applies the fetched settings to the UI.
- * @param {object} timecircuits The Time Circuits settings.
- * @param {object} temporal The temporal settings.
- * @param {object} datalink The Data Link settings.
- */
 async function applySettings(timecircuits, temporal, datalink) {
     // Apply Time Circuits settings
     if (timecircuits) {
@@ -259,10 +244,6 @@ async function applySettings(timecircuits, temporal, datalink) {
     updateSleepVisual();
 }
 
-/**
- * Applies the fetched Data Link settings to the UI.
- * @param {object} datalink The Data Link settings.
- */
 async function applyDataLinkSettings(datalink) {
     // DMS_NORMAL_CLOCK = 0, DMS_STOCK_TICKER = 1, DMS_WEATHER = 2, DMS_DATA_LINK = 3
     const displayMode = datalink.displayMode;
@@ -332,9 +313,8 @@ async function applyDataLinkSettings(datalink) {
 }
 
 /**
- * Updates the radio control button and status display based on the current radio state.
- * @param {string} status The current status of the radio ('stopped', 'connecting', 'playing', 'error').
- * @param {string} [message] An optional message, typically for errors.
+ * Manages the state of the mutually exclusive display mode toggles (Stocks, Weather, Data Link).
+ * @param {string} changedCheckboxId The ID of the checkbox that was just changed.
  */
 function handleDisplayModeChange(changedCheckboxId) {
     const checkboxes = {
@@ -420,9 +400,6 @@ function updateRadioControls(status, message = '') {
     }
 }
 
-/**
- * Attaches all the necessary event listeners to the UI elements.
- */
 function attachEventListeners() {
     // Header clocks click to scroll to settings
     document.getElementById('header-dest').onclick = () => scrollToSettings('TimeCircuits', 'destinationTimeSettings');
@@ -566,9 +543,6 @@ function attachEventListeners() {
 }
 
 
-/**
- * Handles the change event of the preset select dropdown.
- */
 function handlePresetSelectionChange(event) {
     applySelectedPreset(event);
 
@@ -597,9 +571,6 @@ function handlePresetSelectionChange(event) {
     }
 }
 
-/**
- * Handles the click event of the save/update preset button.
- */
 function handleSavePreset() {
     const select = document.getElementById('presetDateSelect');
     const selectedOption = select.options[select.selectedIndex];
@@ -613,10 +584,6 @@ function handleSavePreset() {
     }
 }
 
-/**
- * Resets the preset form to its default state.
- * @param {boolean} resetDropdown Whether to also reset the dropdown selection.
- */
 function resetPresetForm(resetDropdown = true) {
     document.getElementById('presetFormTitle').textContent = 'Add a New Custom Time Jump';
     document.getElementById('savePresetBtn').textContent = 'Add to Presets';
@@ -629,10 +596,6 @@ function resetPresetForm(resetDropdown = true) {
     }
 }
 
-/**
- * Applies the selected preset to the "Last Time Departed" display.
- * @param {Event} event The change event from the preset select dropdown.
- */
 function applySelectedPreset(event) {
     const select = event.target;
     if (!select.value) return;
@@ -643,11 +606,6 @@ function applySelectedPreset(event) {
     updateHeaderClocks(new Date());
 }
 
-/**
- * Scrolls to a specific settings group in a tab.
- * @param {string} tabName The name of the tab to switch to.
- * @param {string} elementId The ID of the element to scroll to.
- */
 function scrollToSettings(tabName, elementId) {
     const tabButton = document.querySelector(`.tab-link[data-tab='${tabName}']`);
     if (tabButton) {
@@ -664,10 +622,6 @@ function scrollToSettings(tabName, elementId) {
 }
 
 
-/**
- * Sets the `settingsChanged` flag and enables/disables the save button.
- * @param {boolean} isChanged Whether the settings have changed.
- */
 function setSettingsChanged(isChanged) {
     settingsChanged = isChanged;
     document.getElementById('saveSettingsBtn').disabled = !isChanged;
@@ -678,10 +632,6 @@ function setSettingsChanged(isChanged) {
     }
 }
 
-/**
- * Updates the header clocks with the current time.
- * @param {Date} presentTimeRaw The current time.
- */
 function updateHeaderClocks(presentTimeRaw) {
     const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
     const is24h = document.getElementById('displayFormat24h').checked;
@@ -750,13 +700,6 @@ function updateHeaderClocks(presentTimeRaw) {
     document.getElementById('currentTimeMarker').style.left = `${(totalMinutes / 1440) * 100}%`;
 }
 
-/**
- * Formats a Unix timestamp into a date and time string for a specific timezone.
- * @param {number} unixTimestamp The Unix timestamp.
- * @param {number} timezoneIndex The index of the timezone in the `timezoneOptions` array.
- * @param {boolean} is24HourFormat Whether to use 24-hour format.
- * @returns {object|null} An object with `time` and `date` strings, or null if an error occurs.
- */
 function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) {
     if (!timezoneOptions || timezoneIndex < 0 || !timezoneOptions[timezoneIndex]) return null;
     const tzIANA = timezoneOptions[timezoneIndex].ianaTzName;
@@ -768,18 +711,6 @@ function formatDateTimeInTimezone(unixTimestamp, timezoneIndex, is24HourFormat) 
     } catch (e) { return { time: "Error", date: "Error" }; }
 }
 
-/**
- * Updates the UI to show the specified number of data points without destroying existing ones.
- * @param {number} numPoints The number of data points to show.
- * @returns {Promise<void>} A promise that resolves when the UI is updated.
- */
-/**
- * A single, comprehensive function to get the state of a data point from the UI.
- * This is the single source of truth for reading data point form data.
- * @param {number} index The index of the data point.
- * @param {boolean} forSave If true, formats the data for the backend (e.g., converts strings to numbers).
- * @returns {object|null} An object with the data point's data, or null if the point doesn't exist.
- */
 function getUIDataPoint(index, forSave = false) {
     const getElValue = (id) => document.getElementById(id)?.value || '';
     if (!document.getElementById(`dp_dataSourceType_${index}`)) {
@@ -818,11 +749,6 @@ function getUIDataPoint(index, forSave = false) {
     }
 }
 
-/**
- * Applies a data object to the UI fields for a specific data point.
- * @param {number} index The index of the data point.
- * @param {object} data The data object to apply.
- */
 function applyDataPointToUI(index, data) {
     if (!data) return;
 
@@ -848,11 +774,6 @@ function applyDataPointToUI(index, data) {
 }
 
 
-/**
- * Updates the UI to show the specified number of data points using a "tear down and rebuild" strategy.
- * This approach guarantees UI consistency by avoiding complex DOM manipulations.
- * @param {number} numPoints The number of data points to show.
- */
 const DP_HTML_TEMPLATE = (i) => `
     <div class="dp-header">
         <div class="dp-title-group">
@@ -932,17 +853,6 @@ function updateDataPointsUI(numPoints) {
     });
 }
 
-/**
- * Gets the display value for a data point field, resolving paths if possible.
- * @param {string} path The path or static value.
- * @param {string} placeholder The placeholder text if the value can't be resolved.
- * @param {number} index The index of the data point.
- * @returns {string} The resolved value or placeholder.
- */
-/**
- * Attaches event listeners to the data point UI elements.
- * @param {Element} rootElement The root element to search for data point elements within.
- */
 function attachDataPointEventListeners(rootElement = document) {
     // Data source and display mode selectors
     rootElement.querySelectorAll('.data-source-select').forEach(select => {
@@ -1013,11 +923,6 @@ function attachDataPointEventListeners(rootElement = document) {
     });
 }
 
-/**
- * Validates if the text in a textarea is valid JSON.
- * @param {HTMLTextAreaElement} textarea The textarea to validate.
- * @returns {boolean} True if the JSON is valid, false otherwise.
- */
 function validateJson(textarea) {
     const validationMessage = document.getElementById(`${textarea.id}_validation`);
     try {
@@ -1034,9 +939,6 @@ function validateJson(textarea) {
     }
 }
 
-/**
- * Updates the sleep schedule visualizer.
- */
 function updateSleepVisual() {
     const depTime = document.getElementById('departureTime').value; // This is now "Sleep Time"
     const arrTime = document.getElementById('arrivalTime').value;   // This is now "Wake Time"
@@ -1071,11 +973,6 @@ function updateSleepVisual() {
     }
 }
 
-/**
- * Shows or hides a loading spinner on a button.
- * @param {string} buttonId The ID of the button.
- * @param {boolean} isLoading Whether to show the loading spinner.
- */
 function showLoading(buttonId, isLoading) {
     const button = document.getElementById(buttonId);
     if (!button) return;
@@ -1089,12 +986,6 @@ function showLoading(buttonId, isLoading) {
     }
 }
 
-/**
- * Shows a message banner at the top of the page.
- * @param {string} message The message to show.
- * @param {string} type The type of message (info, success, error).
- * @param {number} duration The duration to show the message in milliseconds.
- */
 function showMessage(message, type = 'info', duration = 4000) {
     const banner = document.getElementById('messageBanner');
     if (!banner) return;
@@ -1109,11 +1000,6 @@ function showMessage(message, type = 'info', duration = 4000) {
     }, duration);
 }
 
-/**
- * Updates the status indicator for a data point.
- * @param {number} index The index of the data point.
- * @param {boolean} isSuccess Whether the data point is successful.
- */
 function updateDataPointStatus(index, isSuccess) {
     const indicator = document.getElementById(`dp_status_${index}`);
     if (indicator) {
@@ -1123,10 +1009,6 @@ function updateDataPointStatus(index, isSuccess) {
     dataPointStatus[index] = isSuccess;
 }
 
-/**
- * Clears all the fields for a data point.
- * @param {Event} event The click event from the "Clear" button.
- */
 function clearDataPointFields(event) {
     const index = event.currentTarget.dataset.index;
     const fields = ['mqttTopic', 'scrollingText', 'requestBody', 'url', 'authHeaderKey', 'authHeaderValue'];
@@ -1139,10 +1021,6 @@ function clearDataPointFields(event) {
     if (!isLoading) setSettingsChanged(true);
 }
 
-/**
- * Duplicates a data point to a new slot.
- * @param {Event} event The click event from the "Duplicate" button.
- */
 function duplicateDataPoint(event) {
     const sourceIndex = parseInt(event.currentTarget.dataset.index, 10);
     const numDataPoints = parseInt(document.getElementById('numDataPoints').value, 10);
@@ -1175,16 +1053,8 @@ function duplicateDataPoint(event) {
 // This new version is used for saving state, while the one at the end of the file
 // is used for preparing data to be sent to the backend. I will consolidate them.
 
-/**
- * Gathers all the UI input values for a given data point for backend submission.
- * @param {number} index The index of the data point.
- * @returns {object} An object containing the data point's configuration formatted for the backend.
- */
 // This function is no longer needed as its logic has been consolidated into getUIDataPoint
 
-/**
- * Fetches the system status from the server.
- */
 function fetchSystemStatus() {
     if (isLoading) return;
     fetch('/api/system/status')
@@ -1215,12 +1085,6 @@ function fetchSystemStatus() {
             document.getElementById('deviceId').textContent = 'Error';
         });
 }
-
-/**
- * Sets the loading state of a button.
- * @param {HTMLButtonElement} button The button to modify.
- * @param {boolean} isLoading Whether to show the loading spinner.
- */
 
 function setButtonLoading(button, isLoading) {
     if (isLoading) {

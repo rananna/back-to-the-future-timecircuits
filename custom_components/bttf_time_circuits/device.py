@@ -1,4 +1,11 @@
-"""The Back to the Future Time Circuits device."""
+"""
+A class representing a BTTF Time Circuits device in Home Assistant.
+
+This module defines the `BTTFTimeCircuitsDevice` class, which acts as a central
+hub for interacting with a specific Time Circuits device. It holds device-specific
+information, manages the data update coordinator, and provides the implementation
+for the various custom services exposed by the integration.
+"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -41,13 +48,25 @@ SERVICE_SET_STATUS_DISPLAY_FIELDS = [
 
 
 class BTTFTimeCircuitsDevice:
-    """A wrapper for a BTTF Time Circuits device."""
+    """
+    A wrapper for a BTTF Time Circuits device.
+
+    This class encapsulates the state and behavior of a single Time Circuits
+    device, providing methods to send commands and manage its representation
+    within Home Assistant.
+    """
 
     device_info: DeviceInfo
     coordinator: DataUpdateCoordinator
 
     def __init__(self, hass: HomeAssistant, device_id: str) -> None:
-        """Initialize the device."""
+        """
+        Initialize the device.
+
+        Args:
+            hass: The Home Assistant instance.
+            device_id: The unique identifier for the device.
+        """
         self.hass = hass
         self.device_id = device_id
         self.base_topic = f"bttf_time_circuits/{device_id}"
@@ -67,14 +86,26 @@ class BTTFTimeCircuitsDevice:
         )
 
     async def async_update(self) -> None:
-        """Update the coordinator data."""
-        # This integration is MQTT-based, so we don't need to poll for updates.
-        # This method is here to satisfy the DataUpdateCoordinator requirements
-        # and to ensure entities are marked as available.
+        """
+        Update the coordinator data.
+
+        This method is a placeholder to satisfy the DataUpdateCoordinator
+        requirements. Since this integration is purely MQTT-based, updates are
+        pushed from the device rather than polled from Home Assistant. This
+        method ensures entities are marked as available.
+        """
         pass
 
     async def async_handle_set_status_display(self, call: ServiceCall) -> None:
-        """Handle the set_status_display service call."""
+        """
+        Handle the set_status_display service call.
+
+        This service allows setting the text of any of the 12 display segments
+        individually by publishing to the corresponding MQTT command topic.
+
+        Args:
+            call: The service call object containing the data.
+        """
         for key, value in call.data.items():
             if key in SERVICE_SET_STATUS_DISPLAY_FIELDS:
                 topic_key = (
@@ -86,8 +117,21 @@ class BTTFTimeCircuitsDevice:
                 await mqtt.async_publish(self.hass, command_topic, str(value), 1, False)
 
     def _translate_sequence_command(self, command: dict) -> dict | None:
-        """Translates a user-friendly sequence command into the firmware format."""
+        """
+        Translate a user-friendly sequence command into the firmware format.
 
+        This private helper method converts a human-readable command from a
+        Home Assistant service call (e.g., `{"command": "wait", "duration": 500}`)
+        into the JSON format expected by the device's firmware sequencer
+        (e.g., `{"command": "WAIT", "intParam": 500}`).
+
+        Args:
+            command: A dictionary representing the user-friendly command.
+
+        Returns:
+            A dictionary representing the firmware-compatible command, or None
+            if the command is invalid.
+        """
         # Mapping from user-friendly command to firmware command
         COMMAND_MAP = {
             "wait": "WAIT",
@@ -140,7 +184,16 @@ class BTTFTimeCircuitsDevice:
 
 
     async def async_handle_run_sequence(self, call: ServiceCall) -> None:
-        """Handle the run_sequence service call."""
+        """
+        Handle the run_sequence service call.
+
+        This service takes a list of user-friendly commands, translates them
+        into a firmware-compatible JSON payload, and publishes it to the
+        device's sequencer command topic.
+
+        Args:
+            call: The service call object containing the sequence data.
+        """
         sequence = call.data.get("sequence")
         if not isinstance(sequence, list):
             _LOGGER.error("The 'sequence' must be a list of commands.")
@@ -187,7 +240,16 @@ class BTTFTimeCircuitsDevice:
     async def _async_get_media_player_entity(
         self,
     ) -> BTTFTimeCircuitsMediaPlayer | None:
-        """Get the media_player entity for this device."""
+        """
+        Get the media_player entity for this device.
+
+        This private helper method retrieves the instance of the media_player
+        entity associated with this device from the Home Assistant entity
+        registry.
+
+        Returns:
+            The media_player entity instance, or None if not found.
+        """
         ent_reg = er.async_get(self.hass)
         entity_id = ent_reg.async_get_entity_id(
             MEDIA_PLAYER_DOMAIN, DOMAIN, f"bttf_time_circuits_{self.device_id}_media_player"
@@ -197,19 +259,43 @@ class BTTFTimeCircuitsDevice:
         return None
 
     async def async_handle_favorite_radio_station(self, call: ServiceCall) -> None:
-        """Handle the favorite_radio_station service call."""
+        """
+        Handle the favorite_radio_station service call.
+
+        This service delegates the action to the associated media_player entity.
+
+        Args:
+            call: The service call object.
+        """
         if entity := await self._async_get_media_player_entity():
             await entity.async_favorite_radio_station()
 
     async def async_handle_clear_favorite_radio_stations(
         self, call: ServiceCall
     ) -> None:
-        """Handle the clear_favorite_radio_stations service call."""
+        """
+        Handle the clear_favorite_radio_stations service call.
+
+        This service delegates the action to the associated media_player entity.
+
+        Args:
+            call: The service call object.
+        """
         if entity := await self._async_get_media_player_entity():
             await entity.async_clear_favorite_radio_stations()
 
     async def _async_set_time(self, prefix: str, dt_obj) -> None:
-        """Set a time display (destination, present, or last departed)."""
+        """
+        Set a time display (destination, present, or last departed).
+
+        This private helper method takes a datetime object and a prefix,
+        formats the date and time components, and publishes them to the
+        correct MQTT topics to update a specific display row.
+
+        Args:
+            prefix: The row prefix ("dest", "pres", or "last").
+            dt_obj: The datetime object to display.
+        """
         # Month: JAN, FEB, etc.
         month = dt_obj.strftime("%b").upper()
         # Day: 01-31
@@ -231,26 +317,50 @@ class BTTFTimeCircuitsDevice:
             await mqtt.async_publish(self.hass, command_topic, str(value), 1, False)
 
     async def async_handle_set_destination_time(self, call: ServiceCall) -> None:
-        """Handle the set_destination_time service call."""
+        """
+        Handle the set_destination_time service call.
+
+        Args:
+            call: The service call object containing the datetime.
+        """
         if dt_obj := call.data.get("datetime"):
             # Ensure datetime is timezone-aware
             aware_dt = dt_util.as_local(dt_obj)
             await self._async_set_time("dest", aware_dt)
 
     async def async_handle_set_present_time(self, call: ServiceCall) -> None:
-        """Handle the set_present_time service call."""
+        """
+        Handle the set_present_time service call.
+
+        Args:
+            call: The service call object containing the datetime.
+        """
         if dt_obj := call.data.get("datetime"):
             aware_dt = dt_util.as_local(dt_obj)
             await self._async_set_time("pres", aware_dt)
 
     async def async_handle_set_last_departed_time(self, call: ServiceCall) -> None:
-        """Handle the set_last_departed_time service call."""
+        """
+        Handle the set_last_departed_time service call.
+
+        Args:
+            call: The service call object containing the datetime.
+        """
         if dt_obj := call.data.get("datetime"):
             aware_dt = dt_util.as_local(dt_obj)
             await self._async_set_time("last", aware_dt)
 
     async def _async_get_present_time_as_datetime(self) -> datetime | None:
-        """Read the present time text entities and return a datetime object."""
+        """
+        Read the present time text entities and return a datetime object.
+
+        This private helper reads the state of the individual "present time"
+        text entities and reconstructs a Python datetime object from them.
+
+        Returns:
+            A datetime object representing the current present time display,
+            or None if the entities cannot be read.
+        """
         try:
             month_str = self.hass.states.get(f"text.bttf_time_circuits_{self.device_id}_pres_month").state
             day_str = self.hass.states.get(f"text.bttf_time_circuits_{self.device_id}_pres_day").state
@@ -272,7 +382,17 @@ class BTTFTimeCircuitsDevice:
             return None
 
     async def async_handle_time_travel(self, call: ServiceCall) -> None:
-        """Handle the time_travel service call."""
+        """
+        Handle the time_travel service call.
+
+        This service simulates a time travel event. It reads the current
+        "Present Time", sets it as the new "Last Time Departed", sets the
+        provided datetime as the new "Destination Time", and then triggers
+        the main time travel animation on the device.
+
+        Args:
+            call: The service call object containing the target datetime.
+        """
         destination_dt = call.data.get("datetime")
         if not destination_dt:
             return

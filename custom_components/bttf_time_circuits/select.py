@@ -1,4 +1,10 @@
-"""Select platform for the Back to the Future Time Circuits integration."""
+"""
+Select platform for the Back to the Future Time Circuits integration.
+
+This platform creates various `select` entities (dropdown menus) in Home
+Assistant, allowing users to choose from a list of options for settings like
+the display mode or the default animation sequence.
+"""
 from __future__ import annotations
 
 import logging
@@ -23,7 +29,12 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class BTTFTimeCircuitsSelectEntityDescription(SelectEntityDescription):
-    """A class that describes BTTF Time Circuits select entities."""
+    """
+    A class that describes BTTF Time Circuits select entities.
+
+    This extends the standard SelectEntityDescription to include any
+    custom properties needed for the integration's select entities.
+    """
 
 
 ANIMATION_OPTIONS = [
@@ -95,7 +106,14 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the BTTF Time Circuits selects."""
+    """
+    Set up the BTTF Time Circuits select entities from a config entry.
+
+    Args:
+        hass: The Home Assistant instance.
+        config_entry: The configuration entry for the integration.
+        async_add_entities: A callback function to add the entities.
+    """
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
 
     entities = []
@@ -108,7 +126,7 @@ async def async_setup_entry(
 
 
 class BTTFTimeCircuitsSelect(BTTFTimeCircuitsEntity, SelectEntity):
-    """Representation of a BTTF Time Circuits Select."""
+    """Representation of a standard BTTF Time Circuits Select entity."""
 
     entity_description: BTTFTimeCircuitsSelectEntityDescription
 
@@ -117,19 +135,25 @@ class BTTFTimeCircuitsSelect(BTTFTimeCircuitsEntity, SelectEntity):
         device: BTTFTimeCircuitsDevice,
         description: BTTFTimeCircuitsSelectEntityDescription,
     ) -> None:
-        """Initialize the select."""
+        """
+        Initialize the select entity.
+
+        Args:
+            device: The BTTFTimeCircuitsDevice instance.
+            description: The entity description for the select entity.
+        """
         self.entity_description = description
         super().__init__(device)
         self._attr_current_option = None
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to MQTT events."""
+        """Subscribe to MQTT events when the entity is added to Home Assistant."""
         await super().async_added_to_hass()
         state_topic = f"{self._device.base_topic}/{self.entity_description.key}/state"
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
-            """Handle new MQTT messages."""
+            """Handle new MQTT messages for the select's state."""
             if msg.payload in self.entity_description.options:
                 self._attr_current_option = msg.payload
                 self.async_write_ha_state()
@@ -143,7 +167,15 @@ class BTTFTimeCircuitsSelect(BTTFTimeCircuitsEntity, SelectEntity):
         await mqtt.async_subscribe(self.hass, state_topic, message_received, 1)
 
     async def async_select_option(self, option: str) -> None:
-        """Change the selected option."""
+        """
+        Change the selected option.
+
+        This is called when the user selects a new option in the UI. It
+        publishes the new option to the corresponding MQTT command topic.
+
+        Args:
+            option: The new option selected by the user.
+        """
         command_topic = (
             f"{self._device.base_topic}/{self.entity_description.key}/command"
         )
@@ -151,15 +183,30 @@ class BTTFTimeCircuitsSelect(BTTFTimeCircuitsEntity, SelectEntity):
 
 
 class BTTFTimeCircuitsSequencerSelect(BTTFTimeCircuitsSelect):
-    """Representation of a BTTF Time Circuits Sequencer Select."""
+    """
+    Representation of a "run-once" sequencer select entity.
+
+    This select entity is designed to trigger an action rather than set a
+    persistent state. When an option is selected, it sends the command to the
+    device and then immediately resets itself to the default placeholder option.
+    """
 
     async def async_added_to_hass(self) -> None:
-        """Set the initial state of the dropdown."""
+        """Set the initial state of the dropdown to the placeholder."""
         self._attr_current_option = self.entity_description.options[0]
         self.async_write_ha_state()
 
     async def async_select_option(self, option: str) -> None:
-        """Change the selected option."""
+        """
+        Change the selected option and trigger the sequencer.
+
+        This sends the selected animation name to the device and then resets
+        the dropdown to the placeholder value after a short delay to provide
+        visual feedback to the user.
+
+        Args:
+            option: The animation sequence to run.
+        """
         if option == self.entity_description.options[0]:
             return
 

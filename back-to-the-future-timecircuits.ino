@@ -11,7 +11,7 @@
  * - Initializing hardware (displays, audio).
  * - The main application loop, which drives the display updates and event handling.
  * - NTP time synchronization.
- * - MQTT connection and reconnection logic.
+ * - MQTT connection and reconnection logic with a circuit-breaker pattern.
  * - High-level state machines for display modes and system states.
  */
 
@@ -52,8 +52,10 @@
 
 #include <vector>
 
-// --- PRESET DEFINITIONS ---
-// A structure to hold the details of a single preset time.
+/**
+ * @struct Preset
+ * @brief A structure to hold the details of a single preset time.
+ */
 struct Preset {
     std::string name;
     int year;
@@ -62,7 +64,12 @@ struct Preset {
     int hour;
     int minute;
 
-    // Helper to check for equality, useful for finding the current preset
+    /**
+     * @brief Equality operator to compare a preset with current settings.
+     * @details This is a helper to find the current preset in the list of available presets.
+     * @param settings The current clock settings to compare against.
+     * @return True if the preset's date and time match the settings' "last departed" time.
+     */
     bool operator==(const ClockSettings& settings) const {
         return year == settings.lastTimeDepartedYear &&
                month == settings.lastTimeDepartedMonth &&
@@ -72,7 +79,9 @@ struct Preset {
     }
 };
 
-// A constant vector containing all the presets from the movies.
+/**
+ * @brief A constant vector containing all the iconic preset dates and times from the movies.
+ */
 const std::vector<Preset> moviePresets = {
     {"Einstein's Test (1985)", 1985, 10, 26, 1, 20},
     {"Marty's First Jump (1985)", 1985, 10, 26, 1, 35},
@@ -106,8 +115,10 @@ const unsigned long DISPLAY_UPDATE_INTERVAL = 250;      // Milliseconds between 
 const unsigned long HARDWARE_INIT_RETRY_INTERVAL = 30000; // Time in ms to wait before retrying hardware init.
 const unsigned long STOCK_MANAGER_RESET_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
 
-// --- WIFI STATE MANAGEMENT ---
-// Manages the asynchronous, non-blocking WiFi connection process.
+/**
+ * @enum WifiState
+ * @brief Manages the asynchronous, non-blocking WiFi connection process.
+ */
 enum WifiState {
   WIFI_STATE_CONNECTING,      // Actively trying to connect with saved credentials.
   WIFI_STATE_START_PORTAL,    // Connection failed, preparing to launch the WiFiManager captive portal.
@@ -224,16 +235,20 @@ SemaphoreHandle_t xDisplayHardwareMutex;
 
 SequencerTrack sequencerTracks[3];
 
-// A more detailed state machine for the main display logic. This helps to cleanly
-// separate the logic for each display mode and ensures only one mode is active at a time,
-// preventing conflicts between different features trying to control the display.
+/**
+ * @enum DisplayState
+ * @brief A detailed state machine for the main display logic.
+ * @details This helps to cleanly separate the logic for each display mode and ensures only one
+ * mode is active at a time, preventing conflicts between different features trying to
+ * control the display.
+ */
 enum DisplayState {
     STATE_NORMAL_CLOCK,       // Default state, showing the time.
-    STATE_MESSAGE_OVERRIDE,
-    STATE_ANIMATING,
-    STATE_STOCK_TICKER,
-    STATE_DATA_LINK,
-    STATE_WEATHER
+    STATE_MESSAGE_OVERRIDE,   // A high-priority message is being shown.
+    STATE_ANIMATING,          // A legacy (non-sequencer) animation is running.
+    STATE_STOCK_TICKER,       // The stock ticker is active.
+    STATE_DATA_LINK,          // The Data Link marquee is active.
+    STATE_WEATHER             // The weather display is active.
 };
 DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
 
@@ -241,9 +256,8 @@ DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
 
 /**
  * @brief A dedicated FreeRTOS task to handle audio processing.
- * @details This task runs in a continuous loop, calling audio.loop() to ensure
- * the I2S buffer is always fed with audio data.
- This prevents animations or other
+ * @details This task runs in a continuous loop, calling `audio.loop()` to ensure
+ * the I2S buffer is always fed with audio data. This prevents animations or other
  * long-running code in the main loop from starving the audio system and causing
  * stuttering or delays.
  * @param pvParameters Standard FreeRTOS task parameters (unused).
@@ -251,14 +265,17 @@ DisplayState currentDisplayState = STATE_NORMAL_CLOCK;
 void audioTask(void *pvParameters) {
   for (;;) {
     audio.loop();
-    vTaskDelay(10 / portTICK_PERIOD_MS); // Run this task every 2 milliseconds
+    vTaskDelay(10 / portTICK_PERIOD_MS); // Run this task every 10 milliseconds
   }
 }
 
 /**
  * @brief Converts a string name to its corresponding AnimationType enum.
+ * @details This utility function provides a mapping from the human-readable animation names
+ * used in the UI and configuration files to the internal `AnimationType` enum used by the
+ * animation engine.
  * @param name The string name of the animation (e.g., "Intruder Alert").
- * @return The matching AnimationType enum, or ANIMATION_RANDOMIZE_ALL if not found.
+ * @return The matching `AnimationType` enum, or `ANIMATION_RANDOMIZE_ALL` if not found.
  */
 AnimationType animationTypeFromString(const std::string& name) {
     if (name == "Intruder Alert") return ANIMATION_INTRUDER_ALERT;
@@ -307,8 +324,12 @@ AnimationType animationTypeFromString(const std::string& name) {
 // Forward declaration for the function that applies settings from a JSON object.
 void applySettingsFromJson(const JsonObject& obj);
 
-// This function applies settings from a JSON object and saves them.
-// It is called directly from the web server handler.
+/**
+ * @brief Applies settings from a JSON object and then saves them to persistent storage.
+ * @details This function is a convenient wrapper called directly from web server handlers.
+ * It ensures that any settings change is immediately applied and then persisted.
+ * @param json A `JsonVariant` containing the JSON object with the new settings.
+ */
 void applyAndSaveSettings(JsonVariant& json) {
     JsonObject obj = json.as<JsonObject>();
 
@@ -661,8 +682,8 @@ void applySettingsFromJson(const JsonObject& obj) {
 /**
  * @brief Saves the current settings to non-volatile storage (NVS).
  * @details This function uses the Preferences library to persist the `currentSettings`
- * object. To minimize unnecessary writes to the flash memory, it checks each setting
- * against its previously saved value and only writes if the value has actually changed.
+ * object. It writes all configurable settings to flash memory under a specific namespace,
+ * allowing them to be retrieved on subsequent boots.
  */
 void saveSettings() {
     preferences.begin(PREFERENCES_NAMESPACE, false);
@@ -960,6 +981,12 @@ void loadSettings() {
     tzset();
 }
 
+/**
+ * @brief Attempts to initialize the physical hardware components, primarily the displays.
+ * @details This function calls `setupPhysicalDisplay`, which probes the I2C bus to find and
+ * initialize the alphanumeric display modules.
+ * @return True if hardware initialization was successful, false otherwise.
+ */
 bool attemptHardwareInit() {
     #if ENABLE_HARDWARE
     Log_printf(LOG_LEVEL_INFO, "Attempting to initialize hardware...");
@@ -976,6 +1003,12 @@ bool attemptHardwareInit() {
     #endif
 }
 
+/**
+ * @brief Performs post-hardware-initialization tasks.
+ * @details This function is called once `attemptHardwareInit` succeeds. It applies the saved
+ * brightness setting to the displays and initializes the I2S audio system and its dedicated
+ * FreeRTOS task.
+ */
 void onHardwareInitialized() {
     Log_printf(LOG_LEVEL_INFO, "Hardware successfully initialized. Running post-init tasks.");
     applyBrightness();
@@ -999,6 +1032,12 @@ void onHardwareInitialized() {
     );
 }
 
+/**
+ * @brief A FreeRTOS task wrapper for starting the WiFiManager captive portal.
+ * @details This allows the blocking `autoConnect` call to run in a separate task,
+ * preventing it from stalling the main application loop.
+ * @param pvParameters A pointer to the `WiFiManager` instance.
+ */
 void wifiManagerTask(void *pvParameters) {
   WiFiManager* wifiManager = (WiFiManager*)pvParameters;
   wifiManager->autoConnect("TimeCircuits-Setup");
@@ -1010,7 +1049,7 @@ void wifiManagerTask(void *pvParameters) {
 /**
  * @brief The main setup function, run once at boot.
  * @details Initializes all essential systems: Serial communication, LittleFS filesystem,
- * loading settings, creating the display data mutex, setting up Wi-Fi, configuring web
+ * loading settings, creating FreeRTOS mutexes, setting up Wi-Fi, configuring web
  * routes, initializing hardware (display and audio), setting the timezone, and starting
  * the MQTT client and OTA update service.
  */
@@ -1142,7 +1181,13 @@ void setup() {
    // runSequencerTest();
 }
 
-// --- NEW STATE DETERMINATION FUNCTION ---
+/**
+ * @brief Determines the current primary display state.
+ * @details This function implements the display state machine's priority logic. It checks for
+ * high-priority states like an override message first, then animations, and finally falls
+ * back to the user-selected display mode (Clock, Stocks, etc.). The result is stored in
+ * the global `currentDisplayState` variable.
+ */
 void updateDisplayState() {
     static DisplayState previousDisplayState = STATE_NORMAL_CLOCK;
     DisplayState newDisplayState;
@@ -1185,7 +1230,12 @@ void updateDisplayState() {
     currentDisplayState = newDisplayState;
 }
 
-// --- NEW DISPLAY HANDLER FUNCTION ---
+/**
+ * @brief The main display rendering router, called from the main loop.
+ * @details This function acts as a router based on the `currentDisplayState`. It calls the
+ * appropriate handler function for the active display mode, ensuring that only one mode's
+ * rendering logic is executed per cycle.
+ */
 void handleDisplay() {
     // --- Main Display State Machine ---
     // This switch statement is the heart of the display logic. It ensures that only one
@@ -1217,18 +1267,6 @@ void handleDisplay() {
 }
 
 
-/**
- * @brief The main application loop.
- * @details This function is the heart of the firmware, executed continuously. It uses a
- * cooperative multitasking approach with `vTaskDelay(1)` to yield to other FreeRTOS tasks.
- * The loop manages several key state machines:
- * 1. WiFi Connection: Handles connecting, launching the portal on failure, and reconnecting.
- * 2. MQTT Client: Manages the MQTT connection and message loop.
- * 3. NTP Sync: Periodically synchronizes the internal clock with an NTP server.
- * 4. Display Rendering: Calls the main display handler, which then executes the current
- *    display mode's logic (clock, weather, animation, etc.).
- * 5. OTA Updates: Listens for Over-The-Air update requests.
- */
 void handleBackgroundSave(); // Forward declaration
 
 /**
@@ -1244,6 +1282,20 @@ bool isAnySequenceActive() {
     return false;
 }
 
+/**
+ * @brief The main application loop.
+ * @details This function is the heart of the firmware, executed continuously. It uses a
+ * cooperative multitasking approach with `vTaskDelay(1)` to yield to other FreeRTOS tasks.
+ * The loop manages several key state machines and background processes:
+ * 1. WiFi Connection: Handles connecting, launching the portal on failure, and reconnecting.
+ * 2. MQTT Client: Manages the MQTT connection and message loop with a circuit-breaker pattern.
+ * 3. NTP Sync: Periodically synchronizes the internal clock with an NTP server.
+ * 4. Display Rendering: Calls the main display handler, which then executes the current
+ *    display mode's logic (clock, weather, animation, etc.).
+ * 5. Animation Sequencer: Drives all modern, multi-track animations.
+ * 6. OTA Updates: Listens for Over-The-Air update requests.
+ * 7. Background Tasks: Manages preset cycling, sleep schedules, and other periodic checks.
+ */
 void loop() {
     // Feed the watchdog to prevent a reset. This must be the first action in the loop.
     esp_task_wdt_reset();
@@ -1253,7 +1305,6 @@ void loop() {
     // Clean up disconnected WebSocket clients and send pings
     ws.cleanupClients();
 
-    // This state machine manages the WiFi connection process in a non-blocking way.
     // This state machine manages the WiFi connection process in a non-blocking way.
     // It handles the initial connection attempt, starting the WiFiManager portal if
     // the connection fails, and managing the device reboot after successful portal configuration.
@@ -1556,9 +1607,9 @@ std::vector<Preset> getFullPresetList() {
  * @details This function is called from the main loop. If preset cycling is enabled, it checks
  * if the configured interval has passed. If so, it fetches the full list of presets,
  * finds the current "Last Time Departed" in that list, and advances to the next preset,
- * wrapping around to the beginning if necessary. The `currentSettings` are then updated
- * with the new preset's date and time, which will be reflected on the display in the next
- * update cycle.
+ * wrapping around to the beginning if necessary. It then triggers the configured time travel
+ * animation. This function includes several guards to prevent it from running at inappropriate
+ * times (e.g., during another animation or the boot sequence).
  */
 void handlePresetCycling() {
     // --- FIX: Prevent preset cycling from running immediately after another animation ---
@@ -1649,7 +1700,13 @@ void handlePresetCycling() {
     }
 }
 
-
+/**
+ * @brief Manages the automatic sleep and wake schedule for the display.
+ * @details This function checks the current time against the user-configured sleep (departure)
+ * and wake (arrival) times. If the current time falls within the sleep window, it blanks
+ * the displays and associated LEDs. When the wake time is reached, it restores the display.
+ * This function only runs if time has been synchronized via NTP.
+ */
 void handleSleepSchedule() {
   if (!timeSynchronized || isAnySequenceActive()) return;
   struct tm timeinfo;

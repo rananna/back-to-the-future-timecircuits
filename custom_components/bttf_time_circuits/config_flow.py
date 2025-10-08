@@ -1,4 +1,4 @@
-"""Config flow for Back to the Future Time Circuits."""
+"""Config flow for the Back to the Future Time Circuits integration."""
 from __future__ import annotations
 
 from typing import Any
@@ -23,16 +23,37 @@ RADIO_STATION_SCHEMA = vol.Schema(
 
 
 class BttfTimeCircuitsOptionsFlow(OptionsFlow):
-    """Handle options for BTTF Time Circuits."""
+    """
+    Handle an options flow for BTTF Time Circuits.
+
+    This flow allows users to configure options for the integration after it has
+    been set up, such as managing a list of favorite radio stations.
+    """
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
+        """
+        Initialize the options flow.
+
+        Args:
+            config_entry: The configuration entry for which to show options.
+        """
         self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage the radio stations."""
+        """
+        Manage the options flow.
+
+        This is the initial step of the options flow, presenting a menu
+        of actions to the user.
+
+        Args:
+            user_input: User-provided input.
+
+        Returns:
+            The result of the step.
+        """
         return self.async_show_menu(
             step_id="init",
             menu_options=["add_station", "edit_station", "remove_station"],
@@ -41,7 +62,18 @@ class BttfTimeCircuitsOptionsFlow(OptionsFlow):
     async def async_step_add_station(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle adding a radio station."""
+        """
+        Handle adding a radio station.
+
+        This step shows a form to add a new radio station and saves it to the
+        integration's options.
+
+        Args:
+            user_input: The user-provided data for the new station.
+
+        Returns:
+            The result of the step.
+        """
         if user_input is not None:
             stations = list(self.config_entry.options.get("radio_stations", []))
             stations.append(user_input)
@@ -56,7 +88,18 @@ class BttfTimeCircuitsOptionsFlow(OptionsFlow):
     async def async_step_edit_station(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle editing a radio station."""
+        """
+        Handle editing a radio station (step 1: selection).
+
+        This step presents a dropdown of existing radio stations for the user
+        to choose which one to edit.
+
+        Args:
+            user_input: The user's selection.
+
+        Returns:
+            The result of the step.
+        """
         stations = self.config_entry.options.get("radio_stations", [])
         station_names = [station["name"] for station in stations]
 
@@ -101,7 +144,18 @@ class BttfTimeCircuitsOptionsFlow(OptionsFlow):
     async def async_step_edit_station_details(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle editing a radio station - part 2."""
+        """
+        Handle editing a radio station (step 2: editing details).
+
+        This step shows a form pre-filled with the selected station's details
+        and saves the updated information.
+
+        Args:
+            user_input: The updated station details from the user.
+
+        Returns:
+            The result of the step.
+        """
         stations = list(self.config_entry.options.get("radio_stations", []))
         updated_stations = []
         for station in stations:
@@ -116,7 +170,18 @@ class BttfTimeCircuitsOptionsFlow(OptionsFlow):
     async def async_step_remove_station(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle removing a radio station."""
+        """
+        Handle removing one or more radio stations.
+
+        This step shows a multi-select list of existing stations and removes
+        the selected ones from the configuration.
+
+        Args:
+            user_input: The user's selection of stations to remove.
+
+        Returns:
+            The result of the step.
+        """
         stations = self.config_entry.options.get("radio_stations", [])
         station_names = [station["name"] for station in stations]
 
@@ -143,7 +208,11 @@ class BttfTimeCircuitsOptionsFlow(OptionsFlow):
 
 @config_entries.HANDLERS.register(DOMAIN)
 class BttfTimeCircuitsConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for BTTF Time Circuits."""
+    """
+    Handle a config flow for BTTF Time Circuits.
+
+    This class manages the setup and reconfiguration of the integration.
+    """
 
     VERSION = 2
 
@@ -154,13 +223,32 @@ class BttfTimeCircuitsConfigFlow(ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> BttfTimeCircuitsOptionsFlow:
-        """Get the options flow for this handler."""
+        """
+        Get the options flow for this handler.
+
+        Args:
+            config_entry: The configuration entry.
+
+        Returns:
+            An instance of the options flow handler.
+        """
         return BttfTimeCircuitsOptionsFlow(config_entry)
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle a reconfiguration flow."""
+        """
+        Handle a reconfiguration flow.
+
+        This is triggered when an existing entry needs to be reconfigured,
+        for example, to change the device ID.
+
+        Args:
+            user_input: The user-provided data.
+
+        Returns:
+            The result of the flow.
+        """
         self.entry = self.hass.config_entries.async_get_entry(
             self.context["entry_id"]
         )
@@ -187,7 +275,18 @@ class BttfTimeCircuitsConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the initial step."""
+        """
+        Handle the initial user setup step.
+
+        This step is called when a user initiates the setup flow. It prompts
+        for the device ID and creates a new configuration entry.
+
+        Args:
+            user_input: The user-provided data.
+
+        Returns:
+            The result of the flow.
+        """
         if user_input is not None:
             device_id = user_input["device_id"]
 

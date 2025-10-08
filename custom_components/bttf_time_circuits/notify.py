@@ -1,4 +1,10 @@
-"""Notify platform for the Back to the Future Time Circuits integration."""
+"""
+Notify platform for the Back to the Future Time Circuits integration.
+
+This platform provides a `notify` service that allows sending messages to the
+Time Circuits display. The message can span multiple lines and be accompanied
+by a sound effect.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +26,14 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the BTTF Time Circuits notify entity."""
+    """
+    Set up the BTTF Time Circuits notify entity from a config entry.
+
+    Args:
+        hass: The Home Assistant instance.
+        config_entry: The configuration entry for the integration.
+        async_add_entities: A callback function to add the entities.
+    """
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
     async_add_entities([BTTFTimeCircuitsNotifyEntity(device)])
 
@@ -29,13 +42,28 @@ class BTTFTimeCircuitsNotifyEntity(BTTFTimeCircuitsEntity, NotifyEntity):
     """Implementation of a notify entity for the BTTF Time Circuits."""
 
     def __init__(self, device: BTTFTimeCircuitsDevice) -> None:
-        """Initialize the entity."""
+        """
+        Initialize the notify entity.
+
+        Args:
+            device: The BTTFTimeCircuitsDevice instance.
+        """
         super().__init__(device)
         self._attr_name = f"{device.device_id} Time Circuits Message"
         self._attr_icon = "mdi:message-text"
 
     async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
-        """Send a message to the Time Circuits display."""
+        """
+        Send a message to the Time Circuits display.
+
+        This service call sends a message that will temporarily override the
+        display. It can include up to three lines of text, an optional sound
+        effect, and a duration for how long the message should be shown.
+
+        Args:
+            message: The message string to send. Newlines (`\\n`) separate lines.
+            **kwargs: Additional arguments, including `data` for sound and duration.
+        """
         data = kwargs.get("data") or {}
         sound_effect = data.get("sound_effect")
         duration = data.get("duration", 10)

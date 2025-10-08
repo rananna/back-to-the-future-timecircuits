@@ -1,3 +1,11 @@
+/**
+ * @file AnimationSequences.cpp
+ * @brief Implements the generation of all built-in animation sequences for the Time Circuits.
+ * @details This file contains the functions that construct the various animation sequences,
+ * both simple and complex, by adding a series of commands to sequencer tracks. It includes
+ * generators for C++ defined animations and a parser for JSON-defined sequences.
+ */
+
 #include <ArduinoJson.h>
 #include "AnimationSequences.h"
 #include "HardwareControl.h"
@@ -7,7 +15,23 @@
 #include <string>
 #include <stdlib.h>
 
-// Helper to add a step to a track safely, returns the new index
+/**
+ * @brief Safely adds a new step to a sequencer track.
+ * @details This helper function is crucial for preventing buffer overflows. It checks if the
+ * sequence has exceeded `MAX_SEQUENCE_STEPS`. If it has, it logs a warning and injects
+ * an `END` command as the very last step to ensure the sequence terminates gracefully
+ * instead of running off into invalid memory.
+ * @param track The sequencer track to add the step to.
+ * @param step_idx The current index in the track's steps array.
+ * @param cmd The `SequenceCommand` to add.
+ * @param row The target display row (0-2).
+ * @param seg The target display segment (0-3 or -1 for full row).
+ * @param p1 The first integer parameter for the command.
+ * @param p2 The second integer parameter for the command.
+ * @param s1 The first string parameter for the command.
+ * @param s2 The second string parameter for the command.
+ * @return The next available step index.
+ */
 static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, int row, int seg, int p1, int p2, const char* s1 = "", const char* s2 = "") {
     if (step_idx >= MAX_SEQUENCE_STEPS) {
         // --- Failsafe: Prevent buffer overflow ---
@@ -23,7 +47,16 @@ static int add_step(SequencerTrack& track, int step_idx, SequenceCommand cmd, in
     return step_idx + 1;
 }
 
-// Helper to add the introductory sound effect steps
+/**
+ * @brief DEPRECATED. Placeholder for adding introductory sound effects.
+ * @details Originally, this function was intended to add sound commands at the start of a
+ * sequence. However, to ensure perfect audio-visual synchronization, sounds are now
+- * triggered directly from the function that initiates the animation (e.g., `handlePresetCycling`),
+ * making this helper a no-op. It is kept for potential future use or alternative sound designs.
+ * @param track The sequencer track.
+ * @param step_idx The current step index.
+ * @return The original step index, unchanged.
+ */
 static int add_intro_sound_steps(SequencerTrack& track, int step_idx) {
     // This is now a no-op. The sound is triggered directly from the handlePresetCycling function
     // to ensure perfect synchronization with the animation start.
@@ -32,6 +65,10 @@ static int add_intro_sound_steps(SequencerTrack& track, int step_idx) {
 
 // --- Individual Animation Generators ---
 
+/**
+ * @brief Generates a sequence that randomly flickers different rows for 10 seconds.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateRandomFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -46,6 +83,10 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
+/**
+ * @brief Generates a "tornado" effect where a flicker moves across segments and rows.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -62,6 +103,11 @@ void generateTornadoFlicker(SequencerTrack tracks[3]) {
     }
 }
 
+/**
+ * @brief Generates a sequence where all three rows scramble and resolve to the correct time in parallel.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -81,6 +127,11 @@ void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings
     s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, lock_in_interval, last_str.c_str());
 }
 
+/**
+ * @brief Generates a sequence that reveals the time, one segment at a time, across all rows.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -122,6 +173,10 @@ void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings
     temp = last_str.substr(9, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 3, 0, 0, temp.c_str());
 }
 
+/**
+ * @brief Generates a sequence where all three rows fill up like a charging capacitor bar graph.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateCapacitorChargeUp(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -131,6 +186,10 @@ void generateCapacitorChargeUp(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 100, 10000);
 }
 
+/**
+ * @brief Generates a symmetrical waveform collapse and expansion animation on all rows.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateWaveformCollapse(SequencerTrack tracks[3]) {
     const char* waves[] = {"-------------", " ---     --- ", "  ---   ---  ", "   -------   ", "  ---   ---  ", " ---     --- "};
     int s0 = 0, s1 = 0, s2 = 0;
@@ -159,6 +218,10 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
+/**
+ * @brief Generates a sequence that flickers a wave pattern across the displays.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateWaveFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -173,6 +236,11 @@ void generateWaveFlicker(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
+/**
+ * @brief Generates a "code breaker" effect where text is scrambled and then revealed.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -197,6 +265,11 @@ void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
+/**
+ * @brief Simulates a classic flip-disc display by wiping in the text.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateFlipDisc(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -219,6 +292,11 @@ void generateFlipDisc(SequencerTrack tracks[3], const char time_strings[3][17]) 
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
+/**
+ * @brief Reveals text character-by-character, like a typewriter or scanline.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateCharacterScanline(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -241,6 +319,11 @@ void generateCharacterScanline(SequencerTrack tracks[3], const char time_strings
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
+/**
+ * @brief Creates a "temporal paradox" by swapping the top and middle rows while the bottom flickers.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -257,6 +340,11 @@ void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
+/**
+ * @brief Creates a visual interference pattern by flickering the top/bottom rows with symbols.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateInterferencePattern(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -271,6 +359,11 @@ void generateInterferencePattern(SequencerTrack tracks[3], const char time_strin
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
+/**
+ * @brief Creates a "time warp" effect by rapidly scrolling text in from the right.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateTimeWarpStreaks(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0=0, s1=0, s2=0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -294,6 +387,11 @@ void generateTimeWarpStreaks(SequencerTrack tracks[3], const char time_strings[3
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
+/**
+ * @brief Creates a "focus in" effect by scrambling and revealing each row sequentially.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateFocusIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -307,6 +405,11 @@ void generateFocusIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 2200, 0);
 }
 
+/**
+ * @brief Simulates an electric surge with rapid, sequential flashes down the rows.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -321,6 +424,11 @@ void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
+/**
+ * @brief Creates a cascade effect by revealing each row with a typewriter effect in parallel.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -343,6 +451,10 @@ void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][1
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
+/**
+ * @brief Simulates a plasma charge-up by fading a row in and then out over 10 seconds.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generatePlasmaWarmup(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -350,6 +462,10 @@ void generatePlasmaWarmup(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_FADE_OUT, 0, -1, 5000, 0);
 }
 
+/**
+ * @brief Creates a glitchy, jump-cut effect with rapid flickering and flashes.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
     int s=0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -364,6 +480,12 @@ void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
+/**
+ * @brief Generates a fast, random flickering effect on all rows for 10 seconds.
+ * @details This was originally a "counting up" animation but was changed to a flicker to
+ * avoid sequences that could hang the device if misconfigured.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateCountingUp(SequencerTrack tracks[3]) {
     int s0=0, s1=0, s2=0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -373,6 +495,11 @@ void generateCountingUp(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
 }
 
+/**
+ * @brief Simulates skimming through a timeline with rapid, random flickering.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -386,6 +513,12 @@ void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][1
     // The typewriter part is removed to keep the animation at 10s.
 }
 
+/**
+ * @brief Creates a desynchronized flickering effect with different speeds on each row.
+ * @details This was originally a "temporal desync" animation but was changed to a flicker to
+ * avoid sequences that could hang the device if misconfigured.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateTemporalDesync(SequencerTrack tracks[3]) {
     int s0=0, s1=0, s2=0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -395,6 +528,10 @@ void generateTemporalDesync(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 200);
 }
 
+/**
+ * @brief Generates a "digital rain" like effect with rapid flickering on all rows.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateDigitalRain(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
@@ -403,6 +540,10 @@ void generateDigitalRain(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
 }
 
+/**
+ * @brief Generates a 10-second countdown sequence on the middle row.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateCountdown(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "COUNTDOWN");
@@ -414,6 +555,10 @@ void generateCountdown(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "LIFTOFF!");
 }
 
+/**
+ * @brief Generates a "System Error" animation with a scrambled error message and marquee.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateSystemError(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 100, 200, "ERROR");
@@ -421,6 +566,13 @@ void generateSystemError(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "SYSTEM MALFUNCTION");
 }
 
+/**
+ * @brief Generates the "lock-in" animation seen when saving settings or arriving.
+ * @details This creates the iconic effect where all three time displays scramble and then
+ * rapidly resolve to show the correct time, accompanied by a relay sound.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
@@ -443,6 +595,15 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
     s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, lock_in_interval, last_str.c_str());
 }
 
+/**
+ * @brief Parses a JSON string to dynamically create a multi-track animation sequence.
+ * @details This function allows for the creation of complex, custom animations defined in
+ * JSON format, which can be sent via MQTT or stored in `sequences.json`. It maps
+ * string command names to their `SequenceCommand` enum counterparts and populates the
+ * sequencer tracks accordingly.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param json_string A string containing the JSON definition of the sequence.
+ */
 void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, json_string);
@@ -541,6 +702,13 @@ void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_str
  * @param type The AnimationType enum value.
  * @return The string name of the animation.
  */
+/**
+ * @brief Converts an AnimationType enum to its string representation.
+ * @details This helper function is used for logging and debugging, providing a human-readable
+ * name for an animation type.
+ * @param type The `AnimationType` enum value.
+ * @return A const char* to the string name of the animation.
+ */
 const char* animationTypeToString(AnimationType type) {
     switch (type) {
         case ANIMATION_INTRUDER_ALERT: return "Intruder Alert";
@@ -589,8 +757,12 @@ const char* animationTypeToString(AnimationType type) {
     }
 }
 
-// --- New Thematic Animation Generators ---
+// --- Thematic C++ Animation Generators ---
 
+/**
+ * @brief Generates a lightning storm effect with intense, random flashes.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateLightning(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
@@ -622,6 +794,10 @@ void generateLightning(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
+/**
+ * @brief Generates a KITT-style scanner effect that sweeps back and forth.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateScanner(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
@@ -643,6 +819,11 @@ void generateScanner(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_SCANNER, 2, -1, 10000, 80, "---");
 }
 
+/**
+ * @brief Simulates traveling through a time tunnel by scrolling text in rapidly.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     // Simulate traveling through a time vortex
@@ -654,6 +835,10 @@ void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
+/**
+ * @brief Simulates a flux capacitor overload with a rapid pulsing effect.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateFluxCapacitorOverload(SequencerTrack tracks[3]) {
     int s = 0;
     // Show the Flux Capacitor pulsing with energy
@@ -665,6 +850,11 @@ void generateFluxCapacitorOverload(SequencerTrack tracks[3]) {
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
+/**
+ * @brief Creates a "fire trail" effect by wiping the text onto the display.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateFireTrails(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     // Burn the date onto the display with a fire trail effect
@@ -673,6 +863,11 @@ void generateFireTrails(SequencerTrack tracks[3], const char time_strings[3][17]
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 2, -1, 100, 0, time_strings[2]);
 }
 
+/**
+ * @brief Creates a sparkling effect that resolves into the final text.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param time_strings A 2D array containing the formatted time strings for each row.
+ */
 void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
@@ -691,6 +886,17 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
 
 // --- Main Generation Function ---
 
+/**
+ * @brief The main dispatcher for generating all animation sequences.
+ * @details This function acts as a central hub for creating animations. It takes an
+ * `AnimationType` and calls the corresponding generator function or parser. It also
+ * handles the special case of `ANIMATION_RANDOMIZE_ALL` by iteratively picking a
+ * different, concrete animation to run, preventing stack overflows from recursion.
+ * Finally, it ensures all generated sequences are properly terminated with an `END`
+ * command and a final `RESTORE_ALL_ROWS` step for cleanup.
+ * @param animType The type of animation to generate.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
     // --- FIX: Replace recursive randomization with an iterative approach ---
     // This loop ensures that if we are asked to randomize, we pick a concrete

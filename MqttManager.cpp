@@ -8,6 +8,16 @@
  * by Home Assistant.
  */
 
+/**
+ * @file MqttManager.cpp
+ * @brief Manages all MQTT communication for Home Assistant integration.
+ * @details This module handles the connection to an MQTT broker, publishes device
+ * status and sensor data, and subscribes to command topics to allow for remote
+ * control. It is responsible for generating the Home Assistant MQTT Discovery
+ * configuration messages, which allow the device to be automatically recognized
+ * by Home Assistant.
+ */
+
 #include "DebugLog.h"
 #include "MqttManager.h"
 #include "EventManager.h"
@@ -48,6 +58,13 @@ bool isRadioStreaming = false;
 // --- NEW: Global state for saving display mode before animations ---
 int preAnimationDisplayMode = DMS_NORMAL_CLOCK; // Default to normal clock
 
+/**
+ * @brief Clears a Home Assistant entity's discovery configuration.
+ * @details This is used to remove old or deprecated entities from Home Assistant by
+ * publishing an empty payload to their configuration topic with the retain flag set.
+ * @param component The HA component type (e.g., "sensor", "switch").
+ * @param unique_id_suffix The unique part of the entity's ID.
+ */
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
     String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
     String topic = String(MQTT_BASE_TOPIC) + "/" + component + "/" + object_id + "/config";
@@ -113,6 +130,12 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
     }
 }
 
+/**
+ * @brief Publishes the discovery configuration for the "Last Departed Preset" selector.
+ * @details This creates a dropdown in Home Assistant containing all the movie presets
+ * and any user-defined custom presets, allowing the user to select a "Last Time Departed"
+ * value from a predefined list.
+ */
 void publishHaPresetSelector() {
     ensureBaseDiscoveryConfig();
     if (!mqttClient.connected()) return;
@@ -165,6 +188,11 @@ void publishHaPresetSelector() {
     discoveryDoc.remove("options");
 }
 
+/**
+ * @brief Publishes the discovery configurations for all device triggers.
+ * @details This allows Home Assistant automations to be triggered by specific events
+ * occurring on the device, such as an animation starting or finishing.
+ */
 void publishDeviceTriggers() {
     ensureBaseDiscoveryConfig();
     String device_base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
@@ -198,6 +226,10 @@ void publishDeviceTriggers() {
     discoveryDoc.remove("topic");
 }
 
+/**
+ * @brief Publishes the current display mode state to MQTT.
+ * @param mode The integer representing the current display mode.
+ */
 void publishDisplayMode(int mode) {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
@@ -279,6 +311,11 @@ void publishWeatherCity(const std::string& city) {
     mqttClient.publish(topic.c_str(), city.c_str(), true);
 }
 
+/**
+ * @brief Publishes various diagnostic attributes for the status sensor.
+ * @details This includes data like free heap memory, uptime, and Wi-Fi signal strength,
+ * which are useful for monitoring the device's health from Home Assistant.
+ */
 void publishHaDiagnosticAttributes() {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
@@ -362,6 +399,9 @@ void prepareHaDiscovery() {
     ensureBaseDiscoveryConfig();
 }
 
+/**
+ * @brief Publishes the discovery config for the main device status sensor.
+ */
 void publishStatusSensorDiscovery() {
     ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Status";
@@ -375,6 +415,11 @@ void publishStatusSensorDiscovery() {
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("json_attributes_topic"); discoveryDoc.remove("icon");
 }
 
+/**
+ * @brief Publishes discovery configs for the 12 text entities that control the display segments.
+ * @details This creates a 3x4 grid of text input entities in Home Assistant, giving
+ * fine-grained control over what is displayed on each of the 12 segments.
+ */
 void publishTimeDisplayEntitiesDiscovery() {
     ensureBaseDiscoveryConfig();
     const char* rows[] = {"dest", "pres", "last"};
@@ -398,6 +443,11 @@ void publishTimeDisplayEntitiesDiscovery() {
     }
 }
 
+/**
+ * @brief Clears old, deprecated entities from Home Assistant.
+ * @details This function is run once during discovery to remove entities that have been
+ * replaced by newer ones, preventing clutter in the user's Home Assistant instance.
+ */
 void cleanupOldEntities() {
     clearHaEntity("sensor", "destination_time");
     clearHaEntity("sensor", "present_time");
@@ -413,6 +463,9 @@ void cleanupOldEntities() {
     clearHaEntity("button", "stock_previous");
 }
 
+/**
+ * @brief Publishes discovery configs for the five "Data Point Enabled" switches.
+ */
 void publishDataPointSwitchesDiscovery() {
     ensureBaseDiscoveryConfig();
     for (int i=0; i < 5; ++i) {
@@ -430,6 +483,9 @@ void publishDataPointSwitchesDiscovery() {
     }
 }
 
+/**
+ * @brief Publishes discovery configs for the five "Data Point Marquee" text entities.
+ */
 void publishDataPointMarqueesDiscovery() {
     ensureBaseDiscoveryConfig();
     for (int i=0; i < 5; ++i) {
@@ -447,6 +503,9 @@ void publishDataPointMarqueesDiscovery() {
     }
 }
 
+/**
+ * @brief Clears old, deprecated data point sensor entities.
+ */
 void cleanupOldDataPointSensors() {
     for (int i=0; i < 5; ++i) {
         String unique_id_suffix = "datapoint_" + String(i);
@@ -454,6 +513,9 @@ void cleanupOldDataPointSensors() {
     }
 }
 
+/**
+ * @brief Publishes discovery configs for various number input (slider) entities.
+ */
 void publishNumberConfigsDiscovery() {
     ensureBaseDiscoveryConfig();
     const char* number_configs[][5] = {
@@ -482,6 +544,9 @@ void publishNumberConfigsDiscovery() {
     }
 }
 
+/**
+ * @brief Publishes discovery configs for various switch entities.
+ */
 void publishSwitchConfigsDiscovery() {
     ensureBaseDiscoveryConfig();
      const char* switch_configs[][3] = {
@@ -501,6 +566,9 @@ void publishSwitchConfigsDiscovery() {
     }
 }
     
+/**
+ * @brief Publishes discovery configs for various button entities.
+ */
 void publishButtonConfigsDiscovery() {
     ensureBaseDiscoveryConfig();
     const char* button_configs[][3] = {
@@ -524,6 +592,9 @@ void publishButtonConfigsDiscovery() {
     }
 }
 
+/**
+ * @brief Publishes the discovery config for the "Trigger Sequence" button.
+ */
 void publishSequencerButtonDiscovery() {
     ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Trigger Sequence";
@@ -538,6 +609,9 @@ void publishSequencerButtonDiscovery() {
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("payload_press"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
 }
     
+/**
+ * @brief Publishes the discovery config for the "Temporal Echo Effect" switch.
+ */
 void publishTemporalEchoSwitchDiscovery() {
     ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Temporal Echo Effect";
@@ -552,6 +626,9 @@ void publishTemporalEchoSwitchDiscovery() {
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
 }
 
+/**
+ * @brief Publishes the discovery config for the "Profile" selector.
+ */
 void publishProfileSelectorDiscovery() {
     ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Profile";
@@ -572,6 +649,9 @@ void publishProfileSelectorDiscovery() {
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("options"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
 }
     
+/**
+ * @brief Publishes the discovery config for the "Override Switch".
+ */
 void publishOverrideSwitchDiscovery() {
     ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Override Switch";
@@ -586,10 +666,16 @@ void publishOverrideSwitchDiscovery() {
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
 }
 
+/**
+ * @brief Clears the old, single-line override message entity.
+ */
 void cleanupOldOverrideMessageEntity() {
     clearHaEntity("text", "override_message");
 }
 
+/**
+ * @brief Publishes discovery configs for the three override message line text entities.
+ */
 void publishOverrideLineTextEntitiesDiscovery() {
     ensureBaseDiscoveryConfig();
     for (int i = 1; i <= 3; i++) {
@@ -607,6 +693,9 @@ void publishOverrideLineTextEntitiesDiscovery() {
     }
 }
 
+/**
+ * @brief Clears old, deprecated entities related to the media player.
+ */
 void cleanupOldMediaPlayerEntities() {
     clearHaEntity("select", "play_sound");
     clearHaEntity("text", "tts_text");
@@ -672,6 +761,9 @@ void publishMediaPlayerDiscovery() {
     discoveryDoc.remove("entity_category");
 }
 
+/**
+ * @brief Publishes the discovery config for the "Display Mode" selector.
+ */
 void publishDisplayModeSelectorDiscovery() {
     ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Display Mode";
@@ -691,6 +783,9 @@ void publishDisplayModeSelectorDiscovery() {
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("options"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
 }
 
+/**
+ * @brief Publishes discovery configs for weather-related entities.
+ */
 void publishWeatherEntitiesDiscovery() {
     ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Weather City";
@@ -716,6 +811,9 @@ void publishWeatherEntitiesDiscovery() {
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("payload_press"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
 }
 
+/**
+ * @brief Publishes the discovery config for the "Audio Stream Status" sensor.
+ */
 void publishAudioStatusSensorDiscovery() {
     ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Audio Stream Status";
@@ -728,6 +826,9 @@ void publishAudioStatusSensorDiscovery() {
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon");
 }
 
+/**
+ * @brief Publishes discovery configs for the radio metadata sensors.
+ */
 void publishRadioSensorsDiscovery() {
     ensureBaseDiscoveryConfig();
     discoveryDoc["name"] = "Radio Station";
@@ -749,6 +850,9 @@ void publishRadioSensorsDiscovery() {
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon");
 }
 
+/**
+ * @brief A wrapper function to publish the preset selector discovery.
+ */
 void publishPresetSelectorDiscovery() {
     // This function is a wrapper around the existing preset selector publisher
     publishHaPresetSelector();
@@ -843,6 +947,13 @@ bool isHaDiscoveryComplete() {
     return haDiscoveryState == HA_DISCOVERY_COMPLETE;
 }
 
+/**
+ * @brief Handles the logic for connecting or reconnecting to the MQTT broker.
+ * @details This function is called when a connection is needed. It sets the "last will
+ * and testament" (LWT) to "offline", attempts the connection with or without credentials,
+ * and upon success, subscribes to all necessary command topics and starts the HA
+ * discovery process if needed.
+ */
 void reconnectMqtt() {
   Log_printf(LOG_LEVEL_DEBUG, "Entering reconnectMqtt function.");
   if (currentSettings.mqttBroker.empty()) return;
@@ -1269,6 +1380,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     }
 }
 
+/**
+ * @brief Subscribes to a specified MQTT topic.
+ * @param topic The topic to subscribe to.
+ */
 void subscribeToTopic(const std::string& topic) {
     if (mqttClient.connected()) {
         mqttClient.subscribe(topic.c_str());
@@ -1276,6 +1391,10 @@ void subscribeToTopic(const std::string& topic) {
     }
 }
 
+/**
+ * @brief Unsubscribes from a specified MQTT topic.
+ * @param topic The topic to unsubscribe from.
+ */
 void unsubscribeFromTopic(const std::string& topic) {
     if (mqttClient.connected()) {
         mqttClient.unsubscribe(topic.c_str());
@@ -1380,6 +1499,14 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
 // Forward declaration from the main .ino file
 extern AnimationType animationTypeFromString(const std::string& name);
 
+/**
+ * @brief Processes an incoming animation sequencer command.
+ * @details This function is the entry point for all sequencer commands, whether from
+ * MQTT or the web UI. It first attempts to parse the payload as a JSON object for
+ * custom sequences. If that fails, it treats the payload as the string name of a
+ * built-in animation and triggers it accordingly.
+ * @param payload The JSON string or name of the sequence to run.
+ */
 void handleSequencerCommand(const std::string& payload) {
     preAnimationDisplayMode = currentSettings.displayMode;
 
@@ -1407,17 +1534,16 @@ void handleSequencerCommand(const std::string& payload) {
     }
 }
 
+/**
+ * @brief Publishes a status update to the main device status sensor in Home Assistant.
+ * @param status The status string to publish (e.g., "Idle", "Animating").
+ */
 void updateHaStatus(const char* status) {
 	if (!mqttClient.connected()) return;
 	String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
 	mqttClient.publish((base_topic + "/status/state").c_str(), status, true);
 }
 
-/**
- * @brief Publishes the current radio metadata to the corresponding MQTT topics.
- * @details This function is called whenever the station name or song title changes.
- * It sends the data to Home Assistant and broadcasts it to the web UI.
- */
 void publishRadioMetadata() {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
@@ -1430,6 +1556,13 @@ void publishRadioMetadata() {
     broadcastRadioMetadata(radioStationName.c_str(), radioSongTitle.c_str());
 }
 
+/**
+ * @brief The callback function that processes events from the audio library.
+ * @details This function is registered with the ESP32-audioI2S library. It is called
+ * for events like receiving new ICY metadata (song titles), station names, or when
+ * a stream ends (EOF).
+ * @param m A message struct from the audio library containing the event type and data.
+ */
 void audio_info(Audio::msg_t m) {
     switch(m.e) {
         case Audio::evt_streamtitle:
@@ -1478,6 +1611,16 @@ void audio_info(Audio::msg_t m) {
 s
  * state is always consistent.
  */
+/**
+ * @brief Centralized function to stop audio playback and reset all related states.
+ * @details This function is the single source of truth for halting any audio.
+ * It stops the player, powers down the DAC, clears all state variables
+ * (isRadioStreaming, metadata, etc.), unregisters callbacks, and notifies all
+ * clients (HA and Web UI) that playback has stopped. This ensures the system
+ * state is always consistent.
+ * @param isPermanent If `true`, the stop is considered permanent (e.g., user-commanded).
+ * If `false`, it's temporary (e.g., for TTS), and the radio stream state is preserved.
+ */
 void cleanupAudio(bool isPermanent) {
     Log_printf(LOG_LEVEL_INFO, "--- Centralized Audio Cleanup (Permanent: %s) ---", isPermanent ? "true" : "false");
 
@@ -1508,6 +1651,15 @@ void cleanupAudio(bool isPermanent) {
     Log_printf(LOG_LEVEL_INFO, "--- Audio cleanup complete ---");
 }
 
+/**
+ * @brief Starts playing an audio stream from a URL.
+ * @details This function handles requests to play audio, either from an internet radio
+ * station or a Text-to-Speech (TTS) service. It stops any currently playing audio,
+ * sets the volume, and connects to the specified host.
+ * @param url The URL of the audio stream.
+ * @param is_tts `true` if the stream is for TTS, which affects state handling.
+ * @param volume The volume to play at (0-100), or -1 to use the default setting.
+ */
 void startAudioStream(const char* url, bool is_tts, int volume) {
     Log_printf(LOG_LEVEL_INFO, "Request to start audio stream from URL: %s", url);
     if (!hardwareInitialized) {
@@ -1567,12 +1719,24 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
     }
 }
 
+/**
+ * @brief Stops the current audio stream.
+ * @param isTemporary If `true`, the stop is considered temporary (e.g., for TTS),
+ * and the radio stream state is preserved. If `false`, it's a permanent stop.
+ */
 void stopAudioStream(bool isTemporary) {
     Log_printf(LOG_LEVEL_INFO, "Request to stop audio stream (isTemporary: %s)", isTemporary ? "true" : "false");
     // A temporary stop is NOT permanent. A non-temporary stop IS permanent.
     cleanupAudio(!isTemporary);
 }
 
+/**
+ * @brief Initializes the MQTT client with server and callback information.
+ * @details This function is called once during setup. It configures the MQTT client
+ * with the broker address and port from settings and registers the main `mqttCallback`
+ * function to handle incoming messages. It also increases the client's internal buffer
+ * size to handle large Home Assistant discovery payloads.
+ */
 void setupMqtt() {
   if (currentSettings.mqttBroker.empty()) {
     Log_printf(LOG_LEVEL_INFO, "No broker configured. MQTT setup skipped.");

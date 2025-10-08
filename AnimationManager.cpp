@@ -1,3 +1,11 @@
+/**
+ * @file AnimationManager.cpp
+ * @brief Implements the logic for managing all visual animations and the animation sequencer.
+ * @details This file contains the implementation for the animation-related functions declared
+ * in `AnimationManager.h`. This includes the complex state machine for the cinematic boot
+ * sequence, the handler for the multi-track animation sequencer, and various helper functions
+ * for triggering and cleaning up animations.
+ */
 #include "AnimationManager.h"
 
 // --- NEW: Global flag to prevent display updates until boot sequence is complete ---
@@ -65,12 +73,6 @@ void broadcastAnimationComplete() {
 
 // Effects are now handled inside the sequencer
 
-/**
- * @brief Triggers a short flash effect on a specific display segment using the sequencer.
- * @param row The display row (0-2) to flash.
- * @param segment The segment within the row (0-3) to flash.
- * @param duration The total duration of the flash effect in milliseconds.
- */
 void triggerFlashEffect(int row, int segment, int duration) {
     if (row < 0 || row > 2 || segment < 0 || segment > 3) {
         Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid parameters for triggerFlashEffect (row: %d, seg: %d)", row, segment);
@@ -108,6 +110,9 @@ static int randomAnimationStyle = -1;
 // Global effect handlers are no longer needed; this logic is now inside handleSequencer.
 
 // --- TIME TRAVEL ANIMATION ---
+/**
+ * @brief DEPRECATED. Helper function for legacy sound-driven state transitions.
+ */
 void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
     if (hardwareInitialized && currentSettings.timeTravelSoundToggle) {
         playSound(filename, false, -1);
@@ -117,17 +122,6 @@ void playSoundAndSetNextPhase(const char* filename, AnimationPhase nextPhase) {
     animationStartTime = millis();
 }
 
-/**
- * @brief Initiates the multi-stage time travel animation sequence.
- */
-/**
- * @brief Initiates the multi-stage time travel animation sequence.
- * @details This function acts as the entry point for the main cinematic time travel
- * animation. It sets the global `isAnimating` flag to true, which prevents other
- * display modes from interfering, and sets the initial animation phase. The actual
- * animation is handled by the `handleDisplayAnimation` state machine, which is
- * called on each iteration of the main loop.
- */
 void startTimeTravelAnimation() {
     Log_printf(LOG_LEVEL_INFO, "DIAG: startTimeTravelAnimation() called.");
     // Attempt to take the mutex. If we can't get it, another task is trying
@@ -157,16 +151,6 @@ void startTimeTravelAnimation() {
     // This animation is purely visual.
 }
 
-/**
- * @brief The main state machine for the CINEMATIC time travel animation. Called in the main loop.
- */
-/**
- * @brief Manages the state machine for the main cinematic time travel animation.
- * @details This function is called on every loop iteration while `isAnimating` is true.
- * It uses a `switch` statement to progress through the different phases of the
- * animation (e.g., power up, time acceleration, arrival). It handles the timing for
- * each phase and calls the appropriate low-level animation functions from HardwareControl.cpp.
- */
 void handleDisplayAnimation() {
     if (!isAnimating || !hardwareInitialized) return;
 #if ENABLE_HARDWARE
@@ -269,15 +253,6 @@ void handleDisplayAnimation() {
 
 // --- OTHER EFFECTS ---
 
-/**
- * @brief Handles the "temporal echo" effect after a time jump.
- */
-/**
- * @brief Handles the "temporal echo" visual effect after a time jump.
- * @details For a short period after an animation sequence completes, this function
- * creates a lingering effect by randomly flickering the "Present Time" display,
- * suggesting a temporary instability in the timeline.
- */
 void handleTemporalEcho() {
     // --- FIX: Do not run this effect if the boot sequence hasn't finished ---
     if (!bootSequenceCompleted) return;
@@ -299,10 +274,6 @@ void handleTemporalEcho() {
 
 // --- BOOT SEQUENCE ---
 
-/**
- * @brief Starts the boot-up animation.
- */
-// In AnimationManager.cpp
 void runBootSequence() {
     Serial.println("BOOT_LOG: runBootSequence() called.");
     if (bootState == BOOT_INACTIVE) {
@@ -717,7 +688,7 @@ static void comprehensiveAnimationCleanup() {
 
 /**
  * @brief Retrieves the full 13-character text for a given row.
- * @details This is used by effects like RANDOM_FLICKER_TEXT when no string
+ * @details This is used by effects like `RANDOM_FLICKER_TEXT` when no string
  * parameter is provided, allowing the effect to operate on the currently
  * displayed text.
  * @param row The display row index (0-2).
@@ -735,13 +706,6 @@ std::string getFullRowText(int row) {
            manualDisplayText[row][3];
 }
 
-/**
- * @brief Handles the execution of scripted command sequences.
- * @details This function is called on every main loop iteration. It checks for
- * active sequencer tracks and processes their commands one by one. It supports
- * parallel execution of tracks on different display rows. It now manages all
- * effect states (fade, pulse, flash) locally within each track.
- */
 void handleSequencer() {
     bool needsDisplayUpdate = false;
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
@@ -1492,11 +1456,13 @@ void handleSequencer() {
 }
 
 /**
- * @brief Stops all effects on a specific track and restores its brightness.
+ * @brief Stops all effects on a specific track, restores its brightness, and resets its state.
+ * @details This function is a critical cleanup utility. It ensures that when a sequence ends,
+ * is aborted, or times out, the corresponding display row is returned to a neutral, visible
+ * state. It cancels any ongoing effects and calls the track's `reset()` method to clear all
+ * state variables, preventing them from interfering with subsequent animations. It also handles
+ * restoring the main display mode after the very last track has finished.
  * @param trackIndex The index of the track (0-2) to clean up.
- * @details This function is a failsafe to ensure that when a sequence ends
- * or is aborted, the corresponding display row is returned to a neutral,
- * visible state. It cancels any ongoing fades, pulses, or flashes.
  */
 void stopAndCleanupTrack(int trackIndex) {
     if (trackIndex < 0 || trackIndex > 2) return;
@@ -1546,12 +1512,6 @@ void stopAndCleanupTrack(int trackIndex) {
     }
 }
 
-/**
- * @brief Stops all active sequencer tracks immediately.
- * @details This function iterates through all available tracks and calls
- * `stopAndCleanupTrack` on each one. This serves as a "master reset" to ensure
- * no sequences are running before starting a new one, preventing conflicts.
- */
 void stopAllSequences() {
     Log_printf(LOG_LEVEL_INFO, "SEQ: Stopping all active sequences.");
     for (int i = 0; i < 3; i++) {
@@ -1562,12 +1522,6 @@ void stopAllSequences() {
     }
 }
 
-/**
- * @brief Configures and runs a test for the crossfade command bug.
- * @details This test sets up a single track to demonstrate the infinite loop
- * in the SEQ_CMD_CROSSFADE_TEXT command. It is intended to fail before the
- * fix and pass afterward.
- */
 void runCrossfadeTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Crossfade Fix Test ---");
 
@@ -1590,13 +1544,6 @@ void runCrossfadeTest() {
 }
 
 
-/**
- * @brief Configures and runs a startup test to verify parallel sequence execution.
- * @details This test sets up two tracks to run simultaneously:
- *          - Track 0: Fades in the entire top display row over 5 seconds.
- *          - Track 1: Pulses the middle display row's "month" segment for 5 seconds.
- *          This is used to confirm that the sequencer's local state management is working.
- */
 void runSequencerTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Comprehensive Sequencer Test ---");
 
@@ -1649,11 +1596,6 @@ void runSequencerTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Comprehensive Sequencer Test Started ---");
 }
 
-/**
- * @brief Initializes a scrolling marquee effect on a specific sequencer track.
- * @param track The sequencer track to activate the marquee on.
- * @param text The text to be scrolled.
- */
 void triggerAnimation(AnimationType animType) {
     // This function is a full takeover. It replaces all running tracks
     // with the new animation.
@@ -1717,12 +1659,6 @@ void startSequencerMarquee(SequencerTrack& track, const std::string& text) {
     Log_printf(LOG_LEVEL_INFO, "SEQ: Marquee started on track %d", track.steps[track.currentStep].targetRow);
 }
 
-/**
- * @brief Handles the continuous scrolling for all active marquee effects.
- * @details This function is called on every main loop. It iterates through all
- * sequencer tracks and, for any track with an active marquee, it updates the
- * scroll position and redraws the relevant display row with the new text segment.
- */
 void handleAllSequencerMarquees() {
     for (int i = 0; i < 3; ++i) {
         SequencerTrack& track = sequencerTracks[i];
