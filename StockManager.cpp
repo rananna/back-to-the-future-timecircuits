@@ -748,6 +748,7 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
         snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/quote?symbol=%s&apikey=REDACTED", symbol_cstr);
 
         Log_printf(LOG_LEVEL_INFO, "Fetching stock data from URL: %s", url_log);
+        Log_printf(LOG_LEVEL_DEBUG, "Using API Key: '%s'", _api_key.c_str());
 
         if (esp_tls_conn_write(tls_stock, request, strlen(request)) < 0) {
             Log_printf(LOG_LEVEL_ERROR, "Stock esp_tls_conn_write failed.");
@@ -813,6 +814,24 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
 
         if (http_status != 200) {
             Log_printf(LOG_LEVEL_WARN, "Stock HTTP request for %s failed with code %d.", symbol_vec[0].c_str(), http_status);
+
+            // --- NEW LOGGING ---
+            // Point to the start of the response body, which is after the double CRLF
+            body_start_ptr += 4;
+            size_t body_part_len = header_len - (body_start_ptr - header_buf);
+
+            // Create streams to read the rest of the body from the socket
+            TlsStream tls_stream(tls_stock);
+            CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
+
+            // Read a chunk of the body for logging purposes.
+            const int max_body_log_size = 512;
+            char body_buffer[max_body_log_size + 1];
+            size_t bytes_read = combined_stream.readBytes(body_buffer, max_body_log_size);
+            body_buffer[bytes_read] = '\0'; // Null-terminate the string
+            Log_printf(LOG_LEVEL_WARN, "Error Response Body: %s", body_buffer);
+            // --- END NEW LOGGING ---
+
             xSemaphoreTake(_assets_mutex, portMAX_DELAY);
             auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
                 return asset.symbol.equalsIgnoreCase(symbol_vec[0]);

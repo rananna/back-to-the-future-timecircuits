@@ -430,11 +430,9 @@ void applySettingsFromJson(const JsonObject& obj) {
     int oldStockRefresh = currentSettings.stockRefreshInterval;
 
     // --- Apply All Settings from JSON ---
-    validateAndSet("displayMode", currentSettings.displayMode, 0, DMS_MAX - 1);
-
     // --- FIX: Handle display mode changes from the "Data Link" page ---
-    // The Data Link UI sends boolean flags instead of a single displayMode integer.
-    // This logic correctly interprets those flags to set the right mode.
+    // The Data Link UI sends boolean flags. If these are present, they take
+    // precedence. Otherwise, we use the 'displayMode' integer from other pages.
     if (!obj["weatherModeEnabled"].isNull() || !obj["stockTickerModeEnabled"].isNull() || !obj["dataLinkEnabled"].isNull()) {
         if (obj["stockTickerModeEnabled"] | false) {
             currentSettings.displayMode = DMS_STOCK_TICKER;
@@ -445,6 +443,9 @@ void applySettingsFromJson(const JsonObject& obj) {
         } else {
             currentSettings.displayMode = DMS_NORMAL_CLOCK;
         }
+    } else {
+        // If the boolean flags are not present, use the integer value.
+        validateAndSet("displayMode", currentSettings.displayMode, 0, DMS_MAX - 1);
     }
 
     validateAndSet("destinationYear", currentSettings.destinationYear, 0, 9999);
