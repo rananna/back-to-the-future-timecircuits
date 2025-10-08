@@ -5,13 +5,12 @@ blueprint:
     Perfect for notifications and alerts.
   domain: script
   input:
-    base_topic:
-      name: MQTT Base Topic
-      description: The base topic for your Time Circuits MQTT integration.
-      default: "bttf-time-circuits"
-    device_id:
-      name: Device ID
-      description: The unique device ID for your Time Circuits clock.
+    device:
+      name: Time Circuits Device
+      description: The BTTF Time Circuits device to control.
+      selector:
+        device:
+          integration: bttf_time_circuits
     target_row:
       name: Target Row
       description: "The display row to show the message on."
@@ -76,7 +75,7 @@ mode: single
 sequence:
   - service: mqtt.publish
     data:
-      topic: "{{ base_topic }}/{{ device_id }}/cmnd/sequencer"
+      topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
       payload: >
         {%- macro generate_sequence_payload(effect, text_to_display, duration, marquee_speed, restore_row) -%}
           {%- set command = {'command': effect, 'targetSegment': -1, 'stringParam': text_to_display} -%}

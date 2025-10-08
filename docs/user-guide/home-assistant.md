@@ -6,14 +6,13 @@ This project features a native Home Assistant integration that provides a seamle
 1. [Features](#-features)
 2. [Prerequisites](#-prerequisites)
 3. [Setup & Installation](#-setup--installation)
-4. [Finding Your Device ID](#-finding-your-device-id)
-5. [The Easy Way: Using Blueprints](#-the-easy-way-using-blueprints)
-6. [Core Entities & Controls](#-core-entities--controls)
-7. [Using the Media Player](#-using-the-media-player)
-8. [Sending Notifications](#-sending-notifications)
-9. [Advanced Control via MQTT](#-advanced-control-via-mqtt)
-10. [Automation Examples](#-automation-examples)
-11. [Troubleshooting](#troubleshooting)
+4. [Using Blueprints](#-using-blueprints)
+5. [Core Entities & Controls](#-core-entities--controls)
+6. [Using the Media Player](#-using-the-media-player)
+7. [Sending Notifications](#-sending-notifications)
+8. [Advanced Control via MQTT](#-advanced-control-via-mqtt)
+9. [Automation Examples](#-automation-examples)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 ## ✨ Features
@@ -43,44 +42,27 @@ The custom component provides a rich, native Home Assistant experience:
 
 ### **Step 1: Install the Custom Component via HACS**
 1.  In Home Assistant, navigate to **HACS > Integrations**.
-2.  Click the three dots in the top-right corner and select **Custom repositories**.
-3.  In the "Repository" field, paste the URL to this GitHub repository: `https://github.com/rananna/back-to-the-future-timecircuits`
-4.  Select **Integration** for the category and click **ADD**.
-5.  Close the "Custom repositories" window.
-6.  The "Back to the Future Time Circuits" integration will now appear in your HACS list. Click on it and then click **INSTALL**.
-7.  Restart Home Assistant as prompted.
+2.  Click **Explore & Download Repositories**.
+3.  Search for "Back to the Future Time Circuits" and install it.
+4.  Restart Home Assistant as prompted.
 
 ### **Step 2: Add the Integration in Home Assistant**
 1.  Navigate to **Settings > Devices & Services**.
 2.  Click **Add Integration** and search for "**Back to the Future Time Circuits**".
-3.  Follow the on-screen instructions. The integration will automatically discover your clock on the network via its MQTT messages.
+3.  You will be prompted for your clock's **Device ID**. You can find this in the clock's web interface under **Settings -> Device**.
+4.  Click **Submit**.
 
-Your Time Circuits clock will now appear as a new device in Home Assistant, with all its entities automatically created.
-
----
-
-## 🆔 Finding Your Device ID
-
-Your clock's unique **Device ID** is essential for using blueprints and sending advanced MQTT commands. You can find it in the clock's Web UI.
-
-1.  Connect to the clock's Wi-Fi network or access it via its local network IP address.
-2.  Navigate to the **Settings** page.
-3.  The Device ID is displayed prominently at the top of the page. It's the same as the "MQTT Base Topic".
-
-![Finding the Device ID](https://raw.githubusercontent.com/rananna/back-to-the-future-timecircuits/main/images/documentation/web-ui-device-id.png)
+Your Time Circuits clock will now appear as a new device in Home Assistant, with all its entities automatically created and ready to use.
 
 ---
 
-## 🤖 The Easy Way: Using Blueprints
+## 🤖 Using Blueprints
 
 For most automations, the easiest and most powerful way to create custom animations and notifications is with our **Home Assistant Blueprints**. They provide a simple, form-based UI inside Home Assistant, allowing you to build complex effects without writing any code.
 
-#### **Blueprint Installation**
-1.  **Copy Files**: Copy the `.yaml` files from the [`home_assistant/blueprints`](../../home_assistant/blueprints/) directory into your Home Assistant's `/config/blueprints/script/` directory. The easiest way to do this is with the Samba Share or File Editor add-ons.
-2.  **Reload Blueprints**: In the Home Assistant UI, go to **Settings** -> **Automations & Scenes** -> **Blueprints**. Click the three-dot menu and select **Reload Blueprints**.
-3.  **Create a Script**: The blueprints will now appear in your list. Click **Create Script** on the one you want to use, fill in the options, and save it. This script is now ready to be called from your dashboards or automations.
+After setting up the integration, you can immediately start using the blueprints.
 
-> **For a complete guide to what each blueprint does and more advanced examples, please see the [Home Assistant Blueprints README](../../home_assistant/blueprints/README.md).**
+> **For a complete guide to installing and using the blueprints, please see the [Home Assistant Blueprints README](../../home_assistant/blueprints/README.md).**
 
 ---
 
@@ -106,7 +88,7 @@ The integration creates a device with a rich set of entities to control every as
 
 ## 🔊 Using the Media Player
 
-The `media_player.bttf_time_circuits` entity is your central hub for all audio.
+The `media_player` entity (e.g., `media_player.time_circuits`) is your central hub for all audio.
 
 ### **Playing Sound Effects**
 You can play any of the built-in sound effects by calling the `media_player.play_media` service with a `media_content_type` of `music`.
@@ -115,7 +97,7 @@ You can play any of the built-in sound effects by calling the `media_player.play
 # Example: Play an alarm sound in an automation
 - service: media_player.play_media
   target:
-    entity_id: media_player.bttf_time_circuits
+    entity_id: media_player.time_circuits # Change if you renamed it
   data:
     media_content_id: "electric_sparks.mp3"
     media_content_type: "music"
@@ -128,7 +110,7 @@ Use the same `media_player.play_media` service with a `media_content_type` of `u
 # Example: Play an 80s radio station
 - service: media_player.play_media
   target:
-    entity_id: media_player.bttf_time_circuits
+    entity_id: media_player.time_circuits
   data:
     media_content_id: "http://d.liveatc.net/kcrw_eclectic" # Example Stream URL
     media_content_type: "url"
@@ -141,7 +123,7 @@ Use your favorite TTS service in Home Assistant to make the clock speak.
 # Example: Announce when the washer is done
 - service: tts.google_en_com
   data:
-    entity_id: media_player.bttf_time_circuits
+    entity_id: media_player.time_circuits
     message: "Great Scott! The washing machine is finished."
 ```
 
@@ -173,18 +155,21 @@ This is the easiest way to display a temporary message. Use the built-in `notify
 
 For the most advanced automations, you can bypass the blueprints and standard entities to publish directly to the clock's raw MQTT topics. This gives you access to the powerful **Command Sequencer**, which allows you to create custom animations and trigger pre-programmed cinematic effects.
 
-*   **Topic**: `bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command`
+*   **Topic**: `bttf_time_circuits/DEVICE_ID/sequencer/command` (replace `DEVICE_ID` with your clock's ID)
 *   **Payload**: A string with the name of a built-in animation, or a JSON array for a custom sequence.
 
 > **For a complete guide on the sequencer, including all commands, parameters, a full list of built-in animation names, and examples, please see the [🤖 Sequencer API Reference](../developer/sequencer-api.md).**
 
 
 #### **Example: Triggering a Named Sequence via MQTT**
-This automation triggers the **Intruder Alert** sequence.
+This automation triggers the **Intruder Alert** sequence. It uses a template to dynamically find the correct MQTT topic for your device.
+
 ```yaml
+# In this example, 'switch.time_circuits' is an entity belonging to the target device.
+# Replace it with any entity from your Time Circuits device.
 - service: mqtt.publish
   data:
-    topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command"
+    topic: "bttf_time_circuits/{{ device_id('switch.time_circuits') }}/sequencer/command"
     payload: "Intruder Alert"
 ```
 
@@ -196,7 +181,7 @@ Here are a few ideas to get you started.
 
 <details>
 <summary><strong>1. "It's 10:04 PM!" - The Lightning Strike</strong></summary>
-This automation triggers the "Lightning" sequence every night at 10:04 PM, just like in the movie. It uses the advanced `mqtt.publish` service.
+This automation triggers the "Lightning" sequence every night at 10:04 PM, just like in the movie.
 
 ```yaml
 alias: "BTTF - Lightning Strike at 10:04 PM"
@@ -206,7 +191,7 @@ trigger:
 action:
   - service: mqtt.publish
     data:
-      topic: "bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command"
+      topic: "bttf_time_circuits/{{ device_id('switch.time_circuits') }}/sequencer/command"
       payload: "Lightning"
 ```
 </details>
@@ -223,12 +208,12 @@ trigger:
 action:
   - service: text.set_value
     target:
-      entity_id: text.bttf_time_circuits_data_point_1_marquee
+      entity_id: text.time_circuits_data_point_1_marquee
     data:
       value: "♪ {{ state_attr('media_player.spotify', 'media_title') }}"
   - service: switch.turn_on
     target:
-      entity_id: switch.bttf_time_circuits_data_point_1_enabled
+      entity_id: switch.time_circuits_data_point_1_enabled
 ```
 </details>
 
@@ -240,7 +225,7 @@ This automation monitors the clock's free memory and, if it gets too low, displa
 alias: "BTTF - Low Memory Reboot"
 trigger:
   - platform: numeric_state
-    entity_id: sensor.bttf_time_circuits_status
+    entity_id: sensor.time_circuits_status
     attribute: free_heap
     below: 20000  # 20 KB
 action:
@@ -253,15 +238,15 @@ action:
   - delay: "00:00:10"
   - service: button.press
     target:
-      entity_id: button.bttf_time_circuits_reboot_device
+      entity_id: button.time_circuits_reboot_device
 ```
 </details>
 
 <details>
 <summary><strong>4. Dynamic Weather Alert</strong></summary>
-This automation uses a template to show a dynamic weather alert on the top row if it starts raining. It combines a static message with the current temperature, plays a sound, and restores the display after 30 minutes. This example uses the **Display Text Blueprint**.
+This automation uses a template to show a dynamic weather alert on the top row if it starts raining. It combines a static message with the current temperature. This example uses the **Display Text Blueprint**.
 
-First, create a script using the `display_text.yaml` blueprint and name it `Display Text on Time Circuits`. Then, create the following automation:
+First, create a script using the `display_text.yaml` blueprint. Select your device and set your desired options (e.g., Target Row, Effect, Duration). Save the script (e.g., as `Display Weather Alert`). Then, create the following automation:
 
 ```yaml
 alias: "BTTF - Weather Alert on Rain"
@@ -270,15 +255,9 @@ trigger:
     entity_id: weather.home
     to: "rainy"
 action:
-  - service: script.display_text_on_time_circuits # Your script's name
+  - service: script.display_weather_alert # Your script's name
     data:
-      device_id: "YOUR_DEVICE_ID"
-      row: Top
-      text: "RAIN {{ states('sensor.outside_temperature') }}°F"
-      effect: Marquee
-      duration_seconds: 1800 # 30 minutes
-      sound: "weather_alert.mp3"
-      restore_row: true
+      text_to_display: "RAIN {{ states('sensor.outside_temperature') }}°F"
 ```
 </details>
 
@@ -287,10 +266,10 @@ action:
 ## Troubleshooting
 
 > ⚠️ **Device Not Appearing in Home Assistant?**
+> * During setup, ensure you entered the correct **Device ID**.
 > * Double-check the MQTT broker IP, port, and credentials in the clock's web UI.
-> * Verify that "Enable discovery" is turned on for your MQTT integration in Home Assistant.
-> * Use a tool like [MQTT Explorer](http://mqtt-explorer.com/) to see if the clock is publishing topics under `homeassistant/`.
+> * Use a tool like [MQTT Explorer](http://mqtt-explorer.com/) to see if the clock is publishing topics under `bttf_time_circuits/YOUR_DEVICE_ID/`.
 
 > ⚠️ **Entities are 'Unavailable'?**
 > * Check the clock's Wi-Fi connection.
-> * In MQTT Explorer, check the `bttf-time-circuits/<UNIQUE_ID>/status` topic. It should have a retained message of `online`.
+> * In MQTT Explorer, check the `bttf_time_circuits/YOUR_DEVICE_ID/status` topic. It should have a retained message of `online`.
