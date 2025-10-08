@@ -23,7 +23,7 @@ Unsure where to begin contributing? You can start by looking through `good first
 
 ## Setting Up Your Development Environment
 
-For instructions on how to set up your development environment, including hardware requirements and firmware installation, please see the **[Developer Guide](docs/developer/developer-guide.md)**. This guide provides a comprehensive overview of the project's architecture and development workflow.
+For instructions on how to set up your development environment, please see the **[Developer Guide](docs/developer/developer-guide.md)**. This is the single, consolidated guide for all technical information, including project architecture and development workflow.
 
 ## Pull Request Process
 
@@ -40,13 +40,13 @@ For instructions on how to set up your development environment, including hardwa
 
 ## Documentation Guidelines
 
-Keeping our documentation in sync with our code is critical. Good documentation empowers users and developers, reduces support questions, and makes the project easier to contribute to.
+Keeping our documentation in sync with our code is critical. Our documentation is now centralized to make it easy to find information and contribute.
 
 -   **Update Docs with Code**: All pull requests that introduce or change a feature, API, or user-facing behavior **must** include corresponding documentation updates in the same PR.
 -   **Where to Document**:
-    -   User-facing features or configuration changes go in `docs/user-guide/`.
-    -   Technical details, architecture changes, or API modifications go in `docs/developer/`.
-    -   The main `README.md` should only be updated for high-level changes.
+    -   The **[Central Documentation Hub](docs/README.md)** is the starting point for all documentation. If you add a new document, link it from here.
+    -   **User-facing features** or configuration changes belong in the relevant file within `docs/user-guide/`. For Home Assistant changes, update `docs/user-guide/home-assistant.md`.
+    -   **Technical details**, architecture changes, or API modifications belong in the consolidated **[Developer Guide](docs/developer/developer-guide.md)**.
 -   **Clarity and Conciseness**: Write clearly and simply. Avoid jargon where possible.
 -   **Check for Broken Links**: Please ensure that all links in the documentation are up-to-date and working correctly.
 

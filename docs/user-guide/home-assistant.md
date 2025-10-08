@@ -58,11 +58,69 @@ Your Time Circuits clock will now appear as a new device in Home Assistant, with
 
 ## 🤖 Using Blueprints
 
-For most automations, the easiest and most powerful way to create custom animations and notifications is with our **Home Assistant Blueprints**. They provide a simple, form-based UI inside Home Assistant, allowing you to build complex effects without writing any code.
+Welcome, time traveler! For most automations, the easiest and most powerful way to create custom animations and notifications is with our **Home Assistant Blueprints**. They provide a simple, form-based UI inside Home Assistant, allowing you to build complex effects without writing any code.
 
-After setting up the integration, you can immediately start using the blueprints.
+Whether you want to see the outside temperature, get a visual alert when the doorbell rings, or run a countdown to movie night, you've come to the right place.
 
-> **For a complete guide to installing and using the blueprints, please see the [Home Assistant Blueprints README](../../home_assistant/blueprints/README.md).**
+### **Blueprint Installation**
+
+1.  **Copy Blueprints**: Copy the `.yaml` files from the `home_assistant/blueprints/` directory of this project into your Home Assistant's `/config/blueprints/script/` directory. The easiest way is with the Samba Share, FTP, or File Editor add-ons.
+2.  **Reload Blueprints**: In the Home Assistant UI, go to **Settings** -> **Automations & Scenes** -> **Blueprints**. Click the three-dot menu in the corner and select **Reload Blueprints**.
+
+### **Creating a Script from a Blueprint**
+
+The blueprints will now appear in your list. Click **Create Script** on the one you want to use. Instead of entering MQTT details, you'll see a single dropdown:
+
+*   **Time Circuits Device**: Simply select your clock from the list.
+
+Fill in the other options (like the text to display) and save it. This script is now ready to be called from your dashboards or, more powerfully, from automations.
+
+### **Core Concepts: Scripts vs. Automations**
+
+To unlock the full potential of your Time Circuits, it's crucial to understand how Home Assistant uses scripts and automations together.
+
+**1. Scripts are "One-Shot" Actions**
+
+Think of a blueprint script as a single, specific mission: "Show this text now." When you run the script, it executes its commands (e.g., display a temperature reading) and then it's done. It doesn't keep running or update automatically.
+
+**2. Automations Provide the Brains**
+
+Automations are the engine of your smart home. They watch for triggers (like a sensor changing, a time of day, or a button press) and then perform actions, such as running one of your blueprint scripts.
+
+> **The Pattern:** You create a **Script** from a blueprint to define *what* you want to happen. Then, you create an **Automation** to decide *when* it should happen.
+
+### **Blueprint Guides**
+
+#### **Display Text**
+
+Your workhorse for displaying any custom message. Perfect for alerts, notifications, and simple status messages.
+
+*   **Inputs:**
+    *   `Time Circuits Device`: The clock you want to control.
+    *   `Target Row`: Which of the three rows (Top, Middle, Bottom) to use.
+    *   `Text`: The message to display. Supports templates!
+    *   `Effect`: An optional visual effect (e.g., Pulse, Flash, Marquee).
+    *   `Duration`: How long the text should remain visible.
+    *   `Restore Row`: If checked, the row returns to its normal state afterward.
+
+#### **Display Entity**
+
+The easiest way to show the state or value of any Home Assistant entity.
+
+*   **Inputs:**
+    *   `Time Circuits Device`, `Target Row`, `Effect`, `Duration`, `Restore Row`: Same as the Display Text blueprint.
+    *   `Entity`: The sensor or entity you want to display.
+    *   `Prefix / Postfix`: Optional text to add before or after the entity's value (e.g., a "°F" postfix for temperature).
+
+#### **Countdown Timer**
+
+Perfect for building anticipation for movie night, a gaming session, or just counting down to dinner time.
+
+*   **Inputs:**
+    *   `Time Circuits Device`, `Target Row`: Same as the other blueprints.
+    *   `Start Number`: The number to start counting down from.
+    *   `End Text`: A message to display when the countdown hits zero.
+    *   `Restore Row`: If checked, the row returns to its normal state afterward.
 
 ---
 
@@ -158,7 +216,7 @@ For the most advanced automations, you can bypass the blueprints and standard en
 *   **Topic**: `bttf_time_circuits/DEVICE_ID/sequencer/command` (replace `DEVICE_ID` with your clock's ID)
 *   **Payload**: A string with the name of a built-in animation, or a JSON array for a custom sequence.
 
-> **For a complete guide on the sequencer, including all commands, parameters, a full list of built-in animation names, and examples, please see the [🤖 Sequencer API Reference](../developer/sequencer-api.md).**
+> **For a complete guide on the sequencer, including all commands, parameters, a full list of built-in animation names, and examples, please see the [🤖 Developer Guide](../developer/developer-guide.md#command-sequencer-deep-dive).**
 
 
 #### **Example: Triggering a Named Sequence via MQTT**
@@ -265,11 +323,22 @@ action:
 
 ## Troubleshooting
 
-> ⚠️ **Device Not Appearing in Home Assistant?**
-> * During setup, ensure you entered the correct **Device ID**.
-> * Double-check the MQTT broker IP, port, and credentials in the clock's web UI.
-> * Use a tool like [MQTT Explorer](http://mqtt-explorer.com/) to see if the clock is publishing topics under `bttf_time_circuits/YOUR_DEVICE_ID/`.
+*   **Device Not Appearing in Home Assistant?**
+    *   During setup, ensure you entered the correct **Device ID**.
+    *   Double-check the MQTT broker IP, port, and credentials in the clock's web UI.
+    *   Use a tool like [MQTT Explorer](http://mqtt-explorer.com/) to see if the clock is publishing topics under `bttf_time_circuits/YOUR_DEVICE_ID/`.
 
-> ⚠️ **Entities are 'Unavailable'?**
-> * Check the clock's Wi-Fi connection.
-> * In MQTT Explorer, check the `bttf_time_circuits/YOUR_DEVICE_ID/status` topic. It should have a retained message of `online`.
+*   **Entities are 'Unavailable'?**
+    *   Check the clock's Wi-Fi connection.
+    *   In MQTT Explorer, check the `bttf_time_circuits/YOUR_DEVICE_ID/status` topic. It should have a retained message of `online`.
+
+*   **Why does my text disappear immediately?**
+    This usually happens when using the `SET_TEXT` effect in a blueprint. This command is non-blocking, meaning it executes and immediately moves on. The blueprint's `Duration` input solves this by automatically adding a `WAIT` command. If your text isn't staying visible, ensure you have set a `Duration` greater than zero. Effects like `PULSE`, `MARQUEE`, and `COUNTDOWN` are blocking; they run for their own specific length and do not require an additional `WAIT`.
+
+*   **Can I combine sensor data with my own text?**
+    Absolutely! All text fields in the blueprints support Home Assistant templates. This lets you build rich, dynamic strings.
+
+    *Example for the "Display Text" blueprint:*
+    ```jinja
+    Garage is {{ states('cover.garage_door') }}. Temp: {{ states('sensor.garage_temp') }}°F
+    ```

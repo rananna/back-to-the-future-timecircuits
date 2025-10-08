@@ -6,6 +6,12 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 
 ![Time Circuits](images/bttf_bb.png)
 
+## Documentation
+
+**For all documentation, including build guides, user manuals, and developer information, please visit our central documentation hub:**
+
+## ➡️ [View the Full Documentation](docs/README.md)
+
 ## Features
 
 -   **Screen-Accurate Replica**: A true-to-the-movies design with three rows of 14-segment displays, iconic AM/PM indicators, and a cinematic, multi-stage boot sequence with synchronized sound effects.
@@ -15,29 +21,6 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 -   **Comprehensive Web Interface**: An easy-to-use, mobile-friendly web UI for configuration, preset management, sound control, and triggering animations.
 -   **Integrated Audio System**: Plays built-in sound effects, streams internet radio, and works with Home Assistant's Text-to-Speech (TTS) services to announce notifications.
 -   **Modern Tech Stack**: Built on a fully asynchronous, non-blocking architecture using an ESP32, with support for Over-the-Air (OTA) firmware updates directly from the web interface or Home Assistant.
-
----
-
-## Getting Started
-
-This project is extensively documented to guide you from initial setup to advanced customization.
-
-**1. Build and Install**
-
--   **[Hardware & Pinout Guide](docs/getting-started/hardware.md)**: A list of required components and wiring diagrams.
--   **[Firmware Installation Guide](docs/getting-started/installation.md)**: Step-by-step instructions for flashing the firmware.
-
-**2. Configure and Use**
-
--   **[Web Interface Guide](docs/user-guide/web-interface.md)**: A complete tour of the web UI for configuration.
--   **[Home Assistant Integration](docs/user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant, **including Blueprints**.
--   **[Sound System Guide](docs/user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
-
-**3. Advanced Topics & Development**
-
--   **[Developer Guide](docs/developer/developer-guide.md)**: A technical deep-dive into the firmware architecture.
--   **[Sequencer API Reference](docs/developer/sequencer-api.md)**: Create custom animations using the powerful sequencer.
--   **[Raw MQTT API Reference](docs/developer/mqtt-api.md)**: A complete reference for the low-level MQTT API.
 
 ---
 ## 💬 Community & Support
