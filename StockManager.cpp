@@ -823,7 +823,7 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
         if (http_status != 200) {
             Log_printf(LOG_LEVEL_WARN, "Stock HTTP request for %s failed with code %d.", symbol_vec[0].c_str(), http_status);
 
-            // --- NEW LOGGING ---
+            // --- SAFER ERROR LOGGING ---
             // Point to the start of the response body, which is after the double CRLF
             body_start_ptr += 4;
             size_t body_part_len = header_len - (body_start_ptr - header_buf);
@@ -832,13 +832,27 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
             TlsStream tls_stream(tls_stock);
             CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
 
-            // Read a chunk of the body for logging purposes.
-            const int max_body_log_size = 512;
-            char body_buffer[max_body_log_size + 1];
-            size_t bytes_read = combined_stream.readBytes(body_buffer, max_body_log_size);
-            body_buffer[bytes_read] = '\0'; // Null-terminate the string
-            Log_printf(LOG_LEVEL_WARN, "Error Response Body: %s", body_buffer);
-            // --- END NEW LOGGING ---
+            // Read the error body safely without using a large stack buffer.
+            String error_body;
+            error_body.reserve(256); // Pre-allocate some memory
+            unsigned long error_read_start = millis();
+            const unsigned long ERROR_READ_TIMEOUT_MS = 2000; // 2 sec timeout
+            const size_t MAX_ERROR_BODY_SIZE = 512;
+
+            while (millis() - error_read_start < ERROR_READ_TIMEOUT_MS && error_body.length() < MAX_ERROR_BODY_SIZE) {
+                int c = combined_stream.read();
+                if (c < 0) {
+                    break; // End of stream or error
+                }
+                error_body += (char)c;
+            }
+
+            // Clean up the string for logging (remove newlines)
+            error_body.replace("\r", "");
+            error_body.replace("\n", " ");
+            error_body.trim();
+            Log_printf(LOG_LEVEL_WARN, "Error Response Body: %s", error_body.c_str());
+            // --- END SAFER ERROR LOGGING ---
 
             xSemaphoreTake(_assets_mutex, portMAX_DELAY);
             auto it = std::find_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
