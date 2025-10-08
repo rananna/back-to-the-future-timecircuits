@@ -66,21 +66,40 @@ static int add_intro_sound_steps(SequencerTrack& track, int step_idx) {
 // --- Individual Animation Generators ---
 
 /**
- * @brief Generates a sequence that randomly flickers different rows for 10 seconds.
+ * @brief Generates a complex, layered glitch effect with independent flickering on each row.
+ * @details This animation uses three parallel tracks, one for each display row. Each track
+ * runs its own loop, flickering its assigned row for a random duration and then waiting
+ * for a random duration. This creates a chaotic, desynchronized flickering effect that
+ * is much more visually interesting than a single-track random flicker.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateRandomFlicker(SequencerTrack tracks[3]) {
-    int s = 0;
-    s = add_intro_sound_steps(tracks[0], s);
-    // Loop to fill ~10 seconds. Each loop is ~380ms on average. 26 * 380ms = 9.88s
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 26, 0);
-    // Restore all rows to normal at the start of each loop
-    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
-    // Glitch a random row for a short duration (200ms)
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), -1, 200, 50);
-    // Wait for a random duration
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 80 + random(0, 200), 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+
+    // --- Track 0: Top Row Flicker ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
+    // Flicker for a random duration between 100ms and 300ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100 + random(0, 200), 50);
+    // Wait for a random duration between 100ms and 300ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100 + random(0, 200), 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+
+    // --- Track 1: Middle Row Flicker ---
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 25, 0);
+    // Flicker for a random duration between 100ms and 300ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100 + random(0, 200), 50);
+    // Wait for a random duration between 100ms and 300ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100 + random(0, 200), 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+
+    // --- Track 2: Bottom Row Flicker ---
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 25, 0);
+    // Flicker for a random duration between 100ms and 300ms
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100 + random(0, 200), 50);
+    // Wait for a random duration between 100ms and 300ms
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(0, 200), 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 /**
@@ -174,16 +193,32 @@ void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings
 }
 
 /**
- * @brief Generates a sequence where all three rows fill up like a charging capacitor bar graph.
+ * @brief Creates a multi-layered capacitor charge-up sequence.
+ * @details This animation provides a more engaging charge-up effect than a simple bar graph.
+ * Track 0 (Middle): Shows the primary `BAR_GRAPH` filling up.
+ * Track 1 (Top): Displays crackling energy with `RANDOM_FLICKER_TEXT`.
+ * Track 2 (Bottom): Pulses a "CHARGING..." message.
+ * The sequence culminates in a bright, full-display `FLASH` to signify full charge.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateCapacitorChargeUp(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    // Bar graph from 0 to 100% over 10 seconds (10000 ms)
-    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 10000);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 1, -1, 100, 10000);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 100, 10000);
+
+    // --- Track 0 (Middle): Main charge bar ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 1, -1, 100, 9500); // Fills over 9.5s
+
+    // --- Track 1 (Top): Crackling energy ---
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 9500, 150, "-.-");
+
+    // --- Track 2 (Bottom): Status Text ---
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 9500, 0, "CHARGING...");
+
+    // --- Final Flash on Main Track ---
+    // After the bars fill, trigger a bright flash on all rows.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 2, -1, 500, 0);
 }
 
 /**
@@ -219,21 +254,51 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
 }
 
 /**
- * @brief Generates a sequence that flickers a wave pattern across the displays.
+ * @brief Generates a dynamic wave effect with patterns moving in opposite directions.
+ * @details This animation uses three parallel tracks to create a fluid wave motion.
+ * Track 0 (Top): Wipes a wave pattern from left to right.
+ * Track 1 (Middle): Pulses an inverted wave pattern.
+ * Track 2 (Bottom): Scrolls a wave pattern in from the right (right to left).
+ * The parallel execution and synchronized loops create a continuous, mesmerizing effect.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateWaveFlicker(SequencerTrack tracks[3]) {
-    int s = 0;
-    s = add_intro_sound_steps(tracks[0], s);
-    // 8 loops * 1.2s/loop = 9.6s. This is close to 10s and keeps the effect moving.
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 8, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50, "---     ---");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50, "  ---   --- ");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50, "   -------  ");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+
+    const char* wave_pattern = "---     ---";
+    const char* inverted_wave = "   -----   ";
+
+    // Loop all tracks 5 times. Each loop is ~2s, for a total of ~10s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 5, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 5, 0);
+
+    // --- Effects (run in parallel, ~1s duration) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 75, 0, wave_pattern); // L-to-R wipe
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 1000, 0, inverted_wave); // Pulse for 1s
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCROLL_IN, 2, -1, 75, 0, wave_pattern); // R-to-L scroll
+
+    // --- Synchronization and Cleanup (run in parallel) ---
+    // Wait for effects to finish and hold the pattern.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 500, 0);
+
+    // Clear the rows before the next loop iteration.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, -1, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_CLEAR_SEGMENT, 1, -1, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_CLEAR_SEGMENT, 2, -1, 0, 0);
+
+    // Pause before the next wave starts.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 500, 0);
+
+    // --- End Loops ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 /**
@@ -341,22 +406,34 @@ void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3
 }
 
 /**
- * @brief Creates a visual interference pattern by flickering the top/bottom rows with symbols.
+ * @brief Creates a dynamic interference pattern with sweeping symbols and a pulsing center row.
+ * @details This animation uses three parallel tracks to create a visual conflict.
+ * Track 0 (Top): Wipes a pattern of symbols from left to right.
+ * Track 1 (Middle): Pulses the correct time, as if trying to stabilize.
+ * Track 2 (Bottom): Scrolls the same symbol pattern from right to left.
+ * The opposing motion and pulsing center create a strong interference effect.
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateInterferencePattern(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s = 0;
-    s = add_intro_sound_steps(tracks[0], s);
-    // Loop 28 times. Each loop is ~350ms. 28 * 350ms = 9.8s
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 28, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 150, 100, "!@#$%%^&*()_+-=");
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 150, 100, time_strings[1]);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 150, 100, "!@#$%%^&*()_+-=");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 1, -1, 0, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+    const char* interference = "!@#$%%^&*()_+-=";
+
+    // Loop the entire animation 5 times. Each loop is 2s. Total 10s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 5, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 5, 0);
+
+    // --- Parallel Effects ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 150, 0, interference); // Wipe L-to-R
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 2000, 0, time_strings[1]); // Pulse middle row
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCROLL_IN, 2, -1, 150, 0, interference); // Scroll R-to-L
+
+    // --- Loop End ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 /**
@@ -406,21 +483,34 @@ void generateFocusIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
 }
 
 /**
- * @brief Simulates an electric surge with rapid, sequential flashes down the rows.
+ * @brief Simulates a building and discharging electric surge.
+ * @details This animation creates a sense of energy build-up. It starts with a slow
+ * pulse on the top row, adds crackling flickers to the middle, and then culminates
+ * in a bright, multi-row flash, simulating a discharge. The sequence repeats,
+ * creating a rhythmic surge effect.
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    // Loop 33 times. Each loop is 300ms. 33 * 300ms = 9.9s.
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 33, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 50, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 25, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 1, -1, 50, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 25, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 2, -1, 50, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
+
+    // Loop the entire surge sequence 4 times. Each loop is ~2.5s. Total ~10s.
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 4, 0);
+
+    // 1. Build-up phase (~1.5s)
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 0, -1, 1500, 0, "ENERGY SURGE"); // Slow pulse on top
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 1500, 100, "><"); // Crackles in middle
+
+    // 2. Discharge phase (~0.5s)
+    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 250, 0); // Bright flash on all rows
+    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 1, -1, 250, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 2, -1, 250, 0);
+
+    // 3. Dissipation and pause (~0.5s)
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0); // Reset for next loop
+
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
@@ -481,63 +571,121 @@ void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
 }
 
 /**
- * @brief Generates a fast, random flickering effect on all rows for 10 seconds.
- * @details This was originally a "counting up" animation but was changed to a flicker to
- * avoid sequences that could hang the device if misconfigured.
+ * @brief Creates a multi-faceted counting animation with parallel progress bars and effects.
+ * @details This animation provides a dynamic counting sequence.
+ * Track 0 (Middle): Displays a number rapidly counting up.
+ * Track 1 (Top): Shows a `BAR_GRAPH` filling up in sync with the count.
+ * Track 2 (Bottom): Pulses the text "CALCULATING..."
+ * The result is a complex animation that clearly communicates a process of calculation.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateCountingUp(SequencerTrack tracks[3]) {
-    int s0=0, s1=0, s2=0;
+    int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    // --- FIX: Replace hang-guaranteed countdown with a finite visual effect ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
+
+    // --- Track 1 (Top): Progress Bar ---
+    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 10000);
+
+    // --- Track 2 (Bottom): Status Text ---
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 0, "CALCULATING..");
+
+    // --- Track 0 (Middle): The Counter ---
+    // Loop 200 times. Each number is shown for 50ms. Total 10s.
+    // This loop is in C++ to generate the steps, not a sequencer loop.
+    for (int i = 0; i <= 200; i++) {
+        char buffer[14];
+        // Format the number, right-aligned and padded with spaces
+        snprintf(buffer, sizeof(buffer), "%13d", i * 1337);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, buffer);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 50, 0);
+    }
 }
 
 /**
- * @brief Simulates skimming through a timeline with rapid, random flickering.
+ * @brief Simulates skimming through a timeline by rapidly scrambling through random dates.
+ * @details This animation creates the effect of rapidly cycling through time. All three
+ * rows run a `SCRAMBLE_TEXT` animation in parallel. A C++ loop generates a series
+ * of these commands, each with a new, randomly generated (but valid-looking)
+ * date/time string. This gives the impression of the dates actively changing and
+ * skimming through a timeline.
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s = 0;
-    s = add_intro_sound_steps(tracks[0], s);
-    // Loop 5 times. Each loop is 1s flicker + 1s wait = 2s. 5 * 2s = 10s.
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 1000, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 1000, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 1000, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    // The typewriter part is removed to keep the animation at 10s.
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    // Loop 10 times, each cycle is ~1s. Total ~10s.
+    for (int i = 0; i < 10; i++) {
+        char random_time_str[3][17];
+        for (int row = 0; row < 3; row++) {
+            snprintf(random_time_str[row], sizeof(random_time_str[row]),
+                     "%s %02d %04d %02d%02d",
+                     months[random(0, 12)],
+                     random(1, 29),
+                     random(1950, 2051),
+                     random(0, 24),
+                     random(0, 60));
+        }
+        // Scramble to the new random date over 1 second
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 80, random_time_str[0]);
+        s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 80, random_time_str[1]);
+        s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 80, random_time_str[2]);
+    }
 }
 
 /**
- * @brief Creates a desynchronized flickering effect with different speeds on each row.
- * @details This was originally a "temporal desync" animation but was changed to a flicker to
- * avoid sequences that could hang the device if misconfigured.
+ * @brief Creates a complex temporal desynchronization effect.
+ * @details This animation uses three parallel tracks to create a feeling of temporal
+ * instability, where different timelines are conflicting.
+ * Track 0 (Middle): Slowly pulses the correct, stable time.
+ * Track 1 (Top): Rapidly scrolls slightly incorrect time strings across the display.
+ * Track 2 (Bottom): Flickers aggressively between two very different, incorrect times.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateTemporalDesync(SequencerTrack tracks[3]) {
-    int s0=0, s1=0, s2=0;
+    int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    // --- FIX: Replace hang-guaranteed countdown with a finite visual effect ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 100);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 200);
+
+    char time_strings[3][17];
+    getFormattedTimeStrings(time_strings[0], time_strings[1], time_strings[2]);
+
+    // --- Track 0 (Middle): The "correct" time, our anchor ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 1, -1, 10000, 0, time_strings[1]);
+
+    // --- Track 1 (Top): Drifting timeline ---
+    char drift_time_str[17];
+    snprintf(drift_time_str, sizeof(drift_time_str), "JAN 01 1985 1003");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCROLL_IN, 0, -1, 75, 0, drift_time_str);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 250, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+
+    // --- Track 2 (Bottom): Conflicting timeline ---
+    char conflict_time_str[17];
+    snprintf(conflict_time_str, sizeof(conflict_time_str), "OCT 26 2085 0429");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 200, conflict_time_str);
 }
 
 /**
- * @brief Generates a "digital rain" like effect with rapid flickering on all rows.
+ * @brief Generates a "digital rain" effect with cascading, flickering characters.
+ * @details This animation uses three parallel tracks with different flicker speeds and
+ * character sets to create a layered, cascading effect reminiscent of digital rain.
+ * The use of `RANDOM_FLICKER_TEXT` with different parameters on each track ensures a
+ * chaotic and visually engaging animation.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateDigitalRain(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
+
+    // Run three parallel tracks of flickering text with different speeds and characters
+    // to create a layered "rain" effect. Duration is 10s for all.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 75, "1010101010101");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 100, "ABCDE12345FGHI");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 125, "ZYXWV98765UTSR");
 }
 
 /**
@@ -760,37 +908,50 @@ const char* animationTypeToString(AnimationType type) {
 // --- Thematic C++ Animation Generators ---
 
 /**
- * @brief Generates a lightning storm effect with intense, random flashes.
+ * @brief Generates a lightning storm effect with intense, random flashes and crackles.
+ * @details This animation uses three parallel tracks to create a chaotic and dynamic storm.
+ * Track 0 produces the main, bright lightning bolts that flash across all rows.
+ * Track 1 adds faint, rapid "sheet lightning" flickers in the background.
+ * Track 2 adds localized, crackling energy bursts on random segments.
+ * The use of `random()` inside the loops ensures every strike and flicker is unique.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateLightning(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
-    // Fill all rows with solid blocks to maximize the flashing effect.
+    // Pre-fill all rows with solid blocks to maximize the visual impact of flashes.
     const char* solid_block = "|||||||||||||";
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, solid_block);
     s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, solid_block);
     s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, solid_block);
 
-    // Loop for about 10 seconds with random flashes to simulate a lightning storm.
-    // Each loop takes between 125ms and 325ms. An average of 225ms * 44 loops = 9.9s.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 44, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 44, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 44, 0);
-
-    // Flash all rows together for an intense burst.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 75, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 75, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 75, 0);
-
-    // Wait for a random, short period to create a natural, unpredictable flicker.
-    int random_delay = 50 + random(0, 200);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, random_delay, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, random_delay, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, random_delay, 0);
-
+    // --- Track 0: Main Lightning Bolts ---
+    // Loop for ~10 seconds. Each loop is a main strike and a variable pause.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    // Big, intense flash across all rows simultaneously.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 100, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 100, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 2, -1, 100, 0);
+    // Wait for a random duration before the next big strike.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500 + random(0, 1000), 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+
+    // --- Track 1: Background Sheet Lightning ---
+    // Loop for ~10 seconds with rapid, faint flickers.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 40, 0);
+    // Flicker a random row for a short duration.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), -1, 100, 50, " ");
+    // Wait for a random, short duration.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 50 + random(0, 200), 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+
+    // --- Track 2: Crackling Energy ---
+    // Loop for ~10 seconds with localized, sharp flickers.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 50, 0);
+    // Flicker a random segment on a random row.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), random(0, 4), 50, 50, "|||");
+    // Wait for a random, very short duration.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(0, 100), 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
@@ -864,23 +1025,32 @@ void generateFireTrails(SequencerTrack tracks[3], const char time_strings[3][17]
 }
 
 /**
- * @brief Creates a sparkling effect that resolves into the final text.
+ * @brief Creates an enchanting sparkle effect that smoothly resolves into the final text.
+ * @details This animation uses three parallel tracks to create a dense, twinkling starfield
+ * effect for ~8 seconds using `RANDOM_FLICKER_TEXT`. Then, it uses `CROSSFADE_TEXT`
+ * on each row to seamlessly transition from the sparkles to the final time text over
+ * 2 seconds, creating a magical reveal.
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s = 0;
-    s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100, 50, " . ");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100, 50, ". .");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100, 50, " . ");
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 0, -1, 100, 0, time_strings[0]);
-    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 1, -1, 100, 0, time_strings[1]);
-    s = add_step(tracks[0], s, SEQ_CMD_WIPE, 2, -1, 100, 0, time_strings[2]);
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+    const char* sparkles = ".'*.'*.'*.'*.'"; // A dense pattern of sparkles
+
+    // --- Track 0: Top Row ---
+    // Start with a field of sparkles for 8 seconds
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 8000, 100, sparkles);
+    // Crossfade from the sparkles to the final text over 2 seconds
+    s0 = add_step(tracks[0], s0, SEQ_CMD_CROSSFADE_TEXT, 0, -1, 2000, 0, time_strings[0]);
+
+    // --- Track 1: Middle Row ---
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 8000, 100, sparkles);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_CROSSFADE_TEXT, 1, -1, 2000, 0, time_strings[1]);
+
+    // --- Track 2: Bottom Row ---
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 8000, 100, sparkles);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_CROSSFADE_TEXT, 2, -1, 2000, 0, time_strings[2]);
 }
 
 
