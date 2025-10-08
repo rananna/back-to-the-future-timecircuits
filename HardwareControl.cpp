@@ -817,11 +817,6 @@ void playSound(const char* filepath, bool fromMqtt, int volume) {
         }
         fullPath[MAX_FILENAME_LENGTH - 1] = '\0';
         Log_printf(LOG_LEVEL_INFO, "Request to play sound: %s (fromMqtt: %s, volume: %d)", fullPath, fromMqtt ? "true" : "false", volume);
-        if (audio.isRunning()) {
-            Log_printf(LOG_LEVEL_DEBUG, "Audio is already running. Stopping current sound.");
-            audio.stopSong();
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
         if (!LittleFS.exists(fullPath)) {
             Log_printf(LOG_LEVEL_WARN, "Audio file not found: %s", fullPath);
             return;
