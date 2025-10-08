@@ -174,6 +174,30 @@ Use the same `media_player.play_media` service with a `media_content_type` of `u
     media_content_type: "url"
 ```
 
+### **Playing Your Favorite Radio Station**
+For easy access, the clock allows you to save one "Favorite" radio station in its web interface. This lets you quickly play your go-to station from Home Assistant without needing the full URL each time.
+
+**Step 1: Set Your Favorite Station**
+1.  Navigate to the clock's web UI.
+2.  Go to the **Sound** tab.
+3.  Enter the URL for your desired radio stream in the "Favorite Radio Station URL" field and give it a name.
+4.  Click **Save**.
+
+**Step 2: Play from Home Assistant**
+To play the saved station, call the `media_player.play_media` service with a special `media_content_type` of `channel` and a `media_content_id` of `Favorite Radio Station`.
+
+```yaml
+# Example: Play the saved favorite radio station from an automation or script
+- service: media_player.play_media
+  target:
+    entity_id: media_player.time_circuits # Change if you renamed it
+  data:
+    media_content_id: "Favorite Radio Station"
+    media_content_type: "channel"
+```
+
+> ✨ **Pro Tip:** You can create a Script in Home Assistant with this service call and then add that script to your dashboard as a button for one-touch playback of your favorite station!
+
 ### **Text-to-Speech (TTS)**
 Use your favorite TTS service in Home Assistant to make the clock speak.
 

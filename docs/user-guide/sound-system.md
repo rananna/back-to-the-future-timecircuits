@@ -70,6 +70,26 @@ The following sound files are pre-loaded on the device and can be used with the 
 | `time_travel.mp3` | The main, iconic time travel sound effect. |
 
 ---
+
+## 📻 Finding and Using Radio Streams
+
+The firmware can play most direct, unencrypted MP3 and AAC audio streams. However, it **cannot** play streams from major commercial services like Spotify, Apple Music, or Pandora, which use proprietary or protected formats.
+
+### Where to Find Streams
+
+The best place to find compatible streams is in public internet radio directories. These sites aggregate thousands of free-to-air stations from around the world.
+
+*   **Tip:** When searching, look for a "direct stream link" or "listen link." You may need to right-click a "Play" button and select "Copy Link Address" to get the correct URL.
+
+*   **Recommended Directory:** A great resource is [**Internet-Radio.com**](https://www.internet-radio.com/). It provides direct stream URLs for its listed stations.
+
+### What to Look For
+
+*   **Compatible Formats**: Look for stream URLs that end in `.mp3`, `.aac`, or have a port number (e.g., `http://123.45.67.89:8000/stream`).
+*   **Playlist Files (`.m3u`, `.pls`)**: Some stations provide a playlist file. You may need to open this file in a text editor to find the actual stream URL inside.
+*   **HTTPS vs. HTTP**: The ESP32 has limited memory for handling secure connections. If a stream is available over both `http://` and `https://`, try the `http://` version first, as it is more likely to work reliably.
+
+---
 ## ⚙️ Advanced Control (Raw MQTT)
 
 For users not using Home Assistant or for more advanced scripting, you can control the sound system by publishing directly to the device's raw MQTT topics.
