@@ -43,10 +43,11 @@ For instructions on how to set up your development environment, including hardwa
 Keeping our documentation in sync with our code is critical. Good documentation empowers users and developers, reduces support questions, and makes the project easier to contribute to.
 
 -   **Update Docs with Code**: All pull requests that introduce or change a feature, API, or user-facing behavior **must** include corresponding documentation updates in the same PR.
--   **Where to Document**:
-    -   User-facing features or configuration changes go in `docs/user-guide/`.
-    -   Technical details, architecture changes, or API modifications go in `docs/developer/`.
-    -   The main `README.md` should only be updated for high-level changes.
+-   **Where to Document**: Our documentation is centralized to make it easy to find information. Please adhere to the following structure:
+    -   **User-Facing Features**: All guides for end-users (e.g., new settings, UI changes, Home Assistant features) belong in the `docs/user-guide/` directory.
+    -   **Developer & API Changes**: All technical documentation, including architectural changes, new sequencer commands, or MQTT API modifications, should be added to the consolidated **[`Developer & Sequencer API Guide`](docs/developer/developer-guide.md)**.
+    -   **Central Hub**: If you add a new document, be sure to add a link to it in the main documentation hub file: **[`docs/README.md`](docs/README.md)**.
+    -   **Main `README.md`**: The root `README.md` should only be updated for major, high-level changes.
 -   **Clarity and Conciseness**: Write clearly and simply. Avoid jargon where possible.
 -   **Check for Broken Links**: Please ensure that all links in the documentation are up-to-date and working correctly.
 

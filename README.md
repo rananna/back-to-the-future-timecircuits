@@ -8,36 +8,22 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 
 ## Features
 
--   **Screen-Accurate Replica**: A true-to-the-movies design with three rows of 14-segment displays, iconic AM/PM indicators, and a cinematic, multi-stage boot sequence with synchronized sound effects.
--   **Powerful Animation Engine**: A flexible, built-in sequencer that allows you to create complex, multi-track animations with over 25 different commands. Trigger one of the many built-in animations or create your own.
--   **Full Smart Home Integration**: Native Home Assistant integration with powerful **Blueprints** makes creating custom automations and notifications incredibly simple. A low-level MQTT API is also available for full control from any smart home system.
--   **Dynamic Data Displays**: Go beyond the clock and display real-time stock quotes, live weather forecasts from a custom API, or your own custom messages using the "Data Link" marquee mode.
--   **Comprehensive Web Interface**: An easy-to-use, mobile-friendly web UI for configuration, preset management, sound control, and triggering animations.
--   **Integrated Audio System**: Plays built-in sound effects, streams internet radio, and works with Home Assistant's Text-to-Speech (TTS) services to announce notifications.
--   **Modern Tech Stack**: Built on a fully asynchronous, non-blocking architecture using an ESP32, with support for Over-the-Air (OTA) firmware updates directly from the web interface or Home Assistant.
+This project is packed with features, including:
 
----
+-   A screen-accurate design with a cinematic boot sequence.
+-   A powerful, multi-track animation engine.
+-   Full smart home integration with Home Assistant and MQTT.
+-   Dynamic display modes for weather, stocks, and custom messages.
+-   A comprehensive web UI for easy configuration.
+-   An integrated audio system for sound effects and TTS.
+
+For a complete list of features and a full guide to the project, please see our **[Comprehensive Documentation](docs/README.md)**.
 
 ## Getting Started
 
-This project is extensively documented to guide you from initial setup to advanced customization.
+Ready to build your own? Our documentation will guide you through every step of the process, from a list of required hardware to configuring advanced Home Assistant automations.
 
-**1. Build and Install**
-
--   **[Hardware & Pinout Guide](docs/getting-started/hardware.md)**: A list of required components and wiring diagrams.
--   **[Firmware Installation Guide](docs/getting-started/installation.md)**: Step-by-step instructions for flashing the firmware.
-
-**2. Configure and Use**
-
--   **[Web Interface Guide](docs/user-guide/web-interface.md)**: A complete tour of the web UI for configuration.
--   **[Home Assistant Integration](docs/user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant, **including Blueprints**.
--   **[Sound System Guide](docs/user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
-
-**3. Advanced Topics & Development**
-
--   **[Developer Guide](docs/developer/developer-guide.md)**: A technical deep-dive into the firmware architecture.
--   **[Sequencer API Reference](docs/developer/sequencer-api.md)**: Create custom animations using the powerful sequencer.
--   **[Raw MQTT API Reference](docs/developer/mqtt-api.md)**: A complete reference for the low-level MQTT API.
+### **[Click Here to View the Full Documentation](docs/README.md)**
 
 ---
 ## 💬 Community & Support
