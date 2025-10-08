@@ -1640,7 +1640,6 @@ void handlePresetCycling() {
         // --- FIX: Stop any currently playing audio before starting the new sequence ---
         // This is the core fix for the race condition. It ensures that a lingering
         // sound from a previous cycle doesn't prevent the new animation from starting.
-        stopAudioStream(false);
 
         if (currentSettings.timeTravelSoundToggle) {
             playSound("electric_sparks.mp3", false, -1);
