@@ -307,55 +307,6 @@ AnimationType animationTypeFromString(const std::string& name) {
     return ANIMATION_RANDOMIZE_ALL;
 }
 
-/**
- * @brief Converts an AnimationType enum to its string representation.
- * @param type The AnimationType enum value.
- * @return The string name of the animation, or "Randomize All" if not found.
- */
-const char* animationTypeToString(AnimationType type) {
-    switch (type) {
-        case ANIMATION_INTRUDER_ALERT: return "Intruder Alert";
-        case ANIMATION_TIME_TRAVEL: return "Time Travel";
-        case ANIMATION_PARTY_MODE: return "Party Mode";
-        case ANIMATION_COUNTDOWN: return "Countdown";
-        case ANIMATION_KNIGHT_RIDER: return "Knight Rider";
-        case ANIMATION_LIGHTNING: return "Lightning";
-        case ANIMATION_LOADING: return "Loading";
-        case ANIMATION_ERROR: return "Error";
-        case ANIMATION_FLUX_CHARGE: return "Flux Capacitor Charge-Up";
-        case ANIMATION_TACHYONS: return "Tachyons Detected";
-        case ANIMATION_DATA_STREAM: return "Data Stream";
-        case ANIMATION_WORMHOLE_COLLAPSE: return "Wormhole Collapse";
-        case ANIMATION_ALL_DISPLAYS_RANDOM: return "All Displays Random";
-        case ANIMATION_TIME_TRAVEL_TUNNEL: return "Time Travel Tunnel";
-        case ANIMATION_FIRE_TRAILS: return "Fire Trails";
-        case ANIMATION_SPARKLE_REVEAL: return "Sparkle Reveal";
-        case ANIMATION_SEQUENTIAL_FLICKER: return "Sequential Flicker";
-        case ANIMATION_RANDOM_FLICKER: return "Random Flicker";
-        case ANIMATION_COUNTING_UP: return "Counting Up";
-        case ANIMATION_WAVE_FLICKER: return "Wave Flicker";
-        case ANIMATION_TORNADO_FLICKER: return "Tornado Flicker";
-        case ANIMATION_CAPACITOR_CHARGE_UP: return "Capacitor Charge-Up";
-        case ANIMATION_DIGITAL_RAIN: return "Digital Rain";
-        case ANIMATION_WAVEFORM_COLLAPSE: return "Waveform Collapse";
-        case ANIMATION_TIMELINE_SKIM: return "Timeline Skim";
-        case ANIMATION_TEMPORAL_DESYNC: return "Temporal Desync";
-        case ANIMATION_GLITCHY_JUMP_CUT: return "Glitchy Jump-Cut";
-        case ANIMATION_PLASMA_WARM_UP: return "Plasma Warm-Up";
-        case ANIMATION_TIME_WARP_STREAKS: return "Time Warp Streaks";
-        case ANIMATION_CHARACTER_SCANLINE: return "Character Scanline";
-        case ANIMATION_FOCUS_IN: return "Focus In";
-        case ANIMATION_CODE_BREAKER: return "Code Breaker";
-        case ANIMATION_TEMPORAL_PARADOX: return "Temporal Paradox";
-        case ANIMATION_DIGIT_CASCADE: return "Digit Cascade";
-        case ANIMATION_ELECTRIC_SURGE: return "Electric Surge";
-        case ANIMATION_FLIP_DISC_DISPLAY: return "Flip-Disc Display";
-        case ANIMATION_INTERFERENCE_PATTERN: return "Interference Pattern";
-        case ANIMATION_RANDOMIZE_ALL: return "Randomize All";
-        default: return "Randomize All";
-    }
-}
-
 // Forward declaration for the function that applies settings from a JSON object.
 void applySettingsFromJson(const JsonObject& obj);
 
@@ -1603,14 +1554,6 @@ void handlePresetCycling() {
         return;
     }
 
-    // --- FIX: Prevent preset cycling from running if a sound is already playing ---
-    // This is the core fix for the race condition crash. If audio from a previous
-    // cycle (or any other source) is still playing, we must not start another
-    // animation sequence, as this can lead to resource contention and crashes.
-    if (audio.isRunning()) {
-        return;
-    }
-
     // --- FIX: Prevent preset cycling from running during the boot animation ---
     // The bootSequenceCompleted flag is set to true only after the entire boot
     // sequence has finished.
@@ -1680,6 +1623,12 @@ void handlePresetCycling() {
         broadcastPresetUpdate(nextPreset.name, nextPreset.year, nextPreset.month, nextPreset.day, nextPreset.hour, nextPreset.minute);
 
         // --- START: MODIFICATION - Trigger animation on preset cycle ---
+
+        // --- FIX: Stop any currently playing audio before starting the new sequence ---
+        // This is the core fix for the race condition. It ensures that a lingering
+        // sound from a previous cycle doesn't prevent the new animation from starting.
+        stopAudioStream();
+
         if (currentSettings.timeTravelSoundToggle) {
             playSound("electric_sparks.mp3", false, -1);
         }

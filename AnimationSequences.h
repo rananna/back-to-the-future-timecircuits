@@ -59,4 +59,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
 // --- NEW: Centralized JSON Parser ---
 void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string);
 
+// --- NEW: Helper function to convert enum to string for logging ---
+const char* animationTypeToString(AnimationType type);
+
 #endif // ANIMATION_SEQUENCES_H

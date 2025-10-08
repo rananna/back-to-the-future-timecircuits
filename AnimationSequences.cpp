@@ -447,6 +447,59 @@ void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_str
     }
 }
 
+/**
+ * @brief Converts an AnimationType enum to its string representation for logging.
+ * @param type The AnimationType enum value.
+ * @return The string name of the animation.
+ */
+const char* animationTypeToString(AnimationType type) {
+    switch (type) {
+        case ANIMATION_INTRUDER_ALERT: return "Intruder Alert";
+        case ANIMATION_TIME_TRAVEL: return "Time Travel";
+        case ANIMATION_PARTY_MODE: return "Party Mode";
+        case ANIMATION_KNIGHT_RIDER: return "Knight Rider";
+        case ANIMATION_LOADING: return "Loading";
+        case ANIMATION_ERROR: return "Error";
+        case ANIMATION_FLUX_CHARGE: return "Flux Capacitor Charge-Up";
+        case ANIMATION_TACHYONS: return "Tachyons Detected";
+        case ANIMATION_DATA_STREAM: return "Data Stream";
+        case ANIMATION_WORMHOLE_COLLAPSE: return "Wormhole Collapse";
+        case ANIMATION_ALL_DISPLAYS_RANDOM: return "All Displays Random";
+        case ANIMATION_TIME_TRAVEL_TUNNEL: return "Time Travel Tunnel";
+        case ANIMATION_FIRE_TRAILS: return "Fire Trails";
+        case ANIMATION_SPARKLE_REVEAL: return "Sparkle Reveal";
+        case ANIMATION_SEQUENTIAL_FLICKER: return "Sequential Flicker";
+        case ANIMATION_RANDOM_FLICKER: return "Random Flicker";
+        case ANIMATION_COUNTING_UP: return "Counting Up";
+        case ANIMATION_WAVE_FLICKER: return "Wave Flicker";
+        case ANIMATION_TORNADO_FLICKER: return "Tornado Flicker";
+        case ANIMATION_CAPACITOR_CHARGE_UP: return "Capacitor Charge-Up";
+        case ANIMATION_DIGITAL_RAIN: return "Digital Rain";
+        case ANIMATION_WAVEFORM_COLLAPSE: return "Waveform Collapse";
+        case ANIMATION_TIMELINE_SKIM: return "Timeline Skim";
+        case ANIMATION_TEMPORAL_DESYNC: return "Temporal Desync";
+        case ANIMATION_GLITCHY_JUMP_CUT: return "Glitchy Jump-Cut";
+        case ANIMATION_PLASMA_WARM_UP: return "Plasma Warm-Up";
+        case ANIMATION_TIME_WARP_STREAKS: return "Time Warp Streaks";
+        case ANIMATION_CHARACTER_SCANLINE: return "Character Scanline";
+        case ANIMATION_FOCUS_IN: return "Focus In";
+        case ANIMATION_CODE_BREAKER: return "Code Breaker";
+        case ANIMATION_TEMPORAL_PARADOX: return "Temporal Paradox";
+        case ANIMATION_DIGIT_CASCADE: return "Digit Cascade";
+        case ANIMATION_ELECTRIC_SURGE: return "Electric Surge";
+        case ANIMATION_FLIP_DISC_DISPLAY: return "Flip-Disc Display";
+        case ANIMATION_INTERFERENCE_PATTERN: return "Interference Pattern";
+        case ANIMATION_RANDOMIZE_ALL: return "Randomize All";
+        case ANIMATION_LIGHTNING: return "Lightning";
+        case ANIMATION_SCANNER: return "Scanner";
+        case ANIMATION_FLUX_CAPACITOR_OVERLOAD: return "Flux Capacitor Overload";
+        case ANIMATION_COUNTDOWN: return "Countdown";
+        case ANIMATION_SYSTEM_ERROR: return "System Error";
+        case ANIMATION_TIME_CIRCUITS_LOCK_IN: return "Time Circuits Lock-In";
+        default: return "Unknown Animation";
+    }
+}
+
 // --- New Thematic Animation Generators ---
 
 void generateLightning(SequencerTrack tracks[3]) {
