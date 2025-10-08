@@ -35,13 +35,13 @@ static int add_intro_sound_steps(SequencerTrack& track, int step_idx) {
 void generateRandomFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    // Loop for 10 seconds (100 * 100ms)
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 100, 0);
+    // Loop to fill ~10 seconds. Each loop is ~380ms on average. 26 * 380ms = 9.88s
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 26, 0);
     // Restore all rows to normal at the start of each loop
     s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
     // Glitch a random row for a short duration (200ms)
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), -1, 200, 50);
-    // Wait for the remainder of the 100ms interval, plus a random extra delay
+    // Wait for a random duration
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 80 + random(0, 200), 0);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
@@ -49,14 +49,15 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    // The C++ for loop below generates the full animation sequence.
-    // The previous SEQ_CMD_LOOP commands were redundant and caused a buffer overflow.
-    for (int i = 0; i < 4; i++) {
-        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, i, 100, 50);
+    // Loop 22 times. Each loop takes 450ms (3 * 100ms flicker + 3 * 50ms wait).
+    // 22 * 450ms = 9900ms ~= 10s.
+    // Use i % 4 to keep the tornado effect cycling across the 4 display segments.
+    for (int i = 0; i < 22; i++) {
+        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, i % 4, 100, 50);
         s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
-        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, i, 100, 50);
+        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, i % 4, 100, 50);
         s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
-        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, i, 100, 50);
+        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, i % 4, 100, 50);
         s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
     }
 }
@@ -65,7 +66,7 @@ void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
     const int flicker_interval = 50; // ms for flicker effect refresh rate
-    const int total_duration = 8500; // 8.5 seconds total animation time
+    const int total_duration = 10000; // 10 seconds total animation time
     const int num_chars = 13; // Standard display width
     const int lock_in_interval = total_duration / num_chars; // ms per character reveal
 
@@ -83,7 +84,7 @@ void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings
 void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    const int delay = 83;
+    const int delay = 830;
     std::string dest_str(time_strings[0]);
     std::string pres_str(time_strings[1]);
     std::string last_str(time_strings[2]);
@@ -124,9 +125,10 @@ void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings
 void generateCapacitorChargeUp(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 10000, 250);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 1, -1, 10000, 250);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 10000, 250);
+    // Bar graph from 0 to 100% over 10 seconds (10000 ms)
+    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 10000);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 1, -1, 100, 10000);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 100, 10000);
 }
 
 void generateWaveformCollapse(SequencerTrack tracks[3]) {
@@ -134,27 +136,34 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
 
+    // Loop the collapse animation to fill 10 seconds.
+    // One cycle = 6 waves * 200ms = 1.2s. 8 cycles = 9.6s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 8, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 8, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 8, 0);
+
     for (int i = 0; i < 6; i++) {
-        // --- FIX: Use local std::string to guarantee pointer validity ---
         std::string wave_str(waves[i]);
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, wave_str.c_str());
         s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, wave_str.c_str());
-
         std::string inverted_str;
         for(char c : wave_str) { inverted_str += (c == '-') ? ' ' : '-'; }
         s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, inverted_str.c_str());
-
-        // Add waits to each track to keep them in sync
-        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
-        s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100, 0);
-        s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100, 0);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 200, 0);
+        s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 200, 0);
+        s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 200, 0);
     }
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 void generateWaveFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    // 8 loops * 1.2s/loop = 9.6s. This is close to 10s and keeps the effect moving.
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 8, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50, "---     ---");
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50, "  ---   --- ");
@@ -167,46 +176,92 @@ void generateWaveFlicker(SequencerTrack tracks[3]) {
 void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 15, 33, time_strings[0]);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 15, 33, time_strings[1]);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 15, 33, time_strings[2]);
+    // Loop the effect to fill 10 seconds.
+    // One cycle = 1.5s scramble + 1s wait = 2.5s. 4 cycles = 10s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 4, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 4, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 4, 0);
+
+    // Scramble in text over ~1.5s
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 25, 120, time_strings[0]);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 25, 120, time_strings[1]);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 25, 120, time_strings[2]);
+
+    // Hold the result
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 void generateFlipDisc(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
+    // Loop the effect to fill 10 seconds.
+    // One cycle = 1s wipe + 1s wait = 2s. 5 cycles = 10s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 5, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 5, 0);
+
     s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 75, 0, time_strings[0]);
     s1 = add_step(tracks[1], s1, SEQ_CMD_WIPE, 1, -1, 75, 0, time_strings[1]);
     s2 = add_step(tracks[2], s2, SEQ_CMD_WIPE, 2, -1, 75, 0, time_strings[2]);
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 void generateCharacterScanline(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
+    // Loop the effect to fill 10 seconds.
+    // One cycle = 1s typewriter + 1s wait = 2s. 5 cycles = 10s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 5, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 5, 0);
+
     s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 75, 0, time_strings[0]);
     s1 = add_step(tracks[1], s1, SEQ_CMD_TYPEWRITER, 1, -1, 75, 0, time_strings[1]);
     s2 = add_step(tracks[2], s2, SEQ_CMD_TYPEWRITER, 2, -1, 75, 0, time_strings[2]);
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
+    // Loop 12 times. Each loop is 800ms. 12 * 800ms = 9.6s
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 12, 0);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, time_strings[1]);
     s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, time_strings[0]);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 400, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 400, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 0, -1, 0, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 1, -1, 0, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 400, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 400, 0);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
 void generateInterferencePattern(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 15, 0);
+    // Loop 28 times. Each loop is ~350ms. 28 * 350ms = 9.8s
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 28, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 150, 100, "!@#$%%^&*()_+-=");
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 150, 100, time_strings[1]);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 150, 100, "!@#$%%^&*()_+-=");
@@ -219,25 +274,44 @@ void generateInterferencePattern(SequencerTrack tracks[3], const char time_strin
 void generateTimeWarpStreaks(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0=0, s1=0, s2=0;
     s0 = add_intro_sound_steps(tracks[0], s0);
+    // Loop the effect to fill 10 seconds.
+    // One scroll-in takes ~1s. We loop 10 times for 10s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 10, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 10, 0);
+
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCROLL_IN, 0, -1, 75, 0, time_strings[0]);
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCROLL_IN, 1, -1, 75, 0, time_strings[1]);
     s2 = add_step(tracks[2], s2, SEQ_CMD_SCROLL_IN, 2, -1, 75, 0, time_strings[2]);
+
+    // SCROLL_IN leaves the text on the display, so we need to clear it for the next loop
+    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, -1, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_CLEAR_SEGMENT, 1, -1, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_CLEAR_SEGMENT, 2, -1, 0, 0);
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 void generateFocusIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 200, 200, time_strings[0]);
+    // One cycle is ~2.6s scramble. Repeat 3 times for all rows = ~7.8s.
+    // Add a final wait to reach 10s.
+    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 100, 200, time_strings[0]);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 200, 200, time_strings[1]);
+    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 100, 200, time_strings[1]);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 200, 200, time_strings[2]);
+    s = add_step(tracks[0], s, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 100, 200, time_strings[2]);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 2200, 0);
 }
 
 void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    // Loop 33 times. Each loop is 300ms. 33 * 300ms = 9.9s.
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 33, 0);
     s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 50, 0);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 25, 0);
     s = add_step(tracks[0], s, SEQ_CMD_FLASH, 1, -1, 50, 0);
@@ -249,11 +323,24 @@ void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][
 
 void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
-    // This implementation now uses the much cleaner and more efficient TYPEWRITER command.
-    // The previous version was inefficient and risked a buffer overflow.
+    s0 = add_intro_sound_steps(tracks[0], s0);
+    // Loop the effect to fill 10 seconds.
+    // One cycle = 1s typewriter + 1s wait = 2s. 5 cycles = 10s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 5, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 5, 0);
+
     s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 75, 0, time_strings[0]);
     s1 = add_step(tracks[1], s1, SEQ_CMD_TYPEWRITER, 1, -1, 75, 0, time_strings[1]);
     s2 = add_step(tracks[2], s2, SEQ_CMD_TYPEWRITER, 2, -1, 75, 0, time_strings[2]);
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 void generatePlasmaWarmup(SequencerTrack tracks[3]) {
@@ -266,11 +353,12 @@ void generatePlasmaWarmup(SequencerTrack tracks[3]) {
 void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
     int s=0;
     s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
+    // Loop 25 times. Each loop is 400ms. 25 * 400ms = 10s.
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
     s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 200, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 0, 0);
     s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 100, 0);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
@@ -288,15 +376,14 @@ void generateCountingUp(SequencerTrack tracks[3]) {
 void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 3, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 500, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 500, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 500, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    // Loop 5 times. Each loop is 1s flicker + 1s wait = 2s. 5 * 2s = 10s.
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 1000, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 1000, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 1000, 50);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1000, 0);
     s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_TYPEWRITER, 0, -1, 100, 0, time_strings[0]);
-    s = add_step(tracks[0], s, SEQ_CMD_TYPEWRITER, 1, -1, 100, 0, time_strings[1]);
-    s = add_step(tracks[0], s, SEQ_CMD_TYPEWRITER, 2, -1, 100, 0, time_strings[2]);
+    // The typewriter part is removed to keep the animation at 10s.
 }
 
 void generateTemporalDesync(SequencerTrack tracks[3]) {
@@ -671,19 +758,19 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
     switch (animType) {
         // --- JSON-based Named Sequences ---
         case ANIMATION_INTRUDER_ALERT:
-            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"MARQUEE", "stringParam":"INTRUDER ALERT"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":100, "intParam2":400}]}, {"targetRow":"BOTTOM", "commands":[{"command":"MARQUEE", "stringParam":"LOCKDOWN INITIATED"}, {"command":"PULSE", "targetSegment":-1, "intParam":5000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SET_TEXT", "stringParam":"INTRUDER ALERT"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":50, "intParam2":666}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LOCKDOWN"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}])");
             break;
         case ANIMATION_TIME_TRAVEL:
-            parseSequenceFromJson(tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":8000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 1000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":1000}, {"command": "SET_TEXT", "stringParam": "88 MPH"}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 8000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":10000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 3000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":3000}, {"command": "SET_TEXT", "stringParam": "88 MPH"},{"command":"WAIT", "intParam":4000}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 10000}]}])");
             break;
         case ANIMATION_PARTY_MODE:
-            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"MARQUEE", "stringParam":"PARTY TIME"}, {"command":"LOOP_START", "intParam":5}, {"command":"PULSE", "targetSegment":-1, "intParam":1000}, {"command":"WAIT", "intParam":1000}, {"command":"LOOP_END"}]}, {"targetRow":"MIDDLE", "commands":[{"command":"LOOP_START", "intParam":5}, {"command":"MARQUEE", "stringParam":"DANCE"}, {"command":"WAIT", "intParam":2000}, {"command":"MARQUEE", "stringParam":"PARTY"}, {"command":"WAIT", "intParam":2000}, {"command":"LOOP_END"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"LOOP_START", "intParam":5}, {"command":"MARQUEE", "stringParam":"WOOHOO"}, {"command":"WAIT", "intParam":5000}, {"command":"LOOP_END"}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SET_TEXT", "stringParam":"PARTY TIME!"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":10000, "intParam2":100, "stringParam": "DANCE"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LETS DANCE!"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}])");
             break;
         case ANIMATION_KNIGHT_RIDER:
             parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}])");
             break;
         case ANIMATION_LOADING:
-            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":1500}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":1500}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":1500}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":1500}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3300}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":6600}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":3400}]}])");
             break;
         case ANIMATION_ERROR:
             parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":200}, {"command":"SET_TEXT", "stringParam":"ERROR"}]}, {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION"}]}])");
