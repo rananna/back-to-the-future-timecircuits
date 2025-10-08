@@ -9,7 +9,7 @@ bool bootSequenceCompleted = false;
 #include "AnimationSequences.h"
 
 // --- NEW: A global timeout for any single animation sequence track ---
-#define MAX_SEQUENCE_DURATION 60000 // 60 seconds
+#define MAX_SEQUENCE_DURATION 8000 // 8 seconds
 #include "DisplayManager.h"
 #include "MqttManager.h"
 
@@ -173,7 +173,7 @@ void handleDisplayAnimation() {
     unsigned long elapsed = millis() - animationStartTime;
 
     // --- FIX: Add a global timeout to prevent the animation from hanging indefinitely ---
-    const unsigned long MAX_ANIMATION_DURATION = 30000; // 30 seconds
+    const unsigned long MAX_ANIMATION_DURATION = 8000; // 8 seconds
     if (elapsed > MAX_ANIMATION_DURATION) {
         Serial.println(F("ANIMATION_ERROR: Time travel animation timed out. Forcing exit."));
         comprehensiveAnimationCleanup();
