@@ -1118,8 +1118,14 @@ void handleSequencer() {
                     unsigned long countdown_delay = (step.intParam2 > 0) ? (unsigned long)step.intParam2 : 1000;
 
                     if (!track.stepInitialized) {
+                        // --- FIX: Add a failsafe to prevent hangs from huge numbers ---
+                        const int MAX_COUNTDOWN_VALUE = 3600; // Cap at 1 hour
+                        track.countdownValue = (step.intParam > MAX_COUNTDOWN_VALUE) ? MAX_COUNTDOWN_VALUE : step.intParam;
+                        if (step.intParam > MAX_COUNTDOWN_VALUE) {
+                            Log_printf(LOG_LEVEL_WARN, "SEQ: COUNTDOWN value %d capped at %d.", step.intParam, MAX_COUNTDOWN_VALUE);
+                        }
+
                         // Initialization: Set the starting value and display it immediately.
-                        track.countdownValue = step.intParam;
                         track.countdownLastUpdate = millis();
                         display_countdown(track.countdownValue);
                         track.stepInitialized = true;
