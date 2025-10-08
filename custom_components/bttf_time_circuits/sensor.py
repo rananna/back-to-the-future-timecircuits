@@ -1,4 +1,10 @@
-"""Sensor platform for the Back to the Future Time Circuits integration."""
+"""
+Sensor platform for the Back to the Future Time Circuits integration.
+
+This platform creates various sensor entities that represent the state of the
+Time Circuits display (e.g., Destination Year, Present Month) and other
+device statuses.
+"""
 from __future__ import annotations
 
 import json
@@ -25,7 +31,12 @@ _LOGGER = logging.getLogger(__name__)
 # Define the sensor descriptions
 @dataclass(frozen=True, kw_only=True)
 class BTTFTimeCircuitsSensorEntityDescription(SensorEntityDescription):
-    """A class that describes BTTF Time Circuits sensor entities."""
+    """
+    A class that describes BTTF Time Circuits sensor entities.
+
+    This extends the standard SensorEntityDescription to include a `value_type`
+    field, which is used to cast the incoming MQTT payload to the correct type.
+    """
 
     value_type: str | None = None
 
@@ -113,7 +124,14 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the BTTF Time Circuits sensors."""
+    """
+    Set up the BTTF Time Circuits sensor entities from a config entry.
+
+    Args:
+        hass: The Home Assistant instance.
+        config_entry: The configuration entry for the integration.
+        async_add_entities: A callback function to add the entities.
+    """
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
 
     async_add_entities(
@@ -123,7 +141,7 @@ async def async_setup_entry(
 
 
 class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
-    """Representation of a BTTF Time Circuits Sensor."""
+    """Representation of a BTTF Time Circuits Sensor entity."""
 
     entity_description: BTTFTimeCircuitsSensorEntityDescription
 
@@ -132,19 +150,25 @@ class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
         device: BTTFTimeCircuitsDevice,
         description: BTTFTimeCircuitsSensorEntityDescription,
     ) -> None:
-        """Initialize the sensor."""
+        """
+        Initialize the sensor entity.
+
+        Args:
+            device: The BTTFTimeCircuitsDevice instance.
+            description: The entity description for the sensor.
+        """
         self.entity_description = description
         super().__init__(device)
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to MQTT events."""
+        """Subscribe to MQTT events when the entity is added to Home Assistant."""
         await super().async_added_to_hass()
 
         state_topic = f"{self._device.base_topic}/{self.entity_description.key}/state"
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
-            """Handle new MQTT messages."""
+            """Handle new MQTT messages for the sensor's state."""
             if self.entity_description.value_type == "int":
                 try:
                     self._attr_native_value = int(msg.payload)
@@ -168,7 +192,7 @@ class BTTFTimeCircuitsSensor(BTTFTimeCircuitsEntity, SensorEntity):
 
         @callback
         def attributes_received(msg: mqtt.ReceiveMessage) -> None:
-            """Handle new MQTT attribute messages."""
+            """Handle new MQTT messages for the sensor's attributes."""
             try:
                 self._attr_extra_state_attributes = json.loads(msg.payload)
             except json.JSONDecodeError:

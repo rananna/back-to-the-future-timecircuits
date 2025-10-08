@@ -1,4 +1,10 @@
-"""Text platform for the Back to the Future Time Circuits integration."""
+"""
+Text platform for the Back to the Future Time Circuits integration.
+
+This platform creates various `text` entities that correspond to the individual
+segments of the Time Circuits display (e.g., Destination Year, Present Month).
+This allows users to directly set the text on any part of the display.
+"""
 from __future__ import annotations
 
 import json
@@ -23,7 +29,12 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass
 class BTTFTimeCircuitsTextEntityDescription(TextEntityDescription):
-    """A class that describes BTTF Time Circuits text entities."""
+    """
+    A class that describes BTTF Time Circuits text entities.
+
+    This extends the standard TextEntityDescription to include any
+    custom properties needed for the integration's text entities.
+    """
 
 
 TEXTS: tuple[BTTFTimeCircuitsTextEntityDescription, ...] = (
@@ -110,7 +121,14 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the BTTF Time Circuits text entities."""
+    """
+    Set up the BTTF Time Circuits text entities from a config entry.
+
+    Args:
+        hass: The Home Assistant instance.
+        config_entry: The configuration entry for the integration.
+        async_add_entities: A callback function to add the entities.
+    """
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
 
     async_add_entities(
@@ -128,26 +146,40 @@ class BTTFTimeCircuitsText(BTTFTimeCircuitsEntity, TextEntity):
         device: BTTFTimeCircuitsDevice,
         description: BTTFTimeCircuitsTextEntityDescription,
     ) -> None:
-        """Initialize the text entity."""
+        """
+        Initialize the text entity.
+
+        Args:
+            device: The BTTFTimeCircuitsDevice instance.
+            description: The entity description for the text entity.
+        """
         self.entity_description = description
         super().__init__(device)
         self._attr_native_value = None
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to MQTT events."""
+        """Subscribe to MQTT events when the entity is added to Home Assistant."""
         await super().async_added_to_hass()
         state_topic = f"{self._device.base_topic}/{self.entity_description.key}/state"
 
         @callback
         def message_received(msg: mqtt.ReceiveMessage) -> None:
-            """Handle new MQTT messages."""
+            """Handle new MQTT messages for the text entity's state."""
             self._attr_native_value = msg.payload
             self.async_write_ha_state()
 
         await mqtt.async_subscribe(self.hass, state_topic, message_received, 1)
 
     async def async_set_value(self, value: str) -> None:
-        """Update the current value."""
+        """
+        Update the current value of the text entity.
+
+        This is called when the user sets a new value in the Home Assistant UI.
+        It publishes the new value to the corresponding MQTT command topic.
+
+        Args:
+            value: The new text value to set.
+        """
         command_topic = (
             f"{self._device.base_topic}/{self.entity_description.key}/command"
         )

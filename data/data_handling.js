@@ -1,3 +1,10 @@
+/**
+ * @file This script handles all data-related logic for the web UI.
+ * @summary It includes functions for initializing WebSocket connections, fetching data from APIs
+ * (both on the device and external), validating user input, and saving settings back to the device.
+ * @author B. Anan
+ */
+
 // Global state variables for the entire application
 let settingsChanged = false; // Tracks if any settings have been changed by the user
 let timezoneOptions = []; // Stores the available timezone options fetched from the server
@@ -13,9 +20,6 @@ let correctedCityName = ''; // Stores the validated city name from the geocoding
 let latestRadioStationName = ''; // Cache for the radio station name
 let latestRadioSongTitle = ''; // Cache for the song title
 
-/**
- * Initializes the WebSocket connection to the server.
- */
 function initWebSocket() {
     // Create a new WebSocket connection to the server's /ws endpoint
     ws = new WebSocket('ws://' + window.location.host + '/ws');
@@ -163,12 +167,6 @@ function initWebSocket() {
     };
 }
 
-/**
- * Checks if the server is ready to accept requests.
- * @param {number} retries The number of times to retry checking.
- * @param {number} delay The delay between retries in milliseconds.
- * @returns {Promise<boolean>} A promise that resolves to true if the server is ready, false otherwise.
- */
 async function checkServerReady(retries = 5, delay = 1000) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -185,9 +183,6 @@ async function checkServerReady(retries = 5, delay = 1000) {
     return false;
 }
 
-/**
- * Loads the Data Link settings from the server.
- */
 function loadDataLinkSettings() {
     // If the settings are already loaded, do nothing
     if (isDataLinkLoaded) return;
@@ -205,9 +200,6 @@ function loadDataLinkSettings() {
         });
 }
 
-/**
- * Adds a new custom preset.
- */
 function addPreset() {
     // Get the preset details from the form
     const name = document.getElementById('presetName').value;
@@ -255,9 +247,6 @@ function addPreset() {
         .catch(err => showMessage(`Error: ${err.message}`, 'error'));
 }
 
-/**
- * Updates an existing custom preset.
- */
 function updatePreset() {
     // Get the original preset name
     const originalName = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
@@ -286,9 +275,6 @@ function updatePreset() {
         });
 }
 
-/**
- * Deletes the selected custom preset.
- */
 function deletePreset() {
     // Get the name of the preset to delete
     const name = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
@@ -305,11 +291,6 @@ function deletePreset() {
     }
 }
 
-/**
- * Asynchronously performs geocoding for a city name if it has changed.
- * @param {string} cityName The name of the city to geocode.
- * @returns {Promise<object|null>} A promise that resolves with an object containing latitude and longitude, or null if geocoding fails.
- */
 async function geocodeCityIfNeeded(cityName) {
     // If city name hasn't changed since last successful geocoding, resolve immediately.
     const weatherLatitude = document.getElementById('weatherLatitude');
@@ -355,9 +336,6 @@ async function geocodeCityIfNeeded(cityName) {
 }
 
 
-/**
- * Saves all the settings to the server.
- */
 async function saveSettings() {
     // Helper functions to safely get values from DOM elements.
     const getEl = (id) => document.getElementById(id);
@@ -523,9 +501,6 @@ async function saveSettings() {
     });
 }
 
-/**
- * Fetches the current time from the server.
- */
 function fetchTime() {
     if (isLoading) return;
     fetch('/api/time').then(res => res.json()).then(data => {
@@ -535,11 +510,6 @@ function fetchTime() {
     });
 }
 
-/**
- * Creates a descriptive string for a location object.
- * @param {object} location The location object from the geocoding API.
- * @returns {string} A descriptive location name.
- */
 function getDescriptiveLocationName(location) {
     let nameParts = [location.name];
     if (location.admin1) nameParts.push(location.admin1);
@@ -547,9 +517,6 @@ function getDescriptiveLocationName(location) {
     return nameParts.join(', ');
 }
 
-/**
- * Looks up a city name using the geocoding API.
- */
 function lookupCity() {
     const cityInput = document.getElementById('cityName');
     const lookupButton = document.getElementById('lookupCityBtn');
@@ -599,10 +566,6 @@ function lookupCity() {
 }
 
 
-/**
- * Sends the validated city name to the server to trigger a weather data refresh.
- * @param {string} validatedCity The validated and formatted city name from the geocoding API.
- */
 function triggerWeatherRefresh(latitude, longitude) {
     const preview = document.getElementById('weatherPreview');
     preview.textContent = 'Fetching...';
@@ -633,11 +596,6 @@ function triggerWeatherRefresh(latitude, longitude) {
     });
 }
 
-/**
- * Gets a 2-character icon for a given weather code.
- * @param {number} code The weather code from the API.
- * @returns {string} The 2-character weather icon.
- */
 function getWeatherIcon(code) {
     const icons = {
         0: 'SU', 1: 'SU', 2: 'CL', 3: 'CL', 45: 'CL', 48: 'CL',
@@ -649,9 +607,6 @@ function getWeatherIcon(code) {
     return icons[code] || '--';
 }
 
-/**
- * Fetches the current weather data from the server.
- */
 function updateWeatherUI(data) {
     const isMetric = document.getElementById('useMetricUnits').checked;
     const tempUnit = isMetric ? '°C' : '°F';
@@ -718,9 +673,6 @@ function updateWeatherUI(data) {
 }
 
 
-/**
- * Fetches the current weather data from the server.
- */
 function fetchWeatherData() {
     if (isLoading || !document.getElementById('weatherModeEnabled').checked) {
         const weatherDisplay = document.getElementById('weatherDisplay');
@@ -764,12 +716,6 @@ function fetchWeatherData() {
         });
 }
 
-/**
- * Gets a value from a JSON object using a dot-notation path.
- * @param {object} obj The JSON object.
- * @param {string} path The path to the value (e.g., "data.items[0].name").
- * @returns {*} The value at the specified path, or null if not found.
- */
 function getValueFromPath(obj, path) {
     if (!path || !obj) return null;
     try {
@@ -840,10 +786,6 @@ function updateStockPreview(status, payload, rowIndex) {
 }
 
 
-/**
- * Handles the firmware file upload.
- * @param {Event} event The submit event from the firmware upload form.
- */
 function handleFirmwareUpload(event) {
     event.preventDefault();
     const form = event.target;
@@ -1103,13 +1045,6 @@ function getDragAfterElement(container, y) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
-/**
- * Normalizes a stock symbol to a simple string.
- * The symbol can be a plain string (e.g., "AAPL") or a JSON string
- * (e.g., '{"symbol":"AAPL",...}').
- * @param {string} symbol The stock symbol string.
- * @returns {string} The simple symbol string (e.g., "AAPL").
- */
 function getSimpleSymbol(symbol) {
     // If it's not a string or is empty, return it as is.
     if (typeof symbol !== 'string' || !symbol) {
@@ -1263,10 +1198,6 @@ async function updateStockStatus() {
     }
 }
 
-/**
- * Shows a modal with a list of locations for the user to choose from.
- * @param {Array} locations An array of location objects from the geocoding API.
- */
 function showLocationModal(locations) {
     const modal = document.getElementById('locationChoiceModal');
     const list = document.getElementById('locationList');
@@ -1308,10 +1239,6 @@ function showLocationModal(locations) {
     };
 }
 
-/**
- * Handles the user's selection from the location choice modal.
- * @param {Event} event The click event from the list item.
- */
 function handleLocationSelection(event) {
     const li = event.currentTarget;
     const location = JSON.parse(li.dataset.location);
@@ -1339,10 +1266,6 @@ function handleLocationSelection(event) {
     triggerWeatherRefresh(location.latitude, location.longitude);
 }
 
-/**
- * Updates the radio metadata elements in the UI from the cached global variables.
- * This function can be called safely at any time.
- */
 function updateRadioMetadataUI() {
     const stationNameEl = document.getElementById('station-name');
     if (stationNameEl) {

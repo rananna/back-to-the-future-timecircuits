@@ -6,6 +6,14 @@
  * libraries, as well as the custom audio library for I2S sound.
  */
 
+/**
+ * @file HardwareControl.cpp
+ * @brief Implements low-level control functions for displays, LEDs, and sound.
+ * @details This file contains the concrete implementations for initializing and controlling
+ * the hardware components. It directly interfaces with the Adafruit GFX and LED Backpack
+ * libraries, as well as the custom audio library for I2S sound.
+ */
+
 #include "DebugLog.h"
 #include "HardwareControl.h"
 #include "EventManager.h" 
@@ -23,6 +31,15 @@ void updateDisplayRow_internal(DisplayRow& row, const struct tm& timeinfo, int y
 void blankDisplayRow_internal(DisplayRow& row);
 
 
+/**
+ * @brief Gets the fully formatted time strings for all three display rows.
+ * @details This function calculates the current time for the destination and present timezones,
+ * retrieves the "last time departed" from settings, and formats all three into the
+ * `MONDDYYYYHHMM` format used by some animations and external integrations.
+ * @param dest_str A character buffer to store the destination time string (must be at least 17 chars).
+ * @param pres_str A character buffer to store the present time string (must be at least 17 chars).
+ * @param last_str A character buffer to store the last time departed string (must be at least 17 chars).
+ */
 void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str) {
     struct tm dest_timeinfo, present_timeinfo, last_time_departed_info;
     time_t now_t;
@@ -70,6 +87,14 @@ SemaphoreHandle_t xSerialMutex;
 static bool i2c_1_initialized = false;
 static bool i2c_2_initialized = false;
 
+/**
+ * @brief Prints text to a 4-character alphanumeric display segment with justification.
+ * @details This is a utility function to simplify writing text to the Adafruit displays.
+ * It handles clearing the display, padding, and justification (left, right, center).
+ * @param display A reference to the `Adafruit_AlphaNum4` object to write to.
+ * @param text The text to display.
+ * @param justification 0 for left, 1 for right, 2 for center.
+ */
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification) {
   display.clear();
   if (text == nullptr) {
@@ -98,6 +123,12 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
   }
 }
 
+/**
+ * @brief Initializes the physical hardware components.
+ * @details This function initializes the two I2C buses and probes for all 12 alphanumeric
+ * display segments. It also sets up the GPIO pins for the AM/PM LEDs.
+ * @return `true` if all hardware components are found and initialized successfully, `false` otherwise.
+ */
 bool setupPhysicalDisplay() {
   #if ENABLE_HARDWARE
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return false; }
@@ -135,6 +166,16 @@ bool setupPhysicalDisplay() {
   #endif
 }
 
+/**
+ * @brief Internal, non-locking function to update a single display row with a specific time.
+ * @details This function contains the core logic for rendering a time on one of the three
+ * display rows. It handles formatting, AM/PM LEDs, and the blinking colon. It does NOT
+ * acquire the hardware mutex, assuming the calling function has already done so.
+ * @param row The `DisplayRow` object to update.
+ * @param timeinfo A `tm` struct containing the time to display.
+ * @param year The four-digit year to display.
+ * @param showDecimal `true` to show the blinking colon (decimal point) on the time segment.
+ */
 void updateDisplayRow_internal(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
   #if ENABLE_HARDWARE
     char buffer[5];
@@ -175,6 +216,15 @@ void updateDisplayRow_internal(DisplayRow& row, const struct tm& timeinfo, int y
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to update a single display row.
+ * @details This function acquires the hardware mutex before calling the internal `updateDisplayRow_internal`
+ * function, ensuring that the I2C writes are atomic and protected from other tasks.
+ * @param row The `DisplayRow` object to update.
+ * @param timeinfo A `tm` struct containing the time to display.
+ * @param year The four-digit year to display.
+ * @param showDecimal `true` to show the blinking colon on the time segment.
+ */
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
   #if ENABLE_HARDWARE
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
@@ -183,6 +233,15 @@ void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool
   #endif
 }
 
+/**
+ * @brief Internal, non-locking function for the "temporal lock-on" animation frame.
+ * @details This function either displays the correct time or a random time on a row,
+ * creating a flickering "locking-on" effect.
+ * @param row The `DisplayRow` object to animate.
+ * @param timeinfo The final `tm` struct to lock onto.
+ * @param year The final four-digit year to lock onto.
+ * @param showDecimal `true` to show the blinking colon.
+ */
 void animateTemporalLockOn_internal(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
     #if ENABLE_HARDWARE
         if (random(100) < 50) {
@@ -193,6 +252,13 @@ void animateTemporalLockOn_internal(DisplayRow& row, const struct tm& timeinfo, 
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "temporal lock-on" animation.
+ * @param row The `DisplayRow` object to animate.
+ * @param timeinfo The final `tm` struct to lock onto.
+ * @param year The final four-digit year to lock onto.
+ * @param showDecimal `true` to show the blinking colon.
+ */
 void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateTemporalLockOn_internal(row, timeinfo, year, showDecimal);
@@ -200,6 +266,10 @@ void animateTemporalLockOn(DisplayRow& row, const struct tm& timeinfo, int year,
     }
 }
 
+/**
+ * @brief Internal, non-locking function to display random characters on a row.
+ * @param row The `DisplayRow` object to animate.
+ */
 void animateDisplayRowRandomly_internal(DisplayRow& row) {
   #if ENABLE_HARDWARE
     char buffer[5];
@@ -218,6 +288,10 @@ void animateDisplayRowRandomly_internal(DisplayRow& row) {
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to display random characters on a row.
+ * @param row The `DisplayRow` object to animate.
+ */
 void animateDisplayRowRandomly(DisplayRow& row) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateDisplayRowRandomly_internal(row);
@@ -226,6 +300,10 @@ void animateDisplayRowRandomly(DisplayRow& row) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function to display the speedometer.
+ * @param speed The speed (0-99) to display.
+ */
 void displaySpeed_internal(int speed) {
   #if ENABLE_HARDWARE
     char speedBuffer[5];
@@ -241,6 +319,10 @@ void displaySpeed_internal(int speed) {
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to display the speedometer.
+ * @param speed The speed (0-99) to display.
+ */
 void displaySpeed(int speed) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         displaySpeed_internal(speed);
@@ -248,6 +330,10 @@ void displaySpeed(int speed) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for the speedometer ramp-up effect.
+ * @param speed The speed to display.
+ */
 void displaySpeedRamp_internal(int speed) {
 #if ENABLE_HARDWARE
         char speedBuffer[5];
@@ -263,6 +349,10 @@ void displaySpeedRamp_internal(int speed) {
 #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the speedometer ramp-up effect.
+ * @param speed The speed to display.
+ */
 void displaySpeedRamp(int speed) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         displaySpeedRamp_internal(speed);
@@ -270,6 +360,15 @@ void displaySpeedRamp(int speed) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for the "timeline skim" animation.
+ * @details Creates an effect where the year rapidly changes while other date/time
+ * components flicker randomly, simulating a fast skim through time.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param destinationYear The target year to approach.
+ * @param isCountingUp If true, the year counts up; otherwise, it's random.
+ */
 void animateAllRowsTimelineSkim_internal(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp) {
     #if ENABLE_HARDWARE
         float progress = (float)elapsed / duration;
@@ -303,6 +402,13 @@ void animateAllRowsTimelineSkim_internal(unsigned long elapsed, int duration, in
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "timeline skim" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param destinationYear The target year to approach.
+ * @param isCountingUp If true, the year counts up; otherwise, it's random.
+ */
 void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destinationYear, bool isCountingUp) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateAllRowsTimelineSkim_internal(elapsed, duration, destinationYear, isCountingUp);
@@ -311,6 +417,9 @@ void animateAllRowsTimelineSkim(unsigned long elapsed, int duration, int destina
     }
 }
 
+/**
+ * @brief Internal, non-locking function to light up all segments of all displays.
+ */
 void flashAllDisplays_internal() {
     #if ENABLE_HARDWARE
         DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
@@ -329,6 +438,9 @@ void flashAllDisplays_internal() {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to light up all segments of all displays.
+ */
 void flashAllDisplays() {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         flashAllDisplays_internal();
@@ -336,6 +448,10 @@ void flashAllDisplays() {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for the "tornado flicker" animation.
+ * @details Displays random characters across all display rows.
+ */
 void animateTornadoFlicker_internal() {
   #if ENABLE_HARDWARE
     char buffer[5];
@@ -376,6 +492,9 @@ void animateTornadoFlicker_internal() {
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "tornado flicker" animation.
+ */
 void animateTornadoFlicker() {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateTornadoFlicker_internal();
@@ -384,6 +503,9 @@ void animateTornadoFlicker() {
     }
 }
 
+/**
+ * @brief Internal, non-locking function to display random garbage data on all rows.
+ */
 void animateCorruptedData_internal() {
     #if ENABLE_HARDWARE
         const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -409,6 +531,9 @@ void animateCorruptedData_internal() {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to display random garbage data on all rows.
+ */
 void animateCorruptedData() {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateCorruptedData_internal();
@@ -417,6 +542,13 @@ void animateCorruptedData() {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a multi-phase "lock-on" animation.
+ * @details This animation sequentially locks on the year, then the month, then the day,
+ * creating a dramatic reveal effect.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateLockOnSequence_internal(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
         unsigned long yearPhaseDuration = duration * 0.45;
@@ -468,6 +600,11 @@ void animateLockOnSequence_internal(unsigned long elapsed, int duration) {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the multi-phase "lock-on" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateLockOnSequence(unsigned long elapsed, int duration) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateLockOnSequence_internal(elapsed, duration);
@@ -476,6 +613,10 @@ void animateLockOnSequence(unsigned long elapsed, int duration) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function to clear a single display row.
+ * @param row The `DisplayRow` object to clear.
+ */
 void blankDisplayRow_internal(DisplayRow& row) {
     #if ENABLE_HARDWARE
         row.month.clear(); row.day.clear(); row.year.clear(); row.time.clear();
@@ -483,6 +624,10 @@ void blankDisplayRow_internal(DisplayRow& row) {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to clear a single display row.
+ * @param row The `DisplayRow` object to clear.
+ */
 void blankDisplayRow(DisplayRow& row) {
     #if ENABLE_HARDWARE
         if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) != pdTRUE) { return; }
@@ -491,6 +636,14 @@ void blankDisplayRow(DisplayRow& row) {
     #endif
 }
 
+/**
+ * @brief Internal, non-locking function for an "unstable skim" animation.
+ * @details Similar to the timeline skim, but with the added effect of entire rows
+ * randomly blanking out, creating a more unstable, glitchy appearance.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param destinationYear The target year to approach.
+ */
 void animateUnstableSkim_internal(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
         static int blankingRow = -1;
@@ -531,6 +684,12 @@ void animateUnstableSkim_internal(unsigned long elapsed, int duration, int desti
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "unstable skim" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param destinationYear The target year to approach.
+ */
 void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYear) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateUnstableSkim_internal(elapsed, duration, destinationYear);
@@ -539,6 +698,11 @@ void animateUnstableSkim(unsigned long elapsed, int duration, int destinationYea
     }
 }
 
+/**
+ * @brief Internal, non-locking function for the "temporal desync" animation.
+ * @details Creates an effect where each row skims through time at a different rate,
+ * suggesting a desynchronization of the time circuits.
+ */
 void animateTemporalDesync_internal() {
     #if ENABLE_HARDWARE
         auto updateRowWithSkimmingTime = [&](DisplayRow& row, time_t baseTime, long timeMultiplier) {
@@ -569,6 +733,9 @@ void animateTemporalDesync_internal() {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "temporal desync" animation.
+ */
 void animateTemporalDesync() {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateTemporalDesync_internal();
@@ -577,6 +744,9 @@ void animateTemporalDesync() {
     }
 }
 
+/**
+ * @brief Internal, non-locking function to display random, valid dates and times.
+ */
 void animateRandomRealTimes_internal() {
 #if ENABLE_HARDWARE
         DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
@@ -592,6 +762,9 @@ void animateRandomRealTimes_internal() {
 #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to display random, valid dates and times.
+ */
 void animateRandomRealTimes() {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateRandomRealTimes_internal();
@@ -600,6 +773,12 @@ void animateRandomRealTimes() {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "capacitor charge-up" animation.
+ * @details Fills each row sequentially with block characters, simulating a charging effect.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateCapacitorChargeUp_internal(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
         int phase = elapsed / (duration / 3);
@@ -628,6 +807,11 @@ void animateCapacitorChargeUp_internal(unsigned long elapsed, int duration) {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "capacitor charge-up" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateCapacitorChargeUp_internal(elapsed, duration);
@@ -636,6 +820,12 @@ void animateCapacitorChargeUp(unsigned long elapsed, int duration) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "digital rain" animation.
+ * @details Creates a "Matrix"-style digital rain effect with characters falling down the displays.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateDigitalRain_internal(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
         if (!rain_initialized) {
@@ -695,6 +885,11 @@ void animateDigitalRain_internal(unsigned long elapsed, int duration) {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "digital rain" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateDigitalRain(unsigned long elapsed, int duration) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateDigitalRain_internal(elapsed, duration);
@@ -703,6 +898,12 @@ void animateDigitalRain(unsigned long elapsed, int duration) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "waveform collapse" animation.
+ * @details Displays an animated waveform that collapses and expands.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateWaveformCollapse_internal(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
         const char* waves[] = { "-------------", " ---     --- ", "  ---   ---  ", "   -------   ", "  ---   ---  ", " ---     --- " };
@@ -732,6 +933,11 @@ void animateWaveformCollapse_internal(unsigned long elapsed, int duration) {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "waveform collapse" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateWaveformCollapse(unsigned long elapsed, int duration) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateWaveformCollapse_internal(elapsed, duration);
@@ -740,6 +946,12 @@ void animateWaveformCollapse(unsigned long elapsed, int duration) {
     }
 }
 
+/**
+ * @brief DEPRECATED. Another internal, non-locking function for a "timeline skim" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param destinationYear The target year to approach.
+ */
 void animateTimelineSkim_internal(unsigned long elapsed, int duration, int destinationYear) {
     #if ENABLE_HARDWARE
         float progress = (float)elapsed / duration;
@@ -762,6 +974,12 @@ void animateTimelineSkim_internal(unsigned long elapsed, int duration, int desti
     #endif
 }
 
+/**
+ * @brief DEPRECATED. A thread-safe wrapper for the second "timeline skim" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param destinationYear The target year to approach.
+ */
 void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYear) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateTimelineSkim_internal(elapsed, duration, destinationYear);
@@ -769,6 +987,9 @@ void animateTimelineSkim(unsigned long elapsed, int duration, int destinationYea
     }
 }
 
+/**
+ * @brief Internal, non-locking function to clear all display segments on all rows.
+ */
 void blankAllDisplays_internal() {
   #if ENABLE_HARDWARE
     destRow.month.clear(); destRow.day.clear(); destRow.year.clear(); destRow.time.clear();
@@ -780,6 +1001,9 @@ void blankAllDisplays_internal() {
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to clear all display segments on all rows.
+ */
 void blankAllDisplays() {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         blankAllDisplays_internal();
@@ -787,6 +1011,10 @@ void blankAllDisplays() {
     }
 }
 
+/**
+ * @brief Internal, non-locking function to display "88 MPH".
+ * @param speed The speed value (unused, kept for signature compatibility).
+ */
 void display88MphSpeed_internal(float speed) {
   #if ENABLE_HARDWARE
     printToDisplay(lastRow.day, "88", 2);
@@ -796,6 +1024,10 @@ void display88MphSpeed_internal(float speed) {
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to display "88 MPH".
+ * @param speed The speed value (unused, kept for signature compatibility).
+ */
 void display88MphSpeed(float speed) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         display88MphSpeed_internal(speed);
@@ -803,6 +1035,15 @@ void display88MphSpeed(float speed) {
     }
 }
 
+/**
+ * @brief Plays a sound effect from LittleFS.
+ * @details This function handles playing audio files. It includes a guard to prevent
+ * sound effects from interrupting an active internet radio stream. It also supports
+ * a volume override.
+ * @param filepath The path to the audio file in the LittleFS filesystem (e.g., "/hum.mp3").
+ * @param fromMqtt `true` if the sound was triggered by an MQTT message.
+ * @param volume The volume to play the sound at (0-21), or -1 to use the default setting.
+ */
 void playSound(const char* filepath, bool fromMqtt, int volume) {
     #if ENABLE_HARDWARE
         if (isRadioStreaming) {
@@ -848,6 +1089,13 @@ void playSound(const char* filepath, bool fromMqtt, int volume) {
     #endif
 }
 
+/**
+ * @brief Internal, non-locking function to display text with a typewriter effect.
+ * @param row The `DisplayRow` to type on.
+ * @param text The text to display.
+ * @param typeDelay The delay in milliseconds between each character.
+ * @param withCursor (Unused) A placeholder for adding a cursor effect.
+ */
 void typeTextOnDisplay_internal(DisplayRow& row, const char* text, int typeDelay, bool withCursor) {
   #if ENABLE_HARDWARE
     int len = strlen(text);
@@ -887,6 +1135,13 @@ void typeTextOnDisplay_internal(DisplayRow& row, const char* text, int typeDelay
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to display text with a typewriter effect.
+ * @param row The `DisplayRow` to type on.
+ * @param text The text to display.
+ * @param typeDelay The delay in milliseconds between each character.
+ * @param withCursor (Unused) A placeholder for adding a cursor effect.
+ */
 void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool withCursor) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         typeTextOnDisplay_internal(row, text, typeDelay, withCursor);
@@ -894,6 +1149,10 @@ void typeTextOnDisplay(DisplayRow& row, const char* text, int typeDelay, bool wi
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a simple "flux capacitor" animation.
+ * @details Displays "FLX CP ACTV" with a simple frame-based animation.
+ */
 void animateFluxCapacitor_internal() {
   #if ENABLE_HARDWARE
     static int frame = 0;
@@ -917,6 +1176,9 @@ void animateFluxCapacitor_internal() {
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "flux capacitor" animation.
+ */
 void animateFluxCapacitor() {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateFluxCapacitor_internal();
@@ -924,6 +1186,9 @@ void animateFluxCapacitor() {
     }
 }
 
+/**
+ * @brief Internal, non-locking function to display static "FLX CP ACTV" text.
+ */
 void displayStaticFluxText_internal() {
     #if ENABLE_HARDWARE
         printToDisplay(presRow.month, "FLX", 1);
@@ -937,6 +1202,9 @@ void displayStaticFluxText_internal() {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to display static "FLX CP ACTV" text.
+ */
 void displayStaticFluxText() {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         displayStaticFluxText_internal();
@@ -944,6 +1212,9 @@ void displayStaticFluxText() {
     }
 }
 
+/**
+ * @brief Internal, non-locking function to apply the global brightness setting to all displays.
+ */
 void applyBrightness_internal() {
   #if ENABLE_HARDWARE
     uint8_t brightnessValue = currentSettings.brightness;
@@ -974,6 +1245,9 @@ void applyBrightness_internal() {
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper to apply the global brightness setting to all displays.
+ */
 void applyBrightness() {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         applyBrightness_internal();
@@ -981,6 +1255,12 @@ void applyBrightness() {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "sequential flicker" animation.
+ * @details Reveals the display segments one by one in a sequence.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateSequentialFlicker_internal(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
         float progress = (float)elapsed / duration;
@@ -1096,6 +1376,11 @@ void animateSequentialFlicker_internal(unsigned long elapsed, int duration) {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "sequential flicker" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateSequentialFlicker(unsigned long elapsed, int duration) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateSequentialFlicker_internal(elapsed, duration);
@@ -1104,6 +1389,12 @@ void animateSequentialFlicker(unsigned long elapsed, int duration) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "counting up" animation.
+ * @details Rapidly cycles through dates and times on all rows.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateCountingUp_internal(unsigned long elapsed, int duration) {
     #if ENABLE_HARDWARE
         DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
@@ -1131,6 +1422,11 @@ void animateCountingUp_internal(unsigned long elapsed, int duration) {
     #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "counting up" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateCountingUp(unsigned long elapsed, int duration) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateCountingUp_internal(elapsed, duration);
@@ -1139,6 +1435,12 @@ void animateCountingUp(unsigned long elapsed, int duration) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "glitchy jump-cut" animation.
+ * @details Creates a glitch effect by randomly flickering and blanking segments.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateGlitchyJumpCut_internal(unsigned long elapsed, int duration) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1172,6 +1474,11 @@ void animateGlitchyJumpCut_internal(unsigned long elapsed, int duration) {
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "glitchy jump-cut" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animateGlitchyJumpCut(unsigned long elapsed, int duration) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateGlitchyJumpCut_internal(elapsed, duration);
@@ -1180,6 +1487,12 @@ void animateGlitchyJumpCut(unsigned long elapsed, int duration) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "plasma warm-up" animation.
+ * @details Simulates a plasma effect by flickering special characters with increasing brightness.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animatePlasmaWarmUp_internal(unsigned long elapsed, int duration) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1214,6 +1527,11 @@ void animatePlasmaWarmUp_internal(unsigned long elapsed, int duration) {
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "plasma warm-up" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ */
 void animatePlasmaWarmUp(unsigned long elapsed, int duration) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animatePlasmaWarmUp_internal(elapsed, duration);
@@ -1222,6 +1540,15 @@ void animatePlasmaWarmUp(unsigned long elapsed, int duration) {
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "time warp streaks" animation.
+ * @details Slides in the final text from the right, creating a streaking effect.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param final_dest The final destination time string to display.
+ * @param final_pres The final present time string to display.
+ * @param final_last The final last time departed string to display.
+ */
 void animateTimeWarpStreaks_internal(unsigned long elapsed, int duration, const char* final_dest, const char* final_pres, const char* final_last) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1246,6 +1573,14 @@ void animateTimeWarpStreaks_internal(unsigned long elapsed, int duration, const 
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "time warp streaks" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param final_dest The final destination time string to display.
+ * @param final_pres The final present time string to display.
+ * @param final_last The final last time departed string to display.
+ */
 void animateTimeWarpStreaks(unsigned long elapsed, int duration, const char* final_dest, const char* final_pres, const char* final_last) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateTimeWarpStreaks_internal(elapsed, duration, final_dest, final_pres, final_last);
@@ -1253,6 +1588,15 @@ void animateTimeWarpStreaks(unsigned long elapsed, int duration, const char* fin
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "character scanline" animation.
+ * @details Reveals the final text one character at a time, like a scanline.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateCharacterScanline_internal(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1279,6 +1623,14 @@ void animateCharacterScanline_internal(unsigned long elapsed, int duration, cons
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "character scanline" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateCharacterScanline(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateCharacterScanline_internal(elapsed, duration, dest_str, pres_str, last_str);
@@ -1286,6 +1638,15 @@ void animateCharacterScanline(unsigned long elapsed, int duration, const char* d
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "focus in" animation.
+ * @details Reveals the final text by replacing random characters with the correct ones.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateFocusIn_internal(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1326,6 +1687,14 @@ void animateFocusIn_internal(unsigned long elapsed, int duration, const char* de
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "focus in" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateFocusIn(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateFocusIn_internal(elapsed, duration, dest_str, pres_str, last_str);
@@ -1333,6 +1702,15 @@ void animateFocusIn(unsigned long elapsed, int duration, const char* dest_str, c
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "code breaker" animation.
+ * @details Similar to "focus in," but uses a different character set for the scramble.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateCodeBreaker_internal(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1373,6 +1751,14 @@ void animateCodeBreaker_internal(unsigned long elapsed, int duration, const char
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "code breaker" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateCodeBreaker(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateCodeBreaker_internal(elapsed, duration, dest_str, pres_str, last_str);
@@ -1380,6 +1766,15 @@ void animateCodeBreaker(unsigned long elapsed, int duration, const char* dest_st
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "temporal paradox" animation.
+ * @details Swaps the top and middle rows back and forth while the bottom row glitches.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateTemporalParadox_internal(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     bool show_swapped = (elapsed / 200) % 2 == 0;
@@ -1406,6 +1801,14 @@ void animateTemporalParadox_internal(unsigned long elapsed, int duration, const 
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "temporal paradox" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateTemporalParadox(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateTemporalParadox_internal(elapsed, duration, dest_str, pres_str, last_str);
@@ -1414,6 +1817,15 @@ void animateTemporalParadox(unsigned long elapsed, int duration, const char* des
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "digit cascade" animation.
+ * @details Reveals the final text by "cascading" in the correct segments from random garbage.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateDigitCascade_internal(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1464,6 +1876,14 @@ void animateDigitCascade_internal(unsigned long elapsed, int duration, const cha
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "digit cascade" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateDigitCascade(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateDigitCascade_internal(elapsed, duration, dest_str, pres_str, last_str);
@@ -1471,6 +1891,15 @@ void animateDigitCascade(unsigned long elapsed, int duration, const char* dest_s
     }
 }
 
+/**
+ * @brief Internal, non-locking function for an "electric surge" animation.
+ * @details Simulates a surge of electricity that reveals the final text.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateElectricSurge_internal(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1506,6 +1935,14 @@ void animateElectricSurge_internal(unsigned long elapsed, int duration, const ch
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "electric surge" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateElectricSurge(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateElectricSurge_internal(elapsed, duration, dest_str, pres_str, last_str);
@@ -1513,6 +1950,15 @@ void animateElectricSurge(unsigned long elapsed, int duration, const char* dest_
     }
 }
 
+/**
+ * @brief Internal, non-locking function for a "flip-disc" animation.
+ * @details Simulates a mechanical flip-disc display revealing the text.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateFlipDiscDisplay_internal(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1549,6 +1995,14 @@ void animateFlipDiscDisplay_internal(unsigned long elapsed, int duration, const 
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "flip-disc" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateFlipDiscDisplay(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateFlipDiscDisplay_internal(elapsed, duration, dest_str, pres_str, last_str);
@@ -1556,6 +2010,15 @@ void animateFlipDiscDisplay(unsigned long elapsed, int duration, const char* des
     }
 }
 
+/**
+ * @brief Internal, non-locking function for an "interference pattern" animation.
+ * @details Creates a visual static/interference effect that resolves to the final text.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateInterferencePattern_internal(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
   #if ENABLE_HARDWARE
     float progress = (float)elapsed / duration;
@@ -1588,6 +2051,14 @@ void animateInterferencePattern_internal(unsigned long elapsed, int duration, co
   #endif
 }
 
+/**
+ * @brief A thread-safe wrapper for the "interference pattern" animation.
+ * @param elapsed The time in milliseconds since the animation started.
+ * @param duration The total duration of the animation in milliseconds.
+ * @param dest_str The final destination time string to display.
+ * @param pres_str The final present time string to display.
+ * @param last_str The final last time departed string to display.
+ */
 void animateInterferencePattern(unsigned long elapsed, int duration, const char* dest_str, const char* pres_str, const char* last_str) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         animateInterferencePattern_internal(elapsed, duration, dest_str, pres_str, last_str);
@@ -1595,6 +2066,13 @@ void animateInterferencePattern(unsigned long elapsed, int duration, const char*
     }
 }
 
+/**
+ * @brief A thread-safe wrapper for `printf` to the Serial port.
+ * @details This function uses a mutex to prevent garbled output when multiple FreeRTOS
+ * tasks are logging to the Serial port simultaneously.
+ * @param format The format string, as in `printf`.
+ * @param ... The variable arguments for the format string.
+ */
 void safe_printf(const char *format, ...) {
     static char buf[2500];
     va_list args;
@@ -1620,6 +2098,14 @@ void safe_printf(const char *format, ...) {
     va_end(args);
 }
 
+/**
+ * @brief DEPRECATED. Resets a specified I2C bus.
+ * @details This function was originally intended to recover a stuck I2C bus by
+ * re-initializing it. However, this has been found to cause system instability
+ * and is now disabled. It remains as a no-op to avoid breaking any code that might
+ * still call it.
+ * @param i2c_num The I2C bus number to reset (0 or 1).
+ */
 void resetI2CBus(int i2c_num) {
     #if ENABLE_HARDWARE
     Log_printf(LOG_LEVEL_WARN, "I2C bus reset for bus #%d requested, but this action is now disabled to prevent system instability.", i2c_num);

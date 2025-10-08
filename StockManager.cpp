@@ -1,3 +1,12 @@
+/**
+ * @file StockManager.cpp
+ * @brief Implements the logic for fetching, parsing, and managing stock market data.
+ * @details This class handles all interactions with the Financial Modeling Prep API,
+ * including validating symbols, fetching quotes, and managing API usage. It runs
+ * its network operations in separate FreeRTOS tasks to avoid blocking the main loop.
+ * It also provides the formatted data for the stock ticker display mode.
+ */
+
 #include "StockManager.h"
 #include "SizedStream.h"
 #include "DebugLog.h"
@@ -14,14 +23,6 @@ void broadcastStockUpdate(); // Forward declaration
 // Forward declaration for the task function
 void fetchSingleStockTask(void* p);
 
-/**
- * @brief Normalizes a stock symbol to a simple string.
- * @details The symbol can be a plain string (e.g., "AAPL") or a JSON string
- * (e.g., '{"symbol":"AAPL",...}'). This function ensures a clean, simple
- * symbol string is returned.
- * @param symbol The stock symbol string, which might be malformed as a JSON object.
- * @return The simple symbol string (e.g., "AAPL").
- */
 String getSimpleSymbolFromString(const String& symbol) {
     if (symbol.startsWith("{")) {
         JsonDocument doc;
@@ -36,7 +37,13 @@ String getSimpleSymbolFromString(const String& symbol) {
     return symbol;
 }
 
-// A simple Stream implementation for esp_tls
+/**
+ * @class TlsStream
+ * @brief A `Stream` interface wrapper for an `esp_tls` connection.
+ * @details This class allows the ArduinoJson library, which expects a `Stream` object,
+ * to read directly from a secure TLS connection managed by the ESP-IDF `esp_tls` library.
+ * It handles the low-level read operations and timeouts.
+ */
 class TlsStream : public Stream {
 private:
     esp_tls_t *tls;
@@ -103,9 +110,13 @@ public:
     }
 };
 
-// A stream that combines a pre-read buffer with another stream.
-// This is necessary because we read a chunk of the response to find the
-// end of the HTTP headers, and that chunk may contain the start of the body.
+/**
+ * @class DechunkingStream
+ * @brief A `Stream` implementation that decodes an HTTP chunked transfer encoding stream.
+ * @details This stream wrapper reads a chunked stream, parses the chunk sizes, and presents
+ * a clean, contiguous stream of the body content to the consumer (e.g., ArduinoJson).
+ * This is essential for correctly parsing responses from servers that use chunked encoding.
+ */
 class DechunkingStream : public Stream {
 private:
     Stream& _stream;
@@ -219,6 +230,14 @@ public:
     }
 };
 
+/**
+ * @class CombinedStream
+ * @brief A `Stream` that transparently reads from a buffer first, then from another stream.
+ * @details This is used to handle HTTP responses where an initial read to find the headers
+ * also consumed part of the response body. This class allows the JSON parser to see a single,
+ * uninterrupted stream by first serving the pre-read body part from the buffer, and then
+ * continuing to read from the underlying network stream.
+ */
 class CombinedStream : public Stream {
 private:
     const char* _buffer;
@@ -258,7 +277,11 @@ public:
     }
 };
 
-// Root CA certificate for financialmodelingprep.com (Amazon RSA 2048 M04)
+/**
+ * @brief The Root CA certificate for the Financial Modeling Prep API.
+ * @details This is the Amazon Root CA 1, which is required to establish a secure (TLS)
+ * connection to `financialmodelingprep.com`.
+ */
 static const char *fmp_root_ca = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIEXjCCA0agAwIBAgITB3MSTyqVLj7Rili9uF0bwM5fJzANBgkqhkiG9w0BAQsF\n" \
@@ -289,6 +312,11 @@ static const char *fmp_root_ca = \
 
 #include <Preferences.h>
 
+/**
+ * @brief Constructor for the StockManager class.
+ * @details Initializes all member variables to their default states and creates the
+ * necessary FreeRTOS mutexes for thread-safe operations.
+ */
 StockManager::StockManager() :
     _api_key(""),
     _refresh_interval_ms(20 * 60 * 1000), // Default 20 minutes
@@ -305,11 +333,22 @@ StockManager::StockManager() :
     _assets_mutex = xSemaphoreCreateMutex();
 }
 
+/**
+ * @brief Initializes the StockManager.
+ * @details This should be called once during the `setup()` function. It loads the
+ * persisted API usage data from NVS.
+ */
 void StockManager::begin() {
     loadApiUsage();
     Log_printf(LOG_LEVEL_INFO, "StockManager initialized.");
 }
 
+/**
+ * @brief The main loop for the StockManager.
+ * @details This function is called on every iteration of the main application loop.
+ * It checks if a data fetch is needed based on the refresh interval and triggers
+ * the asynchronous fetch process. It also handles the daily reset of the API usage counter.
+ */
 void StockManager::loop() {
     resetApiUsageIfNecessary();
     if (!_enabled || _is_fetching || _api_key.isEmpty()) {
@@ -334,6 +373,14 @@ void StockManager::loop() {
     }
 }
 
+/**
+ * @brief Adds a new stock or crypto asset to be tracked.
+ * @details This function validates the symbol by fetching its exchange from the API.
+ * If the symbol is valid, it's added to the internal list of assets and an
+ * immediate data fetch for that single asset is triggered.
+ * @param symbol The stock symbol to add (e.g., "AAPL").
+ * @return An `AssetAddResult` enum indicating success, failure, or if the asset already exists.
+ */
 AssetAddResult StockManager::addAsset(const String& symbol) {
     String clean_symbol = getSimpleSymbolFromString(symbol);
 
@@ -386,6 +433,11 @@ AssetAddResult StockManager::addAsset(const String& symbol) {
     return SUCCESS;
 }
 
+/**
+ * @brief Removes an asset from the tracking list.
+ * @param symbol The symbol of the asset to remove.
+ * @return `true` if the asset was found and removed, `false` otherwise.
+ */
 bool StockManager::removeAsset(const String& symbol) {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     auto it = std::remove_if(_assets.begin(), _assets.end(), [&](const Asset& asset) {
@@ -405,6 +457,9 @@ bool StockManager::removeAsset(const String& symbol) {
     return removed;
 }
 
+/**
+ * @brief Removes all assets from the tracking list.
+ */
 void StockManager::clearAssets() {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     _assets.clear();
@@ -412,6 +467,13 @@ void StockManager::clearAssets() {
     Log_printf(LOG_LEVEL_INFO, "All assets cleared.");
 }
 
+/**
+ * @brief Gets a constant reference to the internal vector of assets.
+ * @details This provides efficient, read-only access to the asset list. The caller
+ * must not hold onto the reference for a long time, as the list could be modified
+ * by a background task. It is intended for short-lived operations.
+ * @return A `const` reference to the `std::vector<Asset>`.
+ */
 const std::vector<Asset>& StockManager::getAssets() const {
     // Note: This method returns a const reference.
     // The caller must not hold onto this reference for a long time
@@ -426,6 +488,12 @@ const std::vector<Asset>& StockManager::getAssets() const {
 // Forward declaration for the FreeRTOS task
 void fetchStockDataBatchTask(void* p);
 
+/**
+ * @brief Initiates the asynchronous process of fetching data for all tracked assets.
+ * @details This function separates assets into stocks and cryptocurrencies. It then
+ * creates separate FreeRTOS tasks to fetch the data for each group, allowing them
+ * to run in parallel without blocking the main loop.
+ */
 void StockManager::fetchData() {
     if (_assets.empty() || _api_key.isEmpty()) {
         _is_fetching = false;
@@ -486,6 +554,14 @@ void StockManager::fetchData() {
 }
 
 
+/**
+ * @brief Fetches the exchange for a given stock symbol to validate it.
+ * @details This function queries the FMP API's symbol search endpoint. A successful
+ * response containing an exchange name indicates that the symbol is valid and can
+ * be added to the tracking list.
+ * @param symbol The stock symbol to validate.
+ * @return A `String` containing the exchange name if found, or an empty string if not.
+ */
 String StockManager::fetchExchangeForSymbol(const String& symbol) const {
     Log_printf(LOG_LEVEL_INFO, "Fetching exchange for symbol: %s", symbol.c_str());
 
@@ -607,6 +683,14 @@ cleanup:
     return exchange;
 }
 
+/**
+ * @brief Fetches quote data for a single symbol from the API.
+ * @details This is a low-level worker function that performs the actual network
+ * request for a single stock or crypto symbol. It handles the TLS connection,
+ * HTTP request, and response parsing.
+ * @param symbol_vec A vector containing the single symbol to fetch.
+ * @return A `FetchStatus` enum indicating the result of the operation.
+ */
 FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& symbol_vec) {
     if (symbol_vec.empty()) {
         return FETCH_SUCCESS; // Nothing to fetch
@@ -809,6 +893,13 @@ cleanup:
     return status;
 }
 
+/**
+ * @brief Fetches data for a list of symbols, one at a time, with retry logic.
+ * @details This function iterates through a vector of symbols and calls
+ * `fetchDataForSingleSymbol` for each one. It includes a retry loop and handles
+ * API rate limiting by introducing delays.
+ * @param symbols A vector of symbols to fetch data for.
+ */
 void StockManager::fetchDataForMultipleSymbols(const std::vector<String>& symbols) {
     for (const auto& symbol : symbols) {
         FetchStatus status = FETCH_FAILED;
@@ -873,6 +964,15 @@ void StockManager::fetchDataForMultipleSymbols(const std::vector<String>& symbol
     }
 }
 
+/**
+ * @brief Parses the JSON response from the FMP API and updates the asset data.
+ * @details This function takes the parsed `JsonDocument` from a fetch operation,
+ * extracts the relevant fields (price, change, etc.), and updates the corresponding
+ * `Asset` object in the internal `_assets` vector. It handles both single-object
+ * and array responses from the API.
+ * @param doc The `JsonDocument` containing the parsed API response.
+ * @param requested_symbols The list of symbols that were included in this API request.
+ */
 void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String>& requested_symbols) {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
 
@@ -992,6 +1092,11 @@ void StockManager::parseJsonResponse(JsonDocument& doc, const std::vector<String
     xSemaphoreGive(_assets_mutex);
 }
 
+/**
+ * @brief A FreeRTOS task function for fetching a batch of stock or crypto data.
+ * @param p A pointer to a `StockFetchParams` struct containing the symbols to fetch
+ * and a pointer to the `StockManager` instance.
+ */
 void fetchStockDataBatchTask(void* p) {
     StockFetchParams* params = (StockFetchParams*)p;
     params->manager->fetchDataForMultipleSymbols(params->symbols);
@@ -1008,8 +1113,12 @@ void fetchStockDataBatchTask(void* p) {
     vTaskDelete(NULL);
 }
 
-// This is the new task function for fetching a single, newly added asset.
-// It does not interfere with the main batch fetching state (_is_fetching, _running_tasks).
+/**
+ * @brief A FreeRTOS task function for fetching data for a single, newly added asset.
+ * @details This task is spawned when a new asset is added via the UI to provide
+ * immediate feedback. It runs independently of the main batch fetching cycle.
+ * @param p A pointer to a `StockFetchParams` struct.
+ */
 void fetchSingleStockTask(void* p) {
     StockFetchParams* params = (StockFetchParams*)p;
     Log_printf(LOG_LEVEL_INFO, "Single stock fetch task started for %s.", params->symbols[0].c_str());
@@ -1020,6 +1129,11 @@ void fetchSingleStockTask(void* p) {
     vTaskDelete(NULL);
 }
 
+/**
+ * @brief Converts a currency code (e.g., "USD") to its symbol (e.g., "$").
+ * @param currency_code The 3-letter currency code.
+ * @return A `String` containing the corresponding currency symbol.
+ */
 String getCurrencySymbol(const String& currency_code) {
     if (currency_code.isEmpty() || currency_code == "USD" || currency_code.equalsIgnoreCase("null")) return "$";
     if (currency_code == "EUR") return "€";
@@ -1031,7 +1145,13 @@ String getCurrencySymbol(const String& currency_code) {
     return currency_code; // Fallback to the code itself
 }
 
-// Helper function to format large volume numbers into a compact, readable string.
+/**
+ * @brief Formats a large volume number into a compact, human-readable string.
+ * @details Converts a large number into a shorter format with a suffix (K, M, B).
+ * For example, 1,234,567 becomes "1.23M".
+ * @param volume The volume number to format.
+ * @return A `String` with the formatted volume.
+ */
 String formatVolume(unsigned long volume) {
     if (volume == 0) {
         return "0";
@@ -1050,6 +1170,13 @@ String formatVolume(unsigned long volume) {
     return String(buffer);
 }
 
+/**
+ * @brief Generates the text for the current line of the stock ticker marquee.
+ * @details This function implements the state machine for the ticker display. It cycles
+ * through each tracked asset, and for each asset, it cycles through different pages
+ * of information (e.g., price/change, high/low/volume).
+ * @return A `String` containing the fully formatted text to be scrolled on the display.
+ */
 String StockManager::getMarqueeLine() {
     if (!_enabled) {
         return "";
@@ -1124,14 +1251,25 @@ String StockManager::getMarqueeLine() {
     return String(buffer);
 }
 
+/**
+ * @brief Checks if new stock data has been fetched since the last check.
+ * @return `true` if data has been updated, `false` otherwise.
+ */
 bool StockManager::hasDataBeenUpdated() {
     return _data_updated;
 }
 
+/**
+ * @brief Clears the data updated flag.
+ * @details This is called after the display has acknowledged the new data.
+ */
 void StockManager::clearDataUpdatedFlag() {
     _data_updated = false;
 }
 
+/**
+ * @brief Advances the stock ticker to the next page or asset.
+ */
 void StockManager::nextPage() {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     if (_assets.empty()) {
@@ -1155,6 +1293,9 @@ void StockManager::nextPage() {
     xSemaphoreGive(_assets_mutex);
 }
 
+/**
+ * @brief Moves the stock ticker to the previous page or asset.
+ */
 void StockManager::previousPage() {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     if (_assets.empty()) {
@@ -1179,14 +1320,26 @@ void StockManager::previousPage() {
     xSemaphoreGive(_assets_mutex);
 }
 
+/**
+ * @brief Sets the API key for the Financial Modeling Prep API.
+ * @param key The API key string.
+ */
 void StockManager::setApiKey(const String& key) {
     _api_key = key;
 }
 
+/**
+ * @brief Gets the currently configured API key.
+ * @return The API key `String`.
+ */
 String StockManager::getApiKey() const {
     return _api_key;
 }
 
+/**
+ * @brief Sets the data refresh interval.
+ * @param interval The interval in minutes.
+ */
 void StockManager::setRefreshInterval(unsigned long interval) {
     if (interval > 0) {
         _refresh_interval_ms = interval * 60 * 1000;
@@ -1194,14 +1347,28 @@ void StockManager::setRefreshInterval(unsigned long interval) {
     }
 }
 
+/**
+ * @brief Enables or disables the stock ticker feature.
+ * @param enabled `true` to enable, `false` to disable.
+ */
 void StockManager::setEnabled(bool enabled) {
     _enabled = enabled;
 }
 
+/**
+ * @brief Gets the current API usage count for the day.
+ * @return The number of API calls made today.
+ */
 int StockManager::getApiUsage() const {
     return _api_usage_count;
 }
 
+/**
+ * @brief Checks if the US stock market is currently open.
+ * @details This function uses the synchronized time to determine if the current time
+ * is between 9:30 AM and 4:00 PM Eastern Time on a weekday.
+ * @return `true` if the market is open, `false` otherwise.
+ */
 bool StockManager::isMarketOpen() const {
     if (!timeSynchronized) {
         return false; // Cannot check market status if time is not synced
@@ -1230,6 +1397,9 @@ bool StockManager::isMarketOpen() const {
     return false;
 }
 
+/**
+ * @brief Loads the API usage data from Non-Volatile Storage (NVS).
+ */
 void StockManager::loadApiUsage() {
     Preferences preferences;
     preferences.begin("stocks", true);
@@ -1239,6 +1409,9 @@ void StockManager::loadApiUsage() {
     Log_printf(LOG_LEVEL_INFO, "Loaded API usage count: %d, last reset day: %d", _api_usage_count, _last_reset_day);
 }
 
+/**
+ * @brief Saves the current API usage data to NVS.
+ */
 void StockManager::saveApiUsage() {
     Preferences preferences;
     preferences.begin("stocks", false);
@@ -1247,6 +1420,9 @@ void StockManager::saveApiUsage() {
     preferences.end();
 }
 
+/**
+ * @brief Resets the daily API usage counter if a new day has begun.
+ */
 void StockManager::resetApiUsageIfNecessary() {
     if (!timeSynchronized) {
         return; // Cannot check the date if time is not synced
@@ -1265,6 +1441,14 @@ void StockManager::resetApiUsageIfNecessary() {
     }
 }
 
+/**
+ * @brief Updates the entire list of tracked assets based on a new list of symbols.
+ * @details This function intelligently handles additions, removals, and reordering.
+ * It preserves existing data for symbols that remain in the list, validates and
+ * adds new symbols, and removes any symbols that are no longer present. Finally,
+ * it saves the new, ordered list to flash.
+ * @param symbols A vector of symbol strings representing the desired state.
+ */
 void StockManager::updateAndSaveAssets(const std::vector<String>& symbols) {
     Log_printf(LOG_LEVEL_INFO, "Updating and saving assets.");
 
@@ -1328,6 +1512,11 @@ void StockManager::updateAndSaveAssets(const std::vector<String>& symbols) {
     Log_printf(LOG_LEVEL_INFO, "Finished updating and saving assets.");
 }
 
+/**
+ * @brief Updates the internal asset list from a JSON string.
+ * @details This is typically used when loading the asset list from flash storage.
+ * @param jsonString A string containing a JSON array of asset objects.
+ */
 void StockManager::updateAssetsFromJson(const String& jsonString) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, jsonString);
@@ -1351,6 +1540,11 @@ void StockManager::updateAssetsFromJson(const String& jsonString) {
     Log_printf(LOG_LEVEL_INFO, "Loaded %d stock assets from JSON.", numLoaded);
 }
 
+/**
+ * @brief Saves the current list of tracked assets to NVS.
+ * @details The asset list is serialized to a JSON string before being written to
+ * flash memory using the Preferences library.
+ */
 void StockManager::saveAssets() {
     std::vector<Asset> assets_copy;
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
@@ -1408,6 +1602,9 @@ void StockManager::saveAssets() {
     }
 }
 
+/**
+ * @brief Loads the list of tracked assets from NVS.
+ */
 void StockManager::loadAssets() {
     Preferences preferences;
     preferences.begin("stocks", true); // read-only
@@ -1416,14 +1613,25 @@ void StockManager::loadAssets() {
     updateAssetsFromJson(assetsJson);
 }
 
+/**
+ * @brief Checks if the device's time has been synchronized via NTP.
+ * @return `true` if time is synchronized, `false` otherwise.
+ */
 bool StockManager::isTimeSynchronized() const {
     return timeSynchronized;
 }
 
+/**
+ * @brief Checks if a data fetch is currently in progress.
+ * @return `true` if fetching, `false` otherwise.
+ */
 bool StockManager::isFetching() const {
     return _is_fetching;
 }
 
+/**
+ * @brief Resets the stock ticker back to the first page of the first asset.
+ */
 void StockManager::resetTicker() {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     _current_asset_index = 0;
@@ -1432,6 +1640,10 @@ void StockManager::resetTicker() {
     Log_printf(LOG_LEVEL_INFO, "Stock ticker reset to initial state.");
 }
 
+/**
+ * @brief Gets a copy of the currently displayed asset's data.
+ * @return An `Asset` struct containing the data for the current asset.
+ */
 Asset StockManager::getCurrentStockInfo() const {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     if (_assets.empty()) {
@@ -1448,6 +1660,10 @@ Asset StockManager::getCurrentStockInfo() const {
     return current_asset;
 }
 
+/**
+ * @brief Checks if there is valid, fetched data for at least one tracked asset.
+ * @return `true` if any asset has valid data, `false` otherwise.
+ */
 bool StockManager::hasAnyValidData() const {
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
     for (const auto& asset : _assets) {

@@ -26,6 +26,13 @@ extern bool weatherDataUpdated;
 
 extern StockData stockData[3];
 
+/**
+ * @brief URL-encodes a string.
+ * @details This function converts a string into a URL-safe format by replacing
+ * special characters with their percent-encoded equivalents (e.g., ' ' becomes '%20').
+ * @param msg The C-style string to encode.
+ * @return A `String` object containing the encoded URL.
+ */
 String urlEncode(const char* msg) {
     const char *hex = "0123456789abcdef";
     String encodedMsg = "";
@@ -99,7 +106,13 @@ JsonVariant getJsonVariant(JsonVariant root, const char* path) {
 
 
 
-// A simple Stream implementation for esp_tls
+/**
+ * @class TlsStream
+ * @brief A `Stream` interface wrapper for an `esp_tls` connection.
+ * @details This class allows the ArduinoJson library, which expects a `Stream` object,
+ * to read directly from a secure TLS connection managed by the ESP-IDF `esp_tls` library.
+ * It handles the low-level read operations and timeouts.
+ */
 class TlsStream : public Stream {
 private:
     esp_tls_t *tls;
@@ -166,9 +179,13 @@ public:
     }
 };
 
-// A stream that combines a pre-read buffer with another stream.
-// This is necessary because we read a chunk of the response to find the
-// end of the HTTP headers, and that chunk may contain the start of the body.
+/**
+ * @class DechunkingStream
+ * @brief A `Stream` implementation that decodes an HTTP chunked transfer encoding stream.
+ * @details This stream wrapper reads a chunked stream, parses the chunk sizes, and presents
+ * a clean, contiguous stream of the body content to the consumer (e.g., ArduinoJson).
+ * This is essential for correctly parsing responses from servers that use chunked encoding.
+ */
 class DechunkingStream : public Stream {
 private:
     Stream& _stream;
@@ -282,6 +299,14 @@ public:
     }
 };
 
+/**
+ * @class CombinedStream
+ * @brief A `Stream` that transparently reads from a buffer first, then from another stream.
+ * @details This is used to handle HTTP responses where an initial read to find the headers
+ * also consumed part of the response body. This class allows the JSON parser to see a single,
+ * uninterrupted stream by first serving the pre-read body part from the buffer, and then
+ * continuing to read from the underlying network stream.
+ */
 class CombinedStream : public Stream {
 private:
     const char* _buffer;
@@ -321,7 +346,11 @@ public:
     }
 };
 
-// Root CA certificate for api.open-meteo.com (Let's Encrypt R13)
+/**
+ * @brief The Root CA certificate for the Open-Meteo API.
+ * @details This is the ISRG Root X1 certificate from Let's Encrypt, which is required to
+ * establish a secure (TLS) connection to `api.open-meteo.com`.
+ */
 static const char *open_meteo_com_root_ca = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIFBTCCAu2gAwIBAgIQWgDyEtjUtIDzkkFX6imDBTANBgkqhkiG9w0BAQsFADBP\n" \
@@ -353,8 +382,14 @@ static const char *open_meteo_com_root_ca = \
 "wVD89qSTlnctLcZnIavjKsKUu1nA1iU0yYMdYepKR7lWbnwhdx3ewok=\n" \
 "-----END CERTIFICATE-----\n";
 
-// This new function is responsible for fetching all weather data (current, daily, and hourly) in a single API call.
-// It performs one atomic attempt. Retries are handled by the calling function.
+/**
+ * @brief Fetches and parses weather data from the Open-Meteo API.
+ * @details This function performs a single, atomic attempt to connect to the weather API,
+ * send a request, and parse the JSON response. It handles TLS setup, HTTP request
+ * construction, response parsing (including chunked encoding), and populates the
+ * global `currentWeatherData` struct. Retries are handled by the calling function.
+ * @return `true` if the weather data was fetched and parsed successfully, `false` otherwise.
+ */
 static bool fetchWeatherDataFromApi() {
     esp_tls_t *tls = esp_tls_init();
     if (tls == NULL) {
@@ -717,7 +752,10 @@ static bool fetchWeatherDataFromApi() {
 #include <algorithm>
 #include <cctype>
 
-// Function to trim leading and trailing whitespace from a std::string
+/**
+ * @brief Trims leading and trailing whitespace from a `std::string`.
+ * @param s The string to be trimmed in-place.
+ */
 void trim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
         return !std::isspace(ch);
@@ -727,6 +765,15 @@ void trim(std::string &s) {
     }).base(), s.end());
 }
 
+/**
+ * @brief The main worker function for fetching weather data, including retry logic.
+ * @details This function is executed in a FreeRTOS task. It calls `fetchWeatherDataFromApi`
+ * and implements a retry mechanism, attempting to fetch the data up to 3 times if the
+ * initial attempts fail. It also includes logic to abort retries for unrecoverable
+ * configuration errors (e.g., invalid API key or location).
+ * @param params A pointer to a `WeatherTaskParams` struct containing the location data.
+ * The function takes ownership of this pointer and will delete it.
+ */
 void fetchWeatherData(WeatherTaskParams* params) {
     // This function is now simplified. It only fetches weather for the coordinates
     // stored in currentSettings. The UI is responsible for all geocoding.
@@ -814,6 +861,12 @@ void fetchWeatherData(WeatherTaskParams* params) {
 }
 
 
+/**
+ * @brief A FreeRTOS task function for routine, periodic weather updates.
+ * @details This task fetches weather data using the coordinates currently stored in the
+ * device's settings. It is typically triggered by a timer for background updates.
+ * @param p Task parameters (unused).
+ */
 void fetchWeatherDataTask(void* p) {
     // This task is for routine, non-forced updates.
     // It uses the latitude and longitude stored in the current settings.
@@ -823,6 +876,13 @@ void fetchWeatherDataTask(void* p) {
     vTaskDelete(NULL);
 }
 
+/**
+ * @brief A FreeRTOS task function for a forced weather update with new coordinates.
+ * @details This task is used when the user changes their location in the web UI. It
+ * receives the new coordinates via its task parameter and initiates an immediate
+- * weather data fetch for that new location.
+ * @param p A pointer to a `WeatherTaskParams` struct containing the new location data.
+ */
 void forceFetchWeatherDataTask(void* p) {
     WeatherTaskParams* params = (WeatherTaskParams*)p;
     fetchWeatherData(params);
@@ -830,6 +890,13 @@ void forceFetchWeatherDataTask(void* p) {
     vTaskDelete(NULL);
 }
 
+/**
+ * @brief A FreeRTOS task that monitors the completion of multiple data fetch tasks.
+ * @details This task is used for the Data Link feature. It waits until a specified number
+ * of asynchronous data fetch tasks have completed, and then it resets the global
+- * `isFetchingData` flag. This prevents the UI from appearing "stuck" in a loading state.
+ * @param p The number of tasks to wait for, cast as a `void*`.
+ */
 void checkDataFetchStatusTask(void* p) {
     int tasksCreated = (int)p;
     Log_printf(LOG_LEVEL_DEBUG, "Data fetch status checker task started, waiting for %d tasks.", tasksCreated);
@@ -847,6 +914,12 @@ void checkDataFetchStatusTask(void* p) {
     }
 }
 
+/**
+ * @brief Placeholder function for fetching data for the "Data Link" display mode.
+ * @details Currently, this function is a no-op. Data for the Data Link mode is updated
+ * reactively via MQTT callbacks. This function is retained as a placeholder for any
+ * future pull-based data sources that might be added to the Data Link feature.
+ */
 void fetchDataLink() {
     if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(10)) != pdTRUE) {
         return;

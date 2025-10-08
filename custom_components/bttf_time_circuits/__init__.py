@@ -1,4 +1,11 @@
-"""The Back to the Future Time Circuits integration."""
+"""
+The Back to the Future Time Circuits integration.
+
+This component provides a Home Assistant integration for the ESP32-based
+Back to the Future Time Circuits clock replica. It sets up the necessary
+platforms (sensors, switches, etc.), manages the device connection, and
+registers custom services for interacting with the clock.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -31,14 +38,38 @@ PLATFORMS: list[str] = [
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the BTTF Time Circuits component."""
+    """
+    Set up the BTTF Time Circuits component.
+
+    This is the entry point for the integration. It initializes the domain
+    data dictionary in Home Assistant.
+
+    Args:
+        hass: The Home Assistant instance.
+        config: The configuration for the component.
+
+    Returns:
+        True if the setup was successful.
+    """
     _LOGGER.debug("async_setup")
     hass.data.setdefault(DOMAIN, {})
     return True
 
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
-    """Migrate old entry."""
+    """
+    Migrate an old config entry.
+
+    This function is called by Home Assistant to migrate a configuration entry
+    from an older version to the current version.
+
+    Args:
+        hass: The Home Assistant instance.
+        config_entry: The configuration entry to migrate.
+
+    Returns:
+        True if the migration was successful.
+    """
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
     if config_entry.version == 1:
@@ -51,12 +82,34 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
 
 async def options_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update."""
+    """
+    Handle an options update.
+
+    This is called when the user updates the configuration options for the
+    integration. It reloads the config entry to apply the changes.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry: The configuration entry that was updated.
+    """
     await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up BTTF Time Circuits from a config entry."""
+    """
+    Set up BTTF Time Circuits from a config entry.
+
+    This function is called when a config entry is created or loaded. It
+    initializes the device communication, sets up the platforms, and registers
+    the custom services for the integration.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry: The configuration entry.
+
+    Returns:
+        True if the entry was set up successfully.
+    """
     _LOGGER.debug("async_setup_entry")
     device_id = entry.data.get("device_id")
 
@@ -160,7 +213,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
+    """
+    Unload a config entry.
+
+    This function is called when a config entry is being removed or reloaded.
+    It unloads the platforms and cleans up the resources associated with the
+    config entry.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry: The configuration entry to unload.
+
+    Returns:
+        True if the entry was unloaded successfully.
+    """
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][entry.entry_id]
     if device.coordinator:
         # You might want to cancel any ongoing updates

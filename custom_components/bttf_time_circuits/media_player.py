@@ -1,4 +1,10 @@
-"""MediaPlayer platform for the Back to the Future Time Circuits integration."""
+"""
+MediaPlayer platform for the Back to the Future Time Circuits integration.
+
+This platform creates a media_player entity for the Time Circuits device,
+which allows for playing sound effects, internet radio streams, and handling
+Text-to-Speech (TTS) announcements.
+"""
 from __future__ import annotations
 
 import json
@@ -61,7 +67,14 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the BTTF Time Circuits media player."""
+    """
+    Set up the BTTF Time Circuits media player from a config entry.
+
+    Args:
+        hass: The Home Assistant instance.
+        config_entry: The configuration entry for the integration.
+        async_add_entities: A callback function to add the entities.
+    """
     _LOGGER.debug("media_player.async_setup_entry")
     device: BTTFTimeCircuitsDevice = hass.data[DOMAIN][config_entry.entry_id]
     async_add_entities(
@@ -70,7 +83,11 @@ async def async_setup_entry(
 
 
 class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
-    """Representation of a BTTF Time Circuits Media Player."""
+    """
+    Representation of a BTTF Time Circuits Media Player.
+
+    This entity handles all audio-related interactions with the device.
+    """
 
     entity_description: MediaPlayerEntityDescription
 
@@ -84,7 +101,13 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         device: BTTFTimeCircuitsDevice,
         description: MediaPlayerEntityDescription,
     ) -> None:
-        """Initialize the media player."""
+        """
+        Initialize the media player.
+
+        Args:
+            device: The BTTFTimeCircuitsDevice instance.
+            description: The entity description for the media player.
+        """
         _LOGGER.debug(
             f"BTTFTimeCircuitsMediaPlayer.__init__ for device: {device.device_id}"
         )
@@ -97,7 +120,7 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         self._attr_media_title = None
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to MQTT events."""
+        """Subscribe to MQTT events when the entity is added to Home Assistant."""
         await super().async_added_to_hass()
 
         @callback
@@ -127,7 +150,12 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
         )
 
     async def async_set_volume_level(self, volume: float) -> None:
-        """Set the volume level."""
+        """
+        Set the volume level.
+
+        Args:
+            volume: The volume level (0.0 to 1.0).
+        """
         # Convert HA's 0-1 scale to device's 0-21 scale
         device_volume = int(round(volume * 21.0))
         command_topic = f"{self._device.base_topic}/volume/command"
@@ -152,7 +180,17 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
     async def async_play_media(
         self, media_type: MediaType | str, media_id: str, **kwargs: Any
     ) -> None:
-        """Play a piece of media."""
+        """
+        Play a piece of media.
+
+        This is the central command for playing audio. It handles different
+        media types by publishing the appropriate MQTT payload to the device.
+
+        Args:
+            media_type: The type of media to play (e.g., music, sound, channel).
+            media_id: The identifier for the media (e.g., a URL or sound name).
+            **kwargs: Additional arguments.
+        """
         self._attr_media_content_id = media_id
         self._attr_media_content_type = media_type
         self._attr_media_title = media_id
@@ -200,7 +238,12 @@ class BTTFTimeCircuitsMediaPlayer(BTTFTimeCircuitsEntity, MediaPlayerEntity):
             return
 
     async def async_select_source(self, source: str) -> None:
-        """Select a source to play."""
+        """
+        Select a source to play from the source list.
+
+        Args:
+            source: The name of the source selected by the user.
+        """
         if source == "Favorite Radio Station":
             await self.async_play_media(MediaType.CHANNEL, source)
         elif source in SOUND_EFFECTS:

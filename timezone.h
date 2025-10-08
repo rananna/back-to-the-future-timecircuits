@@ -1,13 +1,32 @@
+/**
+ * @file timezone.h
+ * @brief Contains the data structures and static data for time zone information.
+ * @details This file provides the necessary data for handling time zones. It includes a struct
+ * for time zone entries, a comprehensive array of supported time zones with their POSIX strings
+ * and display names, and a pre-generated JSON string of this data to be sent to the web UI.
+ * This approach centralizes time zone data and saves memory by storing large data structures
+ * in flash (PROGMEM).
+ */
 #ifndef TIMEZONE_H
 #define TIMEZONE_H
 
 #include <pgmspace.h>
 
+/**
+ * @brief A structure to hold all necessary information for a single time zone.
+ */
 struct TimeZoneEntry {
-  const char* tzString; const char* displayName;
-  const char* ianaTzName; const char* region;
+  const char* tzString;     /**< The POSIX-compliant time zone string used by the `setenv` function. */
+  const char* displayName;  /**< A user-friendly name for display in the UI. */
+  const char* ianaTzName;   /**< The official IANA time zone name (e.g., "America/New_York"). */
+  const char* region;       /**< The geographical region for grouping in the UI. */
 };
 
+/**
+ * @brief A constant array of `TimeZoneEntry` structs, storing all supported time zones.
+ * @details This array is the single source of truth for time zone information in the firmware.
+ * It is declared as `const` to ensure it is placed in flash memory, saving RAM.
+ */
 const TimeZoneEntry TZ_DATA[] = {
 	{ "UTC0", "UTC", "Etc/UTC", "Global" },
 	{ "NST3:30NDT,M3.2.0,M11.1.0", "Newfoundland (St. John's)", "America/St_Johns", "Americas" },
@@ -42,8 +61,17 @@ const TimeZoneEntry TZ_DATA[] = {
 	{ "<-03>3", "Argentina Time (Buenos Aires)", "America/Argentina/Buenos_Aires", "South America" }
 };
 
+/**
+ * @brief A macro to calculate the number of time zone options available at compile time.
+ */
 #define NUM_TIMEZONE_OPTIONS (sizeof(TZ_DATA) / sizeof(TZ_DATA[0]))
 
+/**
+ * @brief A pre-generated JSON string of the time zone data, stored in PROGMEM (flash memory).
+ * @details This JSON object is sent directly to the web UI to populate the time zone selection
+ * dropdown menus. Storing it pre-formatted in flash saves significant RAM and processing time
+ * on the device, as it avoids building the JSON string dynamically.
+ */
 const char TZ_JSON[] PROGMEM = "{\"Global\":[{\"value\":0,\"text\":\"UTC\",\"ianaTzName\":\"Etc/UTC\"}],\"Americas\":[{\"value\":1,\"text\":\"Newfoundland (St. John's)\",\"ianaTzName\":\"America/St_Johns\"},{\"value\":2,\"text\":\"Atlantic (Halifax)\",\"ianaTzName\":\"America/Halifax\"},{\"value\":3,\"text\":\"Eastern (New York)\",\"ianaTzName\":\"America/New_York\"},{\"value\":4,\"text\":\"Central (Chicago)\",\"ianaTzName\":\"America/Chicago\"},{\"value\":5,\"text\":\"Mountain (Denver)\",\"ianaTzName\":\"America/Denver\"},{\"value\":6,\"text\":\"Pacific (Los Angeles)\",\"ianaTzName\":\"America/Los_Angeles\"},{\"value\":7,\"text\":\"Alaska (Anchorage)\",\"ianaTzName\":\"America/Anchorage\"},{\"value\":8,\"text\":\"Mountain (Phoenix, No DST)\",\"ianaTzName\":\"America/Phoenix\"},{\"value\":9,\"text\":\"Hawaii (Honolulu, No DST)\",\"ianaTzName\":\"Pacific/Honolulu\"}],\"Europe\":[{\"value\":10,\"text\":\"GMT/BST (London)\",\"ianaTzName\":\"Europe/London\"},{\"value\":11,\"text\":\"CET/CEST (Berlin)\",\"ianaTzName\":\"Europe/Berlin\"},{\"value\":12,\"text\":\"EET/EEST (Athens)\",\"ianaTzName\":\"Europe/Athens\"},{\"value\":13,\"text\":\"Moscow Standard Time\",\"ianaTzName\":\"Europe/Moscow\"},{\"value\":14,\"text\":\"Turkey Time (Istanbul)\",\"ianaTzName\":\"Europe/Istanbul\"}],\"Asia\":[{\"value\":15,\"text\":\"Indian Standard Time (Kolkata)\",\"ianaTzName\":\"Asia/Kolkata\"},{\"value\":16,\"text\":\"Singapore Standard Time\",\"ianaTzName\":\"Asia/Singapore\"},{\"value\":17,\"text\":\"China Standard Time (Shanghai)\",\"ianaTzName\":\"Asia/Shanghai\"},{\"value\":18,\"text\":\"Korea Standard Time (Seoul)\",\"ianaTzName\":\"Asia/Seoul\"},{\"value\":19,\"text\":\"Japan Standard Time (Tokyo)\",\"ianaTzName\":\"Asia/Tokyo\"},{\"value\":20,\"text\":\"Gulf Standard Time (Dubai)\",\"ianaTzName\":\"Asia/Dubai\"}],\"Australia & Oceania\":[{\"value\":21,\"text\":\"AWST (Perth)\",\"ianaTzName\":\"Australia/Perth\"},{\"value\":23,\"text\":\"NZST/NZDT (Auckland)\",\"ianaTzName\":\"Pacific/Auckland\"},{\"value\":22,\"text\":\"AEST/AEDT (Sydney)\",\"ianaTzName\":\"Australia/Sydney\"},{\"value\":24,\"text\":\"Chamorro Time (Guam)\",\"ianaTzName\":\"Pacific/Guam\"}],\"Africa\":[{\"value\":25,\"text\":\"West Africa Time (Lagos)\",\"ianaTzName\":\"Africa/Lagos\"},{\"value\":26,\"text\":\"South Africa Standard Time\",\"ianaTzName\":\"Africa/Johannesburg\"},{\"value\":27,\"text\":\"EET (Cairo)\",\"ianaTzName\":\"Africa/Cairo\"},{\"value\":28,\"text\":\"East Africa Time (Nairobi)\",\"ianaTzName\":\"Africa/Nairobi\"}],\"South America\":[{\"value\":29,\"text\":\"Brasilia Time (Sao Paulo)\",\"ianaTzName\":\"America/Sao_Paulo\"},{\"value\":30,\"text\":\"Argentina Time (Buenos Aires)\",\"ianaTzName\":\"America/Argentina/Buenos_Aires\"}]}";
 
 #endif // TIMEZONE_H
