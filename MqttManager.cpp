@@ -1105,6 +1105,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             mqttClient.publish((base_topic + "preset_selector/state").c_str(), message.c_str(), true);
         } else if (component == "play_sound") {
             if (message != "None" && hardwareInitialized) {
+                // --- FIX: Stop any existing audio before playing a new sound from MQTT ---
+                // This ensures that MQTT commands to play a specific sound effect
+                // will correctly interrupt any currently playing audio (e.g., radio).
+                stopAudioStream(false); // false = This is a permanent stop, not a temporary one.
                 playSound((message + ".mp3").c_str(), true, -1);
             }
             mqttClient.publish((base_topic + "play_sound/state").c_str(), "None", true);
