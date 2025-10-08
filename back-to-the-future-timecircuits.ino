@@ -722,6 +722,10 @@ void saveSettings() {
     preferences.putString("stockRow1Symbol", currentSettings.stockRow1_symbol.c_str());
     preferences.putString("stockRow2Symbol", currentSettings.stockRow2_symbol.c_str());
     preferences.putString("stockRow3Symbol", currentSettings.stockRow3_symbol.c_str());
+    // --- START: FIX - Persist the Financial Modeling Prep API Key ---
+    // This line was missing, causing the API key to be lost on reboot.
+    preferences.putString("fmpApiKey", currentSettings.financialModelingPrepApiKey.c_str());
+    // --- END: FIX ---
     preferences.putInt("numDataPoints", currentSettings.numDataPoints);
     preferences.putString("favRadioName", currentSettings.favoriteRadioName.c_str());
     preferences.putString("favRadioUrl", currentSettings.favoriteRadioUrl.c_str());
