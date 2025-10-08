@@ -594,75 +594,32 @@ const char* animationTypeToString(AnimationType type) {
 void generateLightning(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
-    // A more dramatic, multi-stage lightning effect.
+    // Fill all rows with solid blocks to maximize the flashing effect.
+    const char* solid_block = "|||||||||||||";
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, solid_block);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, solid_block);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, solid_block);
 
-    // --- Stage 1: Initial Strike ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "  DANGER!    ");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "HIGH VOLTAGE ");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "-------------");
+    // Loop for about 10 seconds with random flashes to simulate a lightning storm.
+    // Each loop takes between 125ms and 325ms. An average of 225ms * 44 loops = 9.9s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 44, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 44, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 44, 0);
 
-    // Quick, intense flash on all rows
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 250, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 250, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 250, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 300, 0);
+    // Flash all rows together for an intense burst.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 75, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 75, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 75, 0);
 
-    // --- Stage 2: Building Chaos ---
-    // --- FIX: Synchronize parallel loops to prevent race conditions ---
-    // Pre-calculate random durations for each track's commands within the loop.
-    int flicker_d0 = random(100, 200); int wait_d0 = random(50, 150);
-    int flicker_d1 = random(100, 250); int wait_d1 = random(50, 200);
-    int flicker_d2 = random(100, 300); int wait_d2 = random(50, 250);
+    // Wait for a random, short period to create a natural, unpredictable flicker.
+    int random_delay = 50 + random(0, 200);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, random_delay, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, random_delay, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, random_delay, 0);
 
-    // Calculate the total duration for each track's loop iteration.
-    int total_d0 = flicker_d0 + wait_d0;
-    int total_d1 = flicker_d1 + wait_d1;
-    int total_d2 = flicker_d2 + wait_d2;
-
-    // Find the maximum duration among all tracks.
-    int max_duration = std::max({total_d0, total_d1, total_d2});
-
-    // Add the LOOP_START command to all tracks.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 10, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 10, 0);
-
-    // Add commands to each track, using the pre-calculated durations.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, flicker_d0, 50);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, wait_d0, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, flicker_d1, 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, wait_d1, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, flicker_d2, 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, wait_d2, 0);
-
-    // Add padding WAIT commands to synchronize the end of the loop for each track.
-    if (total_d0 < max_duration) { s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, max_duration - total_d0, 0); }
-    if (total_d1 < max_duration) { s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, max_duration - total_d1, 0); }
-    if (total_d2 < max_duration) { s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, max_duration - total_d2, 0); }
-
-    // Add the LOOP_END command to all tracks.
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
-
-    // --- Stage 3: The "1.21 Gigawatts" Moment ---
-    // Make the scramble duration (13 chars * 115ms) ~1500ms to match the flash commands.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 115, "  1.21 GW!!  ");
-
-    // While the middle row is scrambling, keep flashing the top and bottom
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1500, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 1500, 0);
-
-    // --- Stage 4: Final Power Surge ---
-    // All tracks are now synchronized after Stage 3. No extra wait is needed.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SYSTEMS LIVE ");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "  1.21 GW!!  ");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "-------------");
-
-    // Final pulse to end the sequence
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 2000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 2000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 2000, 0);
 }
 
 void generateScanner(SequencerTrack tracks[3]) {
