@@ -1357,6 +1357,17 @@ void loop() {
                 server.begin();
                 Log_printf(LOG_LEVEL_INFO, "HTTP server started on successful connection.");
 
+                // --- START: FIX - Trigger initial stock fetch on connect ---
+                // This is the critical fix for the stock ticker getting stuck on "WAIT...".
+                // By calling fetchData() immediately after a successful WiFi connection,
+                // we ensure the initial data request is sent out promptly. This avoids a
+                // race condition where the system waits for the refresh interval to elapse.
+                if (currentSettings.displayMode == DMS_STOCK_TICKER) {
+                    Log_printf(LOG_LEVEL_INFO, "Stock Ticker mode is active. Triggering initial data fetch.");
+                    stockManager.fetchData();
+                }
+                // --- END: FIX ---
+
                 logConnectedPrinted = true;
 
                 // --- NEW: Start mDNS once on successful WiFi connection ---
