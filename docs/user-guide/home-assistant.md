@@ -93,34 +93,42 @@ Automations are the engine of your smart home. They watch for triggers (like a s
 
 #### **Display Text**
 
-Your workhorse for displaying any custom message. Perfect for alerts, notifications, and simple status messages.
+Your workhorse for displaying any custom message. Perfect for alerts, notifications, and simple status messages. This blueprint is packed with features for creating rich, multi-sensory alerts.
 
 *   **Inputs:**
     *   `Time Circuits Device`: The clock you want to control.
-    *   `Target Row`: Which of the three rows (Top, Middle, Bottom) to use.
-    *   `Text`: The message to display. Supports templates!
-    *   `Effect`: An optional visual effect (e.g., Pulse, Flash, Marquee).
-    *   `Duration`: How long the text should remain visible.
-    *   `Restore Row`: If checked, the row returns to its normal state afterward.
+    *   `Target Row`: Which of the three rows (**Top, Middle, Bottom, or All Rows**) to use.
+    *   `Text to Display`: The message to display. Supports templates!
+    *   `Visual Effect`: The visual style for the text. Now includes `Typewriter` and `Scramble Text`!
+    *   `Audio Source`: Choose `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`.
+    *   `Sound Effect`: If using a built-in sound, select it from this list.
+    *   `Media File`: If streaming, pick an audio file from your HA media library.
+    *   `Volume`: A slider (0-100) to control the volume of this specific alert.
+    *   `Repeat Count`: How many times to loop the alert (visuals and built-in sound). Streamed audio plays once at the start.
+    *   `Restore Row`: If checked, the row returns to its normal state after the effect finishes.
 
 #### **Display Entity**
 
-The easiest way to show the state or value of any Home Assistant entity.
+The most powerful way to display dynamic data from your smart home. Show the state or a specific attribute of any Home Assistant entity.
 
 *   **Inputs:**
-    *   `Time Circuits Device`, `Target Row`, `Effect`, `Duration`, `Restore Row`: Same as the Display Text blueprint.
-    *   `Entity`: The sensor or entity you want to display.
-    *   `Prefix / Postfix`: Optional text to add before or after the entity's value (e.g., a "°F" postfix for temperature).
+    *   Includes all the advanced controls from the **Display Text** blueprint (`Target Row` with "All Rows", `Visual Effect` with new options, a full audio suite with `Volume`, and `Repeat Count`).
+    *   `Entity to Display`: The sensor or entity you want to show.
+    *   `Attribute to Display (Optional)`: The real power-up. Leave this blank to show the entity's main state, or enter the name of an attribute (e.g., `temperature` for a weather entity) to display its specific value.
+    *   `Prefix / Postfix`: Optional text to add before or after the value (e.g., a "°F" postfix).
 
 #### **Countdown Timer**
 
 Perfect for building anticipation for movie night, a gaming session, or just counting down to dinner time.
 
 *   **Inputs:**
-    *   `Time Circuits Device`, `Target Row`: Same as the other blueprints.
+    *   `Time Circuits Device`, `Target Row` (includes "All Rows"): Same as the other blueprints.
     *   `Start Number`: The number to start counting down from.
     *   `End Text`: A message to display when the countdown hits zero.
-    *   `Restore Row`: If checked, the row returns to its normal state afterward.
+    *   `End Text Visual Effect`: All visual effects, including `Typewriter` and `Scramble Text`, are available for the end text.
+    *   `End Audio Source`, `End Sound Effect`, `End Media File`, `End Audio Volume`: The full audio suite is available to play a sound when the countdown finishes.
+    *   `Repeat End Effect Count`: Loop the end text and built-in sound for extra emphasis.
+    *   `Restore Row`: If checked, the row returns to its normal state after all effects complete.
 
 ---
 
