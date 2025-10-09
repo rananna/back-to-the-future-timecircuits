@@ -1138,6 +1138,13 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "animation_style") {
             currentSettings.animationStyle = (AnimationType)std::stoi(message);
             settingsChanged = true;
+        } else if (component == "animation_sequence") {
+            AnimationType newSequence = animationTypeFromString(message.c_str());
+            if (newSequence != currentSettings.animationSequence) {
+                currentSettings.animationSequence = newSequence;
+                broadcastWsStateUpdate("animationSequence", message.c_str());
+                settingsChanged = true;
+            }
         } else if (component == "volume") {
             int vol = std::stoi(message);
             if (vol >= 0 && vol <= 21) {
