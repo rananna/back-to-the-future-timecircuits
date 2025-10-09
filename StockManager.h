@@ -93,6 +93,7 @@ public:
     void updateAndSaveAssets(const std::vector<String>& symbols);
     void saveAssets();
     void loadAssets();
+    String validateSymbol(const String& symbol);
     /** @} */
 
     /**

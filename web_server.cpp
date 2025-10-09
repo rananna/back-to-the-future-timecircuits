@@ -639,6 +639,21 @@ void setupWebRoutes() {
     }
   });
 
+  server.on("/api/stocks/validate", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!request->hasParam("symbol")) {
+        request->send(400, "application/json", "{\"error\":\"Missing symbol parameter\"}");
+        return;
+    }
+    String symbol = request->getParam("symbol")->value();
+    Log_printf(LOG_LEVEL_INFO, "Handling /api/stocks/validate request for symbol: %s", symbol.c_str());
+
+    String response = stockManager.validateSymbol(symbol);
+
+    // The response is already JSON, so send it directly.
+    // Set the content type to application/json to ensure browsers render it correctly.
+    request->send(200, "application/json", response);
+  });
+
   server.on("/api/stocks/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (currentSettings.displayMode != DMS_STOCK_TICKER) {
         request->send(400, "application/json", "{\"error\":\"Stock Ticker Mode is disabled.\"}");

@@ -564,9 +564,9 @@ void StockManager::fetchData() {
 
 /**
  * @brief Fetches the exchange for a given stock symbol to validate it.
- * @details This function queries the FMP API's symbol search endpoint. A successful
- * response containing an exchange name indicates that the symbol is valid and can
- * be added to the tracking list.
+ * @details This function queries the FMP API's symbol search endpoint. It requests
+ * multiple results and uses a scoring algorithm to find the best match, prioritizing
+ * exact symbol matches on major exchanges like NASDAQ and NYSE.
  * @param symbol The stock symbol to validate.
  * @return A `String` containing the exchange name if found, or an empty string if not.
  */
@@ -599,16 +599,17 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
 
         char request[512];
         String clean_symbol = getSimpleSymbolFromString(symbol);
+        // --- MODIFICATION: Increase limit to get more results for better matching ---
         snprintf(request, sizeof(request),
-                 "GET /stable/search-symbol?query=%s&limit=1&apikey=%s HTTP/1.1\r\n"
+                 "GET /stable/search-symbol?query=%s&limit=10&apikey=%s HTTP/1.1\r\n"
                  "Host: financialmodelingprep.com\r\n"
                  "Connection: close\r\n"
                  "\r\n",
                  clean_symbol.c_str(), _api_key.c_str());
 
-        // --- NEW: Log the URL for debugging ---
+        // --- MODIFICATION: Log the updated URL for debugging ---
         char url_log[256];
-        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/search-symbol?query=%s&limit=1&apikey=REDACTED", clean_symbol.c_str());
+        snprintf(url_log, sizeof(url_log), "https://financialmodelingprep.com/stable/search-symbol?query=%s&limit=10&apikey=REDACTED", clean_symbol.c_str());
         Log_printf(LOG_LEVEL_INFO, "Validating symbol with URL: %s", url_log);
 
         if (esp_tls_conn_write(tls_search, request, strlen(request)) < 0) {
@@ -644,6 +645,42 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
             goto cleanup;
         }
 
+        // --- START: MODIFICATION - Add HTTP status check to validation ---
+        int http_status = 0;
+        const char* status_line_start = strstr(header_buf, "HTTP/");
+        if (status_line_start) {
+            const char* code_start = strchr(status_line_start, ' ');
+            if (code_start) {
+                http_status = strtol(code_start + 1, NULL, 10);
+            }
+        }
+
+        if (http_status != 200) {
+            Log_printf(LOG_LEVEL_ERROR, "Symbol validation request failed for '%s' with HTTP code: %d", symbol.c_str(), http_status);
+            if (http_status == 401 || http_status == 403) {
+                Log_printf(LOG_LEVEL_ERROR, "This may indicate an invalid API key.");
+            }
+            // Read and log the error body for more context
+            body_start_ptr += 4;
+            size_t body_part_len = header_len - (body_start_ptr - header_buf);
+            TlsStream tls_stream(tls_search);
+            CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
+            String error_body;
+            error_body.reserve(256);
+            unsigned long error_read_start = millis();
+            while (millis() - error_read_start < 2000 && error_body.length() < 512) {
+                int c = combined_stream.read();
+                if (c < 0) break;
+                error_body += (char)c;
+            }
+            error_body.replace("\r", "");
+            error_body.replace("\n", " ");
+            error_body.trim();
+            Log_printf(LOG_LEVEL_WARN, "Validation Error Body: %s", error_body.c_str());
+            goto cleanup; // Stop processing since the request failed
+        }
+        // --- END: MODIFICATION ---
+
         body_start_ptr += 4;
         size_t body_part_len = header_len - (body_start_ptr - header_buf);
 
@@ -661,35 +698,56 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
             error = deserializeJson(doc, combined_stream);
         }
 
+        // --- START: MODIFICATION - Implement smarter symbol matching ---
         if (error == DeserializationError::Ok) {
-            // The API can return a single quote object, an array with a single quote object, or an empty array.
-            JsonObject quote_obj;
-            if (doc.is<JsonObject>()) {
-                quote_obj = doc.as<JsonObject>();
-            } else if (doc.is<JsonArray>()) {
-                JsonArray array = doc.as<JsonArray>();
-                if (array.size() > 0) {
-                    quote_obj = array[0].as<JsonObject>();
-                } else {
-                    Log_printf(LOG_LEVEL_WARN, "Search response for '%s' was an empty array.", symbol.c_str());
-                }
-            }
-
-            if (!quote_obj.isNull()) {
-                exchange = quote_obj["exchange"].as<String>();
-                if (!exchange.isEmpty()) {
-                    Log_printf(LOG_LEVEL_INFO, "Found exchange '%s' for symbol '%s'", exchange.c_str(), symbol.c_str());
-                } else {
-                    // This can happen for invalid symbols, which might return a valid object but with no exchange.
-                    Log_printf(LOG_LEVEL_WARN, "Exchange field is empty for symbol '%s'. It may be an invalid symbol.", symbol.c_str());
-                }
+            JsonArray array = doc.as<JsonArray>();
+            if (array.isNull() || array.size() == 0) {
+                Log_printf(LOG_LEVEL_WARN, "Search response for '%s' was empty or not an array.", symbol.c_str());
             } else {
-                // This handles cases where the response was not an object or a non-empty array.
-                Log_printf(LOG_LEVEL_WARN, "Response for symbol '%s' did not contain a valid quote object.", symbol.c_str());
+                Log_printf(LOG_LEVEL_INFO, "Received %d potential matches for symbol '%s'.", array.size(), symbol.c_str());
+                String best_match_exchange = "";
+                int best_match_score = -1; // -1: no match, 0: other, 1: exact match, 2: exact on major exchange
+
+                for (JsonObject result : array) {
+                    String result_symbol = result["symbol"];
+                    String result_exchange = result["exchangeShortName"];
+                    if (result_exchange.isEmpty()) {
+                        result_exchange = result["exchange"]; // Fallback to the full exchange name
+                    }
+
+                    if (result_symbol.isEmpty() || result_exchange.isEmpty()) {
+                        continue; // Skip results with missing data
+                    }
+
+                    int current_score = 0;
+                    if (result_symbol.equalsIgnoreCase(symbol)) {
+                        current_score = 1; // Exact symbol match
+                        // Prioritize major US exchanges
+                        if (result_exchange == "NASDAQ" || result_exchange == "NYSE") {
+                            current_score = 2; // Exact match on a major exchange
+                        }
+                    }
+
+                    if (current_score > best_match_score) {
+                        best_match_score = current_score;
+                        best_match_exchange = result_exchange;
+                        Log_printf(LOG_LEVEL_DEBUG, "New best match for '%s': Symbol=%s, Exchange=%s, Score=%d",
+                                   symbol.c_str(), result_symbol.c_str(), best_match_exchange.c_str(), best_match_score);
+                    }
+                }
+
+                if (best_match_score > 0) {
+                    exchange = best_match_exchange;
+                    Log_printf(LOG_LEVEL_INFO, "Selected best match for '%s': Exchange '%s' (Score: %d)",
+                               symbol.c_str(), exchange.c_str(), best_match_score);
+                } else {
+                    Log_printf(LOG_LEVEL_WARN, "No suitable match found for '%s' among the results.", symbol.c_str());
+                }
             }
         } else {
             Log_printf(LOG_LEVEL_ERROR, "Failed to parse search JSON for '%s': %s", symbol.c_str(), error.c_str());
         }
+        // --- END: MODIFICATION ---
     }
 
 cleanup:
@@ -868,11 +926,17 @@ FetchStatus StockManager::fetchDataForSingleSymbol(const std::vector<String>& sy
             });
             if (it != _assets.end()) {
                 it->data_valid = false;
+                // --- START: MODIFICATION - More descriptive error messages ---
                 if (http_status == 401 || http_status == 403) {
                     it->error_reason = "INVALID API KEY";
+                } else if (http_status == 404) {
+                    it->error_reason = "INVALID SYMBOL";
+                } else if (http_status == 429) {
+                    it->error_reason = "RATE LIMITED";
                 } else {
-                    it->error_reason = String("HTTP_ERR: ") + http_status;
+                    it->error_reason = String("HTTP ERROR: ") + http_status;
                 }
+                // --- END: MODIFICATION ---
             }
             xSemaphoreGive(_assets_mutex);
 
@@ -1723,4 +1787,114 @@ bool StockManager::hasAnyValidData() const {
     }
     xSemaphoreGive(_assets_mutex);
     return false;
+}
+
+/**
+ * @brief Performs a raw validation lookup for a symbol and returns the full API response.
+ * @details This function is designed for debugging. It calls the same symbol search
+ * endpoint as the internal validation, but instead of processing the result, it returns
+ * the raw JSON response body as a string. This allows a user to see exactly what the
+ * API is returning for a given symbol.
+ * @param symbol The stock symbol to validate.
+ * @return A `String` containing the raw JSON response from the API, or an error message.
+ */
+String StockManager::validateSymbol(const String& symbol) {
+    Log_printf(LOG_LEVEL_INFO, "Performing raw validation for symbol: %s", symbol.c_str());
+
+    if (_api_key.isEmpty()) {
+        return "{\"error\":\"API key is not configured on the device.\"}";
+    }
+
+    esp_tls_t *tls_validate = esp_tls_init();
+    if (!tls_validate) {
+        Log_printf(LOG_LEVEL_ERROR, "Failed to allocate validation TLS handle.");
+        return "{\"error\":\"Failed to allocate TLS handle.\"}";
+    }
+
+    String response_body = "";
+    static char header_buf[2048];
+    char* body_start_ptr = NULL;
+    size_t header_len = 0;
+
+    {
+        esp_tls_cfg_t cfg = {};
+        cfg.cacert_buf = (const unsigned char *)fmp_root_ca;
+        cfg.cacert_bytes = strlen(fmp_root_ca) + 1;
+        cfg.timeout_ms = 10000;
+
+        const char *hostname = "financialmodelingprep.com";
+        if (esp_tls_conn_new_sync(hostname, strlen(hostname), 443, &cfg, tls_validate) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "Failed to create validation TLS connection.");
+            response_body = "{\"error\":\"Failed to establish TLS connection.\"}";
+            goto cleanup;
+        }
+
+        char request[512];
+        snprintf(request, sizeof(request),
+                 "GET /stable/search-symbol?query=%s&limit=10&apikey=%s HTTP/1.1\r\n"
+                 "Host: financialmodelingprep.com\r\n"
+                 "Connection: close\r\n"
+                 "\r\n",
+                 symbol.c_str(), _api_key.c_str());
+
+        if (esp_tls_conn_write(tls_validate, request, strlen(request)) < 0) {
+            Log_printf(LOG_LEVEL_ERROR, "Validation esp_tls_conn_write failed.");
+            response_body = "{\"error\":\"Failed to send request.\"}";
+            goto cleanup;
+        }
+
+        unsigned long header_read_start_time = millis();
+        const unsigned long HEADER_TIMEOUT_MS = 10000;
+
+        while (millis() - header_read_start_time < HEADER_TIMEOUT_MS) {
+            int ret = esp_tls_conn_read(tls_validate, (unsigned char *)header_buf + header_len, sizeof(header_buf) - header_len - 1);
+            if (ret < 0) {
+                if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                    Log_printf(LOG_LEVEL_ERROR, "Validation esp_tls_conn_read failed: -0x%x", -ret);
+                    response_body = "{\"error\":\"TLS read failed.\"}";
+                    goto cleanup;
+                }
+                vTaskDelay(pdMS_TO_TICKS(20));
+                continue;
+            }
+            if (ret == 0) {
+                Log_printf(LOG_LEVEL_WARN, "Validation connection closed by peer during header read.");
+                response_body = "{\"error\":\"Connection closed by peer.\"}";
+                goto cleanup;
+            }
+            header_len += ret;
+            header_buf[header_len] = '\0';
+            body_start_ptr = strstr(header_buf, "\r\n\r\n");
+            if (body_start_ptr) break;
+        }
+
+        if (!body_start_ptr) {
+            Log_printf(LOG_LEVEL_ERROR, "Timed out waiting for validation HTTP headers.");
+            response_body = "{\"error\":\"Timed out waiting for HTTP headers.\"}";
+            goto cleanup;
+        }
+
+        // We have headers and the start of the body. Now, read the rest of the body.
+        body_start_ptr += 4;
+        size_t body_part_len = header_len - (body_start_ptr - header_buf);
+
+        TlsStream tls_stream(tls_validate);
+        CombinedStream combined_stream(body_start_ptr, body_part_len, tls_stream);
+
+        // Read the entire body into the response_body String
+        response_body.reserve(1024); // Pre-allocate some space
+        unsigned long body_read_start = millis();
+        const unsigned long BODY_READ_TIMEOUT_MS = 5000;
+        const size_t MAX_BODY_SIZE = 4096; // Safety limit
+
+        while (millis() - body_read_start < BODY_READ_TIMEOUT_MS && response_body.length() < MAX_BODY_SIZE) {
+            int c = combined_stream.read();
+            if (c < 0) break;
+            response_body += (char)c;
+        }
+    }
+
+cleanup:
+    esp_tls_conn_destroy(tls_validate);
+    return response_body;
 }
