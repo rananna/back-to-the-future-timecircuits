@@ -143,11 +143,7 @@ blueprint:
 mode: single
 
 variables:
-  final_volume: "{{ volume | default(80) }}"
-  final_duration: "{{ duration | default(10) }}"
-  final_speed: "{{ marquee_speed | default(100) }}"
   final_sound: "{{ sound_effect | default('sys_beep.mp3') }}"
-  final_repeat: "{{ repeat | default(1) }}"
   payload: >
     {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count) -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
@@ -155,30 +151,33 @@ variables:
       {# --- Define the core visual command --- #}
       {%- set visual_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
       {%- if effect == 'MARQUEE' -%}
-        {%- do visual_command.update({'intParam': speed}) -%}
+        {%- do visual_command.update({'intParam': speed | default(100) | int}) -%}
       {%- elif effect in ['PULSE', 'FLASH'] -%}
-        {%- do visual_command.update({'intParam': duration * 1000 | int}) -%}
+        {%- set final_duration = (duration | default(10)) * 1000 | int -%}
+        {%- do visual_command.update({'intParam': final_duration}) -%}
       {%- endif -%}
 
       {# --- Assemble the commands that will be looped --- #}
       {%- set core_commands = [] -%}
       {# For built-in sounds, the sound command goes INSIDE the loop #}
       {%- if sound != 'none' and audio_source == 'builtin' -%}
-        {%- set device_volume = (sound_vol / 100 * 21) | round(0) | int -%}
+        {%- set device_volume = ((sound_vol | default(80)) / 100 * 21) | round(0) | int -%}
         {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
         {%- set core_commands = core_commands + [sound_command] -%}
       {%- endif -%}
       {%- set core_commands = core_commands + [visual_command] -%}
       {# Add WAIT for non-blocking effects INSIDE the loop #}
       {%- if effect not in blocking_effects -%}
-        {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': duration * 1000 | int}] -%}
+        {%- set wait_duration = (duration | default(10)) * 1000 | int -%}
+        {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
       {%- endif -%}
 
       {# --- Assemble the final full command list --- #}
       {%- set final_commands = [] -%}
       {# Wrap core commands in a loop if repeat count is greater than 1 #}
-      {%- if repeat_count > 1 -%}
-        {%- set final_commands = final_commands + [{'command': 'LOOP_START', 'intParam': repeat_count | int}] -%}
+      {%- set final_repeat = repeat_count | default(1) | int -%}
+      {%- if final_repeat > 1 -%}
+        {%- set final_commands = final_commands + [{'command': 'LOOP_START', 'intParam': final_repeat}] -%}
         {%- set final_commands = final_commands + core_commands -%}
         {%- set final_commands = final_commands + [{'command': 'LOOP_END'}] -%}
       {%- else -%}
@@ -203,7 +202,7 @@ variables:
 
       {{- {'tracks': tracks} | to_json -}}
     {%- endmacro -%}
-    {{- generate_sequence_payload(target_row, effect, text_to_display, final_duration, final_speed, restore_row, final_sound, final_volume, final_repeat) -}}
+    {{- generate_sequence_payload(target_row, effect, text_to_display, duration, marquee_speed, restore_row, final_sound, volume, repeat) -}}
 
 sequence:
   - choose:
@@ -216,7 +215,7 @@ sequence:
             target:
               device_id: "{{ device_id(device) }}"
             data:
-              volume_level: "{{ final_volume / 100 }}"
+              volume_level: "{{ (volume | default(80)) / 100 }}"
           - service: media_player.play_media
             target:
               device_id: "{{ device_id(device) }}"
