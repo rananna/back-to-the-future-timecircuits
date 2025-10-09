@@ -1,6 +1,7 @@
 blueprint:
   name: "BTTF Time Circuits: Countdown Timer"
-  description: A blueprint to run a countdown on one of the display rows.
+  description: >-
+    A blueprint to run a countdown on the Time Circuits, with optional looping end text, sound, and advanced effects.
   domain: script
   input:
     device:
@@ -9,9 +10,11 @@ blueprint:
       selector:
         device:
           integration: bttf_time_circuits
+
+    # --- Target ---
     target_row:
       name: Target Row
-      description: "The display row to show the countdown on."
+      description: "The display row(s) to show the countdown on."
       default: "TOP"
       selector:
         select:
@@ -22,6 +25,10 @@ blueprint:
               value: "MIDDLE"
             - label: "Bottom Row (Last Time Departed)"
               value: "BOTTOM"
+            - label: "All Rows"
+              value: "ALL"
+
+    # --- Countdown ---
     start_number:
       name: "Start Number"
       description: "The number to start counting down from."
@@ -39,12 +46,16 @@ blueprint:
           min: 50
           max: 5000
           unit_of_measurement: "ms"
+
+    # --- End Text ---
     end_text:
       name: "End Text"
       description: "Optional text to display when the countdown finishes."
       default: "LIFTOFF"
+      selector:
+        text: {}
     end_text_effect:
-      name: "End Text Effect"
+      name: "End Text Visual Effect"
       description: "The visual effect to use for the end text."
       default: "SET_TEXT"
       selector:
@@ -58,6 +69,19 @@ blueprint:
               value: "PULSE"
             - label: "Flash"
               value: "FLASH"
+            - label: "Typewriter"
+              value: "TYPEWRITER"
+            - label: "Scramble Text"
+              value: "SCRAMBLE_TEXT"
+    end_text_duration:
+      name: "End Text Display Duration (s)"
+      description: "Duration for non-blocking effects like Set Text, Pulse, and Flash."
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: "s"
     end_text_marquee_speed:
       name: "End Text Marquee Speed (ms)"
       description: "The scroll speed for the marquee effect. Lower is faster."
@@ -67,66 +91,166 @@ blueprint:
           min: 20
           max: 1000
           unit_of_measurement: "ms"
-    end_text_duration:
-      name: "End Text Display Duration (s)"
-      description: "Duration for Set Text, Pulse, and Flash effects."
-      default: 5
+
+    # --- End Audio ---
+    audio_source:
+      name: "End Audio Source"
+      description: "Choose whether to play a sound when the countdown finishes."
+      default: "none"
+      selector:
+        select:
+          options:
+            - label: "None"
+              value: "none"
+            - label: "Built-in Sound Effect"
+              value: "builtin"
+            - label: "Stream from Home Assistant"
+              value: "media"
+    sound_effect:
+      name: "End Sound Effect"
+      description: "A built-in sound effect to play from the device."
+      default: "arrival_chime.mp3"
+      selector:
+        select:
+          options:
+            - "ACCELERATION.mp3"
+            - "arrival_chime.mp3"
+            - "electric_sparks.mp3"
+            - "engine_rev.mp3"
+            - "flux_capacitor_power_on.mp3"
+            - "hum.mp3"
+            - "keypad_beeps.mp3"
+            - "lock_on.mp3"
+            - "relay_activation.mp3"
+            - "sys_beep.mp3"
+            - "time_travel.mp3"
+    media_file:
+      name: "End Media File"
+      description: "Audio file to stream from the Home Assistant media library."
+      selector:
+        media:
+    volume:
+      name: "End Audio Volume"
+      description: "Set the volume for the sound (0-100). Only used if an audio source is selected."
+      default: 80
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+
+    # --- Behavior ---
+    repeat_end_effect:
+      name: "Repeat End Effect Count"
+      description: "Number of times to repeat the end effect. Streamed audio will not repeat."
+      default: 1
       selector:
         number:
           min: 1
-          max: 300
-          unit_of_measurement: "s"
+          max: 10
+          mode: box
     restore_row:
       name: "Restore Row After Effect"
-      description: "If enabled, the row will be restored to its previous state."
+      description: "If enabled, the row will be restored to its previous state after all effects complete."
       default: true
       selector:
         boolean: {}
 
 mode: single
 
+variables:
+  payload: >
+    {%- macro generate_countdown_payload() -%}
+      {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
+
+      {# --- Assemble the commands that will be looped --- #}
+      {%- set end_commands = [] -%}
+      {# Add built-in sound INSIDE the loop #}
+      {%- if audio_source == 'builtin' and sound_effect is not none -%}
+        {%- set device_volume = (volume / 100 * 21) | round(0) | int -%}
+        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound_effect, 'intParam': device_volume} -%}
+        {%- set end_commands = end_commands + [sound_command] -%}
+      {%- endif -%}
+      {# Add end text effect INSIDE the loop #}
+      {%- if end_text != "" -%}
+        {%- set end_text_cmd = {'command': end_text_effect, 'targetSegment': -1, 'stringParam': end_text} -%}
+        {%- if end_text_effect == 'MARQUEE' -%}
+          {%- do end_text_cmd.update({'intParam': end_text_marquee_speed}) -%}
+        {%- elif end_text_effect in ['PULSE', 'FLASH'] -%}
+          {%- do end_text_cmd.update({'intParam': end_text_duration * 1000}) -%}
+        {%- endif -%}
+        {%- set end_commands = end_commands + [end_text_cmd] -%}
+        {# Add WAIT for non-blocking end effects INSIDE the loop #}
+        {%- if end_text_effect not in blocking_effects -%}
+          {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': end_text_duration * 1000 | int}] -%}
+        {%- endif -%}
+      {%- endif -%}
+
+      {# --- Assemble the final full command list --- #}
+      {%- set final_commands = [] -%}
+      {# The countdown command always comes first and is NOT looped #}
+      {%- set final_commands = final_commands + [{'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_number, 'intParam2': countdown_delay}] -%}
+
+      {# If there are end commands, wrap them in a loop if requested #}
+      {%- if end_commands | length > 0 -%}
+        {%- if repeat_end_effect > 1 -%}
+          {%- set final_commands = final_commands + [{'command': 'LOOP_START', 'intParam': repeat_end_effect | int}] -%}
+          {%- set final_commands = final_commands + end_commands -%}
+          {%- set final_commands = final_commands + [{'command': 'LOOP_END'}] -%}
+        {%- else -%}
+          {%- set final_commands = final_commands + end_commands -%}
+        {%- endif -%}
+      {%- endif -%}
+
+      {# Add RESTORE command at the very end #}
+      {%- if restore_row -%}
+        {%- set final_commands = final_commands + [{'command': 'RESTORE_ROW'}] -%}
+      {%- endif -%}
+
+      {# --- Generate Tracks --- #}
+      {%- if target_row == 'ALL' -%}
+        {%- set tracks = [
+          {'targetRow': 'TOP', 'commands': final_commands},
+          {'targetRow': 'MIDDLE', 'commands': final_commands},
+          {'targetRow': 'BOTTOM', 'commands': final_commands}
+        ] -%}
+      {%- else -%}
+        {%- set tracks = [{'targetRow': target_row, 'commands': final_commands}] -%}
+      {%- endif -%}
+
+      {{- {'tracks': tracks} | to_json -}}
+    {%- endmacro -%}
+    {{- generate_countdown_payload() -}}
+
 sequence:
-  - service: mqtt.publish
-    data:
-      topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
-      payload: >
-        {%- macro generate_countdown_payload() -%}
-          {%- set commands = [] -%}
-          {%- set countdown_command = {'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_number, 'intParam2': countdown_delay} -%}
-          {%- set commands = commands + [countdown_command] -%}
+  - choose:
+      # --- Case 1: Stream audio from Home Assistant ---
+      # Set volume, run visuals, wait, then play media once.
+      - conditions:
+          - "{{ audio_source == 'media' and media_file is not none }}"
+        sequence:
+          - service: media_player.volume_set
+            target:
+              device_id: !input device
+            data:
+              volume_level: "{{ volume / 100 }}"
+          - service: mqtt.publish
+            data:
+              topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
+              payload: "{{ payload }}"
+          - delay:
+              seconds: "{{ (start_number * (countdown_delay / 1000)) | int(0) }}"
+          - service: media_player.play_media
+            target:
+              device_id: !input device
+            data:
+              media_content_id: !input media_file
+              media_content_type: "audio/mpeg"
 
-          {%- if end_text != "" -%}
-            {# Create the base command for the end text #}
-            {%- set end_text_command = {'command': end_text_effect, 'targetSegment': -1, 'stringParam': end_text} -%}
-
-            {# Set parameters based on the chosen effect #}
-            {%- if end_text_effect == 'MARQUEE' -%}
-              {%- do end_text_command.update({'intParam': end_text_marquee_speed}) -%}
-            {%- elif end_text_effect in ['PULSE', 'FLASH'] -%}
-              {%- do end_text_command.update({'intParam': end_text_duration * 1000}) -%}
-            {%- endif -%}
-
-            {# Add the main command for the end text #}
-            {%- set commands = commands + [end_text_command] -%}
-
-            {# Non-blocking effects require a WAIT command to be effective #}
-            {%- set wait_duration = namespace(ms=0) -%}
-            {%- if end_text_effect == 'SET_TEXT' -%}
-              {# Static text needs a wait to be visible for the specified duration #}
-              {%- set wait_duration.ms = end_text_duration * 1000 -%}
-            {%- endif -%}
-
-            {# Add WAIT command if a duration was calculated #}
-            {%- if wait_duration.ms > 0 -%}
-              {%- set commands = commands + [{'command': 'WAIT', 'intParam': wait_duration.ms | int}] -%}
-            {%- endif -%}
-          {%- endif -%}
-
-          {%- if restore_row -%}
-            {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
-          {%- endif -%}
-
-          {{- {'tracks': [{'targetRow': target_row, 'commands': commands}]} | to_json -}}
-        {%- endmacro -%}
-
-        {{- generate_countdown_payload() -}}
+      # --- Case 2: Built-in sound or No sound ---
+      # The MQTT payload already contains the (potentially looped) end effects.
+    default:
+      - service: mqtt.publish
+        data:
+          topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
+          payload: "{{ payload }}"

@@ -1,8 +1,7 @@
 blueprint:
   name: "BTTF Time Circuits: Display Text"
   description: >-
-    A simple blueprint for displaying a text message on one of the Time Circuits rows.
-    Perfect for notifications and alerts.
+    A blueprint for displaying a text message on the Time Circuits, with optional sound, volume, looping, and advanced effects.
   domain: script
   input:
     device:
@@ -11,9 +10,11 @@ blueprint:
       selector:
         device:
           integration: bttf_time_circuits
+
+    # --- Target ---
     target_row:
       name: Target Row
-      description: "The display row to show the message on."
+      description: "The display row(s) to show the message on."
       default: "TOP"
       selector:
         select:
@@ -24,8 +25,20 @@ blueprint:
               value: "MIDDLE"
             - label: "Bottom Row (Last Time Departed)"
               value: "BOTTOM"
+            - label: "All Rows"
+              value: "ALL"
+
+    # --- Content ---
+    text_to_display:
+      name: "Text to Display"
+      description: "The message to display. Supports templates."
+      default: ""
+      selector:
+        text: {}
+
+    # --- Visuals ---
     effect:
-      name: "Effect Type"
+      name: "Visual Effect"
       description: "The visual effect to use for the message."
       default: "SET_TEXT"
       selector:
@@ -39,15 +52,13 @@ blueprint:
               value: "PULSE"
             - label: "Flash"
               value: "FLASH"
-    text_to_display:
-      name: "Text to Display"
-      description: "The message to display. Supports templates."
-      default: ""
-      selector:
-        text: {}
+            - label: "Typewriter"
+              value: "TYPEWRITER"
+            - label: "Scramble Text"
+              value: "SCRAMBLE_TEXT"
     duration:
       name: "Display Duration (s)"
-      description: "Duration for Set Text, Pulse, and Flash effects."
+      description: "Duration for non-blocking effects like Set Text, Pulse, and Flash."
       default: 10
       selector:
         number:
@@ -63,46 +74,158 @@ blueprint:
           min: 20
           max: 1000
           unit_of_measurement: "ms"
+
+    # --- Audio ---
+    audio_source:
+      name: "Audio Source"
+      description: "Choose whether to play a sound with the visual effect."
+      default: "none"
+      selector:
+        select:
+          options:
+            - label: "None"
+              value: "none"
+            - label: "Built-in Sound Effect"
+              value: "builtin"
+            - label: "Stream from Home Assistant"
+              value: "media"
+    sound_effect:
+      name: "Sound Effect"
+      description: "A built-in sound effect to play from the device."
+      default: "sys_beep.mp3"
+      selector:
+        select:
+          options:
+            - "ACCELERATION.mp3"
+            - "arrival_chime.mp3"
+            - "electric_sparks.mp3"
+            - "engine_rev.mp3"
+            - "flux_capacitor_power_on.mp3"
+            - "hum.mp3"
+            - "keypad_beeps.mp3"
+            - "lock_on.mp3"
+            - "relay_activation.mp3"
+            - "sys_beep.mp3"
+            - "time_travel.mp3"
+    media_file:
+      name: "Media File"
+      description: "Audio file to stream from the Home Assistant media library."
+      selector:
+        media:
+    volume:
+      name: Volume
+      description: "Set the volume for this specific alert (0-100). Only used if an audio source is selected."
+      default: 80
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+
+    # --- Behavior ---
+    repeat:
+      name: "Repeat Count"
+      description: "Number of times to repeat the alert. Built-in sounds will repeat; streamed audio will play once at the start."
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 10
+          mode: box
     restore_row:
       name: "Restore Row After Effect"
-      description: "If enabled, the row will be restored to its previous state."
+      description: "If enabled, the row will be restored to its previous state after the effect (and any loops) completes."
       default: true
       selector:
         boolean: {}
 
 mode: single
 
+variables:
+  payload: >
+    {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count) -%}
+      {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
+
+      {# --- Define the core visual command --- #}
+      {%- set visual_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
+      {%- if effect == 'MARQUEE' -%}
+        {%- do visual_command.update({'intParam': speed}) -%}
+      {%- elif effect in ['PULSE', 'FLASH'] -%}
+        {%- do visual_command.update({'intParam': duration * 1000}) -%}
+      {%- endif -%}
+
+      {# --- Assemble the commands that will be looped --- #}
+      {%- set core_commands = [] -%}
+      {# For built-in sounds, the sound command goes INSIDE the loop #}
+      {%- if sound != 'none' and audio_source == 'builtin' -%}
+        {%- set device_volume = (sound_vol / 100 * 21) | round(0) | int -%}
+        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
+        {%- set core_commands = core_commands + [sound_command] -%}
+      {%- endif -%}
+      {%- set core_commands = core_commands + [visual_command] -%}
+      {# Add WAIT for non-blocking effects INSIDE the loop #}
+      {%- if effect not in blocking_effects -%}
+        {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': duration * 1000 | int}] -%}
+      {%- endif -%}
+
+      {# --- Assemble the final full command list --- #}
+      {%- set final_commands = [] -%}
+      {# Wrap core commands in a loop if repeat count is greater than 1 #}
+      {%- if repeat_count > 1 -%}
+        {%- set final_commands = final_commands + [{'command': 'LOOP_START', 'intParam': repeat_count | int}] -%}
+        {%- set final_commands = final_commands + core_commands -%}
+        {%- set final_commands = final_commands + [{'command': 'LOOP_END'}] -%}
+      {%- else -%}
+        {%- set final_commands = final_commands + core_commands -%}
+      {%- endif -%}
+
+      {# Add RESTORE command OUTSIDE the loop #}
+      {%- if restore -%}
+        {%- set final_commands = final_commands + [{'command': 'RESTORE_ROW'}] -%}
+      {%- endif -%}
+
+      {# --- Generate Tracks --- #}
+      {%- if target == 'ALL' -%}
+        {%- set tracks = [
+          {'targetRow': 'TOP', 'commands': final_commands},
+          {'targetRow': 'MIDDLE', 'commands': final_commands},
+          {'targetRow': 'BOTTOM', 'commands': final_commands}
+        ] -%}
+      {%- else -%}
+        {%- set tracks = [{'targetRow': target, 'commands': final_commands}] -%}
+      {%- endif -%}
+
+      {{- {'tracks': tracks} | to_json -}}
+    {%- endmacro -%}
+    {{- generate_sequence_payload(target_row, effect, text_to_display, duration, marquee_speed, restore_row, sound_effect, volume, repeat) -}}
+
 sequence:
-  - service: mqtt.publish
-    data:
-      topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
-      payload: >
-        {%- macro generate_sequence_payload(effect, text_to_display, duration, marquee_speed, restore_row) -%}
-          {%- set command = {'command': effect, 'targetSegment': -1, 'stringParam': text_to_display} -%}
-          {%- set commands = [] -%}
+  - choose:
+      # --- Case 1: Stream audio from Home Assistant ---
+      # Set volume and play media once, then send the (potentially looped) visual sequence.
+      - conditions:
+          - "{{ audio_source == 'media' and media_file is not none }}"
+        sequence:
+          - service: media_player.volume_set
+            target:
+              device_id: !input device
+            data:
+              volume_level: "{{ volume / 100 }}"
+          - service: media_player.play_media
+            target:
+              device_id: !input device
+            data:
+              media_content_id: !input media_file
+              media_content_type: "audio/mpeg"
+          - service: mqtt.publish
+            data:
+              topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
+              payload: "{{ payload }}"
 
-          {# Set parameters based on effect type #}
-          {%- if effect == 'MARQUEE' -%}
-            {%- do command.update({'intParam': marquee_speed}) -%}
-          {%- elif effect in ['PULSE', 'FLASH'] -%}
-            {%- do command.update({'intParam': duration * 1000}) -%}
-          {%- endif -%}
-
-          {# Add the main command #}
-          {%- set commands = commands + [command] -%}
-
-          {# Non-blocking SET_TEXT effect requires a WAIT command to be visible for the specified duration #}
-          {%- if effect == 'SET_TEXT' -%}
-            {%- set commands = commands + [{'command': 'WAIT', 'intParam': duration * 1000 | int}] -%}
-          {%- endif -%}
-
-          {# Handle row restoration #}
-          {%- if restore_row -%}
-            {# Add the final command to restore the row to its previous state #}
-            {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
-          {%- endif -%}
-
-          {{- {'tracks': [{'targetRow': target_row, 'commands': commands}]} | to_json -}}
-        {%- endmacro -%}
-
-        {{- generate_sequence_payload(effect, text_to_display, duration, marquee_speed, restore_row) -}}
+      # --- Case 2: Built-in sound or No sound ---
+      # The MQTT payload already contains the looped sound and visuals.
+    default:
+      - service: mqtt.publish
+        data:
+          topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
+          payload: "{{ payload }}"
