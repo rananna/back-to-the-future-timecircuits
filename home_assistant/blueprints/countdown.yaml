@@ -172,6 +172,7 @@ variables:
   final_end_text_marquee_speed: "{{ end_text_marquee_speed | default(100) }}"
   final_audio_source: "{{ audio_source | default('none') }}"
   final_sound_effect: "{{ sound_effect | default('arrival_chime.mp3') }}"
+  final_media_file: "{{ media_file | default('') }}"
   final_volume: "{{ volume | default(80) }}"
   final_repeat_end_effect: "{{ repeat_end_effect | default(1) }}"
   final_restore_row: "{{ restore_row | default(true) }}"
@@ -250,7 +251,7 @@ sequence:
       # --- Case 1: Stream audio from Home Assistant ---
       # Set volume, run visuals, wait, then play media once.
       - conditions:
-          - "{{ final_audio_source == 'media' and media_file != '' }}"
+          - "{{ final_audio_source == 'media' and final_media_file != '' }}"
         sequence:
           - service: media_player.volume_set
             target:
@@ -267,7 +268,7 @@ sequence:
             target:
               device_id: "{{ device_id(device) }}"
             data:
-              media_content_id: "{{ media_file }}"
+              media_content_id: "{{ final_media_file }}"
               media_content_type: "audio/mpeg"
 
       # --- Case 2: Built-in sound or No sound ---

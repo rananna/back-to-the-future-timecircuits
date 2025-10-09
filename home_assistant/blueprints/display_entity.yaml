@@ -170,6 +170,7 @@ variables:
   final_restore_row: "{{ restore_row | default(true) }}"
   final_audio_source: "{{ audio_source | default('none') }}"
   final_sound: "{{ sound_effect | default('sys_beep.mp3') }}"
+  final_media_file: "{{ media_file | default('') }}"
   final_volume: "{{ volume | default(80) }}"
   final_repeat: "{{ repeat | default(1) }}"
   final_attribute: "{{ attribute_to_display | default('') }}"
@@ -251,7 +252,7 @@ sequence:
       # --- Case 1: Stream audio from Home Assistant ---
       # Set volume and play media once, then send the (potentially looped) visual sequence.
       - conditions:
-          - "{{ final_audio_source == 'media' and media_file != '' }}"
+          - "{{ final_audio_source == 'media' and final_media_file != '' }}"
         sequence:
           - service: media_player.volume_set
             target:
@@ -262,7 +263,7 @@ sequence:
             target:
               device_id: "{{ device_id(device) }}"
             data:
-              media_content_id: "{{ media_file }}"
+              media_content_id: "{{ final_media_file }}"
               media_content_type: "audio/mpeg"
           - service: mqtt.publish
             data:
