@@ -167,6 +167,9 @@ variables:
     {% endif %}
   text_to_display: "{{- prefix ~ value_to_display ~ postfix -}}"
   payload: >
+    {# Set defaults for conditional inputs to prevent UndefinedError if the UI hides them #}
+    {%- set final_duration = duration | default(10) -%}
+    {%- set final_speed = speed | default(100) -%}
     {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count) -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
 
@@ -221,7 +224,7 @@ variables:
 
       {{- {'tracks': tracks} | to_json -}}
     {%- endmacro -%}
-    {{- generate_sequence_payload(target_row, effect, text_to_display, duration, marquee_speed, restore_row, sound_effect, volume, repeat) -}}
+    {{- generate_sequence_payload(target_row, effect, text_to_display, final_duration, final_speed, restore_row, sound_effect, volume, repeat) -}}
 
 sequence:
   - choose:
