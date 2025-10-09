@@ -160,6 +160,7 @@ blueprint:
 mode: single
 
 variables:
+  final_volume: "{{ volume | default(80) }}"
   payload: >
     {# Set defaults for conditional inputs to prevent UndefinedError if the UI hides them #}
     {%- set final_duration = end_text_duration if end_text_duration is defined else 5 -%}
@@ -172,7 +173,7 @@ variables:
       {%- set end_commands = [] -%}
       {# Add built-in sound INSIDE the loop #}
       {%- if audio_source == 'builtin' and final_sound is not none -%}
-        {%- set device_volume = (volume / 100 * 21) | round(0) | int -%}
+        {%- set device_volume = (final_volume / 100 * 21) | round(0) | int -%}
         {%- set sound_command = {'command': 'SOUND', 'stringParam': final_sound, 'intParam': device_volume} -%}
         {%- set end_commands = end_commands + [sound_command] -%}
       {%- endif -%}
@@ -238,7 +239,7 @@ sequence:
             target:
               device_id: "{{ device_id(device) }}"
             data:
-              volume_level: "{{ volume / 100 }}"
+              volume_level: "{{ final_volume / 100 }}"
           - service: mqtt.publish
             data:
               topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
