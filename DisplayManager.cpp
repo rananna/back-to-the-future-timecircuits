@@ -1166,6 +1166,9 @@ void updateMarqueeDisplay() {
                 break;
             }
             case M_SCROLLING: {
+                // Yield the CPU for a moment to prevent the polling loop from starving other tasks,
+                // especially the audio streaming task. This is the fix for the stuttering issue.
+                vTaskDelay(pdMS_TO_TICKS(1));
                 if (millis() - lastMarqueeStateChange > scrollSpeed) {
                     lastMarqueeStateChange = millis();
 
