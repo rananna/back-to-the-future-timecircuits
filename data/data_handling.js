@@ -471,20 +471,26 @@ async function saveSettings() {
     });
     settings.stockAssets = stockAssets;
 
-    if (settings.displayMode === 3) { // Data Link Mode
-        const numDataPoints = getIntValue('numDataPoints', 0);
-        settings.numDataPoints = numDataPoints;
-        settings.dataPoints = [];
-        for (let i = 0; i < numDataPoints; i++) {
-            const point = getUIDataPoint(i, true);
-            if (point) {
-                settings.dataPoints.push(point);
+    // --- START: FIX - Only include Data Link settings if the controls are present ---
+    // This prevents saving from other pages from wiping out the Data Link config.
+    const numDataPointsSlider = getEl('numDataPoints');
+    if (numDataPointsSlider) {
+        if (settings.displayMode === 3) { // Data Link Mode
+            const numDataPoints = getIntValue('numDataPoints', 0);
+            settings.numDataPoints = numDataPoints;
+            settings.dataPoints = [];
+            for (let i = 0; i < numDataPoints; i++) {
+                const point = getUIDataPoint(i, true);
+                if (point) {
+                    settings.dataPoints.push(point);
+                }
             }
+        } else {
+            // If the controls are present but the mode is not Data Link,
+            // we don't send the dataPoints array, leaving it untouched on the device.
         }
-    } else {
-        settings.numDataPoints = 0;
-        settings.dataPoints = [];
     }
+    // --- END: FIX ---
 
     fetch('/api/saveSettings', {
         method: 'POST',
