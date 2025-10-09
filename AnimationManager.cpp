@@ -1601,6 +1601,9 @@ void triggerAnimation(AnimationType animType) {
     // with the new animation.
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
 
+    // --- FIX: Save the current display mode so it can be restored after the animation. ---
+    preAnimationDisplayMode = currentSettings.displayMode;
+
     // --- NEW: Store the current animation type for logging completion ---
     currentAnimationType = animType;
 

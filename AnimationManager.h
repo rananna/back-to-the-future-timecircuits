@@ -73,6 +73,13 @@ extern bool bootSequenceCompleted;
 extern volatile bool justFinishedAnimation;
 
 /**
+ * @brief Stores the display mode that was active before an animation started.
+ * @details This is used to restore the user's selected display mode (e.g., Clock, Weather)
+ * after a global animation, like the one triggered on save, completes.
+ */
+extern int preAnimationDisplayMode;
+
+/**
  * @brief Stores the `AnimationType` of the currently running sequence.
  * @details Used primarily for logging and debugging to identify which animation is active.
  */
