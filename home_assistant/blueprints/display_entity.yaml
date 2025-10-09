@@ -161,6 +161,10 @@ mode: single
 
 variables:
   final_volume: "{{ volume | default(80) }}"
+  final_duration: "{{ duration | default(10) }}"
+  final_speed: "{{ marquee_speed | default(100) }}"
+  final_sound: "{{ sound_effect | default('sys_beep.mp3') }}"
+  final_repeat: "{{ repeat | default(1) }}"
   value_to_display: >-
     {% if attribute_to_display is defined and attribute_to_display != "" %}
       {{ state_attr(entity_to_display, attribute_to_display) }}
@@ -169,11 +173,6 @@ variables:
     {% endif %}
   text_to_display: "{{- prefix ~ value_to_display ~ postfix -}}"
   payload: >
-    {# Set defaults for conditional inputs to prevent UndefinedError if the UI hides them #}
-    {%- set final_duration = duration if duration is defined else 10 -%}
-    {%- set final_speed = marquee_speed if marquee_speed is defined else 100 -%}
-    {%- set final_sound = sound_effect if sound_effect is defined else 'sys_beep.mp3' -%}
-    {%- set final_repeat = repeat if repeat is defined else 1 -%}
     {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count) -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
 
