@@ -712,7 +712,7 @@ String StockManager::fetchExchangeForSymbol(const String& symbol) const {
                     String result_symbol = result["symbol"];
                     String result_exchange = result["exchangeShortName"];
                     if (result_exchange.isEmpty()) {
-                        result_exchange = result["exchange"]; // Fallback to the full exchange name
+                        result_exchange = (const char*)result["exchange"]; // Fallback to the full exchange name
                     }
 
                     if (result_symbol.isEmpty() || result_exchange.isEmpty()) {
