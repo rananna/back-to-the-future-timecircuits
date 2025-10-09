@@ -4,15 +4,16 @@ This project features a native Home Assistant integration that provides a seamle
 
 ### **Table of Contents**
 1. [Features](#-features)
-2. [Prerequisites](#-prerequisites)
-3. [Setup & Installation](#-setup--installation)
-4. [Using Blueprints](#-using-blueprints)
-5. [Core Entities & Controls](#-core-entities--controls)
-6. [Using the Media Player](#-using-the-media-player)
-7. [Sending Notifications](#-sending-notifications)
-8. [Advanced Control via MQTT](#-advanced-control-via-mqtt)
-9. [Automation Examples](#-automation-examples)
-10. [Troubleshooting](#troubleshooting)
+2. [Setup & Installation](#-setup--installation)
+3. [Getting Started with Blueprints](#-getting-started-with-blueprints)
+    * [Importing Blueprints](#importing-blueprints)
+    * [Key Concepts](#key-concepts)
+    * [Blueprint Showcase](#blueprint-showcase)
+4. [Core Entities & Controls](#-core-entities--controls)
+5. [Using the Media Player](#-using-the-media-player)
+6. [Sending Notifications](#-sending-notifications)
+7. [Advanced Control (MQTT)](#-advanced-control-mqtt)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 ## ✨ Features
@@ -56,13 +57,13 @@ Your Time Circuits clock will now appear as a new device in Home Assistant, with
 
 ---
 
-## 🤖 Using Blueprints
+## 🤖 Getting Started with Blueprints
 
 Welcome, time traveler! For most automations, the easiest and most powerful way to create custom animations and notifications is with our **Home Assistant Blueprints**. They provide a simple, form-based UI inside Home Assistant, allowing you to build complex effects without writing any code.
 
 Whether you want to see the outside temperature, get a visual alert when the doorbell rings, or run a countdown to movie night, you've come to the right place.
 
-### **Adding Blueprints via Direct Import**
+### Importing Blueprints
 
 The easiest way to add the blueprints is by importing them directly from the project's GitHub repository. This ensures you always have the most up-to-date version.
 
@@ -75,84 +76,203 @@ The easiest way to add the blueprints is by importing them directly from the pro
     *   Click the **Import Blueprint** button in the bottom right corner.
     *   A dialog box will appear asking for a URL. You will need to provide the URL to the specific blueprint file you want to add.
 
-3.  **Get the Blueprint URL**:
-    *   The blueprints are located in the [`home_assistant/blueprints/automation/`](https://github.com/rananna/back-to-the-future-timecircuits/tree/main/home_assistant/blueprints/automation) directory of the repository.
-    *   For example, to import the "Display Text and/or Run Effect" blueprint, you would use the following URL:
-        ```
-        https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/automation/display_text_and_or_run_effect.yaml
-        ```
+3.  **Get the Blueprint URLs**:
+    *   The blueprints are located in the [`home_assistant/blueprints/`](https://github.com/rananna/back-to-the-future-timecircuits/tree/main/home_assistant/blueprints/) directory of the repository.
+    *   You will need to import each blueprint you want to use. Here are the direct links:
+        *   **Display Text**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display_text.yaml`
+        *   **Display Entity**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display_entity.yaml`
+        *   **Countdown Timer**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/countdown.yaml`
 
 4.  **Paste and Preview**:
-    *   Paste the URL into the "URL to import" field.
+    *   Paste a URL into the "URL to import" field.
     *   Click **Preview Blueprint**. Home Assistant will fetch the file and show you its details.
     *   If the preview looks correct, click **Import Blueprint** to save it to your instance.
 
-Repeat this process for any other blueprints from the project that you wish to use.
+Repeat this process for all blueprints you wish to use.
 
-### **Creating an Automation from a Blueprint**
+### Key Concepts
 
-Once imported, the blueprint will appear in your list. Click **Create Automation** next to its name to start configuring it. You will be prompted to select your Time Circuits device and fill in any other options defined by the blueprint.
+To unlock the full potential of your Time Circuits, it's crucial to understand a few core concepts.
 
-Instead of entering MQTT details, you'll see a single dropdown:
+#### **1. Scripts vs. Automations: The "What" and the "When"**
 
-*   **Time Circuits Device**: Simply select your clock from the list.
+When you fill out a blueprint, you are creating a **Script**.
+*   A **Script** defines *what* you want to happen. It's a single, specific mission like "Show the outside temperature with a pulse effect and a beep sound." When you run the script, it executes its commands and then it's done.
 
-Fill in the other options (like the text to display) and save it. This script is now ready to be called from your dashboards or, more powerfully, from automations.
+To make things happen automatically, you need an **Automation**.
+*   An **Automation** defines *when* you want your script to run. It's the trigger—like a sensor changing, a specific time of day, or a button press—that executes your script.
 
-### **Core Concepts: Scripts vs. Automations**
+> **The Golden Rule:** You create a **Script** from a blueprint to define the action. Then, you create an **Automation** to call that script based on a trigger.
 
-To unlock the full potential of your Time Circuits, it's crucial to understand how Home Assistant uses scripts and automations together.
+#### **2. Blocking vs. Non-Blocking Effects: "Why Did My Text Disappear?"**
 
-**1. Scripts are "One-Shot" Actions**
+This is the most common point of confusion, and understanding it is key to building successful automations.
 
-Think of a blueprint script as a single, specific mission: "Show this text now." When you run the script, it executes its commands (e.g., display a temperature reading) and then it's done. It doesn't keep running or update automatically.
+*   **Non-Blocking Effects (`SET_TEXT`)**: These effects execute instantly. The command is sent, and the script immediately moves to the next step. If there are no more steps, the script ends, and the display row is restored to its previous state.
+    *   **Solution**: To keep static text visible, you **must** use the **`Display Duration`** input. This tells the blueprint to add a `WAIT` command to the sequence, holding the text on-screen for the time you specify.
 
-**2. Automations Provide the Brains**
+*   **Blocking Effects (`MARQUEE`, `PULSE`, `FLASH`, `TYPEWRITER`, `SCRAMBLE_TEXT`, `COUNTDOWN`)**: These effects have a built-in duration. The script will **wait** for them to finish before moving on. They do **not** require a separate `Display Duration`.
 
-Automations are the engine of your smart home. They watch for triggers (like a sensor changing, a time of day, or a button press) and then perform actions, such as running one of your blueprint scripts.
+#### **3. How Audio Works: The Three Choices**
 
-> **The Pattern:** You create a **Script** from a blueprint to define *what* you want to happen. Then, you create an **Automation** to decide *when* it should happen.
+The blueprints give you three options for accompanying your visual effects with sound.
 
-### **Blueprint Guides**
+1.  **None**: The simplest option. No sound will play.
+2.  **Built-in Sound Effect**: Plays a sound file stored directly on the clock's memory. This is fast, reliable, and does not depend on your network.
+    *   The sound will loop if the `Repeat Count` is greater than 1.
+    *   The volume is controlled by the `Volume` slider in the blueprint.
+3.  **Stream from Home Assistant**: Plays an audio file from your Home Assistant media library. This is great for custom sounds or longer clips.
+    *   The audio will play **once** at the beginning of the sequence, even if the `Repeat Count` is greater than 1.
 
-#### **Display Text**
+#### **4. The Power of Templates: Making Your Display Dynamic**
 
-Your workhorse for displaying any custom message. Perfect for alerts, notifications, and simple status messages. This blueprint is packed with features for creating rich, multi-sensory alerts.
+Almost all text fields in the blueprints support Home Assistant templates. This is how you unlock the real power of the device by combining static text with live data from your smart home.
 
-*   **Inputs:**
-    *   `Time Circuits Device`: The clock you want to control.
-    *   `Target Row`: Which of the three rows (**Top, Middle, Bottom, or All Rows**) to use.
-    *   `Text to Display`: The message to display. Supports templates!
-    *   `Visual Effect`: The visual style for the text. Now includes `Typewriter` and `Scramble Text`!
-    *   `Audio Source`: Choose `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`.
-    *   `Sound Effect`: If using a built-in sound, select it from this list.
-    *   `Media File`: If streaming, pick an audio file from your HA media library.
-    *   `Volume`: A slider (0-100) to control the volume of this specific alert.
-    *   `Repeat Count`: How many times to loop the alert (visuals and built-in sound). Streamed audio plays once at the start.
-    *   `Restore Row`: If checked, the row returns to its normal state after the effect finishes.
+Instead of just displaying "TEMPERATURE", you can display the actual temperature:
+```jinja
+OUTSIDE: {{ states('sensor.outside_temperature') }}°F
+```
 
-#### **Display Entity**
+You can combine multiple entities and text:
+```jinja
+BACK DOOR {{ states('binary_sensor.back_door_contact') | upper }}
+```
+This allows you to create rich, informative displays that are tailored to your specific needs.
 
-The most powerful way to display dynamic data from your smart home. Show the state or a specific attribute of any Home Assistant entity.
+### Blueprint Showcase
 
-*   **Inputs:**
-    *   Includes all the advanced controls from the **Display Text** blueprint (`Target Row` with "All Rows", `Visual Effect` with new options, a full audio suite with `Volume`, and `Repeat Count`).
-    *   `Entity to Display`: The sensor or entity you want to show.
-    *   `Attribute to Display (Optional)`: The real power-up. Leave this blank to show the entity's main state, or enter the name of an attribute (e.g., `temperature` for a weather entity) to display its specific value.
-    *   `Prefix / Postfix`: Optional text to add before or after the value (e.g., a "°F" postfix).
+Here you'll find a detailed guide to each blueprint, including its purpose, all available inputs, and practical examples to get you started.
 
-#### **Countdown Timer**
+---
 
-Perfect for building anticipation for movie night, a gaming session, or just counting down to dinner time.
+#### **1. Display Text**
 
-*   **Inputs:**
-    *   `Time Circuits Device`, `Target Row` (includes "All Rows"): Same as the other blueprints.
-    *   `Start Number`: The number to start counting down from.
-    *   `End Text`: A message to display when the countdown hits zero.
-    *   `End Text Visual Effect`: All visual effects, including `Typewriter` and `Scramble Text`, are available for the end text.
-    *   `End Audio Source`, `End Sound Effect`, `End Media File`, `End Audio Volume`: The full audio suite is available to play a sound when the countdown finishes.
-    *   `Repeat End Effect Count`: Loop the end text and built-in sound for extra emphasis.
-    *   `Restore Row`: If checked, the row returns to its normal state after all effects complete.
+*   **URL for Import**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display_text.yaml`
+
+**What it's for:** This is your workhorse for showing any custom message. It's perfect for alerts, notifications, and simple status updates. With full control over visual effects, sound, and looping, you can create rich, multi-sensory alerts.
+
+**Inputs:**
+*   `Time Circuits Device`: The clock you want to control.
+*   `Target Row`: Which of the three rows (**Top, Middle, Bottom, or All Rows**) to use.
+*   `Text to Display`: The message to show. **Supports templates!**
+*   `Visual Effect`: The animation style for the text (`Set Text`, `Marquee`, `Pulse`, `Flash`, `Typewriter`, `Scramble Text`).
+*   `Display Duration (s)`: How long to keep non-blocking effects on screen.
+*   `Marquee Speed (ms)`: Scroll speed for the marquee effect (lower is faster).
+*   `Audio Source`: Choose `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`.
+*   `Sound Effect`: If using a built-in sound, select it from the list.
+*   `Media File`: If streaming, pick an audio file from your HA media library.
+*   `Volume`: A slider (0-100) to control the volume of the alert.
+*   `Repeat Count`: How many times to loop the alert.
+*   `Restore Row After Effect`: If checked, the row returns to its normal state after the effect finishes.
+
+**Use Case Example: Doorbell Alert**
+
+This example shows a "DOORBELL" message that flashes on all three rows, plays a chime sound, and repeats 3 times.
+
+1.  **Create the Script:**
+    *   Go to **Settings > Automations & Scenes > Blueprints**.
+    *   Find the "BTTF Time Circuits: Display Text" blueprint and click **Create Script**.
+    *   Name the script something descriptive, like "Time Circuits Doorbell Alert".
+    *   Configure the inputs:
+        *   `Target Row`: `All Rows`
+        *   `Text to Display`: `DOORBELL`
+        *   `Visual Effect`: `Flash`
+        *   `Audio Source`: `Built-in Sound Effect`
+        *   `Sound Effect`: `arrival_chime.mp3`
+        *   `Repeat Count`: `3`
+    *   Save the script.
+
+2.  **Create the Automation:**
+    *   Go to **Settings > Automations & Scenes > Automations**.
+    *   Click **Create Automation** and select **Start with an empty automation**.
+    *   **Trigger:** Set the trigger to your doorbell's sensor (e.g., `binary_sensor.doorbell_ding`).
+    *   **Action:**
+        *   `Action type`: `Call service`
+        *   `Service`: Find the script you just created (e.g., `script.time_circuits_doorbell_alert`).
+    *   Save the automation.
+
+---
+
+#### **2. Display Entity**
+
+*   **URL for Import**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display_entity.yaml`
+
+**What it's for:** The most powerful blueprint for displaying live, dynamic data from your smart home. Show the state or a specific attribute of any Home Assistant entity, complete with prefixes, postfixes, and all the audio/visual effects from the Display Text blueprint.
+
+**Inputs:**
+*   *Includes all the advanced controls from the Display Text blueprint.*
+*   `Entity to Display`: The sensor or other entity you want to show.
+*   `Attribute to Display (Optional)`: The real power-up. Leave blank to show the entity's main state, or enter an attribute name (e.g., `temperature` for a weather entity) to display its specific value.
+*   `Prefix`: Optional text to add *before* the value (e.g., a "TEMP: ").
+*   `Postfix`: Optional text to add *after* the value (e.g., a "°F").
+
+**Use Case Example: Dynamic Weather Display**
+
+This example displays the current weather forecast and temperature from a weather entity on the top row, updating automatically whenever the forecast changes.
+
+1.  **Create the Script:**
+    *   Use the "BTTF Time Circuits: Display Entity" blueprint to create a new script.
+    *   Name it "Time Circuits Weather Display".
+    *   Configure the inputs:
+        *   `Target Row`: `Top Row`
+        *   `Entity to Display`: Your weather entity (e.g., `weather.home`).
+        *   `Prefix`: `FCST `
+        *   `Postfix`: ` {{ state_attr('weather.home', 'temperature') }} F`  *(Note the use of a template in the postfix!)*
+        *   `Visual Effect`: `Typewriter`
+        *   `Audio Source`: `None`
+    *   Save the script.
+
+2.  **Create the Automation:**
+    *   Create a new, empty automation.
+    *   **Trigger:**
+        *   `Trigger type`: `State`
+        *   `Entity`: Your weather entity (e.g., `weather.home`).
+    *   **Action:**
+        *   `Action type`: `Call service`
+        *   `Service`: `script.time_circuits_weather_display`.
+    *   Save the automation. Now, your Time Circuits will always show the latest forecast!
+
+---
+
+#### **3. Countdown Timer**
+
+*   **URL for Import**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/countdown.yaml`
+
+**What it's for:** Perfect for building anticipation for movie night, a gaming session, or just counting down to dinner time. When the timer hits zero, it can display a final message with its own unique sound and visual effect.
+
+**Inputs:**
+*   `Time Circuits Device`, `Target Row`: Same as other blueprints.
+*   `Start Number`: The number to start counting down from.
+*   `Countdown Delay (ms)`: The delay between each number change (1000ms = 1s).
+*   `End Text`: A message to display when the countdown hits zero.
+*   `End Text Visual Effect`: A separate visual effect for the end text.
+*   `End Text Display Duration (s)`: Duration for the end text effect.
+*   `End Text Marquee Speed (ms)`: Marquee speed for the end text.
+*   `End Audio Source`, `End Sound Effect`, `End Media File`, `End Audio Volume`: A full audio suite for the moment the countdown finishes.
+*   `Repeat End Effect Count`: Loop the end text and sound for extra emphasis.
+*   `Restore Row`: If checked, the row returns to normal after all effects complete.
+
+**Use Case Example: Movie Night Countdown**
+
+This example runs a 10-second countdown on the middle row. When it finishes, it displays "MOVIE TIME" with a scramble effect and plays a sound.
+
+1.  **Create the Script:**
+    *   Use the "BTTF Time Circuits: Countdown Timer" blueprint to create a script named "Movie Night Countdown".
+    *   Configure the inputs:
+        *   `Target Row`: `Middle Row`
+        *   `Start Number`: `10`
+        *   `End Text`: `MOVIE TIME`
+        *   `End Text Visual Effect`: `Scramble Text`
+        *   `End Audio Source`: `Built-in Sound Effect`
+        *   `End Sound Effect`: `time_travel.mp3`
+    *   Save the script.
+
+2.  **Use in a Dashboard:**
+    *   Since this is a manual action, you don't need an automation.
+    *   Go to your Home Assistant dashboard, enter edit mode, and add a **Button Card**.
+    *   Set the `Tap Action` to `Call Service`.
+    *   Set the `Service` to `script.movie_night_countdown`.
+    *   Now you have a one-touch button to start your movie night countdown!
 
 ---
 
@@ -265,115 +385,14 @@ This is the easiest way to display a temporary message. Use the built-in `notify
 
 ---
 
-## ⚙️ Advanced Control via MQTT
+## ⚙️ Advanced Control (MQTT)
 
-For the most advanced automations, you can bypass the blueprints and standard entities to publish directly to the clock's raw MQTT topics. This gives you access to the powerful **Command Sequencer**, which allows you to create custom animations and trigger pre-programmed cinematic effects.
+For ultimate control, you can bypass the blueprints and standard entities to publish directly to the clock's raw MQTT topics. This gives you access to the powerful **Command Sequencer**, which allows you to create custom, multi-step animations and trigger pre-programmed cinematic effects.
 
-*   **Topic**: `bttf_time_circuits/DEVICE_ID/sequencer/command` (replace `DEVICE_ID` with your clock's ID)
-*   **Payload**: A string with the name of a built-in animation, or a JSON array for a custom sequence.
+*   **Topic**: `bttf_time_circuits/DEVICE_ID/cmnd/sequencer` (replace `DEVICE_ID` with your clock's ID)
+*   **Payload**: A string with the name of a built-in animation, or a JSON object for a custom sequence.
 
-> **For a complete guide on the sequencer, including all commands, parameters, a full list of built-in animation names, and examples, please see the [🤖 Developer Guide](../developer/developer-guide.md#command-sequencer-deep-dive).**
-
-
-#### **Example: Triggering a Named Sequence via MQTT**
-This automation triggers the **Intruder Alert** sequence. It uses a template to dynamically find the correct MQTT topic for your device.
-
-```yaml
-# In this example, 'switch.time_circuits' is an entity belonging to the target device.
-# Replace it with any entity from your Time Circuits device.
-- service: mqtt.publish
-  data:
-    topic: "bttf_time_circuits/{{ device_id('switch.time_circuits') }}/sequencer/command"
-    payload: "Intruder Alert"
-```
-
----
-
-## 💡 Automation Examples
-
-Here are a few ideas to get you started.
-
-<details>
-<summary><strong>1. "It's 10:04 PM!" - The Lightning Strike</strong></summary>
-This automation triggers the "Lightning" sequence every night at 10:04 PM, just like in the movie.
-
-```yaml
-alias: "BTTF - Lightning Strike at 10:04 PM"
-trigger:
-  - platform: time
-    at: "22:04:00"
-action:
-  - service: mqtt.publish
-    data:
-      topic: "bttf_time_circuits/{{ device_id('switch.time_circuits') }}/sequencer/command"
-      payload: "Lightning"
-```
-</details>
-
-<details>
-<summary><strong>2. "Now Playing" Marquee</strong></summary>
-This automation displays the currently playing song from a media player on the bottom display row using the standard text entities.
-
-```yaml
-alias: "BTTF - Now Playing Marquee"
-trigger:
-  - platform: template
-    value_template: "{{ state_attr('media_player.spotify', 'media_title') }}"
-action:
-  - service: text.set_value
-    target:
-      entity_id: text.time_circuits_data_point_1_marquee
-    data:
-      value: "♪ {{ state_attr('media_player.spotify', 'media_title') }}"
-  - service: switch.turn_on
-    target:
-      entity_id: switch.time_circuits_data_point_1_enabled
-```
-</details>
-
-<details>
-<summary><strong>3. Low Memory Reboot Warning</strong></summary>
-This automation monitors the clock's free memory and, if it gets too low, displays a warning using the `notify` service and then safely reboots the device.
-
-```yaml
-alias: "BTTF - Low Memory Reboot"
-trigger:
-  - platform: numeric_state
-    entity_id: sensor.time_circuits_status
-    attribute: free_heap
-    below: 20000  # 20 KB
-action:
-  - service: notify.bttf_time_circuits
-    data:
-      message: "REBOOTING\nLOW MEMORY\nSTAND BY"
-      data:
-        duration: 10
-        sound_effect: "REBOOT_SOUND.mp3"
-  - delay: "00:00:10"
-  - service: button.press
-    target:
-      entity_id: button.time_circuits_reboot_device
-```
-</details>
-
-<details>
-<summary><strong>4. Dynamic Weather Alert</strong></summary>
-This automation uses a template to show a dynamic weather alert on the top row if it starts raining. It combines a static message with the current temperature. This example uses the **Display Text Blueprint**.
-
-First, create a script using the `display_text.yaml` blueprint. Select your device and set your desired options (e.g., Target Row, Effect, Duration). Save the script (e.g., as `Display Weather Alert`). Then, create the following automation:
-
-```yaml
-alias: "BTTF - Weather Alert on Rain"
-trigger:
-  - platform: state
-    entity_id: weather.home
-    to: "rainy"
-action:
-  - service: script.display_weather_alert # Your script's name
-    data:
-      text_to_display: "RAIN {{ states('sensor.outside_temperature') }}°F"
-```
-</details>
+> **This is an advanced feature.** For a complete guide on the sequencer, including all commands, parameters, a full list of built-in animation names, and examples, please see the **[🤖 Developer Guide](../developer/developer-guide.md#command-sequencer-deep-dive)**.
 
 ---
 
