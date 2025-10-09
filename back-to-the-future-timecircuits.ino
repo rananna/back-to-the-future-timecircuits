@@ -1373,6 +1373,16 @@ void loop() {
 
                 ntpSyncRequested = true;
                 runBootSequence();
+
+                // --- START: FIX - Trigger initial stock fetch on boot ---
+                // If the device is in stock ticker mode, we need to manually trigger the
+                // first data fetch after connecting to WiFi. Otherwise, the display
+                // will be stuck on "WAIT..." until a manual refresh.
+                if (currentSettings.displayMode == DMS_STOCK_TICKER) {
+                    Log_printf(LOG_LEVEL_INFO, "Stock Ticker mode is active on boot. Triggering initial data fetch.");
+                    stockManager.fetchData();
+                }
+                // --- END: FIX ---
             }
             if (!currentSettings.mqttBroker.empty()) {
                 unsigned long now = millis();
