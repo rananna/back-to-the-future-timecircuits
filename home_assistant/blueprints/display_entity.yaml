@@ -172,6 +172,7 @@ variables:
     {%- set final_duration = duration if duration is defined else 10 -%}
     {%- set final_speed = marquee_speed if marquee_speed is defined else 100 -%}
     {%- set final_sound = sound_effect if sound_effect is defined else 'sys_beep.mp3' -%}
+    {%- set final_volume = volume if volume is defined else 80 -%}
     {%- set final_repeat = repeat if repeat is defined else 1 -%}
     {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count) -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
@@ -227,7 +228,7 @@ variables:
 
       {{- {'tracks': tracks} | to_json -}}
     {%- endmacro -%}
-    {{- generate_sequence_payload(target_row, effect, text_to_display, final_duration, final_speed, restore_row, final_sound, volume, final_repeat) -}}
+    {{- generate_sequence_payload(target_row, effect, text_to_display, final_duration, final_speed, restore_row, final_sound, final_volume, final_repeat) -}}
 
 sequence:
   - choose:
@@ -240,7 +241,7 @@ sequence:
             target:
               device_id: "{{ device_id(device) }}"
             data:
-              volume_level: "{{ volume / 100 }}"
+              volume_level: "{{ final_volume / 100 }}"
           - service: media_player.play_media
             target:
               device_id: "{{ device_id(device) }}"
