@@ -156,6 +156,7 @@ private:
     SemaphoreHandle_t _assets_mutex;    /**< Mutex to protect the `_assets` vector from concurrent access. */
     volatile int _running_tasks;        /**< Counter for the number of currently running fetch tasks. */
     bool _data_updated;                 /**< Flag set to true when new data has been successfully fetched. */
+    bool _initial_fetch_done;           /**< Flag to ensure the first fetch happens immediately on boot. */
 
     // --- Private Methods ---
     String fetchExchangeForSymbol(const String& symbol) const;

@@ -328,7 +328,8 @@ StockManager::StockManager() :
     _api_usage_count(0),
     _last_reset_day(0),
     _running_tasks(0),
-    _data_updated(false) {
+    _data_updated(false),
+    _initial_fetch_done(false) {
     _task_mutex = xSemaphoreCreateMutex();
     _assets_mutex = xSemaphoreCreateMutex();
 }
@@ -355,8 +356,9 @@ void StockManager::loop() {
         return;
     }
 
-    // Do not attempt any fetch until time is synchronized.
-    if (!isTimeSynchronized()) {
+    // For subsequent fetches, do not attempt any fetch until time is synchronized.
+    // The initial fetch bypasses this check.
+    if (_initial_fetch_done && !isTimeSynchronized()) {
         // Log this only once to avoid spamming
         static bool time_sync_logged = false;
         if (!time_sync_logged) {
@@ -533,8 +535,8 @@ void StockManager::fetchData() {
         }
     }
 
-    // Create a single task for all stocks if the market is open
-    if (!stocks.empty() && isMarketOpen()) {
+    // Create a single task for all stocks if the market is open OR if this is the first fetch.
+    if (!stocks.empty() && (isMarketOpen() || !_initial_fetch_done)) {
         StockFetchParams* params = new StockFetchParams{stocks, this};
         if (xTaskCreate(fetchStockDataBatchTask, "stockFetch", 8192, params, 1, NULL) == pdPASS) {
             _running_tasks = _running_tasks + 1;
@@ -543,6 +545,12 @@ void StockManager::fetchData() {
             Log_printf(LOG_LEVEL_ERROR, "Failed to create stock fetch task.");
             delete params;
         }
+    }
+
+    // Once the first fetch has been initiated, set the flag so we don't bypass checks anymore.
+    if (!_initial_fetch_done) {
+        _initial_fetch_done = true;
+        Log_printf(LOG_LEVEL_INFO, "Initial stock fetch has been triggered. Normal fetch logic will now apply.");
     }
 
     xSemaphoreGive(_task_mutex);
