@@ -160,29 +160,33 @@ mode: single
 
 variables:
   payload: >
+    {# Set defaults for conditional inputs to prevent UndefinedError if the UI hides them #}
+    {%- set final_duration = end_text_duration if end_text_duration is defined else 5 -%}
+    {%- set final_speed = end_text_marquee_speed if end_text_marquee_speed is defined else 100 -%}
+    {%- set final_sound = sound_effect if sound_effect is defined else 'arrival_chime.mp3' -%}
     {%- macro generate_countdown_payload() -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
 
       {# --- Assemble the commands that will be looped --- #}
       {%- set end_commands = [] -%}
       {# Add built-in sound INSIDE the loop #}
-      {%- if audio_source == 'builtin' and sound_effect is not none -%}
+      {%- if audio_source == 'builtin' and final_sound is not none -%}
         {%- set device_volume = (volume / 100 * 21) | round(0) | int -%}
-        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound_effect, 'intParam': device_volume} -%}
+        {%- set sound_command = {'command': 'SOUND', 'stringParam': final_sound, 'intParam': device_volume} -%}
         {%- set end_commands = end_commands + [sound_command] -%}
       {%- endif -%}
       {# Add end text effect INSIDE the loop #}
       {%- if end_text != "" -%}
         {%- set end_text_cmd = {'command': end_text_effect, 'targetSegment': -1, 'stringParam': end_text} -%}
         {%- if end_text_effect == 'MARQUEE' -%}
-          {%- do end_text_cmd.update({'intParam': end_text_marquee_speed}) -%}
+          {%- do end_text_cmd.update({'intParam': final_speed}) -%}
         {%- elif end_text_effect in ['PULSE', 'FLASH'] -%}
-          {%- do end_text_cmd.update({'intParam': end_text_duration * 1000}) -%}
+          {%- do end_text_cmd.update({'intParam': final_duration * 1000 | int}) -%}
         {%- endif -%}
         {%- set end_commands = end_commands + [end_text_cmd] -%}
         {# Add WAIT for non-blocking end effects INSIDE the loop #}
         {%- if end_text_effect not in blocking_effects -%}
-          {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': end_text_duration * 1000 | int}] -%}
+          {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': final_duration * 1000 | int}] -%}
         {%- endif -%}
       {%- endif -%}
 
@@ -244,7 +248,7 @@ sequence:
             target:
               device_id: !input device
             data:
-              media_content_id: !input media_file
+              media_content_id: "{{ media_file }}"
               media_content_type: "audio/mpeg"
 
       # --- Case 2: Built-in sound or No sound ---

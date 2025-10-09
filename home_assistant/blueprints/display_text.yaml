@@ -144,8 +144,9 @@ mode: single
 variables:
   payload: >
     {# Set defaults for conditional inputs to prevent UndefinedError if the UI hides them #}
-    {%- set final_duration = duration | default(10) -%}
-    {%- set final_speed = marquee_speed | default(100) -%}
+    {%- set final_duration = duration if duration is defined else 10 -%}
+    {%- set final_speed = marquee_speed if marquee_speed is defined else 100 -%}
+    {%- set final_sound = sound_effect if sound_effect is defined else 'sys_beep.mp3' -%}
     {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count) -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
 
@@ -154,7 +155,7 @@ variables:
       {%- if effect == 'MARQUEE' -%}
         {%- do visual_command.update({'intParam': speed}) -%}
       {%- elif effect in ['PULSE', 'FLASH'] -%}
-        {%- do visual_command.update({'intParam': duration * 1000}) -%}
+        {%- do visual_command.update({'intParam': duration * 1000 | int}) -%}
       {%- endif -%}
 
       {# --- Assemble the commands that will be looped --- #}
@@ -200,7 +201,7 @@ variables:
 
       {{- {'tracks': tracks} | to_json -}}
     {%- endmacro -%}
-    {{- generate_sequence_payload(target_row, effect, text_to_display, final_duration, final_speed, restore_row, sound_effect, volume, repeat) -}}
+    {{- generate_sequence_payload(target_row, effect, text_to_display, final_duration, final_speed, restore_row, final_sound, volume, repeat) -}}
 
 sequence:
   - choose:
@@ -218,7 +219,7 @@ sequence:
             target:
               device_id: !input device
             data:
-              media_content_id: !input media_file
+              media_content_id: "{{ media_file }}"
               media_content_type: "audio/mpeg"
           - service: mqtt.publish
             data:
