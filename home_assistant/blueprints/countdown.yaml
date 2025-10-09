@@ -161,11 +161,10 @@ mode: single
 
 variables:
   final_volume: "{{ volume | default(80) }}"
+  final_duration: "{{ end_text_duration | default(5) }}"
+  final_speed: "{{ end_text_marquee_speed | default(100) }}"
+  final_sound: "{{ sound_effect | default('arrival_chime.mp3') }}"
   payload: >
-    {# Set defaults for conditional inputs to prevent UndefinedError if the UI hides them #}
-    {%- set final_duration = end_text_duration if end_text_duration is defined else 5 -%}
-    {%- set final_speed = end_text_marquee_speed if end_text_marquee_speed is defined else 100 -%}
-    {%- set final_sound = sound_effect if sound_effect is defined else 'arrival_chime.mp3' -%}
     {%- macro generate_countdown_payload() -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
 
