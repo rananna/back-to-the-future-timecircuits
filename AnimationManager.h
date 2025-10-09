@@ -73,13 +73,6 @@ extern bool bootSequenceCompleted;
 extern volatile bool justFinishedAnimation;
 
 /**
- * @brief Stores the display mode that was active before an animation started.
- * @details This is used by the cleanup functions to restore the correct display
- * (e.g., Clock, Weather, Stocks) after an animation sequence completes.
- */
-extern int preAnimationDisplayMode;
-
-/**
  * @brief Stores the `AnimationType` of the currently running sequence.
  * @details Used primarily for logging and debugging to identify which animation is active.
  */

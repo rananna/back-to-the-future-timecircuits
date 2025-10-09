@@ -144,7 +144,6 @@ bool mDnsIsActive = false;                   // Tracks whether the mDNS service 
 // --- STATE VARIABLES ---
 BootSequenceState bootState = BOOT_INACTIVE; // Current phase of the cinematic boot sequence.
 DisplayModeState currentDisplayMode = NORMAL_CLOCK; // Current primary mode of the display (e.g., clock, weather).
-int preAnimationDisplayMode = DMS_NORMAL_CLOCK; // Stores the display mode before an animation starts.
 
 // --- AUDIO GLOBALS ---
 Audio audio; // The global audio object from the ESP32-audioI2S library.

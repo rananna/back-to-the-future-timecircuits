@@ -24,6 +24,8 @@ bool bootSequenceCompleted = false;
 // --- NEW: Track the currently running animation type for logging ---
 AnimationType currentAnimationType = ANIMATION_TYPE_MAX; // Initialize to a known invalid state
 
+// --- NEW: Extern declaration to access the pre-animation display mode ---
+extern int preAnimationDisplayMode;
 #include <WiFi.h>
 #include "web_server.h"
 #include <ArduinoJson.h>
@@ -1597,12 +1599,6 @@ void runSequencerTest() {
 void triggerAnimation(AnimationType animType) {
     // This function is a full takeover. It replaces all running tracks
     // with the new animation.
-
-    // --- FIX: Save the current display mode before starting any animation ---
-    // This ensures that after the animation completes, the system can restore
-    // the correct display mode (e.g., Clock, Weather, Stocks).
-    preAnimationDisplayMode = currentSettings.displayMode;
-
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
 
     // --- NEW: Store the current animation type for logging completion ---
