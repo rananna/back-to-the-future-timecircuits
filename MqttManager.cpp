@@ -37,6 +37,9 @@ extern Audio audio;
 #include <Preferences.h>
 #include <LCBUrl.h> 
 
+// Forward declaration from main .ino file
+extern AnimationType animationTypeFromString(const std::string& name);
+
 // Forward declaration for the function defined later in the file.
 void ensureBaseDiscoveryConfig();
 
@@ -1502,9 +1505,6 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
         Log_printf(LOG_LEVEL_WARN, "MQTT: Cannot publish, client not connected.");
     }
 }
-
-// Forward declaration from the main .ino file
-extern AnimationType animationTypeFromString(const std::string& name);
 
 /**
  * @brief Processes an incoming animation sequencer command.
