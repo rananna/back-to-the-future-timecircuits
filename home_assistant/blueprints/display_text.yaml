@@ -110,6 +110,7 @@ blueprint:
     media_file:
       name: "Media File"
       description: "Audio file to stream from the Home Assistant media library."
+      default: ""
       selector:
         media:
     volume:
@@ -208,16 +209,16 @@ sequence:
       # --- Case 1: Stream audio from Home Assistant ---
       # Set volume and play media once, then send the (potentially looped) visual sequence.
       - conditions:
-          - "{{ audio_source == 'media' and media_file is not none }}"
+          - "{{ audio_source == 'media' and media_file != '' }}"
         sequence:
           - service: media_player.volume_set
             target:
-              device_id: !input device
+              device_id: "{{ device_id(device) }}"
             data:
               volume_level: "{{ volume / 100 }}"
           - service: media_player.play_media
             target:
-              device_id: !input device
+              device_id: "{{ device_id(device) }}"
             data:
               media_content_id: "{{ media_file }}"
               media_content_type: "audio/mpeg"
