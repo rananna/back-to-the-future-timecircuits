@@ -130,7 +130,8 @@ blueprint:
       default: ""
       selector:
         media:
-          accept: 'audio/*'
+          accept:
+            - 'audio/*'
     volume:
       name: "End Audio Volume"
       description: "Set the volume for the sound (0-100). Only used if an audio source is selected."
