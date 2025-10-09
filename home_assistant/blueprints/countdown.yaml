@@ -176,77 +176,56 @@ variables:
   final_volume: "{{ volume | default(80) }}"
   final_repeat_end_effect: "{{ repeat_end_effect | default(1) }}"
   final_restore_row: "{{ restore_row | default(true) }}"
-  payload: >
-    {#-
-      This macro generates the JSON payload for the MQTT sequencer command.
-      It takes sanitized variables as input to prevent template errors.
-      IMPORTANT: This macro does NOT have access to the blueprint's inputs.
-      All variables must be defined in the `variables` block above and passed
-      in as parameters.
-    -#}
-    {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_duration, end_speed, audio_src, sound, vol, repeat_count, restore) -%}
-      {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
-
-      {# --- Assemble the commands that will be looped --- #}
-      {%- set end_commands = [] -%}
-      {# Add built-in sound INSIDE the loop #}
-      {%- if audio_src == 'builtin' and sound is not none -%}
-        {%- set device_volume = (vol / 100 * 21) | round(0) | int -%}
-        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
-        {%- set end_commands = end_commands + [sound_command] -%}
-      {%- endif -%}
-      {# Add end text effect INSIDE the loop #}
-      {%- if end_txt != "" -%}
-        {%- set end_text_cmd = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
-        {%- if end_effect == 'MARQUEE' -%}
-          {%- do end_text_cmd.update({'intParam': end_speed}) -%}
-        {%- elif end_effect in ['PULSE', 'FLASH'] -%}
-          {%- do end_text_cmd.update({'intParam': end_duration * 1000 | int}) -%}
-        {%- endif -%}
-        {%- set end_commands = end_commands + [end_text_cmd] -%}
-        {# Add WAIT for non-blocking end effects INSIDE the loop #}
-        {%- if end_effect not in blocking_effects -%}
-          {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': end_duration * 1000 | int}] -%}
-        {%- endif -%}
-      {%- endif -%}
-
-      {# --- Assemble the final full command list --- #}
-      {%- set final_commands = [] -%}
-      {# The countdown command always comes first and is NOT looped #}
-      {%- set final_commands = final_commands + [{'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_num, 'intParam2': delay}] -%}
-
-      {# If there are end commands, wrap them in a loop if requested #}
-      {%- if end_commands | length > 0 -%}
-        {%- if repeat_count > 1 -%}
-          {%- set final_commands = final_commands + [{'command': 'LOOP_START', 'intParam': repeat_count | int}] -%}
-          {%- set final_commands = final_commands + end_commands -%}
-          {%- set final_commands = final_commands + [{'command': 'LOOP_END'}] -%}
-        {%- else -%}
-          {%- set final_commands = final_commands + end_commands -%}
-        {%- endif -%}
-      {%- endif -%}
-
-      {# Add RESTORE command at the very end #}
-      {%- if restore -%}
-        {%- set final_commands = final_commands + [{'command': 'RESTORE_ROW'}] -%}
-      {%- endif -%}
-
-      {# --- Generate Tracks --- #}
-      {%- if target == 'ALL' -%}
-        {%- set tracks = [
-          {'targetRow': 'TOP', 'commands': final_commands},
-          {'targetRow': 'MIDDLE', 'commands': final_commands},
-          {'targetRow': 'BOTTOM', 'commands': final_commands}
-        ] -%}
-      {%- else -%}
-        {%- set tracks = [{'targetRow': target, 'commands': final_commands}] -%}
-      {%- endif -%}
-
-      {{- {'tracks': tracks} | to_json -}}
-    {%- endmacro -%}
-    {{- generate_countdown_payload(final_target_row, final_start_number, final_countdown_delay, final_end_text, final_end_text_effect, final_end_text_duration, final_end_text_marquee_speed, final_audio_source, final_sound_effect, final_volume, final_repeat_end_effect, final_restore_row) -}}
 
 sequence:
+  - variables:
+      payload: >
+        {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_duration, end_speed, audio_src, sound, vol, repeat_count, restore) -%}
+          {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
+          {%- set end_commands = [] -%}
+          {%- if audio_src == 'builtin' and sound is not none -%}
+            {%- set device_volume = (vol / 100 * 21) | round(0) | int -%}
+            {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
+            {%- set end_commands = end_commands + [sound_command] -%}
+          {%- endif -%}
+          {%- if end_txt != "" -%}
+            {%- set end_text_cmd = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
+            {%- if end_effect == 'MARQUEE' -%}
+              {%- do end_text_cmd.update({'intParam': end_speed}) -%}
+            {%- elif end_effect in ['PULSE', 'FLASH'] -%}
+              {%- do end_text_cmd.update({'intParam': end_duration * 1000 | int}) -%}
+            {%- endif -%}
+            {%- set end_commands = end_commands + [end_text_cmd] -%}
+            {%- if end_effect not in blocking_effects -%}
+              {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': end_duration * 1000 | int}] -%}
+            {%- endif -%}
+          {%- endif -%}
+          {%- set final_commands = [] -%}
+          {%- set final_commands = final_commands + [{'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_num, 'intParam2': delay}] -%}
+          {%- if end_commands | length > 0 -%}
+            {%- if repeat_count > 1 -%}
+              {%- set final_commands = final_commands + [{'command': 'LOOP_START', 'intParam': repeat_count | int}] -%}
+              {%- set final_commands = final_commands + end_commands -%}
+              {%- set final_commands = final_commands + [{'command': 'LOOP_END'}] -%}
+            {%- else -%}
+              {%- set final_commands = final_commands + end_commands -%}
+            {%- endif -%}
+          {%- endif -%}
+          {%- if restore -%}
+            {%- set final_commands = final_commands + [{'command': 'RESTORE_ROW'}] -%}
+          {%- endif -%}
+          {%- if target == 'ALL' -%}
+            {%- set tracks = [
+              {'targetRow': 'TOP', 'commands': final_commands},
+              {'targetRow': 'MIDDLE', 'commands': final_commands},
+              {'targetRow': 'BOTTOM', 'commands': final_commands}
+            ] -%}
+          {%- else -%}
+            {%- set tracks = [{'targetRow': target, 'commands': final_commands}] -%}
+          {%- endif -%}
+          {{- {'tracks': tracks} | to_json -}}
+        {%- endmacro -%}
+        {{- generate_countdown_payload(final_target_row, final_start_number, final_countdown_delay, final_end_text, final_end_text_effect, final_end_text_duration, final_end_text_marquee_speed, final_audio_source, final_sound_effect, final_volume, final_repeat_end_effect, final_restore_row) -}}
   - choose:
       # --- Case 1: Stream audio from Home Assistant ---
       # Set volume, run visuals, wait, then play media once.
