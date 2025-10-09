@@ -161,33 +161,31 @@ blueprint:
 
 mode: single
 
-variables:
-  # Sanitize all templateable inputs to prevent 'LoggingUndefined' errors.
-  # This ensures that even if a template fails, it provides a safe default
-  # value instead of an 'Undefined' object that cannot be serialized to JSON.
-  final_target_row: "{{ target_row | default('TOP') }}"
-  final_effect: "{{ effect | default('SET_TEXT') }}"
-  final_duration: "{{ duration | default(10) }}"
-  final_speed: "{{ marquee_speed | default(100) }}"
-  final_restore_row: "{{ restore_row | default(true) }}"
-  final_audio_source: "{{ audio_source | default('none') }}"
-  final_sound: "{{ sound_effect | default('sys_beep.mp3') }}"
-  final_media_file: "{{ media_file | default('') }}"
-  final_volume: "{{ volume | default(80) }}"
-  final_repeat: "{{ repeat | default(1) }}"
-  final_attribute: "{{ attribute_to_display | default('') }}"
-  final_prefix: "{{ prefix | default('') }}"
-  final_postfix: "{{ postfix | default('') }}"
-  value_to_display: >-
-    {% if final_attribute != "" %}
-      {{ state_attr(entity_to_display, final_attribute) }}
-    {% else %}
-      {{ states(entity_to_display) }}
-    {% endif %}
-  text_to_display: "{{- final_prefix ~ (value_to_display | default('')) ~ final_postfix -}}"
-
 sequence:
   - variables:
+      # Sanitize all templateable inputs to prevent 'LoggingUndefined' errors.
+      # This ensures that even if a template fails, it provides a safe default
+      # value instead of an 'Undefined' object that cannot be serialized to JSON.
+      final_target_row: "{{ target_row | default('TOP') }}"
+      final_effect: "{{ effect | default('SET_TEXT') }}"
+      final_duration: "{{ duration | default(10) }}"
+      final_speed: "{{ marquee_speed | default(100) }}"
+      final_restore_row: "{{ restore_row | default(true) }}"
+      final_audio_source: "{{ audio_source | default('none') }}"
+      final_sound: "{{ sound_effect | default('sys_beep.mp3') }}"
+      final_media_file: "{{ media_file | default('') }}"
+      final_volume: "{{ volume | default(80) }}"
+      final_repeat: "{{ repeat | default(1) }}"
+      final_attribute: "{{ attribute_to_display | default('') }}"
+      final_prefix: "{{ prefix | default('') }}"
+      final_postfix: "{{ postfix | default('') }}"
+      value_to_display: >-
+        {% if final_attribute != "" %}
+          {{ state_attr(entity_to_display, final_attribute) }}
+        {% else %}
+          {{ states(entity_to_display) }}
+        {% endif %}
+      text_to_display: "{{- final_prefix ~ (value_to_display | default('')) ~ final_postfix -}}"
       payload: >
         {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
           {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
