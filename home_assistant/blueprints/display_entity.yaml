@@ -160,20 +160,37 @@ blueprint:
 mode: single
 
 variables:
-  final_volume: "{{ volume | default(80) }}"
+  # Sanitize all templateable inputs to prevent 'LoggingUndefined' errors.
+  # This ensures that even if a template fails, it provides a safe default
+  # value instead of an 'Undefined' object that cannot be serialized to JSON.
+  final_target_row: "{{ target_row | default('TOP') }}"
+  final_effect: "{{ effect | default('SET_TEXT') }}"
   final_duration: "{{ duration | default(10) }}"
   final_speed: "{{ marquee_speed | default(100) }}"
+  final_restore_row: "{{ restore_row | default(true) }}"
+  final_audio_source: "{{ audio_source | default('none') }}"
   final_sound: "{{ sound_effect | default('sys_beep.mp3') }}"
+  final_volume: "{{ volume | default(80) }}"
   final_repeat: "{{ repeat | default(1) }}"
+  final_attribute: "{{ attribute_to_display | default('') }}"
+  final_prefix: "{{ prefix | default('') }}"
+  final_postfix: "{{ postfix | default('') }}"
   value_to_display: >-
-    {% if attribute_to_display is defined and attribute_to_display != "" %}
-      {{ state_attr(entity_to_display, attribute_to_display) }}
+    {% if final_attribute != "" %}
+      {{ state_attr(entity_to_display, final_attribute) }}
     {% else %}
       {{ states(entity_to_display) }}
     {% endif %}
-  text_to_display: "{{- prefix ~ value_to_display ~ postfix -}}"
+  text_to_display: "{{- final_prefix ~ (value_to_display | default('')) ~ final_postfix -}}"
   payload: >
-    {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count) -%}
+    {#-
+      This macro generates the JSON payload for the MQTT sequencer command.
+      It takes sanitized variables as input to prevent template errors.
+      IMPORTANT: This macro does NOT have access to the blueprint's inputs.
+      All variables must be defined in the `variables` block above and passed
+      in as parameters.
+    -#}
+    {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
 
       {# --- Define the core visual command --- #}
@@ -187,7 +204,7 @@ variables:
       {# --- Assemble the commands that will be looped --- #}
       {%- set core_commands = [] -%}
       {# For built-in sounds, the sound command goes INSIDE the loop #}
-      {%- if sound != 'none' and audio_source == 'builtin' -%}
+      {%- if sound != 'none' and audio_src == 'builtin' -%}
         {%- set device_volume = (sound_vol / 100 * 21) | round(0) | int -%}
         {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
         {%- set core_commands = core_commands + [sound_command] -%}
@@ -227,14 +244,14 @@ variables:
 
       {{- {'tracks': tracks} | to_json -}}
     {%- endmacro -%}
-    {{- generate_sequence_payload(target_row, effect, text_to_display, final_duration, final_speed, restore_row, final_sound, final_volume, final_repeat) -}}
+    {{- generate_sequence_payload(final_target_row, final_effect, text_to_display, final_duration, final_speed, final_restore_row, final_sound, final_volume, final_repeat, final_audio_source) -}}
 
 sequence:
   - choose:
       # --- Case 1: Stream audio from Home Assistant ---
       # Set volume and play media once, then send the (potentially looped) visual sequence.
       - conditions:
-          - "{{ audio_source == 'media' and media_file != '' }}"
+          - "{{ final_audio_source == 'media' and media_file != '' }}"
         sequence:
           - service: media_player.volume_set
             target:
