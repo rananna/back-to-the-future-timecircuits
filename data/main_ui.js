@@ -457,6 +457,14 @@ function attachEventListeners() {
     // Use event delegation for the stock fetch buttons. This ensures the click event
     // is handled even if the buttons are added to the DOM after the initial page load.
     document.getElementById('addAssetBtn').onclick = addStockAsset;
+    document.getElementById('checkAssetBtn').onclick = () => {
+        const symbol = document.getElementById('addAssetInput').value.trim();
+        if (symbol) {
+            window.open(`/api/stocks/validate?symbol=${symbol}`, '_blank');
+        } else {
+            showMessage('Please enter a symbol to check.', 'error');
+        }
+    };
 
     // Number of data points slider
     document.getElementById('notificationVolume').addEventListener('input', (e) => {
