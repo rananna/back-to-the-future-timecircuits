@@ -62,14 +62,38 @@ Welcome, time traveler! For most automations, the easiest and most powerful way 
 
 Whether you want to see the outside temperature, get a visual alert when the doorbell rings, or run a countdown to movie night, you've come to the right place.
 
-### **Blueprint Installation**
+### **Adding Blueprints via Direct Import**
 
-1.  **Copy Blueprints**: Copy the `.yaml` files from the `home_assistant/blueprints/` directory of this project into your Home Assistant's `/config/blueprints/script/` directory. The easiest way is with the Samba Share, FTP, or File Editor add-ons.
-2.  **Reload Blueprints**: In the Home Assistant UI, go to **Settings** -> **Automations & Scenes** -> **Blueprints**. Click the three-dot menu in the corner and select **Reload Blueprints**.
+The easiest way to add the blueprints is by importing them directly from the project's GitHub repository. This ensures you always have the most up-to-date version.
 
-### **Creating a Script from a Blueprint**
+1.  **Navigate to Blueprints in Home Assistant**:
+    *   Open your Home Assistant web interface.
+    *   Go to **Settings** > **Automations & Scenes**.
+    *   Select the **Blueprints** tab.
 
-The blueprints will now appear in your list. Click **Create Script** on the one you want to use. Instead of entering MQTT details, you'll see a single dropdown:
+2.  **Import a Blueprint**:
+    *   Click the **Import Blueprint** button in the bottom right corner.
+    *   A dialog box will appear asking for a URL. You will need to provide the URL to the specific blueprint file you want to add.
+
+3.  **Get the Blueprint URL**:
+    *   The blueprints are located in the [`home_assistant/blueprints/automation/`](https://github.com/rananna/back-to-the-future-timecircuits/tree/main/home_assistant/blueprints/automation) directory of the repository.
+    *   For example, to import the "Display Text and/or Run Effect" blueprint, you would use the following URL:
+        ```
+        https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/automation/display_text_and_or_run_effect.yaml
+        ```
+
+4.  **Paste and Preview**:
+    *   Paste the URL into the "URL to import" field.
+    *   Click **Preview Blueprint**. Home Assistant will fetch the file and show you its details.
+    *   If the preview looks correct, click **Import Blueprint** to save it to your instance.
+
+Repeat this process for any other blueprints from the project that you wish to use.
+
+### **Creating an Automation from a Blueprint**
+
+Once imported, the blueprint will appear in your list. Click **Create Automation** next to its name to start configuring it. You will be prompted to select your Time Circuits device and fill in any other options defined by the blueprint.
+
+Instead of entering MQTT details, you'll see a single dropdown:
 
 *   **Time Circuits Device**: Simply select your clock from the list.
 
