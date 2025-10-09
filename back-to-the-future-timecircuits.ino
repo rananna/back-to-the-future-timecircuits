@@ -570,9 +570,13 @@ void applySettingsFromJson(const JsonObject& obj) {
         currentSettings.favoriteRadioUrl = obj["favoriteRadioUrl"].as<std::string>();
     }
 
-    int numPoints = obj["numDataPoints"] | 0;
-    currentSettings.numDataPoints = (numPoints < 0) ? 0 : (numPoints > 5 ? 5 : numPoints);
+    // --- START: FIX - Only parse Data Link config if it's explicitly provided ---
+    // This prevents saves from other pages from wiping out the Data Link settings
+    // by ensuring that the number of points and the points themselves are only
+    // processed when the 'dataPoints' key is present in the JSON payload.
     if (!obj["dataPoints"].isNull()) {
+        int numPoints = obj["numDataPoints"] | 0;
+        currentSettings.numDataPoints = (numPoints < 0) ? 0 : (numPoints > 5 ? 5 : numPoints);
         JsonArray dataPoints = obj["dataPoints"];
         for (int i = 0; i < 5; i++) {
             if (i < currentSettings.numDataPoints && i < dataPoints.size()) {
@@ -607,6 +611,7 @@ void applySettingsFromJson(const JsonObject& obj) {
             }
         }
     }
+    // --- END: FIX ---
 
     // --- Finalize MQTT Reconnect Logic ---
     if (oldMqttBroker != currentSettings.mqttBroker ||
