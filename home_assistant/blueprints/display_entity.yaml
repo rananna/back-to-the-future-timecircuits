@@ -11,7 +11,6 @@ blueprint:
         device:
           integration: bttf_time_circuits
 
-    # --- Target ---
     target_row:
       name: Target Row
       description: "The display row(s) to show the message on."
@@ -28,7 +27,6 @@ blueprint:
             - label: "All Rows"
               value: "ALL"
 
-    # --- Content ---
     entity_to_display:
       name: "Entity to Display"
       description: "The entity whose state or attribute you want to display."
@@ -53,7 +51,6 @@ blueprint:
       selector:
         text: {}
 
-    # --- Visuals ---
     effect:
       name: "Visual Effect"
       description: "The visual effect to use for the message."
@@ -92,7 +89,6 @@ blueprint:
           max: 1000
           unit_of_measurement: "ms"
 
-    # --- Audio ---
     audio_source:
       name: "Audio Source"
       description: "Choose whether to play a sound with the visual effect."
@@ -153,7 +149,6 @@ blueprint:
           max: 100
           unit_of_measurement: "%"
 
-    # --- Behavior ---
     repeat:
       name: "Repeat Count"
       description: "Number of times to repeat the alert. Built-in sounds will repeat; streamed audio will play once at the start."
@@ -207,13 +202,7 @@ variables:
         {%- set final_duration_ms = (duration * 1000) | int -%}
         {%- do visual_command.update({'intParam': final_duration_ms}) -%}
       {%- endif -%}
-      {%- set core_commands = [] -%}
-      {%- if audio_src == 'builtin' -%}
-        {%- set device_volume = ((sound_vol / 100) * 21) | round(0) | int -%}
-        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
-        {%- do core_commands.append(sound_command) -%}
-      {%- endif -%}
-      {%- do core_commands.append(visual_command) -%}
+      {%- set core_commands = [visual_command] -%}
       {%- if effect not in blocking_effects -%}
         {%- set wait_duration = (duration * 1000) | int -%}
         {%- do core_commands.append({'command': 'WAIT', 'intParam': wait_duration}) -%}
@@ -229,14 +218,18 @@ variables:
       {%- if restore -%}
         {%- do final_commands.append({'command': 'RESTORE_ROW'}) -%}
       {%- endif -%}
+      {%- set tracks = [] -%}
       {%- if target == 'ALL' -%}
-        {%- set tracks = [
-            {'targetRow': 'TOP', 'commands': final_commands},
-            {'targetRow': 'MIDDLE', 'commands': final_commands},
-            {'targetRow': 'BOTTOM', 'commands': final_commands}
-          ] -%}
+        {%- do tracks.append({'targetRow': 'TOP', 'commands': final_commands}) -%}
+        {%- do tracks.append({'targetRow': 'MIDDLE', 'commands': final_commands}) -%}
+        {%- do tracks.append({'targetRow': 'BOTTOM', 'commands': final_commands}) -%}
       {%- else -%}
-        {%- set tracks = [{'targetRow': target, 'commands': final_commands}] -%}
+        {%- do tracks.append({'targetRow': target, 'commands': final_commands}) -%}
+      {%- endif -%}
+      {%- if audio_src == 'builtin' -%}
+        {%- set device_volume = ((sound_vol / 100) * 21) | round(0) | int -%}
+        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
+        {%- do tracks[0].commands.insert(0, sound_command) -%}
       {%- endif -%}
       {{- {'tracks': tracks} | to_json -}}
     {%- endmacro -%}

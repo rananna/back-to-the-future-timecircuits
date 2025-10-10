@@ -11,7 +11,6 @@ blueprint:
         device:
           integration: bttf_time_circuits
 
-    # --- Target ---
     target_row:
       name: Target Row
       description: "The display row(s) to show the countdown on."
@@ -28,7 +27,6 @@ blueprint:
             - label: "All Rows"
               value: "ALL"
 
-    # --- Countdown ---
     start_number:
       name: "Start Number"
       description: "The number to start counting down from."
@@ -47,7 +45,6 @@ blueprint:
           max: 5000
           unit_of_measurement: "ms"
 
-    # --- End Effect ---
     end_text:
       name: "End Text"
       description: "Optional text to display when the countdown finishes."
@@ -92,7 +89,6 @@ blueprint:
           max: 1000
           unit_of_measurement: "ms"
 
-    # --- End Audio ---
     audio_source:
       name: "End Audio Source"
       description: "Choose whether to play a sound when the countdown finishes."
@@ -153,7 +149,6 @@ blueprint:
           max: 100
           unit_of_measurement: "%"
 
-    # --- Behavior ---
     repeat_end_effect:
       name: "Repeat End Effect Count"
       description: "Number of times to repeat the end effect. Streamed audio will not repeat."
@@ -192,11 +187,6 @@ variables:
     {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_duration, end_speed, audio_src, sound, vol, repeat_count, restore) -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
       {%- set end_commands = [] -%}
-      {%- if audio_src == 'builtin' -%}
-        {%- set device_volume = ((vol / 100) * 21) | round(0) | int -%}
-        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
-        {%- do end_commands.append(sound_command) -%}
-      {%- endif -%}
       {%- if end_txt != "" -%}
         {%- set end_text_cmd = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
         {%- if end_effect == 'MARQUEE' -%}
@@ -223,14 +213,18 @@ variables:
       {%- if restore -%}
         {%- do final_commands.append({'command': 'RESTORE_ROW'}) -%}
       {%- endif -%}
+      {%- set tracks = [] -%}
       {%- if target == 'ALL' -%}
-        {%- set tracks = [
-            {'targetRow': 'TOP', 'commands': final_commands},
-            {'targetRow': 'MIDDLE', 'commands': final_commands},
-            {'targetRow': 'BOTTOM', 'commands': final_commands}
-          ] -%}
+        {%- do tracks.append({'targetRow': 'TOP', 'commands': final_commands}) -%}
+        {%- do tracks.append({'targetRow': 'MIDDLE', 'commands': final_commands}) -%}
+        {%- do tracks.append({'targetRow': 'BOTTOM', 'commands': final_commands}) -%}
       {%- else -%}
-        {%- set tracks = [{'targetRow': target, 'commands': final_commands}] -%}
+        {%- do tracks.append({'targetRow': target, 'commands': final_commands}) -%}
+      {%- endif -%}
+      {%- if audio_src == 'builtin' -%}
+        {%- set device_volume = ((vol / 100) * 21) | round(0) | int -%}
+        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
+        {%- do tracks[0].commands.insert(0, sound_command) -%}
       {%- endif -%}
       {{- {'tracks': tracks} | to_json -}}
     {%- endmacro -%}
@@ -275,7 +269,7 @@ sequence:
             data:
               volume_level: "{{ final_volume / 100 }}"
           - delay:
-              seconds: "{{ (final_start_number * (final_countdown_delay / 1000)) | int(0) }}"
+              seconds: "{{ (final_start_number * final_countdown_delay / 1000) | float(0) }}"
           - service: media_player.play_media
             target:
               device_id: "{{ device }}"
