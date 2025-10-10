@@ -119,9 +119,7 @@ blueprint:
       description: "Audio file to stream from the Home Assistant media library."
       default: ""
       selector:
-        media:
-          filter:
-            media_class: music
+        media: {}
     volume:
       name: Volume
       description: "Set the volume for this specific alert (0-100). Only used if an audio source is selected."
