@@ -144,17 +144,17 @@ Use this table to choose the perfect animation for your message.
 | Input | Description | Default Value |
 | :--- | :--- | :--- |
 | `Time Circuits Device` | The clock you want to control. | - |
-| `Target Row` | Which of the three rows (**Top, Middle, Bottom, or All**) to use. | `Top` |
-| `Text to Display` | The message to show. **Supports templates!** | `(empty)` |
+| `Target Row` | The display row(s) to show the message on. Options are `Top`, `Middle`, `Bottom`, or `All`. | `Top` |
+| `Text to Display` | The message to display. **Supports templates!** | `(empty)` |
 | `Visual Effect` | The animation style to use. See the **Visual Effects table** above for a full list of options and their behavior. | `Set Text` |
-| `Display Duration (s)` | For `Set Text`, this is how long the text stays visible. For `Pulse` and `Flash`, this is the total duration of the effect. | `10` |
-| `Marquee Speed (ms)` | Scroll speed for the marquee effect (lower is faster). | `100` |
-| `Audio Source` | Choose `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`. | `None` |
-| `Sound Effect` | If using a built-in sound, select one from the **Sound Effects table** below. | `sys_beep.mp3` |
-| `Media File` | If streaming, pick an audio file from your HA media library. | - |
-| `Volume` | A slider (0-100) to control the volume of the alert. | `80` |
-| `Repeat Count` | How many times to loop the alert. Streamed audio plays only once. | `1` |
-| `Restore Row` | If checked, the row returns to its normal state after the effect. | `true` |
+| `Display Duration (s)` | Duration for the non-blocking `Set Text` effect. Blocking effects (e.g., `Marquee`, `Pulse`) have their own internal timing. | `10` |
+| `Marquee Speed (ms)` | The scroll speed for the marquee effect. Lower is faster. | `100` |
+| `Audio Source` | Choose whether to play a sound: `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`. | `None` |
+| `Sound Effect` | A built-in sound effect to play from the device. | `sys_beep.mp3` |
+| `Media File` | Audio file to stream from the Home Assistant media library. | `(not set)` |
+| `Volume` | Set the volume for this specific alert (0-100). | `80` |
+| `Repeat Count` | Number of times to repeat the alert. Built-in sounds will repeat; streamed audio will play once at the start. | `1` |
+| `Restore Row After Effect` | If enabled, the row will be restored to its previous state after the effect completes. | `true` |
 
 #### **Use Case: Doorbell Alert**
 This example displays a static "DOORBELL" message on the middle row for 15 seconds, accompanied by a chime sound. This is a great example of using a **non-blocking** effect.
@@ -208,20 +208,20 @@ The following sound effects are built into the clock's firmware and can be trigg
 | Input | Description | Default Value |
 | :--- | :--- | :--- |
 | `Time Circuits Device` | The clock you want to control. | - |
-| `Entity to Display` | The sensor or other entity whose state or attribute you want to show. | - |
-| `Attribute to Display` | Optional. Leave blank to show the entity's main state, or enter an attribute name (e.g., `temperature`). | `(empty)` |
-| `Prefix` | Optional text to add *before* the entity's value (e.g., "TEMP: "). Supports templates. | `(empty)` |
-| `Postfix` | Optional text to add *after* the entity's value (e.g., "°F"). Supports templates. | `(empty)` |
-| `Target Row` | Which of the three rows (**Top, Middle, Bottom, or All**) to use. | `Top` |
+| `Entity to Display` | The entity whose state or attribute you want to display. | - |
+| `Attribute to Display (Optional)` | The specific attribute to display. Leave blank to use the entity's main state. | `(empty)` |
+| `Prefix` | Optional text to display before the value (e.g., 'Temp: '). | `(empty)` |
+| `Postfix` | Optional text to display after the value (e.g., '°C'). | `(empty)` |
+| `Target Row` | The display row(s) to show the message on. Options are `Top`, `Middle`, `Bottom`, or `All`. | `Top` |
 | `Visual Effect` | The animation style to use. See the **Visual Effects table** above for a full list of options. | `Set Text` |
-| `Display Duration (s)` | For `Set Text`, this is how long the text stays visible. For `Pulse` and `Flash`, this is the total duration of the effect. | `10` |
-| `Marquee Speed (ms)` | Scroll speed for the marquee effect (lower is faster). | `100` |
-| `Audio Source` | Choose `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`. | `None` |
-| `Sound Effect` | If using a built-in sound, select one from the **Sound Effects table** above. | `sys_beep.mp3` |
-| `Media File` | If streaming, pick an audio file from your HA media library. | - |
-| `Volume` | A slider (0-100) to control the volume of the alert. | `80` |
-| `Repeat Count` | How many times to loop the alert. Streamed audio plays only once. | `1` |
-| `Restore Row` | If checked, the row returns to its normal state after the effect completes. | `true` |
+| `Display Duration (s)` | Duration for the non-blocking `Set Text` effect. Blocking effects (e.g., `Marquee`, `Pulse`) have their own internal timing. | `10` |
+| `Marquee Speed (ms)` | The scroll speed for the marquee effect. Lower is faster. | `100` |
+| `Audio Source` | Choose whether to play a sound: `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`. | `None` |
+| `Sound Effect` | A built-in sound effect to play from the device. | `sys_beep.mp3` |
+| `Media File` | Audio file to stream from the Home Assistant media library. | `(not set)` |
+| `Volume` | Set the volume for this specific alert (0-100). | `80` |
+| `Repeat Count` | Number of times to repeat the alert. Built-in sounds will repeat; streamed audio will play once at the start. | `1` |
+| `Restore Row After Effect` | If enabled, the row will be restored to its previous state after the effect completes. | `true` |
 
 #### **Use Case: Dynamic Weather Display**
 This example displays the current temperature from a weather entity, updating automatically whenever the temperature changes. It uses the **blocking** `Pulse` effect.
@@ -259,19 +259,19 @@ This example displays the current temperature from a weather entity, updating au
 | Input | Description | Default Value |
 | :--- | :--- | :--- |
 | `Time Circuits Device` | The clock you want to control. | - |
-| `Target Row` | Which of the three rows (**Top, Middle, Bottom, or All**) to use. | `Top` |
-| `Start Number` | The number to start counting down from (1-9999). | `10` |
-| `Countdown Delay (ms)` | The delay between each number change (1000ms = 1s). | `1000` |
-| `End Text` | Optional text to display when the countdown finishes. Supports templates. | `LIFTOFF` |
-| `End Text Visual Effect` | A separate visual effect for the end text. See the **Visual Effects table** above for options. | `Set Text` |
-| `End Text Display Duration (s)` | Duration for the non-blocking end text effects (`Set Text`, `Pulse`, `Flash`). | `5` |
-| `End Text Marquee Speed (ms)` | Marquee scroll speed for the end text. | `100` |
-| `End Audio Source` | Choose `None`, `Built-in Sound Effect`, or `Stream from Home Assistant` to play when the countdown finishes. | `None` |
-| `End Sound Effect` | A built-in sound to play from the device. See the **Sound Effects table** above for options. | `arrival_chime.mp3` |
-| `End Media File`| An audio file from the HA media library for the end effect. | - |
-| `End Audio Volume`| Volume for the end sound (0-100). | `80` |
-| `Repeat End Effect Count` | Number of times to repeat the end effect (text and built-in sound). Streamed audio does not repeat. | `1` |
-| `Restore Row` | If checked, the row returns to normal after all effects complete. | `true` |
+| `Target Row` | The display row(s) to show the countdown on. Options are `Top`, `Middle`, `Bottom`, or `All`. | `Top` |
+| `Start Number` | The number to start counting down from. | `10` |
+| `Countdown Delay (ms)` | The delay between each number change. 1000ms = 1 second. | `1000` |
+| `End Text` | Optional text to display when the countdown finishes. | `LIFTOFF` |
+| `End Text Visual Effect` | The visual effect to use for the end text. | `Set Text` |
+| `End Text Display Duration (s)` | Duration for the non-blocking `Set Text` end effect. Blocking effects (e.g., `Marquee`, `Pulse`) have their own internal timing. | `5` |
+| `End Text Marquee Speed (ms)` | The scroll speed for the marquee effect. Lower is faster. | `100` |
+| `End Audio Source` | Choose whether to play a sound when the countdown finishes: `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`. | `None` |
+| `End Sound Effect` | A built-in sound effect to play from the device. | `arrival_chime.mp3` |
+| `End Media File`| An audio file from the HA media library for the end effect. | `(not set)` |
+| `End Audio Volume`| Set the volume for the sound (0-100). | `80` |
+| `Repeat End Effect Count` | Number of times to repeat the end effect. Streamed audio will not repeat. | `1` |
+| `Restore Row After Effect` | If enabled, the row will be restored to its previous state after all effects complete. | `true` |
 
 #### **Use Case: Movie Night Countdown Button**
 This example runs a 10-second countdown. When it finishes, it displays "MOVIE TIME" with a **blocking** `Scramble Text` effect and plays a sound.
