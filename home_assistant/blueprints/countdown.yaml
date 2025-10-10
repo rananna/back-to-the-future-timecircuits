@@ -172,13 +172,13 @@ variables:
   final_target_row: !input target_row
   final_start_number: !input start_number
   final_countdown_delay: !input countdown_delay
-  final_end_text: !input end_text
+  final_end_text: "{{ !input end_text | default('') }}"
   final_end_text_effect: !input end_text_effect
   final_end_text_duration: !input end_text_duration
   final_end_text_marquee_speed: !input end_text_marquee_speed
   final_audio_source: !input audio_source
   final_sound_effect: !input sound_effect
-  final_media_file: !input media_file
+  final_media_file: "{{ !input media_file | default('') }}"
   final_volume: !input volume
   final_repeat_end_effect: !input repeat_end_effect
   final_restore_row: !input restore_row

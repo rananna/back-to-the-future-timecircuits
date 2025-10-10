@@ -153,13 +153,13 @@ mode: single
 variables:
   device_name: "{{ device_attr(device, 'name') | slugify }}"
   final_target_row: !input target_row
-  final_text: !input text_to_display
+  final_text: "{{ !input text_to_display | default('') }}"
   final_effect: !input effect
   final_duration: !input duration
   final_speed: !input marquee_speed
   final_audio_source: !input audio_source
   final_sound: !input sound_effect
-  final_media_file: !input media_file
+  final_media_file: "{{ !input media_file | default('') }}"
   final_volume: !input volume
   final_repeat: !input repeat
   final_restore_row: !input restore_row
