@@ -231,10 +231,6 @@ variables:
     {{- generate_countdown_payload(target_row, start_number, countdown_delay, final_end_text, end_text_effect, end_text_duration, end_text_marquee_speed, audio_source, sound_effect, volume, repeat_end_effect, restore_row) -}}
 
 sequence:
-  - service: logbook.log
-    data:
-      name: "{{ blueprint.name }}"
-      message: "Running a {{ (start_number * countdown_delay / 1000) | round(1) }}s countdown on {{ device_name }}"
   - service: system_log.write
     data:
       level: info

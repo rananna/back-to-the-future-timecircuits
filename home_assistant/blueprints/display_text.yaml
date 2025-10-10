@@ -207,10 +207,6 @@ variables:
     {{- generate_sequence_payload(target_row, effect, final_text, duration, marquee_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
 
 sequence:
-  - service: logbook.log
-    data:
-      name: "{{ blueprint.name }}"
-      message: "Displaying text on {{ device_name }}: '{{ final_text }}'"
   - service: system_log.write
     data:
       level: info
