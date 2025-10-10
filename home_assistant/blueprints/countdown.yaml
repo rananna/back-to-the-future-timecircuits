@@ -169,19 +169,23 @@ mode: single
 
 variables:
   device_name: "{{ device_attr(device, 'name') | slugify }}"
-  final_target_row: !input target_row
-  final_start_number: !input start_number
-  final_countdown_delay: !input countdown_delay
-  final_end_text: "{{ !input end_text | default('') }}"
-  final_end_text_effect: !input end_text_effect
-  final_end_text_duration: !input end_text_duration
-  final_end_text_marquee_speed: !input end_text_marquee_speed
-  final_audio_source: !input audio_source
-  final_sound_effect: !input sound_effect
-  final_media_file: "{{ !input media_file | default('') }}"
-  final_volume: !input volume
-  final_repeat_end_effect: !input repeat_end_effect
-  final_restore_row: !input restore_row
+  # Direct inputs
+  target_row: !input target_row
+  start_number: !input start_number
+  countdown_delay: !input countdown_delay
+  end_text: !input end_text
+  end_text_effect: !input end_text_effect
+  end_text_duration: !input end_text_duration
+  end_text_marquee_speed: !input end_text_marquee_speed
+  audio_source: !input audio_source
+  sound_effect: !input sound_effect
+  media_file: !input media_file
+  volume: !input volume
+  repeat_end_effect: !input repeat_end_effect
+  restore_row: !input restore_row
+  # Templated variables
+  final_end_text: "{{ end_text | default('') }}"
+  final_media_file: "{{ media_file | default('') }}"
 
   payload: >
     {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_duration, end_speed, audio_src, sound, vol, repeat_count, restore) -%}
@@ -191,8 +195,6 @@ variables:
         {%- set end_text_cmd = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
         {%- if end_effect == 'MARQUEE' -%}
           {%- do end_text_cmd.update({'intParam': end_speed | int}) -%}
-        {%- elif end_effect in ['PULSE', 'FLASH'] -%}
-          {%- do end_text_cmd.update({'intParam': (end_duration * 1000) | int}) -%}
         {%- endif -%}
         {%- do end_commands.append(end_text_cmd) -%}
         {%- if end_effect not in blocking_effects -%}
@@ -228,32 +230,32 @@ variables:
       {%- endif -%}
       {{- {'tracks': tracks} | to_json -}}
     {%- endmacro -%}
-    {{- generate_countdown_payload(final_target_row, final_start_number, final_countdown_delay, final_end_text, final_end_text_effect, final_end_text_duration, final_end_text_marquee_speed, final_audio_source, final_sound_effect, final_volume, final_repeat_end_effect, final_restore_row) -}}
+    {{- generate_countdown_payload(target_row, start_number, countdown_delay, final_end_text, end_text_effect, end_text_duration, end_text_marquee_speed, audio_source, sound_effect, volume, repeat_end_effect, restore_row) -}}
 
 sequence:
   - service: logbook.log
     data:
       name: "{{ blueprint.name }}"
-      message: "Running a {{ (final_start_number * final_countdown_delay / 1000) | round(1) }}s countdown on {{ device_name }}"
+      message: "Running a {{ (start_number * countdown_delay / 1000) | round(1) }}s countdown on {{ device_name }}"
   - service: system_log.write
     data:
       level: info
       message: |
         Executing 'Countdown Timer' blueprint with the following parameters:
         Device: {{ device_name }} ({{ device }})
-        Target Row: {{ final_target_row }}
-        Start Number: {{ final_start_number }}
-        Delay: {{ final_countdown_delay }}ms
+        Target Row: {{ target_row }}
+        Start Number: {{ start_number }}
+        Delay: {{ countdown_delay }}ms
         End Text: {{ final_end_text }}
-        End Effect: {{ final_end_text_effect }}
-        End Duration: {{ final_end_text_duration }}s
-        End Marquee Speed: {{ final_end_text_marquee_speed }}ms
-        End Audio Source: {{ final_audio_source }}
-        End Sound: {{ final_sound_effect }}
+        End Effect: {{ end_text_effect }}
+        End Duration: {{ end_text_duration }}s
+        End Marquee Speed: {{ end_text_marquee_speed }}ms
+        End Audio Source: {{ audio_source }}
+        End Sound: {{ sound_effect }}
         End Media File: {{ final_media_file }}
-        Volume: {{ final_volume }}%
-        Repeat End Effect: {{ final_repeat_end_effect }}
-        Restore Row: {{ final_restore_row }}
+        Volume: {{ volume }}%
+        Repeat End Effect: {{ repeat_end_effect }}
+        Restore Row: {{ restore_row }}
         MQTT Payload: {{ payload }}
   - service: mqtt.publish
     data:
@@ -261,18 +263,18 @@ sequence:
       payload: "{{ payload }}"
   - choose:
       - conditions:
-          - "{{ final_audio_source == 'media' and final_media_file != '' }}"
+          - "{{ audio_source == 'media' and final_media_file != '' }}"
         sequence:
           - service: media_player.volume_set
             target:
-              device_id: "{{ device }}"
+              device_id: !input device
             data:
-              volume_level: "{{ final_volume / 100 }}"
+              volume_level: "{{ volume / 100 }}"
           - delay:
-              seconds: "{{ (final_start_number * final_countdown_delay / 1000) | float(0) }}"
+              seconds: "{{ (start_number * countdown_delay / 1000) | float(0) }}"
           - service: media_player.play_media
             target:
-              device_id: "{{ device }}"
+              device_id: !input device
             data:
               media_content_id: "{{ final_media_file }}"
               media_content_type: "audio/mpeg"

@@ -152,27 +152,28 @@ mode: single
 
 variables:
   device_name: "{{ device_attr(device, 'name') | slugify }}"
-  final_target_row: !input target_row
-  final_text: "{{ !input text_to_display | default('') }}"
-  final_effect: !input effect
-  final_duration: !input duration
-  final_speed: !input marquee_speed
-  final_audio_source: !input audio_source
-  final_sound: !input sound_effect
-  final_media_file: "{{ !input media_file | default('') }}"
-  final_volume: !input volume
-  final_repeat: !input repeat
-  final_restore_row: !input restore_row
-  
+  # Direct inputs
+  target_row: !input target_row
+  text_to_display: !input text_to_display
+  effect: !input effect
+  duration: !input duration
+  marquee_speed: !input marquee_speed
+  audio_source: !input audio_source
+  sound_effect: !input sound_effect
+  media_file: !input media_file
+  volume: !input volume
+  repeat: !input repeat
+  restore_row: !input restore_row
+  # Templated variables
+  final_text: "{{ text_to_display | default('') }}"
+  final_media_file: "{{ media_file | default('') }}"
+
   payload: >
     {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
       {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
       {%- set visual_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
       {%- if effect == 'MARQUEE' -%}
         {%- do visual_command.update({'intParam': speed | int}) -%}
-      {%- elif effect in ['PULSE', 'FLASH'] -%}
-        {%- set final_duration_ms = (duration * 1000) | int -%}
-        {%- do visual_command.update({'intParam': final_duration_ms}) -%}
       {%- endif -%}
       {%- set core_commands = [visual_command] -%}
       {%- if effect not in blocking_effects -%}
@@ -205,7 +206,7 @@ variables:
       {%- endif -%}
       {{- {'tracks': tracks} | to_json -}}
     {%- endmacro -%}
-    {{- generate_sequence_payload(final_target_row, final_effect, final_text, final_duration, final_speed, final_restore_row, final_sound, final_volume, final_repeat, final_audio_source) -}}
+    {{- generate_sequence_payload(target_row, effect, final_text, duration, marquee_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
 
 sequence:
   - service: logbook.log
@@ -218,17 +219,17 @@ sequence:
       message: |
         Executing 'Display Text' blueprint with the following parameters:
         Device: {{ device_name }} ({{ device }})
-        Target Row: {{ final_target_row }}
+        Target Row: {{ target_row }}
         Text: {{ final_text }}
-        Effect: {{ final_effect }}
-        Duration: {{ final_duration }}s
-        Marquee Speed: {{ final_speed }}ms
-        Audio Source: {{ final_audio_source }}
-        Sound Effect: {{ final_sound }}
+        Effect: {{ effect }}
+        Duration: {{ duration }}s
+        Marquee Speed: {{ marquee_speed }}ms
+        Audio Source: {{ audio_source }}
+        Sound Effect: {{ sound_effect }}
         Media File: {{ final_media_file }}
-        Volume: {{ final_volume }}%
-        Repeat: {{ final_repeat }}
-        Restore Row: {{ final_restore_row }}
+        Volume: {{ volume }}%
+        Repeat: {{ repeat }}
+        Restore Row: {{ restore_row }}
         MQTT Payload: {{ payload }}
   - service: mqtt.publish
     data:
@@ -236,16 +237,16 @@ sequence:
       payload: "{{ payload }}"
   - choose:
       - conditions:
-          - "{{ final_audio_source == 'media' and final_media_file != '' }}"
+          - "{{ audio_source == 'media' and final_media_file != '' }}"
         sequence:
           - service: media_player.volume_set
             target:
-              device_id: "{{ device }}"
+              device_id: !input device
             data:
-              volume_level: "{{ final_volume / 100 }}"
+              volume_level: "{{ volume / 100 }}"
           - service: media_player.play_media
             target:
-              device_id: "{{ device }}"
+              device_id: !input device
             data:
               media_content_id: "{{ final_media_file }}"
               media_content_type: "audio/mpeg"
