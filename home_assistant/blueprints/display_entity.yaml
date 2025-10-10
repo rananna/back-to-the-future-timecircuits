@@ -238,28 +238,6 @@ variables:
     {{- generate_sequence_payload(target_row, effect, final_text, duration, marquee_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
 
 sequence:
-  - service: system_log.write
-    data:
-      level: info
-      message: |
-        Executing 'Display Entity' blueprint with the following parameters:
-        Device: {{ device_name }} ({{ device }})
-        Target Row: {{ target_row }}
-        Entity: {{ entity_to_display }}
-        Attribute: {{ final_attribute }}
-        Prefix: {{ final_prefix }}
-        Postfix: {{ final_postfix }}
-        Final Text: {{ final_text }}
-        Effect: {{ effect }}
-        Duration: {{ duration }}s
-        Marquee Speed: {{ marquee_speed }}ms
-        Audio Source: {{ audio_source }}
-        Sound Effect: {{ sound_effect }}
-        Media File: {{ final_media_file }}
-        Volume: {{ volume }}%
-        Repeat: {{ repeat }}
-        Restore Row: {{ restore_row }}
-        MQTT Payload: {{ payload }}
   - service: mqtt.publish
     data:
       topic: "bttf_time_circuits/{{ device_name }}/cmnd/sequencer"

@@ -233,26 +233,6 @@ variables:
     {{- generate_countdown_payload(target_row, start_number, countdown_delay, final_end_text, end_text_effect, end_text_duration, end_text_marquee_speed, audio_source, sound_effect, volume, repeat_end_effect, restore_row) -}}
 
 sequence:
-  - service: system_log.write
-    data:
-      level: info
-      message: |
-        Executing 'Countdown Timer' blueprint with the following parameters:
-        Device: {{ device_name }} ({{ device }})
-        Target Row: {{ target_row }}
-        Start Number: {{ start_number }}
-        Delay: {{ countdown_delay }}ms
-        End Text: {{ final_end_text }}
-        End Effect: {{ end_text_effect }}
-        End Duration: {{ end_text_duration }}s
-        End Marquee Speed: {{ end_text_marquee_speed }}ms
-        End Audio Source: {{ audio_source }}
-        End Sound: {{ sound_effect }}
-        End Media File: {{ final_media_file }}
-        Volume: {{ volume }}%
-        Repeat End Effect: {{ repeat_end_effect }}
-        Restore Row: {{ restore_row }}
-        MQTT Payload: {{ payload }}
   - service: mqtt.publish
     data:
       topic: "bttf_time_circuits/{{ device_name }}/cmnd/sequencer"
