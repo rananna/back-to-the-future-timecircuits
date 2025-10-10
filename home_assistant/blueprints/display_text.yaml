@@ -11,6 +11,13 @@ blueprint:
         device:
           integration: bttf_time_circuits
 
+    entity:
+      name: Entity
+      description: "Optional: The entity context for this script, used when called from an automation."
+      default: {}
+      selector:
+        entity: {}
+
     target_row:
       name: Target Row
       description: "The display row(s) to show the message on."
