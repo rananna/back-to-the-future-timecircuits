@@ -150,6 +150,8 @@ mode: single
 
 variables:
   device_name: "{{ device_attr(device, 'name') | slugify }}"
+  media_player_entity: >
+    {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
   # Direct inputs
   target_row: !input target_row
   text_to_display: !input text_to_display
@@ -231,16 +233,16 @@ sequence:
       payload: "{{ payload }}"
   - choose:
       - conditions:
-          - "{{ audio_source == 'media' and final_media_file != '' }}"
+          - "{{ audio_source == 'media' and final_media_file != '' and media_player_entity != 'none' }}"
         sequence:
           - service: media_player.volume_set
             target:
-              device_id: !input device
+              entity_id: "{{ media_player_entity }}"
             data:
               volume_level: "{{ volume / 100 }}"
           - service: media_player.play_media
             target:
-              device_id: !input device
+              entity_id: "{{ media_player_entity }}"
             data:
               media_content_id: "{{ final_media_file }}"
               media_content_type: "audio/mpeg"
