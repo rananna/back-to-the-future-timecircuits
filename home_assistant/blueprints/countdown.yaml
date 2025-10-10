@@ -47,7 +47,7 @@ blueprint:
           max: 5000
           unit_of_measurement: "ms"
 
-    # --- End Text ---
+    # --- End Effect ---
     end_text:
       name: "End Text"
       description: "Optional text to display when the countdown finishes."
@@ -75,7 +75,7 @@ blueprint:
               value: "SCRAMBLE_TEXT"
     end_text_duration:
       name: "End Text Display Duration (s)"
-      description: "Duration for non-blocking effects like Set Text, Pulse, and Flash."
+      description: "Duration for the non-blocking 'Set Text' end effect. Other effects like Pulse and Flash have their own internal timing."
       default: 5
       selector:
         number:
@@ -113,25 +113,36 @@ blueprint:
       selector:
         select:
           options:
-            - "ACCELERATION.mp3"
-            - "arrival_chime.mp3"
-            - "electric_sparks.mp3"
-            - "engine_rev.mp3"
-            - "flux_capacitor_power_on.mp3"
-            - "hum.mp3"
-            - "keypad_beeps.mp3"
-            - "lock_on.mp3"
-            - "relay_activation.mp3"
-            - "sys_beep.mp3"
-            - "time_travel.mp3"
+            - label: "Arrival Chime"
+              value: "arrival_chime.mp3"
+            - label: "System Beep"
+              value: "sys_beep.mp3"
+            - label: "Acceleration"
+              value: "ACCELERATION.mp3"
+            - label: "Electric Sparks"
+              value: "electric_sparks.mp3"
+            - label: "Engine Rev"
+              value: "engine_rev.mp3"
+            - label: "Flux Capacitor Power On"
+              value: "flux_capacitor_power_on.mp3"
+            - label: "Hum"
+              value: "hum.mp3"
+            - label: "Keypad Beeps"
+              value: "keypad_beeps.mp3"
+            - label: "Lock On"
+              value: "lock_on.mp3"
+            - label: "Relay Activation"
+              value: "relay_activation.mp3"
+            - label: "Time Travel"
+              value: "time_travel.mp3"
     media_file:
       name: "End Media File"
       description: "Audio file to stream from the Home Assistant media library."
       default: ""
       selector:
         media:
-          accept:
-            - 'audio/*'
+          filter:
+            media_class: music
     volume:
       name: "End Audio Volume"
       description: "Set the volume for the sound (0-100). Only used if an audio source is selected."
@@ -162,100 +173,112 @@ blueprint:
 mode: single
 
 variables:
-  # Sanitize all templateable inputs to prevent 'LoggingUndefined' errors.
-  # This ensures that even if a template fails, it provides a safe default
-  # value instead of an 'Undefined' object that cannot be serialized to JSON.
-  final_target_row: "{{ target_row | default('TOP') }}"
-  final_start_number: "{{ start_number | default(10) }}"
-  final_countdown_delay: "{{ countdown_delay | default(1000) }}"
-  final_end_text: "{{ end_text | default('') }}"
-  final_end_text_effect: "{{ end_text_effect | default('SET_TEXT') }}"
-  final_end_text_duration: "{{ end_text_duration | default(5) }}"
-  final_end_text_marquee_speed: "{{ end_text_marquee_speed | default(100) }}"
-  final_audio_source: "{{ audio_source | default('none') }}"
-  final_sound_effect: "{{ sound_effect | default('arrival_chime.mp3') }}"
-  final_media_file: "{{ media_file | default('') }}"
-  final_volume: "{{ volume | default(80) }}"
-  final_repeat_end_effect: "{{ repeat_end_effect | default(1) }}"
-  final_restore_row: "{{ restore_row | default(true) }}"
+  device_name: "{{ device_attr(device, 'name') | slugify }}"
+  final_target_row: !input target_row
+  final_start_number: !input start_number
+  final_countdown_delay: !input countdown_delay
+  final_end_text: !input end_text
+  final_end_text_effect: !input end_text_effect
+  final_end_text_duration: !input end_text_duration
+  final_end_text_marquee_speed: !input end_text_marquee_speed
+  final_audio_source: !input audio_source
+  final_sound_effect: !input sound_effect
+  final_media_file: !input media_file
+  final_volume: !input volume
+  final_repeat_end_effect: !input repeat_end_effect
+  final_restore_row: !input restore_row
+
+  payload: >
+    {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_duration, end_speed, audio_src, sound, vol, repeat_count, restore) -%}
+      {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
+      {%- set end_commands = [] -%}
+      {%- if audio_src == 'builtin' -%}
+        {%- set device_volume = ((vol / 100) * 21) | round(0) | int -%}
+        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
+        {%- do end_commands.append(sound_command) -%}
+      {%- endif -%}
+      {%- if end_txt != "" -%}
+        {%- set end_text_cmd = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
+        {%- if end_effect == 'MARQUEE' -%}
+          {%- do end_text_cmd.update({'intParam': end_speed | int}) -%}
+        {%- elif end_effect in ['PULSE', 'FLASH'] -%}
+          {%- do end_text_cmd.update({'intParam': (end_duration * 1000) | int}) -%}
+        {%- endif -%}
+        {%- do end_commands.append(end_text_cmd) -%}
+        {%- if end_effect not in blocking_effects -%}
+          {%- do end_commands.append({'command': 'WAIT', 'intParam': (end_duration * 1000) | int}) -%}
+        {%- endif -%}
+      {%- endif -%}
+      {%- set final_commands = [] -%}
+      {%- do final_commands.append({'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_num, 'intParam2': delay}) -%}
+      {%- if end_commands | length > 0 -%}
+        {%- if (repeat_count | int) > 1 -%}
+          {%- do final_commands.append({'command': 'LOOP_START', 'intParam': repeat_count | int}) -%}
+          {%- do final_commands.extend(end_commands) -%}
+          {%- do final_commands.append({'command': 'LOOP_END'}) -%}
+        {%- else -%}
+          {%- do final_commands.extend(end_commands) -%}
+        {%- endif -%}
+      {%- endif -%}
+      {%- if restore -%}
+        {%- do final_commands.append({'command': 'RESTORE_ROW'}) -%}
+      {%- endif -%}
+      {%- if target == 'ALL' -%}
+        {%- set tracks = [
+            {'targetRow': 'TOP', 'commands': final_commands},
+            {'targetRow': 'MIDDLE', 'commands': final_commands},
+            {'targetRow': 'BOTTOM', 'commands': final_commands}
+          ] -%}
+      {%- else -%}
+        {%- set tracks = [{'targetRow': target, 'commands': final_commands}] -%}
+      {%- endif -%}
+      {{- {'tracks': tracks} | to_json -}}
+    {%- endmacro -%}
+    {{- generate_countdown_payload(final_target_row, final_start_number, final_countdown_delay, final_end_text, final_end_text_effect, final_end_text_duration, final_end_text_marquee_speed, final_audio_source, final_sound_effect, final_volume, final_repeat_end_effect, final_restore_row) -}}
 
 sequence:
-  - variables:
-      payload: >
-        {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_duration, end_speed, audio_src, sound, vol, repeat_count, restore) -%}
-          {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
-          {%- set end_commands = [] -%}
-          {%- if audio_src == 'builtin' and sound is not none -%}
-            {%- set device_volume = (vol / 100 * 21) | round(0) | int -%}
-            {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
-            {%- set end_commands = end_commands + [sound_command] -%}
-          {%- endif -%}
-          {%- if end_txt != "" -%}
-            {%- set end_text_cmd = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
-            {%- if end_effect == 'MARQUEE' -%}
-              {%- do end_text_cmd.update({'intParam': end_speed}) -%}
-            {%- elif end_effect in ['PULSE', 'FLASH'] -%}
-              {%- do end_text_cmd.update({'intParam': end_duration * 1000 | int}) -%}
-            {%- endif -%}
-            {%- set end_commands = end_commands + [end_text_cmd] -%}
-            {%- if end_effect not in blocking_effects -%}
-              {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': end_duration * 1000 | int}] -%}
-            {%- endif -%}
-          {%- endif -%}
-          {%- set final_commands = [] -%}
-          {%- set final_commands = final_commands + [{'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_num, 'intParam2': delay}] -%}
-          {%- if end_commands | length > 0 -%}
-            {%- if repeat_count > 1 -%}
-              {%- set final_commands = final_commands + [{'command': 'LOOP_START', 'intParam': repeat_count | int}] -%}
-              {%- set final_commands = final_commands + end_commands -%}
-              {%- set final_commands = final_commands + [{'command': 'LOOP_END'}] -%}
-            {%- else -%}
-              {%- set final_commands = final_commands + end_commands -%}
-            {%- endif -%}
-          {%- endif -%}
-          {%- if restore -%}
-            {%- set final_commands = final_commands + [{'command': 'RESTORE_ROW'}] -%}
-          {%- endif -%}
-          {%- if target == 'ALL' -%}
-            {%- set tracks = [
-              {'targetRow': 'TOP', 'commands': final_commands},
-              {'targetRow': 'MIDDLE', 'commands': final_commands},
-              {'targetRow': 'BOTTOM', 'commands': final_commands}
-            ] -%}
-          {%- else -%}
-            {%- set tracks = [{'targetRow': target, 'commands': final_commands}] -%}
-          {%- endif -%}
-          {{- {'tracks': tracks} | to_json -}}
-        {%- endmacro -%}
-        {{- generate_countdown_payload(final_target_row, final_start_number, final_countdown_delay, final_end_text, final_end_text_effect, final_end_text_duration, final_end_text_marquee_speed, final_audio_source, final_sound_effect, final_volume, final_repeat_end_effect, final_restore_row) -}}
+  - service: logbook.log
+    data:
+      name: "{{ blueprint.name }}"
+      message: "Running a {{ (final_start_number * final_countdown_delay / 1000) | round(1) }}s countdown on {{ device_name }}"
+  - service: system_log.write
+    data:
+      level: info
+      message: |
+        Executing 'Countdown Timer' blueprint with the following parameters:
+        Device: {{ device_name }} ({{ device }})
+        Target Row: {{ final_target_row }}
+        Start Number: {{ final_start_number }}
+        Delay: {{ final_countdown_delay }}ms
+        End Text: {{ final_end_text }}
+        End Effect: {{ final_end_text_effect }}
+        End Duration: {{ final_end_text_duration }}s
+        End Marquee Speed: {{ final_end_text_marquee_speed }}ms
+        End Audio Source: {{ final_audio_source }}
+        End Sound: {{ final_sound_effect }}
+        End Media File: {{ final_media_file }}
+        Volume: {{ final_volume }}%
+        Repeat End Effect: {{ final_repeat_end_effect }}
+        Restore Row: {{ final_restore_row }}
+        MQTT Payload: {{ payload }}
+  - service: mqtt.publish
+    data:
+      topic: "bttf_time_circuits/{{ device_name }}/cmnd/sequencer"
+      payload: "{{ payload }}"
   - choose:
-      # --- Case 1: Stream audio from Home Assistant ---
-      # Set volume, run visuals, wait, then play media once.
       - conditions:
           - "{{ final_audio_source == 'media' and final_media_file != '' }}"
         sequence:
           - service: media_player.volume_set
             target:
-              device_id: "{{ device_id(device) }}"
+              device_id: "{{ device }}"
             data:
               volume_level: "{{ final_volume / 100 }}"
-          - service: mqtt.publish
-            data:
-              topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
-              payload: "{{ payload }}"
           - delay:
               seconds: "{{ (final_start_number * (final_countdown_delay / 1000)) | int(0) }}"
           - service: media_player.play_media
             target:
-              device_id: "{{ device_id(device) }}"
+              device_id: "{{ device }}"
             data:
               media_content_id: "{{ final_media_file }}"
               media_content_type: "audio/mpeg"
-
-      # --- Case 2: Built-in sound or No sound ---
-      # The MQTT payload already contains the (potentially looped) end effects.
-    default:
-      - service: mqtt.publish
-        data:
-          topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
-          payload: "{{ payload }}"

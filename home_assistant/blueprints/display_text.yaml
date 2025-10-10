@@ -58,7 +58,7 @@ blueprint:
               value: "SCRAMBLE_TEXT"
     duration:
       name: "Display Duration (s)"
-      description: "Duration for non-blocking effects like Set Text, Pulse, and Flash."
+      description: "Duration for the non-blocking 'Set Text' effect. Other effects like Pulse and Flash have their own internal timing."
       default: 10
       selector:
         number:
@@ -96,25 +96,36 @@ blueprint:
       selector:
         select:
           options:
-            - "ACCELERATION.mp3"
-            - "arrival_chime.mp3"
-            - "electric_sparks.mp3"
-            - "engine_rev.mp3"
-            - "flux_capacitor_power_on.mp3"
-            - "hum.mp3"
-            - "keypad_beeps.mp3"
-            - "lock_on.mp3"
-            - "relay_activation.mp3"
-            - "sys_beep.mp3"
-            - "time_travel.mp3"
+            - label: "System Beep"
+              value: "sys_beep.mp3"
+            - label: "Acceleration"
+              value: "ACCELERATION.mp3"
+            - label: "Arrival Chime"
+              value: "arrival_chime.mp3"
+            - label: "Electric Sparks"
+              value: "electric_sparks.mp3"
+            - label: "Engine Rev"
+              value: "engine_rev.mp3"
+            - label: "Flux Capacitor Power On"
+              value: "flux_capacitor_power_on.mp3"
+            - label: "Hum"
+              value: "hum.mp3"
+            - label: "Keypad Beeps"
+              value: "keypad_beeps.mp3"
+            - label: "Lock On"
+              value: "lock_on.mp3"
+            - label: "Relay Activation"
+              value: "relay_activation.mp3"
+            - label: "Time Travel"
+              value: "time_travel.mp3"
     media_file:
       name: "Media File"
       description: "Audio file to stream from the Home Assistant media library."
       default: ""
       selector:
         media:
-          accept:
-            - 'audio/*'
+          filter:
+            media_class: music
     volume:
       name: Volume
       description: "Set the volume for this specific alert (0-100). Only used if an audio source is selected."
@@ -145,93 +156,103 @@ blueprint:
 mode: single
 
 variables:
-  # Sanitize all templateable inputs to prevent 'LoggingUndefined' errors.
-  # This ensures that even if a template fails, it provides a safe default
-  # value instead of an 'Undefined' object that cannot be serialized to JSON.
-  final_target_row: "{{ target_row | default('TOP') }}"
-  final_effect: "{{ effect | default('SET_TEXT') }}"
-  final_text: "{{ text_to_display | default('') }}"
-  final_duration: "{{ duration | default(10) }}"
-  final_speed: "{{ marquee_speed | default(100) }}"
-  final_restore_row: "{{ restore_row | default(true) }}"
-  final_audio_source: "{{ audio_source | default('none') }}"
-  final_sound: "{{ sound_effect | default('sys_beep.mp3') }}"
-  final_media_file: "{{ media_file | default('') }}"
-  final_volume: "{{ volume | default(80) }}"
-  final_repeat: "{{ repeat | default(1) }}"
+  device_name: "{{ device_attr(device, 'name') | slugify }}"
+  final_target_row: !input target_row
+  final_text: !input text_to_display
+  final_effect: !input effect
+  final_duration: !input duration
+  final_speed: !input marquee_speed
+  final_audio_source: !input audio_source
+  final_sound: !input sound_effect
+  final_media_file: !input media_file
+  final_volume: !input volume
+  final_repeat: !input repeat
+  final_restore_row: !input restore_row
+
+  payload: >
+    {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
+      {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
+      {%- set visual_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
+      {%- if effect == 'MARQUEE' -%}
+        {%- do visual_command.update({'intParam': speed | int}) -%}
+      {%- elif effect in ['PULSE', 'FLASH'] -%}
+        {%- set final_duration_ms = (duration * 1000) | int -%}
+        {%- do visual_command.update({'intParam': final_duration_ms}) -%}
+      {%- endif -%}
+      {%- set core_commands = [] -%}
+      {%- if audio_src == 'builtin' -%}
+        {%- set device_volume = ((sound_vol / 100) * 21) | round(0) | int -%}
+        {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
+        {%- do core_commands.append(sound_command) -%}
+      {%- endif -%}
+      {%- do core_commands.append(visual_command) -%}
+      {%- if effect not in blocking_effects -%}
+        {%- set wait_duration = (duration * 1000) | int -%}
+        {%- do core_commands.append({'command': 'WAIT', 'intParam': wait_duration}) -%}
+      {%- endif -%}
+      {%- set final_commands = [] -%}
+      {%- if (repeat_count | int) > 1 -%}
+        {%- do final_commands.append({'command': 'LOOP_START', 'intParam': repeat_count | int}) -%}
+        {%- do final_commands.extend(core_commands) -%}
+        {%- do final_commands.append({'command': 'LOOP_END'}) -%}
+      {%- else -%}
+        {%- do final_commands.extend(core_commands) -%}
+      {%- endif -%}
+      {%- if restore -%}
+        {%- do final_commands.append({'command': 'RESTORE_ROW'}) -%}
+      {%- endif -%}
+      {%- if target == 'ALL' -%}
+        {%- set tracks = [
+            {'targetRow': 'TOP', 'commands': final_commands},
+            {'targetRow': 'MIDDLE', 'commands': final_commands},
+            {'targetRow': 'BOTTOM', 'commands': final_commands}
+          ] -%}
+      {%- else -%}
+        {%- set tracks = [{'targetRow': target, 'commands': final_commands}] -%}
+      {%- endif -%}
+      {{- {'tracks': tracks} | to_json -}}
+    {%- endmacro -%}
+    {{- generate_sequence_payload(final_target_row, final_effect, final_text, final_duration, final_speed, final_restore_row, final_sound, final_volume, final_repeat, final_audio_source) -}}
 
 sequence:
-  - variables:
-      payload: >
-        {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
-          {%- set blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
-          {%- set visual_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
-          {%- if effect == 'MARQUEE' -%}
-            {%- do visual_command.update({'intParam': speed | int}) -%}
-          {%- elif effect in ['PULSE', 'FLASH'] -%}
-            {%- set final_duration_ms = duration * 1000 | int -%}
-            {%- do visual_command.update({'intParam': final_duration_ms}) -%}
-          {%- endif -%}
-          {%- set core_commands = [] -%}
-          {%- if sound != 'none' and audio_src == 'builtin' -%}
-            {%- set device_volume = (sound_vol / 100 * 21) | round(0) | int -%}
-            {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
-            {%- set core_commands = core_commands + [sound_command] -%}
-          {%- endif -%}
-          {%- set core_commands = core_commands + [visual_command] -%}
-          {%- if effect not in blocking_effects -%}
-            {%- set wait_duration = duration * 1000 | int -%}
-            {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
-          {%- endif -%}
-          {%- set final_commands = [] -%}
-          {%- if repeat_count > 1 -%}
-            {%- set final_commands = final_commands + [{'command': 'LOOP_START', 'intParam': repeat_count | int}] -%}
-            {%- set final_commands = final_commands + core_commands -%}
-            {%- set final_commands = final_commands + [{'command': 'LOOP_END'}] -%}
-          {%- else -%}
-            {%- set final_commands = final_commands + core_commands -%}
-          {%- endif -%}
-          {%- if restore -%}
-            {%- set final_commands = final_commands + [{'command': 'RESTORE_ROW'}] -%}
-          {%- endif -%}
-          {%- if target == 'ALL' -%}
-            {%- set tracks = [
-              {'targetRow': 'TOP', 'commands': final_commands},
-              {'targetRow': 'MIDDLE', 'commands': final_commands},
-              {'targetRow': 'BOTTOM', 'commands': final_commands}
-            ] -%}
-          {%- else -%}
-            {%- set tracks = [{'targetRow': target, 'commands': final_commands}] -%}
-          {%- endif -%}
-          {{- {'tracks': tracks} | to_json -}}
-        {%- endmacro -%}
-        {{- generate_sequence_payload(final_target_row, final_effect, final_text, final_duration, final_speed, final_restore_row, final_sound, final_volume, final_repeat, final_audio_source) -}}
+  - service: logbook.log
+    data:
+      name: "{{ blueprint.name }}"
+      message: "Displaying text on {{ device_name }}: '{{ final_text }}'"
+  - service: system_log.write
+    data:
+      level: info
+      message: |
+        Executing 'Display Text' blueprint with the following parameters:
+        Device: {{ device_name }} ({{ device }})
+        Target Row: {{ final_target_row }}
+        Text: {{ final_text }}
+        Effect: {{ final_effect }}
+        Duration: {{ final_duration }}s
+        Marquee Speed: {{ final_speed }}ms
+        Audio Source: {{ final_audio_source }}
+        Sound Effect: {{ final_sound }}
+        Media File: {{ final_media_file }}
+        Volume: {{ final_volume }}%
+        Repeat: {{ final_repeat }}
+        Restore Row: {{ final_restore_row }}
+        MQTT Payload: {{ payload }}
+  - service: mqtt.publish
+    data:
+      topic: "bttf_time_circuits/{{ device_name }}/cmnd/sequencer"
+      payload: "{{ payload }}"
   - choose:
-      # --- Case 1: Stream audio from Home Assistant ---
-      # Set volume and play media once, then send the (potentially looped) visual sequence.
       - conditions:
           - "{{ final_audio_source == 'media' and final_media_file != '' }}"
         sequence:
           - service: media_player.volume_set
             target:
-              device_id: "{{ device_id(device) }}"
+              device_id: "{{ device }}"
             data:
               volume_level: "{{ final_volume / 100 }}"
           - service: media_player.play_media
             target:
-              device_id: "{{ device_id(device) }}"
+              device_id: "{{ device }}"
             data:
               media_content_id: "{{ final_media_file }}"
               media_content_type: "audio/mpeg"
-          - service: mqtt.publish
-            data:
-              topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
-              payload: "{{ payload }}"
-
-      # --- Case 2: Built-in sound or No sound ---
-      # The MQTT payload already contains the looped sound and visuals.
-    default:
-      - service: mqtt.publish
-        data:
-          topic: "bttf_time_circuits/{{ device_id(device) }}/cmnd/sequencer"
-          payload: "{{ payload }}"
