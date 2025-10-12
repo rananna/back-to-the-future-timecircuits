@@ -753,7 +753,8 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
  * @param json_string A string containing the JSON definition of the sequence.
  */
 void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string) {
-    JsonDocument doc;
+    static JsonDocument doc;
+    doc.clear();
     DeserializationError error = deserializeJson(doc, json_string);
 
     if (error) {
