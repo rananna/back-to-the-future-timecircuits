@@ -1464,11 +1464,6 @@ void loop() {
                     xSemaphoreGive(xTimeLibMutex);
                 }
             }
-            static unsigned long lastHaStateUpdate = 0;
-            if (timeSynchronized && millis() - lastHaStateUpdate > 5000) {
-                publishAllHaStates();
-                lastHaStateUpdate = millis();
-            }
             
             if (hardwareInitialized) {
                 if (bootState != BOOT_INACTIVE) {
