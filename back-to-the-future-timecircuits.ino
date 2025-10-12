@@ -423,7 +423,7 @@ void applySettingsFromJson(const JsonObject& obj) {
         // to the corresponding enum value before saving.
         if (obj["animationSequence"].is<const char*>()) {
             std::string sequenceName = obj["animationSequence"].as<std::string>();
-            currentSettings.animationSequence = animationTypeFromString(sequenceName);
+            currentSettings.animationSequence = animationTypeFromString(sequenceName.c_str());
         } else {
             // Fallback for the old integer-based value, ensuring backward compatibility
             // with older clients or direct API calls.
