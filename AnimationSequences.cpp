@@ -109,16 +109,16 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    // Loop 22 times. Each loop takes 450ms (3 * 100ms flicker + 3 * 50ms wait).
-    // 22 * 450ms = 9900ms ~= 10s.
+    // Loop 13 times. Each loop takes ~750ms. Total ~9.75s.
+    // 13 loops * 6 steps/loop = 78 steps, which is safely under MAX_SEQUENCE_STEPS (80).
     // Use i % 4 to keep the tornado effect cycling across the 4 display segments.
-    for (int i = 0; i < 22; i++) {
+    for (int i = 0; i < 13; i++) {
         s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, i % 4, 100, 50);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
         s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, i % 4, 100, 50);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
         s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, i % 4, 100, 50);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
     }
 }
 
@@ -590,14 +590,14 @@ void generateCountingUp(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 0, "CALCULATING..");
 
     // --- Track 0 (Middle): The Counter ---
-    // Loop 200 times. Each number is shown for 50ms. Total 10s.
-    // This loop is in C++ to generate the steps, not a sequencer loop.
-    for (int i = 0; i <= 200; i++) {
+    // Loop 39 times. Each loop is ~250ms. Total ~9.75s.
+    // 39 loops * 2 steps/loop = 78 steps, which is safely under MAX_SEQUENCE_STEPS (80).
+    for (int i = 0; i <= 39; i++) {
         char buffer[14];
         // Format the number, right-aligned and padded with spaces
-        snprintf(buffer, sizeof(buffer), "%13d", i * 1337);
+        snprintf(buffer, sizeof(buffer), "%13d", i * 6921); // Adjusted multiplier
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, buffer);
-        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 50, 0);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 250, 0);
     }
 }
 
