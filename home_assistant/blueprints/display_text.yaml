@@ -182,7 +182,7 @@ sequence:
             {%- set track_object = {'targetRow': row, 'commands': current_commands} -%}
             {%- set ns.tracks = ns.tracks + [track_object] -%}
           {%- endfor -%}
-          {{- {'tracks': ns.tracks} | to_json -}}
+          {{- ns.tracks | to_json -}}
         {%- endmacro -%}
         {{- generate_sequence_payload(target_row, effect, final_text, duration, marquee_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
 

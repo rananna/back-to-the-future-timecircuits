@@ -1618,22 +1618,47 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
  * @param payload The JSON string or name of the sequence to run.
  */
 void handleSequencerCommand(const std::string& payload) {
-    // --- NEW UNIFIED LOGIC ---
-    // First, check if the payload is a direct JSON command.
+    // This static buffer holds the generated sequence.
+    static SequencerTrack tempTracks[NUM_SEQUENCER_TRACKS];
+
+    // --- FIX: Clear the temporary tracks buffer BEFORE parsing. ---
+    // This is a critical stability fix. If `parseSequenceFromJson` fails, this
+    // static buffer would otherwise retain the data from the last *successful*
+    // sequence generation. This would cause the device to seemingly run the wrong
+    // animation (the previous one) when a malformed command is received.
+    // By clearing it here, a failed parse results in an empty sequence, which
+    // will simply do nothing and time out safely.
+    for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
+        tempTracks[i] = SequencerTrack(); // Reset to default state
+    }
+
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, payload);
 
     if (error == DeserializationError::Ok) {
-        // It's a valid JSON string. Use the "Generate, Stop, Copy, Activate" pattern.
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload.");
+        // It's a valid JSON string. Now, determine its structure.
+        std::string tracks_payload;
+        if (doc.is<JsonArray>()) {
+            // This is the correct, preferred format: a direct array of tracks.
+            tracks_payload = payload;
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload (Array format).");
+        } else if (doc.is<JsonObject>() && !doc["tracks"].isNull() && doc["tracks"].is<JsonArray>()) {
+            // This is for backward compatibility with older tools or blueprints that
+            // might wrap the array in an object like: {"tracks": [...]}.
+            serializeJson(doc["tracks"], tracks_payload);
+            Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload (Object wrapper format).");
+        } else {
+            // The payload is valid JSON, but not in a structure we can use.
+            Log_printf(LOG_LEVEL_ERROR, "Sequencer: JSON payload is not a track array or a {'tracks':...} object. Aborting.");
+            return; // Exit without starting any animation.
+        }
 
         // Pause the main display loop
         preAnimationDisplayMode = currentSettings.displayMode;
         currentSettings.displayMode = -1;
 
-        // 1. Generate: Parse into a static temporary buffer to avoid heap allocation.
-        static SequencerTrack tempTracks[NUM_SEQUENCER_TRACKS];
-        parseSequenceFromJson(tempTracks, payload);
+        // 1. Generate: Parse the validated and extracted JSON payload.
+        parseSequenceFromJson(tempTracks, tracks_payload);
         Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Parsing of JSON payload complete.");
 
         // 2. Stop: Halt all currently running animations.
@@ -1659,13 +1684,7 @@ void handleSequencerCommand(const std::string& payload) {
 
     } else {
         // It's not JSON, so treat it as a named sequence.
-        // Convert the string name to an enum.
         AnimationType animType = animationTypeFromString(payload.c_str());
-
-        // --- FIX: Directly call triggerAnimation for ALL named sequences ---
-        // This is the core of the fix. Instead of having separate logic paths,
-        // all named sequences, whether legacy, C++ generated, or JSON-based,
-        // are now handled by the unified triggerAnimation -> generateAnimationSequence flow.
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence '%s' (Enum: %d)", payload.c_str(), (int)animType);
         triggerAnimation(animType);
     }
