@@ -115,11 +115,17 @@ void broadcastAnimationComplete();
 #include "Sequencer.h"
 
 /**
- * @brief Global array of sequencer tracks, one for each of the 3 display rows.
+ * @brief The number of parallel animation tracks supported by the sequencer.
+ * @details This is fixed to 3, corresponding to the three physical display rows (TOP, MIDDLE, BOTTOM).
+ */
+#define NUM_SEQUENCER_TRACKS 3
+
+/**
+ * @brief Global array of sequencer tracks, one for each display row.
  * @details This is the core data structure for the animation sequencer, holding the state
  * and command lists for all concurrently running animations.
  */
-extern SequencerTrack sequencerTracks[3];
+extern SequencerTrack sequencerTracks[NUM_SEQUENCER_TRACKS];
 
 /**
  * @name Animation Sequencer Core Functions

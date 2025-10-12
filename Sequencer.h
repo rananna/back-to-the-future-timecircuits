@@ -193,6 +193,7 @@ struct SequencerTrack {
     unsigned long pulseEndTimes[4] = {0}; /**< `millis()` timestamp when the pulse effect should end for each segment. */
     bool pulseStates[4] = {false};      /**< The current on/off state of the pulse visual for each segment. */
     unsigned long lastPulseToggle[4] = {0}; /**< `millis()` timestamp of the last on/off toggle for each segment. */
+    unsigned long pulseInterval = 750;  /**< The interval between on/off toggles for the pulse effect. */
 
     // --- State for Flash Effect ---
     bool isFlashing[4] = {false};       /**< True if a segment is flashing. Indexed by segment (0-3). */
@@ -268,6 +269,7 @@ struct SequencerTrack {
             pulseEndTimes[i] = 0;
             pulseStates[i] = false;
             lastPulseToggle[i] = 0;
+            pulseInterval = 750; // Default pulse interval
 
             isFlashing[i] = false;
             flashEndTimes[i] = 0;
