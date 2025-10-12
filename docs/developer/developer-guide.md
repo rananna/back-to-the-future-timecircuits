@@ -194,7 +194,7 @@ It is critical to understand the difference between **blocking** and **non-block
 | :--- | :--- | :--- | :--- |
 | `FADE_IN` | **(Blocking)** Fades the display brightness from 0 to the current setting. | `intParam` (duration ms) | `{"command":"FADE_IN", "intParam":2000}` |
 | `FADE_OUT`| **(Blocking)** Fades the display brightness from the current setting to 0. | `intParam` (duration ms) | `{"command":"FADE_OUT", "intParam":2000}` |
-| `PULSE` | **(Blocking)** Makes a segment (or row) blink slowly (750ms interval). | `targetSegment`, `intParam` (duration ms) | `{"command":"PULSE", "targetSegment":-1, "intParam":5000}` |
+| `PULSE` | **(Blocking)** Makes a segment (or row) blink. If `stringParam` is provided, it sets the text first. | `stringParam` (optional text), `targetSegment` (optional), `intParam` (blink interval ms), `intParam2` (total duration ms) | `{"command":"PULSE", "stringParam":"ALERT", "intParam":500, "intParam2":10000}` |
 | `FLASH` | **(Blocking)** Makes a segment (or row) flash brightly and rapidly (75ms interval). | `targetSegment`, `intParam` (duration ms) | `{"command":"FLASH", "targetSegment":2, "intParam":1000}` |
 | `SET_BRIGHTNESS` | **(Non-Blocking)** Instantly sets the global display brightness. | `intParam` (0-7) | `{"command":"SET_BRIGHTNESS", "intParam":7}` |
 | `SOUND` | **(Non-Blocking)** Plays a sound effect from the device's filesystem. | `stringParam` (path, e.g., `/REMOTE.mp3`) | `{"command":"SOUND", "stringParam":"/CONFIRM_ON.mp3"}` |
