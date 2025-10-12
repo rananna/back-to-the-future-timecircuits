@@ -160,12 +160,11 @@ variables:
 sequence:
   - condition: template
     value_template: "{{ device != none }}"
-    error_message: "Please select a Time Circuits device to control."
 
   - service: mqtt.publish
     data:
       topic: "bttf_time_circuits/{{ (device_attr(device, 'identifiers') | list | last)[1] }}/sequencer/command"
-      payload_template: >-
+      payload: >-
         {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
           {%- set ns = namespace(final_commands=[], tracks=[]) -%}
           {%- set core_commands = [] -%}
@@ -218,7 +217,6 @@ sequence:
                 {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
           - condition: template
             value_template: "{{ media_player_entity != 'none' }}"
-            error_message: "Could not find a media_player entity for the selected device."
           - service: media_player.volume_set
             target:
               entity_id: "{{ media_player_entity }}"
