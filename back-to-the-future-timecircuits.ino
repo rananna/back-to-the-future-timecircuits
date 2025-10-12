@@ -44,6 +44,7 @@
 #include "web_server.h"
 #include "api_templates.h"
 #include "EventManager.h"
+#include "AnimationTypes.h"
 #include "AnimationManager.h"
 #include "DisplayManager.h"
 #include "DataManager.h"

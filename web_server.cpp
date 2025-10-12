@@ -14,6 +14,7 @@
 #include "DataManager.h"
 #include "timezone.h"
 #include "EventManager.h"
+#include "AnimationTypes.h"
 #include "MqttManager.h"
 #include <AsyncJson.h>
 #include <WiFiClientSecure.h>

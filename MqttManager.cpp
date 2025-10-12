@@ -21,6 +21,7 @@
 #include "DebugLog.h"
 #include "MqttManager.h"
 #include "EventManager.h"
+#include "Sequencer.h"
 #include "AnimationManager.h"
 #include "DisplayManager.h"
 #include "DataManager.h"
@@ -36,9 +37,6 @@ extern Audio audio;
 #include <WiFi.h>
 #include <Preferences.h>
 #include <LCBUrl.h> 
-
-// Forward declaration from main .ino file
-extern AnimationType animationTypeFromString(const std::string& name);
 
 // Forward declaration for the function defined later in the file.
 void ensureBaseDiscoveryConfig();
@@ -1515,18 +1513,45 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
  * @param payload The JSON string or name of the sequence to run.
  */
 void handleSequencerCommand(const std::string& payload) {
-    preAnimationDisplayMode = currentSettings.displayMode;
-
     // --- NEW UNIFIED LOGIC ---
     // First, check if the payload is a direct JSON command.
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, payload);
 
     if (error == DeserializationError::Ok) {
-        // It's a valid JSON string, so we can parse it directly.
+        // It's a valid JSON string. Use the "Generate, Stop, Copy, Activate" pattern.
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload.");
+
+        // Pause the main display loop
+        preAnimationDisplayMode = currentSettings.displayMode;
+        currentSettings.displayMode = -1;
+
+        // 1. Generate: Parse into a static temporary buffer to avoid heap allocation.
+        static SequencerTrack tempTracks[NUM_SEQUENCER_TRACKS];
+        parseSequenceFromJson(tempTracks, payload);
+        Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Parsing of JSON payload complete.");
+
+        // 2. Stop: Halt all currently running animations.
         stopAllSequences();
-        parseSequenceFromJson(sequencerTracks, payload);
+        Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Stopped all current sequences.");
+
+        // 3. Copy: Transfer the new sequence from the temporary buffer to the main one.
+        for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
+            sequencerTracks[i] = tempTracks[i];
+        }
+        Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Copied new sequence into active tracks.");
+
+        // 4. Activate: Mark the tracks as active so the sequencer will run them.
+        for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
+            if (sequencerTracks[i].steps[0].command != SEQ_CMD_NONE) {
+                sequencerTracks[i].isActive = true;
+                sequencerTracks[i].trackStartTime = millis();
+                sequencerTracks[i].stepStartTime = millis();
+                sequencerTracks[i].originalBrightness = currentSettings.brightness;
+                Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Activated track %d.", i);
+            }
+        }
+
     } else {
         // It's not JSON, so treat it as a named sequence.
         // Convert the string name to an enum.
