@@ -58,8 +58,9 @@
         <div class="tab-nav">
             <button class="tab-link active" onclick="openTab(event, 'TimeCircuits')" data-tab="TimeCircuits">Time Circuits</button>
             <button class="tab-link" onclick="openTab(event, 'DisplaySound')" data-tab="DisplaySound">Temporal Controls</button>
+            <button class="tab-link" onclick="openTab(event, 'Connectivity')" data-tab="Connectivity">Connectivity</button>
             <button class="tab-link" onclick="openTab(event, 'DataLink')" data-tab="DataLink">Data Link</button>
-            <button class="tab-link" onclick="openTab(event, 'System')" data-tab="System">Network & System</button>
+            <button class="tab-link" onclick="openTab(event, 'System')" data-tab="System">System</button>
             <button class="tab-link" onclick="openTab(event, 'Help')" data-tab="Help">Help</button>
         </div>
         <div id="TimeCircuits" class="tab-content" style="display: block;">
@@ -325,17 +326,6 @@
                 </label>
                 <div id="dataLinkSettingsContainer" style="display:none;">
                     <div class="setting-group">
-                        <h3>Global MQTT Broker Settings</h3>
-                        <label for="mqttBroker">MQTT Broker Address:</label>
-                        <input type="text" id="mqttBroker" placeholder="e.g., 192.168.1.100">
-                        <label for="mqttPort">MQTT Port:</label>
-                        <input type="number" id="mqttPort" value="1883">
-                        <label for="mqttUser">MQTT Username (optional):</label>
-                        <input type="text" id="mqttUser">
-                        <label for="mqttPassword">MQTT Password (optional):</label>
-                        <input type="password" id="mqttPassword">
-                    </div>
-                    <div class="setting-group">
                         <h3>Data Points</h3>
                          <label for="numDataPoints">Number of Data Points: <span id="numDataPointsValue">1</span></label>
                          <div class="slider-container">
@@ -346,14 +336,28 @@
                 </div>
             </div>
         </div>
-        <div id="System" class="tab-content">
+        <div id="Connectivity" class="tab-content">
+            <div class="setting-group">
+                <h3>MQTT Broker Settings</h3>
+                <p class="info-text">Configure the connection to your MQTT broker for Home Assistant integration and advanced data link features.</p>
+                <label for="mqttBroker">MQTT Broker Address:</label>
+                <input type="text" id="mqttBroker" placeholder="e.g., 192.168.1.100">
+                <label for="mqttPort">MQTT Port:</label>
+                <input type="number" id="mqttPort" value="1883">
+                <label for="mqttUser">MQTT Username (optional):</label>
+                <input type="text" id="mqttUser">
+                <label for="mqttPassword">MQTT Password (optional):</label>
+                <input type="password" id="mqttPassword">
+            </div>
             <div class="setting-group" id="presentTimeSettings">
-                 <h3>Present Time</h3>
+                <h3>Present Time & NTP</h3>
                 <p>Time Synchronized: <span id="timeSyncStatus">No</span></p>
                 <label for="presentTimezoneSelect">Time Zone:</label>
                 <select id="presentTimezoneSelect"></select>
                 <button id="syncNtpBtn">Calibrate Present Time</button>
             </div>
+        </div>
+        <div id="System" class="tab-content">
             <div class="setting-group">
                 <h3>System Status</h3>
                 <div class="status-grid">
@@ -452,18 +456,23 @@
                     <li><strong>Internet Radio:</strong> Play internet radio streams directly on the device. You can add, edit, and delete stations from your playlist.</li>
                 </ul>
 
+                <h4>Connectivity Tab</h4>
+                <ul>
+                    <li><strong>MQTT Broker Settings:</strong> Configure the connection to your MQTT broker. This is required for Home Assistant integration and for using the advanced "Data Link" features.</li>
+                    <li><strong>Present Time & NTP:</strong> Set the local time zone for the clock and manually trigger a synchronization with an internet time server (NTP) to ensure accuracy.</li>
+                </ul>
+
                 <h4>Data Link Tab</h4>
-                <p>This tab allows you to display external data on the bottom row of the time circuits.</p>
+                <p>This tab allows you to display external data from various sources on the clock's display rows.</p>
                 <ul>
                     <li><strong>Stock Market Ticker:</strong> Enable this mode to show real-time stock prices. Requires a free API key from Financial Modeling Prep.</li>
                     <li><strong>Live Weather Display:</strong> Enable this mode to show the current weather for a specified city.</li>
-                    <li><strong>Data Link Configuration:</strong> For advanced users, this allows the clock to display data pushed from an MQTT broker.</li>
+                    <li><strong>Data Link Configuration:</strong> For advanced users, this allows the clock to display custom data pushed from an MQTT broker. You must configure the MQTT broker in the "Connectivity" tab first.</li>
                 </ul>
 
-                <h4>Network & System Tab</h4>
+                <h4>System Tab</h4>
                 <ul>
-                    <li><strong>Present Time:</strong> Set the time zone for the current time display and manually sync with an NTP server.</li>
-                    - <strong>System Status:</strong> View real-time device stats like free memory, Wi-Fi signal, and uptime.</li>
+                    <li><strong>System Status:</strong> View real-time device stats like free memory, Wi-Fi signal, and uptime.</li>
                     <li><strong>Firmware Update (OTA):</strong> Upload and install new firmware to update the device.</li>
                     <li><strong>UI Theme:</strong> Customize the look and feel of this web interface.</li>
                     <li><strong>Device Actions:</strong> Trigger a "Great Scott!" animation or reset all device settings to their factory defaults.</li>

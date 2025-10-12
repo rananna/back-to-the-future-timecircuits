@@ -403,7 +403,7 @@ function updateRadioControls(status, message = '') {
 function attachEventListeners() {
     // Header clocks click to scroll to settings
     document.getElementById('header-dest').onclick = () => scrollToSettings('TimeCircuits', 'destinationTimeSettings');
-    document.getElementById('header-pres').onclick = () => scrollToSettings('System', 'presentTimeSettings');
+    document.getElementById('header-pres').onclick = () => scrollToSettings('Connectivity', 'presentTimeSettings');
     document.getElementById('header-last').onclick = () => scrollToSettings('TimeCircuits', 'lastDepartedSettings');
     // "Great Scott!" button
     document.getElementById('greatScottBtn').onclick = () => fetch('/api/greatScott', { method: 'POST' });
