@@ -1632,7 +1632,7 @@ void handleSequencerCommand(const std::string& payload) {
     // By clearing it here, a failed parse results in an empty sequence, which
     // will simply do nothing and time out safely.
     for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
-        tracks[i] = SequencerTrack(); // Reset to default state
+        clearSequencerTrack(tracks[i]); // Safely reset the track
     }
 
     static JsonDocument doc;

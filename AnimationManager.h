@@ -154,6 +154,18 @@ void stopAndCleanupTrack(int trackIndex);
 void stopAllSequences();
 
 /**
+ * @brief Safely clears a sequence step without allocating a temporary object on the stack.
+ * @param step The SequenceStep object to clear.
+ */
+void clearSequenceStep(SequenceStep& step);
+
+/**
+ * @brief Safely clears a sequencer track without allocating a temporary object on the stack.
+ * @param track The SequencerTrack object to clear.
+ */
+void clearSequencerTrack(SequencerTrack& track);
+
+/**
  * @brief Triggers a new animation sequence globally.
  * @details This is the primary entry point for starting any built-in animation. It safely
  * stops any currently running animation and starts the new one.

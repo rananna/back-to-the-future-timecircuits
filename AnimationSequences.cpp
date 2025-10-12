@@ -1122,42 +1122,26 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
-    // This do-while loop ensures that if we are asked to randomize, we pick a concrete
-    // animation and never get stuck in a recursive loop, which prevents a stack overflow.
+    // --- FIX: Eliminate recursive call to prevent stack overflow ---
+    // The do-while loop now ONLY selects a new concrete animType if RANDOMIZE is chosen.
+    // The actual generation happens in the switch statement *after* the loop, breaking
+    // the recursion that was causing the crash.
     if (animType == ANIMATION_RANDOMIZE_ALL) {
         do {
-            // A curated list of interesting and stable C++ animations suitable for this feature.
-            // JSON-based animations are excluded as they are generally for specific UI triggers.
             const AnimationType cpp_animations[] = {
-                ANIMATION_ALL_DISPLAYS_RANDOM,
-                ANIMATION_LIGHTNING,
-                ANIMATION_SCANNER,
-                ANIMATION_TIME_TRAVEL_TUNNEL,
-                ANIMATION_FLUX_CAPACITOR_OVERLOAD,
-                ANIMATION_FIRE_TRAILS,
-                ANIMATION_SPARKLE_REVEAL,
-                ANIMATION_SEQUENTIAL_FLICKER,
-                ANIMATION_RANDOM_FLICKER,
-                ANIMATION_TORNADO_FLICKER,
-                ANIMATION_CAPACITOR_CHARGE_UP,
-                ANIMATION_WAVEFORM_COLLAPSE,
-                ANIMATION_TIMELINE_SKIM,
-                ANIMATION_TEMPORAL_DESYNC,
-                ANIMATION_GLITCHY_JUMP_CUT,
-                ANIMATION_PLASMA_WARM_UP,
-                ANIMATION_TIME_WARP_STREAKS,
-                ANIMATION_CHARACTER_SCANLINE,
-                ANIMATION_FOCUS_IN,
-                ANIMATION_CODE_BREAKER,
-                ANIMATION_TEMPORAL_PARADOX,
-                ANIMATION_DIGIT_CASCADE,
-                ANIMATION_ELECTRIC_SURGE,
-                ANIMATION_FLIP_DISC_DISPLAY,
+                ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
+                ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD, ANIMATION_FIRE_TRAILS,
+                ANIMATION_SPARKLE_REVEAL, ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
+                ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_WAVEFORM_COLLAPSE,
+                ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_GLITCHY_JUMP_CUT,
+                ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS, ANIMATION_CHARACTER_SCANLINE,
+                ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER, ANIMATION_TEMPORAL_PARADOX,
+                ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE, ANIMATION_FLIP_DISC_DISPLAY,
                 ANIMATION_INTERFERENCE_PATTERN
             };
             int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
             animType = cpp_animations[random(0, num_cpp_animations)];
-        } while (animType == ANIMATION_RANDOMIZE_ALL);
+        } while (animType == ANIMATION_RANDOMIZE_ALL); // Ensure we don't pick randomize again
     }
 
     char time_strings[3][17];
@@ -1167,7 +1151,6 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         tracks[i].reset();
     }
 
-    // --- FIX: A correct switch statement with all cases and a proper default ---
     switch (animType) {
         // --- JSON-based Named Sequences ---
         case ANIMATION_INTRUDER_ALERT:

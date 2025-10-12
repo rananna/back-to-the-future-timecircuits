@@ -1531,6 +1531,88 @@ void stopAllSequences() {
     }
 }
 
+/**
+ * @brief Safely clears a sequence step without allocating a temporary object on the stack.
+ * @details This function manually resets each member of the SequenceStep struct to its
+ * default value. This avoids the `step = SequenceStep()` assignment which would
+ * create a large temporary object on the stack and cause a crash.
+ * @param step The SequenceStep object to clear.
+ */
+void clearSequenceStep(SequenceStep& step) {
+    step.command = SEQ_CMD_NONE;
+    step.targetRow = 0;
+    step.targetSegment = 0;
+    step.intParam = 0;
+    step.intParam2 = 0;
+    step.stringParam[0] = '\0';
+    step.stringParam2[0] = '\0';
+}
+
+/**
+ * @brief Safely clears a sequencer track without allocating a temporary object on the stack.
+ * @details This function is a critical fix for a stack overflow bug. The `SequencerTrack`
+ * struct is too large to be created as a temporary object on the stack. Instead of doing
+ * `track = SequencerTrack()`, this function manually resets each member of the struct
+ * to its default value, which has a negligible impact on the stack. It uses the
+ * `clearSequenceStep` helper to safely clear the large `steps` array.
+ * @param track The SequencerTrack object to clear.
+ */
+void clearSequencerTrack(SequencerTrack& track) {
+    track.isActive = false;
+    track.currentStep = 0;
+    track.stepStartTime = 0;
+    track.stepInitialized = false;
+    track.trackStartTime = 0;
+    track.loopStartStep = -1;
+    track.loopCounter = 0;
+    track.isMarqueeActive = false;
+    track.marqueeText.clear();
+    track.marqueeScrollPosition = 0;
+    track.lastMarqueeScrollTime = 0;
+    track.isFading = false;
+    track.fadeStartTime = 0;
+    track.fadeDuration = 0;
+    track.isFadeIn = false;
+    for (int i = 0; i < 4; ++i) {
+        track.isPulsing[i] = false;
+        track.pulseEndTimes[i] = 0;
+        track.pulseStates[i] = false;
+        track.lastPulseToggle[i] = 0;
+        track.pulseInterval = 750;
+        track.isFlashing[i] = false;
+        track.flashEndTimes[i] = 0;
+        track.flashStates[i] = false;
+        track.lastFlashToggle[i] = 0;
+    }
+    track.countdownValue = 0;
+    track.countdownLastUpdate = 0;
+    track.scannerPosition = 0;
+    track.scannerDirection = true;
+    track.lastScannerUpdate = 0;
+    track.typewriterIndex = 0;
+    track.lastTypewriterUpdate = 0;
+    track.wipeSegment = 0;
+    track.lastWipeUpdate = 0;
+    track.barGraphPercentage = 0.0f;
+    track.lastBarGraphUpdate = 0;
+    track.barGraphStartTime = 0;
+    track.lastFlickerUpdate = 0;
+    track.flickerOriginalText.clear();
+    track.scrambleCharIndex = 0;
+    track.lastScrambleUpdate = 0;
+    track.lastScrambleLockInTime = 0;
+    track.scrambleCurrentText.clear();
+    track.crossfadePhase = 0;
+    track.isWaitingForHAState = false;
+    track.haSensorTopic.clear();
+    track.haStateReceived = false;
+
+    // Safely clear the steps array using the helper function.
+    for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
+        clearSequenceStep(track.steps[i]);
+    }
+}
+
 void runCrossfadeTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Crossfade Fix Test ---");
 
