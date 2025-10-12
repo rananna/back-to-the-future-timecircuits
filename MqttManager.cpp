@@ -1618,8 +1618,11 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
  * @param payload The JSON string or name of the sequence to run.
  */
 void handleSequencerCommand(const std::string& payload) {
-    // This static buffer holds the generated sequence.
-    static SequencerTrack tempTracks[NUM_SEQUENCER_TRACKS];
+    // --- FIX: Allocate tracks statically to prevent stack overflow ---
+    // The SequencerTrack struct is very large (~11.5KB). Allocating an array of them
+    // on the stack causes an immediate overflow and crash when this function is called.
+    // Making it static moves the allocation to the heap, which is much larger.
+    static SequencerTrack tracks[NUM_SEQUENCER_TRACKS];
 
     // --- FIX: Clear the temporary tracks buffer BEFORE parsing. ---
     // This is a critical stability fix. If `parseSequenceFromJson` fails, this
@@ -1629,7 +1632,7 @@ void handleSequencerCommand(const std::string& payload) {
     // By clearing it here, a failed parse results in an empty sequence, which
     // will simply do nothing and time out safely.
     for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
-        tempTracks[i] = SequencerTrack(); // Reset to default state
+        tracks[i] = SequencerTrack(); // Reset to default state
     }
 
     JsonDocument doc;
@@ -1658,7 +1661,7 @@ void handleSequencerCommand(const std::string& payload) {
         currentSettings.displayMode = -1;
 
         // 1. Generate: Parse the validated and extracted JSON payload.
-        parseSequenceFromJson(tempTracks, tracks_payload);
+        parseSequenceFromJson(tracks, tracks_payload);
         Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Parsing of JSON payload complete.");
 
         // 2. Stop: Halt all currently running animations.
@@ -1667,7 +1670,7 @@ void handleSequencerCommand(const std::string& payload) {
 
         // 3. Copy: Transfer the new sequence from the temporary buffer to the main one.
         for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
-            sequencerTracks[i] = tempTracks[i];
+            sequencerTracks[i] = tracks[i];
         }
         Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Copied new sequence into active tracks.");
 
