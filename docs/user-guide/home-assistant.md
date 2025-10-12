@@ -100,19 +100,17 @@ The easiest way to add the blueprints is by importing them directly from the pro
     *   Click **Preview Blueprint**, then **Import Blueprint**.
 
 3.  **Blueprint URLs (Copy and Paste)**:
-    *   **Display Text**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display_text.yaml`
-    *   **Display Entity**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display_entity.yaml`
-    *   **Countdown Timer**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/countdown.yaml`
+    *   **Display Text**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/script/display_text.yaml`
+    *   **Display Entity**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/script/display_entity.yaml`
+    *   **Countdown Timer**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/script/countdown.yaml`
 
 Repeat the import process for each blueprint you wish to use.
 
----
-
-## 🏆 Blueprint Reference
+### **Blueprint Reference**
 
 This section is your comprehensive guide to each blueprint. You'll find detailed explanations of all available inputs, a complete list of visual and sound effects, and practical examples to help you build powerful automations.
 
-### **Core Concepts: Blocking vs. Non-Blocking Effects**
+#### **Core Concepts: Blocking vs. Non-Blocking Effects**
 
 To use the blueprints effectively, it's critical to understand the difference between the two types of visual effects:
 
@@ -124,7 +122,7 @@ To use the blueprints effectively, it's critical to understand the difference be
 
 Understanding this distinction will prevent the common issue of text "disappearing" immediately after being sent.
 
-### **Reference: Visual Effects**
+#### **Reference: Visual Effects**
 Use this table to choose the perfect animation for your message.
 
 | Visual Effect | Description | Type |
@@ -136,25 +134,22 @@ Use this table to choose the perfect animation for your message.
 | `TYPEWRITER` | Reveals the text one character at a time, like a typewriter. | Blocking |
 | `SCRAMBLE_TEXT`| Displays random characters that resolve into the final text. | Blocking |
 
-### **Blueprint 1: Display Text**
-*   **What it's for:** Your go-to for showing any custom message. It's perfect for alerts, notifications, and simple status updates.
-*   **URL for Import**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display_text.yaml`
+#### **Reference: Sound Effects**
+The following sound effects are built into the clock's firmware and can be triggered from the blueprints.
 
-#### **Inputs**
-| Input | Description | Default Value |
-| :--- | :--- | :--- |
-| `Time Circuits Device` | The clock you want to control. | - |
-| `Target Row` | The display row(s) to show the message on. Options are `Top`, `Middle`, `Bottom`, or `All`. | `Top` |
-| `Text to Display` | The message to display. **Supports templates!** | `(empty)` |
-| `Visual Effect` | The animation style to use. See the **Visual Effects table** above for a full list of options and their behavior. | `Set Text` |
-| `Display Duration (s)` | Duration for the non-blocking `Set Text` effect. Blocking effects (e.g., `Marquee`, `Pulse`) have their own internal timing. | `10` |
-| `Marquee Speed (ms)` | The scroll speed for the marquee effect. Lower is faster. | `100` |
-| `Audio Source` | Choose whether to play a sound: `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`. | `None` |
-| `Sound Effect` | A built-in sound effect to play from the device. | `sys_beep.mp3` |
-| `Media File` | Audio file to stream from the Home Assistant media library. | `(not set)` |
-| `Volume` | Set the volume for this specific alert (0-100). | `80` |
-| `Repeat Count` | Number of times to repeat the alert. Built-in sounds will repeat; streamed audio will play once at the start. | `1` |
-| `Restore Row After Effect` | If enabled, the row will be restored to its previous state after the effect completes. | `true` |
+| Sound Effect File | Description |
+| :--- | :--- |
+| `ACCELERATION.mp3` | The iconic sound of the DeLorean speeding up. |
+| `arrival_chime.mp3` | A pleasant chime, perfect for notifications. |
+| `electric_sparks.mp3`| Crackling electrical sounds. |
+| `engine_rev.mp3` | A powerful engine revving up. |
+| `flux_capacitor_power_on.mp3`| The hum and crackle of the Flux Capacitor activating. |
+| `hum.mp3` | A steady, low electronic hum. |
+| `keypad_beeps.mp3` | A sequence of beeps from the time circuit keypad. |
+| `lock_on.mp3` | A confirmation sound, as if a target is locked. |
+| `relay_activation.mp3`| The click-clack of multiple mechanical relays. |
+| `sys_beep.mp3` | A simple, single system beep. |
+| `time_travel.mp3` | The full, iconic time travel sequence sound effect. |
 
 #### **Use Case: Doorbell Alert**
 This example displays a static "DOORBELL" message on the middle row for 15 seconds, accompanied by a chime sound. This is a great example of using a **non-blocking** effect.
@@ -172,23 +167,6 @@ This example displays a static "DOORBELL" message on the middle row for 15 secon
         *   `Sound Effect`: `arrival_chime.mp3`
     *   Save the script.
 
-### **Reference: Sound Effects**
-The following sound effects are built into the clock's firmware and can be triggered from the blueprints.
-
-| Sound Effect File | Description |
-| :--- | :--- |
-| `ACCELERATION.mp3` | The iconic sound of the DeLorean speeding up. |
-| `arrival_chime.mp3` | A pleasant chime, perfect for notifications. |
-| `electric_sparks.mp3`| Crackling electrical sounds. |
-| `engine_rev.mp3` | A powerful engine revving up. |
-| `flux_capacitor_power_on.mp3`| The hum and crackle of the Flux Capacitor activating. |
-| `hum.mp3` | A steady, low electronic hum. |
-| `keypad_beeps.mp3` | A sequence of beeps from the time circuit keypad. |
-| `lock_on.mp3` | A confirmation sound, as if a target is locked. |
-| `relay_activation.mp3`| The click-clack of multiple mechanical relays. |
-| `sys_beep.mp3` | A simple, single system beep. |
-| `time_travel.mp3` | The full, iconic time travel sequence sound effect. |
-
 2.  **Create the Automation:**
     *   Go to **Settings > Automations & Scenes > Automations**.
     *   Click **Create Automation** and select **Start with an empty automation**.
@@ -197,102 +175,6 @@ The following sound effects are built into the clock's firmware and can be trigg
         *   `Action type`: `Call service`
         *   `Service`: Find the script you just created (e.g., `script.time_circuits_doorbell_alert`).
     *   Save the automation.
-
----
-
-### **Blueprint 2: Display Entity**
-*   **What it's for:** The most powerful blueprint for displaying live data. Show the state or a specific attribute of any Home Assistant entity, complete with prefixes, postfixes, and all the audio/visual effects.
-*   **URL for Import**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display_entity.yaml`
-
-#### **Inputs**
-| Input | Description | Default Value |
-| :--- | :--- | :--- |
-| `Time Circuits Device` | The clock you want to control. | - |
-| `Entity to Display` | The entity whose state or attribute you want to display. | - |
-| `Attribute to Display (Optional)` | The specific attribute to display. Leave blank to use the entity's main state. | `(empty)` |
-| `Prefix` | Optional text to display before the value (e.g., 'Temp: '). | `(empty)` |
-| `Postfix` | Optional text to display after the value (e.g., '°C'). | `(empty)` |
-| `Target Row` | The display row(s) to show the message on. Options are `Top`, `Middle`, `Bottom`, or `All`. | `Top` |
-| `Visual Effect` | The animation style to use. See the **Visual Effects table** above for a full list of options. | `Set Text` |
-| `Display Duration (s)` | Duration for the non-blocking `Set Text` effect. Blocking effects (e.g., `Marquee`, `Pulse`) have their own internal timing. | `10` |
-| `Marquee Speed (ms)` | The scroll speed for the marquee effect. Lower is faster. | `100` |
-| `Audio Source` | Choose whether to play a sound: `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`. | `None` |
-| `Sound Effect` | A built-in sound effect to play from the device. | `sys_beep.mp3` |
-| `Media File` | Audio file to stream from the Home Assistant media library. | `(not set)` |
-| `Volume` | Set the volume for this specific alert (0-100). | `80` |
-| `Repeat Count` | Number of times to repeat the alert. Built-in sounds will repeat; streamed audio will play once at the start. | `1` |
-| `Restore Row After Effect` | If enabled, the row will be restored to its previous state after the effect completes. | `true` |
-
-#### **Use Case: Dynamic Weather Display**
-This example displays the current temperature from a weather entity, updating automatically whenever the temperature changes. It uses the **blocking** `Pulse` effect.
-
-1.  **Create the Script:**
-    *   Use the "BTTF Time Circuits: Display Entity" blueprint to create a script named "Time Circuits Temperature Pulse".
-    *   Configure the inputs:
-        *   `Target Row`: `Top Row`
-        *   `Entity to Display`: Your weather entity (e.g., `weather.home`).
-        *   `Attribute to Display`: `temperature`
-        *   `Postfix`: ` F` *(Note the space before the F)*
-        *   `Visual Effect`: `Pulse`
-        *   `Display Duration (s)`: `30` *(This controls the total time the pulse effect will run)*
-        *   `Audio Source`: `None`
-    *   Save the script.
-
-2.  **Create the Automation:**
-    *   Create a new, empty automation.
-    *   **Trigger:**
-        *   `Trigger type`: `State`
-        *   `Entity`: Your weather entity (e.g., `weather.home`).
-        *   `Attribute`: `temperature`
-    *   **Action:**
-        *   `Action type`: `Call service`
-        *   `Service`: `script.time_circuits_temperature_pulse`.
-    *   Save the automation. Now, your Time Circuits will pulse the new temperature for 30 seconds every time it changes.
-
----
-
-### **Blueprint 3: Countdown Timer**
-*   **What it's for:** Perfect for building anticipation for movie night, a gaming session, or just counting down to dinner. When the timer hits zero, it can display a final message with its own unique sound and visual effect.
-*   **URL for Import**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/countdown.yaml`
-
-#### **Inputs**
-| Input | Description | Default Value |
-| :--- | :--- | :--- |
-| `Time Circuits Device` | The clock you want to control. | - |
-| `Target Row` | The display row(s) to show the countdown on. Options are `Top`, `Middle`, `Bottom`, or `All`. | `Top` |
-| `Start Number` | The number to start counting down from. | `10` |
-| `Countdown Delay (ms)` | The delay between each number change. 1000ms = 1 second. | `1000` |
-| `End Text` | Optional text to display when the countdown finishes. | `LIFTOFF` |
-| `End Text Visual Effect` | The visual effect to use for the end text. | `Set Text` |
-| `End Text Display Duration (s)` | Duration for the non-blocking `Set Text` end effect. Blocking effects (e.g., `Marquee`, `Pulse`) have their own internal timing. | `5` |
-| `End Text Marquee Speed (ms)` | The scroll speed for the marquee effect. Lower is faster. | `100` |
-| `End Audio Source` | Choose whether to play a sound when the countdown finishes: `None`, `Built-in Sound Effect`, or `Stream from Home Assistant`. | `None` |
-| `End Sound Effect` | A built-in sound effect to play from the device. | `arrival_chime.mp3` |
-| `End Media File`| An audio file from the HA media library for the end effect. | `(not set)` |
-| `End Audio Volume`| Set the volume for the sound (0-100). | `80` |
-| `Repeat End Effect Count` | Number of times to repeat the end effect. Streamed audio will not repeat. | `1` |
-| `Restore Row After Effect` | If enabled, the row will be restored to its previous state after all effects complete. | `true` |
-
-#### **Use Case: Movie Night Countdown Button**
-This example runs a 10-second countdown. When it finishes, it displays "MOVIE TIME" with a **blocking** `Scramble Text` effect and plays a sound.
-
-1.  **Create the Script:**
-    *   Use the "BTTF Time Circuits: Countdown Timer" blueprint to create a script named "Movie Night Countdown".
-    *   Configure the inputs:
-        *   `Target Row`: `Middle Row`
-        *   `Start Number`: `10`
-        *   `End Text`: `MOVIE TIME`
-        *   `End Text Visual Effect`: `Scramble Text`
-        *   `End Audio Source`: `Built-in Sound Effect`
-        *   `End Sound Effect`: `time_travel.mp3`
-    *   Save the script.
-
-2.  **Add a Button to your Dashboard:**
-    *   Since this is a manual action, you don't need an automation.
-    *   Go to your Home Assistant dashboard, enter edit mode, and add a **Button Card**.
-    *   Set the `Tap Action` to `Call Service`.
-    *   Set the `Service` to `script.movie_night_countdown`.
-    *   Now you have a one-touch button to start your movie night!
 
 ---
 
