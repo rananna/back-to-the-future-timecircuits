@@ -1520,19 +1520,31 @@ void publishHaStatesChunk2() { // Time and display text (rows 1 & 2)
 }
 
 void publishHaStatesChunk3() { // Display text (row 3) and various toggles
-    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    char payload[20];
+    char topic_buffer[128]; // Buffer for constructing topic strings
+    String base_topic_str = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    const char* base_topic = base_topic_str.c_str();
+
     // Row 2
+    const char* segments[] = {"month", "day", "year", "time"};
     for(int s=0; s<4; ++s) {
-        const char* segments[] = {"month", "day", "year", "time"};
-        String topic = base_topic + "/last_" + segments[s] + "/state";
-        mqttClient.publish(topic.c_str(), manualDisplayText[2][s].c_str(), true);
+        snprintf(topic_buffer, sizeof(topic_buffer), "%s/last_%s/state", base_topic, segments[s]);
+        mqttClient.publish(topic_buffer, manualDisplayText[2][s].c_str(), true);
     }
-    mqttClient.publish((base_topic + "/sound_toggle/state").c_str(), currentSettings.timeTravelSoundToggle ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/is_animating/state").c_str(), isAnimating ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/is_asleep/state").c_str(), isDisplayAsleep ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/24h_format/state").c_str(), currentSettings.displayFormat24h ? "ON" : "OFF", true);
-    mqttClient.publish((base_topic + "/temporal_echo/state").c_str(), isEchoEffectActive ? "ON" : "OFF", true);
+
+    snprintf(topic_buffer, sizeof(topic_buffer), "%s/sound_toggle/state", base_topic);
+    mqttClient.publish(topic_buffer, currentSettings.timeTravelSoundToggle ? "ON" : "OFF", true);
+
+    snprintf(topic_buffer, sizeof(topic_buffer), "%s/is_animating/state", base_topic);
+    mqttClient.publish(topic_buffer, isAnimating ? "ON" : "OFF", true);
+
+    snprintf(topic_buffer, sizeof(topic_buffer), "%s/is_asleep/state", base_topic);
+    mqttClient.publish(topic_buffer, isDisplayAsleep ? "ON" : "OFF", true);
+
+    snprintf(topic_buffer, sizeof(topic_buffer), "%s/24h_format/state", base_topic);
+    mqttClient.publish(topic_buffer, currentSettings.displayFormat24h ? "ON" : "OFF", true);
+
+    snprintf(topic_buffer, sizeof(topic_buffer), "%s/temporal_echo/state", base_topic);
+    mqttClient.publish(topic_buffer, isEchoEffectActive ? "ON" : "OFF", true);
 }
 
 void publishHaStatesChunk4() { // Intervals, selectors, and status
