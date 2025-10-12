@@ -42,4 +42,14 @@ void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_str
  */
 const char* animationTypeToString(AnimationType type);
 
+/**
+ * @brief Helper function to convert a string representation of an animation to its `AnimationType` enum value.
+ * @details This is the reverse of `animationTypeToString`. It's used to parse animation names
+ * received from the UI or MQTT.
+ *
+ * @param str A constant character pointer to the string name of the animation (e.g., "Time Travel").
+ * @return The `AnimationType` enum value corresponding to the string.
+ */
+AnimationType animationTypeFromString(const char* str);
+
 #endif // ANIMATION_SEQUENCES_H
