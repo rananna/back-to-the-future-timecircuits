@@ -906,7 +906,15 @@ void startHaDiscovery() {
  * discovery message per call, with a delay between messages.
  */
 void handleHaDiscovery() {
-    // --- FIX: Prevent discovery from running if MQTT is not connected ---
+    // --- FIX: Immediately exit if discovery is not actively running ---
+    // This prevents any further processing, including the MQTT connection check below,
+    // unless the discovery process is in the specific 'RUNNING' state. This stops
+    // the log spam and potential crashes when the MQTT client is disconnected and
+    // discovery is idle.
+    if (haDiscoveryState != HA_DISCOVERY_RUNNING) {
+        return;
+    }
+
     // This is a critical stability fix. The discovery process allocates significant
     // memory for JSON documents. If the client is disconnected, attempting to publish
     // these messages can fail, but the loop continues, leading to rapid memory
@@ -915,15 +923,7 @@ void handleHaDiscovery() {
         // Log this event, as it indicates a potential issue if it happens frequently.
         Log_printf(LOG_LEVEL_WARN, "HA Discovery: Paused. MQTT client is not connected.");
         // If discovery was running, reset it to idle so it can restart on reconnect.
-        // If it was already complete, do nothing. This prevents the state from being
-        // reset during the intentional disconnect/reconnect for mDNS startup.
-        if (haDiscoveryState == HA_DISCOVERY_RUNNING) {
-            haDiscoveryState = HA_DISCOVERY_IDLE;
-        }
-        return;
-    }
-
-    if (haDiscoveryState != HA_DISCOVERY_RUNNING) {
+        haDiscoveryState = HA_DISCOVERY_IDLE;
         return;
     }
 
