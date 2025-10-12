@@ -1617,14 +1617,12 @@ void triggerAnimation(AnimationType animType) {
     // --- NEW: Store the current animation type for logging completion ---
     currentAnimationType = animType;
 
-    // --- FIX: Allocate temp_tracks on the heap to prevent stack overflow ---
-    // The SequencerTrack struct is very large (approx 5.5KB), so creating an
-    // array of NUM_SEQUENCER_TRACKS on the stack (16.5KB) exceeds the ESP32's stack limit.
-    SequencerTrack* temp_tracks = new SequencerTrack[NUM_SEQUENCER_TRACKS];
-    if (!temp_tracks) {
-        Log_printf(LOG_LEVEL_ERROR, "CRITICAL: Failed to allocate memory for temp_tracks in triggerAnimation. Aborting.");
-        return;
-    }
+    // --- FIX: Use a static buffer to prevent heap fragmentation from frequent allocations ---
+    // The SequencerTrack struct is very large (~5.5KB), so creating an array on the stack
+    // would cause a stack overflow. Using a static buffer allocates this memory once at
+    // compile time, avoiding both stack overflow and runtime heap fragmentation issues
+    // that were causing crashes during rapid animation changes (e.g., preset cycling).
+    static SequencerTrack temp_tracks[NUM_SEQUENCER_TRACKS];
 
     // --- FIX: Generate the animation into the temporary buffer *before* stopping the old one. ---
     // This prevents use-after-free issues where stopAllSequences() might clear a string
@@ -1655,8 +1653,7 @@ void triggerAnimation(AnimationType animType) {
         }
     }
 
-    // --- FIX: Clean up the heap-allocated memory ---
-    delete[] temp_tracks;
+    // Static memory does not need to be manually deallocated.
 }
 
 void startSequencerMarquee(SequencerTrack& track, const std::string& text) {
