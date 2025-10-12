@@ -1446,6 +1446,7 @@ void loop() {
             
             // Handle the non-blocking Home Assistant discovery process
             handleHaDiscovery();
+            handleHaStatePublishing();
 
             stockManager.loop();
 
