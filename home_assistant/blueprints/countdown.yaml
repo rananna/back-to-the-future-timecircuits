@@ -194,7 +194,7 @@ sequence:
             {%- set track_object = {'targetRow': row, 'commands': current_commands} -%}
             {%- set ns.tracks = ns.tracks + [track_object] -%}
           {%- endfor -%}
-          {{- {'tracks': ns.tracks} | to_json -}}
+          {{- ns.tracks | to_json -}}
         {%- endmacro -%}
         {{- generate_countdown_payload(target_row, start_number, countdown_delay, final_end_text, end_text_effect, end_text_duration, end_text_marquee_speed, audio_source, sound_effect, volume, repeat_end_effect, restore_row) -}}
 
