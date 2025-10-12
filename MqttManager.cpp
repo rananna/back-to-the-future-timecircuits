@@ -1635,7 +1635,8 @@ void handleSequencerCommand(const std::string& payload) {
         tracks[i] = SequencerTrack(); // Reset to default state
     }
 
-    JsonDocument doc;
+    static JsonDocument doc;
+    doc.clear(); // Clear the document before reuse
     DeserializationError error = deserializeJson(doc, payload);
 
     if (error == DeserializationError::Ok) {
