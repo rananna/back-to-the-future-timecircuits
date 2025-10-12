@@ -17,7 +17,7 @@ bool bootSequenceCompleted = false;
 #include "AnimationSequences.h"
 
 // --- NEW: A global timeout for any single animation sequence track ---
-#define MAX_SEQUENCE_DURATION 8000 // 8 seconds
+#define MAX_SEQUENCE_DURATION 15000 // 15 seconds
 #include "DisplayManager.h"
 #include "MqttManager.h"
 
