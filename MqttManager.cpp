@@ -1648,7 +1648,7 @@ void handleSequencerCommand(const std::string& payload) {
     } else {
         // It's not JSON, so treat it as a named sequence.
         // Convert the string name to an enum.
-        AnimationType animType = animationTypeFromString(payload);
+        AnimationType animType = animationTypeFromString(payload.c_str());
 
         // --- FIX: Directly call triggerAnimation for ALL named sequences ---
         // This is the core of the fix. Instead of having separate logic paths,
