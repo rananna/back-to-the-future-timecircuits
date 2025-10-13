@@ -1657,13 +1657,17 @@ void handleSequencerCommand(const std::string& payload) {
             return; // Exit without starting any animation.
         }
 
-        // Pause the main display loop
-        preAnimationDisplayMode = currentSettings.displayMode;
-        currentSettings.displayMode = -1;
-
         // 1. Generate: Parse the validated and extracted JSON payload.
         parseSequenceFromJson(tracks, tracks_payload);
         Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Parsing of JSON payload complete.");
+
+        // --- FIX: Reordered logic to prevent race condition ---
+        // The display mode is now saved and set to -1 only *after* the JSON
+        // has been successfully parsed into a sequence. This prevents the
+        // display from being left in a corrupted (-1) state if the payload
+        // is valid JSON but contains an invalid sequence structure.
+        preAnimationDisplayMode = currentSettings.displayMode;
+        currentSettings.displayMode = -1;
 
         // 2. Stop: Halt all currently running animations.
         stopAllSequences();
