@@ -135,15 +135,9 @@ void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings
     const int num_chars = 13; // Standard display width
     const int lock_in_interval = total_duration / num_chars; // ms per character reveal
 
-    // --- FIX: Store substrings in local variables to guarantee pointer validity ---
-    // Although the temporary from substr() should live long enough, this is safer.
-    std::string dest_str = std::string(time_strings[0]).substr(0, num_chars);
-    std::string pres_str = std::string(time_strings[1]).substr(0, num_chars);
-    std::string last_str = std::string(time_strings[2]).substr(0, num_chars);
-
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, lock_in_interval, dest_str.c_str());
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, flicker_interval, lock_in_interval, pres_str.c_str());
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, lock_in_interval, last_str.c_str());
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, lock_in_interval, time_strings[0]);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, flicker_interval, lock_in_interval, time_strings[1]);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, lock_in_interval, time_strings[2]);
 }
 
 /**
@@ -155,41 +149,42 @@ void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
     const int delay = 830;
-    std::string dest_str(time_strings[0]);
-    std::string pres_str(time_strings[1]);
-    std::string last_str(time_strings[2]);
 
-    // --- FIX: Store substrings in a local variable before passing .c_str() ---
-    // This prevents passing a pointer from a temporary std::string created by substr(),
-    // which could lead to a dangling pointer. The SequenceStep constructor now copies
-    // the data, but it's safest to guarantee the source pointer is always valid.
-    std::string temp;
+    // --- FIX: Use a single, reusable stack-allocated buffer to prevent heap fragmentation. ---
+    char buffer[5]; // Max segment length is 4 chars + null terminator
 
-    temp = dest_str.substr(0, 3); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 0, 0, 0, temp.c_str());
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    temp = dest_str.substr(3, 2); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 1, 0, 0, temp.c_str());
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    temp = dest_str.substr(5, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 2, 0, 0, temp.c_str());
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    temp = dest_str.substr(9, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, 3, 0, 0, temp.c_str());
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
+    // Helper lambda to add a segment step
+    auto add_segment_step = [&](int row, int seg, int start, int len) {
+        strncpy(buffer, time_strings[row] + start, len);
+        buffer[len] = '\0';
+        return add_step(tracks[0], s, SEQ_CMD_SET_TEXT, row, seg, 0, 0, buffer);
+    };
 
-    temp = pres_str.substr(0, 3); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 0, 0, 0, temp.c_str());
+    s = add_segment_step(0, 0, 0, 3);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    temp = pres_str.substr(3, 2); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 1, 0, 0, temp.c_str());
+    s = add_segment_step(0, 1, 3, 2);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    temp = pres_str.substr(5, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 2, 0, 0, temp.c_str());
+    s = add_segment_step(0, 2, 5, 4);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    temp = pres_str.substr(9, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, 3, 0, 0, temp.c_str());
+    s = add_segment_step(0, 3, 9, 4);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
 
-    temp = last_str.substr(0, 3); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 0, 0, 0, temp.c_str());
+    s = add_segment_step(1, 0, 0, 3);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    temp = last_str.substr(3, 2); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 1, 0, 0, temp.c_str());
+    s = add_segment_step(1, 1, 3, 2);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    temp = last_str.substr(5, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 2, 0, 0, temp.c_str());
+    s = add_segment_step(1, 2, 5, 4);
     s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
-    temp = last_str.substr(9, 4); s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 2, 3, 0, 0, temp.c_str());
+    s = add_segment_step(1, 3, 9, 4);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
+
+    s = add_segment_step(2, 0, 0, 3);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
+    s = add_segment_step(2, 1, 3, 2);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
+    s = add_segment_step(2, 2, 5, 4);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, delay, 0);
+    s = add_segment_step(2, 3, 9, 4);
 }
 
 /**
@@ -236,13 +231,20 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 8, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 8, 0);
 
+    // --- FIX: Use a single, reusable stack-allocated buffer to prevent heap fragmentation. ---
+    char inverted_buffer[14];
     for (int i = 0; i < 6; i++) {
-        std::string wave_str(waves[i]);
-        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, wave_str.c_str());
-        s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, wave_str.c_str());
-        std::string inverted_str;
-        for(char c : wave_str) { inverted_str += (c == '-') ? ' ' : '-'; }
-        s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, inverted_str.c_str());
+        const char* wave_str = waves[i];
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, wave_str);
+        s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, wave_str);
+
+        // Invert the string into the buffer
+        for(int j=0; j < 13; j++) {
+            inverted_buffer[j] = (wave_str[j] == '-') ? ' ' : '-';
+        }
+        inverted_buffer[13] = '\0';
+
+        s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, inverted_buffer);
         s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 200, 0);
         s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 200, 0);
         s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 200, 0);
@@ -590,12 +592,9 @@ void generateCountingUp(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 0, "CALCULATING..");
 
     // --- Track 0 (Middle): The Counter ---
-    // Loop 39 times. Each loop is ~250ms. Total ~9.75s.
-    // 39 loops * 2 steps/loop = 78 steps, which is safely under MAX_SEQUENCE_STEPS (80).
+    char buffer[14];
     for (int i = 0; i <= 39; i++) {
-        char buffer[14];
-        // Format the number, right-aligned and padded with spaces
-        snprintf(buffer, sizeof(buffer), "%13d", i * 6921); // Adjusted multiplier
+        snprintf(buffer, sizeof(buffer), "%13d", i * 6921);
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, buffer);
         s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 250, 0);
     }
@@ -617,22 +616,16 @@ void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][1
 
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
-    // Loop 10 times, each cycle is ~1s. Total ~10s.
+    char buffer[17];
     for (int i = 0; i < 10; i++) {
-        char random_time_str[3][17];
-        for (int row = 0; row < 3; row++) {
-            snprintf(random_time_str[row], sizeof(random_time_str[row]),
-                     "%s %02d %04d %02d%02d",
-                     months[random(0, 12)],
-                     random(1, 29),
-                     random(1950, 2051),
-                     random(0, 24),
-                     random(0, 60));
-        }
-        // Scramble to the new random date over 1 second
-        s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 80, random_time_str[0]);
-        s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 80, random_time_str[1]);
-        s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 80, random_time_str[2]);
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(0, 12)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 80, buffer);
+
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(0, 12)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
+        s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 80, buffer);
+
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(0, 12)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
+        s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 80, buffer);
     }
 }
 
@@ -664,6 +657,7 @@ void generateTemporalDesync(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 
     // --- Track 2 (Bottom): Conflicting timeline ---
+    // --- FIX: Use a stack-allocated buffer to prevent heap fragmentation. ---
     char conflict_time_str[17];
     snprintf(conflict_time_str, sizeof(conflict_time_str), "OCT 26 2085 0429");
     s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 200, conflict_time_str);
@@ -732,15 +726,10 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
     const int num_chars = 13;        // Standard display width
     const int lock_in_interval = total_duration / num_chars; // ms per character reveal (~154ms)
 
-    // Ensure pointers to string data are valid for the lifetime of the step
-    std::string dest_str = std::string(time_strings[0]).substr(0, num_chars);
-    std::string pres_str = std::string(time_strings[1]).substr(0, num_chars);
-    std::string last_str = std::string(time_strings[2]).substr(0, num_chars);
-
     // Add the scramble command to each track to run in parallel
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, lock_in_interval, dest_str.c_str());
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, flicker_interval, lock_in_interval, pres_str.c_str());
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, lock_in_interval, last_str.c_str());
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, lock_in_interval, time_strings[0]);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, flicker_interval, lock_in_interval, time_strings[1]);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, lock_in_interval, time_strings[2]);
 }
 
 /**
@@ -773,10 +762,10 @@ void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_str
         if (track_def["targetRow"].is<int>()) {
             targetRow = track_def["targetRow"].as<int>();
         } else if (track_def["targetRow"].is<const char*>()) {
-            std::string rowStr = track_def["targetRow"].as<std::string>();
-            if (rowStr == "TOP") targetRow = 0;
-            else if (rowStr == "MIDDLE") targetRow = 1;
-            else if (rowStr == "BOTTOM") targetRow = 2;
+            const char* rowStr = track_def["targetRow"].as<const char*>();
+            if (strcmp(rowStr, "TOP") == 0) targetRow = 0;
+            else if (strcmp(rowStr, "MIDDLE") == 0) targetRow = 1;
+            else if (strcmp(rowStr, "BOTTOM") == 0) targetRow = 2;
         }
 
         if (targetRow < 0 || targetRow > 2) {
@@ -1140,6 +1129,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         };
         int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
         animType = cpp_animations[random(0, num_cpp_animations)];
+        Log_printf(LOG_LEVEL_INFO, "RANDOMIZE_ALL selected: %s", animationTypeToString(animType));
     }
 
     char time_strings[3][17];

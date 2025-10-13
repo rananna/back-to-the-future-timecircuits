@@ -163,7 +163,6 @@ void clearSequenceStep(SequenceStep& step);
  * @brief Safely clears a sequencer track without allocating a temporary object on the stack.
  * @param track The SequencerTrack object to clear.
  */
-void clearSequencerTrack(SequencerTrack& track);
 
 /**
  * @brief Triggers a new animation sequence globally.
@@ -178,7 +177,7 @@ void triggerAnimation(AnimationType animType);
  * @param track The `SequencerTrack` to run the marquee on.
  * @param text The text to scroll.
  */
-void startSequencerMarquee(SequencerTrack& track, const std::string& text);
+void startSequencerMarquee(SequencerTrack& track, const char* text);
 
 /**
  * @brief Handles the continuous update of all active marquee effects.
@@ -207,9 +206,9 @@ void runCrossfadeTest();
 /**
  * @brief Retrieves the full 13-character text currently displayed on a row.
  * @param row The index of the row to read from (0-2).
- * @return A std::string containing the text from the specified row.
+ * @param buffer A character buffer to write the resulting string into. Must be at least 14 bytes.
  */
-std::string getFullRowText(int row);
+void getFullRowText(int row, char* buffer);
 /** @} */
 
 #endif // ANIMATION_MANAGER_H

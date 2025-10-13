@@ -184,7 +184,7 @@ struct SequencerTrack {
 
     // --- State for Marquee (Scrolling Text) Effect ---
     bool isMarqueeActive = false;       /**< True if a marquee effect is in progress. */
-    std::string marqueeText;            /**< The full text being scrolled. */
+    char marqueeText[MAX_SEQ_STRING_LEN * 2]; /**< The full text being scrolled, with padding. */
     int marqueeScrollPosition = 0;      /**< The current horizontal scroll position. */
     unsigned long lastMarqueeScrollTime = 0; /**< `millis()` timestamp of the last scroll update. */
 
@@ -220,18 +220,18 @@ struct SequencerTrack {
     unsigned long barGraphStartTime = 0;/**< `millis()` timestamp when the bar graph animation started. */
 
     unsigned long lastFlickerUpdate = 0;/**< `millis()` timestamp of the last character flicker. */
-    std::string flickerOriginalText;    /**< The original text to restore after a flicker effect. */
+    char flickerOriginalText[14];    /**< The original text to restore after a flicker effect. */
 
     int scrambleCharIndex = 0;          /**< The index of the character currently being "locked in" for the scramble effect. */
     unsigned long lastScrambleUpdate = 0; /**< `millis()` timestamp of the last random character update. */
     unsigned long lastScrambleLockInTime = 0; /**< `millis()` timestamp of the last character reveal/lock-in. */
-    std::string scrambleCurrentText;    /**< The string buffer holding the mix of scrambled and revealed text. */
+    char scrambleBuffer[14];    /**< The string buffer holding the mix of scrambled and revealed text. */
 
     int crossfadePhase = 0;             /**< The current phase of the crossfade effect (0=inactive, 1=fading out, 2=fading in). */
 
     // --- State for Home Assistant Integration ---
     bool isWaitingForHAState = false;   /**< True if the track is paused, waiting for an MQTT message with a sensor state. */
-    std::string haSensorTopic;          /**< The MQTT topic being subscribed to for the sensor state. */
+    char haSensorTopic[MAX_SEQ_STRING_LEN]; /**< The MQTT topic being subscribed to for the sensor state. */
     bool haStateReceived = false;       /**< Becomes true when the expected MQTT message arrives. */
 
     /**
@@ -255,7 +255,7 @@ struct SequencerTrack {
         loopCounter = 0;
 
         isMarqueeActive = false;
-        marqueeText.clear();
+        marqueeText[0] = '\0';
         marqueeScrollPosition = 0;
         lastMarqueeScrollTime = 0;
 
@@ -290,16 +290,16 @@ struct SequencerTrack {
         lastBarGraphUpdate = 0;
         barGraphStartTime = 0;
         lastFlickerUpdate = 0;
-        flickerOriginalText.clear();
+        flickerOriginalText[0] = '\0';
         scrambleCharIndex = 0;
         lastScrambleUpdate = 0;
         lastScrambleLockInTime = 0;
-        scrambleCurrentText.clear();
+        scrambleBuffer[0] = '\0';
 
         crossfadePhase = 0;
 
         isWaitingForHAState = false;
-        haSensorTopic.clear();
+        haSensorTopic[0] = '\0';
         haStateReceived = false;
 
         for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {

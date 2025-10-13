@@ -1485,9 +1485,31 @@ void loop() {
                         } else {
                             if (millis() - lastDisplayUpdateTime > DISPLAY_UPDATE_INTERVAL) {
                                 lastDisplayUpdateTime = millis();
-                                if (!isAnySequenceActive()) {
-                                    updateDisplayState();
-                                    handleDisplay();
+                                // --- START: MODIFICATION - Prioritize Sequencer ---
+                                // If any sequence is active, we bypass the normal display mode logic
+                                // to prevent interference with the sequence.
+                                if (isAnySequenceActive()) {
+                                    // A sequence is running. Do nothing here to allow the sequence
+                                    // to have full control of the display. The handleSequencer()
+                                    // function will handle the necessary display updates.
+                                } else {
+                                    // --- FIX: Race Condition After Animation ---
+                                    // If an animation just finished, skip one display cycle
+                                    // to ensure all cleanup is complete before redrawing.
+                                    if (justFinishedAnimation) {
+                                        // --- FIX: Add a forced delay (cooldown) after an animation completes ---
+                                        // This gives critical background tasks (like WiFi/MQTT) a guaranteed
+                                        // time slice to run, preventing them from being starved by the main
+                                        // loop immediately starting another CPU-intensive operation, which was
+                                        // causing the low-level `esp_timer_create` crash.
+                                        Log_printf(LOG_LEVEL_DEBUG, "Post-animation cooldown: Skipping one loop cycle.");
+                                        vTaskDelay(50 / portTICK_PERIOD_MS); // 50ms cooldown
+                                        justFinishedAnimation = false;
+                                    } else {
+                                        // No sequence is running. Proceed with the normal display logic.
+                                        updateDisplayState();
+                                        handleDisplay();
+                                    }
                                 }
                             }
                         }
