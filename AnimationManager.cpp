@@ -239,10 +239,15 @@ void handleDisplayAnimation() {
             }
             break;
         default:
-            // Failsafe to prevent getting stuck in an unknown state
+            // Failsafe to prevent getting stuck in an unknown state.
+            // A crash was observed when animations would enter an undefined state.
+            // Calling the comprehensive cleanup ensures the system returns to a
+            // stable state, preventing memory corruption or unexpected behavior.
+            comprehensiveAnimationCleanup();
             isAnimating = false;
             currentPhase = ANIM_INACTIVE;
             lastPhase = ANIM_INACTIVE;
+            broadcastAnimationComplete();
             break;
     }
 #endif
