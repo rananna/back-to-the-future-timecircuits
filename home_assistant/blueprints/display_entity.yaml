@@ -168,19 +168,24 @@ sequence:
         {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
           {%- set ns = namespace(final_commands=[], tracks=[]) -%}
           {%- set core_commands = [] -%}
-          {%- set blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
+          {%- set self_blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'PULSE', 'FLASH'] -%}
           {%- set timed_effects = ['PULSE', 'FLASH'] -%}
-          {%- set visual_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
+
+          {%- set base_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
           {%- if effect == 'MARQUEE' -%}
-            {%- set visual_command = visual_command | merge({'intParam': speed | int}) -%}
+            {%- set visual_command = dict(base_command, intParam=speed | int) -%}
           {%- elif effect in timed_effects -%}
-            {%- set visual_command = visual_command | merge({'intParam': (duration * 1000) | int}) -%}
+            {%- set visual_command = dict(base_command, intParam2=(duration * 1000) | int) -%}
+          {%- else -%}
+            {%- set visual_command = base_command -%}
           {%- endif -%}
           {%- set core_commands = core_commands + [visual_command] -%}
-          {%- if effect not in blocking_effects and effect not in timed_effects -%}
+
+          {%- if effect not in self_blocking_effects -%}
             {%- set wait_duration = (duration * 1000) | int -%}
             {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
           {%- endif -%}
+
           {%- if (repeat_count | int) > 1 -%}
             {%- set ns.final_commands = [{'command': 'LOOP_START', 'intParam': repeat_count | int}] + core_commands + [{'command': 'LOOP_END'}] -%}
           {%- else -%}
