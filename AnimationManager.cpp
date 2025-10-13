@@ -728,7 +728,7 @@ void handleSequencer() {
             stopAllSequences();
             doFinalAnimationCleanup(); // --- FIX: Call the global cleanup function on timeout.
             needsDisplayUpdate = true;
-            break; 
+            break;
         }
 
         // --- Handle active effects for this track ---
@@ -1143,7 +1143,7 @@ void handleSequencer() {
                     if (millis() - track.lastScannerUpdate > (unsigned long)step.intParam2) {
                         const char* visual = (step.stringParam[0] != '\0') ? step.stringParam : "#";
                         int visual_len = strlen(visual);
-                        
+
                         // --- FIX: Use a static buffer to prevent heap fragmentation ---
                         static char scan_buffer[14];
                         memset(scan_buffer, ' ', 13);
@@ -1213,10 +1213,10 @@ void handleSequencer() {
                         static char wipe_buffer[14];
                         memset(wipe_buffer, ' ', 13);
                         wipe_buffer[13] = '\0';
-                        
+
                         int len_to_copy = min((int)strlen(step.stringParam), track.wipeSegment);
                         strncpy(wipe_buffer, step.stringParam, len_to_copy);
-                        
+
                         updateDisplaySegment(step.targetRow, -1, wipe_buffer);
                         track.wipeSegment++;
                         track.lastWipeUpdate = millis();
@@ -1288,7 +1288,7 @@ void handleSequencer() {
                     if (step.stringParam[0] == '\0') {
                         char currentManualText[14];
                         getFullRowText(step.targetRow, currentManualText);
-                        
+
                         bool is_blank = true;
                         for(int j=0; j<13; j++) {
                             if(currentManualText[j] != ' ') {
@@ -1320,7 +1320,7 @@ void handleSequencer() {
                         static char flicker_buffer[14];
                         strncpy(flicker_buffer, track.flickerOriginalText, 13);
                         flicker_buffer[13] = '\0';
-                        
+
                         for (int j = 0; j < 13; ++j) {
                             if (flicker_buffer[j] == '\0') break;
                             if (random(100) < 30) {
@@ -1363,7 +1363,7 @@ void handleSequencer() {
                         // --- FIX: Use a temporary buffer on the stack to prevent heap fragmentation ---
                         char temp_scramble_buffer[14];
                         strcpy(temp_scramble_buffer, track.scrambleBuffer);
-                        
+
                         for (size_t j = track.scrambleCharIndex; j < strlen(step.stringParam); ++j) {
                             temp_scramble_buffer[j] = (char)random(33, 126);
                         }
@@ -1385,7 +1385,7 @@ void handleSequencer() {
                 } else {
                     if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
                         track.typewriterIndex++;
-                        
+
                         char text_buffer[14];
                         memset(text_buffer, ' ', 13);
                         text_buffer[13] = '\0';
@@ -1756,7 +1756,7 @@ void handleAllSequencerMarquees() {
                     int padding = (13 - text_len) / 2;
                     if (padding < 0) padding = 0;
                     strncpy(centeredText + padding, step.stringParam, 13 - padding);
-                    
+
                     updateDisplaySegment(i, -1, centeredText);
 
                 } else {
