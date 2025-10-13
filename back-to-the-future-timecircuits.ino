@@ -1515,24 +1515,6 @@ void loop() {
     }
     ArduinoOTA.handle();
 }
-                // Hardware failed to initialize, retry periodically
-                unsigned long now = millis();
-                if (now - lastHardwareInitAttempt > HARDWARE_INIT_RETRY_INTERVAL) {
-                    Log_printf(LOG_LEVEL_WARN, "Retrying hardware initialization...");
-                    lastHardwareInitAttempt = now;
-                    hardwareInitialized = attemptHardwareInit();
-                    if (hardwareInitialized) {
-                        Log_printf(LOG_LEVEL_INFO, "Hardware initialized successfully on retry.");
-                        onHardwareInitialized();
-                    } else {
-                        Log_printf(LOG_LEVEL_WARN, "Hardware initialization retry failed.");
-                    }
-                }
-            }
-            break;
-    }
-    ArduinoOTA.handle();
-}
 
 #include <cstdio> // For sscanf
 
