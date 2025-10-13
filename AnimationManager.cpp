@@ -1160,6 +1160,7 @@ void handleSequencer() {
                         track.lastScannerUpdate = millis();
                     }
                 }
+                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_TYPEWRITER:
@@ -1178,6 +1179,7 @@ void handleSequencer() {
                         track.lastTypewriterUpdate = millis();
                     }
                 }
+                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_WIPE:
@@ -1205,6 +1207,7 @@ void handleSequencer() {
                         track.lastWipeUpdate = millis();
                     }
                 }
+                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_BAR_GRAPH:
