@@ -1122,26 +1122,24 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
-    // --- FIX: Eliminate recursive call to prevent stack overflow ---
-    // The do-while loop now ONLY selects a new concrete animType if RANDOMIZE is chosen.
-    // The actual generation happens in the switch statement *after* the loop, breaking
-    // the recursion that was causing the crash.
-    if (animType == ANIMATION_RANDOMIZE_ALL) {
-        do {
-            const AnimationType cpp_animations[] = {
-                ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
-                ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD, ANIMATION_FIRE_TRAILS,
-                ANIMATION_SPARKLE_REVEAL, ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
-                ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_WAVEFORM_COLLAPSE,
-                ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_GLITCHY_JUMP_CUT,
-                ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS, ANIMATION_CHARACTER_SCANLINE,
-                ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER, ANIMATION_TEMPORAL_PARADOX,
-                ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE, ANIMATION_FLIP_DISC_DISPLAY,
-                ANIMATION_INTERFERENCE_PATTERN
-            };
-            int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
-            animType = cpp_animations[random(0, num_cpp_animations)];
-        } while (animType == ANIMATION_RANDOMIZE_ALL); // Ensure we don't pick randomize again
+    // --- FIX: Eliminate recursive call and prevent stack overflow ---
+    // The 'while' loop now selects a new concrete animType if RANDOMIZE_ALL is chosen.
+    // The animation array is declared 'static const' to prevent it from being allocated
+    // on the stack repeatedly, which was the cause of the crash during rapid preset cycling.
+    while (animType == ANIMATION_RANDOMIZE_ALL) {
+        static const AnimationType cpp_animations[] = {
+            ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
+            ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD, ANIMATION_FIRE_TRAILS,
+            ANIMATION_SPARKLE_REVEAL, ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
+            ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_WAVEFORM_COLLAPSE,
+            ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_GLITCHY_JUMP_CUT,
+            ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS, ANIMATION_CHARACTER_SCANLINE,
+            ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER, ANIMATION_TEMPORAL_PARADOX,
+            ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE, ANIMATION_FLIP_DISC_DISPLAY,
+            ANIMATION_INTERFERENCE_PATTERN
+        };
+        int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
+        animType = cpp_animations[random(0, num_cpp_animations)];
     }
 
     char time_strings[3][17];
