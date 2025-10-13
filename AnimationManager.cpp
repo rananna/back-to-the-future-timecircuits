@@ -1483,22 +1483,26 @@ void handleSequencer() {
         }
     }
 
-    // --- NEW: Centralized End-of-Animation Detection ---
-    bool anyTrackIsActive = false;
-    bool anyTrackWasActiveThisCycle = false;
+    // --- FIX: Robust End-of-Animation Detection ---
+    // This logic reliably detects when the last active track has finished.
+    static bool wasAnimatingLastCycle = false;
+    bool isAnimatingThisCycle = false;
+
     for (int i = 0; i < NUM_SEQUENCER_TRACKS; ++i) {
         if (sequencerTracks[i].isActive) {
-            anyTrackIsActive = true;
-        }
-        if (sequencerTracks[i].trackStartTime > 0) {
-            anyTrackWasActiveThisCycle = true;
+            isAnimatingThisCycle = true;
+            break; // An active track was found, no need to check further.
         }
     }
 
-    if (anyTrackWasActiveThisCycle && !anyTrackIsActive) {
-        // All tracks that were running have now finished.
+    // If we were animating on the previous cycle but are not animating on the current one,
+    // it means the animation has just completed.
+    if (wasAnimatingLastCycle && !isAnimatingThisCycle) {
         doFinalAnimationCleanup();
     }
+
+    // Update the state for the next iteration of the loop.
+    wasAnimatingLastCycle = isAnimatingThisCycle;
 
 
     if (needsDisplayUpdate) {
