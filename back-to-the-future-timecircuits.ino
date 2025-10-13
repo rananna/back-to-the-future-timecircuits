@@ -1499,6 +1499,13 @@ void loop() {
                                     // If an animation just finished, skip one display cycle
                                     // to ensure all cleanup is complete before redrawing.
                                     if (justFinishedAnimation) {
+                                        // --- FIX: Add a forced delay (cooldown) after an animation completes ---
+                                        // This gives critical background tasks (like WiFi/MQTT) a guaranteed
+                                        // time slice to run, preventing them from being starved by the main
+                                        // loop immediately starting another CPU-intensive operation, which was
+                                        // causing the low-level `esp_timer_create` crash.
+                                        Log_printf(LOG_LEVEL_DEBUG, "Post-animation cooldown: Skipping one loop cycle.");
+                                        vTaskDelay(50 / portTICK_PERIOD_MS); // 50ms cooldown
                                         justFinishedAnimation = false;
                                     } else {
                                         // No sequence is running. Proceed with the normal display logic.

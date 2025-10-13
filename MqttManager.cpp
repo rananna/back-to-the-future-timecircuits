@@ -28,6 +28,7 @@
 #include "web_server.h"
 #include "StockManager.h"
 #include <LittleFS.h>
+#include <ESPmDNS.h>
 
 extern StockManager stockManager;
 #include "Audio.h"
@@ -1352,7 +1353,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
     // --- START: New logic for HA Sensor command in Sequencer ---
     for (int i = 0; i < 3; ++i) {
         if (sequencerTracks[i].isActive && sequencerTracks[i].isWaitingForHAState) {
-            if (topicStr == sequencerTracks[i].haSensorTopic.c_str()) {
+            if (strcmp(topic, sequencerTracks[i].haSensorTopic) == 0) {
                 Log_printf(LOG_LEVEL_INFO, "MQTT: Received state for track %d. Payload: %s", i, message.c_str());
                 int segment = sequencerTracks[i].steps[sequencerTracks[i].currentStep].targetSegment;
                 manualDisplayText[i][segment] = message; // Update the display text directly
@@ -1645,6 +1646,10 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
  * @param payload The JSON string or name of the sequence to run.
  */
 void handleSequencerCommand(const std::string& payload) {
+    // --- FIX: Stop mDNS service to prevent resource conflicts during animations ---
+    Log_printf(LOG_LEVEL_INFO, "Stopping mDNS service before animation.");
+    MDNS.end();
+
     // --- FIX: Allocate tracks statically to prevent stack overflow ---
     // The SequencerTrack struct is very large (~11.5KB). Allocating an array of them
     // on the stack causes an immediate overflow and crash when this function is called.
@@ -1659,7 +1664,7 @@ void handleSequencerCommand(const std::string& payload) {
     // By clearing it here, a failed parse results in an empty sequence, which
     // will simply do nothing and time out safely.
     for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
-        clearSequencerTrack(tracks[i]); // Safely reset the track
+        tracks[i].reset(); // Safely reset the track
     }
 
     static JsonDocument doc;
