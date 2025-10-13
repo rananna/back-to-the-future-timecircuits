@@ -1,0 +1,173 @@
+blueprint:
+  name: "BTTF Time Circuits: Multi-Row Status Board"
+  description: >-
+    Display different text and effects on all three rows of the Time Circuits simultaneously.
+    Leave a row's text blank to ignore it.
+  domain: script
+  input:
+    device:
+      name: Time Circuits Device
+      description: The BTTF Time Circuits device to control.
+      selector:
+        device:
+          integration: bttf_time_circuits
+
+    top_row_text:
+      name: "Top Row: Text"
+      description: "Text to display on the top row. Supports templates. Leave blank to ignore."
+      default: ""
+      selector:
+        text: {}
+    top_row_effect:
+      name: "Top Row: Effect"
+      description: "Visual effect for the top row."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - { label: "Set Text (Static)", value: "SET_TEXT" }
+            - { label: "Marquee (Scrolling)", value: "MARQUEE" }
+            - { label: "Pulse (2-second cycle)", value: "PULSE" }
+            - { label: "Flash", value: "FLASH" }
+            - { label: "Typewriter", value: "TYPEWRITER" }
+            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+
+    middle_row_text:
+      name: "Middle Row: Text"
+      description: "Text to display on the middle row. Supports templates. Leave blank to ignore."
+      default: ""
+      selector:
+        text: {}
+    middle_row_effect:
+      name: "Middle Row: Effect"
+      description: "Visual effect for the middle row."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - { label: "Set Text (Static)", value: "SET_TEXT" }
+            - { label: "Marquee (Scrolling)", value: "MARQUEE" }
+            - { label: "Pulse (2-second cycle)", value: "PULSE" }
+            - { label: "Flash", value: "FLASH" }
+            - { label: "Typewriter", value: "TYPEWRITER" }
+            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+
+    bottom_row_text:
+      name: "Bottom Row: Text"
+      description: "Text to display on the bottom row. Supports templates. Leave blank to ignore."
+      default: ""
+      selector:
+        text: {}
+    bottom_row_effect:
+      name: "Bottom Row: Effect"
+      description: "Visual effect for the bottom row."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - { label: "Set Text (Static)", value: "SET_TEXT" }
+            - { label: "Marquee (Scrolling)", value: "MARQUEE" }
+            - { label: "Pulse (2-second cycle)", value: "PULSE" }
+            - { label: "Flash", value: "FLASH" }
+            - { label: "Typewriter", value: "TYPEWRITER" }
+            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+
+    duration:
+      name: "Display Duration (s)"
+      description: "Total duration for the effects. Note: All rows will use the same duration."
+      default: 10
+      selector:
+        number: { min: 1, max: 60, unit_of_measurement: "s" }
+
+    marquee_speed:
+      name: "Marquee Speed (ms)"
+      description: "The scroll speed for any marquee effects. Lower is faster."
+      default: 100
+      selector:
+        number: { min: 20, max: 1000, unit_of_measurement: "ms" }
+
+    restore_rows:
+      name: "Restore Rows After Effect"
+      description: "If enabled, all active rows will be restored to their previous state after the effect completes."
+      default: true
+      selector:
+        boolean: {}
+
+mode: single
+
+variables:
+  device: !input device
+  top_row_text: !input top_row_text
+  top_row_effect: !input top_row_effect
+  middle_row_text: !input middle_row_text
+  middle_row_effect: !input middle_row_effect
+  bottom_row_text: !input bottom_row_text
+  bottom_row_effect: !input bottom_row_effect
+  duration: !input duration
+  marquee_speed: !input marquee_speed
+  restore_rows: !input restore_rows
+
+sequence:
+  - variables:
+      device_id: "{{ (device_attr(device, 'identifiers') | list | last)[1] }}"
+
+  - condition: template
+    value_template: >-
+      {{ device_id != none and (top_row_text != '' or middle_row_text != '' or bottom_row_text != '') }}
+
+  - service: mqtt.publish
+    data:
+      topic: "bttf_time_circuits/{{ device_id }}/sequencer/command"
+      payload: >-
+        {%- macro generate_row_commands(effect, text, duration_val, speed) -%}
+          {%- set commands = [] -%}
+          {%- set self_blocking_effects = ['MARQUEE', 'PULSE', 'FLASH', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'RANDOM_FLICKER_TEXT'] -%}
+          {%- set duration_ms = (duration_val * 1000) | int -%}
+          {%- set text_len = text | length -%}
+          {%- set base_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
+
+          {%- if effect == 'MARQUEE' -%}
+            {%- set visual_command = dict(base_command, intParam=speed | int) -%}
+          {%- elif effect == 'PULSE' -%}
+            {%- set visual_command = dict(base_command, intParam=1000, intParam2=duration_ms) -%}
+          {%- elif effect == 'FLASH' -%}
+            {%- set visual_command = dict(base_command, intParam2=duration_ms) -%}
+          {%- elif effect == 'TYPEWRITER' and text_len > 0 -%}
+            {%- set type_speed = (duration_ms / text_len) | int -%}
+            {%- set visual_command = dict(base_command, intParam=type_speed) -%}
+          {%- elif effect == 'SCRAMBLE_TEXT' and text_len > 0 -%}
+            {%- set scramble_speed = (duration_ms / text_len) | int -%}
+            {%- set visual_command = dict(base_command, intParam=50, intParam2=scramble_speed) -%}
+          {%- elif effect == 'RANDOM_FLICKER_TEXT' -%}
+            {%- set visual_command = dict(base_command, intParam=50, intParam2=duration_ms) -%}
+          {%- else -%}
+            {%- set visual_command = base_command -%}
+          {%- endif -%}
+          {%- set commands = commands + [visual_command] -%}
+
+          {%- if effect not in self_blocking_effects -%}
+            {%- set commands = commands + [{'command': 'WAIT', 'intParam': duration_ms}] -%}
+          {%- endif -%}
+
+          {{- commands -}}
+        {%- endmacro -%}
+        {%- set ns = namespace(tracks=[]) -%}
+        {%- set rows = {
+          'TOP': {'text': top_row_text, 'effect': top_row_effect},
+          'MIDDLE': {'text': middle_row_text, 'effect': middle_row_effect},
+          'BOTTOM': {'text': bottom_row_text, 'effect': bottom_row_effect}
+        } -%}
+        {%- for row_name, row_data in rows.items() -%}
+          {%- if row_data.text | default('') != '' -%}
+            {%- set commands = fromjson(generate_row_commands(row_data.effect, row_data.text, duration, marquee_speed)) -%}
+            {%- if restore_rows -%}
+              {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
+            {%- endif -%}
+            {%- set track = {'targetRow': row_name, 'commands': commands} -%}
+            {%- set ns.tracks = ns.tracks + [track] -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{- ns.tracks | to_json -}}
