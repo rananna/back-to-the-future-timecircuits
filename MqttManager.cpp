@@ -1490,12 +1490,18 @@ void publishHaStatesChunk1() { // Core settings and overrides
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
     char payload[20];
     mqttClient.publish((base_topic + "/override_switch/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
+    ws.cleanupClients();
     mqttClient.publish((base_topic + "/override_line_1/state").c_str(), overrideMessageLine1.c_str(), true);
+    ws.cleanupClients();
     mqttClient.publish((base_topic + "/override_line_2/state").c_str(), overrideMessageLine2.c_str(), true);
+    ws.cleanupClients();
     mqttClient.publish((base_topic + "/override_line_3/state").c_str(), overrideMessageLine3.c_str(), true);
+    ws.cleanupClients();
     mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
+    ws.cleanupClients();
     itoa(currentSettings.brightness, payload, 10);
     mqttClient.publish((base_topic + "/brightness/state").c_str(), payload, true);
+    ws.cleanupClients();
     itoa(currentSettings.notificationVolume, payload, 10);
     mqttClient.publish((base_topic + "/volume/state").c_str(), payload, true);
 }
@@ -1505,8 +1511,10 @@ void publishHaStatesChunk2() { // Time and display text (rows 1 & 2)
     char time_str[6];
     sprintf(time_str, "%02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
     mqttClient.publish((base_topic + "/sleep_time/state").c_str(), time_str, true);
+    ws.cleanupClients();
     sprintf(time_str, "%02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
     mqttClient.publish((base_topic + "/wake_time/state").c_str(), time_str, true);
+    ws.cleanupClients();
 
     // Rows 0 and 1
     for(int r=0; r<2; ++r) {
@@ -1515,6 +1523,7 @@ void publishHaStatesChunk2() { // Time and display text (rows 1 & 2)
             const char* segments[] = {"month", "day", "year", "time"};
             String topic = base_topic + "/" + rows[r] + "_" + segments[s] + "/state";
             mqttClient.publish(topic.c_str(), manualDisplayText[r][s].c_str(), true);
+            ws.cleanupClients();
         }
     }
 }
@@ -1529,19 +1538,24 @@ void publishHaStatesChunk3() { // Display text (row 3) and various toggles
     for(int s=0; s<4; ++s) {
         snprintf(topic_buffer, sizeof(topic_buffer), "%s/last_%s/state", base_topic, segments[s]);
         mqttClient.publish(topic_buffer, manualDisplayText[2][s].c_str(), true);
+        ws.cleanupClients();
     }
 
     snprintf(topic_buffer, sizeof(topic_buffer), "%s/sound_toggle/state", base_topic);
     mqttClient.publish(topic_buffer, currentSettings.timeTravelSoundToggle ? "ON" : "OFF", true);
+    ws.cleanupClients();
 
     snprintf(topic_buffer, sizeof(topic_buffer), "%s/is_animating/state", base_topic);
     mqttClient.publish(topic_buffer, isAnimating ? "ON" : "OFF", true);
+    ws.cleanupClients();
 
     snprintf(topic_buffer, sizeof(topic_buffer), "%s/is_asleep/state", base_topic);
     mqttClient.publish(topic_buffer, isDisplayAsleep ? "ON" : "OFF", true);
+    ws.cleanupClients();
 
     snprintf(topic_buffer, sizeof(topic_buffer), "%s/24h_format/state", base_topic);
     mqttClient.publish(topic_buffer, currentSettings.displayFormat24h ? "ON" : "OFF", true);
+    ws.cleanupClients();
 
     snprintf(topic_buffer, sizeof(topic_buffer), "%s/temporal_echo/state", base_topic);
     mqttClient.publish(topic_buffer, isEchoEffectActive ? "ON" : "OFF", true);
@@ -1552,30 +1566,41 @@ void publishHaStatesChunk4() { // Intervals, selectors, and status
     char payload[20];
     itoa(currentSettings.timeTravelAnimationInterval, payload, 10);
     mqttClient.publish((base_topic + "/animation_interval/state").c_str(), payload, true);
+    ws.cleanupClients();
     itoa(currentSettings.stockRefreshInterval, payload, 10);
     mqttClient.publish((base_topic + "/stock_refresh/state").c_str(), payload, true);
+    ws.cleanupClients();
     
     const char* modes[] = {"Normal Clock", "Stock Ticker", "Weather", "Data Link"};
     if (currentSettings.displayMode >= 0 && currentSettings.displayMode < 4) {
         mqttClient.publish((base_topic + "/display_mode/state").c_str(), modes[currentSettings.displayMode], true);
+        ws.cleanupClients();
     }
     mqttClient.publish((base_topic + "/profile/state").c_str(), currentProfileName.c_str(), true);
+    ws.cleanupClients();
     mqttClient.publish((base_topic + "/preset_selector/state").c_str(), lastDepartedPreset.c_str(), true);
+    ws.cleanupClients();
     publishHaDiagnosticAttributes();
 }
 
 void publishHaStatesChunk5() { // Audio and Data Link points 1-3
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
+    ws.cleanupClients();
     mqttClient.publish((base_topic + "/radio_station_name/state").c_str(), radioStationName.c_str(), true);
+    ws.cleanupClients();
     mqttClient.publish((base_topic + "/radio_song_title/state").c_str(), radioSongTitle.c_str(), true);
+    ws.cleanupClients();
     mqttClient.publish((base_topic + "/weather_city/state").c_str(), currentSettings.cityName.c_str(), true);
+    ws.cleanupClients();
 
     for(int i=0; i<3; ++i) {
         String enabled_topic = base_topic + "/datapoint_" + String(i) + "_enabled/state";
         mqttClient.publish(enabled_topic.c_str(), currentSettings.dataPoints[i].enabled ? "ON" : "OFF", true);
+        ws.cleanupClients();
         String marquee_topic = base_topic + "/datapoint_" + String(i) + "_marquee/state";
         mqttClient.publish(marquee_topic.c_str(), currentSettings.dataPoints[i].scrollingText.c_str(), true);
+        ws.cleanupClients();
     }
 }
 
@@ -1584,8 +1609,10 @@ void publishHaStatesChunk6() { // Data Link points 4-5
     for(int i=3; i<5; ++i) {
         String enabled_topic = base_topic + "/datapoint_" + String(i) + "_enabled/state";
         mqttClient.publish(enabled_topic.c_str(), currentSettings.dataPoints[i].enabled ? "ON" : "OFF", true);
+        ws.cleanupClients();
         String marquee_topic = base_topic + "/datapoint_" + String(i) + "_marquee/state";
         mqttClient.publish(marquee_topic.c_str(), currentSettings.dataPoints[i].scrollingText.c_str(), true);
+        ws.cleanupClients();
     }
 }
 
