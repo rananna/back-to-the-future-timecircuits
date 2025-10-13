@@ -1397,89 +1397,87 @@ void loop() {
             handleHaStatePublishing();
 
             stockManager.loop();
-
-            // --- START: MODIFICATION - Run sequencer on every loop ---
-            // This ensures that sequences can run in parallel with any display mode.
             handleSequencer();
             handleAllSequencerMarquees();
-            handleTemporalEcho();
-            handlePresetCycling();
-            handleSleepSchedule();
-            // --- END: MODIFICATION ---
 
-            // --- NEW: Audio State Synchronization Safety Net ---
-            // Periodically check if the application's radio state is out of sync with the audio library's state.
-            // This can happen if a stream drops unexpectedly and the EOF callback doesn't fire.
-            static unsigned long lastAudioSyncCheck = 0;
-            if (millis() - lastAudioSyncCheck > 1000) { // Check every second
-                if (isRadioStreaming && !audio.isRunning()) {
-                    Log_printf(LOG_LEVEL_WARN, "SAFETY NET: Radio state desync detected! Forcing cleanup.");
-                    cleanupAudio(true); // Force a permanent cleanup
-                }
-                lastAudioSyncCheck = millis();
-            }
+            // --- START: FIX - Post-Animation Race Condition ---
+            // The logic below prevents a race condition where a new animation (like
+            // preset cycling) is triggered in the same loop cycle that a previous
+            // animation finished. This was causing state corruption and crashes.
 
-            // --- START: MODIFICATION - Periodic Stock Manager Reset ---
-            static unsigned long lastStockManagerReset = 0;
-            if (currentSettings.displayMode == DMS_STOCK_TICKER) {
-                if (lastStockManagerReset == 0) {
-                    lastStockManagerReset = millis();
-                }
-                unsigned long now = millis();
-                if (now - lastStockManagerReset > STOCK_MANAGER_RESET_INTERVAL) {
-                    Log_printf(LOG_LEVEL_INFO, "Performing periodic reset of StockManager to prevent heap fragmentation.");
-                    // Re-initialize the stock manager from the master settings object.
-                    stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
-                    stockManager.setRefreshInterval(currentSettings.stockRefreshInterval);
-                    Log_printf(LOG_LEVEL_DEBUG, "TRACE: Re-applying stockRefreshInterval during periodic reset: %d", currentSettings.stockRefreshInterval);
-                    stockManager.loadAssets();
-                    stockManager.setEnabled(true); // Re-enable the manager after reset
-                    lastStockManagerReset = now;
-                }
-            } else {
-                lastStockManagerReset = 0; // Reset the timer if stock ticker mode is disabled
-            }
-            // --- END: MODIFICATION ---
+            // 1. Capture the flag's state at the start of the logic block.
+            bool animationJustCompleted = justFinishedAnimation;
+            // 2. Immediately reset the global flag.
+            justFinishedAnimation = false;
 
-            static unsigned long lastNtpUpdate = 0;
-            if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
-                if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-                    bool syncSuccess = false;
-                    int retries = 0;
-                    while (!syncSuccess && retries < NUM_NTP_SERVERS) {
-                        configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
-                        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                        tzset();
-                        struct tm timeinfo;
-                        if (getLocalTime(&timeinfo, 10000)) {
-                            timeSynchronized = true;
-                            syncSuccess = true;
-                        } else {
-                            currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
-                            retries++;
-                        }
+            // 3. Only run user-facing logic (display updates, preset cycling, etc.)
+            //    if an animation did NOT just complete this cycle. This gives the
+            //    system one full loop to stabilize. The sequencer and MQTT handlers
+            //    run on every loop regardless.
+            if (!animationJustCompleted) {
+                handleTemporalEcho();
+                handlePresetCycling();
+                handleSleepSchedule();
+
+                // --- Audio State Synchronization Safety Net ---
+                static unsigned long lastAudioSyncCheck = 0;
+                if (millis() - lastAudioSyncCheck > 1000) {
+                    if (isRadioStreaming && !audio.isRunning()) {
+                        Log_printf(LOG_LEVEL_WARN, "SAFETY NET: Radio state desync detected! Forcing cleanup.");
+                        cleanupAudio(true);
                     }
-                    lastNtpUpdate = millis();
-                    ntpSyncRequested = false;
-                    xSemaphoreGive(xTimeLibMutex);
+                    lastAudioSyncCheck = millis();
                 }
-            }
-            
-            if (hardwareInitialized) {
-                if (bootState != BOOT_INACTIVE) {
-                    if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                        handleBootSequence();
-                        xSemaphoreGive(xDisplayDataMutex);
+
+                // --- Periodic Stock Manager Reset ---
+                static unsigned long lastStockManagerReset = 0;
+                if (currentSettings.displayMode == DMS_STOCK_TICKER) {
+                    if (lastStockManagerReset == 0) lastStockManagerReset = millis();
+                    unsigned long now = millis();
+                    if (now - lastStockManagerReset > STOCK_MANAGER_RESET_INTERVAL) {
+                        Log_printf(LOG_LEVEL_INFO, "Performing periodic reset of StockManager.");
+                        stockManager.setApiKey(currentSettings.financialModelingPrepApiKey.c_str());
+                        stockManager.setRefreshInterval(currentSettings.stockRefreshInterval);
+                        stockManager.loadAssets();
+                        stockManager.setEnabled(true);
+                        lastStockManagerReset = now;
                     }
                 } else {
-                    // --- NEW: Only run normal display logic after boot is complete ---
-                    if (bootSequenceCompleted) {
-                        if (isAnimating) {
-                            if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
-                                handleDisplayAnimation();
-                                xSemaphoreGive(xDisplayDataMutex);
+                    lastStockManagerReset = 0;
+                }
+
+                static unsigned long lastNtpUpdate = 0;
+                if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
+                    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+                        bool syncSuccess = false;
+                        int retries = 0;
+                        while (!syncSuccess && retries < NUM_NTP_SERVERS) {
+                            configTime(0, 0, NTP_SERVERS[currentNtpServerIndex]);
+                            setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                            tzset();
+                            struct tm timeinfo;
+                            if (getLocalTime(&timeinfo, 10000)) {
+                                timeSynchronized = true;
+                                syncSuccess = true;
+                            } else {
+                                currentNtpServerIndex = (currentNtpServerIndex + 1) % NUM_NTP_SERVERS;
+                                retries++;
                             }
-                        } else if (isStyledAnimating) {
+                        }
+                        lastNtpUpdate = millis();
+                        ntpSyncRequested = false;
+                        xSemaphoreGive(xTimeLibMutex);
+                    }
+                }
+
+                if (hardwareInitialized) {
+                    if (bootState != BOOT_INACTIVE) {
+                        if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
+                            handleBootSequence();
+                            xSemaphoreGive(xDisplayDataMutex);
+                        }
+                    } else if (bootSequenceCompleted) {
+                        if (isAnimating || isStyledAnimating) {
                             if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
                                 handleDisplayAnimation();
                                 xSemaphoreGive(xDisplayDataMutex);
@@ -1513,25 +1511,27 @@ void loop() {
                                         handleDisplay();
                                     }
                                 }
-                                // --- END: MODIFICATION ---
                             }
                         }
                     }
-                }
-            } else {
-                // Hardware failed to initialize, retry periodically
-                unsigned long now = millis();
-                if (now - lastHardwareInitAttempt > HARDWARE_INIT_RETRY_INTERVAL) {
-                    Log_printf(LOG_LEVEL_WARN, "Retrying hardware initialization...");
-                    lastHardwareInitAttempt = now;
-                    hardwareInitialized = attemptHardwareInit();
-                    if (hardwareInitialized) {
-                        Log_printf(LOG_LEVEL_INFO, "Hardware initialized successfully on retry.");
-                        onHardwareInitialized();
-                    } else {
-                        Log_printf(LOG_LEVEL_WARN, "Hardware initialization retry failed.");
+                } else {
+                    // Hardware failed to initialize, retry periodically
+                    unsigned long now = millis();
+                    if (now - lastHardwareInitAttempt > HARDWARE_INIT_RETRY_INTERVAL) {
+                        Log_printf(LOG_LEVEL_WARN, "Retrying hardware initialization...");
+                        lastHardwareInitAttempt = now;
+                        hardwareInitialized = attemptHardwareInit();
+                        if (hardwareInitialized) {
+                            Log_printf(LOG_LEVEL_INFO, "Hardware initialized successfully on retry.");
+                            onHardwareInitialized();
+                        } else {
+                            Log_printf(LOG_LEVEL_WARN, "Hardware initialization retry failed.");
+                        }
                     }
                 }
+            } // --- END: FIX - Post-Animation Race Condition ---
+            else {
+                Log_printf(LOG_LEVEL_DEBUG, "Post-animation cooldown: Skipping one loop cycle.");
             }
             break;
     }

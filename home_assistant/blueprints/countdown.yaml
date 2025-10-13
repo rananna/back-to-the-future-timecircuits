@@ -51,16 +51,17 @@ blueprint:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
             - { label: "Marquee (Scrolling Text)", value: "MARQUEE" }
-            - { label: "Pulse", value: "PULSE" }
+            - { label: "Pulse (2-second cycle)", value: "PULSE" }
             - { label: "Flash", value: "FLASH" }
             - { label: "Typewriter", value: "TYPEWRITER" }
             - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
     end_text_duration:
       name: "End Text Display Duration (s)"
-      description: "Duration for the non-blocking 'Set Text' end effect. Other effects like Pulse and Flash have their own internal timing."
+      description: "Total duration for the 'Set Text', 'Pulse', 'Flash', 'Typewriter', and 'Scramble' end effects."
       default: 5
       selector:
-        number: { min: 1, max: 300, unit_of_measurement: "s" }
+        number: { min: 1, max: 60, unit_of_measurement: "s" }
     end_text_marquee_speed:
       name: "End Text Marquee Speed (ms)"
       description: "The scroll speed for the marquee effect. Lower is faster."
@@ -139,42 +140,62 @@ variables:
   volume: !input volume
   repeat_end_effect: !input repeat_end_effect
   restore_row: !input restore_row
-  final_end_text: "{{ end_text | default('') }}"
-  final_media_file: "{{ media_file | default('') }}"
 
 sequence:
+  - variables:
+      device_id: "{{ (device_attr(device, 'identifiers') | list | last)[1] }}"
+      final_end_text: "{{ end_text | default('') }}"
+      final_media_file: "{{ media_file if audio_source == 'media' else '' }}"
+      total_countdown_seconds: "{{ (start_number * countdown_delay / 1000) | float(0) }}"
+
   - condition: template
-    value_template: "{{ device != none }}"
+    value_template: "{{ device_id != none }}"
 
   - service: mqtt.publish
     data:
-      topic: "bttf_time_circuits/{{ (device_attr(device, 'identifiers') | list | last)[1] }}/sequencer/command"
+      topic: "bttf_time_circuits/{{ device_id }}/sequencer/command"
       payload: >-
-        {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_duration, end_speed, audio_src, sound, vol, repeat_count, restore) -%}
+        {%- macro generate_countdown_payload(target, start_num, delay, end_txt, effect_val, end_duration, end_speed, audio_src, sound, vol, repeat_count, restore) -%}
           {%- set ns = namespace(final_commands=[], tracks=[]) -%}
-          {%- set core_commands = [] -%}
-          {%- set self_blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
-          {%- set timed_effects = ['PULSE', 'FLASH'] -%}
+          {%- set self_blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'RANDOM_FLICKER_TEXT'] -%}
           {%- set end_commands = [] -%}
+          {%- set text_len = end_txt | length -%}
+          {%- set duration_ms = (end_duration * 1000) | int -%}
+
+          {%- set countdown_command = {'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_num, 'intParam2': delay} -%}
+          {%- set ns.final_commands = [countdown_command] -%}
+
+          {%- if audio_src == 'builtin' -%}
+            {%- set device_volume = ((vol / 100) * 21) | round(0) | int -%}
+            {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
+            {%- set ns.final_commands = ns.final_commands + [sound_command] -%}
+          {%- endif -%}
 
           {%- if end_txt != "" -%}
-            {%- set base_command = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
-            {%- if end_effect == 'MARQUEE' -%}
+            {%- set base_command = {'command': effect_val, 'targetSegment': -1, 'stringParam': end_txt} -%}
+            {%- if effect_val == 'MARQUEE' -%}
               {%- set visual_command = dict(base_command, intParam=end_speed | int) -%}
-            {%- elif end_effect in timed_effects -%}
-              {%- set visual_command = dict(base_command, intParam2=(end_duration * 1000) | int) -%}
+            {%- elif effect_val == 'PULSE' -%}
+              {%- set visual_command = dict(base_command, intParam=1000, intParam2=duration_ms) -%}
+            {%- elif effect_val == 'FLASH' -%}
+              {%- set visual_command = dict(base_command, intParam2=duration_ms) -%}
+            {%- elif effect_val == 'TYPEWRITER' and text_len > 0 -%}
+              {%- set type_speed = (duration_ms / text_len) | int -%}
+              {%- set visual_command = dict(base_command, intParam=type_speed) -%}
+            {%- elif effect_val == 'SCRAMBLE_TEXT' and text_len > 0 -%}
+              {%- set scramble_speed = (duration_ms / text_len) | int -%}
+              {%- set visual_command = dict(base_command, intParam=50, intParam2=scramble_speed) -%}
+            {%- elif effect_val == 'RANDOM_FLICKER_TEXT' -%}
+              {%- set visual_command = dict(base_command, intParam=50, intParam2=duration_ms) -%}
             {%- else -%}
               {%- set visual_command = base_command -%}
             {%- endif -%}
             {%- set end_commands = end_commands + [visual_command] -%}
 
-            {%- if end_effect not in self_blocking_effects -%}
-              {%- set wait_duration = (end_duration * 1000) | int -%}
-              {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
+            {%- if effect_val not in self_blocking_effects -%}
+              {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': duration_ms}] -%}
             {%- endif -%}
           {%- endif -%}
-
-          {%- set ns.final_commands = [{'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_num, 'intParam2': delay}] -%}
 
           {%- if end_commands | length > 0 -%}
             {%- if (repeat_count | int) > 1 -%}
@@ -195,13 +216,7 @@ sequence:
           {%- endif -%}
 
           {%- for row in track_list -%}
-            {%- set current_commands = ns.final_commands -%}
-            {%- if loop.first and audio_src == 'builtin' -%}
-              {%- set device_volume = ((vol / 100) * 21) | round(0) | int -%}
-              {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
-              {%- set current_commands = [sound_command] + current_commands -%}
-            {%- endif -%}
-            {%- set track_object = {'targetRow': row, 'commands': current_commands} -%}
+            {%- set track_object = {'targetRow': row, 'commands': ns.final_commands} -%}
             {%- set ns.tracks = ns.tracks + [track_object] -%}
           {%- endfor -%}
           {{- ns.tracks | to_json -}}
@@ -212,9 +227,11 @@ sequence:
       - conditions:
           - "{{ audio_source == 'media' and final_media_file != '' }}"
         sequence:
+          - delay:
+              seconds: "{{ total_countdown_seconds }}"
           - variables:
               media_player_entity: >
-                {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
+                {{ device_entities(device_id) | select('startswith', 'media_player.') | first | default('none') }}
           - condition: template
             value_template: "{{ media_player_entity != 'none' }}"
           - service: media_player.volume_set
@@ -222,8 +239,6 @@ sequence:
               entity_id: "{{ media_player_entity }}"
             data:
               volume_level: "{{ volume / 100 }}"
-          - delay:
-              seconds: "{{ (start_number * countdown_delay / 1000) | float(0) }}"
           - service: media_player.play_media
             target:
               entity_id: "{{ media_player_entity }}"
