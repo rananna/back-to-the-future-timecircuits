@@ -1,7 +1,7 @@
 blueprint:
-  name: "BTTF Time Circuits: Display Entity"
+  name: "BTTF Time Circuits: Display"
   description: >-
-    A blueprint for displaying an entity's state or attribute on the Time Circuits, with optional sound, volume, looping, and advanced effects.
+    A blueprint for displaying static text or an entity's state on the Time Circuits, with optional sound, volume, looping, and advanced effects.
   domain: script
   input:
     device:
@@ -23,9 +23,27 @@ blueprint:
             - { label: "Bottom Row (Last Time Departed)", value: "BOTTOM" }
             - { label: "All Rows", value: "ALL" }
 
+    data_source:
+      name: Data Source
+      description: "Choose whether to display a static text message or the state of a Home Assistant entity."
+      default: "static"
+      selector:
+        select:
+          options:
+            - { label: "Static Text", value: "static" }
+            - { label: "Home Assistant Entity", value: "entity" }
+
+    text_to_display:
+      name: "Text to Display"
+      description: "The message to display. Supports templates."
+      default: ""
+      selector:
+        text: {}
+
     entity_to_display:
       name: "Entity to Display"
       description: "The entity whose state or attribute you want to display."
+      default: ""
       selector:
         entity: {}
     attribute_to_display:
@@ -36,13 +54,13 @@ blueprint:
         text: {}
     prefix:
       name: "Prefix"
-      description: "Optional text to display before the value (e.g., 'Temp: ')."
+      description: "Optional text to display before the entity value (e.g., 'Temp: ')."
       default: ""
       selector:
         text: {}
     postfix:
       name: "Postfix"
-      description: "Optional text to display after the value (e.g., '°C')."
+      description: "Optional text to display after the entity value (e.g., '°C')."
       default: ""
       selector:
         text: {}
@@ -56,20 +74,30 @@ blueprint:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
             - { label: "Marquee (Scrolling Text)", value: "MARQUEE" }
-            - { label: "Pulse", value: "PULSE" }
+            - { label: "Pulse (2-second cycle)", value: "PULSE" }
             - { label: "Flash", value: "FLASH" }
             - { label: "Typewriter", value: "TYPEWRITER" }
             - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+
     duration:
       name: "Display Duration (s)"
-      description: "Duration for the 'Set Text', 'Pulse', and 'Flash' effects."
+      description: "Total duration for the 'Set Text', 'Pulse', 'Flash', 'Typewriter', and 'Scramble' effects."
       default: 10
       selector:
-        number: { min: 1, max: 300, unit_of_measurement: "s" }
+        number: { min: 1, max: 60, unit_of_measurement: "s" }
+
     marquee_speed:
       name: "Marquee Speed (ms)"
       description: "The scroll speed for the marquee effect. Lower is faster."
       default: 100
+      selector:
+        number: { min: 20, max: 1000, unit_of_measurement: "ms" }
+
+    flicker_speed:
+      name: "Random Flicker Speed (ms)"
+      description: "For the Random Flicker effect, the delay between screen updates. Lower is faster."
+      default: 50
       selector:
         number: { min: 20, max: 1000, unit_of_measurement: "ms" }
 
@@ -83,6 +111,7 @@ blueprint:
             - { label: "None", value: "none" }
             - { label: "Built-in Sound Effect", value: "builtin" }
             - { label: "Stream from Home Assistant", value: "media" }
+
     sound_effect:
       name: "Sound Effect"
       description: "A built-in sound effect to play from the device."
@@ -101,12 +130,14 @@ blueprint:
             - { label: "Lock On", value: "lock_on.mp3" }
             - { label: "Relay Activation", value: "relay_activation.mp3" }
             - { label: "Time Travel", value: "time_travel.mp3" }
+
     media_file:
       name: "Media File"
       description: "Audio file to stream from the Home Assistant media library. Click 'Pick Media' to select."
       default: ""
       selector:
         media: {}
+
     volume:
       name: Volume
       description: "Set the volume for this specific alert (0-100). Only used if an audio source is selected."
@@ -120,6 +151,7 @@ blueprint:
       default: 1
       selector:
         number: { min: 1, max: 10, mode: box }
+
     restore_row:
       name: "Restore Row After Effect"
       description: "If enabled, the row will be restored to its previous state after the effect (and any loops) completes."
@@ -132,6 +164,8 @@ mode: single
 variables:
   device: !input device
   target_row: !input target_row
+  data_source: !input data_source
+  text_to_display: !input text_to_display
   entity_to_display: !input entity_to_display
   attribute_to_display: !input attribute_to_display
   prefix: !input prefix
@@ -145,45 +179,66 @@ variables:
   volume: !input volume
   repeat: !input repeat
   restore_row: !input restore_row
-  final_attribute: "{{ attribute_to_display | default('') }}"
-  final_prefix: "{{ prefix | default('') }}"
-  final_postfix: "{{ postfix | default('') }}"
-  final_media_file: "{{ media_file | default('') }}"
-  value_to_display: >-
-    {% if final_attribute != "" %}
-      {{ state_attr(entity_to_display, final_attribute) }}
-    {% else %}
-      {{ states(entity_to_display) }}
-    {% endif %}
-  final_text: "{{- final_prefix ~ (value_to_display | default('')) ~ final_postfix -}}"
+  flicker_speed: !input flicker_speed
 
 sequence:
+  - variables:
+      device_id: "{{ (device_attr(device, 'identifiers') | list | last)[1] }}"
+      final_media_file: "{{ media_file if audio_source == 'media' else '' }}"
+      entity_value: >-
+        {% if data_source == 'entity' and entity_to_display != '' %}
+          {% if attribute_to_display != '' %}
+            {{ state_attr(entity_to_display, attribute_to_display) }}
+          {% else %}
+            {{ states(entity_to_display) }}
+          {% endif %}
+        {% else %}
+          {{ '' }}
+        {% endif %}
+      final_text: >-
+        {% if data_source == 'entity' %}
+          {{ prefix ~ entity_value ~ postfix }}
+        {% else %}
+          {{ text_to_display }}
+        {% endif %}
+
   - condition: template
-    value_template: "{{ device != none }}"
+    value_template: "{{ device_id != none and final_text != '' }}"
 
   - service: mqtt.publish
     data:
-      topic: "bttf_time_circuits/{{ (device_attr(device, 'identifiers') | list | last)[1] }}/sequencer/command"
+      topic: "bttf_time_circuits/{{ device_id }}/sequencer/command"
       payload: >-
-        {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
+        {%- macro generate_sequence_payload(target, effect_val, text, duration_val, speed, restore_val, sound, sound_vol, repeat_count, audio_src, flicker_spd) -%}
           {%- set ns = namespace(final_commands=[], tracks=[]) -%}
           {%- set core_commands = [] -%}
-          {%- set self_blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'PULSE', 'FLASH'] -%}
-          {%- set timed_effects = ['PULSE', 'FLASH'] -%}
+          {%- set self_blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'PULSE', 'FLASH', 'RANDOM_FLICKER_TEXT'] -%}
+          {%- set text_len = text | length -%}
+          {%- set duration_ms = (duration_val * 1000) | int -%}
 
-          {%- set base_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
-          {%- if effect == 'MARQUEE' -%}
+          {%- set base_command = {'command': effect_val, 'targetSegment': -1, 'stringParam': text} -%}
+
+          {%- if effect_val == 'MARQUEE' -%}
             {%- set visual_command = dict(base_command, intParam=speed | int) -%}
-          {%- elif effect in timed_effects -%}
-            {%- set visual_command = dict(base_command, intParam2=(duration * 1000) | int) -%}
+          {%- elif effect_val == 'PULSE' -%}
+            {%- set visual_command = dict(base_command, intParam=1000, intParam2=duration_ms) -%}
+          {%- elif effect_val == 'FLASH' -%}
+            {%- set visual_command = dict(base_command, intParam2=duration_ms) -%}
+          {%- elif effect_val == 'TYPEWRITER' and text_len > 0 -%}
+            {%- set type_speed = (duration_ms / text_len) | int -%}
+            {%- set visual_command = dict(base_command, intParam=type_speed) -%}
+          {%- elif effect_val == 'SCRAMBLE_TEXT' and text_len > 0 -%}
+            {%- set scramble_speed = (duration_ms / text_len) | int -%}
+            {%- set visual_command = dict(base_command, intParam=50, intParam2=scramble_speed) -%}
+          {%- elif effect_val == 'RANDOM_FLICKER_TEXT' -%}
+            {%- set visual_command = dict(base_command, intParam=flicker_spd | int, intParam2=duration_ms) -%}
           {%- else -%}
             {%- set visual_command = base_command -%}
           {%- endif -%}
           {%- set core_commands = core_commands + [visual_command] -%}
 
-          {%- if effect not in self_blocking_effects -%}
-            {%- set wait_duration = (duration * 1000) | int -%}
-            {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
+          {%- if effect_val not in self_blocking_effects -%}
+            {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': duration_ms}] -%}
           {%- endif -%}
 
           {%- if (repeat_count | int) > 1 -%}
@@ -191,14 +246,17 @@ sequence:
           {%- else -%}
             {%- set ns.final_commands = core_commands -%}
           {%- endif -%}
-          {%- if restore -%}
+
+          {%- if restore_val -%}
             {%- set ns.final_commands = ns.final_commands + [{'command': 'RESTORE_ROW'}] -%}
           {%- endif -%}
+
           {%- if target == 'ALL' -%}
             {%- set track_list = ['TOP', 'MIDDLE', 'BOTTOM'] -%}
           {%- else -%}
             {%- set track_list = [target] -%}
           {%- endif -%}
+
           {%- for row in track_list -%}
             {%- set current_commands = ns.final_commands -%}
             {%- if loop.first and audio_src == 'builtin' -%}
@@ -209,9 +267,10 @@ sequence:
             {%- set track_object = {'targetRow': row, 'commands': current_commands} -%}
             {%- set ns.tracks = ns.tracks + [track_object] -%}
           {%- endfor -%}
+
           {{- ns.tracks | to_json -}}
         {%- endmacro -%}
-        {{- generate_sequence_payload(target_row, effect, final_text, duration, marquee_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
+        {{- generate_sequence_payload(target_row, effect, final_text, duration, marquee_speed, restore_row, sound_effect, volume, repeat, audio_source, flicker_speed) -}}
 
   - choose:
       - conditions:
@@ -219,7 +278,7 @@ sequence:
         sequence:
           - variables:
               media_player_entity: >
-                {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
+                {{ device_entities(device_id) | select('startswith', 'media_player.') | first | default('none') }}
           - condition: template
             value_template: "{{ media_player_entity != 'none' }}"
           - service: media_player.volume_set
