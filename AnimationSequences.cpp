@@ -10,7 +10,7 @@
 #include "AnimationSequences.h"
 #include "HardwareControl.h"
 #include "DisplayManager.h"
-#include "DebugLog.hh"
+#include "DebugLog.h"
 #include <Arduino.h>
 #include <string>
 
