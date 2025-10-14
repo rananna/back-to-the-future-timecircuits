@@ -1182,9 +1182,10 @@ void handleSequencer() {
                             }
                         }
                         track.lastScannerUpdate = millis();
+                    } else {
+                        vTaskDelay(1); // Yield to other tasks
                     }
                 }
-                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_TYPEWRITER:
@@ -1205,9 +1206,10 @@ void handleSequencer() {
                         typewriter_buffer[track.typewriterIndex] = '\0';
                         updateDisplaySegment(step.targetRow, step.targetSegment, typewriter_buffer);
                         track.lastTypewriterUpdate = millis();
+                    } else {
+                        vTaskDelay(1); // Yield to other tasks
                     }
                 }
-                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_WIPE:
@@ -1231,9 +1233,10 @@ void handleSequencer() {
                         updateDisplaySegment(step.targetRow, -1, wipe_buffer);
                         track.wipeSegment++;
                         track.lastWipeUpdate = millis();
+                    } else {
+                        vTaskDelay(1); // Yield to other tasks
                     }
                 }
-                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_BAR_GRAPH:
