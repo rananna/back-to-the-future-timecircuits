@@ -726,7 +726,10 @@ void handleSequencer() {
         if (track.isActive && (millis() - track.trackStartTime > MAX_SEQUENCE_DURATION)) {
             Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d timed out after %d ms. Aborting ALL tracks.", i, MAX_SEQUENCE_DURATION);
             stopAllSequences();
-            doFinalAnimationCleanup(); // --- FIX: Call the global cleanup function on timeout.
+            // --- FIX: DO NOT call doFinalAnimationCleanup() here. ---
+            // The main state machine at the end of this function will detect that the animation
+            // has stopped and will call the cleanup function correctly and safely.
+            // Calling it here would cause a double-call and a crash.
             needsDisplayUpdate = true;
             break;
         }
@@ -1508,6 +1511,11 @@ void handleSequencer() {
     if (needsDisplayUpdate) {
         updateNormalClockDisplay();
     }
+
+    // --- FIX: Yield CPU time to prevent task starvation ---
+    // A delay of 1 tick is enough to allow other tasks (like the network stack)
+    // to run, preventing crashes from memory allocation failures in mDNS, etc.
+    vTaskDelay(1);
 }
 
 /**
@@ -1545,13 +1553,7 @@ void doFinalAnimationCleanup() {
     currentSettings.displayMode = preAnimationDisplayMode;
     justFinishedAnimation = true;
 
-    // Restart the mDNS service that was stopped at the beginning of the animation.
-    if (MDNS.begin("BTTF_TC")) {
-        MDNS.addService("http", "tcp", 80);
-        Log_printf(LOG_LEVEL_INFO, "mDNS service restarted successfully after animation.");
-    } else {
-        Log_printf(LOG_LEVEL_ERROR, "mDNS failed to restart after animation.");
-    }
+    // mDNS service is no longer stopped/restarted during animations.
 
     // Broadcast completion to the UI now that we are certain the entire animation is done.
     broadcastAnimationComplete();
@@ -1673,13 +1675,6 @@ void triggerAnimation(AnimationType animType) {
     // This function is a full takeover. It replaces all running tracks
     // with the new animation.
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
-
-    // --- FIX: Stop mDNS before starting an animation to prevent resource conflicts ---
-    // The mDNS service can conflict with other network-intensive or CPU-intensive
-    // tasks on the ESP32, leading to crashes. Stopping it before an animation
-    // and restarting it after is a robust way to ensure system stability.
-    Log_printf(LOG_LEVEL_INFO, "Stopping mDNS service before animation.");
-    MDNS.end();
 
     // --- FIX: Save the current display mode so it can be restored after the animation. ---
     preAnimationDisplayMode = currentSettings.displayMode;

@@ -1646,10 +1646,6 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
  * @param payload The JSON string or name of the sequence to run.
  */
 void handleSequencerCommand(const std::string& payload) {
-    // --- FIX: Stop mDNS service to prevent resource conflicts during animations ---
-    Log_printf(LOG_LEVEL_INFO, "Stopping mDNS service before animation.");
-    MDNS.end();
-
     // --- FIX: Allocate tracks statically to prevent stack overflow ---
     // The SequencerTrack struct is very large (~11.5KB). Allocating an array of them
     // on the stack causes an immediate overflow and crash when this function is called.
