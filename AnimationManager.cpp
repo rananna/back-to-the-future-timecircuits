@@ -621,6 +621,7 @@ void handleBootSequence() {
             {
                 if (elapsed > 500) {
                     comprehensiveAnimationCleanup(); // Resets manual modes without forcing clock display
+                    updateNormalClockDisplay(true, true, true); // Force a redraw of the clock
                     bootSequenceCompleted = true; // --- NEW: Signal that the boot sequence is done.
                     bootState = BOOT_INACTIVE;
                     // The main display loop will now handle updating the display correctly
