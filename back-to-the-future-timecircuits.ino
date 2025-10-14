@@ -1401,13 +1401,8 @@ void loop() {
             handleSequencer();
             handleAllSequencerMarquees();
 
-            // --- FIX: Only run these background handlers after the boot sequence is complete ---
-            if (bootSequenceCompleted) {
-                handleTemporalEcho();
-                handlePresetCycling();
-                handleSleepSchedule();
-            }
-            // --- END: MODIFICATION ---
+            // Background handlers are now called within the main display logic
+            // to prevent race conditions after animations.
 
             // --- NEW: Audio State Synchronization Safety Net ---
             // Periodically check if the application's radio state is out of sync with the audio library's state.
@@ -1513,6 +1508,16 @@ void loop() {
                                         // No sequence is running. Proceed with the normal display logic.
                                         updateDisplayState();
                                         handleDisplay();
+
+                                        // --- FIX: Moved background handlers here ---
+                                        // This ensures that preset cycling and other background tasks
+                                        // do not run during the post-animation "cooldown" period,
+                                        // preventing the race condition.
+                                        if (bootSequenceCompleted) {
+                                            handleTemporalEcho();
+                                            handlePresetCycling();
+                                            handleSleepSchedule();
+                                        }
                                     }
                                 }
                                 // --- END: MODIFICATION ---
