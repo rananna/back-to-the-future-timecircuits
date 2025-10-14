@@ -1128,7 +1128,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
                 ANIMATION_INTERFERENCE_PATTERN
             };
             int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
-            animType = cpp_animations[random(0, num_cpp_animations)];
+            animType = cpp_animations[random(num_cpp_animations)];
         }
         Log_printf(LOG_LEVEL_INFO, "RANDOMIZE_ALL selected: %s", animationTypeToString(animType));
     }
