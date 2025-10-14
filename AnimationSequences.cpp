@@ -973,34 +973,26 @@ void generateLightning(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, solid_block);
     s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, solid_block);
 
+    // --- FIX: Replace infinite loops with finite, 10-second duration commands ---
+    // This ensures the animation completes cleanly without hitting the global timeout.
+
     // --- Track 0: Main Lightning Bolts ---
-    // Loop for ~10 seconds. Each loop is a main strike and a variable pause.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
-    // Big, intense flash across all rows simultaneously.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 100, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 100, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 2, -1, 100, 0);
-    // Wait for a random duration before the next big strike.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500 + random(0, 1000), 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    // Use a PULSE command for the entire duration to create the main flashing effect.
+    // The pulse interval is set to a random value to feel more natural.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 10000, 500 + random(0, 1000));
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 1, -1, 10000, 500 + random(0, 1000));
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 2, -1, 10000, 500 + random(0, 1000));
 
     // --- Track 1: Background Sheet Lightning ---
-    // Loop for ~10 seconds with rapid, faint flickers.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 40, 0);
-    // Flicker a random row for a short duration.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), -1, 100, 50, " ");
-    // Wait for a random, short duration.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 50 + random(0, 200), 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    // Use a single RANDOM_FLICKER_TEXT command for the entire 10-second duration.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50, " ");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50, " ");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50, " ");
+
 
     // --- Track 2: Crackling Energy ---
-    // Loop for ~10 seconds with localized, sharp flickers.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 50, 0);
-    // Flicker a random segment on a random row.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), random(0, 4), 50, 50, "|||");
-    // Wait for a random, very short duration.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(0, 100), 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
+    // Use another RANDOM_FLICKER_TEXT command for the crackling effect.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, -1, -1, 10000, 50, "|||");
 }
 
 /**
@@ -1035,13 +1027,10 @@ void generateScanner(SequencerTrack tracks[3]) {
  */
 void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
-    // Simulate traveling through a time vortex
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 0, -1, 50, 0, time_strings[0]);
-    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 1, -1, 50, 0, time_strings[1]);
-    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 2, -1, 50, 0, time_strings[2]);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    // Simulate traveling through a time vortex for 10 seconds
+    s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 0, -1, 10000, 50, time_strings[0]);
+    s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 10000, 50, time_strings[1]);
+    s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 2, -1, 10000, 50, time_strings[2]);
 }
 
 /**
@@ -1050,13 +1039,10 @@ void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[
  */
 void generateFluxCapacitorOverload(SequencerTrack tracks[3]) {
     int s = 0;
-    // Show the Flux Capacitor pulsing with energy
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 0, -1, 500, 250);
-    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 1, -1, 500, 250);
-    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 2, -1, 500, 250);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    // Show the Flux Capacitor pulsing with energy for 10 seconds
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 0, -1, 10000, 250);
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 1, -1, 10000, 250);
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 2, -1, 10000, 250);
 }
 
 /**
@@ -1070,6 +1056,8 @@ void generateFireTrails(SequencerTrack tracks[3], const char time_strings[3][17]
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 0, -1, 100, 0, time_strings[0]);
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 1, -1, 100, 0, time_strings[1]);
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 2, -1, 100, 0, time_strings[2]);
+    // The wipe takes about 1.3s (13 chars * 100ms). Wait for the remaining time.
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 8700, 0);
 }
 
 /**
@@ -1166,7 +1154,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
             break;
         case ANIMATION_PARTY_MODE:
             // --- FIX: Add explicit loop count to prevent infinite loops and ensure termination ---
-            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"LOOP_START", "intParam":5}, {"command":"PULSE", "stringParam":"PARTY TIME!", "intParam":1000, "intParam2":1000}, {"command":"LOOP_END"}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":10000, "intParam2":100, "stringParam": "DANCE"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"LOOP_START", "intParam":5}, {"command":"PULSE", "stringParam":"LETS DANCE!", "intParam":1000, "intParam2":1000}, {"command":"LOOP_END"}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"PULSE", "stringParam":"PARTY TIME!", "intParam":10000, "intParam2":1000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":10000, "intParam2":100, "stringParam": "DANCE"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"PULSE", "stringParam":"LETS DANCE!", "intParam":10000, "intParam2":1000}]}])");
             break;
         case ANIMATION_KNIGHT_RIDER:
             parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}])");
