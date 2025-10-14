@@ -48,6 +48,7 @@ static bool infoMessageSet = false;
 extern void setOverrideMessage(const char* line1, const char* line2, const char* line3);
 extern bool isMessageOverrideActive;
 extern unsigned long bootStateStartTime;
+volatile bool isTransitioningAnimation = false;
 
 // Helper function prototypes
 void playReconfiguringSound();
@@ -1500,7 +1501,7 @@ void handleSequencer() {
 
     // If we were animating on the previous cycle but are not animating on the current one,
     // it means the animation has just completed.
-    if (wasAnimatingLastCycle && !isAnimatingThisCycle) {
+    if (wasAnimatingLastCycle && !isAnimatingThisCycle && !isTransitioningAnimation) {
         doFinalAnimationCleanup();
     }
 
@@ -1676,6 +1677,9 @@ void triggerAnimation(AnimationType animType) {
     // with the new animation.
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
 
+    // --- FIX: Set the transition flag to prevent premature cleanup ---
+    isTransitioningAnimation = true;
+
     // --- FIX: Save the current display mode so it can be restored after the animation. ---
     preAnimationDisplayMode = currentSettings.displayMode;
     currentSettings.displayMode = -1; // Pause the main display loop
@@ -1720,6 +1724,9 @@ void triggerAnimation(AnimationType animType) {
     }
 
     // Static memory does not need to be manually deallocated.
+
+    // --- FIX: Clear the transition flag now that the new animation is active ---
+    isTransitioningAnimation = false;
 }
 
 void startSequencerMarquee(SequencerTrack& track, const char* text) {

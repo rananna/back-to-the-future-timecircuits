@@ -73,6 +73,13 @@ extern bool bootSequenceCompleted;
 extern volatile bool justFinishedAnimation;
 
 /**
+ * @brief A volatile flag to signal that the system is currently transitioning between animations.
+ * @details This prevents the animation cleanup logic from running prematurely when one
+ * animation is stopped just before another one starts.
+ */
+extern volatile bool isTransitioningAnimation;
+
+/**
  * @brief Stores the display mode that was active before an animation started.
  * @details This is used to restore the user's selected display mode (e.g., Clock, Weather)
  * after a global animation, like the one triggered on save, completes.
