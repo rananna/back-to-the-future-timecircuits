@@ -143,7 +143,6 @@ unsigned long mqttHoldoffUntil = 0;           // Timestamp (millis) until which 
 bool mDnsIsActive = false;                   // Tracks whether the mDNS service is currently running.
 
 // --- STATE VARIABLES ---
-BootSequenceState bootState = BOOT_INACTIVE; // Current phase of the cinematic boot sequence.
 DisplayModeState currentDisplayMode = NORMAL_CLOCK; // Current primary mode of the display (e.g., clock, weather).
 
 // --- AUDIO GLOBALS ---
@@ -204,7 +203,6 @@ AnimationPhase currentStyledPhase = ANIM_INACTIVE;
 // cause memory issues on the ESP32.
 
 bool isDisplayAsleep = false;
-unsigned long bootStateStartTime = 0;
 unsigned long lastPresetCycleTime = 0;
 bool isEchoEffectActive = false;
 unsigned long echoEffectStartTime = 0;

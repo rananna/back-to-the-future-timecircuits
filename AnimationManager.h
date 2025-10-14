@@ -13,20 +13,6 @@
 #include "HardwareControl.h"
 
 /**
- * @name Boot Sequence Constants
- * @brief Defines the duration for each major phase of the cinematic boot sequence.
- * @{
- */
-#define BOOT_AWAIT_HUM_DURATION 10000                   /**< Duration (ms) for the initial humming sound before visuals start. */
-#define BOOT_FLUX_CAPACITOR_IGNITION_DURATION 10000     /**< Duration (ms) for the flux capacitor ignition phase. */
-#define BOOT_DIAGNOSTICS_DURATION 8000                  /**< Duration (ms) for the system diagnostics display phase. */
-#define BOOT_FINAL_CHECKS_DURATION 15000                /**< Duration (ms) for the final checks and keypad entry phase. */
-#define BOOT_TEMPORAL_DISPLACEMENT_DURATION 6000        /**< Duration (ms) for the time travel displacement effect. */
-#define BOOT_ARRIVAL_DURATION 5000                      /**< Duration (ms) for the arrival sequence. */
-#define BOOT_COOL_DOWN_DURATION 2000                    /**< Duration (ms) for the final cool-down phase before normal operation. */
-/** @} */
-
-/**
  * @brief Defines the states for the cinematic boot sequence state machine.
  * @details This enum controls the flow of the multi-stage boot animation, ensuring
  * sounds and visuals are synchronized correctly.
@@ -46,6 +32,24 @@ enum BootSequenceState {
   BOOT_COOL_DOWN,                 /**< Final stabilization before handing off to normal operation. */
   BOOT_COMPLETE                   /**< The boot sequence has finished successfully. */
 };
+
+// --- NEW: Share boot sequence state variables ---
+extern BootSequenceState bootState;
+extern unsigned long bootStateStartTime;
+
+/**
+ * @name Boot Sequence Constants
+ * @brief Defines the duration for each major phase of the cinematic boot sequence.
+ * @{
+ */
+#define BOOT_AWAIT_HUM_DURATION 10000                   /**< Duration (ms) for the initial humming sound before visuals start. */
+#define BOOT_FLUX_CAPACITOR_IGNITION_DURATION 10000     /**< Duration (ms) for the flux capacitor ignition phase. */
+#define BOOT_DIAGNOSTICS_DURATION 8000                  /**< Duration (ms) for the system diagnostics display phase. */
+#define BOOT_FINAL_CHECKS_DURATION 15000                /**< Duration (ms) for the final checks and keypad entry phase. */
+#define BOOT_TEMPORAL_DISPLACEMENT_DURATION 6000        /**< Duration (ms) for the time travel displacement effect. */
+#define BOOT_ARRIVAL_DURATION 5000                      /**< Duration (ms) for the arrival sequence. */
+#define BOOT_COOL_DOWN_DURATION 2000                    /**< Duration (ms) for the final cool-down phase before normal operation. */
+/** @} */
 
 #include "freertos/semphr.h"
 

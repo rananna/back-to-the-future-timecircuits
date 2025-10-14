@@ -12,6 +12,10 @@
 // --- NEW: Global flag to prevent display updates until boot sequence is complete ---
 bool bootSequenceCompleted = false;
 
+// --- NEW: Define global boot state variables ---
+BootSequenceState bootState = BOOT_INACTIVE;
+unsigned long bootStateStartTime = 0;
+
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DebugLog.h"
