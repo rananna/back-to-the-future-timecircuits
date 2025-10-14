@@ -1683,6 +1683,15 @@ void runSequencerTest() {
 }
 
 void triggerAnimation(AnimationType animType) {
+    // --- FIX: Add a forced delay (cooldown) before starting an animation ---
+    // This gives critical background tasks (like WiFi/MQTT/mDNS) a guaranteed
+    // time slice to run before this function performs several large memory
+    // allocations. This prevents a race condition where a background task
+    // (e.g., mDNS) requests memory at the exact moment the heap is being
+    // fragmented by the animation generation, which would cause a memory
+    // allocation failure and a crash.
+    vTaskDelay(50 / portTICK_PERIOD_MS); // 50ms cooldown
+
     // This function is a full takeover. It replaces all running tracks
     // with the new animation.
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
