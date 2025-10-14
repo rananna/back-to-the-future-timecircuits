@@ -618,16 +618,20 @@ void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][1
     s0 = add_intro_sound_steps(tracks[0], s0);
 
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+    const int num_months = sizeof(months) / sizeof(months[0]);
 
     char buffer[17];
     for (int i = 0; i < 10; i++) {
-        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(0, 12)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
+        // --- FIX: Use the single-argument version of random() to prevent potential memory corruption ---
+        // The two-argument version (random(min, max)) has been observed to cause issues on some platforms.
+        // The single-argument version is more reliable for selecting from a zero-indexed array.
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
         s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 80, buffer);
 
-        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(0, 12)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
         s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 80, buffer);
 
-        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(0, 12)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
         s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 80, buffer);
     }
 }
