@@ -1111,24 +1111,26 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
-    // --- FIX: Eliminate recursive call and prevent stack overflow ---
-    // If RANDOMIZE_ALL is chosen, select a new concrete animType.
-    // The animation array is declared 'static const' to prevent it from being allocated
-    // on the stack repeatedly, which was the cause of the crash during rapid preset cycling.
     if (animType == ANIMATION_RANDOMIZE_ALL) {
-        static const AnimationType cpp_animations[] = {
-            ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
-            ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD, ANIMATION_FIRE_TRAILS,
-            ANIMATION_SPARKLE_REVEAL, ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
-            ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_WAVEFORM_COLLAPSE,
-            ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_GLITCHY_JUMP_CUT,
-            ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS, ANIMATION_CHARACTER_SCANLINE,
-            ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER, ANIMATION_TEMPORAL_PARADOX,
-            ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE, ANIMATION_FLIP_DISC_DISPLAY,
-            ANIMATION_INTERFERENCE_PATTERN
-        };
-        int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
-        animType = cpp_animations[random(0, num_cpp_animations)];
+        // --- FIX: Eliminate recursive call and prevent stack overflow ---
+        // Instead of calling itself again, this loop simply re-selects a new
+        // concrete animation type until it's no longer RANDOMIZE_ALL. This avoids
+        // deepening the call stack.
+        while (animType == ANIMATION_RANDOMIZE_ALL) {
+            static const AnimationType cpp_animations[] = {
+                ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
+                ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD, ANIMATION_FIRE_TRAILS,
+                ANIMATION_SPARKLE_REVEAL, ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
+                ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_WAVEFORM_COLLAPSE,
+                ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_GLITCHY_JUMP_CUT,
+                ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS, ANIMATION_CHARACTER_SCANLINE,
+                ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER, ANIMATION_TEMPORAL_PARADOX,
+                ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE, ANIMATION_FLIP_DISC_DISPLAY,
+                ANIMATION_INTERFERENCE_PATTERN
+            };
+            int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
+            animType = cpp_animations[random(0, num_cpp_animations)];
+        }
         Log_printf(LOG_LEVEL_INFO, "RANDOMIZE_ALL selected: %s", animationTypeToString(animType));
     }
 
