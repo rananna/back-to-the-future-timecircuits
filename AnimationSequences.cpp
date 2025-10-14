@@ -13,7 +13,6 @@
 #include "DebugLog.h"
 #include <Arduino.h>
 #include <string>
-#include <stdlib.h>
 
 /**
  * @brief Safely adds a new step to a sequencer track.
