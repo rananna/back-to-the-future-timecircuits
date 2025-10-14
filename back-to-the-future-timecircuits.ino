@@ -1402,9 +1402,13 @@ void loop() {
             // This ensures that sequences can run in parallel with any display mode.
             handleSequencer();
             handleAllSequencerMarquees();
-            handleTemporalEcho();
-            handlePresetCycling();
-            handleSleepSchedule();
+
+            // --- FIX: Only run these background handlers after the boot sequence is complete ---
+            if (bootSequenceCompleted) {
+                handleTemporalEcho();
+                handlePresetCycling();
+                handleSleepSchedule();
+            }
             // --- END: MODIFICATION ---
 
             // --- NEW: Audio State Synchronization Safety Net ---
