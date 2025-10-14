@@ -303,7 +303,19 @@ struct SequencerTrack {
         haStateReceived = false;
 
         for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
-            steps[i] = SequenceStep(); // Use the default constructor
+            // --- FIX: Do not use a temporary object on the stack ---
+            // The assignment `steps[i] = SequenceStep()` caused a stack overflow because
+            // SequenceStep is a large struct. This was fixed by creating a standalone
+            // `clearSequenceStep` function that manually resets the members, which
+            // has a negligible stack impact. However, to keep the logic self-contained
+            // and avoid another function call, we now manually reset the members here.
+            steps[i].command = SEQ_CMD_NONE;
+            steps[i].targetRow = 0;
+            steps[i].targetSegment = 0;
+            steps[i].intParam = 0;
+            steps[i].intParam2 = 0;
+            steps[i].stringParam[0] = '\0';
+            steps[i].stringParam2[0] = '\0';
         }
     }
 };

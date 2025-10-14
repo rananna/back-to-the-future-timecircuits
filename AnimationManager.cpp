@@ -1575,38 +1575,14 @@ void stopAllSequences() {
     Log_printf(LOG_LEVEL_INFO, "SEQ: Stopping all active sequences.");
     for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
         if (sequencerTracks[i].isActive) {
+            // --- FIX: The clearSequencerTrack function was removed. ---
+            // The SequencerTrack struct now has a stack-safe `reset()` method which
+            // should be used instead.
             sequencerTracks[i].reset();
             Log_printf(LOG_LEVEL_INFO, "SEQ: Forcibly stopped track %d.", i);
         }
     }
 }
-
-/**
- * @brief Safely clears a sequence step without allocating a temporary object on the stack.
- * @details This function manually resets each member of the SequenceStep struct to its
- * default value. This avoids the `step = SequenceStep()` assignment which would
- * create a large temporary object on the stack and cause a crash.
- * @param step The SequenceStep object to clear.
- */
-void clearSequenceStep(SequenceStep& step) {
-    step.command = SEQ_CMD_NONE;
-    step.targetRow = 0;
-    step.targetSegment = 0;
-    step.intParam = 0;
-    step.intParam2 = 0;
-    step.stringParam[0] = '\0';
-    step.stringParam2[0] = '\0';
-}
-
-/**
- * @brief Safely clears a sequencer track without allocating a temporary object on the stack.
- * @details This function is a critical fix for a stack overflow bug. The `SequencerTrack`
- * struct is too large to be created as a temporary object on the stack. Instead of doing
- * `track = SequencerTrack()`, this function manually resets each member of the struct
- * to its default value, which has a negligible impact on the stack. It uses the
- * `clearSequenceStep` helper to safely clear the large `steps` array.
- * @param track The SequencerTrack object to clear.
- */
 
 void runCrossfadeTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Crossfade Fix Test ---");
