@@ -69,11 +69,14 @@ extern DisplayRow destRow, presRow, lastRow;
 
 void broadcastAnimationComplete() {
     if (ws.count() > 0) {
+        // --- FIX: Use a static buffer to prevent heap fragmentation ---
+        // This avoids allocating a new String object on the heap, which can fail
+        // after a long animation has fragmented the memory, causing a crash.
+        static char jsonBuffer[64];
         JsonDocument doc;
         doc["action"] = "animationComplete";
-        String jsonString;
-        serializeJson(doc, jsonString);
-        ws.textAll(jsonString);
+        serializeJson(doc, jsonBuffer, sizeof(jsonBuffer));
+        ws.textAll(jsonBuffer);
         Serial.println("SERVER_DEBUG: Broadcasted animationComplete message.");
     }
 }
