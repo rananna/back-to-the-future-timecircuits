@@ -10,7 +10,7 @@
 #include "AnimationSequences.h"
 #include "HardwareControl.h"
 #include "DisplayManager.h"
-#include "DebugLog.h"
+#include "DebugLog.hh"
 #include <Arduino.h>
 #include <string>
 
@@ -79,25 +79,25 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
     // --- Track 0: Top Row Flicker ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
     // Flicker for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100 + random(0, 200), 50);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100 + random(201), 50);
     // Wait for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100 + random(0, 200), 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100 + random(201), 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 
     // --- Track 1: Middle Row Flicker ---
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 25, 0);
     // Flicker for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100 + random(0, 200), 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100 + random(201), 50);
     // Wait for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100 + random(0, 200), 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100 + random(201), 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
 
     // --- Track 2: Bottom Row Flicker ---
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 25, 0);
     // Flicker for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100 + random(0, 200), 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100 + random(201), 50);
     // Wait for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(0, 200), 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(201), 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
@@ -622,16 +622,13 @@ void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][1
 
     char buffer[17];
     for (int i = 0; i < 10; i++) {
-        // --- FIX: Use the single-argument version of random() to prevent potential memory corruption ---
-        // The two-argument version (random(min, max)) has been observed to cause issues on some platforms.
-        // The single-argument version is more reliable for selecting from a zero-indexed array.
-        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], (int)random(1, 29), (int)random(1950, 2051), (int)random(24), (int)random(60));
         s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 80, buffer);
 
-        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], (int)random(1, 29), (int)random(1950, 2051), (int)random(24), (int)random(60));
         s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 80, buffer);
 
-        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], (int)random(1, 29), (int)random(1950, 2051), (int)random(24), (int)random(60));
         s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 80, buffer);
     }
 }
@@ -983,9 +980,9 @@ void generateLightning(SequencerTrack tracks[3]) {
     // --- Track 0: Main Lightning Bolts ---
     // Use a PULSE command for the entire duration to create the main flashing effect.
     // The pulse interval is set to a random value to feel more natural.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 10000, 500 + random(0, 1000));
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 1, -1, 10000, 500 + random(0, 1000));
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 2, -1, 10000, 500 + random(0, 1000));
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 10000, 500 + random(1001));
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 1, -1, 10000, 500 + random(1001));
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 2, -1, 10000, 500 + random(1001));
 
     // --- Track 1: Background Sheet Lightning ---
     // Use a single RANDOM_FLICKER_TEXT command for the entire 10-second duration.
@@ -1113,10 +1110,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         // Instead of calling itself again, this loop simply re-selects a new
         // concrete animation type until it's no longer RANDOMIZE_ALL. This avoids
         // deepening the call stack.
-        while (animType == ANIMATION_RANDOMIZE_ALL) {
-            // --- FIX: Use a comprehensive list of all animations for a more varied and robust random choice ---
-            // This array includes all animations (C++ and JSON based) except for ones that don't make sense
-            // to trigger randomly, like the lock-in animation or RANDOMIZE_ALL itself.
+        do {
             static const AnimationType randomizable_animations[] = {
                 // C++ Generated Animations
                 ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER, ANIMATION_COUNTING_UP,
@@ -1137,8 +1131,9 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
             };
             int num_random_animations = sizeof(randomizable_animations) / sizeof(randomizable_animations[0]);
             animType = randomizable_animations[random(num_random_animations)];
-        }
-        Log_printf(LOG_LEVEL_INFO, "RANDOMIZE_ALL selected: %s", animationTypeToString(animType));
+        } while (animType == ANIMATION_RANDOMIZE_ALL);
+
+        Log_printf(LOG_LEVEL_INFO, "RANDOMIZE_ALL resulted in: %s", animationTypeToString(animType));
     }
 
     char time_strings[3][17];
