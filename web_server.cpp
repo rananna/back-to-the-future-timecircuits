@@ -694,7 +694,8 @@ void setupWebRoutes() {
         request->send(400, "application/json", "{\"error\":\"API key is not set.\"}");
         return;
     }
-    String marqueeLine = stockManager.getMarqueeLine();
+    char marqueeLine[512];
+    stockManager.getMarqueeLine(marqueeLine, sizeof(marqueeLine));
     JsonDocument doc;
     doc["marqueeText"] = marqueeLine;
     String jsonString;
