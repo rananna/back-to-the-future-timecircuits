@@ -8,16 +8,6 @@
  * actually write to the displays.
  */
 
-/**
- * @file DisplayManager.cpp
- * @brief Manages the content displayed on the time circuits during normal operation.
- * @details This module is responsible for rendering the standard clock display, as well
- * as handling the logic for alternative display modes like the stock ticker, weather
- * forecast, and data-driven marquee. It acts as a high-level controller for what
- * should be shown, calling the lower-level functions in HardwareControl.cpp to
- * actually write to the displays.
- */
-
 #include "DebugLog.h"
 #include "DisplayManager.h"
 #include "DataManager.h"
@@ -27,24 +17,34 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <cstring> // For strlen, strcpy, etc.
 
 extern StockManager stockManager;
-extern String overrideMessageLine1;
-extern String overrideMessageLine2;
-extern String overrideMessageLine3;
+// --- START: MODIFICATION - Use char arrays for override messages ---
+// Switched from Arduino String to char arrays to prevent heap fragmentation.
+extern char overrideMessageLine1[128];
+extern char overrideMessageLine2[128];
+extern char overrideMessageLine3[128];
+// --- END: MODIFICATION ---
 
 // State management for override message scrolling
 static int overrideScrollPosition[3] = {0, 0, 0};
 static unsigned long lastOverrideScrollTime[3] = {0, 0, 0};
-static std::string previousOverrideMessage[3] = {"", "", ""};
+// --- START: MODIFICATION - Use char arrays for previous override messages ---
+static char previousOverrideMessage[3][128] = {"", "", ""};
+// --- END: MODIFICATION ---
 
 // Define and initialize the dirty flags and buffers for scrolling text
 bool isMarqueeBufferDirty = true;
 bool isWeatherBufferDirty = true;
 
-std::string marqueeBuffer;
+// --- START: MODIFICATION - Removed std::string buffers ---
+// These are no longer needed as we now use file-scoped static char arrays
+// inside the functions that require them.
+// std::string marqueeBuffer;
+// std::string marqueeOverrideBuffer;
+// --- END: MODIFICATION ---
 char weatherBuffer[512]; // Increased size for safety, changed to char array
-std::string marqueeOverrideBuffer;
 
 #include "HardwareControl.h"
 #include "AnimationManager.h" // For SequencerTrack struct
@@ -145,46 +145,6 @@ void resetWeatherFetchState() {
     initialFetchTimedOut = false;
     initialFetchTriggered = false;
     initialFetchStartTime = 0;
-}
-
-// A struct to hold the state of a scrolling text segment.
-struct ScrollState {
-    int position = 0;
-    unsigned long lastScrollTime = 0;
-};
-
-// An array to hold the scroll state for each of the 4 segments of the weather display row.
-static ScrollState weatherScrollStates[4];
-
-/**
- * @brief Manages the scrolling of a string within a fixed-width viewport.
- * @param fullText The complete string to be scrolled.
- * @param width The width of the display segment (viewport).
- * @param state A reference to the ScrollState object for this segment.
- * @param scrollSpeed The delay in milliseconds between scroll steps.
- * @return A substring of the fullText representing the current viewport.
- */
-String getScrolledViewport(const String& fullText, int width, ScrollState& state, unsigned long scrollSpeed) {
-    if (fullText.length() <= width) {
-        // If the text fits, reset the scroll position for the next long text and return.
-        state.position = 0;
-        return fullText;
-    }
-
-    // Pad the text with spaces for a smoother looping effect.
-    String paddedText = "  " + fullText + "  ";
-
-    // Update the scroll position based on the scroll speed.
-    if (millis() - state.lastScrollTime > scrollSpeed) {
-        state.lastScrollTime = millis();
-        state.position++;
-        // If we've scrolled past the end, loop back to the beginning.
-        if (state.position > paddedText.length() - width) {
-            state.position = 0;
-        }
-    }
-
-    return paddedText.substring(state.position, state.position + width);
 }
 
 // External declaration for the global stock data array.
@@ -292,19 +252,19 @@ void updateStockTickerDisplay() {
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         const unsigned long scrollSpeed = 250;
         const unsigned long pauseDuration = 250; // 0.25-second pause between tickers
-        static char stockMarqueeBuffer[256]; // Buffer for the full text
+        static char stockMarqueeBuffer[512]; // Buffer for the full text
 
         static bool isStatusMessage = false;
         // State machine for stock ticker display
         switch (stockState) {
             case SD_CONNECTING: {
-                std::string statusMessage;
+                static char statusMessage[64];
                 if (stockManager.getAssets().empty()) {
-                    statusMessage = "ADD STOCKS IN UI";
+                    strcpy(statusMessage, "ADD STOCKS IN UI");
                 } else if (!stockManager.isTimeSynchronized()) {
-                    statusMessage = "CONNECTING...";
+                    strcpy(statusMessage, "CONNECTING...");
                 } else if (stockManager.isFetching()) {
-                    statusMessage = "LOADING STOCKS";
+                    strcpy(statusMessage, "LOADING STOCKS");
                 } else if (stockManager.hasDataBeenUpdated() || stockManager.hasAnyValidData()) {
                     if (stockManager.hasDataBeenUpdated()) {
                         stockManager.clearDataUpdatedFlag();
@@ -313,12 +273,12 @@ void updateStockTickerDisplay() {
                     xSemaphoreGive(xDisplayDataMutex);
                     return;
                 } else {
-                    statusMessage = "WAIT...";
+                    strcpy(statusMessage, "WAIT...");
                 }
 
                 if (stockState == SD_CONNECTING) {
                     isStatusMessage = true;
-                    snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", statusMessage.c_str());
+                    snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", statusMessage);
                     stockScrollPosition = 0;
                     stockState = SD_SCROLLING;
                     lastStockUpdate = millis();
@@ -335,10 +295,16 @@ void updateStockTickerDisplay() {
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
 
-                String marqueeLine = stockManager.getMarqueeLine();
-                marqueeLine.toUpperCase();
+                // --- START: MODIFICATION - Use char buffer for marquee line ---
+                char marqueeLine[512];
+                stockManager.getMarqueeLine(marqueeLine, sizeof(marqueeLine));
+                // Convert to uppercase in place
+                for (int i = 0; marqueeLine[i]; i++) {
+                    marqueeLine[i] = toupper(marqueeLine[i]);
+                }
+                snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", marqueeLine);
+                // --- END: MODIFICATION ---
 
-                snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", marqueeLine.c_str());
                 stockScrollPosition = 0;
                 stockState = SD_SCROLLING;
                 lastStockUpdate = millis();
@@ -423,50 +389,67 @@ void displayOverrideMessage() {
             digitalWrite(LAST_AM_PIN, LOW);
             digitalWrite(LAST_PM_PIN, LOW);
 
-            String messages[3] = {overrideMessageLine1, overrideMessageLine2, overrideMessageLine3};
+            // --- START: MODIFICATION - Use char arrays ---
+            char* messages[3] = {overrideMessageLine1, overrideMessageLine2, overrideMessageLine3};
+            // --- END: MODIFICATION ---
             DisplayRow* rows[3] = {&destRow, &presRow, &lastRow};
             const unsigned long scrollSpeed = 250; // Milliseconds between scroll steps
 
             for (int i = 0; i < 3; i++) {
                 // Check if the message for this row has changed
-                if (messages[i].c_str() != previousOverrideMessage[i]) {
-                    previousOverrideMessage[i] = messages[i].c_str();
+                if (strcmp(messages[i], previousOverrideMessage[i]) != 0) {
+                    strncpy(previousOverrideMessage[i], messages[i], sizeof(previousOverrideMessage[i]) - 1);
+                    previousOverrideMessage[i][sizeof(previousOverrideMessage[i]) - 1] = '\0';
                     overrideScrollPosition[i] = 0; // Reset scroll position
                 }
 
-                String currentMessage = messages[i];
-                currentMessage.toUpperCase();
-                String output_buffer;
+                // --- START: MODIFICATION - Use char buffers for all text manipulation ---
+                static char currentMessage[128];
+                static char output_buffer[14];
+                strncpy(currentMessage, messages[i], sizeof(currentMessage) - 1);
+                currentMessage[sizeof(currentMessage) - 1] = '\0';
 
-                if (currentMessage.length() > 13) {
+                // Convert to uppercase
+                for (int j = 0; currentMessage[j]; j++) {
+                    currentMessage[j] = toupper(currentMessage[j]);
+                }
+
+                if (strlen(currentMessage) > 13) {
                     // --- Scrolling Marquee Logic ---
-                    String padded_message = "  " + currentMessage + "  ";
+                    static char padded_message[160]; // 128 + 2 spaces + 13 padding + null
+                    snprintf(padded_message, sizeof(padded_message), "  %s  ", currentMessage);
                     if (millis() - lastOverrideScrollTime[i] > scrollSpeed) {
                         lastOverrideScrollTime[i] = millis();
                         overrideScrollPosition[i]++;
-                        if (overrideScrollPosition[i] > padded_message.length() - 13) {
+                        if (overrideScrollPosition[i] > strlen(padded_message) - 13) {
                             overrideScrollPosition[i] = 0;
                         }
                     }
-                    output_buffer = padded_message.substring(overrideScrollPosition[i], overrideScrollPosition[i] + 13);
+                    strncpy(output_buffer, padded_message + overrideScrollPosition[i], 13);
+                    output_buffer[13] = '\0';
                 } else {
                     // --- Centered Static Text Logic ---
-                    int padding = (13 - currentMessage.length()) / 2;
-                    output_buffer = "";
-                    for (int p = 0; p < padding; p++) {
-                        output_buffer += " ";
+                    int padding = (13 - strlen(currentMessage)) / 2;
+                    snprintf(output_buffer, sizeof(output_buffer), "%*s%s", padding, "", currentMessage);
+                    // Pad the rest with spaces
+                    for (int p = strlen(output_buffer); p < 13; p++) {
+                        output_buffer[p] = ' ';
                     }
-                    output_buffer += currentMessage;
-                    while (output_buffer.length() < 13) {
-                        output_buffer += " ";
-                    }
+                    output_buffer[13] = '\0';
                 }
+                // --- END: MODIFICATION ---
 
                 // Split the 13-character buffer into the four display segments and print
-                printToDisplay(rows[i]->month, output_buffer.substring(0, 3).c_str(), 1);
-                printToDisplay(rows[i]->day, output_buffer.substring(3, 5).c_str(), 2);
-                printToDisplay(rows[i]->year, output_buffer.substring(5, 9).c_str());
-                printToDisplay(rows[i]->time, output_buffer.substring(9, 13).c_str());
+                char seg_month[4], seg_day[3], seg_year[5], seg_time[5];
+                strncpy(seg_month, output_buffer, 3); seg_month[3] = '\0';
+                strncpy(seg_day, output_buffer + 3, 2); seg_day[2] = '\0';
+                strncpy(seg_year, output_buffer + 5, 4); seg_year[4] = '\0';
+                strncpy(seg_time, output_buffer + 9, 4); seg_time[4] = '\0';
+
+                printToDisplay(rows[i]->month, seg_month, 1);
+                printToDisplay(rows[i]->day, seg_day, 2);
+                printToDisplay(rows[i]->year, seg_year);
+                printToDisplay(rows[i]->time, seg_time);
 
                 // Write the changes to the physical display row
                 rows[i]->month.writeDisplay();
@@ -481,6 +464,7 @@ void displayOverrideMessage() {
     }
 #endif
 }
+
 
 /**
  * @brief Sets or clears manual text for a specific display segment or an entire row.
@@ -729,7 +713,7 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
 #if ENABLE_HARDWARE
   if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    updateNormalClockDisplay_internal(updateDest, updatePres, updateLast);
+    updateNormalClockDisplay_internal(updateDest, updatePres, last);
     xSemaphoreGive(xDisplayDataMutex);
   }
 #endif
@@ -766,18 +750,20 @@ void handleWeatherDisplay() {
         const unsigned long errorRetryDelay = 10000; // 10 seconds
 
         if (!currentWeatherData.dataValid) {
-            std::string message;
-            if (!currentWeatherData.errorReason.empty()) {
-                message = "WEATHER ERROR: " + currentWeatherData.errorReason;
+            // --- START: MODIFICATION - Use char buffers for error messages ---
+            static char message[128];
+            if (strlen(currentWeatherData.errorReason) > 0) {
+                snprintf(message, sizeof(message), "WEATHER ERROR: %s", currentWeatherData.errorReason);
             } else if (isFetchingWeather) {
-                message = "FETCHING WEATHER DATA...";
+                strcpy(message, "FETCHING WEATHER DATA...");
             } else {
-                message = "WEATHER DATA UNAVAILABLE";
+                strcpy(message, "WEATHER DATA UNAVAILABLE");
             }
+            // --- END: MODIFICATION ---
 
             if (weatherState != WD_ERROR) {
                 weatherState = WD_ERROR; // Use the error state for all non-valid data messages
-                snprintf(weatherBuffer, sizeof(weatherBuffer), "             %s", message.c_str());
+                snprintf(weatherBuffer, sizeof(weatherBuffer), "             %s", message);
                 for (int i = 0; weatherBuffer[i]; i++) weatherBuffer[i] = toupper(weatherBuffer[i]);
                 weatherScrollPosition = 0;
                 lastWeatherUpdate = millis();
@@ -815,7 +801,8 @@ void handleWeatherDisplay() {
             // --- NEW: Sanity check the data before using it ---
             if (!isWeatherDataSane(currentWeatherData)) {
                 currentWeatherData.dataValid = false;
-                currentWeatherData.errorReason = "INVALID WEATHER DATA";
+                strncpy(currentWeatherData.errorReason, "INVALID WEATHER DATA", sizeof(currentWeatherData.errorReason) - 1);
+                currentWeatherData.errorReason[sizeof(currentWeatherData.errorReason) - 1] = '\0';
                 // By setting dataValid to false, the logic will now fall through to the
                 // error handling part of the state machine on the next iteration.
             }
@@ -864,7 +851,7 @@ void handleWeatherDisplay() {
                         if (weatherScrollPosition > strlen(weatherBuffer)) {
                             // After a delay, clear the error and try fetching data again
                             if (millis() - lastWeatherUpdate > errorRetryDelay) {
-                                currentWeatherData.errorReason = ""; // Clear reason
+                                weatherBuffer[0] = '\0'; // Clear reason
                                 weatherState = WD_START_PAGE;
                                 initialFetchTriggered = false; // Allow a new fetch
                             }
@@ -939,9 +926,9 @@ void handleWeatherDisplay() {
 
                                 // --- START: MODIFICATION - Use Weather Location Timezone for Sunrise/Sunset ---
                                 const char* weatherTz = nullptr;
-                                if (!currentWeatherData.timezone.empty()) {
+                                if (strlen(currentWeatherData.timezone) > 0) {
                                     for (const auto& tzData : TZ_DATA) {
-                                        if (currentWeatherData.timezone == tzData.ianaTzName) {
+                                        if (strcmp(currentWeatherData.timezone, tzData.ianaTzName) == 0) {
                                             weatherTz = tzData.tzString;
                                             break;
                                         }
@@ -1089,7 +1076,7 @@ void updateMarqueeDisplay() {
     updateNormalClockDisplay_internal(true, true, false);
 
     DisplayRow* targetRow = &lastRow;
-    static char marqueePageBuffer[256];
+    static char marqueePageBuffer[512];
 
     if (isMarqueeBufferDirty) {
         Log_printf(LOG_LEVEL_DEBUG, "Marquee buffer is dirty, forcing state to M_START_PAGE");
@@ -1104,7 +1091,14 @@ void updateMarqueeDisplay() {
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         DataPoint point;
         if (currentSettings.numDataPoints > 0) {
-            point = currentSettings.dataPoints[currentPageIndex];
+            // --- FIX: Prevent division by zero if numDataPoints becomes invalid ---
+            if (currentSettings.numDataPoints > 0) {
+                point = currentSettings.dataPoints[currentPageIndex % currentSettings.numDataPoints];
+            } else {
+                // This case should ideally not be reached, but as a safeguard:
+                xSemaphoreGive(xDisplayDataMutex);
+                return;
+            }
         }
         const unsigned long scrollSpeed = point.scrollSpeed > 0 ? point.scrollSpeed : 150;
         const unsigned long pauseDuration = 250; // 0.25-second pause between pages
@@ -1121,31 +1115,29 @@ void updateMarqueeDisplay() {
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
 
-                std::string fullText;
-                if (currentSettings.numDataPoints == 0) {
-                    fullText = "NO DATA POINTS";
-                } else {
-                    // --- Build the content string (simplified) ---
-                    // The MQTT callback now correctly populates `scrollingText` for all MQTT-based
-                    // sources, so we no longer need the complex switch-case. We can just use
-                    // `scrollingText` as the authoritative source for the marquee content.
-                    std::string content_text = point.scrollingText;
+                // --- START: MODIFICATION - Use char buffers for marquee text assembly ---
+                static char fullText[512];
+                fullText[0] = '\0'; // Clear the buffer
 
-                    // --- Assemble the final string with prefix and suffix ---
-                    if (!point.prefixText.empty()) {
-                        fullText += point.prefixText;
+                if (currentSettings.numDataPoints == 0) {
+                    strcpy(fullText, "NO DATA PNTS");
+                } else {
+                    const char* content_text = point.scrollingText.c_str();
+
+                    if (strlen(point.prefixText.c_str()) > 0) {
+                        strncat(fullText, point.prefixText.c_str(), sizeof(fullText) - strlen(fullText) - 1);
                     }
-                    if (!content_text.empty()) {
-                        if (!fullText.empty()) fullText += " ";
-                        fullText += content_text;
+                    if (strlen(content_text) > 0) {
+                        if (strlen(fullText) > 0) strncat(fullText, " ", sizeof(fullText) - strlen(fullText) - 1);
+                        strncat(fullText, content_text, sizeof(fullText) - strlen(fullText) - 1);
                     }
-                    if (!point.suffixText.empty()) {
-                        if (!fullText.empty()) fullText += " ";
-                        fullText += point.suffixText;
+                    if (strlen(point.suffixText.c_str()) > 0) {
+                        if (strlen(fullText) > 0) strncat(fullText, " ", sizeof(fullText) - strlen(fullText) - 1);
+                        strncat(fullText, point.suffixText.c_str(), sizeof(fullText) - strlen(fullText) - 1);
                     }
                 }
 
-                if (fullText.empty() && currentSettings.numDataPoints > 0) {
+                if (strlen(fullText) == 0 && currentSettings.numDataPoints > 0) {
                     // This page has no content, so skip it immediately.
                     currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
                     marqueeState = M_START_PAGE; // Go back to the start state for the *next* page
@@ -1154,11 +1146,13 @@ void updateMarqueeDisplay() {
                 }
 
                 // Convert the entire marquee text to uppercase for readability
-                std::transform(fullText.begin(), fullText.end(), fullText.begin(),
-                               [](unsigned char c){ return std::toupper(c); });
+                for (int i = 0; fullText[i]; i++) {
+                    fullText[i] = toupper(fullText[i]);
+                }
 
                 // Build the full string for the current page, with padding for scrolling effect
-                snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", fullText.c_str());
+                snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", fullText);
+                // --- END: MODIFICATION ---
                 marqueeScrollPosition = 0;
 
                 marqueeState = M_SCROLLING;
@@ -1215,8 +1209,11 @@ void updateMarqueeDisplay() {
             }
             case M_PAUSED: {
                 if (millis() - lastMarqueeStateChange > pauseDuration) {
+                    // --- FIX: Prevent division by zero ---
                     if (currentSettings.numDataPoints > 0) {
                         currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
+                    } else {
+                        currentPageIndex = 0;
                     }
                     marqueeState = M_START_PAGE;
                 }
