@@ -31,12 +31,6 @@
 // --- Mutexes and state for thread-safe operations ---
 static std::mutex httpClientMutex;
 
-// --- Statically Allocated JSON Document for Web Requests ---
-// This single, static JsonDocument is reused for all web server and WebSocket
-// operations to prevent heap fragmentation from repeated allocations.
-// The size is chosen to be large enough for the biggest JSON payload (full settings).
-static StaticJsonDocument<4096> webRequestJsonDoc;
-
 // --- Extern Global Variables ---
 // These are defined in the main .ino file and are made available here.
 
@@ -144,12 +138,12 @@ void forceFetchWeatherDataTask(void* p);
 
 void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
     if (ws.count() > 0) {
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["action"] = "stateUpdate";
-        webRequestJsonDoc["key"] = key;
-        webRequestJsonDoc["value"] = value;
+        JsonDocument doc;
+        doc["action"] = "stateUpdate";
+        doc["key"] = key;
+        doc["value"] = value;
         String jsonString;
-        serializeJson(webRequestJsonDoc, jsonString);
+        serializeJson(doc, jsonString);
         ws.textAll(jsonString);
     }
 }
@@ -163,12 +157,12 @@ void broadcastWsStateUpdate(const char* key, const JsonVariant& value) {
 void broadcastWeatherUpdate() {
     // Only proceed if there are active clients and the weather data is valid
     if (ws.count() > 0 && currentWeatherData.dataValid) {
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["action"] = "weatherUpdate";
+        JsonDocument doc;
+        doc["action"] = "weatherUpdate";
 
         // Create a nested 'data' object to hold the weather information.
         // This keeps the message structure consistent with other actions.
-        JsonObject data = webRequestJsonDoc["data"].to<JsonObject>();
+        JsonObject data = doc["data"].to<JsonObject>();
         data["temperature"] = currentWeatherData.temperature;
         data["apparentTemperature"] = currentWeatherData.apparentTemperature;
         data["windSpeed"] = currentWeatherData.windSpeed;
@@ -196,7 +190,7 @@ void broadcastWeatherUpdate() {
 
         // Serialize the JSON document to a string and send it to all clients
         String jsonString;
-        serializeJson(webRequestJsonDoc, jsonString);
+        serializeJson(doc, jsonString);
         ws.textAll(jsonString);
         Log_printf(LOG_LEVEL_INFO, "Broadcasted weather update to %d clients.", ws.count());
     }
@@ -209,10 +203,10 @@ void broadcastWeatherUpdate() {
  */
 void broadcastStockUpdate() {
     if (ws.count() > 0) {
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["action"] = "stockUpdate";
+        JsonDocument doc;
+        doc["action"] = "stockUpdate";
         String jsonString;
-        serializeJson(webRequestJsonDoc, jsonString);
+        serializeJson(doc, jsonString);
         ws.textAll(jsonString);
         Log_printf(LOG_LEVEL_INFO, "Broadcasted stock update to %d clients.", ws.count());
     }
@@ -225,29 +219,29 @@ void broadcastStockUpdate() {
  */
 void broadcastRadioStatus(RadioStatus status, const char* message) {
     if (ws.count() > 0) {
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["action"] = "radioStatusUpdate";
+        JsonDocument doc;
+        doc["action"] = "radioStatusUpdate";
 
         // Convert enum to a string for the UI
         switch (status) {
             case RADIO_STATUS_STOPPED:
-                webRequestJsonDoc["status"] = "stopped";
+                doc["status"] = "stopped";
                 break;
             case RADIO_STATUS_CONNECTING:
-                webRequestJsonDoc["status"] = "connecting";
+                doc["status"] = "connecting";
                 break;
             case RADIO_STATUS_PLAYING:
-                webRequestJsonDoc["status"] = "playing";
+                doc["status"] = "playing";
                 break;
             case RADIO_STATUS_ERROR:
-                webRequestJsonDoc["status"] = "error";
+                doc["status"] = "error";
                 break;
         }
 
-        webRequestJsonDoc["message"] = message;
+        doc["message"] = message;
 
         String jsonString;
-        serializeJson(webRequestJsonDoc, jsonString);
+        serializeJson(doc, jsonString);
         ws.textAll(jsonString);
         Log_printf(LOG_LEVEL_INFO, "Broadcasted radio status: %s", jsonString.c_str());
     }
@@ -258,10 +252,10 @@ void broadcastRadioStatus(RadioStatus status, const char* message) {
  */
 void broadcastRadioStationsUpdated() {
     if (ws.count() > 0) {
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["action"] = "radioStationsUpdated";
+        JsonDocument doc;
+        doc["action"] = "radioStationsUpdated";
         String jsonString;
-        serializeJson(webRequestJsonDoc, jsonString);
+        serializeJson(doc, jsonString);
         ws.textAll(jsonString);
         Log_printf(LOG_LEVEL_INFO, "Broadcasted radio stations updated notification.");
     }
@@ -274,12 +268,12 @@ void broadcastRadioStationsUpdated() {
  */
 void broadcastRadioMetadata(const char* stationName, const char* songTitle) {
     if (ws.count() > 0) {
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["action"] = "radioMetadataUpdate";
-        webRequestJsonDoc["stationName"] = stationName;
-        webRequestJsonDoc["songTitle"] = songTitle;
+        JsonDocument doc;
+        doc["action"] = "radioMetadataUpdate";
+        doc["stationName"] = stationName;
+        doc["songTitle"] = songTitle;
         String jsonString;
-        serializeJson(webRequestJsonDoc, jsonString);
+        serializeJson(doc, jsonString);
         ws.textAll(jsonString);
         Log_printf(LOG_LEVEL_INFO, "Broadcasted radio metadata: %s", jsonString.c_str());
     }
@@ -289,21 +283,21 @@ void broadcastRadioMetadata(const char* stationName, const char* songTitle) {
  * @brief Overloaded function to broadcast an integer state update via WebSocket.
  */
 void broadcastWsStateUpdate(const char* key, int value) {
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc.set(value);
-    broadcastWsStateUpdate(key, webRequestJsonDoc.as<JsonVariant>());
+    JsonDocument doc;
+    doc.set(value);
+    broadcastWsStateUpdate(key, doc.as<JsonVariant>());
 }
 
 void broadcastPresetUpdate(const std::string& name, int year, int month, int day, int hour, int minute) {
     if (ws.count() > 0) {
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["action"] = "presetUpdate";
-        webRequestJsonDoc["name"] = name.c_str();
+        JsonDocument doc;
+        doc["action"] = "presetUpdate";
+        doc["name"] = name.c_str();
         char value[20];
         sprintf(value, "%d-%02d-%02d-%02d-%02d", year, month, day, hour, minute);
-        webRequestJsonDoc["value"] = value;
+        doc["value"] = value;
         String jsonString;
-        serializeJson(webRequestJsonDoc, jsonString);
+        serializeJson(doc, jsonString);
         ws.textAll(jsonString);
     }
 }
@@ -312,9 +306,9 @@ void broadcastPresetUpdate(const std::string& name, int year, int month, int day
  * @brief Overloaded function to broadcast a boolean state update via WebSocket.
  */
 void broadcastWsStateUpdate(const char* key, bool value) {
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc.set(value);
-    broadcastWsStateUpdate(key, webRequestJsonDoc.as<JsonVariant>());
+    JsonDocument doc;
+    doc.set(value);
+    broadcastWsStateUpdate(key, doc.as<JsonVariant>());
 }
 
 // This function runs in a separate task to prevent blocking
@@ -342,48 +336,47 @@ void makeApiRequestTask(void* p) {
         
         int httpCode = http.GET();
         String responseString;
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["action"] = action;
-        webRequestJsonDoc["rowIndex"] = rowIndex; // Pass as String
+        JsonDocument responseJson;
+        responseJson["action"] = action;
+        responseJson["rowIndex"] = rowIndex; // Pass as String
 
         if (httpCode > 0) {
             if (httpCode == HTTP_CODE_OK) {
-                // Use a temporary doc for the payload to avoid nesting issues
-                StaticJsonDocument<2048> payloadDoc;
+                JsonDocument payloadDoc;
                 DeserializationError error = deserializeJson(payloadDoc, http.getStream());
 
                 if (error == DeserializationError::Ok) {
-                    webRequestJsonDoc["status"] = "success";
-                    webRequestJsonDoc["payload"] = payloadDoc.as<JsonVariant>();
+                    responseJson["status"] = "success";
+                    responseJson["payload"] = payloadDoc.as<JsonVariant>();
                 } else {
-                    webRequestJsonDoc["status"] = "error";
-                    webRequestJsonDoc["payload"] = "JSON Parsing Failed: " + String(error.c_str());
+                    responseJson["status"] = "error";
+                    responseJson["payload"] = "JSON Parsing Failed: " + String(error.c_str());
                 }
             } else {
-                webRequestJsonDoc["status"] = "error";
+                responseJson["status"] = "error";
                 // --- START: MODIFICATION ---
                 // Grab the response body to provide a more detailed error message.
                 String responseBody = http.getString();
-                webRequestJsonDoc["payload"] = "HTTP Error: " + String(httpCode) + " - " + responseBody;
+                responseJson["payload"] = "HTTP Error: " + String(httpCode) + " - " + responseBody;
                 // --- END: MODIFICATION ---
             }
         } else {
-            webRequestJsonDoc["status"] = "error";
-            webRequestJsonDoc["payload"] = "Request Failed: " + http.errorToString(httpCode);
+            responseJson["status"] = "error";
+            responseJson["payload"] = "Request Failed: " + http.errorToString(httpCode);
         }
         
         http.end();
-        serializeJson(webRequestJsonDoc, responseString);
+        serializeJson(responseJson, responseString);
         ws.text(clientId, responseString);
     } else {
         // --- START: MODIFICATION - Handle http.begin() failure ---
         String responseString;
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["action"] = action;
-        webRequestJsonDoc["rowIndex"] = rowIndex; // Pass as String
-        webRequestJsonDoc["status"] = "error";
-        webRequestJsonDoc["payload"] = "Connection Failed. Check URL/DNS.";
-        serializeJson(webRequestJsonDoc, responseString);
+        JsonDocument responseJson;
+        responseJson["action"] = action;
+        responseJson["rowIndex"] = rowIndex; // Pass as String
+        responseJson["status"] = "error";
+        responseJson["payload"] = "Connection Failed. Check URL/DNS.";
+        serializeJson(responseJson, responseString);
         ws.text(clientId, responseString);
         // --- END: MODIFICATION ---
     }
@@ -416,31 +409,31 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
             
-            webRequestJsonDoc.clear();
-            DeserializationError error = deserializeJson(webRequestJsonDoc, data, len);
+            JsonDocument doc;
+            DeserializationError error = deserializeJson(doc, data, len);
 
             if (error) {
                 Log_printf(LOG_LEVEL_ERROR, "deserializeJson() failed: %s", error.c_str());
                 return;
             }
 
-            String action = webRequestJsonDoc["action"].as<String>();
+            String action = doc["action"];
              if (action == "testApi") {
                 Log_printf(LOG_LEVEL_DEBUG, "'testApi' action received.");
                 if (!timeSynchronized) {
                     String responseString;
-                    webRequestJsonDoc.clear();
-                    webRequestJsonDoc["action"] = "apiResult";
-                    webRequestJsonDoc["status"] = "error";
-                    webRequestJsonDoc["payload"] = "Time not sync'd. Go to System->Sync Time.";
-                    serializeJson(webRequestJsonDoc, responseString);
+                    JsonDocument responseJson;
+                    responseJson["action"] = "apiResult";
+                    responseJson["status"] = "error";
+                    responseJson["payload"] = "Time not sync'd. Go to System->Sync Time.";
+                    serializeJson(responseJson, responseString);
                     ws.text(client->id(), responseString);
                     return;
                 }
 
-                String url = webRequestJsonDoc["data"]["url"];
-                String authKey = webRequestJsonDoc["data"]["authKey"];
-                String authValue = webRequestJsonDoc["data"]["authValue"];
+                String url = doc["data"]["url"];
+                String authKey = doc["data"]["authKey"];
+                String authValue = doc["data"]["authValue"];
                  Log_printf(LOG_LEVEL_DEBUG, "API Test URL: %s", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id(), "apiResult", String(0)};
@@ -461,13 +454,13 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 Log_printf(LOG_LEVEL_INFO, "WebSocket: Stop radio command received.");
                 stopAudioStream();
             } else if (action == "run_sequence") {
-                String payload = webRequestJsonDoc["payload"].as<String>();
+                String payload = doc["payload"];
                 if (payload.length() > 0) {
                     Log_printf(LOG_LEVEL_INFO, "WebSocket: Run sequence command received.");
                     handleSequencerCommand(payload.c_str());
                 }
             } else if (action == "preview_animation") {
-                int animationId = webRequestJsonDoc["payload"];
+                int animationId = doc["payload"];
                 Log_printf(LOG_LEVEL_INFO, "WebSocket: Preview animation command received for ID: %d", animationId);
                 triggerAnimation(static_cast<AnimationType>(animationId));
             }
@@ -485,54 +478,54 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
  * @param clientId The unique ID of the WebSocket client to send the settings to.
  */
 void sendFullSettingsToClient(uint32_t clientId) {
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc["action"] = "fullSettings";
+    JsonDocument doc;
+    doc["action"] = "fullSettings";
 
     // --- Add Time Circuits settings ---
-    webRequestJsonDoc["destinationYear"] = currentSettings.destinationYear;
-    webRequestJsonDoc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;
-    webRequestJsonDoc["lastTimeDepartedYear"] = currentSettings.lastTimeDepartedYear;
-    webRequestJsonDoc["lastTimeDepartedMonth"] = currentSettings.lastTimeDepartedMonth;
-    webRequestJsonDoc["lastTimeDepartedDay"] = currentSettings.lastTimeDepartedDay;
-    webRequestJsonDoc["lastTimeDepartedHour"] = currentSettings.lastTimeDepartedHour;
-    webRequestJsonDoc["lastTimeDepartedMinute"] = currentSettings.lastTimeDepartedMinute;
-    webRequestJsonDoc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
+    doc["destinationYear"] = currentSettings.destinationYear;
+    doc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;
+    doc["lastTimeDepartedYear"] = currentSettings.lastTimeDepartedYear;
+    doc["lastTimeDepartedMonth"] = currentSettings.lastTimeDepartedMonth;
+    doc["lastTimeDepartedDay"] = currentSettings.lastTimeDepartedDay;
+    doc["lastTimeDepartedHour"] = currentSettings.lastTimeDepartedHour;
+    doc["lastTimeDepartedMinute"] = currentSettings.lastTimeDepartedMinute;
+    doc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
 
     // --- Add Temporal settings ---
-    webRequestJsonDoc["departureHour"] = currentSettings.departureHour;
-    webRequestJsonDoc["departureMinute"] = currentSettings.departureMinute;
-    webRequestJsonDoc["arrivalHour"] = currentSettings.arrivalHour;
-    webRequestJsonDoc["arrivalMinute"] = currentSettings.arrivalMinute;
-    webRequestJsonDoc["brightness"] = currentSettings.brightness;
-    webRequestJsonDoc["notificationVolume"] = currentSettings.notificationVolume;
-    webRequestJsonDoc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
-    webRequestJsonDoc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
-    webRequestJsonDoc["animationStyle"] = currentSettings.animationStyle;
-    webRequestJsonDoc["animationSequence"] = animationTypeToString(currentSettings.animationSequence);
-    webRequestJsonDoc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
-    webRequestJsonDoc["presetCycleInterval"] = currentSettings.presetCycleInterval;
-    webRequestJsonDoc["displayFormat24h"] = currentSettings.displayFormat24h;
-    webRequestJsonDoc["favoriteRadioName"] = currentSettings.favoriteRadioName.c_str();
-    webRequestJsonDoc["favoriteRadioUrl"] = currentSettings.favoriteRadioUrl.c_str();
+    doc["departureHour"] = currentSettings.departureHour;
+    doc["departureMinute"] = currentSettings.departureMinute;
+    doc["arrivalHour"] = currentSettings.arrivalHour;
+    doc["arrivalMinute"] = currentSettings.arrivalMinute;
+    doc["brightness"] = currentSettings.brightness;
+    doc["notificationVolume"] = currentSettings.notificationVolume;
+    doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
+    doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
+    doc["animationStyle"] = currentSettings.animationStyle;
+    doc["animationSequence"] = animationTypeToString(currentSettings.animationSequence);
+    doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
+    doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
+    doc["displayFormat24h"] = currentSettings.displayFormat24h;
+    doc["favoriteRadioName"] = currentSettings.favoriteRadioName.c_str();
+    doc["favoriteRadioUrl"] = currentSettings.favoriteRadioUrl.c_str();
 
     // --- Add Data Link and other settings ---
-    webRequestJsonDoc["displayMode"] = currentSettings.displayMode;
-    webRequestJsonDoc["numDataPoints"] = currentSettings.numDataPoints;
-    webRequestJsonDoc["mqttBroker"] = currentSettings.mqttBroker.c_str();
-    webRequestJsonDoc["mqttPort"] = currentSettings.mqttPort;
-    webRequestJsonDoc["mqttUser"] = currentSettings.mqttUser.c_str();
-    webRequestJsonDoc["mqttPassword"] = currentSettings.mqttPassword.c_str();
-    webRequestJsonDoc["cityName"] = currentSettings.cityName.c_str();
-    webRequestJsonDoc["useMetricUnits"] = currentSettings.useMetricUnits;
-    webRequestJsonDoc["latitude"] = currentSettings.latitude;
-    webRequestJsonDoc["longitude"] = currentSettings.longitude;
-    webRequestJsonDoc["stockRefreshInterval"] = currentSettings.stockRefreshInterval;
-    webRequestJsonDoc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
-    webRequestJsonDoc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
-    webRequestJsonDoc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
-    webRequestJsonDoc["stockRow3_symbol"] = currentSettings.stockRow3_symbol.c_str();
+    doc["displayMode"] = currentSettings.displayMode;
+    doc["numDataPoints"] = currentSettings.numDataPoints;
+    doc["mqttBroker"] = currentSettings.mqttBroker.c_str();
+    doc["mqttPort"] = currentSettings.mqttPort;
+    doc["mqttUser"] = currentSettings.mqttUser.c_str();
+    doc["mqttPassword"] = currentSettings.mqttPassword.c_str();
+    doc["cityName"] = currentSettings.cityName.c_str();
+    doc["useMetricUnits"] = currentSettings.useMetricUnits;
+    doc["latitude"] = currentSettings.latitude;
+    doc["longitude"] = currentSettings.longitude;
+    doc["stockRefreshInterval"] = currentSettings.stockRefreshInterval;
+    doc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
+    doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
+    doc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
+    doc["stockRow3_symbol"] = currentSettings.stockRow3_symbol.c_str();
 
-    JsonArray dataPoints = webRequestJsonDoc["dataPoints"].to<JsonArray>();
+    JsonArray dataPoints = doc["dataPoints"].to<JsonArray>();
     for (int i = 0; i < 5; i++) {
         JsonObject dp = dataPoints.add<JsonObject>();
         dp["dataSourceType"] = (int)currentSettings.dataPoints[i].dataSourceType;
@@ -544,7 +537,7 @@ void sendFullSettingsToClient(uint32_t clientId) {
     }
 
     String response;
-    serializeJson(webRequestJsonDoc, response);
+    serializeJson(doc, response);
     ws.text(clientId, response);
     Log_printf(LOG_LEVEL_INFO, "Pushed full settings to client #%u.", clientId);
 }
@@ -596,17 +589,17 @@ void setupWebRoutes() {
   });
 
   server.on("/api/settings/BTTF_TC", HTTP_GET, [](AsyncWebServerRequest *request) {
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc["destinationYear"] = currentSettings.destinationYear;
-    webRequestJsonDoc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;
-    webRequestJsonDoc["lastTimeDepartedYear"] = currentSettings.lastTimeDepartedYear;
-    webRequestJsonDoc["lastTimeDepartedMonth"] = currentSettings.lastTimeDepartedMonth;
-    webRequestJsonDoc["lastTimeDepartedDay"] = currentSettings.lastTimeDepartedDay;
-    webRequestJsonDoc["lastTimeDepartedHour"] = currentSettings.lastTimeDepartedHour;
-    webRequestJsonDoc["lastTimeDepartedMinute"] = currentSettings.lastTimeDepartedMinute;
-    webRequestJsonDoc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
+    JsonDocument doc;
+    doc["destinationYear"] = currentSettings.destinationYear;
+    doc["destinationTimezoneIndex"] = currentSettings.destinationTimezoneIndex;
+    doc["lastTimeDepartedYear"] = currentSettings.lastTimeDepartedYear;
+    doc["lastTimeDepartedMonth"] = currentSettings.lastTimeDepartedMonth;
+    doc["lastTimeDepartedDay"] = currentSettings.lastTimeDepartedDay;
+    doc["lastTimeDepartedHour"] = currentSettings.lastTimeDepartedHour;
+    doc["lastTimeDepartedMinute"] = currentSettings.lastTimeDepartedMinute;
+    doc["presentTimezoneIndex"] = currentSettings.presentTimezoneIndex;
     String jsonString;
-    serializeJson(webRequestJsonDoc, jsonString);
+    serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
 
@@ -672,9 +665,9 @@ void setupWebRoutes() {
         return;
     }
 
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc["api_usage"] = stockManager.getApiUsage();
-    JsonArray assets = webRequestJsonDoc["assets"].to<JsonArray>();
+    JsonDocument doc;
+    doc["api_usage"] = stockManager.getApiUsage();
+    JsonArray assets = doc["assets"].to<JsonArray>();
     for (const auto& asset : stockManager.getAssets()) {
         JsonObject assetObj = assets.add<JsonObject>();
         assetObj["symbol"] = asset.symbol;
@@ -684,7 +677,7 @@ void setupWebRoutes() {
         assetObj["error_reason"] = asset.error_reason;
     }
     String jsonString;
-    serializeJson(webRequestJsonDoc, jsonString);
+    serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
 
@@ -698,10 +691,10 @@ void setupWebRoutes() {
         return;
     }
     String marqueeLine = stockManager.getMarqueeLine();
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc["marqueeText"] = marqueeLine;
+    JsonDocument doc;
+    doc["marqueeText"] = marqueeLine;
     String jsonString;
-    serializeJson(webRequestJsonDoc, jsonString);
+    serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
 
@@ -711,8 +704,8 @@ void setupWebRoutes() {
         return;
     }
 
-    webRequestJsonDoc.clear();
-    JsonArray assets = webRequestJsonDoc.to<JsonArray>();
+    JsonDocument doc;
+    JsonArray assets = doc.to<JsonArray>();
     for (const auto& asset : stockManager.getAssets()) {
         JsonObject assetObj = assets.add<JsonObject>();
         assetObj["symbol"] = asset.symbol;
@@ -722,7 +715,7 @@ void setupWebRoutes() {
         assetObj["data_valid"] = asset.data_valid;
     }
     String jsonString;
-    serializeJson(webRequestJsonDoc, jsonString);
+    serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
 
@@ -781,46 +774,46 @@ void setupWebRoutes() {
   server.addHandler(deleteStockHandler);
 
   server.on("/api/settings/temporal", HTTP_GET, [](AsyncWebServerRequest *request) {
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc["departureHour"] = currentSettings.departureHour;
-    webRequestJsonDoc["departureMinute"] = currentSettings.departureMinute;
-    webRequestJsonDoc["arrivalHour"] = currentSettings.arrivalHour;
-    webRequestJsonDoc["arrivalMinute"] = currentSettings.arrivalMinute;
-    webRequestJsonDoc["brightness"] = currentSettings.brightness;
-    webRequestJsonDoc["notificationVolume"] = currentSettings.notificationVolume;
-    webRequestJsonDoc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
-    webRequestJsonDoc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
-    webRequestJsonDoc["animationStyle"] = currentSettings.animationStyle;
-    webRequestJsonDoc["animationSequence"] = animationTypeToString(currentSettings.animationSequence);
-    webRequestJsonDoc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
-    webRequestJsonDoc["presetCycleInterval"] = currentSettings.presetCycleInterval;
-    webRequestJsonDoc["displayFormat24h"] = currentSettings.displayFormat24h;
+    JsonDocument doc;
+    doc["departureHour"] = currentSettings.departureHour;
+    doc["departureMinute"] = currentSettings.departureMinute;
+    doc["arrivalHour"] = currentSettings.arrivalHour;
+    doc["arrivalMinute"] = currentSettings.arrivalMinute;
+    doc["brightness"] = currentSettings.brightness;
+    doc["notificationVolume"] = currentSettings.notificationVolume;
+    doc["timeTravelAnimationDuration"] = currentSettings.timeTravelAnimationDuration;
+    doc["timeTravelAnimationInterval"] = currentSettings.timeTravelAnimationInterval;
+    doc["animationStyle"] = currentSettings.animationStyle;
+    doc["animationSequence"] = animationTypeToString(currentSettings.animationSequence);
+    doc["timeTravelSoundToggle"] = currentSettings.timeTravelSoundToggle;
+    doc["presetCycleInterval"] = currentSettings.presetCycleInterval;
+    doc["displayFormat24h"] = currentSettings.displayFormat24h;
     String jsonString;
-    serializeJson(webRequestJsonDoc, jsonString);
+    serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
 
   server.on("/api/settings/datalink", HTTP_GET, [](AsyncWebServerRequest *request) {
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc["dataLinkEnabled"] = (currentSettings.displayMode == DMS_DATA_LINK);
-    webRequestJsonDoc["numDataPoints"] = currentSettings.numDataPoints;
-    webRequestJsonDoc["mqttBroker"] = currentSettings.mqttBroker.c_str();
-    webRequestJsonDoc["mqttPort"] = currentSettings.mqttPort;
-    webRequestJsonDoc["mqttUser"] = currentSettings.mqttUser.c_str();
-    webRequestJsonDoc["mqttPassword"] = currentSettings.mqttPassword.c_str();
-    webRequestJsonDoc["weatherModeEnabled"] = (currentSettings.displayMode == DMS_WEATHER);
-    webRequestJsonDoc["cityName"] = currentSettings.cityName.c_str();
-    webRequestJsonDoc["useMetricUnits"] = currentSettings.useMetricUnits;
-    webRequestJsonDoc["latitude"] = currentSettings.latitude;
-    webRequestJsonDoc["longitude"] = currentSettings.longitude;
-    webRequestJsonDoc["stockTickerModeEnabled"] = (currentSettings.displayMode == DMS_STOCK_TICKER);
-    webRequestJsonDoc["stockRefreshInterval"] = currentSettings.stockRefreshInterval;
-    webRequestJsonDoc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
-    webRequestJsonDoc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
-    webRequestJsonDoc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
-    webRequestJsonDoc["stockRow3_symbol"] = currentSettings.stockRow3_symbol.c_str();
+    JsonDocument doc;
+    doc["dataLinkEnabled"] = (currentSettings.displayMode == DMS_DATA_LINK);
+    doc["numDataPoints"] = currentSettings.numDataPoints;
+    doc["mqttBroker"] = currentSettings.mqttBroker.c_str();
+    doc["mqttPort"] = currentSettings.mqttPort;
+    doc["mqttUser"] = currentSettings.mqttUser.c_str();
+    doc["mqttPassword"] = currentSettings.mqttPassword.c_str();
+    doc["weatherModeEnabled"] = (currentSettings.displayMode == DMS_WEATHER);
+    doc["cityName"] = currentSettings.cityName.c_str();
+    doc["useMetricUnits"] = currentSettings.useMetricUnits;
+    doc["latitude"] = currentSettings.latitude;
+    doc["longitude"] = currentSettings.longitude;
+    doc["stockTickerModeEnabled"] = (currentSettings.displayMode == DMS_STOCK_TICKER);
+    doc["stockRefreshInterval"] = currentSettings.stockRefreshInterval;
+    doc["financialModelingPrepApiKey"] = currentSettings.financialModelingPrepApiKey.c_str();
+    doc["stockRow1_symbol"] = currentSettings.stockRow1_symbol.c_str();
+    doc["stockRow2_symbol"] = currentSettings.stockRow2_symbol.c_str();
+    doc["stockRow3_symbol"] = currentSettings.stockRow3_symbol.c_str();
 
-    JsonArray dataPoints = webRequestJsonDoc["dataPoints"].to<JsonArray>();
+    JsonArray dataPoints = doc["dataPoints"].to<JsonArray>();
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
         JsonObject dp = dataPoints.add<JsonObject>();
         dp["scrollSpeed"] = currentSettings.dataPoints[i].scrollSpeed;
@@ -832,7 +825,7 @@ void setupWebRoutes() {
     }
 
     String response;
-    serializeJson(webRequestJsonDoc, response);
+    serializeJson(doc, response);
     request->send(200, "application/json", response);
   });
 
@@ -867,13 +860,13 @@ void setupWebRoutes() {
         return;
     }
 
-    webRequestJsonDoc.clear();
+    JsonDocument doc;
     File file = LittleFS.open("/radio_stations.json", "r");
     if (file) {
-        deserializeJson(webRequestJsonDoc, file);
+        deserializeJson(doc, file);
         file.close();
     }
-    JsonArray stations = webRequestJsonDoc.as<JsonArray>();
+    JsonArray stations = doc.as<JsonArray>();
 
     if (index >= 0 && index < stations.size()) {
         // Update existing station
@@ -888,7 +881,7 @@ void setupWebRoutes() {
     }
 
     file = LittleFS.open("/radio_stations.json", "w");
-    serializeJson(webRequestJsonDoc, file);
+    serializeJson(doc, file);
     file.close();
 
     request->send(200, "text/plain", "Station saved");
@@ -904,15 +897,15 @@ void setupWebRoutes() {
     }
     int index = obj["index"];
 
-    webRequestJsonDoc.clear();
+    JsonDocument doc;
     File file = LittleFS.open("/radio_stations.json", "r");
     if (!file) {
         request->send(500, "text/plain", "Could not open stations file");
         return;
     }
-    deserializeJson(webRequestJsonDoc, file);
+    deserializeJson(doc, file);
     file.close();
-    JsonArray stations = webRequestJsonDoc.as<JsonArray>();
+    JsonArray stations = doc.as<JsonArray>();
 
     if (index >= 0 && index < stations.size()) {
         stations.remove(index);
@@ -922,7 +915,7 @@ void setupWebRoutes() {
     }
 
     file = LittleFS.open("/radio_stations.json", "w");
-    serializeJson(webRequestJsonDoc, file);
+    serializeJson(doc, file);
     file.close();
 
     request->send(200, "text/plain", "Station deleted");
@@ -940,35 +933,35 @@ void setupWebRoutes() {
   server.on("/api/time", HTTP_GET, [](AsyncWebServerRequest *request) {
     time_t now;
     time(&now);
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc["unixTime"] = now;
-    webRequestJsonDoc["timeSynchronized"] = timeSynchronized;
+    JsonDocument doc;
+    doc["unixTime"] = now;
+    doc["timeSynchronized"] = timeSynchronized;
     String jsonString;
-    serializeJson(webRequestJsonDoc, jsonString);
+    serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
 
   server.on("/api/weather", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (currentWeatherData.dataValid) {
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["temperature"] = currentWeatherData.temperature;
-        webRequestJsonDoc["apparentTemperature"] = currentWeatherData.apparentTemperature;
-        webRequestJsonDoc["windSpeed"] = currentWeatherData.windSpeed;
-        webRequestJsonDoc["humidity"] = currentWeatherData.humidity;
-        webRequestJsonDoc["weatherCode"] = currentWeatherData.weatherCode;
-        webRequestJsonDoc["dailyHigh"] = currentWeatherData.dailyHigh;
-        webRequestJsonDoc["dailyLow"] = currentWeatherData.dailyLow;
-        webRequestJsonDoc["latitude"] = currentWeatherData.latitude;
-        webRequestJsonDoc["longitude"] = currentWeatherData.longitude;
-        webRequestJsonDoc["sunrise"] = currentWeatherData.sunrise;
-        webRequestJsonDoc["sunset"] = currentWeatherData.sunset;
-        webRequestJsonDoc["precipitationProbability"] = currentWeatherData.precipitationProbability;
-        webRequestJsonDoc["maxWindSpeed"] = currentWeatherData.maxWindSpeed;
-        webRequestJsonDoc["tomorrowHigh"] = currentWeatherData.tomorrowHigh;
-        webRequestJsonDoc["tomorrowLow"] = currentWeatherData.tomorrowLow;
-        webRequestJsonDoc["tomorrowWeatherCode"] = currentWeatherData.tomorrowWeatherCode;
+        JsonDocument doc;
+        doc["temperature"] = currentWeatherData.temperature;
+        doc["apparentTemperature"] = currentWeatherData.apparentTemperature;
+        doc["windSpeed"] = currentWeatherData.windSpeed;
+        doc["humidity"] = currentWeatherData.humidity;
+        doc["weatherCode"] = currentWeatherData.weatherCode;
+        doc["dailyHigh"] = currentWeatherData.dailyHigh;
+        doc["dailyLow"] = currentWeatherData.dailyLow;
+        doc["latitude"] = currentWeatherData.latitude;
+        doc["longitude"] = currentWeatherData.longitude;
+        doc["sunrise"] = currentWeatherData.sunrise;
+        doc["sunset"] = currentWeatherData.sunset;
+        doc["precipitationProbability"] = currentWeatherData.precipitationProbability;
+        doc["maxWindSpeed"] = currentWeatherData.maxWindSpeed;
+        doc["tomorrowHigh"] = currentWeatherData.tomorrowHigh;
+        doc["tomorrowLow"] = currentWeatherData.tomorrowLow;
+        doc["tomorrowWeatherCode"] = currentWeatherData.tomorrowWeatherCode;
         
-        JsonArray hourly = webRequestJsonDoc["hourly"].to<JsonArray>();
+        JsonArray hourly = doc["hourly"].to<JsonArray>();
         for (int i = 0; i < 3; i++) {
             JsonObject hour = hourly.add<JsonObject>();
             hour["temp"] = currentWeatherData.hourlyTemp[i];
@@ -976,14 +969,14 @@ void setupWebRoutes() {
         }
 
         String jsonString;
-        serializeJson(webRequestJsonDoc, jsonString);
+        serializeJson(doc, jsonString);
         request->send(200, "application/json", jsonString);
     } else {
-        webRequestJsonDoc.clear();
-        webRequestJsonDoc["error"] = true;
-        webRequestJsonDoc["reason"] = currentWeatherData.errorReason.c_str();
+        JsonDocument errorDoc;
+        errorDoc["error"] = true;
+        errorDoc["reason"] = currentWeatherData.errorReason.c_str();
         String jsonString;
-        serializeJson(webRequestJsonDoc, jsonString);
+        serializeJson(errorDoc, jsonString);
         request->send(503, "application/json", jsonString);
     }
   });
@@ -1043,20 +1036,20 @@ void setupWebRoutes() {
   server.on("/api/addPreset", HTTP_POST, [](AsyncWebServerRequest *request){
     preferences.begin(PREFERENCES_NAMESPACE, false);
     String presetsJson = preferences.getString("customPresets", "[]");
-    webRequestJsonDoc.clear();
-    DeserializationError error = deserializeJson(webRequestJsonDoc, presetsJson);
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, presetsJson);
     if (error) {
         request->send(500, "text/plain", "Failed to parse presets");
         preferences.end();
         return;
     }
-    JsonArray presets = webRequestJsonDoc.as<JsonArray>();
+    JsonArray presets = doc.as<JsonArray>();
     JsonObject newPreset = presets.add<JsonObject>();
     newPreset["name"] = request->getParam("name", true)->value();
     newPreset["value"] = request->getParam("value", true)->value();
 
     String newPresetsJson;
-    serializeJson(webRequestJsonDoc, newPresetsJson);
+    serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
     preferences.end();
     request->send(200, "text/plain", "Custom preset saved!");
@@ -1067,9 +1060,9 @@ void setupWebRoutes() {
     String newName = request->getParam("newName", true)->value();
     String value = request->getParam("value", true)->value();
     String presetsJson = preferences.getString("customPresets", "[]");
-    webRequestJsonDoc.clear();
-    deserializeJson(webRequestJsonDoc, presetsJson);
-    JsonArray presets = webRequestJsonDoc.as<JsonArray>();
+    JsonDocument doc;
+    deserializeJson(doc, presetsJson);
+    JsonArray presets = doc.as<JsonArray>();
     for (JsonObject preset : presets) {
         if (preset["name"] == name) {
             preset["name"] = newName;
@@ -1078,7 +1071,7 @@ void setupWebRoutes() {
         }
     }
     String newPresetsJson;
-    serializeJson(webRequestJsonDoc, newPresetsJson);
+    serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
     preferences.end();
     request->send(200, "text/plain", "Preset updated!");
@@ -1087,9 +1080,9 @@ void setupWebRoutes() {
     preferences.begin(PREFERENCES_NAMESPACE, false);
     String name = request->getParam("name", true)->value();
     String presetsJson = preferences.getString("customPresets", "[]");
-    webRequestJsonDoc.clear();
-    deserializeJson(webRequestJsonDoc, presetsJson);
-    JsonArray presets = webRequestJsonDoc.as<JsonArray>();
+    JsonDocument doc;
+    deserializeJson(doc, presetsJson);
+    JsonArray presets = doc.as<JsonArray>();
     for (int i = 0; i < presets.size(); i++) {
         if (presets[i]["name"] == name) {
             presets.remove(i);
@@ -1097,7 +1090,7 @@ void setupWebRoutes() {
         }
     }
     String newPresetsJson;
-    serializeJson(webRequestJsonDoc, newPresetsJson);
+    serializeJson(doc, newPresetsJson);
     preferences.putString("customPresets", newPresetsJson);
     preferences.end();
     request->send(200, "text/plain", "Preset deleted!");
@@ -1146,13 +1139,13 @@ void setupWebRoutes() {
   });
   
   server.on("/api/system/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    webRequestJsonDoc.clear();
-    webRequestJsonDoc["freeHeap"] = ESP.getFreeHeap();
-    webRequestJsonDoc["rssi"] = WiFi.RSSI();
-    webRequestJsonDoc["uptime"] = millis() / 1000;
-    webRequestJsonDoc["deviceId"] = MQTT_UNIQUE_ID;
+    JsonDocument doc;
+    doc["freeHeap"] = ESP.getFreeHeap();
+    doc["rssi"] = WiFi.RSSI();
+    doc["uptime"] = millis() / 1000;
+    doc["deviceId"] = MQTT_UNIQUE_ID;
     String jsonString;
-    serializeJson(webRequestJsonDoc, jsonString);
+    serializeJson(doc, jsonString);
     request->send(200, "application/json", jsonString);
   });
 
@@ -1207,24 +1200,24 @@ void setupWebRoutes() {
                  filename.endsWith(".js") ||
                  filename.endsWith(".mp3");
         if (!isAllowed) {
-            webRequestJsonDoc.clear();
-            webRequestJsonDoc["action"] = "uploadError";
-            webRequestJsonDoc["type"] = "ui";
-            webRequestJsonDoc["message"] = "Invalid file. Only UI files are allowed.";
+            JsonDocument doc;
+            doc["action"] = "uploadError";
+            doc["type"] = "ui";
+            doc["message"] = "Invalid file. Only UI files are allowed.";
             String jsonString;
-            serializeJson(webRequestJsonDoc, jsonString);
+            serializeJson(doc, jsonString);
             ws.textAll(jsonString);
             return;
         }
 
         if (!index) {
             if (LittleFS.totalBytes() - LittleFS.usedBytes() < request->contentLength()) {
-                webRequestJsonDoc.clear();
-                webRequestJsonDoc["action"] = "uploadError";
-                webRequestJsonDoc["type"] = "ui";
-                webRequestJsonDoc["message"] = "Not enough space on the device.";
+                JsonDocument doc;
+                doc["action"] = "uploadError";
+                doc["type"] = "ui";
+                doc["message"] = "Not enough space on the device.";
                 String jsonString;
-                serializeJson(webRequestJsonDoc, jsonString);
+                serializeJson(doc, jsonString);
                 ws.textAll(jsonString);
                 return;
             }
@@ -1235,22 +1228,22 @@ void setupWebRoutes() {
         }
         if (final) {
             request->_tempFile.close();
-            webRequestJsonDoc.clear();
-            webRequestJsonDoc["action"] = "uploadProgress";
-            webRequestJsonDoc["type"] = "ui";
-            webRequestJsonDoc["filename"] = filename;
-            webRequestJsonDoc["progress"] = 100;
+            JsonDocument doc;
+            doc["action"] = "uploadProgress";
+            doc["type"] = "ui";
+            doc["filename"] = filename;
+            doc["progress"] = 100;
             String jsonString;
-            serializeJson(webRequestJsonDoc, jsonString);
+            serializeJson(doc, jsonString);
             ws.textAll(jsonString);
         } else {
-            webRequestJsonDoc.clear();
-            webRequestJsonDoc["action"] = "uploadProgress";
-            webRequestJsonDoc["type"] = "ui";
-            webRequestJsonDoc["filename"] = filename;
-            webRequestJsonDoc["progress"] = (index + len) * 100 / request->contentLength();
+            JsonDocument doc;
+            doc["action"] = "uploadProgress";
+            doc["type"] = "ui";
+            doc["filename"] = filename;
+            doc["progress"] = (index + len) * 100 / request->contentLength();
             String jsonString;
-            serializeJson(webRequestJsonDoc, jsonString);
+            serializeJson(doc, jsonString);
             ws.textAll(jsonString);
         }
     });

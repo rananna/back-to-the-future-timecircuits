@@ -439,7 +439,7 @@ static bool fetchWeatherDataFromApi() {
         strncpy(tempUnit, currentSettings.useMetricUnits ? "celsius" : "fahrenheit", sizeof(tempUnit));
         strncpy(speedUnit, currentSettings.useMetricUnits ? "kmh" : "mph", sizeof(speedUnit));
 
-        static char request[512];
+        char request[512];
         snprintf(request, sizeof(request),
                 "GET /v1/forecast?latitude=%.4f&longitude=%.4f"
                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
@@ -454,7 +454,7 @@ static bool fetchWeatherDataFromApi() {
 
         // --- Start of new logging ---
         // Log the full request URL for debugging purposes.
-        static char full_url[512];
+        char full_url[512];
         snprintf(full_url, sizeof(full_url),
                 "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"

@@ -12,10 +12,6 @@
 // --- NEW: Global flag to prevent display updates until boot sequence is complete ---
 bool bootSequenceCompleted = false;
 
-// --- NEW: Define global boot state variables ---
-BootSequenceState bootState = BOOT_INACTIVE;
-unsigned long bootStateStartTime = 0;
-
 #include "EventManager.h"
 #include "HardwareControl.h"
 #include "DebugLog.h"
@@ -69,14 +65,11 @@ extern DisplayRow destRow, presRow, lastRow;
 
 void broadcastAnimationComplete() {
     if (ws.count() > 0) {
-        // --- FIX: Use a static buffer to prevent heap fragmentation ---
-        // This avoids allocating a new String object on the heap, which can fail
-        // after a long animation has fragmented the memory, causing a crash.
-        static char jsonBuffer[64];
         JsonDocument doc;
         doc["action"] = "animationComplete";
-        serializeJson(doc, jsonBuffer, sizeof(jsonBuffer));
-        ws.textAll(jsonBuffer);
+        String jsonString;
+        serializeJson(doc, jsonString);
+        ws.textAll(jsonString);
         Serial.println("SERVER_DEBUG: Broadcasted animationComplete message.");
     }
 }
@@ -628,6 +621,7 @@ void handleBootSequence() {
             {
                 if (elapsed > 500) {
                     comprehensiveAnimationCleanup(); // Resets manual modes without forcing clock display
+                    updateNormalClockDisplay(true, true, true); // Force a redraw of the clock
                     bootSequenceCompleted = true; // --- NEW: Signal that the boot sequence is done.
                     bootState = BOOT_INACTIVE;
                     // The main display loop will now handle updating the display correctly
@@ -864,11 +858,6 @@ void handleSequencer() {
                 if (!track.stepInitialized) {
                     playSound(step.stringParam, false, -1);
                     track.stepInitialized = true;
-                    // --- FIX: Add a small delay after starting a sound ---
-                    // This gives the audio task a chance to initialize before the
-                    // sequencer immediately moves to the next, potentially CPU-intensive
-                    // animation command, preventing a race condition and heap corruption.
-                    vTaskDelay(pdMS_TO_TICKS(100)); // 100ms delay
                     advance_step = true;
                 }
                 break;
@@ -1187,10 +1176,9 @@ void handleSequencer() {
                             }
                         }
                         track.lastScannerUpdate = millis();
-                    } else {
-                        vTaskDelay(1); // Yield to other tasks
                     }
                 }
+                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_TYPEWRITER:
@@ -1211,10 +1199,9 @@ void handleSequencer() {
                         typewriter_buffer[track.typewriterIndex] = '\0';
                         updateDisplaySegment(step.targetRow, step.targetSegment, typewriter_buffer);
                         track.lastTypewriterUpdate = millis();
-                    } else {
-                        vTaskDelay(1); // Yield to other tasks
                     }
                 }
+                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_WIPE:
@@ -1238,10 +1225,9 @@ void handleSequencer() {
                         updateDisplaySegment(step.targetRow, -1, wipe_buffer);
                         track.wipeSegment++;
                         track.lastWipeUpdate = millis();
-                    } else {
-                        vTaskDelay(1); // Yield to other tasks
                     }
                 }
+                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_BAR_GRAPH:
@@ -1586,6 +1572,22 @@ void stopAllSequences() {
     }
 }
 
+/**
+ * @brief Safely clears a sequence step without allocating a temporary object on the stack.
+ * @details This function manually resets each member of the SequenceStep struct to its
+ * default value. This avoids the `step = SequenceStep()` assignment which would
+ * create a large temporary object on the stack and cause a crash.
+ * @param step The SequenceStep object to clear.
+ */
+void clearSequenceStep(SequenceStep& step) {
+    step.command = SEQ_CMD_NONE;
+    step.targetRow = 0;
+    step.targetSegment = 0;
+    step.intParam = 0;
+    step.intParam2 = 0;
+    step.stringParam[0] = '\0';
+    step.stringParam2[0] = '\0';
+}
 
 /**
  * @brief Safely clears a sequencer track without allocating a temporary object on the stack.
@@ -1671,34 +1673,49 @@ void runSequencerTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Comprehensive Sequencer Test Started ---");
 }
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-
 void triggerAnimation(AnimationType animType) {
-    // --- FIX: Add a small delay to prevent race conditions ---
-    // This gives critical background tasks (like mDNS) a chance to complete
-    // their operations before we potentially fragment the heap with new allocations
-    // for the animation sequence, which was a source of crashes.
-    vTaskDelay(pdMS_TO_TICKS(10));
-
+    // This function is a full takeover. It replaces all running tracks
+    // with the new animation.
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
+
+    // --- FIX: Set the transition flag to prevent premature cleanup ---
     isTransitioningAnimation = true;
 
+    // --- FIX: Save the current display mode so it can be restored after the animation. ---
     preAnimationDisplayMode = currentSettings.displayMode;
-    currentSettings.displayMode = -1;
+    currentSettings.displayMode = -1; // Pause the main display loop
+
+    // --- NEW: Store the current animation type for logging completion ---
     currentAnimationType = animType;
 
-    // The temp_tracks buffer is now inside generateAnimationSequence to save stack space here.
-    
-    Log_printf(LOG_LEVEL_INFO, "DEBUG_MEM: Before generate. Free Heap: %u, Max Alloc: %u, Stack HWM: %u", ESP.getFreeHeap(), ESP.getMaxAllocHeap(), uxTaskGetStackHighWaterMark(NULL));
-    generateAnimationSequence(animType, sequencerTracks);
-    Log_printf(LOG_LEVEL_INFO, "DEBUG_MEM: After generate. Free Heap: %u, Max Alloc: %u, Stack HWM: %u", ESP.getFreeHeap(), ESP.getMaxAllocHeap(), uxTaskGetStackHighWaterMark(NULL));
+    // --- FIX: Use a static buffer to prevent heap fragmentation from frequent allocations ---
+    // The SequencerTrack struct is very large (~5.5KB), so creating an array on the stack
+    // would cause a stack overflow. Using a static buffer allocates this memory once at
+    // compile time, avoiding both stack overflow and runtime heap fragmentation issues
+    // that were causing crashes during rapid animation changes (e.g., preset cycling).
+    static SequencerTrack temp_tracks[NUM_SEQUENCER_TRACKS];
 
-    // The generation function now populates the main tracks directly.
-    // We just need to stop the old ones and activate the new ones.
+    // --- FIX: Generate the animation into the temporary buffer *before* stopping the old one. ---
+    // This prevents use-after-free issues where stopAllSequences() might clear a string
+    // that is still referenced by a track that is about to be replaced.
+
+    // Generate the requested animation into the temporary heap-allocated tracks.
+    generateAnimationSequence(animType, temp_tracks);
+
+    // Now that the new animation is prepared, stop all currently running tracks.
     stopAllSequences();
 
+    // Copy the steps from ALL generated tracks to the main sequencer tracks.
     for (int j = 0; j < NUM_SEQUENCER_TRACKS; ++j) {
+        // We don't need to call reset() here because stopAllSequences() already did.
+        for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
+            sequencerTracks[j].steps[i] = temp_tracks[j].steps[i];
+            if (temp_tracks[j].steps[i].command == SEQ_CMD_END) {
+                break; // Stop copying after the END command for this track.
+            }
+        }
+
+        // Activate the track if it has any commands.
         if (sequencerTracks[j].steps[0].command != SEQ_CMD_NONE) {
              sequencerTracks[j].isActive = true;
              sequencerTracks[j].trackStartTime = millis();
@@ -1707,9 +1724,10 @@ void triggerAnimation(AnimationType animType) {
         }
     }
 
+    // Static memory does not need to be manually deallocated.
+
+    // --- FIX: Clear the transition flag now that the new animation is active ---
     isTransitioningAnimation = false;
-    Log_printf(LOG_LEVEL_INFO, "DEBUG_MEM: --- Exiting triggerAnimation ---");
-    Log_printf(LOG_LEVEL_INFO, "DEBUG_MEM: Free Heap: %u, Max Alloc: %u, Stack HWM: %u", ESP.getFreeHeap(), ESP.getMaxAllocHeap(), uxTaskGetStackHighWaterMark(NULL));
 }
 
 void startSequencerMarquee(SequencerTrack& track, const char* text) {

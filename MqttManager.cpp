@@ -49,12 +49,8 @@ String lastDepartedPreset = "None";
 HaDiscoveryState haDiscoveryState = HA_DISCOVERY_IDLE;
 unsigned long lastHaDiscoveryPublish = 0;
 const unsigned int HA_DISCOVERY_DELAY = 100; // Milliseconds between each discovery message
-static StaticJsonDocument<2048> discoveryDoc; // Increased size for complex entities
+static JsonDocument discoveryDoc;
 static String device_base_topic;
-
-// --- Statically Allocated JSON Document for MQTT Payloads ---
-// Reused for all incoming MQTT message parsing to prevent heap fragmentation.
-static StaticJsonDocument<2048> mqttJsonDoc;
 
 // --- Radio Metadata Globals ---
 String radioStationName = "";
@@ -171,9 +167,9 @@ void publishHaPresetSelector() {
         presetsJson = prefs.getString("customPresets", "[]");
     }
     prefs.end();
-    mqttJsonDoc.clear();
-    if (deserializeJson(mqttJsonDoc, presetsJson) == DeserializationError::Ok) {
-        for (JsonObject preset : mqttJsonDoc.as<JsonArray>()) {
+    JsonDocument presetsDoc;
+    if (deserializeJson(presetsDoc, presetsJson) == DeserializationError::Ok) {
+        for (JsonObject preset : presetsDoc.as<JsonArray>()) {
             if (preset["name"].is<const char*>()) {
                 options.add(preset["name"].as<String>());
             }
@@ -325,17 +321,17 @@ void publishWeatherCity(const std::string& city) {
 void publishHaDiagnosticAttributes() {
     if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    mqttJsonDoc.clear();
+    JsonDocument doc; // StaticJsonDocument is fine here, small payload
 
-    mqttJsonDoc["free_heap"] = ESP.getFreeHeap();
-    mqttJsonDoc["uptime_seconds"] = millis() / 1000;
-    mqttJsonDoc["wifi_rssi"] = WiFi.RSSI();
-    mqttJsonDoc["ip_address"] = WiFi.localIP().toString();
-    mqttJsonDoc["animation_style"] = currentSettings.animationStyle;
-    mqttJsonDoc["is_mqtt_connected"] = mqttClient.connected();
+    doc["free_heap"] = ESP.getFreeHeap();
+    doc["uptime_seconds"] = millis() / 1000;
+    doc["wifi_rssi"] = WiFi.RSSI();
+    doc["ip_address"] = WiFi.localIP().toString();
+    doc["animation_style"] = currentSettings.animationStyle;
+    doc["is_mqtt_connected"] = mqttClient.connected();
     
     String attributes_payload;
-    serializeJson(mqttJsonDoc, attributes_payload);
+    serializeJson(doc, attributes_payload);
     mqttClient.publish((base_topic + "/status/attributes").c_str(), attributes_payload.c_str(), false);
 }
 
@@ -1324,12 +1320,12 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
         } else if (component == "tts") {
             Log_printf(LOG_LEVEL_INFO, "Handling media player command (tts topic). Payload: %s", message.c_str());
-            mqttJsonDoc.clear();
-            if (deserializeJson(mqttJsonDoc, message) == DeserializationError::Ok) {
+            JsonDocument doc;
+            if (deserializeJson(doc, message) == DeserializationError::Ok) {
                 // HA's play_media service sends 'media_id', but we also check for 'url' for direct calls.
-                const char* url = mqttJsonDoc["media_id"] | mqttJsonDoc["url"];
+                const char* url = doc["media_id"] | doc["url"];
                 if (url) {
-                    int volume = mqttJsonDoc["volume"] | -1; // Use dynamic volume if provided, else -1
+                    int volume = doc["volume"] | -1; // Use dynamic volume if provided, else -1
                     Log_printf(LOG_LEVEL_INFO, "Parsed media JSON. URL: %s, Volume: %d", url, volume);
                     startAudioStream(url, true, volume);
                 } else {
@@ -1667,21 +1663,21 @@ void handleSequencerCommand(const std::string& payload) {
         tracks[i].reset(); // Safely reset the track
     }
 
-    static JsonDocument mqttJsonDoc;
-    mqttJsonDoc.clear(); // Clear the document before reuse
-    DeserializationError error = deserializeJson(mqttJsonDoc, payload);
+    static JsonDocument doc;
+    doc.clear(); // Clear the document before reuse
+    DeserializationError error = deserializeJson(doc, payload);
 
     if (error == DeserializationError::Ok) {
         // It's a valid JSON string. Now, determine its structure.
         std::string tracks_payload;
-        if (mqttJsonDoc.is<JsonArray>()) {
+        if (doc.is<JsonArray>()) {
             // This is the correct, preferred format: a direct array of tracks.
             tracks_payload = payload;
             Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload (Array format).");
-        } else if (mqttJsonDoc.is<JsonObject>() && !mqttJsonDoc["tracks"].isNull() && mqttJsonDoc["tracks"].is<JsonArray>()) {
+        } else if (doc.is<JsonObject>() && !doc["tracks"].isNull() && doc["tracks"].is<JsonArray>()) {
             // This is for backward compatibility with older tools or blueprints that
             // might wrap the array in an object like: {"tracks": [...]}.
-            serializeJson(mqttJsonDoc["tracks"], tracks_payload);
+            serializeJson(doc["tracks"], tracks_payload);
             Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload (Object wrapper format).");
         } else {
             // The payload is valid JSON, but not in a structure we can use.
@@ -1690,7 +1686,7 @@ void handleSequencerCommand(const std::string& payload) {
         }
 
         // 1. Generate: Parse the validated and extracted JSON payload.
-        parseSequenceFromJson(tracks, tracks_payload.c_str());
+        parseSequenceFromJson(tracks, tracks_payload);
         Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Parsing of JSON payload complete.");
 
         // --- FIX: Reordered logic to prevent race condition ---

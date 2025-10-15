@@ -346,12 +346,6 @@ void updateStockTickerDisplay() {
             }
 
             case SD_SCROLLING: {
-                // --- FIX: Yield the CPU to prevent task starvation ---
-                // This tight polling loop can consume 100% of the CPU, starving
-                // background tasks like the network stack and audio streaming.
-                // A 1ms delay is enough to allow other tasks to run.
-                vTaskDelay(pdMS_TO_TICKS(1));
-
                 if (millis() - lastStockUpdate > scrollSpeed) {
                     lastStockUpdate = millis();
 

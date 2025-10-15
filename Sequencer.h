@@ -156,23 +156,6 @@ struct SequenceStep {
 };
 
 /**
- * @brief Safely clears a sequence step without allocating a temporary object on the stack.
- * @details This function manually resets each member of the SequenceStep struct to its
- * default value. This avoids the `step = SequenceStep()` assignment which would
- * create a large temporary object on the stack and cause a crash.
- * @param step The SequenceStep object to clear.
- */
-inline void clearSequenceStep(SequenceStep& step) {
-    step.command = SEQ_CMD_NONE;
-    step.targetRow = 0;
-    step.targetSegment = 0;
-    step.intParam = 0;
-    step.intParam2 = 0;
-    step.stringParam[0] = '\0';
-    step.stringParam2[0] = '\0';
-}
-
-/**
  * @brief Represents a single track of commands, managing the state for one of the three display rows.
  * @details An animation can have up to three tracks running in parallel. This struct holds the
  * list of commands (`steps`) for the track, tracks the current execution state (e.g., `currentStep`,
@@ -320,7 +303,7 @@ struct SequencerTrack {
         haStateReceived = false;
 
         for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
-            clearSequenceStep(steps[i]);
+            steps[i] = SequenceStep(); // Use the default constructor
         }
     }
 };

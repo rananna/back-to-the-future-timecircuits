@@ -14,11 +14,6 @@
 #include <Arduino.h>
 #include <string>
 
-// --- Statically Allocated JSON Document for Animation Parsing ---
-// This single, static JsonDocument is reused for all JSON-based animation
-// parsing to prevent heap fragmentation from repeated allocations.
-static StaticJsonDocument<4096> animationJsonDoc;
-
 /**
  * @brief Safely adds a new step to a sequencer track.
  * @details This helper function is crucial for preventing buffer overflows. It checks if the
@@ -84,25 +79,25 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
     // --- Track 0: Top Row Flicker ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
     // Flicker for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100 + random(201), 50);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100 + random(0, 200), 50);
     // Wait for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100 + random(201), 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100 + random(0, 200), 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 
     // --- Track 1: Middle Row Flicker ---
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 25, 0);
     // Flicker for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100 + random(201), 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100 + random(0, 200), 50);
     // Wait for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100 + random(201), 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100 + random(0, 200), 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
 
     // --- Track 2: Bottom Row Flicker ---
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 25, 0);
     // Flicker for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100 + random(201), 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100 + random(0, 200), 50);
     // Wait for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(201), 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(0, 200), 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
@@ -155,7 +150,7 @@ void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings
     const int delay = 830;
 
     // --- FIX: Use a single, reusable stack-allocated buffer to prevent heap fragmentation. ---
-    static char buffer[5]; // Max segment length is 4 chars + null terminator
+    char buffer[5]; // Max segment length is 4 chars + null terminator
 
     // Helper lambda to add a segment step
     auto add_segment_step = [&](int row, int seg, int start, int len) {
@@ -236,7 +231,7 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 8, 0);
 
     // --- FIX: Use a single, reusable stack-allocated buffer to prevent heap fragmentation. ---
-    static char inverted_buffer[14];
+    char inverted_buffer[14];
     for (int i = 0; i < 6; i++) {
         const char* wave_str = waves[i];
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, wave_str);
@@ -596,15 +591,11 @@ void generateCountingUp(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 0, "CALCULATING..");
 
     // --- Track 0 (Middle): The Counter ---
-    // --- FIX: Reduce loop count to prevent buffer overflow. ---
-    // The previous loop generated 80 steps, hitting the MAX_SEQUENCE_STEPS limit and causing truncation.
-    // This new loop generates only 40 steps (20 iterations * 2 steps), which is safely within the limit.
-    // The wait time is increased to 500ms to maintain the total 10-second duration.
-    static char buffer[14];
-    for (int i = 0; i < 20; i++) {
-        snprintf(buffer, sizeof(buffer), "%13d", i * 13842);
+    char buffer[14];
+    for (int i = 0; i <= 39; i++) {
+        snprintf(buffer, sizeof(buffer), "%13d", i * 6921);
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, buffer);
-        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 250, 0);
     }
 }
 
@@ -623,17 +614,16 @@ void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][1
     s0 = add_intro_sound_steps(tracks[0], s0);
 
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-    const int num_months = sizeof(months) / sizeof(months[0]);
 
-    static char buffer[17];
+    char buffer[17];
     for (int i = 0; i < 10; i++) {
-        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], (int)random(1, 29), (int)random(1950, 2051), (int)random(24), (int)random(60));
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(0, 12)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
         s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 80, buffer);
 
-        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], (int)random(1, 29), (int)random(1950, 2051), (int)random(24), (int)random(60));
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(0, 12)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
         s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 80, buffer);
 
-        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], (int)random(1, 29), (int)random(1950, 2051), (int)random(24), (int)random(60));
+        snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(0, 12)], random(1, 29), random(1950, 2051), random(0, 24), random(0, 60));
         s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 80, buffer);
     }
 }
@@ -654,9 +644,6 @@ void generateTemporalDesync(SequencerTrack tracks[3]) {
     char time_strings[3][17];
     getFormattedTimeStrings(time_strings[0], time_strings[1], time_strings[2]);
 
-    // --- FIX: Refactor to use finite loops and effects instead of long-running, blocking commands ---
-    // This makes the animation more robust and less prone to hangs.
-
     // --- Track 0 (Middle): The "correct" time, our anchor ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 1, -1, 10000, 0, time_strings[1]);
 
@@ -669,6 +656,7 @@ void generateTemporalDesync(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 
     // --- Track 2 (Bottom): Conflicting timeline ---
+    // --- FIX: Use a stack-allocated buffer to prevent heap fragmentation. ---
     char conflict_time_str[17];
     snprintf(conflict_time_str, sizeof(conflict_time_str), "OCT 26 2085 0429");
     s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 200, conflict_time_str);
@@ -752,16 +740,17 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
  * @param tracks The array of three sequencer tracks to populate.
  * @param json_string A string containing the JSON definition of the sequence.
  */
-void parseSequenceFromJson(SequencerTrack tracks[3], const char* json_string) {
-    animationJsonDoc.clear();
-    DeserializationError error = deserializeJson(animationJsonDoc, json_string);
+void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string) {
+    static JsonDocument doc;
+    doc.clear();
+    DeserializationError error = deserializeJson(doc, json_string);
 
     if (error) {
         Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Failed to parse JSON sequence: %s", error.c_str());
         return;
     }
 
-    JsonArray track_definitions = animationJsonDoc.as<JsonArray>();
+    JsonArray track_definitions = doc.as<JsonArray>();
     if (track_definitions.isNull()) {
         Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Payload is not a JSON array of track definitions.");
         return;
@@ -854,44 +843,45 @@ void parseSequenceFromJson(SequencerTrack tracks[3], const char* json_string) {
  * @return The matching `AnimationType` enum, or `ANIMATION_RANDOMIZE_ALL` if not found.
  */
 AnimationType animationTypeFromString(const char* str) {
-    if (strcmp(str, "Intruder Alert") == 0) return ANIMATION_INTRUDER_ALERT;
-    if (strcmp(str, "Time Travel") == 0) return ANIMATION_TIME_TRAVEL;
-    if (strcmp(str, "Party Mode") == 0) return ANIMATION_PARTY_MODE;
-    if (strcmp(str, "Countdown") == 0) return ANIMATION_COUNTDOWN;
-    if (strcmp(str, "Knight Rider") == 0) return ANIMATION_KNIGHT_RIDER;
-    if (strcmp(str, "Lightning") == 0) return ANIMATION_LIGHTNING;
-    if (strcmp(str, "Loading") == 0) return ANIMATION_LOADING;
-    if (strcmp(str, "Error") == 0) return ANIMATION_ERROR;
-    if (strcmp(str, "Flux Capacitor Charge-Up") == 0) return ANIMATION_FLUX_CHARGE;
-    if (strcmp(str, "Tachyons Detected") == 0) return ANIMATION_TACHYONS;
-    if (strcmp(str, "Data Stream") == 0) return ANIMATION_DATA_STREAM;
-    if (strcmp(str, "Wormhole Collapse") == 0) return ANIMATION_WORMHOLE_COLLAPSE;
-    if (strcmp(str, "All Displays Random") == 0) return ANIMATION_ALL_DISPLAYS_RANDOM;
-    if (strcmp(str, "Time Travel Tunnel") == 0) return ANIMATION_TIME_TRAVEL_TUNNEL;
-    if (strcmp(str, "Fire Trails") == 0) return ANIMATION_FIRE_TRAILS;
-    if (strcmp(str, "Sparkle Reveal") == 0) return ANIMATION_SPARKLE_REVEAL;
-    if (strcmp(str, "Sequential Flicker") == 0) return ANIMATION_SEQUENTIAL_FLICKER;
-    if (strcmp(str, "Random Flicker") == 0) return ANIMATION_RANDOM_FLICKER;
-    if (strcmp(str, "Counting Up") == 0) return ANIMATION_COUNTING_UP;
-    if (strcmp(str, "Wave Flicker") == 0) return ANIMATION_WAVE_FLICKER;
-    if (strcmp(str, "Tornado Flicker") == 0) return ANIMATION_TORNADO_FLICKER;
-    if (strcmp(str, "Capacitor Charge-Up") == 0) return ANIMATION_CAPACITOR_CHARGE_UP;
-    if (strcmp(str, "Digital Rain") == 0) return ANIMATION_DIGITAL_RAIN;
-    if (strcmp(str, "Waveform Collapse") == 0) return ANIMATION_WAVEFORM_COLLAPSE;
-    if (strcmp(str, "Timeline Skim") == 0) return ANIMATION_TIMELINE_SKIM;
-    if (strcmp(str, "Temporal Desync") == 0) return ANIMATION_TEMPORAL_DESYNC;
-    if (strcmp(str, "Glitchy Jump-Cut") == 0) return ANIMATION_GLITCHY_JUMP_CUT;
-    if (strcmp(str, "Plasma Warm-Up") == 0) return ANIMATION_PLASMA_WARM_UP;
-    if (strcmp(str, "Time Warp Streaks") == 0) return ANIMATION_TIME_WARP_STREAKS;
-    if (strcmp(str, "Character Scanline") == 0) return ANIMATION_CHARACTER_SCANLINE;
-    if (strcmp(str, "Focus In") == 0) return ANIMATION_FOCUS_IN;
-    if (strcmp(str, "Code Breaker") == 0) return ANIMATION_CODE_BREAKER;
-    if (strcmp(str, "Temporal Paradox") == 0) return ANIMATION_TEMPORAL_PARADOX;
-    if (strcmp(str, "Digit Cascade") == 0) return ANIMATION_DIGIT_CASCADE;
-    if (strcmp(str, "Electric Surge") == 0) return ANIMATION_ELECTRIC_SURGE;
-    if (strcmp(str, "Flip-Disc Display") == 0) return ANIMATION_FLIP_DISC_DISPLAY;
-    if (strcmp(str, "Interference Pattern") == 0) return ANIMATION_INTERFERENCE_PATTERN;
-    if (strcmp(str, "Randomize All") == 0) return ANIMATION_RANDOMIZE_ALL;
+    std::string name(str);
+    if (name == "Intruder Alert") return ANIMATION_INTRUDER_ALERT;
+    if (name == "Time Travel") return ANIMATION_TIME_TRAVEL;
+    if (name == "Party Mode") return ANIMATION_PARTY_MODE;
+    if (name == "Countdown") return ANIMATION_COUNTDOWN;
+    if (name == "Knight Rider") return ANIMATION_KNIGHT_RIDER;
+    if (name == "Lightning") return ANIMATION_LIGHTNING;
+    if (name == "Loading") return ANIMATION_LOADING;
+    if (name == "Error") return ANIMATION_ERROR;
+    if (name == "Flux Capacitor Charge-Up") return ANIMATION_FLUX_CHARGE;
+    if (name == "Tachyons Detected") return ANIMATION_TACHYONS;
+    if (name == "Data Stream") return ANIMATION_DATA_STREAM;
+    if (name == "Wormhole Collapse") return ANIMATION_WORMHOLE_COLLAPSE;
+    if (name == "All Displays Random") return ANIMATION_ALL_DISPLAYS_RANDOM;
+    if (name == "Time Travel Tunnel") return ANIMATION_TIME_TRAVEL_TUNNEL;
+    if (name == "Fire Trails") return ANIMATION_FIRE_TRAILS;
+    if (name == "Sparkle Reveal") return ANIMATION_SPARKLE_REVEAL;
+    if (name == "Sequential Flicker") return ANIMATION_SEQUENTIAL_FLICKER;
+    if (name == "Random Flicker") return ANIMATION_RANDOM_FLICKER;
+    if (name == "Counting Up") return ANIMATION_COUNTING_UP;
+    if (name == "Wave Flicker") return ANIMATION_WAVE_FLICKER;
+    if (name == "Tornado Flicker") return ANIMATION_TORNADO_FLICKER;
+    if (name == "Capacitor Charge-Up") return ANIMATION_CAPACITOR_CHARGE_UP;
+    if (name == "Digital Rain") return ANIMATION_DIGITAL_RAIN;
+    if (name == "Waveform Collapse") return ANIMATION_WAVEFORM_COLLAPSE;
+    if (name == "Timeline Skim") return ANIMATION_TIMELINE_SKIM;
+    if (name == "Temporal Desync") return ANIMATION_TEMPORAL_DESYNC;
+    if (name == "Glitchy Jump-Cut") return ANIMATION_GLITCHY_JUMP_CUT;
+    if (name == "Plasma Warm-Up") return ANIMATION_PLASMA_WARM_UP;
+    if (name == "Time Warp Streaks") return ANIMATION_TIME_WARP_STREAKS;
+    if (name == "Character Scanline") return ANIMATION_CHARACTER_SCANLINE;
+    if (name == "Focus In") return ANIMATION_FOCUS_IN;
+    if (name == "Code Breaker") return ANIMATION_CODE_BREAKER;
+    if (name == "Temporal Paradox") return ANIMATION_TEMPORAL_PARADOX;
+    if (name == "Digit Cascade") return ANIMATION_DIGIT_CASCADE;
+    if (name == "Electric Surge") return ANIMATION_ELECTRIC_SURGE;
+    if (name == "Flip-Disc Display") return ANIMATION_FLIP_DISC_DISPLAY;
+    if (name == "Interference Pattern") return ANIMATION_INTERFERENCE_PATTERN;
+    if (name == "Randomize All") return ANIMATION_RANDOMIZE_ALL;
 
     // Default fallback if the name is not recognized
     return ANIMATION_RANDOMIZE_ALL;
@@ -977,26 +967,34 @@ void generateLightning(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, solid_block);
     s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, solid_block);
 
-    // --- FIX: Replace infinite loops with finite, 10-second duration commands ---
-    // This ensures the animation completes cleanly without hitting the global timeout.
-
     // --- Track 0: Main Lightning Bolts ---
-    // Use a PULSE command for the entire duration to create the main flashing effect.
-    // The pulse interval is set to a random value to feel more natural.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 10000, 500 + random(1001));
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 1, -1, 10000, 500 + random(1001));
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 2, -1, 10000, 500 + random(1001));
+    // Loop for ~10 seconds. Each loop is a main strike and a variable pause.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    // Big, intense flash across all rows simultaneously.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 100, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 100, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 2, -1, 100, 0);
+    // Wait for a random duration before the next big strike.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500 + random(0, 1000), 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 
     // --- Track 1: Background Sheet Lightning ---
-    // Use a single RANDOM_FLICKER_TEXT command for the entire 10-second duration.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50, " ");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50, " ");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50, " ");
-
+    // Loop for ~10 seconds with rapid, faint flickers.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 40, 0);
+    // Flicker a random row for a short duration.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), -1, 100, 50, " ");
+    // Wait for a random, short duration.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 50 + random(0, 200), 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
 
     // --- Track 2: Crackling Energy ---
-    // Use another RANDOM_FLICKER_TEXT command for the crackling effect.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, -1, -1, 10000, 50, "|||");
+    // Loop for ~10 seconds with localized, sharp flickers.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 50, 0);
+    // Flicker a random segment on a random row.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), random(0, 4), 50, 50, "|||");
+    // Wait for a random, very short duration.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(0, 100), 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
 /**
@@ -1031,10 +1029,13 @@ void generateScanner(SequencerTrack tracks[3]) {
  */
 void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s = 0;
-    // Simulate traveling through a time vortex for 10 seconds
-    s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 0, -1, 10000, 50, time_strings[0]);
-    s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 10000, 50, time_strings[1]);
-    s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 2, -1, 10000, 50, time_strings[2]);
+    // Simulate traveling through a time vortex
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 0, -1, 50, 0, time_strings[0]);
+    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 1, -1, 50, 0, time_strings[1]);
+    s = add_step(tracks[0], s, SEQ_CMD_SCROLL_IN, 2, -1, 50, 0, time_strings[2]);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
 /**
@@ -1043,10 +1044,13 @@ void generateTimeTravelTunnel(SequencerTrack tracks[3], const char time_strings[
  */
 void generateFluxCapacitorOverload(SequencerTrack tracks[3]) {
     int s = 0;
-    // Show the Flux Capacitor pulsing with energy for 10 seconds
-    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 0, -1, 10000, 250);
-    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 1, -1, 10000, 250);
-    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 2, -1, 10000, 250);
+    // Show the Flux Capacitor pulsing with energy
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 0, -1, 500, 250);
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 1, -1, 500, 250);
+    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 2, -1, 500, 250);
+    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 }
 
 /**
@@ -1060,8 +1064,6 @@ void generateFireTrails(SequencerTrack tracks[3], const char time_strings[3][17]
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 0, -1, 100, 0, time_strings[0]);
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 1, -1, 100, 0, time_strings[1]);
     s = add_step(tracks[0], s, SEQ_CMD_WIPE, 2, -1, 100, 0, time_strings[2]);
-    // The wipe takes about 1.3s (13 chars * 100ms). Wait for the remaining time.
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 8700, 0);
 }
 
 /**
@@ -1108,139 +1110,135 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
-    // --- FIX: Use a static buffer for generation to prevent stack overflow ---
-    // The generation functions populate this temporary buffer, which is then copied
-    // to the main sequencer tracks. This avoids large stack allocations in the caller.
-    static SequencerTrack temp_tracks[3];
-
     if (animType == ANIMATION_RANDOMIZE_ALL) {
-        do {
-            static const AnimationType randomizable_animations[] = {
-                ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER, ANIMATION_COUNTING_UP,
-                ANIMATION_WAVE_FLICKER, ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP,
-                ANIMATION_DIGITAL_RAIN, ANIMATION_WAVEFORM_COLLAPSE, ANIMATION_TIMELINE_SKIM,
-                ANIMATION_TEMPORAL_DESYNC, ANIMATION_GLITCHY_JUMP_CUT, ANIMATION_PLASMA_WARM_UP,
-                ANIMATION_TIME_WARP_STREAKS, ANIMATION_CHARACTER_SCANLINE, ANIMATION_FOCUS_IN,
-                ANIMATION_CODE_BREAKER, ANIMATION_TEMPORAL_PARADOX, ANIMATION_DIGIT_CASCADE,
-                ANIMATION_ELECTRIC_SURGE, ANIMATION_FLIP_DISC_DISPLAY, ANIMATION_INTERFERENCE_PATTERN,
+        // --- FIX: Eliminate recursive call and prevent stack overflow ---
+        // Instead of calling itself again, this loop simply re-selects a new
+        // concrete animation type until it's no longer RANDOMIZE_ALL. This avoids
+        // deepening the call stack.
+        while (animType == ANIMATION_RANDOMIZE_ALL) {
+            static const AnimationType cpp_animations[] = {
                 ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
                 ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD, ANIMATION_FIRE_TRAILS,
-                ANIMATION_SPARKLE_REVEAL, ANIMATION_COUNTDOWN, ANIMATION_SYSTEM_ERROR,
-                ANIMATION_INTRUDER_ALERT, ANIMATION_TIME_TRAVEL, ANIMATION_PARTY_MODE,
-                ANIMATION_KNIGHT_RIDER, ANIMATION_LOADING, ANIMATION_ERROR,
-                ANIMATION_FLUX_CHARGE, ANIMATION_TACHYONS, ANIMATION_DATA_STREAM,
-                ANIMATION_WORMHOLE_COLLAPSE
+                ANIMATION_SPARKLE_REVEAL, ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
+                ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_WAVEFORM_COLLAPSE,
+                ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_GLITCHY_JUMP_CUT,
+                ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS, ANIMATION_CHARACTER_SCANLINE,
+                ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER, ANIMATION_TEMPORAL_PARADOX,
+                ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE, ANIMATION_FLIP_DISC_DISPLAY,
+                ANIMATION_INTERFERENCE_PATTERN
             };
-            int num_random_animations = sizeof(randomizable_animations) / sizeof(randomizable_animations[0]);
-            animType = randomizable_animations[random(num_random_animations)];
-        } while (animType == ANIMATION_RANDOMIZE_ALL);
-        Log_printf(LOG_LEVEL_INFO, "RANDOMIZE_ALL resulted in: %s", animationTypeToString(animType));
+            int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
+            animType = cpp_animations[random(0, num_cpp_animations)];
+        }
+        Log_printf(LOG_LEVEL_INFO, "RANDOMIZE_ALL selected: %s", animationTypeToString(animType));
     }
 
     char time_strings[3][17];
     getFormattedTimeStrings(time_strings[0], time_strings[1], time_strings[2]);
 
     for (int i = 0; i < 3; ++i) {
-        temp_tracks[i].reset();
+        tracks[i].reset();
     }
 
     switch (animType) {
         // --- JSON-based Named Sequences ---
         case ANIMATION_INTRUDER_ALERT:
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SET_TEXT", "stringParam":"INTRUDER ALERT"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":50, "intParam2":666}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LOCKDOWN"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SET_TEXT", "stringParam":"INTRUDER ALERT"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":50, "intParam2":666}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LOCKDOWN"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}])");
             break;
         case ANIMATION_TIME_TRAVEL:
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":10000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 3000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":3000}, {"command": "SET_TEXT", "stringParam": "88 MPH"},{"command":"WAIT", "intParam":4000}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 10000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":10000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 3000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":3000}, {"command": "SET_TEXT", "stringParam": "88 MPH"},{"command":"WAIT", "intParam":4000}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 10000}]}])");
             break;
         case ANIMATION_PARTY_MODE:
-            // --- FIX: Add explicit loop count to prevent infinite loops and ensure termination ---
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow":"TOP", "commands":[{"command":"PULSE", "stringParam":"PARTY TIME!", "intParam":10000, "intParam2":1000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":10000, "intParam2":100, "stringParam": "DANCE"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"PULSE", "stringParam":"LETS DANCE!", "intParam":10000, "intParam2":1000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SET_TEXT", "stringParam":"PARTY TIME!"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":10000, "intParam2":100, "stringParam": "DANCE"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LETS DANCE!"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}])");
             break;
         case ANIMATION_KNIGHT_RIDER:
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}])");
             break;
         case ANIMATION_LOADING:
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3300}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":6600}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":3400}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3300}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":6600}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":3400}]}])");
             break;
         case ANIMATION_ERROR:
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow":0, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":200}, {"command":"SET_TEXT", "stringParam":"ERROR"}]}, {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION"}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":200}, {"command":"SET_TEXT", "stringParam":"ERROR"}]}, {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION"}]}])");
             break;
         case ANIMATION_FLUX_CHARGE:
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":5000}]}, {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":5000}]}, {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}])");
             break;
         case ANIMATION_TACHYONS:
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS ON", "intParam":150, "intParam2":250}, {"command":"SOUND", "stringParam":"hum.mp3"},{"command":"WAIT", "intParam":3000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS ON", "intParam":150, "intParam2":250}, {"command":"SOUND", "stringParam":"hum.mp3"},{"command":"WAIT", "intParam":3000}]}])");
             break;
         case ANIMATION_DATA_STREAM:
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}])");
             break;
         case ANIMATION_WORMHOLE_COLLAPSE:
-            parseSequenceFromJson(temp_tracks, R"([{"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "arrival_chime.mp3"}, {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "FADE_OUT", "intParam": 2000}]}, {"targetRow": 1, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 500}, {"command": "FADE_OUT", "intParam": 3000}]}, {"targetRow": 2, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 1000}, {"command": "FADE_OUT", "intParam": 3000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "arrival_chime.mp3"}, {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "FADE_OUT", "intParam": 2000}]}, {"targetRow": 1, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 500}, {"command": "FADE_OUT", "intParam": 3000}]}, {"targetRow": 2, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 1000}, {"command": "FADE_OUT", "intParam": 3000}]}])");
             break;
 
         // Legacy C++ Generated Animations (for Randomize All)
-        case ANIMATION_SEQUENTIAL_FLICKER:      generateSequentialFlicker(temp_tracks, time_strings); break;
-        case ANIMATION_RANDOM_FLICKER:          generateRandomFlicker(temp_tracks); break;
-        case ANIMATION_COUNTING_UP:             generateCountingUp(temp_tracks); break;
-        case ANIMATION_WAVE_FLICKER:            generateWaveFlicker(temp_tracks); break;
-        case ANIMATION_TORNADO_FLICKER:         generateTornadoFlicker(temp_tracks); break;
-        case ANIMATION_CAPACITOR_CHARGE_UP:     generateCapacitorChargeUp(temp_tracks); break;
-        case ANIMATION_DIGITAL_RAIN:            generateDigitalRain(temp_tracks); break;
-        case ANIMATION_WAVEFORM_COLLAPSE:       generateWaveformCollapse(temp_tracks); break;
-        case ANIMATION_TIMELINE_SKIM:           generateTimelineSkim(temp_tracks, time_strings); break;
-        case ANIMATION_TEMPORAL_DESYNC:         generateTemporalDesync(temp_tracks); break;
-        case ANIMATION_GLITCHY_JUMP_CUT:        generateGlitchyJumpCut(temp_tracks); break;
-        case ANIMATION_PLASMA_WARM_UP:          generatePlasmaWarmup(temp_tracks); break;
-        case ANIMATION_TIME_WARP_STREAKS:       generateTimeWarpStreaks(temp_tracks, time_strings); break;
-        case ANIMATION_CHARACTER_SCANLINE:      generateCharacterScanline(temp_tracks, time_strings); break;
-        case ANIMATION_FOCUS_IN:                generateFocusIn(temp_tracks, time_strings); break;
-        case ANIMATION_CODE_BREAKER:            generateCodeBreaker(temp_tracks, time_strings); break;
-        case ANIMATION_TEMPORAL_PARADOX:        generateTemporalParadox(temp_tracks, time_strings); break;
-        case ANIMATION_DIGIT_CASCADE:           generateDigitCascade(temp_tracks, time_strings); break;
-        case ANIMATION_ELECTRIC_SURGE:          generateElectricSurge(temp_tracks, time_strings); break;
-        case ANIMATION_FLIP_DISC_DISPLAY:       generateFlipDisc(temp_tracks, time_strings); break;
-        case ANIMATION_INTERFERENCE_PATTERN:    generateInterferencePattern(temp_tracks, time_strings); break;
+        case ANIMATION_SEQUENTIAL_FLICKER:      generateSequentialFlicker(tracks, time_strings); break;
+        case ANIMATION_RANDOM_FLICKER:          generateRandomFlicker(tracks); break;
+        case ANIMATION_COUNTING_UP:             generateCountingUp(tracks); break;
+        case ANIMATION_WAVE_FLICKER:            generateWaveFlicker(tracks); break;
+        case ANIMATION_TORNADO_FLICKER:         generateTornadoFlicker(tracks); break;
+        case ANIMATION_CAPACITOR_CHARGE_UP:     generateCapacitorChargeUp(tracks); break;
+        case ANIMATION_DIGITAL_RAIN:            generateDigitalRain(tracks); break;
+        case ANIMATION_WAVEFORM_COLLAPSE:       generateWaveformCollapse(tracks); break;
+        case ANIMATION_TIMELINE_SKIM:           generateTimelineSkim(tracks, time_strings); break;
+        case ANIMATION_TEMPORAL_DESYNC:         generateTemporalDesync(tracks); break;
+        case ANIMATION_GLITCHY_JUMP_CUT:        generateGlitchyJumpCut(tracks); break;
+        case ANIMATION_PLASMA_WARM_UP:          generatePlasmaWarmup(tracks); break;
+        case ANIMATION_TIME_WARP_STREAKS:       generateTimeWarpStreaks(tracks, time_strings); break;
+        case ANIMATION_CHARACTER_SCANLINE:      generateCharacterScanline(tracks, time_strings); break;
+        case ANIMATION_FOCUS_IN:                generateFocusIn(tracks, time_strings); break;
+        case ANIMATION_CODE_BREAKER:            generateCodeBreaker(tracks, time_strings); break;
+        case ANIMATION_TEMPORAL_PARADOX:        generateTemporalParadox(tracks, time_strings); break;
+        case ANIMATION_DIGIT_CASCADE:           generateDigitCascade(tracks, time_strings); break;
+        case ANIMATION_ELECTRIC_SURGE:          generateElectricSurge(tracks, time_strings); break;
+        case ANIMATION_FLIP_DISC_DISPLAY:       generateFlipDisc(tracks, time_strings); break;
+        case ANIMATION_INTERFERENCE_PATTERN:    generateInterferencePattern(tracks, time_strings); break;
 
         // Modern C++ Generated Sequencer Animations
-        case ANIMATION_ALL_DISPLAYS_RANDOM:     generateAllDisplaysRandom(temp_tracks, time_strings); break;
-        case ANIMATION_LIGHTNING:               generateLightning(temp_tracks); break;
-        case ANIMATION_SCANNER:                 generateScanner(temp_tracks); break;
-        case ANIMATION_TIME_TRAVEL_TUNNEL:      generateTimeTravelTunnel(temp_tracks, time_strings); break;
-        case ANIMATION_FLUX_CAPACITOR_OVERLOAD: generateFluxCapacitorOverload(temp_tracks); break;
-        case ANIMATION_FIRE_TRAILS:             generateFireTrails(temp_tracks, time_strings); break;
-        case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(temp_tracks, time_strings); break;
-        case ANIMATION_COUNTDOWN:               generateCountdown(temp_tracks); break;
-        case ANIMATION_SYSTEM_ERROR:            generateSystemError(temp_tracks); break;
-        case ANIMATION_TIME_CIRCUITS_LOCK_IN:   generateTimeCircuitsLockIn(temp_tracks, time_strings); break;
+        case ANIMATION_ALL_DISPLAYS_RANDOM:     generateAllDisplaysRandom(tracks, time_strings); break;
+        case ANIMATION_LIGHTNING:               generateLightning(tracks); break;
+        case ANIMATION_SCANNER:                 generateScanner(tracks); break;
+        case ANIMATION_TIME_TRAVEL_TUNNEL:      generateTimeTravelTunnel(tracks, time_strings); break;
+        case ANIMATION_FLUX_CAPACITOR_OVERLOAD: generateFluxCapacitorOverload(tracks); break;
+        case ANIMATION_FIRE_TRAILS:             generateFireTrails(tracks, time_strings); break;
+        case ANIMATION_SPARKLE_REVEAL:          generateSparkleReveal(tracks, time_strings); break;
+        case ANIMATION_COUNTDOWN:               generateCountdown(tracks); break;
+        case ANIMATION_SYSTEM_ERROR:            generateSystemError(tracks); break;
+        case ANIMATION_TIME_CIRCUITS_LOCK_IN:   generateTimeCircuitsLockIn(tracks, time_strings); break;
 
         // Default case
         default:
             // Default to a visually interesting and non-destructive animation.
-            generateAllDisplaysRandom(temp_tracks, time_strings);
+            generateAllDisplaysRandom(tracks, time_strings);
             break;
     }
 
     // --- Add a final step to the main track to restore all displays ---
     int end_idx = 0;
-    while(end_idx < MAX_SEQUENCE_STEPS && temp_tracks[0].steps[end_idx].command != SEQ_CMD_NONE) {
+    while(end_idx < MAX_SEQUENCE_STEPS && tracks[0].steps[end_idx].command != SEQ_CMD_NONE) {
         end_idx++;
     }
     if (end_idx < MAX_SEQUENCE_STEPS - 2) {
-        end_idx = add_step(temp_tracks[0], end_idx, SEQ_CMD_WAIT, 0, -1, 1000, 0);
-        end_idx = add_step(temp_tracks[0], end_idx, SEQ_CMD_RESTORE_ALL_ROWS, 0, -1, 0, 0);
+        end_idx = add_step(tracks[0], end_idx, SEQ_CMD_WAIT, 0, -1, 1000, 0);
+        end_idx = add_step(tracks[0], end_idx, SEQ_CMD_RESTORE_ALL_ROWS, 0, -1, 0, 0);
     }
 
     // --- Ensure all tracks have a proper END command ---
     for (int i = 0; i < 3; i++) {
         int track_end_idx = 0;
-        while(track_end_idx < MAX_SEQUENCE_STEPS && temp_tracks[i].steps[track_end_idx].command != SEQ_CMD_NONE) {
+        while(track_end_idx < MAX_SEQUENCE_STEPS && tracks[i].steps[track_end_idx].command != SEQ_CMD_NONE) {
             track_end_idx++;
         }
-        add_step(temp_tracks[i], track_end_idx, SEQ_CMD_END, i, 0, 0, 0);
+        add_step(tracks[i], track_end_idx, SEQ_CMD_END, i, 0, 0, 0);
     }
 
-    // --- Copy the generated sequence to the main tracks array ---
     for (int i = 0; i < 3; ++i) {
-        tracks[i] = temp_tracks[i];
+        if (tracks[i].steps[0].command != SEQ_CMD_NONE) {
+            tracks[i].isActive = true;
+            tracks[i].trackStartTime = millis();
+            tracks[i].stepStartTime = millis();
+        }
     }
 }
