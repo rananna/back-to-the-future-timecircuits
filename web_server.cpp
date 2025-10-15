@@ -437,6 +437,10 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                  Log_printf(LOG_LEVEL_DEBUG, "API Test URL: %s", url.c_str());
 
                 ApiTestParams* params = new ApiTestParams{url, authKey, authValue, client->id(), "apiResult", String(0)};
+                if (params == nullptr) {
+                    Log_printf(LOG_LEVEL_ERROR, "HEAP: Failed to allocate memory for ApiTestParams. Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
+                    return;
+                }
 
                 BaseType_t taskCreated = xTaskCreate(makeApiRequestTask, "apiTestTask", 8192, params, 1, NULL);
                 if (taskCreated != pdPASS) {
@@ -992,6 +996,11 @@ void setupWebRoutes() {
         // We pass an empty city name and set forceGeocode to false, but add lat/lon.
         // The fetchWeatherData function will be modified to use these coordinates directly.
         params = new WeatherTaskParams{"", false, lat, lon};
+        if (params == nullptr) {
+            Log_printf(LOG_LEVEL_ERROR, "HEAP: Failed to allocate memory for WeatherTaskParams. Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
+            request->send(500, "text/plain", "Out of memory.");
+            return;
+        }
         Log_printf(LOG_LEVEL_INFO, "Weather refresh triggered by coordinates. Lat: %f, Lon: %f", lat, lon);
 
         if (xTaskCreate(forceFetchWeatherDataTask, "forceFetchWeatherDataTask", 8192, params, 1, NULL) == pdPASS) {

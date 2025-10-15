@@ -1,19 +1,30 @@
 blueprint:
   name: "BTTF Time Circuits: Countdown Timer"
   description: >-
-    A blueprint to run a countdown on the Time Circuits, with optional looping end text, sound, and advanced effects.
+    # BTTF Time Circuits: Countdown Timer
+
+    This blueprint runs a countdown on the Time Circuits display, with optional text, sound, and visual effects at the end.
+
+    **Key Features:**
+    - Countdown from any number on any display row (or all of them).
+    - Customizable delay between numbers.
+    - Display custom text when the countdown finishes.
+    - Choose from a wide variety of visual effects for the end text.
+    - Play a built-in sound effect or stream audio from Home Assistant when the countdown completes.
+    - Repeat the final visual and sound effect multiple times.
+    - Automatically restore the display to its previous state after the effect is complete.
   domain: script
   input:
     device:
       name: Time Circuits Device
-      description: The BTTF Time Circuits device to control.
+      description: The BTTF Time Circuits device to control. This is the only required input.
       selector:
         device:
           integration: bttf_time_circuits
 
     target_row:
       name: Target Row
-      description: "The display row(s) to show the countdown on."
+      description: "The display row(s) to show the countdown on. 'All Rows' will run the countdown on all three displays simultaneously."
       default: "TOP"
       selector:
         select:
@@ -25,53 +36,53 @@ blueprint:
 
     start_number:
       name: "Start Number"
-      description: "The number to start counting down from."
+      description: "The number to start counting down from. The countdown will proceed from this number down to zero."
       default: 10
       selector:
         number: { min: 1, max: 9999 }
     countdown_delay:
       name: "Countdown Delay (ms)"
-      description: "The delay between each number change. 1000ms = 1 second."
+      description: "The delay in milliseconds between each number change. 1000ms = 1 second."
       default: 1000
       selector:
         number: { min: 50, max: 5000, unit_of_measurement: "ms" }
 
     end_text:
       name: "End Text"
-      description: "Optional text to display when the countdown finishes."
+      description: "Optional text to display when the countdown finishes. If left blank, no text effect will occur."
       default: "LIFTOFF"
       selector:
         text: {}
     end_text_effect:
       name: "End Text Visual Effect"
-      description: "The visual effect to use for the end text."
+      description: "The visual effect to use for the end text. This only applies if 'End Text' is provided."
       default: "SET_TEXT"
       selector:
         select:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
             - { label: "Marquee (Scrolling Text)", value: "MARQUEE" }
-            - { label: "Pulse (2-second cycle)", value: "PULSE" }
-            - { label: "Flash", value: "FLASH" }
-            - { label: "Typewriter", value: "TYPEWRITER" }
-            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
-            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+            - { label: "Pulse (2-second on/off cycle)", value: "PULSE" }
+            - { label: "Flash (Rapid blinking)", value: "FLASH" }
+            - { label: "Typewriter (Reveals text character by character)", value: "TYPEWRITER" }
+            - { label: "Scramble Text (Reveals text from random characters)", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker (Flickers text with random characters)", value: "RANDOM_FLICKER_TEXT" }
     end_text_duration:
       name: "End Text Display Duration (s)"
-      description: "Total duration for the 'Set Text', 'Pulse', 'Flash', 'Typewriter', and 'Scramble' end effects."
+      description: "Total duration in seconds for the 'Set Text', 'Pulse', 'Flash', 'Typewriter', and 'Scramble' end effects. This does not apply to the 'Marquee' effect."
       default: 5
       selector:
         number: { min: 1, max: 60, unit_of_measurement: "s" }
     end_text_marquee_speed:
       name: "End Text Marquee Speed (ms)"
-      description: "The scroll speed for the marquee effect. Lower is faster."
+      description: "The scroll speed for the Marquee effect. Lower is faster. This only applies if 'Marquee' is selected as the end text effect."
       default: 100
       selector:
         number: { min: 20, max: 1000, unit_of_measurement: "ms" }
 
     audio_source:
       name: "End Audio Source"
-      description: "Choose whether to play a sound when the countdown finishes."
+      description: "Choose whether to play a sound when the countdown finishes. 'Built-in' sounds play immediately with the end effect. 'Streamed' audio plays *after* the countdown finishes."
       default: "none"
       selector:
         select:
@@ -81,7 +92,7 @@ blueprint:
             - { label: "Stream from Home Assistant", value: "media" }
     sound_effect:
       name: "End Sound Effect"
-      description: "A built-in sound effect to play from the device."
+      description: "A built-in sound effect to play from the device's internal storage. Only used if 'Built-in Sound Effect' is selected."
       default: "arrival_chime.mp3"
       selector:
         select:
@@ -99,7 +110,7 @@ blueprint:
             - { label: "Time Travel", value: "time_travel.mp3" }
     media_file:
       name: "End Media File"
-      description: "Audio file to stream from the Home Assistant media library."
+      description: "Audio file to stream from the Home Assistant media library. Only used if 'Stream from Home Assistant' is selected."
       default: ""
       selector:
         media: {}
@@ -112,13 +123,13 @@ blueprint:
 
     repeat_end_effect:
       name: "Repeat End Effect Count"
-      description: "Number of times to repeat the end effect. Streamed audio will not repeat."
+      description: "Number of times to repeat the end visual effect and built-in sound. Streamed audio from Home Assistant will not repeat."
       default: 1
       selector:
         number: { min: 1, max: 10, mode: box }
     restore_row:
       name: "Restore Row After Effect"
-      description: "If enabled, the row will be restored to its previous state after all effects complete."
+      description: "If enabled, the display row will be restored to its previous state (e.g., showing the clock) after all effects complete."
       default: true
       selector:
         boolean: {}
