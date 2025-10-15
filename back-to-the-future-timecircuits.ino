@@ -38,6 +38,7 @@
 #include <LCBUrl.h>
 #include <ArduinoOTA.h>
 #include "esp_task_wdt.h"
+#include "esp_heap_caps.h"
 
 #include "MqttManager.h"
 #include "HardwareControl.h"
@@ -1041,6 +1042,24 @@ void setup() {
     }
 
     xSerialMutex = xSemaphoreCreateMutex(); // For thread-safe logging
+    
+    // Enable Heap Corruption Detection at the most comprehensive level.
+    // This is a powerful debugging tool for hard-to-find memory issues.
+    heap_caps_check_integrity_all(true);
+
+    // --- START: NEW - Failed Allocation Callback ---
+    // Register a callback function that will be executed if malloc/new ever fails.
+    // This gives us precise information about what caused the out-of-memory error.
+    heap_caps_register_failed_alloc_callback([](size_t requested_size, uint32_t caps, const char* func_name) {
+        // NOTE: This function MUST NOT allocate any memory itself!
+        // We use printf because it's safer in this context than our Log_printf wrapper.
+        printf("!!! HEAP ALLOCATION FAILED !!!\n");
+        printf("  Function: %s\n", func_name);
+        printf("  Requested Size: %u bytes\n", requested_size);
+        printf("  Current Heap State: Free: %u, Max Alloc: %u\n", ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+    });
+    // --- END: NEW ---
+
     Log_printf(LOG_LEVEL_INFO, "--- BOOTING ---");
     Log_printf(LOG_LEVEL_INFO, "Device ID: %s", MQTT_UNIQUE_ID);
     Log_printf(LOG_LEVEL_INFO, "Initializing Serial... OK");
@@ -1438,6 +1457,15 @@ void loop() {
             }
             // --- END: MODIFICATION ---
 
+            // --- START: NEW - Periodic Heap Health Logging ---
+            static unsigned long lastMemLogTime = 0;
+            const unsigned long memLogInterval = 10000; // Log every 10 seconds
+            if (millis() - lastMemLogTime > memLogInterval) {
+                Log_printf(LOG_LEVEL_DEBUG, "HEAP_HEALTH: Free: %u, Max Alloc: %u", ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+                lastMemLogTime = millis();
+            }
+            // --- END: NEW ---
+
             static unsigned long lastNtpUpdate = 0;
             if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
                 if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
@@ -1630,14 +1658,15 @@ void handlePresetCycling() {
     if (millis() - lastPresetCycleTime > (unsigned long)currentSettings.presetCycleInterval * 60000) {
         lastPresetCycleTime = millis(); // Reset the timer
 
-        Log_printf(LOG_LEVEL_INFO, "Preset cycle triggered.");
+        Log_printf(LOG_LEVEL_INFO, "DEBUG_PRESET: Preset cycle triggered.");
 
         // Get the combined list of movie and custom presets
         std::vector<Preset> allPresets = getFullPresetList();
         if (allPresets.empty()) {
-            Log_printf(LOG_LEVEL_WARN, "No presets available to cycle.");
+            Log_printf(LOG_LEVEL_WARN, "DEBUG_PRESET: No presets available to cycle.");
             return; // No presets to cycle
         }
+        Log_printf(LOG_LEVEL_INFO, "DEBUG_PRESET: Found %d total presets.", allPresets.size());
 
         // Find the index of the current "Last Time Departed" in the list
         int currentIndex = -1;
@@ -1647,13 +1676,15 @@ void handlePresetCycling() {
                 break;
             }
         }
+        Log_printf(LOG_LEVEL_INFO, "DEBUG_PRESET: Current preset index: %d", currentIndex);
 
         // Determine the index of the next preset, wrapping around if needed
         // If the current preset isn't found, start from the first one.
         int nextIndex = (currentIndex == -1) ? 0 : (currentIndex + 1) % allPresets.size();
+        Log_printf(LOG_LEVEL_INFO, "DEBUG_PRESET: Next preset index: %d", nextIndex);
 
         const Preset& nextPreset = allPresets[nextIndex];
-        Log_printf(LOG_LEVEL_INFO, "Cycling to next preset: %s", nextPreset.name.c_str());
+        Log_printf(LOG_LEVEL_INFO, "DEBUG_PRESET: Cycling to next preset: %s", nextPreset.name.c_str());
 
         // Update the global settings with the new "Last Time Departed"
         currentSettings.lastTimeDepartedYear = nextPreset.year;
@@ -1666,16 +1697,14 @@ void handlePresetCycling() {
         // No need to call saveSettings() here, as this isn't a persistent change.
         broadcastPresetUpdate(nextPreset.name, nextPreset.year, nextPreset.month, nextPreset.day, nextPreset.hour, nextPreset.minute);
 
-        // --- START: MODIFICATION - Trigger animation on preset cycle ---
-
-        // --- FIX: Stop any currently playing audio before starting the new sequence ---
-        // This is the core fix for the race condition. It ensures that a lingering
-        // sound from a previous cycle doesn't prevent the new animation from starting.
-
-        if (currentSettings.timeTravelSoundToggle) {
-            playSound("electric_sparks.mp3", false, -1);
-        }
+        // --- START: MODIFICATION - Remove sound from preset cycling ---
+        // The sound is now triggered by the animation itself, which is more reliable
+        // and prevents heap corruption issues caused by starting an audio stream
+        // and an animation at the same time.
+        // playSound("/electric_sparks.mp3", false, -1);
+        Log_printf(LOG_LEVEL_INFO, "DEBUG_PRESET: About to call triggerAnimation with sequence: %s", animationTypeToString(currentSettings.animationSequence));
         triggerAnimation(currentSettings.animationSequence);
+        Log_printf(LOG_LEVEL_INFO, "DEBUG_PRESET: Returned from triggerAnimation.");
         // --- END: MODIFICATION ---
     }
 }

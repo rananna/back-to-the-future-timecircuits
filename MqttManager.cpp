@@ -1686,7 +1686,7 @@ void handleSequencerCommand(const std::string& payload) {
         }
 
         // 1. Generate: Parse the validated and extracted JSON payload.
-        parseSequenceFromJson(tracks, tracks_payload);
+        parseSequenceFromJson(tracks, tracks_payload.c_str());
         Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Parsing of JSON payload complete.");
 
         // --- FIX: Reordered logic to prevent race condition ---

@@ -1575,14 +1575,22 @@ void stopAllSequences() {
     Log_printf(LOG_LEVEL_INFO, "SEQ: Stopping all active sequences.");
     for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
         if (sequencerTracks[i].isActive) {
-            // --- FIX: The clearSequencerTrack function was removed. ---
-            // The SequencerTrack struct now has a stack-safe `reset()` method which
-            // should be used instead.
             sequencerTracks[i].reset();
             Log_printf(LOG_LEVEL_INFO, "SEQ: Forcibly stopped track %d.", i);
         }
     }
 }
+
+
+/**
+ * @brief Safely clears a sequencer track without allocating a temporary object on the stack.
+ * @details This function is a critical fix for a stack overflow bug. The `SequencerTrack`
+ * struct is too large to be created as a temporary object on the stack. Instead of doing
+ * `track = SequencerTrack()`, this function manually resets each member of the struct
+ * to its default value, which has a negligible impact on the stack. It uses the
+ * `clearSequenceStep` helper to safely clear the large `steps` array.
+ * @param track The SequencerTrack object to clear.
+ */
 
 void runCrossfadeTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Crossfade Fix Test ---");
@@ -1658,58 +1666,34 @@ void runSequencerTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Comprehensive Sequencer Test Started ---");
 }
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 void triggerAnimation(AnimationType animType) {
-    // --- FIX: Add a forced delay (cooldown) before starting an animation ---
-    // This gives critical background tasks (like WiFi/MQTT/mDNS) a guaranteed
-    // time slice to run before this function performs several large memory
-    // allocations. This prevents a race condition where a background task
-    // (e.g., mDNS) requests memory at the exact moment the heap is being
-    // fragmented by the animation generation, which would cause a memory
-    // allocation failure and a crash.
-    vTaskDelay(50 / portTICK_PERIOD_MS); // 50ms cooldown
+    // --- FIX: Add a small delay to prevent race conditions ---
+    // This gives critical background tasks (like mDNS) a chance to complete
+    // their operations before we potentially fragment the heap with new allocations
+    // for the animation sequence, which was a source of crashes.
+    vTaskDelay(pdMS_TO_TICKS(10));
 
-    // This function is a full takeover. It replaces all running tracks
-    // with the new animation.
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
-
-    // --- FIX: Set the transition flag to prevent premature cleanup ---
     isTransitioningAnimation = true;
 
-    // --- FIX: Save the current display mode so it can be restored after the animation. ---
     preAnimationDisplayMode = currentSettings.displayMode;
-    currentSettings.displayMode = -1; // Pause the main display loop
-
-    // --- NEW: Store the current animation type for logging completion ---
+    currentSettings.displayMode = -1;
     currentAnimationType = animType;
 
-    // --- FIX: Use a static buffer to prevent heap fragmentation from frequent allocations ---
-    // The SequencerTrack struct is very large (~5.5KB), so creating an array on the stack
-    // would cause a stack overflow. Using a static buffer allocates this memory once at
-    // compile time, avoiding both stack overflow and runtime heap fragmentation issues
-    // that were causing crashes during rapid animation changes (e.g., preset cycling).
-    static SequencerTrack temp_tracks[NUM_SEQUENCER_TRACKS];
+    // The temp_tracks buffer is now inside generateAnimationSequence to save stack space here.
+    
+    Log_printf(LOG_LEVEL_INFO, "DEBUG_MEM: Before generate. Free Heap: %u, Max Alloc: %u, Stack HWM: %u", ESP.getFreeHeap(), ESP.getMaxAllocHeap(), uxTaskGetStackHighWaterMark(NULL));
+    generateAnimationSequence(animType, sequencerTracks);
+    Log_printf(LOG_LEVEL_INFO, "DEBUG_MEM: After generate. Free Heap: %u, Max Alloc: %u, Stack HWM: %u", ESP.getFreeHeap(), ESP.getMaxAllocHeap(), uxTaskGetStackHighWaterMark(NULL));
 
-    // --- FIX: Generate the animation into the temporary buffer *before* stopping the old one. ---
-    // This prevents use-after-free issues where stopAllSequences() might clear a string
-    // that is still referenced by a track that is about to be replaced.
-
-    // Generate the requested animation into the temporary heap-allocated tracks.
-    generateAnimationSequence(animType, temp_tracks);
-
-    // Now that the new animation is prepared, stop all currently running tracks.
+    // The generation function now populates the main tracks directly.
+    // We just need to stop the old ones and activate the new ones.
     stopAllSequences();
 
-    // Copy the steps from ALL generated tracks to the main sequencer tracks.
     for (int j = 0; j < NUM_SEQUENCER_TRACKS; ++j) {
-        // We don't need to call reset() here because stopAllSequences() already did.
-        for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
-            sequencerTracks[j].steps[i] = temp_tracks[j].steps[i];
-            if (temp_tracks[j].steps[i].command == SEQ_CMD_END) {
-                break; // Stop copying after the END command for this track.
-            }
-        }
-
-        // Activate the track if it has any commands.
         if (sequencerTracks[j].steps[0].command != SEQ_CMD_NONE) {
              sequencerTracks[j].isActive = true;
              sequencerTracks[j].trackStartTime = millis();
@@ -1718,10 +1702,9 @@ void triggerAnimation(AnimationType animType) {
         }
     }
 
-    // Static memory does not need to be manually deallocated.
-
-    // --- FIX: Clear the transition flag now that the new animation is active ---
     isTransitioningAnimation = false;
+    Log_printf(LOG_LEVEL_INFO, "DEBUG_MEM: --- Exiting triggerAnimation ---");
+    Log_printf(LOG_LEVEL_INFO, "DEBUG_MEM: Free Heap: %u, Max Alloc: %u, Stack HWM: %u", ESP.getFreeHeap(), ESP.getMaxAllocHeap(), uxTaskGetStackHighWaterMark(NULL));
 }
 
 void startSequencerMarquee(SequencerTrack& track, const char* text) {
