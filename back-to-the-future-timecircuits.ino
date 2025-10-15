@@ -54,6 +54,10 @@
 
 #include <vector>
 
+// --- Statically Allocated JSON Document for Preset Parsing ---
+// This is used once at boot to parse the custom presets from NVS.
+static StaticJsonDocument<1024> presetJsonDoc;
+
 /**
  * @struct Preset
  * @brief A structure to hold the details of a single preset time.
@@ -1595,13 +1599,11 @@ void loadFullPresetList() {
     String presetsJson = preferences.getString("customPresets", "[]");
     preferences.end();
 
-    // In ArduinoJson v7, JsonDocument manages its own memory on the heap.
-    // The constructor no longer takes a size, so a default instance is created.
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, presetsJson);
+    presetJsonDoc.clear();
+    DeserializationError error = deserializeJson(presetJsonDoc, presetsJson);
 
     if (!error) {
-        JsonArray customPresets = doc.as<JsonArray>();
+        JsonArray customPresets = presetJsonDoc.as<JsonArray>();
         for (JsonObject presetObj : customPresets) {
             std::string value = presetObj["value"].as<std::string>();
             int year, month, day, hour, minute;

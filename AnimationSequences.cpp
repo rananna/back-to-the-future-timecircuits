@@ -14,6 +14,11 @@
 #include <Arduino.h>
 #include <string>
 
+// --- Statically Allocated JSON Document for Animation Parsing ---
+// This single, static JsonDocument is reused for all JSON-based animation
+// parsing to prevent heap fragmentation from repeated allocations.
+static StaticJsonDocument<4096> animationJsonDoc;
+
 /**
  * @brief Safely adds a new step to a sequencer track.
  * @details This helper function is crucial for preventing buffer overflows. It checks if the
@@ -150,7 +155,7 @@ void generateSequentialFlicker(SequencerTrack tracks[3], const char time_strings
     const int delay = 830;
 
     // --- FIX: Use a single, reusable stack-allocated buffer to prevent heap fragmentation. ---
-    char buffer[5]; // Max segment length is 4 chars + null terminator
+    static char buffer[5]; // Max segment length is 4 chars + null terminator
 
     // Helper lambda to add a segment step
     auto add_segment_step = [&](int row, int seg, int start, int len) {
@@ -231,7 +236,7 @@ void generateWaveformCollapse(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 8, 0);
 
     // --- FIX: Use a single, reusable stack-allocated buffer to prevent heap fragmentation. ---
-    char inverted_buffer[14];
+    static char inverted_buffer[14];
     for (int i = 0; i < 6; i++) {
         const char* wave_str = waves[i];
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, wave_str);
@@ -595,7 +600,7 @@ void generateCountingUp(SequencerTrack tracks[3]) {
     // The previous loop generated 80 steps, hitting the MAX_SEQUENCE_STEPS limit and causing truncation.
     // This new loop generates only 40 steps (20 iterations * 2 steps), which is safely within the limit.
     // The wait time is increased to 500ms to maintain the total 10-second duration.
-    char buffer[14];
+    static char buffer[14];
     for (int i = 0; i < 20; i++) {
         snprintf(buffer, sizeof(buffer), "%13d", i * 13842);
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, buffer);
@@ -620,7 +625,7 @@ void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][1
     const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
     const int num_months = sizeof(months) / sizeof(months[0]);
 
-    char buffer[17];
+    static char buffer[17];
     for (int i = 0; i < 10; i++) {
         snprintf(buffer, sizeof(buffer), "%s %02d %04d %02d%02d", months[random(num_months)], (int)random(1, 29), (int)random(1950, 2051), (int)random(24), (int)random(60));
         s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 80, buffer);
@@ -748,16 +753,15 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
  * @param json_string A string containing the JSON definition of the sequence.
  */
 void parseSequenceFromJson(SequencerTrack tracks[3], const char* json_string) {
-    static JsonDocument doc;
-    doc.clear();
-    DeserializationError error = deserializeJson(doc, json_string);
+    animationJsonDoc.clear();
+    DeserializationError error = deserializeJson(animationJsonDoc, json_string);
 
     if (error) {
         Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Failed to parse JSON sequence: %s", error.c_str());
         return;
     }
 
-    JsonArray track_definitions = doc.as<JsonArray>();
+    JsonArray track_definitions = animationJsonDoc.as<JsonArray>();
     if (track_definitions.isNull()) {
         Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Payload is not a JSON array of track definitions.");
         return;
