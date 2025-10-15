@@ -169,6 +169,7 @@ void updateDisplaySegment(int row, int segment, const std::string& text);
 // --- GLOBAL DATA STRUCTURES & SETTINGS ---
 
 ClockSettings currentSettings;        // Holds all user-configurable settings for the clock.
+std::vector<Preset> allPresets;       // A global vector to hold all movie and custom presets, loaded once at boot.
 MarqueeData displayPages[5];          // An array to hold the content for the 5 pages of the Data Link marquee.
 MarqueeData lastGoodDisplayPages[5];  // A backup of the last valid marquee data to prevent displaying corrupted info.
 WeatherData currentWeatherData;       // Holds the most recently fetched weather data.
@@ -1075,6 +1076,10 @@ void setup() {
     loadSettings();
     Log_printf(LOG_LEVEL_INFO, "Settings loaded... OK");
 
+    Log_printf(LOG_LEVEL_INFO, "Loading presets...");
+    loadFullPresetList();
+    Log_printf(LOG_LEVEL_INFO, "Presets loaded... OK");
+
     xDisplayDataMutex = xSemaphoreCreateMutex();
     xAnimationStartMutex = xSemaphoreCreateMutex();
     xTimeLibMutex = xSemaphoreCreateMutex();
@@ -1582,8 +1587,9 @@ void loop() {
  * custom preset to the list.
  * @return A std::vector<Preset> containing all available presets.
  */
-std::vector<Preset> getFullPresetList() {
-    std::vector<Preset> allPresets = moviePresets; // Start with the movie presets
+void loadFullPresetList() {
+    allPresets.clear();
+    allPresets = moviePresets; // Start with the movie presets
 
     preferences.begin(PREFERENCES_NAMESPACE, true); // Read-only
     String presetsJson = preferences.getString("customPresets", "[]");
@@ -1607,7 +1613,6 @@ std::vector<Preset> getFullPresetList() {
     } else {
         Log_printf(LOG_LEVEL_ERROR, "Failed to parse custom presets JSON: %s", error.c_str());
     }
-    return allPresets;
 }
 
 /**
@@ -1660,13 +1665,15 @@ void handlePresetCycling() {
 
         Log_printf(LOG_LEVEL_INFO, "DEBUG_PRESET: Preset cycle triggered.");
 
-        // Get the combined list of movie and custom presets
-        std::vector<Preset> allPresets = getFullPresetList();
+        // --- START: FIX - Use the pre-loaded global preset list ---
+        // This avoids repeated memory allocation and heap fragmentation, which was
+        // the source of the memory leak.
         if (allPresets.empty()) {
             Log_printf(LOG_LEVEL_WARN, "DEBUG_PRESET: No presets available to cycle.");
             return; // No presets to cycle
         }
         Log_printf(LOG_LEVEL_INFO, "DEBUG_PRESET: Found %d total presets.", allPresets.size());
+        // --- END: FIX ---
 
         // Find the index of the current "Last Time Departed" in the list
         int currentIndex = -1;
