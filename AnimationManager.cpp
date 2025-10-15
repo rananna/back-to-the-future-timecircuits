@@ -864,6 +864,11 @@ void handleSequencer() {
                 if (!track.stepInitialized) {
                     playSound(step.stringParam, false, -1);
                     track.stepInitialized = true;
+                    // --- FIX: Add a small delay after starting a sound ---
+                    // This gives the audio task a chance to initialize before the
+                    // sequencer immediately moves to the next, potentially CPU-intensive
+                    // animation command, preventing a race condition and heap corruption.
+                    vTaskDelay(pdMS_TO_TICKS(100)); // 100ms delay
                     advance_step = true;
                 }
                 break;
