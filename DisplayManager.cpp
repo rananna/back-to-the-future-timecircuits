@@ -713,7 +713,7 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
 void updateNormalClockDisplay(bool updateDest, bool updatePres, bool updateLast) {
 #if ENABLE_HARDWARE
   if (xSemaphoreTake(xDisplayDataMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    updateNormalClockDisplay_internal(updateDest, updatePres, last);
+    updateNormalClockDisplay_internal(updateDest, updatePres, updateLast);
     xSemaphoreGive(xDisplayDataMutex);
   }
 #endif
@@ -752,7 +752,7 @@ void handleWeatherDisplay() {
         if (!currentWeatherData.dataValid) {
             // --- START: MODIFICATION - Use char buffers for error messages ---
             static char message[128];
-            if (strlen(currentWeatherData.errorReason) > 0) {
+            if (strlen(currentWeatherData.errorReason.c_str()) > 0) {
                 snprintf(message, sizeof(message), "WEATHER ERROR: %s", currentWeatherData.errorReason);
             } else if (isFetchingWeather) {
                 strcpy(message, "FETCHING WEATHER DATA...");
@@ -801,8 +801,7 @@ void handleWeatherDisplay() {
             // --- NEW: Sanity check the data before using it ---
             if (!isWeatherDataSane(currentWeatherData)) {
                 currentWeatherData.dataValid = false;
-                strncpy(currentWeatherData.errorReason, "INVALID WEATHER DATA", sizeof(currentWeatherData.errorReason) - 1);
-                currentWeatherData.errorReason[sizeof(currentWeatherData.errorReason) - 1] = '\0';
+                currentWeatherData.errorReason = "INVALID WEATHER DATA";
                 // By setting dataValid to false, the logic will now fall through to the
                 // error handling part of the state machine on the next iteration.
             }
@@ -926,9 +925,9 @@ void handleWeatherDisplay() {
 
                                 // --- START: MODIFICATION - Use Weather Location Timezone for Sunrise/Sunset ---
                                 const char* weatherTz = nullptr;
-                                if (strlen(currentWeatherData.timezone) > 0) {
+                                if (strlen(currentWeatherData.timezone.c_str()) > 0) {
                                     for (const auto& tzData : TZ_DATA) {
-                                        if (strcmp(currentWeatherData.timezone, tzData.ianaTzName) == 0) {
+                                        if (strcmp(currentWeatherData.timezone.c_str(), tzData.ianaTzName) == 0) {
                                             weatherTz = tzData.tzString;
                                             break;
                                         }
