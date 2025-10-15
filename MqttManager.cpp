@@ -1160,17 +1160,20 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             mqttClient.publish(state_topic.c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
             stateChanged = true;
         } else if (component == "override_line_1") {
-            overrideMessageLine1 = message.c_str();
+            strncpy(overrideMessageLine1, message.c_str(), sizeof(overrideMessageLine1) - 1);
+            overrideMessageLine1[sizeof(overrideMessageLine1) - 1] = '\0'; // Ensure null termination
             String state_topic = base_topic + "override_line_1/state";
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
             stateChanged = true;
         } else if (component == "override_line_2") {
-            overrideMessageLine2 = message.c_str();
+            strncpy(overrideMessageLine2, message.c_str(), sizeof(overrideMessageLine2) - 1);
+            overrideMessageLine2[sizeof(overrideMessageLine2) - 1] = '\0'; // Ensure null termination
             String state_topic = base_topic + "override_line_2/state";
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
             stateChanged = true;
         } else if (component == "override_line_3") {
-            overrideMessageLine3 = message.c_str();
+            strncpy(overrideMessageLine3, message.c_str(), sizeof(overrideMessageLine3) - 1);
+            overrideMessageLine3[sizeof(overrideMessageLine3) - 1] = '\0'; // Ensure null termination
             String state_topic = base_topic + "override_line_3/state";
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
             stateChanged = true;
@@ -1500,11 +1503,11 @@ void publishHaStatesChunk1() { // Core settings and overrides
     char payload[20];
     mqttClient.publish((base_topic + "/override_switch/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
     ws.cleanupClients();
-    mqttClient.publish((base_topic + "/override_line_1/state").c_str(), overrideMessageLine1.c_str(), true);
+    mqttClient.publish((base_topic + "/override_line_1/state").c_str(), overrideMessageLine1, true);
     ws.cleanupClients();
-    mqttClient.publish((base_topic + "/override_line_2/state").c_str(), overrideMessageLine2.c_str(), true);
+    mqttClient.publish((base_topic + "/override_line_2/state").c_str(), overrideMessageLine2, true);
     ws.cleanupClients();
-    mqttClient.publish((base_topic + "/override_line_3/state").c_str(), overrideMessageLine3.c_str(), true);
+    mqttClient.publish((base_topic + "/override_line_3/state").c_str(), overrideMessageLine3, true);
     ws.cleanupClients();
     mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
     ws.cleanupClients();
