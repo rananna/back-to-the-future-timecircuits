@@ -1,8 +1,17 @@
 blueprint:
   name: "BTTF Time Circuits: Multi-Row Status Board"
   description: >-
-    Display different text and effects on all three rows of the Time Circuits simultaneously.
-    Leave a row's text blank to ignore it.
+    # BTTF Time Circuits: Multi-Row Status Board
+
+    This blueprint allows you to display different text and effects on all three rows of the Time Circuits simultaneously,
+    creating a custom status board.
+
+    **Key Features:**
+    - Control each of the three display rows independently.
+    - Use static text or Home Assistant templates for each row.
+    - Apply a different visual effect (static, scrolling, pulse, etc.) to each row.
+    - All effects run in parallel for the same duration.
+    - Any row with blank text will be ignored and will not change.
   domain: script
   input:
     device:
@@ -14,7 +23,7 @@ blueprint:
 
     top_row_text:
       name: "Top Row: Text"
-      description: "Text to display on the top row. Supports templates. Leave blank to ignore."
+      description: "Text to display on the top row. Supports templates. Leave blank to ignore this row."
       default: ""
       selector:
         text: {}
@@ -27,15 +36,15 @@ blueprint:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
             - { label: "Marquee (Scrolling)", value: "MARQUEE" }
-            - { label: "Pulse (2-second cycle)", value: "PULSE" }
-            - { label: "Flash", value: "FLASH" }
-            - { label: "Typewriter", value: "TYPEWRITER" }
-            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
-            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+            - { label: "Pulse (2-second on/off cycle)", value: "PULSE" }
+            - { label: "Flash (Rapid blinking)", value: "FLASH" }
+            - { label: "Typewriter (Reveals text character by character)", value: "TYPEWRITER" }
+            - { label: "Scramble Text (Reveals text from random characters)", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker (Flickers text with random characters)", value: "RANDOM_FLICKER_TEXT" }
 
     middle_row_text:
       name: "Middle Row: Text"
-      description: "Text to display on the middle row. Supports templates. Leave blank to ignore."
+      description: "Text to display on the middle row. Supports templates. Leave blank to ignore this row."
       default: ""
       selector:
         text: {}
@@ -48,15 +57,15 @@ blueprint:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
             - { label: "Marquee (Scrolling)", value: "MARQUEE" }
-            - { label: "Pulse (2-second cycle)", value: "PULSE" }
-            - { label: "Flash", value: "FLASH" }
-            - { label: "Typewriter", value: "TYPEWRITER" }
-            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
-            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+            - { label: "Pulse (2-second on/off cycle)", value: "PULSE" }
+            - { label: "Flash (Rapid blinking)", value: "FLASH" }
+            - { label: "Typewriter (Reveals text character by character)", value: "TYPEWRITER" }
+            - { label: "Scramble Text (Reveals text from random characters)", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker (Flickers text with random characters)", value: "RANDOM_FLICKER_TEXT" }
 
     bottom_row_text:
       name: "Bottom Row: Text"
-      description: "Text to display on the bottom row. Supports templates. Leave blank to ignore."
+      description: "Text to display on the bottom row. Supports templates. Leave blank to ignore this row."
       default: ""
       selector:
         text: {}
@@ -69,29 +78,29 @@ blueprint:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
             - { label: "Marquee (Scrolling)", value: "MARQUEE" }
-            - { label: "Pulse (2-second cycle)", value: "PULSE" }
-            - { label: "Flash", value: "FLASH" }
-            - { label: "Typewriter", value: "TYPEWRITER" }
-            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
-            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+            - { label: "Pulse (2-second on/off cycle)", value: "PULSE" }
+            - { label: "Flash (Rapid blinking)", value: "FLASH" }
+            - { label: "Typewriter (Reveals text character by character)", value: "TYPEWRITER" }
+            - { label: "Scramble Text (Reveals text from random characters)", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker (Flickers text with random characters)", value: "RANDOM_FLICKER_TEXT" }
 
     duration:
       name: "Display Duration (s)"
-      description: "Total duration for the effects. Note: All rows will use the same duration."
+      description: "Total duration for all effects. All rows will run in parallel for this amount of time."
       default: 10
       selector:
         number: { min: 1, max: 60, unit_of_measurement: "s" }
 
     marquee_speed:
       name: "Marquee Speed (ms)"
-      description: "The scroll speed for any marquee effects. Lower is faster."
+      description: "The scroll speed for any rows using the Marquee effect. Lower is faster."
       default: 100
       selector:
         number: { min: 20, max: 1000, unit_of_measurement: "ms" }
 
     restore_rows:
       name: "Restore Rows After Effect"
-      description: "If enabled, all active rows will be restored to their previous state after the effect completes."
+      description: "If enabled, all active rows will be restored to their previous state (e.g., showing the clock) after the effect completes."
       default: true
       selector:
         boolean: {}

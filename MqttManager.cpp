@@ -1321,7 +1321,15 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "tts") {
             Log_printf(LOG_LEVEL_INFO, "Handling media player command (tts topic). Payload: %s", message.c_str());
             JsonDocument doc;
-            if (deserializeJson(doc, message) == DeserializationError::Ok) {
+            DeserializationError error = deserializeJson(doc, message);
+            if (error) {
+                if (error == DeserializationError::NoMemory) {
+                    Log_printf(LOG_LEVEL_ERROR, "HEAP: Failed to allocate memory for TTS JSON in mqttCallback. Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
+                } else {
+                    Log_printf(LOG_LEVEL_ERROR, "JSON: Deserialization failed for TTS command: %s", error.c_str());
+                }
+            }
+            if (error == DeserializationError::Ok) {
                 // HA's play_media service sends 'media_id', but we also check for 'url' for direct calls.
                 const char* url = doc["media_id"] | doc["url"];
                 if (url) {
@@ -1666,6 +1674,14 @@ void handleSequencerCommand(const std::string& payload) {
     static JsonDocument doc;
     doc.clear(); // Clear the document before reuse
     DeserializationError error = deserializeJson(doc, payload);
+
+    if (error) {
+        if (error == DeserializationError::NoMemory) {
+            Log_printf(LOG_LEVEL_ERROR, "HEAP: Failed to allocate memory for JSON in handleSequencerCommand. Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
+        } else {
+            Log_printf(LOG_LEVEL_ERROR, "JSON: Deserialization failed in handleSequencerCommand: %s", error.c_str());
+        }
+    }
 
     if (error == DeserializationError::Ok) {
         // It's a valid JSON string. Now, determine its structure.

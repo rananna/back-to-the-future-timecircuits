@@ -76,28 +76,28 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
 
+    // Loop to create a chaotic, multi-layered flicker effect for 10 seconds.
+    // Each loop is ~400ms. 25 loops * 400ms = 10,000ms.
+    const int loop_count = 25;
+
     // --- Track 0: Top Row Flicker ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
-    // Flicker for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100 + random(0, 200), 50);
-    // Wait for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100 + random(0, 200), 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, loop_count, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50); // Flicker for 200ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 200, 0);                 // Wait for 200ms
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 
-    // --- Track 1: Middle Row Flicker ---
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 25, 0);
-    // Flicker for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100 + random(0, 200), 50);
-    // Wait for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100 + random(0, 200), 0);
+    // --- Track 1: Middle Row Flicker (slightly different timing) ---
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, loop_count, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100, 0);                 // Stagger the start
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100, 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
 
-    // --- Track 2: Bottom Row Flicker ---
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 25, 0);
-    // Flicker for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100 + random(0, 200), 50);
-    // Wait for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(0, 200), 0);
+    // --- Track 2: Bottom Row Flicker (even more different timing) ---
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, loop_count, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 200, 0);                 // Stagger the start more
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 150, 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 50, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
@@ -676,9 +676,9 @@ void generateDigitalRain(SequencerTrack tracks[3]) {
 
     // Run three parallel tracks of flickering text with different speeds and characters
     // to create a layered "rain" effect. Duration is 10s for all.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 75, "1010101010101");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 100, "ABCDE12345FGHI");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 125, "ZYXWV98765UTSR");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 75, 10000, "1010101010101");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100, 10000, "ABCDE12345FGHI");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 125, 10000, "ZYXWV98765UTSR");
 }
 
 /**
@@ -686,14 +686,23 @@ void generateDigitalRain(SequencerTrack tracks[3]) {
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateCountdown(SequencerTrack tracks[3]) {
-    int s = 0;
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "COUNTDOWN");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1500, 0);
-    // --- FIX: The COUNTDOWN command now correctly handles the full sequence including '0'.
-    // No need for a separate SET_TEXT command.
-    s = add_step(tracks[0], s, SEQ_CMD_COUNTDOWN, 1, -1, 10, 1000);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0); // Brief pause before liftoff
-    s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "LIFTOFF!");
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // --- FIX: Distribute the animation across multiple tracks to prevent a single-track timeout. ---
+
+    // Track 0 (Top): A progress bar that depletes over 10 seconds, synchronized with the countdown.
+    // Total countdown duration is 1500ms + (10 * 850ms) = 10000ms.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 10000);
+
+    // Track 1 (Middle): The main countdown sequence.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "COUNTDOWN");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1500, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_COUNTDOWN, 1, -1, 10, 850); // 10 ticks, 850ms each
+
+    // Track 2 (Bottom): The "LIFTOFF!" message, synchronized to appear *after* the countdown finishes.
+    // The WAIT must be less than the MAX_SEQUENCE_DURATION.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 10000, 0); // Wait 10 seconds
+    s2 = add_step(tracks[2], s2, SEQ_CMD_MARQUEE, 2, -1, 0, 0, "LIFTOFF!");
 }
 
 /**
@@ -704,6 +713,7 @@ void generateSystemError(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 100, 200, "ERROR");
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "ERROR");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 750, 10000);
     s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "SYSTEM MALFUNCTION");
 }
 
@@ -721,9 +731,9 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
     s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "relay_activation.mp3");
 
     const int flicker_interval = 50; // ms for flicker effect refresh rate
-    const int total_duration = 2000; // 2 seconds total animation time
+    const int total_duration = 10000; // 10 seconds total animation time
     const int num_chars = 13;        // Standard display width
-    const int lock_in_interval = total_duration / num_chars; // ms per character reveal (~154ms)
+    const int lock_in_interval = total_duration / num_chars; // ms per character reveal
 
     // Add the scramble command to each track to run in parallel
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, lock_in_interval, time_strings[0]);
@@ -746,7 +756,11 @@ void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_str
     DeserializationError error = deserializeJson(doc, json_string);
 
     if (error) {
-        Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Failed to parse JSON sequence: %s", error.c_str());
+        if (error == DeserializationError::NoMemory) {
+            Log_printf(LOG_LEVEL_ERROR, "HEAP: Failed to allocate memory for JSON in parseSequenceFromJson. Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
+        } else {
+            Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Failed to parse JSON sequence: %s", error.c_str());
+        }
         return;
     }
 
@@ -1143,34 +1157,34 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
     switch (animType) {
         // --- JSON-based Named Sequences ---
         case ANIMATION_INTRUDER_ALERT:
-            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SET_TEXT", "stringParam":"INTRUDER ALERT"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":50, "intParam2":666}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LOCKDOWN"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SET_TEXT", "stringParam":"INTRUDER ALERT"}, {"command":"PULSE", "targetSegment":-1, "intParam":750, "intParam2":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":50, "intParam2":660}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LOCKDOWN"}, {"command":"PULSE", "targetSegment":-1, "intParam":750, "intParam2":10000}]}])");
             break;
         case ANIMATION_TIME_TRAVEL:
-            parseSequenceFromJson(tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":10000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 3000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":3000}, {"command": "SET_TEXT", "stringParam": "88 MPH"},{"command":"WAIT", "intParam":4000}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 10000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":10000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 3000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":3000}, {"command": "SET_TEXT", "stringParam": "88 MPH"}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam": 10000}]}])");
             break;
         case ANIMATION_PARTY_MODE:
-            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SET_TEXT", "stringParam":"PARTY TIME!"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":10000, "intParam2":100, "stringParam": "DANCE"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LETS DANCE!"}, {"command":"PULSE", "targetSegment":-1, "intParam":10000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SET_TEXT", "stringParam":"PARTY TIME!"}, {"command":"PULSE", "targetSegment":-1, "intParam":500, "intParam2":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "stringParam":"DANCE", "intParam":100, "intParam2":10000}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LETS DANCE!"}, {"command":"PULSE", "targetSegment":-1, "intParam":500, "intParam2":10000}]}])");
             break;
         case ANIMATION_KNIGHT_RIDER:
             parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SCANNER", "intParam":10000, "intParam2":100}]}])");
             break;
         case ANIMATION_LOADING:
-            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3300}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":6600}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":3400}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":3300}, {"command":"CLEAR_SEGMENT", "targetSegment":-1}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3300}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":3300}, {"command":"CLEAR_SEGMENT", "targetSegment":-1}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":6600}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":3400}, {"command":"CLEAR_SEGMENT", "targetSegment":-1}]}])");
             break;
         case ANIMATION_ERROR:
-            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":200}, {"command":"SET_TEXT", "stringParam":"ERROR"}]}, {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION"}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":200}, {"command":"SET_TEXT", "stringParam":"ERROR"}, {"command":"PULSE", "targetSegment":-1, "intParam":750, "intParam2":8000}]}, {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION"}]}])");
             break;
         case ANIMATION_FLUX_CHARGE:
-            parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":5000}]}, {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":2000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":10000}]}, {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":7000}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam":7000}]}])");
             break;
         case ANIMATION_TACHYONS:
-            parseSequenceFromJson(tracks, R"([{"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS ON", "intParam":150, "intParam2":250}, {"command":"SOUND", "stringParam":"hum.mp3"},{"command":"WAIT", "intParam":3000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS ON", "intParam":150, "intParam2":900}, {"command":"SOUND", "stringParam":"hum.mp3"}]}])");
             break;
         case ANIMATION_DATA_STREAM:
             parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}])");
             break;
         case ANIMATION_WORMHOLE_COLLAPSE:
-            parseSequenceFromJson(tracks, R"([{"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "arrival_chime.mp3"}, {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "FADE_OUT", "intParam": 2000}]}, {"targetRow": 1, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 500}, {"command": "FADE_OUT", "intParam": 3000}]}, {"targetRow": 2, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 1000}, {"command": "FADE_OUT", "intParam": 3000}]}])");
+            parseSequenceFromJson(tracks, R"([{"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "arrival_chime.mp3"}, {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 5000}, {"command": "FADE_OUT", "intParam": 5000}]}, {"targetRow": 1, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 5000}, {"command": "WAIT", "intParam": 500}, {"command": "FADE_OUT", "intParam": 4500}]}, {"targetRow": 2, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 5000}, {"command": "WAIT", "intParam": 1000}, {"command": "FADE_OUT", "intParam": 4000}]}])");
             break;
 
         // Legacy C++ Generated Animations (for Randomize All)
