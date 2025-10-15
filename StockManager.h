@@ -108,7 +108,7 @@ public:
      * @name Display
      * @{
      */
-    String getMarqueeLine();
+    void getMarqueeLine(char* buffer, size_t bufferSize);
     void nextPage();
     void previousPage();
     void resetTicker();
