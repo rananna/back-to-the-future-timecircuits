@@ -1,21 +1,24 @@
 blueprint:
   name: "BTTF Time Circuits: Display"
   description: >-
-    A comprehensive blueprint for displaying static text or an entity's state on the Time Circuits.
-    Supports optional sound, volume, looping, and advanced visual effects.
-    This blueprint merges the functionality of the old 'Display Text' and 'Display Entity' blueprints.
+    **Display static text or an entity's state on the Time Circuits.**
+
+    This is a powerful, all-in-one blueprint for showing information on the display.
+    You can write a custom message, show the state of any Home Assistant entity, and apply various visual effects.
+    It also supports sound, looping, and restoring the display to its previous state.
+    This blueprint replaces the old 'Display Text' and 'Display Entity' blueprints.
   domain: script
   input:
     device:
       name: Time Circuits Device
-      description: The BTTF Time Circuits device to control.
+      description: "Select the BTTF Time Circuits device you want to control."
       selector:
         device:
           integration: bttf_time_circuits
 
     target_row:
       name: Target Row
-      description: "The display row(s) to show the message on."
+      description: "Choose which display row(s) the message should appear on."
       default: "TOP"
       selector:
         select:
@@ -27,44 +30,45 @@ blueprint:
 
     data_source:
       name: "Data Source"
-      description: "Choose what to display. This will show/hide other options below."
+      description: "Choose what to display: a fixed message (Static Text) or the value of a sensor (Home Assistant Entity)."
       default: "static"
       selector:
         select:
+          mode: dropdown
           options:
             - { label: "Static Text", value: "static" }
             - { label: "Home Assistant Entity", value: "entity" }
 
-    # --- Static Text Inputs (Visible when Data Source is 'Static Text') ---
+    # --- Static Text Inputs ---
     text_to_display:
-      name: "Text to Display"
-      description: "The message to display. Supports templates."
+      name: "[Static Text] Text to Display"
+      description: "Enter the message to display. This field supports Home Assistant templates."
       default: ""
       selector:
         text: {}
 
-    # --- Entity Inputs (Visible when Data Source is 'Home Assistant Entity') ---
+    # --- Entity Inputs ---
     entity_to_display:
-      name: "Entity to Display"
-      description: "The entity to display."
-      default: "" # Must have a default to avoid errors when hidden by the data_source selector
+      name: "[Entity] Entity to Display"
+      description: "Select the entity whose state or attribute you want to display."
+      default: ""
       selector:
         entity: {}
     attribute_to_display:
-      name: "Attribute to Display (Optional)"
-      description: "The specific attribute to display. Leave blank to use the entity's main state."
+      name: "[Entity] Attribute to Display"
+      description: "Optional: If the entity has attributes, specify which one to display. Leave blank to use the entity's main state."
       default: ""
       selector:
         text: {}
     prefix:
-      name: "Prefix"
-      description: "Optional text to display before the value (e.g., 'Temp: ')."
+      name: "[Entity] Prefix"
+      description: "Optional: Text to add before the entity's value (e.g., 'Temp: ')."
       default: ""
       selector:
         text: {}
     postfix:
-      name: "Postfix"
-      description: "Optional text to display after the value (e.g., '°C')."
+      name: "[Entity] Postfix"
+      description: "Optional: Text to add after the entity's value (e.g., '°C')."
       default: ""
       selector:
         text: {}
@@ -72,7 +76,7 @@ blueprint:
     # --- Common Effect Inputs ---
     effect:
       name: "Visual Effect"
-      description: "The visual effect to use for the message."
+      description: "Choose the visual effect for displaying the text."
       default: "SET_TEXT"
       selector:
         select:
@@ -87,21 +91,21 @@ blueprint:
 
     duration:
       name: "Display Duration (s)"
-      description: "Duration for the 'Set Text', 'Pulse', and 'Flash' effects."
+      description: "Set the display duration for 'Set Text', 'Pulse', and 'Flash' effects. Other effects run until the text is displayed."
       default: 10
       selector:
         number: { min: 1, max: 300, unit_of_measurement: "s" }
 
     marquee_speed:
       name: "Marquee Speed (ms)"
-      description: "The scroll speed for the marquee effect. Lower is faster."
+      description: "Set the scroll speed for the marquee effect. Lower is faster."
       default: 100
       selector:
         number: { min: 20, max: 1000, unit_of_measurement: "ms" }
 
     flicker_speed:
       name: "Flicker Speed (ms)"
-      description: "The speed for the 'Random Flicker' effect. Lower is faster."
+      description: "Set the speed for the 'Random Flicker' effect. Lower is faster."
       default: 50
       selector:
         number: { min: 10, max: 1000, unit_of_measurement: "ms" }
@@ -109,10 +113,11 @@ blueprint:
     # --- Audio Inputs ---
     audio_source:
       name: "Audio Source"
-      description: "Choose whether to play a sound with the visual effect."
+      description: "Optional: Choose a sound to play along with the visual effect."
       default: "none"
       selector:
         select:
+          mode: dropdown
           options:
             - { label: "None", value: "none" }
             - { label: "Built-in Sound Effect", value: "builtin" }
@@ -120,7 +125,7 @@ blueprint:
 
     sound_effect:
       name: "Sound Effect"
-      description: "A built-in sound effect to play from the device."
+      description: "Select a built-in sound effect to play from the device's SD card."
       default: "sys_beep.mp3"
       selector:
         select:
@@ -138,14 +143,14 @@ blueprint:
 
     media_file:
       name: "Media File"
-      description: "Audio file to stream from the Home Assistant media library."
+      description: "Select an audio file from your Home Assistant media library to stream to the device."
       default: ""
       selector:
         media: {}
 
     volume:
       name: Volume
-      description: "Set the volume for this specific alert (0-100). Only used if an audio source is selected."
+      description: "Set the volume for the sound effect or streamed media (0-100)."
       default: 80
       selector:
         number: { min: 0, max: 100, unit_of_measurement: "%" }
@@ -153,14 +158,14 @@ blueprint:
     # --- Looping and Restore ---
     repeat:
       name: "Repeat Count"
-      description: "Number of times to repeat the alert. Built-in sounds will repeat; streamed audio will play once at the start."
+      description: "Number of times to repeat the alert. Built-in sounds will repeat; streamed audio plays once at the start."
       default: 1
       selector:
         number: { min: 1, max: 10, mode: box }
 
     restore_row:
-      name: "Restore Row After Effect"
-      description: "If enabled, the row will be restored to its previous state after the effect (and any loops) completes."
+      name: "Restore Row After"
+      description: "If enabled, the display row will be restored to its previous state after the sequence completes."
       default: true
       selector:
         boolean: {}
@@ -168,7 +173,6 @@ blueprint:
 mode: single
 
 variables:
-  # --- Input Aliases (defaults are handled in the input section) ---
   device: !input device
   target_row: !input target_row
   data_source: !input data_source
@@ -188,8 +192,7 @@ variables:
   repeat: !input repeat
   restore_row: !input restore_row
 
-  # --- Logic ---
-  # Determine the final text based on the data source
+  # This logic determines the final text to be displayed based on the selected data source.
   value_to_display: >-
     {% if data_source == 'entity' and entity_to_display != "" %}
       {% if attribute_to_display != "" %}
@@ -211,75 +214,89 @@ sequence:
     data:
       topic: "bttf_time_circuits/{{ (device_attr(device, 'identifiers') | list | last)[1] }}/sequencer/command"
       payload_template: >-
+        {#-
+          This macro constructs the JSON payload for the device's sequencer command.
+          It builds a series of commands based on the selected text, effect, and sound,
+          then wraps them in a track structure targeting the selected display row(s).
+        -#}
         {%- macro generate_sequence_payload(target, effect_type, text, dur, m_speed, f_speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
           {%- set ns = namespace(tracks=[]) -%}
           {%- set core_commands = [] -%}
+          {#- Define which effects are self-blocking (run until complete) vs. timed (run for a set duration). -#}
           {%- set blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'RANDOM_FLICKER_TEXT'] -%}
           {%- set timed_effects = ['PULSE', 'FLASH'] -%}
 
-          {# --- Build the main visual command --- #}
+          {# --- 1. Build the main visual command --- #}
           {%- set visual_command = {'command': effect_type, 'targetSegment': -1, 'stringParam': text} -%}
+          {#- Add effect-specific parameters. -#}
           {%- if effect_type == 'MARQUEE' -%}
             {%- set visual_command = dict(visual_command, intParam=m_speed | int) -%}
           {%- elif effect_type == 'RANDOM_FLICKER_TEXT' -%}
              {%- set visual_command = dict(visual_command, intParam=f_speed | int) -%}
           {%- elif effect_type in timed_effects -%}
-            {# Pulse and Flash use intParam2 for duration #}
+            {#- Pulse and Flash use intParam2 for their total duration. -#}
             {%- set visual_command = dict(visual_command, intParam2=(dur * 1000) | int) -%}
           {%- endif -%}
           {%- set core_commands = core_commands + [visual_command] -%}
 
-          {# --- Add a WAIT for non-blocking/non-timed effects --- #}
+          {# --- 2. For static effects like SET_TEXT, add a WAIT command to control how long it stays on screen. --- #}
           {%- if effect_type not in blocking_effects and effect_type not in timed_effects -%}
             {%- set wait_duration = (dur * 1000) | int -%}
             {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
           {%- endif -%}
 
-          {# --- Wrap in a loop if needed --- #}
+          {# --- 3. Wrap the core commands in a loop if requested --- #}
           {%- if (repeat_count | int) > 1 -%}
             {%- set final_commands = [{'command': 'LOOP_START', 'intParam': repeat_count | int}] + core_commands + [{'command': 'LOOP_END'}] -%}
           {%- else -%}
             {%- set final_commands = core_commands -%}
           {%- endif -%}
 
-          {# --- Add restore command if needed --- #}
+          {# --- 4. Add the restore command if requested --- #}
           {%- if restore -%}
             {%- set final_commands = final_commands + [{'command': 'RESTORE_ROW'}] -%}
           {%- endif -%}
 
-          {# --- Generate tracks for target rows --- #}
+          {# --- 5. Generate the final track objects for each target row --- #}
           {%- set track_list = ['TOP', 'MIDDLE', 'BOTTOM'] if target == 'ALL' else [target] -%}
           {%- for row in track_list -%}
             {%- set current_commands = final_commands -%}
+            {#- Add the sound command to the beginning of the sequence. -#}
+            {#- We only add it to the first track to prevent it from playing multiple times for 'ALL' rows. -#}
             {%- if loop.first and audio_src == 'builtin' -%}
               {%- set device_volume = ((sound_vol / 100) * 21) | round(0) | int -%}
               {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
               {%- set current_commands = [sound_command] + current_commands -%}
             {%- endif -%}
-            {%- set track_object = {'targetRow': row, 'commands': current_commands} -%}
+            {%- set track_object = {'target': row, 'steps': current_commands} -%}
             {%- set ns.tracks = ns.tracks + [track_object] -%}
           {%- endfor -%}
 
-          {# --- Return the raw JSON array --- #}
+          {# --- 6. Return the raw JSON array of tracks --- #}
           {{- ns.tracks | to_json -}}
         {%- endmacro -%}
         {{- generate_sequence_payload(target_row, effect, final_text, duration, marquee_speed, flicker_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
 
   - choose:
+      # This block handles streaming audio from Home Assistant.
+      # It runs in parallel with the MQTT command above.
       - conditions:
           - "{{ audio_source == 'media' and media_file != '' }}"
         sequence:
+          # Find the media_player entity associated with the selected device.
           - variables:
               media_player_entity: >
                 {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
           - condition: template
             value_template: "{{ media_player_entity != 'none' }}"
-            error_message: "Could not find a media_player entity for the selected device."
+            error_message: "Could not find a media_player entity for the selected device. Please ensure the integration is set up correctly."
+          # Set the volume on the device's media player.
           - service: media_player.volume_set
             target:
               entity_id: "{{ media_player_entity }}"
             data:
               volume_level: "{{ volume / 100 }}"
+          # Play the selected media file.
           - service: media_player.play_media
             target:
               entity_id: "{{ media_player_entity }}"
