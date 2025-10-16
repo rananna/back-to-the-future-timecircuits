@@ -643,21 +643,45 @@ void generatePlasmaWarmup(SequencerTrack tracks[3]) {
 }
 
 /**
- * @brief Creates a glitchy, jump-cut effect with rapid flickering and flashes.
+ * @brief Creates a dynamic, chaotic glitch effect with randomized, parallel sequences.
+ * @details This animation generates a unique, ~10-second sequence for each of the three
+ * display rows in parallel. A C++ loop randomly selects from a pool of glitch effects
+ * (flicker, scramble, flash, wipe) and applies them with random durations and parameters
+ * to each track independently. This results in a highly chaotic, desynchronized, and
+ * visually interesting "glitchy jump-cut" that is different every time it plays.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
-    int s=0;
-    s = add_intro_sound_steps(tracks[0], s);
-    // Loop 25 times. Each loop is 400ms. 25 * 400ms = 10s.
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 200, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 0, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 100, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 100, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    int s0 = 0, s1 = 0, s2 = 0;
+    int* s_ptr[] = {&s0, &s1, &s2};
+    const char* glitch_chars[] = {"!@#$%", "^&*()", "_+-=[]", "{};:'", "<>,.?/"};
+
+    s0 = add_intro_sound_steps(tracks[0], s0);
+
+    // Generate ~10 seconds of random, parallel glitch effects
+    for (int i = 0; i < 15; i++) { // Loop enough times to build a long sequence
+        for (int row = 0; row < 3; row++) {
+            int effect = random(5); // Pick one of 5 random effects
+            switch(effect) {
+                case 0: // Aggressive Flicker
+                    *s_ptr[row] = add_step(tracks[row], *s_ptr[row], SEQ_CMD_RANDOM_FLICKER_TEXT, row, -1, 200 + random(300), 30 + random(50));
+                    break;
+                case 1: // Scramble to garbage
+                    *s_ptr[row] = add_step(tracks[row], *s_ptr[row], SEQ_CMD_SCRAMBLE_TEXT, row, -1, 50, 50, glitch_chars[random(5)]);
+                    break;
+                case 2: // Quick Flash
+                    *s_ptr[row] = add_step(tracks[row], *s_ptr[row], SEQ_CMD_FLASH, row, -1, 100 + random(150), 0);
+                    break;
+                case 3: // Fast Wipe
+                    *s_ptr[row] = add_step(tracks[row], *s_ptr[row], SEQ_CMD_WIPE, row, -1, 20 + random(30), 0, "|||||||||||||");
+                    break;
+                case 4: // Brief moment of calm
+                    *s_ptr[row] = add_step(tracks[row], *s_ptr[row], SEQ_CMD_RESTORE_ROW, row, 0, 0, 0);
+                    *s_ptr[row] = add_step(tracks[row], *s_ptr[row], SEQ_CMD_WAIT, row, 0, 300 + random(400), 0);
+                    break;
+            }
+        }
+    }
 }
 
 /**
