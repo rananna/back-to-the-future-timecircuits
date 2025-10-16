@@ -164,7 +164,6 @@ bool attemptHardwareInit();
 void onHardwareInitialized();
 void checkDataFetchStatusTask(void* p);
 void wifiManagerTask(void *pvParameters);
-void updateDisplaySegment(int row, int segment, const std::string& text);
 
 // --- GLOBAL DATA STRUCTURES & SETTINGS ---
 
