@@ -302,55 +302,79 @@ void generateWaveFlicker(SequencerTrack tracks[3]) {
 }
 
 /**
- * @brief Generates a "code breaker" effect where text is scrambled and then revealed.
+ * @brief Generates a "code breaker" effect with a progress bar and status updates.
+ * @details This animation creates a narrative of cracking a code.
+ * Track 0 (Top): Displays the "cracking" attempt, scrambling through random characters
+ * before locking in the final, correct time string.
+ * Track 1 (Middle): Shows a `BAR_GRAPH` filling up, representing the decryption progress.
+ * Track 2 (Bottom): Displays sequential status updates: "ANALYZING...", "DECRYPTING...",
+ * and finally "CODE BROKEN!".
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    // Loop the effect to fill 10 seconds.
-    // One cycle = 1.5s scramble + 1s wait = 2.5s. 4 cycles = 10s.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 4, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 4, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 4, 0);
 
-    // Scramble in text over ~1.5s
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 25, 120, time_strings[0]);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 25, 120, time_strings[1]);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 25, 120, time_strings[2]);
+    // --- Track 1 (Middle): Progress Bar ---
+    // Fills up over 9 seconds.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 1, -1, 100, 9000, "DECRYPTING");
 
-    // Hold the result
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    // --- Track 2 (Bottom): Status Updates ---
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "ANALYZING...");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 4500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "CODE BROKEN!");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 4500, 0); // Pulse the final message
 
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
+    // --- Track 0 (Top): The Code-Breaking Effect ---
+    // First, flicker random garbage text for 4.5 seconds.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 4500, 100, "!@#$%%^&*()_+-=");
+    // Then, scramble-reveal the first half of the destination time over 2.25 seconds.
+    std::string first_half = std::string(time_strings[0]).substr(0, 7);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 320, first_half.c_str());
+    // Finally, scramble-reveal the full destination time over the remaining 2.25 seconds.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 170, time_strings[0]);
+
+    // --- Final flash to celebrate breaking the code ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 2, -1, 500, 0);
 }
 
 /**
- * @brief Simulates a classic flip-disc display by wiping in the text.
+ * @brief Simulates a mechanical flip-disc display with varied, parallel wipes.
+ * @details This animation creates a more authentic and dynamic flip-disc effect.
+ * Instead of a simple, uniform wipe, each row is wiped independently with different
+ * timings and directions (L-to-R vs. R-to-L), simulating the asynchronous nature
+ * of a real mechanical display. The sequence repeats with a pause, enhancing the
+ * feeling of a board resetting and flipping a new set of characters.
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateFlipDisc(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    // Loop the effect to fill 10 seconds.
-    // One cycle = 1s wipe + 1s wait = 2s. 5 cycles = 10s.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 5, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 5, 0);
+    // Loop the effect 4 times. Each cycle is ~2.5s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 4, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 4, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 4, 0);
 
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 75, 0, time_strings[0]);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WIPE, 1, -1, 75, 0, time_strings[1]);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WIPE, 2, -1, 75, 0, time_strings[2]);
+    // Wipe rows in parallel with different speeds and directions
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 100, 0, time_strings[0]); // Top row, L-to-R
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCROLL_IN, 1, -1, 80, 0, time_strings[1]); // Middle row, R-to-L, slightly faster
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WIPE, 2, -1, 120, 0, time_strings[2]); // Bottom row, L-to-R, slightly slower
 
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    // Wait for all wipes to complete, then hold the text
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1500, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1500, 0);
+
+    // Clear the rows before the next loop
+    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, -1, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_CLEAR_SEGMENT, 1, -1, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_CLEAR_SEGMENT, 2, -1, 0, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0); // Pause before next cycle
 
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
@@ -358,51 +382,75 @@ void generateFlipDisc(SequencerTrack tracks[3], const char time_strings[3][17]) 
 }
 
 /**
- * @brief Reveals text character-by-character, like a typewriter or scanline.
+ * @brief Reveals text with a typewriter effect, accompanied by a synchronized scanner light.
+ * @details This animation enhances the basic typewriter effect by adding a visual flourish.
+ * Track 0 (All Rows): Executes the `TYPEWRITER` command sequentially for each row, revealing
+ * the text character-by-character.
+ * Track 1 (All Rows): Runs a `SCANNER` effect in parallel on each row. The scanner light
+ * moves in sync with the text reveal, creating the illusion that the scanner is "writing"
+ * the text onto the display. The scanner bar is made of faint dots to avoid obscuring the text.
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateCharacterScanline(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s0 = 0, s1 = 0, s2 = 0;
+    int s0 = 0, s1 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    // Loop the effect to fill 10 seconds.
-    // One cycle = 1s typewriter + 1s wait = 2s. 5 cycles = 10s.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 5, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 5, 0);
+    const int type_delay = 75; // ms per character
+    const int type_duration = 13 * type_delay; // ~1s for a full row
 
-    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 75, 0, time_strings[0]);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_TYPEWRITER, 1, -1, 75, 0, time_strings[1]);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_TYPEWRITER, 2, -1, 75, 0, time_strings[2]);
+    // --- Track 1: The synchronized scanner light ---
+    // Run a scanner effect on each row. The total duration matches the typewriter sequence.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 0, -1, type_duration, type_delay, ".");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 500, 0); // Wait during the pause
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, type_duration, type_delay, ".");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 500, 0); // Wait during the pause
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 2, -1, type_duration, type_delay, ".");
 
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    // --- Track 0: The typewriter text reveal ---
+    // Reveal text on each row sequentially.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, type_delay, 0, time_strings[0]);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 1, -1, type_delay, 0, time_strings[1]);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 2, -1, type_delay, 0, time_strings[2]);
 
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
+    // Hold the final result
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 5000, 0);
 }
 
 /**
- * @brief Creates a "temporal paradox" by swapping the top and middle rows while the bottom flickers.
+ * @brief Creates a chaotic "temporal paradox" with conflicting timelines.
+ * @details This animation creates a strong sense of a paradox by presenting conflicting
+ * information across the three displays simultaneously.
+ * Track 0 (Top): Displays a time from the distant past ("JAN 01 1885 1200").
+ * Track 1 (Middle): Aggressively flickers between "ERROR" and the correct present time,
+ * as if struggling to maintain stability.
+ * Track 2 (Bottom): Displays a time from the distant future ("OCT 26 2085 0429").
+ * The parallel, conflicting information creates a more visually interesting and
+ * thematic paradox effect than the previous version.
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s = 0;
-    s = add_intro_sound_steps(tracks[0], s);
-    // Loop 12 times. Each loop is 800ms. 12 * 800ms = 9.6s
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 12, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, time_strings[1]);
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, time_strings[0]);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 400, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 400, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 0, -1, 0, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ROW, 1, -1, 0, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 400, 50);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 400, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+
+    // --- Track 0 (Top): A conflicting time from the past ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "JAN 01 1885 1200");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 10000, 0); // Pulse it for the duration
+
+    // --- Track 2 (Bottom): A conflicting time from the future ---
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "OCT 26 2085 0429");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 0); // Pulse it for the duration
+
+    // --- Track 1 (Middle): The paradox instability ---
+    // Flicker rapidly between "ERROR" and the correct time. Loop to fill the duration.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 25, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "ERROR");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, time_strings[1]);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
 }
 
 /**
@@ -437,30 +485,43 @@ void generateInterferencePattern(SequencerTrack tracks[3], const char time_strin
 }
 
 /**
- * @brief Creates a "time warp" effect by rapidly scrolling text in from the right.
+ * @brief Creates a chaotic "time warp" with high-speed, multi-directional streaks.
+ * @details This animation simulates the visual distortion of a time warp by running
+ * multiple, high-speed scrolling effects in parallel.
+ * Track 0 (Top): Rapidly scrolls random date fragments from right to left.
+ * Track 1 (Middle): Scrolls the actual destination time from right to left, but faster,
+ * as if it's the primary timeline breaking through the noise.
+ * Track 2 (Bottom): Rapidly scrolls random date fragments from left to right, creating
+ * a conflicting motion that enhances the chaotic effect.
+ * The use of random generation for the garbage strings ensures each warp is unique.
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateTimeWarpStreaks(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s0=0, s1=0, s2=0;
+    int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    // Loop the effect to fill 10 seconds.
-    // One scroll-in takes ~1s. We loop 10 times for 10s.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 10, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 10, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 10, 0);
+    const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
 
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCROLL_IN, 0, -1, 75, 0, time_strings[0]);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCROLL_IN, 1, -1, 75, 0, time_strings[1]);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCROLL_IN, 2, -1, 75, 0, time_strings[2]);
+    // --- Track 1 (Middle): The "real" time streaking past, very fast ---
+    s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 40, 10000, time_strings[1]);
 
-    // SCROLL_IN leaves the text on the display, so we need to clear it for the next loop
-    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, -1, 0, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_CLEAR_SEGMENT, 1, -1, 0, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_CLEAR_SEGMENT, 2, -1, 0, 0);
+    // --- Tracks 0 & 2: The chaotic warp streaks ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 20, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 20, 0);
+
+    // Generate a random date string for the streaks
+    char random_streak[17];
+    snprintf(random_streak, sizeof(random_streak),
+             "%s %02d %04d",
+             months[random(0, 12)],
+             random(1, 29),
+             random(1800, 2200));
+
+    // Scroll the random streaks in opposite directions
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCROLL_IN, 0, -1, 50, 0, random_streak); // R-to-L
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WIPE, 2, -1, 50, 0, random_streak);      // L-to-R
 
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
@@ -542,14 +603,43 @@ void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][1
 }
 
 /**
- * @brief Simulates a plasma charge-up by fading a row in and then out over 10 seconds.
+ * @brief Simulates a plasma warm-up sequence with increasing intensity.
+ * @details This animation creates a full-display "warm-up" effect.
+ * It begins by fading in a `~*~*~` pattern on all rows. Then, it pulses this
+ * pattern with increasing speed and intensity across two stages. The sequence
+ * culminates in a bright, full-display flash, simulating a discharge of energy.
+ * This multi-stage, parallel approach creates a much more dynamic and engaging
+ * "warm-up" than a simple fade on a single row.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generatePlasmaWarmup(SequencerTrack tracks[3]) {
-    int s = 0;
-    s = add_intro_sound_steps(tracks[0], s);
-    s = add_step(tracks[0], s, SEQ_CMD_FADE_IN, 0, -1, 5000, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_FADE_OUT, 0, -1, 5000, 0);
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+    const char* plasma = "~*~*~*~*~*~*~";
+
+    // --- Stage 1: Fade in the plasma field ---
+    // All three rows fade in the plasma text over 2 seconds.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FADE_IN, 0, -1, 2000, 0, plasma);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FADE_IN, 1, -1, 2000, 0, plasma);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_IN, 2, -1, 2000, 0, plasma);
+
+    // --- Stage 2: Slow Pulse ---
+    // All three rows pulse together for 3 seconds.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 3000, 750); // 750ms pulse cycle
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 3000, 750);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 3000, 750);
+
+    // --- Stage 3: Fast Pulse ---
+    // All three rows pulse faster for 3 seconds.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 3000, 350); // 350ms pulse cycle
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 3000, 350);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 3000, 350);
+
+    // --- Stage 4: Discharge ---
+    // A final, bright flash on all rows.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 1000, 0);
 }
 
 /**
