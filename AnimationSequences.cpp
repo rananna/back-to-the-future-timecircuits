@@ -80,25 +80,25 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
     // --- Track 0: Top Row Flicker ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
     // Flicker for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100 + random(0, 200), 50);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100 + random(200), 50);
     // Wait for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100 + random(0, 200), 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100 + random(200), 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 
     // --- Track 1: Middle Row Flicker ---
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 25, 0);
     // Flicker for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100 + random(0, 200), 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100 + random(200), 50);
     // Wait for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100 + random(0, 200), 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100 + random(200), 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
 
     // --- Track 2: Bottom Row Flicker ---
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 25, 0);
     // Flicker for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100 + random(0, 200), 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100 + random(200), 50);
     // Wait for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(0, 200), 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(200), 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
@@ -513,9 +513,9 @@ void generateTimeWarpStreaks(SequencerTrack tracks[3], const char time_strings[3
     char random_streak[17];
     snprintf(random_streak, sizeof(random_streak),
              "%s %02d %04d",
-             months[random(0, 12)],
-             random(1, 29),
-             random(1800, 2200));
+             months[random(12)],
+             random(28) + 1,
+             random(400) + 1800);
 
     // Scroll the random streaks in opposite directions
     s0 = add_step(tracks[0], s0, SEQ_CMD_SCROLL_IN, 0, -1, 50, 0, random_streak); // R-to-L
@@ -713,11 +713,11 @@ void generateTimelineSkim(SequencerTrack tracks[3], const char time_strings[3][1
         for (int row = 0; row < 3; row++) {
             snprintf(random_time_str[row], sizeof(random_time_str[row]),
                      "%s %02d %04d %02d%02d",
-                     months[random(0, 12)],
-                     random(1, 29),
-                     random(1950, 2051),
-                     random(0, 24),
-                     random(0, 60));
+                     months[random(12)],
+                     random(28) + 1,
+                     random(101) + 1950,
+                     random(24),
+                     random(60));
         }
         // Scramble to the new random date over 1 second
         s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 80, random_time_str[0]);
@@ -1027,25 +1027,25 @@ void generateLightning(SequencerTrack tracks[3]) {
     s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 100, 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 2, -1, 100, 0);
     // Wait for a random duration before the next big strike.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500 + random(0, 750), 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500 + random(750), 0);
     s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
 
     // --- Track 1: Background Sheet Lightning ---
     // Loop for ~10 seconds with rapid, faint flickers.
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 35, 0);
     // Flicker a random row for a short duration.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), -1, 100, 50, " ");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, random(3), -1, 100, 50, " ");
     // Wait for a random, short duration.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 50 + random(0, 200), 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 50 + random(200), 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
 
     // --- Track 2: Crackling Energy ---
     // Loop for ~10 seconds with localized, sharp flickers.
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 45, 0);
     // Flicker a random segment on a random row.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, random(0, 3), random(0, 4), 50, 50, "|||");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, random(3), random(4), 50, 50, "|||");
     // Wait for a random, very short duration.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(0, 100), 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(100), 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
 }
 
@@ -1208,7 +1208,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
             ANIMATION_INTERFERENCE_PATTERN
         };
         int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
-        animType = cpp_animations[random(0, num_cpp_animations)];
+        animType = cpp_animations[random(num_cpp_animations)];
     }
 
     char time_strings[3][17];
