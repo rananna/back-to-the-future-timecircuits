@@ -1602,7 +1602,7 @@ void animateTimeWarpStreaks_internal(unsigned long elapsed, int duration, const 
  */
 void animateTimeWarpStreaks(unsigned long elapsed, int duration, const char* final_dest, const char* final_pres, const char* final_last) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-        animateTimeWarpStreaks_internal(elapsed, duration, final_dest, final_pres, last_str);
+        animateTimeWarpStreaks_internal(elapsed, duration, final_dest, final_pres, final_last);
         xSemaphoreGive(xDisplayHardwareMutex);
     }
 }
