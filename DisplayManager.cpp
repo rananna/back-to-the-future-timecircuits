@@ -346,6 +346,10 @@ void updateStockTickerDisplay() {
             }
 
             case SD_SCROLLING: {
+                // --- FIX: Add a task delay to prevent watchdog timeouts ---
+                // This tight loop can starve other tasks. A small delay allows the
+                // scheduler to run other essential tasks, like the watchdog feed.
+                vTaskDelay(pdMS_TO_TICKS(1));
                 if (millis() - lastStockUpdate > scrollSpeed) {
                     lastStockUpdate = millis();
 
