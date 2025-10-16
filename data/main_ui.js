@@ -78,6 +78,8 @@ async function initializeUI() {
     } finally {
         // Set the loading flag to false
         isLoading = false;
+        // Hide the loading overlay
+        document.getElementById('loadingOverlay').style.display = 'none';
     }
 }
 
@@ -612,6 +614,90 @@ function applySelectedPreset(event) {
     showMessage(`Last Time Departed set to: ${select.options[select.selectedIndex].text}`, 'info');
     if (!isLoading) setSettingsChanged(true);
     updateHeaderClocks(new Date());
+}
+
+function addPreset() {
+    // Get the preset details from the form
+    const name = document.getElementById('presetName').value;
+    const date = document.getElementById('presetDate').value;
+    const time = document.getElementById('presetTime').value;
+    // Validate the inputs
+    if (!name || !date || !time) {
+        showMessage('Preset name, date, and time are required.', 'error');
+        return;
+    }
+    // Format the preset value
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
+    const value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${String(hour).padStart(2, '0')}-${String(minute).padStart(2, '0')}`;
+
+    // Send the new preset to the server
+    fetch('/api/addPreset', { method: 'POST', body: new URLSearchParams({ name, value }) })
+        .then(res => {
+            if (!res.ok) {
+                throw new Error('Failed to save preset.');
+            }
+            return res.text();
+        })
+        .then(text => {
+            showMessage(text, 'success');
+            // Refresh the presets list from the server
+            fetch('/api/getPresets').then(res => res.json()).then(presets => {
+                populatePresetsSelect(presets);
+                // After populating, select the new preset
+                const select = document.getElementById('presetDateSelect');
+                select.value = value; // 'value' is from the outer scope
+                // Trigger change to update UI
+                select.dispatchEvent(new Event('change'));
+                // Reset form fields, but not dropdown
+                resetPresetForm(false);
+            });
+        })
+        .catch(err => showMessage(`Error: ${err.message}`, 'error'));
+}
+
+function updatePreset() {
+    // Get the original preset name
+    const originalName = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
+    // Get the new preset details from the form
+    const newName = document.getElementById('presetName').value;
+    const date = document.getElementById('presetDate').value;
+    const time = document.getElementById('presetTime').value;
+
+    // Validate the inputs
+    if (!newName || !date || !time) {
+        showMessage('Preset name, date, and time are required.', 'error');
+        return;
+    }
+    // Format the preset value
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
+    const value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${String(hour).padStart(2, '0')}-${String(minute).padStart(2, '0')}`;
+
+    // Send the updated preset to the server
+    fetch('/api/updatePreset', { method: 'POST', body: new URLSearchParams({ name: originalName, newName: newName, value: value }) })
+        .then(res => res.text()).then(text => {
+            showMessage(text, 'success');
+            // Refresh the presets list and reset the form
+            fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
+            resetPresetForm();
+        });
+}
+
+function deletePreset() {
+    // Get the name of the preset to delete
+    const name = document.getElementById('presetDateSelect').options[document.getElementById('presetDateSelect').selectedIndex].text;
+    // Confirm the deletion with the user
+    if (confirm(`Are you sure you want to delete the preset "${name}"?`)) {
+        // Send the delete request to the server
+        fetch('/api/deletePreset', { method: 'POST', body: new URLSearchParams({ name }) })
+            .then(res => res.text()).then(text => {
+                showMessage(text, 'success');
+                // Refresh the presets list and reset the form
+                fetch('/api/getPresets').then(res => res.json()).then(populatePresetsSelect);
+                resetPresetForm();
+            });
+    }
 }
 
 function scrollToSettings(tabName, elementId) {
