@@ -683,23 +683,13 @@ void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
         }
     }
 
-    // --- FIX: Ensure all tracks have a proper END command and activate if they have steps ---
-    for (int i = 0; i < 3; i++) {
-        // Check if the track was populated with at least one command.
+    // --- FIX: Activate the newly parsed tracks ---
+    // After populating the tracks, we must explicitly activate them so the sequencer will run them.
+    for (int i = 0; i < 3; ++i) {
         if (tracks[i].steps[0].command != SEQ_CMD_NONE) {
-            // Find the last valid step to append the END command.
-            int track_end_idx = 0;
-            while(track_end_idx < MAX_SEQUENCE_STEPS && tracks[i].steps[track_end_idx].command != SEQ_CMD_NONE) {
-                track_end_idx++;
-            }
-            add_step(tracks[i], track_end_idx, SEQ_CMD_END, i, 0, 0, 0);
-
-            // Now, activate the track so the sequencer will process it.
             tracks[i].isActive = true;
             tracks[i].trackStartTime = millis();
             tracks[i].stepStartTime = millis();
-            tracks[i].originalBrightness = currentSettings.brightness; // Save brightness
-            Log_printf(LOG_LEVEL_INFO, "SEQ_PARSE: Successfully parsed and activated sequence for track %d.", i);
         }
     }
 }
