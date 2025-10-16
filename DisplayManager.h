@@ -67,7 +67,8 @@ extern bool isRowInManualMode[3];
  * @details Indexed by [row][segment]. This allows an animation to set static text that persists
  * until the row is released from manual mode.
  */
-extern std::string manualDisplayText[3][4];
+#define MAX_MANUAL_TEXT_LENGTH 16
+extern char manualDisplayText[3][4][MAX_MANUAL_TEXT_LENGTH];
 
 /**
  * @brief A flag that is set to true when the Data Link configuration changes.
@@ -121,7 +122,7 @@ void resetWeatherFetchState();
  * @param segment The target segment (0-3), or -1 to update the entire row with a 13-char string.
  * @param text The text to display.
  */
-void updateDisplaySegment(int row, int segment, const std::string& text);
+void updateDisplaySegment(int row, int segment, const char* text);
 
 /**
  * @brief Restores a display row to its normal, non-manual state.

@@ -1014,6 +1014,10 @@ void reconnectMqtt() {
     mqttClient.subscribe(discover_topic.c_str());
     Log_printf(LOG_LEVEL_DEBUG, "Subscribed to discover command topic: %s", discover_topic.c_str());
 
+    String debug_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/debug/command";
+    mqttClient.subscribe(debug_topic.c_str());
+    Log_printf(LOG_LEVEL_DEBUG, "Subscribed to debug command topic: %s", debug_topic.c_str());
+
 
     for (int i = 0; i < currentSettings.numDataPoints; i++) {
       if (currentSettings.dataPoints[i].dataSourceType == DATA_SOURCE_MQTT && !currentSettings.dataPoints[i].mqttTopic.empty()) {
@@ -1313,6 +1317,10 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             currentProfileName = message.c_str();
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;
+        } else if (component == "debug") {
+            if (message == "heap") {
+                Log_printf(LOG_LEVEL_INFO, "HEAP: Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
+            }
         } else if (component == "sequencer") {
             handleSequencerCommand(message);
         } else if (component == "tts_text") {
