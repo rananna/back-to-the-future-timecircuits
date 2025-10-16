@@ -152,7 +152,7 @@ extern StockData stockData[3];
 
 // Global arrays to support manual text override via MQTT or API.
 bool weatherDataUpdated = false;
-std::string manualDisplayText[3][4];
+char manualDisplayText[3][4][16];
 bool isRowInManualMode[3] = {false, false, false};
 
 /**
@@ -476,7 +476,7 @@ void displayOverrideMessage() {
  * @param segment The target segment (0-3), or -1 to update the entire row at once.
  * @param text The text to display. An empty string clears the manual override for that segment.
  */
-void updateDisplaySegment(int row, int segment, const std::string& text) {
+void updateDisplaySegment(int row, int segment, const char* text) {
     if (row < 0 || row > 2) { // Invalid row
         return;
     }
@@ -484,27 +484,34 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
     if (segment == -1) {
         // A segment of -1 means we are updating the entire row, likely for a marquee.
         // The text is assumed to be 13 characters long.
-        std::string safe_text = text;
-        if (safe_text.length() > 13) {
-            safe_text = safe_text.substr(0, 13);
-        } else {
-            safe_text.append(13 - safe_text.length(), ' ');
+        char safe_text[14];
+        strncpy(safe_text, text, 13);
+        safe_text[13] = '\0';
+        // Pad with spaces if shorter than 13
+        for (int i = strlen(safe_text); i < 13; ++i) {
+            safe_text[i] = ' ';
         }
+        safe_text[13] = '\0';
 
-        manualDisplayText[row][0] = safe_text.substr(0, 3);
-        manualDisplayText[row][1] = safe_text.substr(3, 2);
-        manualDisplayText[row][2] = safe_text.substr(5, 4);
-        manualDisplayText[row][3] = safe_text.substr(9, 4);
+        strncpy(manualDisplayText[row][0], safe_text, 3);
+        manualDisplayText[row][0][3] = '\0';
+        strncpy(manualDisplayText[row][1], safe_text + 3, 2);
+        manualDisplayText[row][1][2] = '\0';
+        strncpy(manualDisplayText[row][2], safe_text + 5, 4);
+        manualDisplayText[row][2][4] = '\0';
+        strncpy(manualDisplayText[row][3], safe_text + 9, 4);
+        manualDisplayText[row][3][4] = '\0';
         isRowInManualMode[row] = true; // The whole row is now in manual mode.
 
     } else if (segment >= 0 && segment <= 3) {
         // This is for updating a single, specific segment.
-        manualDisplayText[row][segment] = text;
+        strncpy(manualDisplayText[row][segment], text, 15);
+        manualDisplayText[row][segment][15] = '\0'; // Ensure null termination
         // A row is in manual mode if any of its segments have text.
-        isRowInManualMode[row] = !manualDisplayText[row][0].empty() ||
-                                 !manualDisplayText[row][1].empty() ||
-                                 !manualDisplayText[row][2].empty() ||
-                                 !manualDisplayText[row][3].empty();
+        isRowInManualMode[row] = (strlen(manualDisplayText[row][0]) > 0) ||
+                                 (strlen(manualDisplayText[row][1]) > 0) ||
+                                 (strlen(manualDisplayText[row][2]) > 0) ||
+                                 (strlen(manualDisplayText[row][3]) > 0);
     } else {
         // An invalid segment was provided, so we do nothing.
         return;
@@ -526,7 +533,7 @@ void restoreDisplayRow(int row) {
 
     // Clear all manual text for the row
     for (int i = 0; i < 4; ++i) {
-        manualDisplayText[row][i].clear();
+        manualDisplayText[row][i][0] = '\0';
     }
 
     // Set the row back to normal clock mode
@@ -653,10 +660,10 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
                     printRow(destRow, dest_timeinfo, currentSettings.destinationYear, true, 0);
                 } else {
                     SequencerTrack& track = sequencerTracks[0];
-                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(destRow.month, "   ", 1); else printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
-                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(destRow.day, "  ", 2); else printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
-                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(destRow.year, "    "); else printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
-                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(destRow.time, "    "); else printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
+                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(destRow.month, "   ", 1); else printToDisplay(destRow.month, manualDisplayText[0][0], 1);
+                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(destRow.day, "  ", 2); else printToDisplay(destRow.day, manualDisplayText[0][1], 2);
+                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(destRow.year, "    "); else printToDisplay(destRow.year, manualDisplayText[0][2]);
+                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(destRow.time, "    "); else printToDisplay(destRow.time, manualDisplayText[0][3]);
                 }
                 destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
             }
@@ -667,10 +674,10 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
                     printRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent, 1);
                 } else {
                     SequencerTrack& track = sequencerTracks[1];
-                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(presRow.month, "   ", 1); else printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
-                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(presRow.day, "  ", 2); else printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
-                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(presRow.year, "    "); else printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
-                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(presRow.time, "    "); else printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
+                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(presRow.month, "   ", 1); else printToDisplay(presRow.month, manualDisplayText[1][0], 1);
+                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(presRow.day, "  ", 2); else printToDisplay(presRow.day, manualDisplayText[1][1], 2);
+                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(presRow.year, "    "); else printToDisplay(presRow.year, manualDisplayText[1][2]);
+                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(presRow.time, "    "); else printToDisplay(presRow.time, manualDisplayText[1][3]);
                 }
                 presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
             }
@@ -688,10 +695,10 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
                 printRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true, 2);
             } else {
                 SequencerTrack& track = sequencerTracks[2];
-                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(lastRow.month, "   ", 1); else printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
-                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(lastRow.day, "  ", 2); else printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
-                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(lastRow.year, "    "); else printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
-                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(lastRow.time, "    "); else printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
+                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(lastRow.month, "   ", 1); else printToDisplay(lastRow.month, manualDisplayText[2][0], 1);
+                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(lastRow.day, "  ", 2); else printToDisplay(lastRow.day, manualDisplayText[2][1], 2);
+                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(lastRow.year, "    "); else printToDisplay(lastRow.year, manualDisplayText[2][2]);
+                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(lastRow.time, "    "); else printToDisplay(lastRow.time, manualDisplayText[2][3]);
             }
             lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
         }
