@@ -1359,6 +1359,11 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                     Log_printf(LOG_LEVEL_WARN, "Favorite radio URL is not set. Cannot play.");
                 }
             }
+        } else if (component == "debug") {
+            if (message == "heap") {
+                Log_printf(LOG_LEVEL_INFO, "HEAP: Free: %u, Min Free: %u, Max Alloc: %u",
+                    ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getMaxAllocHeap());
+            }
         }
     } else {
     // --- START: New logic for HA Sensor command in Sequencer ---
