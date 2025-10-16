@@ -29,9 +29,9 @@ Once connected to your network, you can access the web UI in two ways:
 
 ## 🎛️ Web Interface Tabs
 
-The web interface is organized into five tabs.
+The web interface is organized into six tabs, providing a clear and intuitive way to manage all aspects of your Time Circuits clock.
 
-### **Time Circuits Tab**
+### **Time Circuits**
 This is the heart of the time-setting functionality.
 *   **Destination Time & Year**: Set the destination year and time zone for the top display row.
 *   **Last Time Departed & Presets**: This section controls the "Last Time Departed" display (bottom row).
@@ -39,30 +39,34 @@ This is the heart of the time-setting functionality.
     *   **Custom Presets**: You can add, edit, or delete your own favorite dates (like birthdays or anniversaries) using the form.
     *   **Automatic Cycling**: Use the slider to set an interval (in minutes) for the clock to automatically cycle through the presets. `0` disables this feature.
 
-### **Temporal Controls Tab**
+### **Temporal Controls**
 This tab controls the clock's automatic behaviors, visual effects, and sound.
 *   **Departure/Arrival (Sleep) Times**: Set a daily schedule to automatically turn the displays off (depart) and on (arrive). This is useful for saving energy and preventing the bright lights from disturbing you at night.
-*   **Display & Animation**: Adjust brightness and toggle 24-hour format.
+*   **Display**: Adjust brightness and toggle 24-hour format.
 *   **Animation Sequences**: Select a pre-programmed, multi-track animation from the dropdown and click **"Run"** to play it instantly.
 *   **Sound**: Control the master volume and enable or disable the main time travel sound effects.
-*   **Internet Radio**: Play internet radio streams directly on the device. You can add, edit, and delete stations from your playlist.
+*   **Favorite Internet Radio Station**: Configure and play your favorite internet radio stream directly on the device.
 
-### **Data Link Tab**
+### **Connectivity**
+This tab manages all network-related settings.
+*   **MQTT Broker Settings**: Configure the connection to your MQTT broker. This is required for Home Assistant integration and for using the advanced "Data Link" features.
+*   **Present Time & NTP**: Set the local time zone for the clock and manually trigger a synchronization with an internet time server (NTP) to ensure accuracy.
+
+### **Data Link**
 This tab unlocks advanced data display capabilities.
 *   **Stock Market Ticker**: Enable this mode to show real-time stock prices. Requires a free API key from [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs).
 *   **Live Weather Display**: Enable this mode to show the current weather for a specified city.
-*   **Data Link Configuration**: For advanced users, this allows the clock to display data pushed from an MQTT broker.
+*   **Data Link Configuration**: For advanced users, this allows the clock to display custom data pushed from an MQTT broker.
 
-### **Network & System Tab**
+### **System**
 This tab provides device status and system-level actions.
-*   **Present Time**: Set the time zone for the "Present Time" display and manually sync with an NTP server.
 *   **System Status**: View WiFi signal strength, free memory, and uptime.
 *   **Firmware Update (OTA)**: Update the device's main software over the air.
 *   **UI Theme**: Customize the look and feel of this web interface.
 *   **Device Actions**: Trigger a "Great Scott!" animation or reset all settings to their factory defaults.
 
-### **Help Tab**
-This tab contains a quick reference guide built directly into the UI, explaining the features of each tab and providing a list of all available animation sequences and their descriptions.
+### **Help**
+This tab contains a quick reference guide built directly into the UI, explaining the features of each tab, and a link to the complete official documentation.
 
 ---
 

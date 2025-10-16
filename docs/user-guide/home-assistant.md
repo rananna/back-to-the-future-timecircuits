@@ -89,57 +89,52 @@ An **Automation** is the trigger that runs your script. It defines *when* you wa
 
 The easiest way to add the blueprints is by importing them directly from the project's GitHub repository. This ensures you always have the most up-to-date version.
 
-1.  **Navigate to Blueprints in Home Assistant**:
-    *   Open your Home Assistant web interface.
-    *   Go to **Settings** > **Automations & Scenes**.
-    *   Select the **Blueprints** tab.
-
-2.  **Import a Blueprint**:
-    *   Click the **Import Blueprint** button in the bottom right corner.
-    *   A dialog box will appear asking for a URL. Paste one of the URLs below.
-    *   Click **Preview Blueprint**, then **Import Blueprint**.
+1.  **Navigate to Blueprints in Home Assistant**: Go to **Settings > Automations & Scenes** and select the **Blueprints** tab.
+2.  **Import a Blueprint**: Click the **Import Blueprint** button, paste one of the URLs below, and click **Preview Blueprint**, then **Import Blueprint**.
 
 3.  **Blueprint URLs (Copy and Paste)**:
-    *   **Display Text**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/script/display_text.yaml`
-    *   **Display Entity**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/script/display_entity.yaml`
-    *   **Countdown Timer**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/script/countdown.yaml`
+    *   **Display**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display.yaml`
+    *   **Countdown Timer**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/countdown.yaml`
+    *   **Multi-Row Status Board**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/multi_row_status_board.yaml`
 
 Repeat the import process for each blueprint you wish to use.
 
-### **Blueprint Reference**
+## 📖 Blueprint Reference
 
-This section is your comprehensive guide to each blueprint. You'll find detailed explanations of all available inputs, a complete list of visual and sound effects, and practical examples to help you build powerful automations.
+This section is your comprehensive guide to the blueprints. You'll find detailed explanations of all available inputs, a complete list of visual and sound effects, and practical examples to help you build powerful automations.
 
-#### **Core Concepts: Blocking vs. Non-Blocking Effects**
+### **The "Display" Blueprint**
+This is the most versatile blueprint. It replaces the old "Display Text" and "Display Entity" blueprints with a single, more powerful solution.
 
-To use the blueprints effectively, it's critical to understand the difference between the two types of visual effects:
-
-*   **Non-Blocking Effects**: These effects, like `Set Text`, execute instantly. The script sends the command and immediately moves to the next step. If there are no more steps, the script ends, and the display will revert to its previous state.
-    *   **🔑 How to Use**: To keep a non-blocking effect visible, you **must** use the **`Display Duration`** input. This adds a `WAIT` command to your sequence, holding the text on-screen for the time you specify.
-
-*   **Blocking Effects**: These effects, like `Marquee` or `Countdown`, have a built-in duration. The script will wait for the effect to complete before moving to the next step.
-    *   **🔑 How to Use**: You do **not** need to set a `Display Duration` for these. The effect will play out for its entire animation.
-
-Understanding this distinction will prevent the common issue of text "disappearing" immediately after being sent.
+#### **Key Inputs**
+*   `Target Row`: Choose which row (or all rows) to display the message on.
+*   `Data Source`: The most important input!
+    *   `Static Text`: Lets you type a message directly. Supports templates.
+    *   `Home Assistant Entity`: Lets you display the state or an attribute of any entity.
+*   `Visual Effect`: Choose from a list of animations like `Set Text`, `Marquee`, `Pulse`, `Flash`, `Typewriter`, `Scramble Text`, or `Random Flicker`.
+*   `Display Duration`: **Crucial for `Set Text`**, `Pulse`, and `Flash` effects. It sets how long the effect stays on screen. For other effects like `Marquee` or `Typewriter`, the blueprint waits for them to finish automatically.
+*   `Audio Source`: Choose whether to play a sound.
+    *   `None`: No sound.
+    *   `Built-in Sound Effect`: Play a sound from the clock's internal memory.
+    *   `Stream from Home Assistant`: Stream an audio file from your HA media library.
+*   `Repeat Count`: Loop the visual effect and built-in sound. (Streamed audio only plays once at the beginning).
+*   `Restore Row After Effect`: When enabled, the display will return to its normal state after the effect is finished.
 
 #### **Reference: Visual Effects**
-Use this table to choose the perfect animation for your message.
-
 | Visual Effect | Description | Type |
 | :--- | :--- | :--- |
-| `SET_TEXT` | Instantly displays the static text. | Non-Blocking |
-| `MARQUEE` | Scrolls the text from right to left across the display. | Blocking |
-| `PULSE` | Gently fades the text in and out. | Blocking |
-| `FLASH` | Flashes the text on and off rapidly. | Blocking |
-| `TYPEWRITER` | Reveals the text one character at a time, like a typewriter. | Blocking |
+| `SET_TEXT` | Instantly displays static text. | Non-Blocking |
+| `MARQUEE` | Scrolls text from right to left. | Blocking |
+| `PULSE` | Gently fades text in and out. | Blocking |
+| `FLASH` | Flashes text on and off. | Blocking |
+| `TYPEWRITER` | Reveals text one character at a time. | Blocking |
 | `SCRAMBLE_TEXT`| Displays random characters that resolve into the final text. | Blocking |
+| `RANDOM_FLICKER_TEXT` | Rapidly flickers the text for a glitchy effect. | Blocking |
 
 #### **Reference: Sound Effects**
-The following sound effects are built into the clock's firmware and can be triggered from the blueprints.
-
 | Sound Effect File | Description |
 | :--- | :--- |
-| `ACCELERATION.mp3` | The iconic sound of the DeLorean speeding up. |
+| `sys_beep.mp3` | A simple, single system beep. |
 | `arrival_chime.mp3` | A pleasant chime, perfect for notifications. |
 | `electric_sparks.mp3`| Crackling electrical sounds. |
 | `engine_rev.mp3` | A powerful engine revving up. |
@@ -148,32 +143,32 @@ The following sound effects are built into the clock's firmware and can be trigg
 | `keypad_beeps.mp3` | A sequence of beeps from the time circuit keypad. |
 | `lock_on.mp3` | A confirmation sound, as if a target is locked. |
 | `relay_activation.mp3`| The click-clack of multiple mechanical relays. |
-| `sys_beep.mp3` | A simple, single system beep. |
 | `time_travel.mp3` | The full, iconic time travel sequence sound effect. |
 
-#### **Use Case: Doorbell Alert**
-This example displays a static "DOORBELL" message on the middle row for 15 seconds, accompanied by a chime sound. This is a great example of using a **non-blocking** effect.
+#### **Use Case: Weather Alert**
+This example displays the current temperature from a weather entity on the top row, with a "Temp: " prefix and a "°F" postfix. It uses the `Pulse` effect and plays a chime.
 
 1.  **Create the Script:**
     *   Go to **Settings > Automations & Scenes > Blueprints**.
-    *   Find the "BTTF Time Circuits: Display Text" blueprint and click **Create Script**.
-    *   Name the script something descriptive, like "Time Circuits Doorbell Alert".
+    *   Find the "BTTF Time Circuits: Display" blueprint and click **Create Script**.
+    *   Name it "Time Circuits Weather Update".
     *   Configure the inputs:
-        *   `Target Row`: `Middle`
-        *   `Text to Display`: `DOORBELL`
-        *   `Visual Effect`: `Set Text`
-        *   `Display Duration (s)`: `15`  *(Crucial for `Set Text` to remain visible!)*
+        *   `Target Row`: `Top`
+        *   `Data Source`: `Home Assistant Entity`
+        *   `Entity to Display`: Your weather sensor (e.g., `weather.home`)
+        *   `Attribute to Display`: `temperature`
+        *   `Prefix`: `Temp: `
+        *   `Postfix`: `°F`
+        *   `Visual Effect`: `Pulse`
+        *   `Display Duration (s)`: `10`
         *   `Audio Source`: `Built-in Sound Effect`
         *   `Sound Effect`: `arrival_chime.mp3`
     *   Save the script.
 
 2.  **Create the Automation:**
-    *   Go to **Settings > Automations & Scenes > Automations**.
-    *   Click **Create Automation** and select **Start with an empty automation**.
-    *   **Trigger:** Set the trigger to your doorbell's sensor (e.g., `binary_sensor.doorbell_ding` changes to `on`).
-    *   **Action:**
-        *   `Action type`: `Call service`
-        *   `Service`: Find the script you just created (e.g., `script.time_circuits_doorbell_alert`).
+    *   Create a new automation.
+    *   **Trigger:** Use a `Time Pattern` trigger to run every 30 minutes.
+    *   **Action:** Call the `script.time_circuits_weather_update` service.
     *   Save the automation.
 
 ---
