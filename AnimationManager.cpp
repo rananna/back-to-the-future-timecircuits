@@ -17,7 +17,7 @@ bool bootSequenceCompleted = false;
 #include "AnimationSequences.h"
 
 // --- NEW: A global timeout for any single animation sequence track ---
-#define MAX_SEQUENCE_DURATION 15000 // 15 seconds
+#define MAX_SEQUENCE_DURATION 8000 // 8 seconds
 #include "DisplayManager.h"
 #include "MqttManager.h"
 
@@ -641,7 +641,7 @@ void resetDisplayToNormal() {
     isMessageOverrideActive = false;
 
     // Reset manual text override for all display segments
-    for (int r = 0; r < NUM_SEQUENCER_TRACKS; ++r) {
+    for (int r = 0; r < 3; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
             manualDisplayText[r][s] = "";
@@ -663,7 +663,7 @@ void resetDisplayToNormal() {
 static void comprehensiveAnimationCleanup() {
     // Reset all override and manual mode flags
     isMessageOverrideActive = false;
-    for (int r = 0; r < NUM_SEQUENCER_TRACKS; ++r) {
+    for (int r = 0; r < 3; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
             manualDisplayText[r][s] = "";
@@ -710,7 +710,7 @@ void handleSequencer() {
     bool needsDisplayUpdate = false;
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
 
-    for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
+    for (int i = 0; i < 3; i++) {
         SequencerTrack& track = sequencerTracks[i];
         DisplayRow& row = *rows[i];
 
@@ -755,7 +755,7 @@ void handleSequencer() {
                 if (millis() > track.pulseEndTimes[s]) {
                     track.isPulsing[s] = false;
                     needsDisplayUpdate = true;
-                } else if (millis() - track.lastPulseToggle[s] > track.pulseInterval) {
+                } else if (millis() - track.lastPulseToggle[s] > 750) {
                     track.pulseStates[s] = !track.pulseStates[s];
                     track.lastPulseToggle[s] = millis();
                     needsDisplayUpdate = true;
@@ -823,9 +823,9 @@ void handleSequencer() {
 
             case SEQ_CMD_RESTORE_ALL_ROWS:
                 if (!track.stepInitialized) {
-                    for (int j = 0; j < NUM_SEQUENCER_TRACKS; ++j) {
-                        restoreDisplayRow(j);
-                    }
+                    restoreDisplayRow(0);
+                    restoreDisplayRow(1);
+                    restoreDisplayRow(2);
                     track.stepInitialized = true;
                     advance_step = true;
                 }
@@ -936,25 +936,16 @@ void handleSequencer() {
                     break;
                 }
                 if (!track.stepInitialized) {
-                    // If a stringParam is provided, set the text before starting the pulse.
-                    if (step.stringParam[0] != '\0') {
-                        updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
-                    }
-
-                    // Use intParam for interval, intParam2 for total duration.
-                    track.pulseInterval = (step.intParam > 0) ? step.intParam : 750;
-                    unsigned long duration = (step.intParam2 > 0) ? step.intParam2 : 5000; // Default 5s duration
-
                     if (step.targetSegment == -1) { // Apply to all segments
                         for (int s = 0; s < 4; s++) {
                             track.isPulsing[s] = true;
-                            track.pulseEndTimes[s] = millis() + duration;
+                            track.pulseEndTimes[s] = millis() + step.intParam;
                             track.pulseStates[s] = true;
                             track.lastPulseToggle[s] = millis();
                         }
                     } else { // Apply to a single segment
                         track.isPulsing[step.targetSegment] = true;
-                        track.pulseEndTimes[step.targetSegment] = millis() + duration;
+                        track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
                         track.pulseStates[step.targetSegment] = true;
                         track.lastPulseToggle[step.targetSegment] = millis();
                     }
@@ -1160,7 +1151,6 @@ void handleSequencer() {
                         track.lastScannerUpdate = millis();
                     }
                 }
-                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_TYPEWRITER:
@@ -1179,7 +1169,6 @@ void handleSequencer() {
                         track.lastTypewriterUpdate = millis();
                     }
                 }
-                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_WIPE:
@@ -1207,7 +1196,6 @@ void handleSequencer() {
                         track.lastWipeUpdate = millis();
                     }
                 }
-                vTaskDelay(1); // Yield to other tasks
                 break;
 
             case SEQ_CMD_BAR_GRAPH:
@@ -1433,7 +1421,7 @@ void handleSequencer() {
                 { // New scope for local variable
                     // This is a natural end to a sequence. Check if it's the very last track.
                     bool wasLastTrack = true;
-                    for (int j = 0; j < NUM_SEQUENCER_TRACKS; j++) {
+                    for (int j = 0; j < 3; j++) {
                         if (i != j && sequencerTracks[j].isActive) {
                             wasLastTrack = false;
                             break;
@@ -1477,7 +1465,7 @@ void handleSequencer() {
  * @param trackIndex The index of the track (0-2) to clean up.
  */
 void stopAndCleanupTrack(int trackIndex) {
-    if (trackIndex < 0 || trackIndex >= NUM_SEQUENCER_TRACKS) return;
+    if (trackIndex < 0 || trackIndex > 2) return;
 
     SequencerTrack& track = sequencerTracks[trackIndex];
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
@@ -1499,7 +1487,7 @@ void stopAndCleanupTrack(int trackIndex) {
 
     // --- NEW: Check if this was the very last active track ---
     bool anyOtherTrackActive = false;
-    for (int i = 0; i < NUM_SEQUENCER_TRACKS; ++i) {
+    for (int i = 0; i < 3; ++i) {
         if (sequencerTracks[i].isActive) {
             anyOtherTrackActive = true;
             break; // Found another active track, no need to check further
@@ -1526,93 +1514,11 @@ void stopAndCleanupTrack(int trackIndex) {
 
 void stopAllSequences() {
     Log_printf(LOG_LEVEL_INFO, "SEQ: Stopping all active sequences.");
-    for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
+    for (int i = 0; i < 3; i++) {
         // The cleanup function has its own guards, but checking isActive here is a good practice.
         if (sequencerTracks[i].isActive) {
             stopAndCleanupTrack(i);
         }
-    }
-}
-
-/**
- * @brief Safely clears a sequence step without allocating a temporary object on the stack.
- * @details This function manually resets each member of the SequenceStep struct to its
- * default value. This avoids the `step = SequenceStep()` assignment which would
- * create a large temporary object on the stack and cause a crash.
- * @param step The SequenceStep object to clear.
- */
-void clearSequenceStep(SequenceStep& step) {
-    step.command = SEQ_CMD_NONE;
-    step.targetRow = 0;
-    step.targetSegment = 0;
-    step.intParam = 0;
-    step.intParam2 = 0;
-    step.stringParam[0] = '\0';
-    step.stringParam2[0] = '\0';
-}
-
-/**
- * @brief Safely clears a sequencer track without allocating a temporary object on the stack.
- * @details This function is a critical fix for a stack overflow bug. The `SequencerTrack`
- * struct is too large to be created as a temporary object on the stack. Instead of doing
- * `track = SequencerTrack()`, this function manually resets each member of the struct
- * to its default value, which has a negligible impact on the stack. It uses the
- * `clearSequenceStep` helper to safely clear the large `steps` array.
- * @param track The SequencerTrack object to clear.
- */
-void clearSequencerTrack(SequencerTrack& track) {
-    track.isActive = false;
-    track.currentStep = 0;
-    track.stepStartTime = 0;
-    track.stepInitialized = false;
-    track.trackStartTime = 0;
-    track.loopStartStep = -1;
-    track.loopCounter = 0;
-    track.isMarqueeActive = false;
-    track.marqueeText.clear();
-    track.marqueeScrollPosition = 0;
-    track.lastMarqueeScrollTime = 0;
-    track.isFading = false;
-    track.fadeStartTime = 0;
-    track.fadeDuration = 0;
-    track.isFadeIn = false;
-    for (int i = 0; i < 4; ++i) {
-        track.isPulsing[i] = false;
-        track.pulseEndTimes[i] = 0;
-        track.pulseStates[i] = false;
-        track.lastPulseToggle[i] = 0;
-        track.pulseInterval = 750;
-        track.isFlashing[i] = false;
-        track.flashEndTimes[i] = 0;
-        track.flashStates[i] = false;
-        track.lastFlashToggle[i] = 0;
-    }
-    track.countdownValue = 0;
-    track.countdownLastUpdate = 0;
-    track.scannerPosition = 0;
-    track.scannerDirection = true;
-    track.lastScannerUpdate = 0;
-    track.typewriterIndex = 0;
-    track.lastTypewriterUpdate = 0;
-    track.wipeSegment = 0;
-    track.lastWipeUpdate = 0;
-    track.barGraphPercentage = 0.0f;
-    track.lastBarGraphUpdate = 0;
-    track.barGraphStartTime = 0;
-    track.lastFlickerUpdate = 0;
-    track.flickerOriginalText.clear();
-    track.scrambleCharIndex = 0;
-    track.lastScrambleUpdate = 0;
-    track.lastScrambleLockInTime = 0;
-    track.scrambleCurrentText.clear();
-    track.crossfadePhase = 0;
-    track.isWaitingForHAState = false;
-    track.haSensorTopic.clear();
-    track.haStateReceived = false;
-
-    // Safely clear the steps array using the helper function.
-    for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
-        clearSequenceStep(track.steps[i]);
     }
 }
 
@@ -1642,7 +1548,7 @@ void runSequencerTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Comprehensive Sequencer Test ---");
 
     // Reset all tracks to ensure a clean slate
-    for (int i = 0; i < NUM_SEQUENCER_TRACKS; ++i) {
+    for (int i = 0; i < 3; ++i) {
         sequencerTracks[i].reset();
     }
 
@@ -1697,17 +1603,18 @@ void triggerAnimation(AnimationType animType) {
 
     // --- FIX: Save the current display mode so it can be restored after the animation. ---
     preAnimationDisplayMode = currentSettings.displayMode;
-    currentSettings.displayMode = -1; // Pause the main display loop
 
     // --- NEW: Store the current animation type for logging completion ---
     currentAnimationType = animType;
 
-    // --- FIX: Use a static buffer to prevent heap fragmentation from frequent allocations ---
-    // The SequencerTrack struct is very large (~5.5KB), so creating an array on the stack
-    // would cause a stack overflow. Using a static buffer allocates this memory once at
-    // compile time, avoiding both stack overflow and runtime heap fragmentation issues
-    // that were causing crashes during rapid animation changes (e.g., preset cycling).
-    static SequencerTrack temp_tracks[NUM_SEQUENCER_TRACKS];
+    // --- FIX: Allocate temp_tracks on the heap to prevent stack overflow ---
+    // The SequencerTrack struct is very large (approx 5.5KB), so creating an
+    // array of 3 on the stack (16.5KB) exceeds the ESP32's stack limit.
+    SequencerTrack* temp_tracks = new SequencerTrack[3];
+    if (!temp_tracks) {
+        Log_printf(LOG_LEVEL_ERROR, "CRITICAL: Failed to allocate memory for temp_tracks in triggerAnimation. Aborting.");
+        return;
+    }
 
     // --- FIX: Generate the animation into the temporary buffer *before* stopping the old one. ---
     // This prevents use-after-free issues where stopAllSequences() might clear a string
@@ -1720,7 +1627,7 @@ void triggerAnimation(AnimationType animType) {
     stopAllSequences();
 
     // Copy the steps from ALL generated tracks to the main sequencer tracks.
-    for (int j = 0; j < NUM_SEQUENCER_TRACKS; ++j) {
+    for (int j = 0; j < 3; ++j) {
         // We don't need to call reset() here because stopAllSequences() already did.
         for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
             sequencerTracks[j].steps[i] = temp_tracks[j].steps[i];
@@ -1738,7 +1645,8 @@ void triggerAnimation(AnimationType animType) {
         }
     }
 
-    // Static memory does not need to be manually deallocated.
+    // --- FIX: Clean up the heap-allocated memory ---
+    delete[] temp_tracks;
 }
 
 void startSequencerMarquee(SequencerTrack& track, const std::string& text) {

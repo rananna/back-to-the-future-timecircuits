@@ -15,7 +15,7 @@
 #define HARDWARE_CONTROL_H
 #include "timezone.h"
 #include <Wire.h>
-#include "AnimationTypes.h"
+#include "AnimationSequences.h"
 
 /**
  * @brief Extern declarations for character arrays holding the previously displayed time strings.

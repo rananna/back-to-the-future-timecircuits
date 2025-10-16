@@ -115,17 +115,11 @@ void broadcastAnimationComplete();
 #include "Sequencer.h"
 
 /**
- * @brief The number of parallel animation tracks supported by the sequencer.
- * @details This is fixed to 3, corresponding to the three physical display rows (TOP, MIDDLE, BOTTOM).
- */
-#define NUM_SEQUENCER_TRACKS 3
-
-/**
- * @brief Global array of sequencer tracks, one for each display row.
+ * @brief Global array of sequencer tracks, one for each of the 3 display rows.
  * @details This is the core data structure for the animation sequencer, holding the state
  * and command lists for all concurrently running animations.
  */
-extern SequencerTrack sequencerTracks[NUM_SEQUENCER_TRACKS];
+extern SequencerTrack sequencerTracks[3];
 
 /**
  * @name Animation Sequencer Core Functions
@@ -152,18 +146,6 @@ void stopAndCleanupTrack(int trackIndex);
  * @details This is a master reset function, crucial for interrupting an animation safely.
  */
 void stopAllSequences();
-
-/**
- * @brief Safely clears a sequence step without allocating a temporary object on the stack.
- * @param step The SequenceStep object to clear.
- */
-void clearSequenceStep(SequenceStep& step);
-
-/**
- * @brief Safely clears a sequencer track without allocating a temporary object on the stack.
- * @param track The SequencerTrack object to clear.
- */
-void clearSequencerTrack(SequencerTrack& track);
 
 /**
  * @brief Triggers a new animation sequence globally.

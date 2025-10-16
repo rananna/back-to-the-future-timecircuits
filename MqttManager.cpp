@@ -21,7 +21,6 @@
 #include "DebugLog.h"
 #include "MqttManager.h"
 #include "EventManager.h"
-#include "Sequencer.h"
 #include "AnimationManager.h"
 #include "DisplayManager.h"
 #include "DataManager.h"
@@ -37,6 +36,9 @@ extern Audio audio;
 #include <WiFi.h>
 #include <Preferences.h>
 #include <LCBUrl.h> 
+
+// Forward declaration from main .ino file
+extern AnimationType animationTypeFromString(const std::string& name);
 
 // Forward declaration for the function defined later in the file.
 void ensureBaseDiscoveryConfig();
@@ -906,15 +908,7 @@ void startHaDiscovery() {
  * discovery message per call, with a delay between messages.
  */
 void handleHaDiscovery() {
-    // --- FIX: Immediately exit if discovery is not actively running ---
-    // This prevents any further processing, including the MQTT connection check below,
-    // unless the discovery process is in the specific 'RUNNING' state. This stops
-    // the log spam and potential crashes when the MQTT client is disconnected and
-    // discovery is idle.
-    if (haDiscoveryState != HA_DISCOVERY_RUNNING) {
-        return;
-    }
-
+    // --- FIX: Prevent discovery from running if MQTT is not connected ---
     // This is a critical stability fix. The discovery process allocates significant
     // memory for JSON documents. If the client is disconnected, attempting to publish
     // these messages can fail, but the loop continues, leading to rapid memory
@@ -923,7 +917,15 @@ void handleHaDiscovery() {
         // Log this event, as it indicates a potential issue if it happens frequently.
         Log_printf(LOG_LEVEL_WARN, "HA Discovery: Paused. MQTT client is not connected.");
         // If discovery was running, reset it to idle so it can restart on reconnect.
-        haDiscoveryState = HA_DISCOVERY_IDLE;
+        // If it was already complete, do nothing. This prevents the state from being
+        // reset during the intentional disconnect/reconnect for mDNS startup.
+        if (haDiscoveryState == HA_DISCOVERY_RUNNING) {
+            haDiscoveryState = HA_DISCOVERY_IDLE;
+        }
+        return;
+    }
+
+    if (haDiscoveryState != HA_DISCOVERY_RUNNING) {
         return;
     }
 
@@ -1031,7 +1033,7 @@ void reconnectMqtt() {
     delay(1000);
     mqttClient.loop(); // Process incoming ACKs during the delay
 
-    startHaStatePublishing();
+    publishAllHaStates();
   } else {
     const char* error_str = "Unknown";
     switch (mqttClient.state()) {
@@ -1384,7 +1386,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         stateChanged = true;
     }
     if (stateChanged) {
-        startHaStatePublishing();
+        publishAllHaStates();
     }
 }
 
@@ -1411,105 +1413,41 @@ void unsubscribeFromTopic(const std::string& topic) {
 }
 
 
-// --- START: New Non-Blocking State Publishing Implementation ---
-
-// State variables for the publishing machine
-static HaStatePublishState haStatePublishStatus = HA_STATE_PUBLISH_IDLE;
-static int haStatePublishIndex = 0;
-static unsigned long lastHaStatePublishTime = 0;
-const unsigned int HA_STATE_PUBLISH_DELAY = 50; // 50ms delay between each publish chunk
-
-// Forward declarations for the chunked publishing functions
-void publishHaStatesChunk1();
-void publishHaStatesChunk2();
-void publishHaStatesChunk3();
-void publishHaStatesChunk4();
-void publishHaStatesChunk5();
-void publishHaStatesChunk6();
-
-// Array of function pointers to the chunked publishing functions
-void (*ha_state_publish_functions[])() = {
-    publishHaStatesChunk1,
-    publishHaStatesChunk2,
-    publishHaStatesChunk3,
-    publishHaStatesChunk4,
-    publishHaStatesChunk5,
-    publishHaStatesChunk6
-};
-const int num_ha_state_publish_functions = sizeof(ha_state_publish_functions) / sizeof(ha_state_publish_functions[0]);
-
-/**
- * @brief Kicks off the non-blocking state publishing process.
- * @details This function resets the state machine to its initial state, allowing the
- * `handleHaStatePublishing` function to begin sending state updates in chunks. It's
- * safe to call this at any time to re-publish all states.
- */
-void startHaStatePublishing() {
-    Log_printf(LOG_LEVEL_INFO, "MQTT: Starting non-blocking publication of all HA states.");
-    haStatePublishStatus = HA_STATE_PUBLISH_RUNNING;
-    haStatePublishIndex = 0;
-    lastHaStatePublishTime = 0; // Ensures the first chunk is published immediately
-}
-
-/**
- * @brief Manages the non-blocking HA state publishing state machine.
- * @details This function should be called in the main loop. It publishes one chunk of
- * state messages per call, with a configured delay between chunks. This prevents
- * overwhelming the MQTT client's output buffer and starving the network task, which
- * was the cause of the previous watchdog timeouts and crashes.
- */
-void handleHaStatePublishing() {
-    if (haStatePublishStatus != HA_STATE_PUBLISH_RUNNING) {
-        return;
-    }
-
-    // Ensure the client is connected before attempting to publish
-    if (!mqttClient.connected()) {
-        Log_printf(LOG_LEVEL_WARN, "HA State Publishing: Paused. MQTT client is not connected.");
-        haStatePublishStatus = HA_STATE_PUBLISH_IDLE; // Reset so it can be restarted
-        return;
-    }
-
-    if (millis() - lastHaStatePublishTime >= HA_STATE_PUBLISH_DELAY) {
-        if (haStatePublishIndex < num_ha_state_publish_functions) {
-            Log_printf(LOG_LEVEL_DEBUG, "HA State Publishing: Publishing chunk %d of %d", haStatePublishIndex + 1, num_ha_state_publish_functions);
-            ha_state_publish_functions[haStatePublishIndex]();
-            haStatePublishIndex++;
-            lastHaStatePublishTime = millis();
-        } else {
-            Log_printf(LOG_LEVEL_INFO, "HA State Publishing: All chunks published successfully.");
-            haStatePublishStatus = HA_STATE_PUBLISH_IDLE; // Go back to idle
-        }
-    }
-}
-
-
-// --- Chunked Publishing Functions ---
-
-void publishHaStatesChunk1() { // Core settings and overrides
+void publishAllHaStates() {
+    if (!mqttClient.connected()) return;
     String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
     char payload[20];
-    mqttClient.publish((base_topic + "/override_switch/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
+
+    mqttClient.publish((base_topic + "/override/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
+    
+    // Publish the state of the new, separate override line entities
     mqttClient.publish((base_topic + "/override_line_1/state").c_str(), overrideMessageLine1.c_str(), true);
     mqttClient.publish((base_topic + "/override_line_2/state").c_str(), overrideMessageLine2.c_str(), true);
     mqttClient.publish((base_topic + "/override_line_3/state").c_str(), overrideMessageLine3.c_str(), true);
+
     mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
+    
     itoa(currentSettings.brightness, payload, 10);
     mqttClient.publish((base_topic + "/brightness/state").c_str(), payload, true);
+    
     itoa(currentSettings.notificationVolume, payload, 10);
     mqttClient.publish((base_topic + "/volume/state").c_str(), payload, true);
-}
 
-void publishHaStatesChunk2() { // Time and display text (rows 1 & 2)
-    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
+    const char* styles[] = {"Sequential Flicker", "Random Flicker", "All Displays Random", "Counting Up", "Wave Flicker", "Tornado Flicker", "Capacitor Charge-Up", "Digital Rain", "Waveform Collapse", "Timeline Skim"};
+    if (currentSettings.animationStyle >= 0 && currentSettings.animationStyle < 10) {
+        mqttClient.publish((base_topic + "/animation_style/state").c_str(), styles[currentSettings.animationStyle], true);
+    }
+    
+    publishHaDiagnosticAttributes();
+
     char time_str[6];
     sprintf(time_str, "%02d:%02d", currentSettings.departureHour, currentSettings.departureMinute);
     mqttClient.publish((base_topic + "/sleep_time/state").c_str(), time_str, true);
     sprintf(time_str, "%02d:%02d", currentSettings.arrivalHour, currentSettings.arrivalMinute);
     mqttClient.publish((base_topic + "/wake_time/state").c_str(), time_str, true);
 
-    // Rows 0 and 1
-    for(int r=0; r<2; ++r) {
+    // Publish the state of the 12 text entities
+    for(int r=0; r<3; ++r) {
         for(int s=0; s<4; ++s) {
             const char* rows[] = {"dest", "pres", "last"};
             const char* segments[] = {"month", "day", "year", "time"};
@@ -1517,88 +1455,47 @@ void publishHaStatesChunk2() { // Time and display text (rows 1 & 2)
             mqttClient.publish(topic.c_str(), manualDisplayText[r][s].c_str(), true);
         }
     }
-}
+    
+    mqttClient.publish((base_topic + "/sound_toggle/state").c_str(), currentSettings.timeTravelSoundToggle ? "ON" : "OFF", true);
+    mqttClient.publish((base_topic + "/is_animating/state").c_str(), isAnimating ? "ON" : "OFF", true);
+    mqttClient.publish((base_topic + "/is_asleep/state").c_str(), isDisplayAsleep ? "ON" : "OFF", true);
+    itoa(currentPageIndex + 1, payload, 10);
+    mqttClient.publish((base_topic + "/marquee_page/state").c_str(), payload, true);
+    mqttClient.publish((base_topic + "/weather_city/state").c_str(), currentSettings.cityName.c_str(), true);
 
-void publishHaStatesChunk3() { // Display text (row 3) and various toggles
-    char topic_buffer[128]; // Buffer for constructing topic strings
-    String base_topic_str = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    const char* base_topic = base_topic_str.c_str();
-
-    // Row 2
-    const char* segments[] = {"month", "day", "year", "time"};
-    for(int s=0; s<4; ++s) {
-        snprintf(topic_buffer, sizeof(topic_buffer), "%s/last_%s/state", base_topic, segments[s]);
-        mqttClient.publish(topic_buffer, manualDisplayText[2][s].c_str(), true);
-    }
-
-    snprintf(topic_buffer, sizeof(topic_buffer), "%s/sound_toggle/state", base_topic);
-    mqttClient.publish(topic_buffer, currentSettings.timeTravelSoundToggle ? "ON" : "OFF", true);
-
-    snprintf(topic_buffer, sizeof(topic_buffer), "%s/is_animating/state", base_topic);
-    mqttClient.publish(topic_buffer, isAnimating ? "ON" : "OFF", true);
-
-    snprintf(topic_buffer, sizeof(topic_buffer), "%s/is_asleep/state", base_topic);
-    mqttClient.publish(topic_buffer, isDisplayAsleep ? "ON" : "OFF", true);
-
-    snprintf(topic_buffer, sizeof(topic_buffer), "%s/24h_format/state", base_topic);
-    mqttClient.publish(topic_buffer, currentSettings.displayFormat24h ? "ON" : "OFF", true);
-
-    snprintf(topic_buffer, sizeof(topic_buffer), "%s/temporal_echo/state", base_topic);
-    mqttClient.publish(topic_buffer, isEchoEffectActive ? "ON" : "OFF", true);
-}
-
-void publishHaStatesChunk4() { // Intervals, selectors, and status
-    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    char payload[20];
+    mqttClient.publish((base_topic + "/24h_format/state").c_str(), currentSettings.displayFormat24h ? "ON" : "OFF", true);
     itoa(currentSettings.timeTravelAnimationInterval, payload, 10);
     mqttClient.publish((base_topic + "/animation_interval/state").c_str(), payload, true);
     itoa(currentSettings.stockRefreshInterval, payload, 10);
     mqttClient.publish((base_topic + "/stock_refresh/state").c_str(), payload, true);
     
+    mqttClient.publish((base_topic + "/temporal_echo/state").c_str(), isEchoEffectActive ? "ON" : "OFF", true);
+
+    // This state publishing has been removed as the sensor it belongs to was removed.
+
+    // Publish the state of the new display mode selector
     const char* modes[] = {"Normal Clock", "Stock Ticker", "Weather", "Data Link"};
     if (currentSettings.displayMode >= 0 && currentSettings.displayMode < 4) {
         mqttClient.publish((base_topic + "/display_mode/state").c_str(), modes[currentSettings.displayMode], true);
     }
+
+    // --- ADDED: Publish states for the select entities that were being missed ---
     mqttClient.publish((base_topic + "/profile/state").c_str(), currentProfileName.c_str(), true);
     mqttClient.publish((base_topic + "/preset_selector/state").c_str(), lastDepartedPreset.c_str(), true);
-    publishHaDiagnosticAttributes();
-}
 
-void publishHaStatesChunk5() { // Audio and Data Link points 1-3
-    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
     mqttClient.publish((base_topic + "/audio/state").c_str(), audio.isRunning() ? "PLAYING" : "IDLE", true);
+
+    // --- ADDED: Publish radio metadata states ---
     mqttClient.publish((base_topic + "/radio_station_name/state").c_str(), radioStationName.c_str(), true);
     mqttClient.publish((base_topic + "/radio_song_title/state").c_str(), radioSongTitle.c_str(), true);
-    mqttClient.publish((base_topic + "/weather_city/state").c_str(), currentSettings.cityName.c_str(), true);
 
-    for(int i=0; i<3; ++i) {
+    for(int i=0; i<5; ++i) {
         String enabled_topic = base_topic + "/datapoint_" + String(i) + "_enabled/state";
         mqttClient.publish(enabled_topic.c_str(), currentSettings.dataPoints[i].enabled ? "ON" : "OFF", true);
         String marquee_topic = base_topic + "/datapoint_" + String(i) + "_marquee/state";
         mqttClient.publish(marquee_topic.c_str(), currentSettings.dataPoints[i].scrollingText.c_str(), true);
     }
 }
-
-void publishHaStatesChunk6() { // Data Link points 4-5
-    String base_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID;
-    for(int i=3; i<5; ++i) {
-        String enabled_topic = base_topic + "/datapoint_" + String(i) + "_enabled/state";
-        mqttClient.publish(enabled_topic.c_str(), currentSettings.dataPoints[i].enabled ? "ON" : "OFF", true);
-        String marquee_topic = base_topic + "/datapoint_" + String(i) + "_marquee/state";
-        mqttClient.publish(marquee_topic.c_str(), currentSettings.dataPoints[i].scrollingText.c_str(), true);
-    }
-}
-
-/**
- * @brief A wrapper function that calls the new non-blocking state publisher.
- * @details This function is kept for backward compatibility in case any part of the code
- * still calls it directly. It now simply triggers the new non-blocking state machine.
- */
-void publishAllHaStates() {
-    startHaStatePublishing();
-}
-
-// --- END: New Non-Blocking State Publishing Implementation ---
 
 void publishMqttMessage(const std::string& topic, const std::string& payload) {
     if (mqttClient.connected()) {
@@ -1618,81 +1515,27 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
  * @param payload The JSON string or name of the sequence to run.
  */
 void handleSequencerCommand(const std::string& payload) {
-    // --- FIX: Allocate tracks statically to prevent stack overflow ---
-    // The SequencerTrack struct is very large (~11.5KB). Allocating an array of them
-    // on the stack causes an immediate overflow and crash when this function is called.
-    // Making it static moves the allocation to the heap, which is much larger.
-    static SequencerTrack tracks[NUM_SEQUENCER_TRACKS];
+    preAnimationDisplayMode = currentSettings.displayMode;
 
-    // --- FIX: Clear the temporary tracks buffer BEFORE parsing. ---
-    // This is a critical stability fix. If `parseSequenceFromJson` fails, this
-    // static buffer would otherwise retain the data from the last *successful*
-    // sequence generation. This would cause the device to seemingly run the wrong
-    // animation (the previous one) when a malformed command is received.
-    // By clearing it here, a failed parse results in an empty sequence, which
-    // will simply do nothing and time out safely.
-    for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
-        clearSequencerTrack(tracks[i]); // Safely reset the track
-    }
-
-    static JsonDocument doc;
-    doc.clear(); // Clear the document before reuse
+    // --- NEW UNIFIED LOGIC ---
+    // First, check if the payload is a direct JSON command.
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, payload);
 
     if (error == DeserializationError::Ok) {
-        // It's a valid JSON string. Now, determine its structure.
-        std::string tracks_payload;
-        if (doc.is<JsonArray>()) {
-            // This is the correct, preferred format: a direct array of tracks.
-            tracks_payload = payload;
-            Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload (Array format).");
-        } else if (doc.is<JsonObject>() && !doc["tracks"].isNull() && doc["tracks"].is<JsonArray>()) {
-            // This is for backward compatibility with older tools or blueprints that
-            // might wrap the array in an object like: {"tracks": [...]}.
-            serializeJson(doc["tracks"], tracks_payload);
-            Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload (Object wrapper format).");
-        } else {
-            // The payload is valid JSON, but not in a structure we can use.
-            Log_printf(LOG_LEVEL_ERROR, "Sequencer: JSON payload is not a track array or a {'tracks':...} object. Aborting.");
-            return; // Exit without starting any animation.
-        }
-
-        // 1. Generate: Parse the validated and extracted JSON payload.
-        parseSequenceFromJson(tracks, tracks_payload);
-        Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Parsing of JSON payload complete.");
-
-        // --- FIX: Reordered logic to prevent race condition ---
-        // The display mode is now saved and set to -1 only *after* the JSON
-        // has been successfully parsed into a sequence. This prevents the
-        // display from being left in a corrupted (-1) state if the payload
-        // is valid JSON but contains an invalid sequence structure.
-        preAnimationDisplayMode = currentSettings.displayMode;
-        currentSettings.displayMode = -1;
-
-        // 2. Stop: Halt all currently running animations.
+        // It's a valid JSON string, so we can parse it directly.
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload.");
         stopAllSequences();
-        Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Stopped all current sequences.");
-
-        // 3. Copy: Transfer the new sequence from the temporary buffer to the main one.
-        for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
-            sequencerTracks[i] = tracks[i];
-        }
-        Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Copied new sequence into active tracks.");
-
-        // 4. Activate: Mark the tracks as active so the sequencer will run them.
-        for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
-            if (sequencerTracks[i].steps[0].command != SEQ_CMD_NONE) {
-                sequencerTracks[i].isActive = true;
-                sequencerTracks[i].trackStartTime = millis();
-                sequencerTracks[i].stepStartTime = millis();
-                sequencerTracks[i].originalBrightness = currentSettings.brightness;
-                Log_printf(LOG_LEVEL_DEBUG, "Sequencer: Activated track %d.", i);
-            }
-        }
-
+        parseSequenceFromJson(sequencerTracks, payload);
     } else {
         // It's not JSON, so treat it as a named sequence.
-        AnimationType animType = animationTypeFromString(payload.c_str());
+        // Convert the string name to an enum.
+        AnimationType animType = animationTypeFromString(payload);
+
+        // --- FIX: Directly call triggerAnimation for ALL named sequences ---
+        // This is the core of the fix. Instead of having separate logic paths,
+        // all named sequences, whether legacy, C++ generated, or JSON-based,
+        // are now handled by the unified triggerAnimation -> generateAnimationSequence flow.
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence '%s' (Enum: %d)", payload.c_str(), (int)animType);
         triggerAnimation(animType);
     }

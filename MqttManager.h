@@ -77,20 +77,6 @@ void startHaDiscovery();
 void handleHaDiscovery();
 bool isHaDiscoveryComplete();
 void updateHaStatus(const char* status);
-
-// --- NEW Non-Blocking State Publishing ---
-/**
- * @brief Defines the states for the non-blocking Home Assistant state publishing process.
- */
-enum HaStatePublishState {
-    HA_STATE_PUBLISH_IDLE,      /**< The state publisher is not running. */
-    HA_STATE_PUBLISH_RUNNING,   /**< The state publisher is actively publishing states in batches. */
-    HA_STATE_PUBLISH_COMPLETE   /**< The state publisher has finished its run. */
-};
-void startHaStatePublishing();
-void handleHaStatePublishing();
-// --- End Non-Blocking State Publishing ---
-
 void publishAllHaStates();
 void clearHaEntity(const char* component, const char* unique_id_suffix);
 void publishDeviceTriggers();

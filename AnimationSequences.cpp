@@ -109,16 +109,16 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
     int s = 0;
     s = add_intro_sound_steps(tracks[0], s);
-    // Loop 13 times. Each loop takes ~750ms. Total ~9.75s.
-    // 13 loops * 6 steps/loop = 78 steps, which is safely under MAX_SEQUENCE_STEPS (80).
+    // Loop 22 times. Each loop takes 450ms (3 * 100ms flicker + 3 * 50ms wait).
+    // 22 * 450ms = 9900ms ~= 10s.
     // Use i % 4 to keep the tornado effect cycling across the 4 display segments.
-    for (int i = 0; i < 13; i++) {
+    for (int i = 0; i < 22; i++) {
         s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, i % 4, 100, 50);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
         s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, i % 4, 100, 50);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
         s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, i % 4, 100, 50);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 150, 0);
+        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
     }
 }
 
@@ -590,14 +590,14 @@ void generateCountingUp(SequencerTrack tracks[3]) {
     s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 0, "CALCULATING..");
 
     // --- Track 0 (Middle): The Counter ---
-    // Loop 39 times. Each loop is ~250ms. Total ~9.75s.
-    // 39 loops * 2 steps/loop = 78 steps, which is safely under MAX_SEQUENCE_STEPS (80).
-    for (int i = 0; i <= 39; i++) {
+    // Loop 200 times. Each number is shown for 50ms. Total 10s.
+    // This loop is in C++ to generate the steps, not a sequencer loop.
+    for (int i = 0; i <= 200; i++) {
         char buffer[14];
         // Format the number, right-aligned and padded with spaces
-        snprintf(buffer, sizeof(buffer), "%13d", i * 6921); // Adjusted multiplier
+        snprintf(buffer, sizeof(buffer), "%13d", i * 1337);
         s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, buffer);
-        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 250, 0);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 50, 0);
     }
 }
 
@@ -753,8 +753,7 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
  * @param json_string A string containing the JSON definition of the sequence.
  */
 void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string) {
-    static JsonDocument doc;
-    doc.clear();
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, json_string);
 
     if (error) {
@@ -844,59 +843,6 @@ void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_str
             );
         }
     }
-}
-
-/**
- * @brief Converts a string name to its corresponding AnimationType enum.
- * @details This utility function provides a mapping from the human-readable animation names
- * used in the UI and configuration files to the internal `AnimationType` enum used by the
- * animation engine.
- * @param str The string name of the animation (e.g., "Intruder Alert").
- * @return The matching `AnimationType` enum, or `ANIMATION_RANDOMIZE_ALL` if not found.
- */
-AnimationType animationTypeFromString(const char* str) {
-    std::string name(str);
-    if (name == "Intruder Alert") return ANIMATION_INTRUDER_ALERT;
-    if (name == "Time Travel") return ANIMATION_TIME_TRAVEL;
-    if (name == "Party Mode") return ANIMATION_PARTY_MODE;
-    if (name == "Countdown") return ANIMATION_COUNTDOWN;
-    if (name == "Knight Rider") return ANIMATION_KNIGHT_RIDER;
-    if (name == "Lightning") return ANIMATION_LIGHTNING;
-    if (name == "Loading") return ANIMATION_LOADING;
-    if (name == "Error") return ANIMATION_ERROR;
-    if (name == "Flux Capacitor Charge-Up") return ANIMATION_FLUX_CHARGE;
-    if (name == "Tachyons Detected") return ANIMATION_TACHYONS;
-    if (name == "Data Stream") return ANIMATION_DATA_STREAM;
-    if (name == "Wormhole Collapse") return ANIMATION_WORMHOLE_COLLAPSE;
-    if (name == "All Displays Random") return ANIMATION_ALL_DISPLAYS_RANDOM;
-    if (name == "Time Travel Tunnel") return ANIMATION_TIME_TRAVEL_TUNNEL;
-    if (name == "Fire Trails") return ANIMATION_FIRE_TRAILS;
-    if (name == "Sparkle Reveal") return ANIMATION_SPARKLE_REVEAL;
-    if (name == "Sequential Flicker") return ANIMATION_SEQUENTIAL_FLICKER;
-    if (name == "Random Flicker") return ANIMATION_RANDOM_FLICKER;
-    if (name == "Counting Up") return ANIMATION_COUNTING_UP;
-    if (name == "Wave Flicker") return ANIMATION_WAVE_FLICKER;
-    if (name == "Tornado Flicker") return ANIMATION_TORNADO_FLICKER;
-    if (name == "Capacitor Charge-Up") return ANIMATION_CAPACITOR_CHARGE_UP;
-    if (name == "Digital Rain") return ANIMATION_DIGITAL_RAIN;
-    if (name == "Waveform Collapse") return ANIMATION_WAVEFORM_COLLAPSE;
-    if (name == "Timeline Skim") return ANIMATION_TIMELINE_SKIM;
-    if (name == "Temporal Desync") return ANIMATION_TEMPORAL_DESYNC;
-    if (name == "Glitchy Jump-Cut") return ANIMATION_GLITCHY_JUMP_CUT;
-    if (name == "Plasma Warm-Up") return ANIMATION_PLASMA_WARM_UP;
-    if (name == "Time Warp Streaks") return ANIMATION_TIME_WARP_STREAKS;
-    if (name == "Character Scanline") return ANIMATION_CHARACTER_SCANLINE;
-    if (name == "Focus In") return ANIMATION_FOCUS_IN;
-    if (name == "Code Breaker") return ANIMATION_CODE_BREAKER;
-    if (name == "Temporal Paradox") return ANIMATION_TEMPORAL_PARADOX;
-    if (name == "Digit Cascade") return ANIMATION_DIGIT_CASCADE;
-    if (name == "Electric Surge") return ANIMATION_ELECTRIC_SURGE;
-    if (name == "Flip-Disc Display") return ANIMATION_FLIP_DISC_DISPLAY;
-    if (name == "Interference Pattern") return ANIMATION_INTERFERENCE_PATTERN;
-    if (name == "Randomize All") return ANIMATION_RANDOMIZE_ALL;
-
-    // Default fallback if the name is not recognized
-    return ANIMATION_RANDOMIZE_ALL;
 }
 
 /**
@@ -1122,20 +1068,37 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
-    // --- FIX: Eliminate recursive call and prevent stack overflow ---
-    // The 'while' loop now selects a new concrete animType if RANDOMIZE_ALL is chosen.
-    // The animation array is declared 'static const' to prevent it from being allocated
-    // on the stack repeatedly, which was the cause of the crash during rapid preset cycling.
+    // --- FIX: Replace recursive randomization with an iterative approach ---
+    // This loop ensures that if we are asked to randomize, we pick a concrete
+    // animation and never get stuck in a recursive loop, which prevents a stack overflow.
     while (animType == ANIMATION_RANDOMIZE_ALL) {
-        static const AnimationType cpp_animations[] = {
-            ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
-            ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD, ANIMATION_FIRE_TRAILS,
-            ANIMATION_SPARKLE_REVEAL, ANIMATION_SEQUENTIAL_FLICKER, ANIMATION_RANDOM_FLICKER,
-            ANIMATION_TORNADO_FLICKER, ANIMATION_CAPACITOR_CHARGE_UP, ANIMATION_WAVEFORM_COLLAPSE,
-            ANIMATION_TIMELINE_SKIM, ANIMATION_TEMPORAL_DESYNC, ANIMATION_GLITCHY_JUMP_CUT,
-            ANIMATION_PLASMA_WARM_UP, ANIMATION_TIME_WARP_STREAKS, ANIMATION_CHARACTER_SCANLINE,
-            ANIMATION_FOCUS_IN, ANIMATION_CODE_BREAKER, ANIMATION_TEMPORAL_PARADOX,
-            ANIMATION_DIGIT_CASCADE, ANIMATION_ELECTRIC_SURGE, ANIMATION_FLIP_DISC_DISPLAY,
+        // A curated list of interesting and stable C++ animations suitable for this feature.
+        // JSON-based animations are excluded as they are generally for specific UI triggers.
+        const AnimationType cpp_animations[] = {
+            ANIMATION_ALL_DISPLAYS_RANDOM,
+            ANIMATION_LIGHTNING,
+            ANIMATION_SCANNER,
+            ANIMATION_TIME_TRAVEL_TUNNEL,
+            ANIMATION_FLUX_CAPACITOR_OVERLOAD,
+            ANIMATION_FIRE_TRAILS,
+            ANIMATION_SPARKLE_REVEAL,
+            ANIMATION_SEQUENTIAL_FLICKER,
+            ANIMATION_RANDOM_FLICKER,
+            ANIMATION_TORNADO_FLICKER,
+            ANIMATION_CAPACITOR_CHARGE_UP,
+            ANIMATION_WAVEFORM_COLLAPSE,
+            ANIMATION_TIMELINE_SKIM,
+            ANIMATION_TEMPORAL_DESYNC,
+            ANIMATION_GLITCHY_JUMP_CUT,
+            ANIMATION_PLASMA_WARM_UP,
+            ANIMATION_TIME_WARP_STREAKS,
+            ANIMATION_CHARACTER_SCANLINE,
+            ANIMATION_FOCUS_IN,
+            ANIMATION_CODE_BREAKER,
+            ANIMATION_TEMPORAL_PARADOX,
+            ANIMATION_DIGIT_CASCADE,
+            ANIMATION_ELECTRIC_SURGE,
+            ANIMATION_FLIP_DISC_DISPLAY,
             ANIMATION_INTERFERENCE_PATTERN
         };
         int num_cpp_animations = sizeof(cpp_animations) / sizeof(cpp_animations[0]);
@@ -1149,6 +1112,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         tracks[i].reset();
     }
 
+    // --- FIX: A correct switch statement with all cases and a proper default ---
     switch (animType) {
         // --- JSON-based Named Sequences ---
         case ANIMATION_INTRUDER_ALERT:
