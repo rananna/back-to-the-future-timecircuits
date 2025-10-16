@@ -1462,7 +1462,7 @@ void animateGlitchyJumpCut_internal(unsigned long elapsed, int duration) {
     DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
     if (progress < 0.9) {
         for (int i = 0; i < 3; ++i) {
-            animateDisplayRowRandomly(*rows[i]);
+            animateDisplayRowRandomly_internal(*rows[i]);
             if (random(100) < 50) {
                 int segmentToGlitch = random(4);
                 Adafruit_AlphaNum4* segment;
