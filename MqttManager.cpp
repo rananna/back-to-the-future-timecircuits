@@ -1372,7 +1372,8 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             if (strcmp(topic, sequencerTracks[i].haSensorTopic) == 0) {
                 Log_printf(LOG_LEVEL_INFO, "MQTT: Received state for track %d. Payload: %s", i, message.c_str());
                 int segment = sequencerTracks[i].steps[sequencerTracks[i].currentStep].targetSegment;
-                manualDisplayText[i][segment] = message; // Update the display text directly
+                strncpy(manualDisplayText[i][segment], message.c_str(), 15);
+                manualDisplayText[i][segment][15] = '\0'; // Ensure null termination
                 sequencerTracks[i].haStateReceived = true; // Signal that we got the data
                 break; // Assume only one track can wait for a topic at a time
             }
@@ -1539,7 +1540,7 @@ void publishHaStatesChunk2() { // Time and display text (rows 1 & 2)
             const char* rows[] = {"dest", "pres", "last"};
             const char* segments[] = {"month", "day", "year", "time"};
             String topic = base_topic + "/" + rows[r] + "_" + segments[s] + "/state";
-            mqttClient.publish(topic.c_str(), manualDisplayText[r][s].c_str(), true);
+            mqttClient.publish(topic.c_str(), manualDisplayText[r][s], true);
             ws.cleanupClients();
         }
     }
@@ -1554,7 +1555,7 @@ void publishHaStatesChunk3() { // Display text (row 3) and various toggles
     const char* segments[] = {"month", "day", "year", "time"};
     for(int s=0; s<4; ++s) {
         snprintf(topic_buffer, sizeof(topic_buffer), "%s/last_%s/state", base_topic, segments[s]);
-        mqttClient.publish(topic_buffer, manualDisplayText[2][s].c_str(), true);
+        mqttClient.publish(topic_buffer, manualDisplayText[2][s], true);
         ws.cleanupClients();
     }
 

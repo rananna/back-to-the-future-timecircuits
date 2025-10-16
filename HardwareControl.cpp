@@ -91,50 +91,55 @@ static bool i2c_2_initialized = false;
  * @brief Prints text to a 4-character alphanumeric display segment with justification.
  * @details This is a utility function to simplify writing text to the Adafruit displays.
  * It handles clearing the display, padding, and justification (left, right, center).
+ * It is optimized to use a static buffer to prevent heap fragmentation from frequent calls.
  * @param display A reference to the `Adafruit_AlphaNum4` object to write to.
  * @param text The text to display.
  * @param justification 0 for left, 1 for right, 2 for center.
  */
 void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justification) {
-  display.clear();
-  if (text == nullptr) {
-    return;
-  }
-
-  // Copy the input text to a temporary buffer, truncating to 4 characters.
-  static char buffer[5];
-  strncpy(buffer, text, 4);
-  buffer[4] = '\0';
-
-  // Sanitize the buffer to replace unsupported characters.
-  for (int i = 0; i < strlen(buffer); i++) {
-    if (buffer[i] == '!') {
-      buffer[i] = ' '; // Replace '!' with a space.
+    display.clear();
+    if (text == nullptr) {
+        return;
     }
-  }
 
-  int len = strlen(buffer);
-  if (len == 0) {
-    // If the buffer is empty after sanitization (e.g., input was "!"),
-    // there's nothing to display, so we can return early.
-    return;
-  }
+    // Use a static buffer to prevent heap fragmentation on frequent calls.
+    static char buffer[5]; 
+    int len = 0;
 
-  int startPos = 0;
-  if (justification == 1) { // Right justification
-    startPos = 4 - len;
-  } else if (justification == 2) { // Center justification
-    startPos = (4 - len) / 2;
-  }
-
-  // Write the sanitized and justified text to the display buffer.
-  for (int i = 0; i < 4; i++) {
-    if (i >= startPos && i < (startPos + len)) {
-      display.writeDigitAscii(i, buffer[i - startPos]);
-    } else {
-      display.writeDigitAscii(i, ' ');
+    // Copy and sanitize the input text directly into the static buffer.
+    // This avoids creating intermediate String objects.
+    for (int i = 0; i < 4 && text[i] != '\0'; ++i) {
+        // Replace unsupported characters.
+        if (text[i] == '!') {
+            buffer[len++] = ' ';
+        } else {
+            buffer[len++] = text[i];
+        }
     }
-  }
+    buffer[len] = '\0';
+
+    // If the buffer is empty after sanitization, there's nothing to display.
+    if (len == 0) {
+        return;
+    }
+
+    // Calculate the starting position for justification.
+    int startPos = 0;
+    if (justification == 1) { // Right justification
+        startPos = 4 - len;
+    } else if (justification == 2) { // Center justification
+        startPos = (4 - len) / 2;
+    }
+
+    // Write the sanitized and justified text to the display's internal buffer.
+    for (int i = 0; i < 4; i++) {
+        if (i >= startPos && i < (startPos + len)) {
+            display.writeDigitAscii(i, buffer[i - startPos]);
+        } else {
+            // It's important to fill unused spaces, otherwise previous characters may remain.
+            display.writeDigitAscii(i, ' ');
+        }
+    }
 }
 
 /**
@@ -1597,7 +1602,7 @@ void animateTimeWarpStreaks_internal(unsigned long elapsed, int duration, const 
  */
 void animateTimeWarpStreaks(unsigned long elapsed, int duration, const char* final_dest, const char* final_pres, const char* final_last) {
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
-        animateTimeWarpStreaks_internal(elapsed, duration, final_dest, final_pres, final_last);
+        animateTimeWarpStreaks_internal(elapsed, duration, final_dest, final_pres, last_str);
         xSemaphoreGive(xDisplayHardwareMutex);
     }
 }

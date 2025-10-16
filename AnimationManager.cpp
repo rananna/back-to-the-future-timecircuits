@@ -645,6 +645,8 @@ void handleBootSequence() {
  * shown. It clears all relevant state flags before forcing a full redraw
  * of all three time circuit rows.
  */
+#include <string.h>
+
 void resetDisplayToNormal() {
     // Clear any active override message flags
     isMessageOverrideActive = false;
@@ -653,7 +655,7 @@ void resetDisplayToNormal() {
     for (int r = 0; r < NUM_SEQUENCER_TRACKS; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
-            manualDisplayText[r][s] = "";
+            strcpy(manualDisplayText[r][s], "");
         }
     }
 
@@ -675,7 +677,7 @@ static void comprehensiveAnimationCleanup() {
     for (int r = 0; r < NUM_SEQUENCER_TRACKS; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
-            manualDisplayText[r][s] = "";
+            strcpy(manualDisplayText[r][s], "");
         }
     }
 
@@ -709,11 +711,11 @@ void getFullRowText(int row, char* buffer) {
         return;
     }
     // Safely concatenate the text from all four segments into the buffer.
-    snprintf(buffer, 14, "%s%s%s%s",
-             manualDisplayText[row][0].c_str(),
-             manualDisplayText[row][1].c_str(),
-             manualDisplayText[row][2].c_str(),
-             manualDisplayText[row][3].c_str());
+    buffer[0] = '\0'; // Start with an empty string
+    strcat(buffer, manualDisplayText[row][0]);
+    strcat(buffer, manualDisplayText[row][1]);
+    strcat(buffer, manualDisplayText[row][2]);
+    strcat(buffer, manualDisplayText[row][3]);
 }
 
 void handleSequencer() {
