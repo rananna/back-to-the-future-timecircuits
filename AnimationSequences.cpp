@@ -930,6 +930,36 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
 }
 
 /**
+ * @brief Generates a dynamic "Intruder Alert" animation with parallel effects.
+ * @details This function creates a multi-track alert sequence.
+ * Track 0 (Top): Flashes "INTRUDER ALERT" and plays an alarm sound.
+ * Track 1 (Middle): A scanner sweeps back and forth, searching for the intruder.
+ * Track 2 (Bottom): The text "LOCKDOWN" pulses, indicating a system state change.
+ * The parallel effects create a much more engaging and urgent alert than a simple
+ * sequential animation.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
+void generateIntruderAlert(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // --- Track 0 (Top): Flashing Alert Text & Sound ---
+    // Play the alarm sound immediately.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "alarm.mp3");
+    // Set the text and make it flash for 10 seconds. A 500ms cycle (250 on, 250 off).
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "INTRUDER ALERT");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 10000, 500);
+
+    // --- Track 1 (Middle): Scanner ---
+    // Run a scanner effect for 10 seconds.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 10000, 80, "---");
+
+    // --- Track 2 (Bottom): Pulsing Lockdown Message ---
+    // Set the text and make it pulse for 10 seconds. A 2s cycle (1s on, 1s off).
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "LOCKDOWN");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 2000);
+}
+
+/**
  * @brief Parses a JSON string to dynamically create a multi-track animation sequence.
  * @details This function allows for the creation of complex, custom animations defined in
  * JSON format, which can be sent via MQTT or stored in `sequences.json`. It maps
@@ -1316,10 +1346,6 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
     // --- FIX: A correct switch statement with all cases and a proper default ---
     switch (animType) {
         // --- JSON-based Named Sequences ---
-        case ANIMATION_INTRUDER_ALERT:
-            // --- FIX: Use intParam2 to set a 10s duration and make more dynamic ---
-            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SOUND", "stringParam":"siren.mp3"}, {"command":"SET_TEXT", "stringParam":"INTRUDER ALERT"}, {"command":"PULSE", "targetSegment":-1, "intParam": 500, "intParam2":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"BREACH DETECTED", "intParam":50, "intParam2":10000}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LOCKDOWN"}, {"command":"FLASH", "targetSegment":-1, "intParam":500, "intParam2":10000}]}])");
-            break;
         case ANIMATION_TIME_TRAVEL:
             parseSequenceFromJson(tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":10000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 3000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":3000}, {"command": "SET_TEXT", "stringParam": "88 MPH"},{"command":"WAIT", "intParam":4000}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam2": 10000}]}])");
             break;
@@ -1374,6 +1400,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_INTERFERENCE_PATTERN:    generateInterferencePattern(tracks, time_strings); break;
 
         // Modern C++ Generated Sequencer Animations
+        case ANIMATION_INTRUDER_ALERT:          generateIntruderAlert(tracks); break;
         case ANIMATION_ALL_DISPLAYS_RANDOM:     generateAllDisplaysRandom(tracks, time_strings); break;
         case ANIMATION_LIGHTNING:               generateLightning(tracks); break;
         case ANIMATION_SCANNER:                 generateScanner(tracks); break;
