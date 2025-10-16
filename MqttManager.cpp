@@ -1311,6 +1311,11 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             currentProfileName = message.c_str();
             mqttClient.publish((base_topic + "profile/state").c_str(), message.c_str(), true);
             settingsChanged = true;
+        } else if (component == "debug") {
+            if (message == "heap") {
+                Log_printf(LOG_LEVEL_INFO, "HEAP DEBUG: Free: %u, Max Alloc: %u, Min Free: %u",
+                    ESP.getFreeHeap(), ESP.getMaxAllocHeap(), ESP.getMinFreeHeap());
+            }
         } else if (component == "sequencer") {
             handleSequencerCommand(message);
         } else if (component == "tts_text") {
