@@ -779,18 +779,40 @@ void generateDigitalRain(SequencerTrack tracks[3]) {
 }
 
 /**
- * @brief Generates a 10-second countdown sequence on the middle row.
+ * @brief Creates a multi-faceted countdown animation that completes in under 10 seconds.
+ * @details This animation provides a more dynamic and engaging countdown.
+ * Track 0 (Middle): Displays the main countdown from 9 to 0 over ~8 seconds, then shows "LIFTOFF!" and a final flash.
+ * Track 1 (Top): Shows a `BAR_GRAPH` filling up in sync with the 8-second countdown.
+ * Track 2 (Bottom): Pulses the text "COUNTDOWN" for the duration of the countdown.
+ * The entire sequence is designed to be visually engaging and complete within the global timeout.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateCountdown(SequencerTrack tracks[3]) {
-    int s = 0;
-    s = add_step(tracks[0], s, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "COUNTDOWN");
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 1500, 0);
-    // --- FIX: The COUNTDOWN command now correctly handles the full sequence including '0'.
-    // No need for a separate SET_TEXT command.
-    s = add_step(tracks[0], s, SEQ_CMD_COUNTDOWN, 1, -1, 10, 1000);
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0); // Brief pause before liftoff
-    s = add_step(tracks[0], s, SEQ_CMD_MARQUEE, 1, -1, 0, 0, "LIFTOFF!");
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // --- Track 1 (Top): Progress Bar ---
+    // Fills up over 8 seconds, synchronized with the main countdown.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 8000);
+
+    // --- Track 2 (Bottom): Status Text ---
+    // Pulses "COUNTDOWN" for 8 seconds.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 8000, 0, "COUNTDOWN");
+
+    // --- Track 0 (Middle): The Main Countdown ---
+    // Display "9" through "1"
+    for (int i = 9; i > 0; i--) {
+        char num_str[2];
+        sprintf(num_str, "%d", i);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, num_str);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 800, 0); // 800ms per number
+    }
+    // Display "0"
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "0");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 800, 0);
+
+    // --- Liftoff Sequence ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "LIFTOFF!");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 500, 0); // Final flash
 }
 
 /**
