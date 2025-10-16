@@ -1123,10 +1123,10 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
  */
 void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3]) {
     // --- FIX: Eliminate recursive call and prevent stack overflow ---
-    // If RANDOMIZE_ALL is chosen, select a new concrete animType.
+    // The 'while' loop now selects a new concrete animType if RANDOMIZE_ALL is chosen.
     // The animation array is declared 'static const' to prevent it from being allocated
     // on the stack repeatedly, which was the cause of the crash during rapid preset cycling.
-    if (animType == ANIMATION_RANDOMIZE_ALL) {
+    while (animType == ANIMATION_RANDOMIZE_ALL) {
         static const AnimationType cpp_animations[] = {
             ANIMATION_ALL_DISPLAYS_RANDOM, ANIMATION_LIGHTNING, ANIMATION_SCANNER,
             ANIMATION_TIME_TRAVEL_TUNNEL, ANIMATION_FLUX_CAPACITOR_OVERLOAD, ANIMATION_FIRE_TRAILS,

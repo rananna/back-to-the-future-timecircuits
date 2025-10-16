@@ -1,7 +1,7 @@
 blueprint:
-  name: "BTTF Time Circuits: Countdown Timer"
+  name: "BTTF Time Circuits: Display Text"
   description: >-
-    A blueprint to run a countdown on the Time Circuits, with optional looping end text, sound, and advanced effects.
+    A blueprint for displaying a text message on the Time Circuits, with optional sound, volume, looping, and advanced effects.
   domain: script
   input:
     device:
@@ -13,7 +13,7 @@ blueprint:
 
     target_row:
       name: Target Row
-      description: "The display row(s) to show the countdown on."
+      description: "The display row(s) to show the message on."
       default: "TOP"
       selector:
         select:
@@ -23,28 +23,16 @@ blueprint:
             - { label: "Bottom Row (Last Time Departed)", value: "BOTTOM" }
             - { label: "All Rows", value: "ALL" }
 
-    start_number:
-      name: "Start Number"
-      description: "The number to start counting down from."
-      default: 10
-      selector:
-        number: { min: 1, max: 9999 }
-    countdown_delay:
-      name: "Countdown Delay (ms)"
-      description: "The delay between each number change. 1000ms = 1 second."
-      default: 1000
-      selector:
-        number: { min: 50, max: 5000, unit_of_measurement: "ms" }
-
-    end_text:
-      name: "End Text"
-      description: "Optional text to display when the countdown finishes."
-      default: "LIFTOFF"
+    text_to_display:
+      name: "Text to Display"
+      description: "The message to display. Supports templates."
+      default: ""
       selector:
         text: {}
-    end_text_effect:
-      name: "End Text Visual Effect"
-      description: "The visual effect to use for the end text."
+
+    effect:
+      name: "Visual Effect"
+      description: "The visual effect to use for the message."
       default: "SET_TEXT"
       selector:
         select:
@@ -55,22 +43,24 @@ blueprint:
             - { label: "Flash", value: "FLASH" }
             - { label: "Typewriter", value: "TYPEWRITER" }
             - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
-    end_text_duration:
-      name: "End Text Display Duration (s)"
-      description: "Duration for the non-blocking 'Set Text' end effect. Other effects like Pulse and Flash have their own internal timing."
-      default: 5
+
+    duration:
+      name: "Display Duration (s)"
+      description: "Duration for the 'Set Text', 'Pulse', and 'Flash' effects."
+      default: 10
       selector:
         number: { min: 1, max: 300, unit_of_measurement: "s" }
-    end_text_marquee_speed:
-      name: "End Text Marquee Speed (ms)"
+
+    marquee_speed:
+      name: "Marquee Speed (ms)"
       description: "The scroll speed for the marquee effect. Lower is faster."
       default: 100
       selector:
         number: { min: 20, max: 1000, unit_of_measurement: "ms" }
 
     audio_source:
-      name: "End Audio Source"
-      description: "Choose whether to play a sound when the countdown finishes."
+      name: "Audio Source"
+      description: "Choose whether to play a sound with the visual effect."
       default: "none"
       selector:
         select:
@@ -78,16 +68,17 @@ blueprint:
             - { label: "None", value: "none" }
             - { label: "Built-in Sound Effect", value: "builtin" }
             - { label: "Stream from Home Assistant", value: "media" }
+
     sound_effect:
-      name: "End Sound Effect"
+      name: "Sound Effect"
       description: "A built-in sound effect to play from the device."
-      default: "arrival_chime.mp3"
+      default: "sys_beep.mp3"
       selector:
         select:
           options:
-            - { label: "Arrival Chime", value: "arrival_chime.mp3" }
             - { label: "System Beep", value: "sys_beep.mp3" }
             - { label: "Acceleration", value: "ACCELERATION.mp3" }
+            - { label: "Arrival Chime", value: "arrival_chime.mp3" }
             - { label: "Electric Sparks", value: "electric_sparks.mp3" }
             - { label: "Engine Rev", value: "engine_rev.mp3" }
             - { label: "Flux Capacitor Power On", value: "flux_capacitor_power_on.mp3" }
@@ -96,28 +87,31 @@ blueprint:
             - { label: "Lock On", value: "lock_on.mp3" }
             - { label: "Relay Activation", value: "relay_activation.mp3" }
             - { label: "Time Travel", value: "time_travel.mp3" }
+
     media_file:
-      name: "End Media File"
-      description: "Audio file to stream from the Home Assistant media library."
+      name: "Media File"
+      description: "Audio file to stream from the Home Assistant media library. Click 'Pick Media' to select."
       default: ""
       selector:
         media: {}
+
     volume:
-      name: "End Audio Volume"
-      description: "Set the volume for the sound (0-100). Only used if an audio source is selected."
+      name: Volume
+      description: "Set the volume for this specific alert (0-100). Only used if an audio source is selected."
       default: 80
       selector:
         number: { min: 0, max: 100, unit_of_measurement: "%" }
 
-    repeat_end_effect:
-      name: "Repeat End Effect Count"
-      description: "Number of times to repeat the end effect. Streamed audio will not repeat."
+    repeat:
+      name: "Repeat Count"
+      description: "Number of times to repeat the alert. Built-in sounds will repeat; streamed audio will play once at the start."
       default: 1
       selector:
         number: { min: 1, max: 10, mode: box }
+
     restore_row:
       name: "Restore Row After Effect"
-      description: "If enabled, the row will be restored to its previous state after all effects complete."
+      description: "If enabled, the row will be restored to its previous state after the effect (and any loops) completes."
       default: true
       selector:
         boolean: {}
@@ -127,19 +121,17 @@ mode: single
 variables:
   device: !input device
   target_row: !input target_row
-  start_number: !input start_number
-  countdown_delay: !input countdown_delay
-  end_text: !input end_text
-  end_text_effect: !input end_text_effect
-  end_text_duration: !input end_text_duration
-  end_text_marquee_speed: !input end_text_marquee_speed
+  text_to_display: !input text_to_display
+  effect: !input effect
+  duration: !input duration
+  marquee_speed: !input marquee_speed
   audio_source: !input audio_source
   sound_effect: !input sound_effect
   media_file: !input media_file
   volume: !input volume
-  repeat_end_effect: !input repeat_end_effect
+  repeat: !input repeat
   restore_row: !input restore_row
-  final_end_text: "{{ end_text | default('') }}"
+  final_text: "{{ text_to_display | default('') }}"
   final_media_file: "{{ media_file | default('') }}"
 
 sequence:
@@ -150,54 +142,44 @@ sequence:
     data:
       topic: "bttf_time_circuits/{{ (device_attr(device, 'identifiers') | list | last)[1] }}/sequencer/command"
       payload: >-
-        {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_duration, end_speed, audio_src, sound, vol, repeat_count, restore) -%}
+        {%- macro generate_sequence_payload(target, effect, text, duration, speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
           {%- set ns = namespace(final_commands=[], tracks=[]) -%}
           {%- set core_commands = [] -%}
-          {%- set self_blocking_effects = ['PULSE', 'FLASH', 'MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT'] -%}
+          {%- set self_blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'PULSE', 'FLASH'] -%}
           {%- set timed_effects = ['PULSE', 'FLASH'] -%}
-          {%- set end_commands = [] -%}
 
-          {%- if end_txt != "" -%}
-            {%- set base_command = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
-            {%- if end_effect == 'MARQUEE' -%}
-              {%- set visual_command = dict(base_command, intParam=end_speed | int) -%}
-            {%- elif end_effect in timed_effects -%}
-              {%- set visual_command = dict(base_command, intParam2=(end_duration * 1000) | int) -%}
-            {%- else -%}
-              {%- set visual_command = base_command -%}
-            {%- endif -%}
-            {%- set end_commands = end_commands + [visual_command] -%}
+          {%- set base_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
+          {%- if effect == 'MARQUEE' -%}
+            {%- set visual_command = dict(base_command, intParam=speed | int) -%}
+          {%- elif effect in timed_effects -%}
+            {%- set visual_command = dict(base_command, intParam2=(duration * 1000) | int) -%}
+          {%- else -%}
+            {%- set visual_command = base_command -%}
+          {%- endif -%}
+          {%- set core_commands = core_commands + [visual_command] -%}
 
-            {%- if end_effect not in self_blocking_effects -%}
-              {%- set wait_duration = (end_duration * 1000) | int -%}
-              {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
-            {%- endif -%}
+          {%- if effect not in self_blocking_effects -%}
+            {%- set wait_duration = (duration * 1000) | int -%}
+            {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
           {%- endif -%}
 
-          {%- set ns.final_commands = [{'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_num, 'intParam2': delay}] -%}
-
-          {%- if end_commands | length > 0 -%}
-            {%- if (repeat_count | int) > 1 -%}
-              {%- set ns.final_commands = ns.final_commands + [{'command': 'LOOP_START', 'intParam': repeat_count | int}] + end_commands + [{'command': 'LOOP_END'}] -%}
-            {%- else -%}
-              {%- set ns.final_commands = ns.final_commands + end_commands -%}
-            {%- endif -%}
+          {%- if (repeat_count | int) > 1 -%}
+            {%- set ns.final_commands = [{'command': 'LOOP_START', 'intParam': repeat_count | int}] + core_commands + [{'command': 'LOOP_END'}] -%}
+          {%- else -%}
+            {%- set ns.final_commands = core_commands -%}
           {%- endif -%}
-
           {%- if restore -%}
             {%- set ns.final_commands = ns.final_commands + [{'command': 'RESTORE_ROW'}] -%}
           {%- endif -%}
-
           {%- if target == 'ALL' -%}
             {%- set track_list = ['TOP', 'MIDDLE', 'BOTTOM'] -%}
           {%- else -%}
             {%- set track_list = [target] -%}
           {%- endif -%}
-
           {%- for row in track_list -%}
             {%- set current_commands = ns.final_commands -%}
             {%- if loop.first and audio_src == 'builtin' -%}
-              {%- set device_volume = ((vol / 100) * 21) | round(0) | int -%}
+              {%- set device_volume = ((sound_vol / 100) * 21) | round(0) | int -%}
               {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
               {%- set current_commands = [sound_command] + current_commands -%}
             {%- endif -%}
@@ -206,7 +188,7 @@ sequence:
           {%- endfor -%}
           {{- ns.tracks | to_json -}}
         {%- endmacro -%}
-        {{- generate_countdown_payload(target_row, start_number, countdown_delay, final_end_text, end_text_effect, end_text_duration, end_text_marquee_speed, audio_source, sound_effect, volume, repeat_end_effect, restore_row) -}}
+        {{- generate_sequence_payload(target_row, effect, final_text, duration, marquee_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
 
   - choose:
       - conditions:
@@ -222,8 +204,6 @@ sequence:
               entity_id: "{{ media_player_entity }}"
             data:
               volume_level: "{{ volume / 100 }}"
-          - delay:
-              seconds: "{{ (start_number * countdown_delay / 1000) | float(0) }}"
           - service: media_player.play_media
             target:
               entity_id: "{{ media_player_entity }}"
