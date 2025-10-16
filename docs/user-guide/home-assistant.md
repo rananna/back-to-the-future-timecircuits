@@ -7,10 +7,7 @@ Welcome, time traveler! This guide provides everything you need to know to integ
 2. [Setup & Installation](#-setup--installation)
 3. [Understanding Blueprints, Scripts, and Automations](#-understanding-blueprints-scripts-and-automations)
 4. [Importing the Blueprints](#-importing-the-blueprints)
-5. [Blueprint Showcase](#-blueprint-showcase)
-    * [Display Text](#1-display-text)
-    * [Display Entity](#2-display-entity)
-    * [Countdown Timer](#3-countdown-timer)
+5. [Blueprint Reference](#-blueprint-reference)
 6. [Core Entities & Controls](#-core-entities--controls)
 7. [Using the Media Player](#-using-the-media-player)
 8. [Sending Notifications](#-sending-notifications)
@@ -27,7 +24,7 @@ The custom component provides a rich, native Home Assistant experience:
 *   **Unified Audio Control**: A single `media_player` entity for playing sound effects, streaming radio, and using Text-to-Speech (TTS).
 *   **Native Notifications**: A built-in `notify` service to easily send alerts and messages to the clock's display.
 *   **Seamless OTA Updates**: An `update` entity that tells you when new firmware is available and lets you install it with one click.
-*   **Intuitive Controls**: All core functions are exposed as standard HA entities like switches, text inputs, and number sliders.
+*   **Intuitive Controls**: All core functions are exposed as standard HA entities like switches, selects, and number sliders.
 
 ---
 
@@ -37,7 +34,7 @@ The custom component provides a rich, native Home Assistant experience:
 *   [HACS](https://hacs.xyz/) (Home Assistant Community Store) installed.
 *   **MQTT Broker Configured in Home Assistant**: You must have the MQTT integration set up and connected to your broker. The Time Circuits clock does not connect directly to HA, but to your MQTT broker.
 *   **Clock Connected to WiFi**: The Time Circuits Clock must be powered on and connected to your Wi-Fi network.
-*   **Clock Configured for MQTT**: In the clock's web UI, ensure the MQTT broker details are correctly configured under the **Settings -> Data Link** tab.
+*   **Clock Configured for MQTT**: In the clock's web UI, ensure the MQTT broker details are correctly configured under the **Connectivity** tab.
 
 ---
 
@@ -52,7 +49,7 @@ The custom component provides a rich, native Home Assistant experience:
 ### **Step 2: Add the Integration in Home Assistant**
 1.  Navigate to **Settings > Devices & Services**.
 2.  Click **Add Integration** and search for "**Back to the Future Time Circuits**".
-3.  You will be prompted for your clock's **Device ID**. You can find this in the clock's web interface under **Settings -> Device**.
+3.  You will be prompted for your clock's **Device ID**. You can find this in the clock's web interface under **System -> System Status**.
 4.  Click **Submit**.
 
 Your Time Circuits clock will now appear as a new device in Home Assistant, with all its entities automatically created and ready to use.
@@ -120,21 +117,10 @@ This is the most versatile blueprint. It replaces the old "Display Text" and "Di
 *   `Repeat Count`: Loop the visual effect and built-in sound. (Streamed audio only plays once at the beginning).
 *   `Restore Row After Effect`: When enabled, the display will return to its normal state after the effect is finished.
 
-#### **Reference: Visual Effects**
-| Visual Effect | Description | Type |
-| :--- | :--- | :--- |
-| `SET_TEXT` | Instantly displays static text. | Non-Blocking |
-| `MARQUEE` | Scrolls text from right to left. | Blocking |
-| `PULSE` | Gently fades text in and out. | Blocking |
-| `FLASH` | Flashes text on and off. | Blocking |
-| `TYPEWRITER` | Reveals text one character at a time. | Blocking |
-| `SCRAMBLE_TEXT`| Displays random characters that resolve into the final text. | Blocking |
-| `RANDOM_FLICKER_TEXT` | Rapidly flickers the text for a glitchy effect. | Blocking |
-
 #### **Reference: Sound Effects**
 | Sound Effect File | Description |
 | :--- | :--- |
-| `sys_beep.mp3` | A simple, single system beep. |
+| `ACCELERATION.mp3` | The sound of the DeLorean accelerating. |
 | `arrival_chime.mp3` | A pleasant chime, perfect for notifications. |
 | `electric_sparks.mp3`| Crackling electrical sounds. |
 | `engine_rev.mp3` | A powerful engine revving up. |
@@ -143,6 +129,7 @@ This is the most versatile blueprint. It replaces the old "Display Text" and "Di
 | `keypad_beeps.mp3` | A sequence of beeps from the time circuit keypad. |
 | `lock_on.mp3` | A confirmation sound, as if a target is locked. |
 | `relay_activation.mp3`| The click-clack of multiple mechanical relays. |
+| `sys_beep.mp3` | A simple, single system beep. |
 | `time_travel.mp3` | The full, iconic time travel sequence sound effect. |
 
 #### **Use Case: Weather Alert**
@@ -179,14 +166,20 @@ The integration creates a device with a rich set of entities. You can use these 
 
 | Entity Type | Name | Description |
 | :--- | :--- | :--- |
-| **Select** | `Display Mode` | Sets the main operating mode of the clock: `Normal Clock`, `Stock Ticker`, `Weather`, or `Data Link`. |
-| **Text** | `Data Point 1-5 Marquee` | Sets the scrolling text for one of the five "Data Link" pages. |
-| **Switch** | `Data Point 1-5 Enabled`| Enables or disables one of the five "Data Link" pages. |
-| **Text** | `(all 12 segments)` | Provides direct, granular control over every individual display segment (e.g., `Destination Month`). |
+| **Select** | `Display Mode` | Sets the main operating mode: `Normal Clock`, `Stock Ticker`, `Weather`, or `Data Link`. |
+| **Select** | `Default Animation Sequence` | Sets the animation that plays when saving settings in the web UI. |
+| **Select** | `Run Animation` | A special dropdown to manually trigger any built-in animation. |
+| **Switch** | `Override Switch` | A master switch to force the display to show manually set text. |
+| **Switch** | `24h Format` | Toggles the main clock between 12-hour and 24-hour time formats. |
+| **Switch** | `Time Travel Sounds` | Enables or disables the sound effects that play during animations. |
 | **Number** | `Brightness` | Adjusts the brightness of the displays (0-7). |
-| **Number** | `Volume` | Adjusts the volume of the speaker (0-21). |
-| **Button** | `Engage Time Circuits` | Manually starts the full time travel animation sequence. |
+| **Number** | `Stock Refresh` | Sets the refresh interval for the stock ticker mode (1-60 minutes). |
+| **Button** | `Time Travel` | Manually starts the full time travel animation sequence. |
+| **Button** | `Favorite Radio Station` | Plays the favorite radio station configured in the web UI. |
 | **Button** | `Reboot Device` | Restarts the clock. |
+| **Button** | `Force NTP Sync` | Manually syncs the clock's time with an internet time server. |
+| **Button** | `Factory Reset` | Resets all device settings to their defaults. |
+| **Button** | `Refresh Weather Data` | Manually fetches the latest data for the weather display mode. |
 | **Sensor** | `Status` | Monitors the clock's current state (e.g., `Idle`, `Animating`) and has useful attributes like `free_heap` and `wifi_rssi`. |
 | **Update** | `Firmware` | Notifies you when a new firmware version is available and allows for one-click OTA updates. |
 
@@ -210,7 +203,7 @@ Play any built-in sound effect by calling the `media_player.play_media` service.
 ```
 
 ### **Playing Your Favorite Radio Station**
-Save a "Favorite" radio station in the clock's web UI (**Sound** tab). Then, play it easily from Home Assistant.
+Save a "Favorite" radio station in the clock's web UI (**Temporal Controls** tab). Then, play it easily from Home Assistant.
 
 ```yaml
 # Example: Play the saved favorite radio station
@@ -242,7 +235,7 @@ This is the easiest way to display a temporary message. Use the built-in `notify
 | :--- | :--- | :--- | :--- |
 | `message` | `string` | Yes | The text to display. Use `\n` to separate lines for the three rows. |
 | `data.duration` | `integer`| No | How long the message should be displayed, in seconds. (Default: 10) |
-| `data.sound_effect`| `string` | No | The filename of a sound effect to play (e.g., `REMINDER.mp3`). |
+| `data.sound_effect`| `string` | No | The filename of a sound effect to play (e.g., `arrival_chime.mp3`). |
 
 **Example:** Show a "MAILBOX" notification for 60 seconds with a sound.
 ```yaml
@@ -260,7 +253,7 @@ This is the easiest way to display a temporary message. Use the built-in `notify
 
 For ultimate control, you can publish directly to the clock's raw MQTT command topic. This gives you access to the powerful **Command Sequencer**, which allows you to create custom, multi-step animations.
 
-*   **Topic**: `bttf_time_circuits/DEVICE_ID/cmnd/sequencer` (replace `DEVICE_ID` with your clock's ID)
+*   **Topic**: `bttf_time_circuits/DEVICE_ID/sequencer/command` (replace `DEVICE_ID` with your clock's ID)
 *   **Payload**: A string with the name of a built-in animation, or a JSON object for a custom sequence.
 
 > **This is an advanced feature.** For a complete guide on the sequencer, including all commands, parameters, and examples, please see the **[🤖 Developer Guide](../developer/developer-guide.md#command-sequencer-deep-dive)**.
@@ -280,7 +273,7 @@ For ultimate control, you can publish directly to the clock's raw MQTT command t
 
 *   **Can I combine sensor data with my own text?**
     Absolutely! All text fields in the blueprints support Home Assistant templates. This lets you build rich, dynamic strings.
-    *Example for the "Display Entity" blueprint's Postfix field:*
+    *Example for the "Display" blueprint's text field:*
     ```jinja
-    {{ state_attr('weather.home', 'temperature') }}°F
+    The temperature is {{ states('sensor.outside_temperature') }}°F
     ```

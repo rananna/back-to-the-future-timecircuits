@@ -72,9 +72,9 @@ This tab contains a quick reference guide built directly into the UI, explaining
 
 ##💾 Saving Settings
 
-The large **"Save and Engage Time Circuits"** button at the bottom of the page is the main "save" button for the entire interface. It is disabled by default and will only become active when you make a change to a setting.
+The large **"Save and Engage Time Circuits"** button at the bottom of the page is the main "save" button for the entire interface. It is disabled by default and will only become active when you make a change to a setting on any tab.
 
-💡 **How it Works:** Pressing this button sends all configuration options from all tabs to the device. The clock saves the settings to its internal memory and then triggers your selected animation sequence to confirm that the new settings have been applied.
+💡 **How it Works:** Pressing this button sends all configuration options from all tabs to the device. The clock saves the settings to its internal memory and then triggers the `Time Circuits Lock-In` animation to confirm that the new settings have been applied.
 
 > ⚡ **Tip for Quick Configuration**
 > It's most efficient to make all your desired changes across all tabs *first*, and then press the "Save and Engage Time Circuits" button only once when you're finished.
