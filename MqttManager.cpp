@@ -8,16 +8,6 @@
  * by Home Assistant.
  */
 
-/**
- * @file MqttManager.cpp
- * @brief Manages all MQTT communication for Home Assistant integration.
- * @details This module handles the connection to an MQTT broker, publishes device
- * status and sensor data, and subscribes to command topics to allow for remote
- * control. It is responsible for generating the Home Assistant MQTT Discovery
- * configuration messages, which allow the device to be automatically recognized
- * by Home Assistant.
- */
-
 #include "DebugLog.h"
 #include "MqttManager.h"
 #include "EventManager.h"
@@ -1520,8 +1510,6 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
  * @param payload The JSON string or name of the sequence to run.
  */
 void handleSequencerCommand(const std::string& payload) {
-    preAnimationDisplayMode = currentSettings.displayMode;
-
     // --- NEW UNIFIED LOGIC ---
     // First, check if the payload is a direct JSON command.
     JsonDocument doc;
@@ -1530,6 +1518,14 @@ void handleSequencerCommand(const std::string& payload) {
     if (error == DeserializationError::Ok) {
         // It's a valid JSON string, so we can parse it directly.
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload.");
+
+        // --- FIX: Save display mode and set to -1 BEFORE starting the animation ---
+        // This is the critical fix. It prevents the main loop from overwriting the
+        // animation frames. The display mode is saved so it can be restored
+        // after the animation completes.
+        preAnimationDisplayMode = currentSettings.displayMode;
+        currentSettings.displayMode = -1; // -1 is an invalid mode that pauses the main display loop
+
         stopAllSequences();
         parseSequenceFromJson(sequencerTracks, payload);
     } else {
