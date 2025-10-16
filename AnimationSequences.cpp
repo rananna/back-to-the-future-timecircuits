@@ -784,22 +784,72 @@ void generateTemporalDesync(SequencerTrack tracks[3]) {
 }
 
 /**
- * @brief Generates a "digital rain" effect with cascading, flickering characters.
- * @details This animation uses three parallel tracks with different flicker speeds and
- * character sets to create a layered, cascading effect reminiscent of digital rain.
- * The use of `RANDOM_FLICKER_TEXT` with different parameters on each track ensures a
- * chaotic and visually engaging animation.
+ * @brief Generates a dynamic, multi-layered "digital rain" effect.
+ * @details This function creates a complex "Matrix"-style animation by building three
+ * distinct, parallel tracks that run concurrently for approximately 10 seconds.
+ * - **Track 0 (Foreground Drips):** A C++ loop generates a sequence of individual
+ *   characters that appear to "drip" down the display from top to bottom in random columns.
+ * - **Track 1 (Mid-ground Chunks):** A loop generates and flickers wider chunks of
+ *   random characters at random intervals and positions, adding depth and density.
+ * - **Track 2 (Background Static):** A loop generates faint, constant, and sparse
+ *   character flickers across all rows to provide a noisy background texture.
+ * The combination of these layers creates a chaotic, non-repetitive, and visually
+ * engaging "digital rain" animation.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateDigitalRain(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
 
-    // Run three parallel tracks of flickering text with different speeds and characters
-    // to create a layered "rain" effect. Duration is 10s for all.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 75, "1010101010101");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 100, "ABCDE12345FGHI");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 125, "ZYXWV98765UTSR");
+    // --- Track 0: Foreground Drips ---
+    // A C++ loop generates a sequence of "drips" falling from top to bottom.
+    // Each drip is a single character appearing sequentially on each row in the same column.
+    const char* drip_chars = "0123456789";
+    for (int i = 0; i < 8; i++) {
+        char drip_char_str[2] = { drip_chars[random(strlen(drip_chars))], '\0' };
+        char text_buffer[14];
+        memset(text_buffer, ' ', 13);
+        text_buffer[13] = '\0';
+        text_buffer[random(13)] = drip_char_str[0]; // Place drip char in a random column
+
+        const int drip_speed = 100 + random(50); // Each segment visible for 100-150ms
+
+        // Drip on top row
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, text_buffer);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, drip_speed, 0);
+        // Drip on middle row
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "             "); // Clear top
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, text_buffer);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, drip_speed, 0);
+        // Drip on bottom row
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "             "); // Clear middle
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, text_buffer);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, drip_speed, 0);
+        // Clear bottom row and pause before next drip
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "             ");
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 400 + random(800), 0);
+    }
+
+    // --- Track 1: Mid-ground Chunks ---
+    // A C++ loop generates a sequence of flickering chunks of random characters at
+    // random positions and intervals, adding density to the effect.
+    const char* chunks[] = {"101", "01 10", " 111 ", "00100", "1 0 1"};
+    for (int i = 0; i < 12; i++) {
+        // Flicker a random chunk on a random row for a random duration
+        s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, random(3), -1, 300 + random(400), 50, chunks[random(5)]);
+        // Wait for a random duration before the next chunk
+        s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 200 + random(300), 0);
+    }
+
+    // --- Track 2: Background Static ---
+    // A C++ loop generates faint, constant, and sparse character flickers across all
+    // rows to provide a noisy background texture.
+    for (int i = 0; i < 40; i++) {
+        // Target a random row with a very short, sparse flicker
+        s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, random(3), -1, 150, 100, " . ");
+        // Wait a short, random amount of time
+        s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 50 + random(100), 0);
+    }
 }
 
 /**
