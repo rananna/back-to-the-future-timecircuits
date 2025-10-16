@@ -1259,13 +1259,6 @@ void loop() {
     // Feed the watchdog to prevent a reset. This must be the first action in the loop.
     esp_task_wdt_reset();
 
-    // --- HEAP MONITORING ---
-    static unsigned long lastHeapLogTime = 0;
-    if (millis() - lastHeapLogTime > 10000) {
-        Log_printf(LOG_LEVEL_INFO, "HEAP: Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
-        lastHeapLogTime = millis();
-    }
-
     vTaskDelay(1); // Yield to other tasks, making the system responsive.
 
     // Clean up disconnected WebSocket clients and send pings
