@@ -45,9 +45,9 @@ extern BootSequenceState bootState;             /**< The current state of the ci
 extern unsigned long bootStateStartTime;        /**< `millis()` timestamp when the current boot state began. */
 extern unsigned long lastPresetCycleTime;       /**< `millis()` timestamp of the last time the display mode preset was cycled. */
 extern bool isMessageOverrideActive;            /**< Flag indicating if a high-priority override message is being shown. */
-extern char overrideMessageLine1[128];          /**< The text for the top row of an override message. */
-extern char overrideMessageLine2[128];          /**< The text for the middle row of an override message. */
-extern char overrideMessageLine3[128];          /**< The text for the bottom row of an override message. */
+extern String overrideMessageLine1;             /**< The text for the top row of an override message. */
+extern String overrideMessageLine2;             /**< The text for the middle row of an override message. */
+extern String overrideMessageLine3;             /**< The text for the bottom row of an override message. */
 
 // --- Temporal Echo Effect State ---
 extern bool isEchoEffectActive;                 /**< Flag indicating if the post-time-travel "temporal echo" effect is active. */

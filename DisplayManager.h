@@ -65,10 +65,9 @@ extern bool isRowInManualMode[3];
 /**
  * @brief Buffers to hold the text set by the sequencer when a row is in manual mode.
  * @details Indexed by [row][segment]. This allows an animation to set static text that persists
- * until the row is released from manual mode. Using fixed-size char arrays prevents
- * heap fragmentation from frequent std::string allocations in the main loop.
+ * until the row is released from manual mode.
  */
-extern char manualDisplayText[3][4][16];
+extern std::string manualDisplayText[3][4];
 
 /**
  * @brief A flag that is set to true when the Data Link configuration changes.
@@ -122,7 +121,7 @@ void resetWeatherFetchState();
  * @param segment The target segment (0-3), or -1 to update the entire row with a 13-char string.
  * @param text The text to display.
  */
-void updateDisplaySegment(int row, int segment, const char* text);
+void updateDisplaySegment(int row, int segment, const std::string& text);
 
 /**
  * @brief Restores a display row to its normal, non-manual state.

@@ -28,7 +28,6 @@
 #include "web_server.h"
 #include "StockManager.h"
 #include <LittleFS.h>
-#include <ESPmDNS.h>
 
 extern StockManager stockManager;
 #include "Audio.h"
@@ -1160,20 +1159,17 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
             mqttClient.publish(state_topic.c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
             stateChanged = true;
         } else if (component == "override_line_1") {
-            strncpy(overrideMessageLine1, message.c_str(), sizeof(overrideMessageLine1) - 1);
-            overrideMessageLine1[sizeof(overrideMessageLine1) - 1] = '\0'; // Ensure null termination
+            overrideMessageLine1 = message.c_str();
             String state_topic = base_topic + "override_line_1/state";
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
             stateChanged = true;
         } else if (component == "override_line_2") {
-            strncpy(overrideMessageLine2, message.c_str(), sizeof(overrideMessageLine2) - 1);
-            overrideMessageLine2[sizeof(overrideMessageLine2) - 1] = '\0'; // Ensure null termination
+            overrideMessageLine2 = message.c_str();
             String state_topic = base_topic + "override_line_2/state";
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
             stateChanged = true;
         } else if (component == "override_line_3") {
-            strncpy(overrideMessageLine3, message.c_str(), sizeof(overrideMessageLine3) - 1);
-            overrideMessageLine3[sizeof(overrideMessageLine3) - 1] = '\0'; // Ensure null termination
+            overrideMessageLine3 = message.c_str();
             String state_topic = base_topic + "override_line_3/state";
             mqttClient.publish(state_topic.c_str(), message.c_str(), true);
             stateChanged = true;
@@ -1324,15 +1320,7 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
         } else if (component == "tts") {
             Log_printf(LOG_LEVEL_INFO, "Handling media player command (tts topic). Payload: %s", message.c_str());
             JsonDocument doc;
-            DeserializationError error = deserializeJson(doc, message);
-            if (error) {
-                if (error == DeserializationError::NoMemory) {
-                    Log_printf(LOG_LEVEL_ERROR, "HEAP: Failed to allocate memory for TTS JSON in mqttCallback. Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
-                } else {
-                    Log_printf(LOG_LEVEL_ERROR, "JSON: Deserialization failed for TTS command: %s", error.c_str());
-                }
-            }
-            if (error == DeserializationError::Ok) {
+            if (deserializeJson(doc, message) == DeserializationError::Ok) {
                 // HA's play_media service sends 'media_id', but we also check for 'url' for direct calls.
                 const char* url = doc["media_id"] | doc["url"];
                 if (url) {
@@ -1359,21 +1347,15 @@ void mqttCallback(char* topic, unsigned char* payload, unsigned int length) {
                     Log_printf(LOG_LEVEL_WARN, "Favorite radio URL is not set. Cannot play.");
                 }
             }
-        } else if (component == "debug") {
-            if (message == "heap") {
-                Log_printf(LOG_LEVEL_INFO, "HEAP: Free: %u, Min Free: %u, Max Alloc: %u",
-                    ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getMaxAllocHeap());
-            }
         }
     } else {
     // --- START: New logic for HA Sensor command in Sequencer ---
     for (int i = 0; i < 3; ++i) {
         if (sequencerTracks[i].isActive && sequencerTracks[i].isWaitingForHAState) {
-            if (strcmp(topic, sequencerTracks[i].haSensorTopic) == 0) {
+            if (topicStr == sequencerTracks[i].haSensorTopic.c_str()) {
                 Log_printf(LOG_LEVEL_INFO, "MQTT: Received state for track %d. Payload: %s", i, message.c_str());
                 int segment = sequencerTracks[i].steps[sequencerTracks[i].currentStep].targetSegment;
-                strncpy(manualDisplayText[i][segment], message.c_str(), 15);
-                manualDisplayText[i][segment][15] = '\0'; // Ensure null termination
+                manualDisplayText[i][segment] = message; // Update the display text directly
                 sequencerTracks[i].haStateReceived = true; // Signal that we got the data
                 break; // Assume only one track can wait for a topic at a time
             }
@@ -1509,11 +1491,11 @@ void publishHaStatesChunk1() { // Core settings and overrides
     char payload[20];
     mqttClient.publish((base_topic + "/override_switch/state").c_str(), isMessageOverrideActive ? "ON" : "OFF", true);
     ws.cleanupClients();
-    mqttClient.publish((base_topic + "/override_line_1/state").c_str(), overrideMessageLine1, true);
+    mqttClient.publish((base_topic + "/override_line_1/state").c_str(), overrideMessageLine1.c_str(), true);
     ws.cleanupClients();
-    mqttClient.publish((base_topic + "/override_line_2/state").c_str(), overrideMessageLine2, true);
+    mqttClient.publish((base_topic + "/override_line_2/state").c_str(), overrideMessageLine2.c_str(), true);
     ws.cleanupClients();
-    mqttClient.publish((base_topic + "/override_line_3/state").c_str(), overrideMessageLine3, true);
+    mqttClient.publish((base_topic + "/override_line_3/state").c_str(), overrideMessageLine3.c_str(), true);
     ws.cleanupClients();
     mqttClient.publish((base_topic + "/power/state").c_str(), isDisplayAsleep ? "OFF" : "ON", true);
     ws.cleanupClients();
@@ -1540,7 +1522,7 @@ void publishHaStatesChunk2() { // Time and display text (rows 1 & 2)
             const char* rows[] = {"dest", "pres", "last"};
             const char* segments[] = {"month", "day", "year", "time"};
             String topic = base_topic + "/" + rows[r] + "_" + segments[s] + "/state";
-            mqttClient.publish(topic.c_str(), manualDisplayText[r][s], true);
+            mqttClient.publish(topic.c_str(), manualDisplayText[r][s].c_str(), true);
             ws.cleanupClients();
         }
     }
@@ -1555,7 +1537,7 @@ void publishHaStatesChunk3() { // Display text (row 3) and various toggles
     const char* segments[] = {"month", "day", "year", "time"};
     for(int s=0; s<4; ++s) {
         snprintf(topic_buffer, sizeof(topic_buffer), "%s/last_%s/state", base_topic, segments[s]);
-        mqttClient.publish(topic_buffer, manualDisplayText[2][s], true);
+        mqttClient.publish(topic_buffer, manualDisplayText[2][s].c_str(), true);
         ws.cleanupClients();
     }
 
@@ -1677,20 +1659,12 @@ void handleSequencerCommand(const std::string& payload) {
     // By clearing it here, a failed parse results in an empty sequence, which
     // will simply do nothing and time out safely.
     for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
-        tracks[i].reset(); // Safely reset the track
+        clearSequencerTrack(tracks[i]); // Safely reset the track
     }
 
     static JsonDocument doc;
     doc.clear(); // Clear the document before reuse
     DeserializationError error = deserializeJson(doc, payload);
-
-    if (error) {
-        if (error == DeserializationError::NoMemory) {
-            Log_printf(LOG_LEVEL_ERROR, "HEAP: Failed to allocate memory for JSON in handleSequencerCommand. Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
-        } else {
-            Log_printf(LOG_LEVEL_ERROR, "JSON: Deserialization failed in handleSequencerCommand: %s", error.c_str());
-        }
-    }
 
     if (error == DeserializationError::Ok) {
         // It's a valid JSON string. Now, determine its structure.

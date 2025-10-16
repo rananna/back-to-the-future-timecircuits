@@ -7,7 +7,6 @@
  * for triggering and cleaning up animations.
  */
 #include "AnimationManager.h"
-#include <ESPmDNS.h>
 
 // --- NEW: Global flag to prevent display updates until boot sequence is complete ---
 bool bootSequenceCompleted = false;
@@ -48,13 +47,11 @@ static bool infoMessageSet = false;
 extern void setOverrideMessage(const char* line1, const char* line2, const char* line3);
 extern bool isMessageOverrideActive;
 extern unsigned long bootStateStartTime;
-volatile bool isTransitioningAnimation = false;
 
 // Helper function prototypes
 void playReconfiguringSound();
 void resetDisplayToNormal();
 static void comprehensiveAnimationCleanup();
-void doFinalAnimationCleanup();
 
 extern int speedometerValue;
 
@@ -621,7 +618,6 @@ void handleBootSequence() {
             {
                 if (elapsed > 500) {
                     comprehensiveAnimationCleanup(); // Resets manual modes without forcing clock display
-                    updateNormalClockDisplay(true, true, true); // Force a redraw of the clock
                     bootSequenceCompleted = true; // --- NEW: Signal that the boot sequence is done.
                     bootState = BOOT_INACTIVE;
                     // The main display loop will now handle updating the display correctly
@@ -645,8 +641,6 @@ void handleBootSequence() {
  * shown. It clears all relevant state flags before forcing a full redraw
  * of all three time circuit rows.
  */
-#include <string.h>
-
 void resetDisplayToNormal() {
     // Clear any active override message flags
     isMessageOverrideActive = false;
@@ -655,7 +649,7 @@ void resetDisplayToNormal() {
     for (int r = 0; r < NUM_SEQUENCER_TRACKS; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
-            strcpy(manualDisplayText[r][s], "");
+            manualDisplayText[r][s] = "";
         }
     }
 
@@ -677,7 +671,7 @@ static void comprehensiveAnimationCleanup() {
     for (int r = 0; r < NUM_SEQUENCER_TRACKS; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
-            strcpy(manualDisplayText[r][s], "");
+            manualDisplayText[r][s] = "";
         }
     }
 
@@ -703,19 +697,18 @@ static void comprehensiveAnimationCleanup() {
  * parameter is provided, allowing the effect to operate on the currently
  * displayed text.
  * @param row The display row index (0-2).
- * @param buffer A character buffer to write the resulting string into. Must be at least 14 bytes.
+ * @return A std::string containing the concatenated text from all four segments.
  */
-void getFullRowText(int row, char* buffer) {
-    if (row < 0 || row > 2 || buffer == nullptr) {
-        if (buffer) buffer[0] = '\0';
-        return;
+std::string getFullRowText(int row) {
+    if (row < 0 || row > 2) {
+        Log_printf(LOG_LEVEL_WARN, "HELPER: Invalid row %d passed to getFullRowText.", row);
+        return ""; // Return empty string for invalid row
     }
-    // Safely concatenate the text from all four segments into the buffer.
-    buffer[0] = '\0'; // Start with an empty string
-    strcat(buffer, manualDisplayText[row][0]);
-    strcat(buffer, manualDisplayText[row][1]);
-    strcat(buffer, manualDisplayText[row][2]);
-    strcat(buffer, manualDisplayText[row][3]);
+    // Concatenate the text from all four segments of the specified row.
+    return manualDisplayText[row][0] +
+           manualDisplayText[row][1] +
+           manualDisplayText[row][2] +
+           manualDisplayText[row][3];
 }
 
 void handleSequencer() {
@@ -729,13 +722,10 @@ void handleSequencer() {
         // --- NEW: Check for track timeout ---
         if (track.isActive && (millis() - track.trackStartTime > MAX_SEQUENCE_DURATION)) {
             Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d timed out after %d ms. Aborting ALL tracks.", i, MAX_SEQUENCE_DURATION);
-            stopAllSequences();
-            // --- FIX: DO NOT call doFinalAnimationCleanup() here. ---
-            // The main state machine at the end of this function will detect that the animation
-            // has stopped and will call the cleanup function correctly and safely.
-            // Calling it here would cause a double-call and a crash.
+            stopAllSequences(); // --- FIX: Call master cleanup for safety.
+            broadcastAnimationComplete(); // --- FIX: Notify UI of completion.
             needsDisplayUpdate = true;
-            break;
+            break; // --- FIX: All tracks are stopped, so exit the loop.
         }
 
         // --- Handle active effects for this track ---
@@ -895,8 +885,8 @@ void handleSequencer() {
                         } else {
                             // No matching LOOP_END found, this is a sequence error.
                             Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d has an unclosed loop at step %d. Aborting.", i, track.currentStep);
-                            track.reset(); // Stop this track
-                            break;
+                            stopAndCleanupTrack(i);
+                            break; // Abort this command.
                         }
                     }
                 }
@@ -909,7 +899,7 @@ void handleSequencer() {
                     if (track.loopStartStep < 0) {
                         // This is a rogue LOOP_END without a matching LOOP_START.
                         Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d found rogue LOOP_END at step %d. Aborting.", i, track.currentStep);
-                        track.reset();
+                        stopAndCleanupTrack(i);
                     } else {
                         // This is a valid loop end. Decrement counter and check if we need to loop again.
                         track.loopCounter--;
@@ -1051,57 +1041,55 @@ void handleSequencer() {
             case SEQ_CMD_COUNTDOWN:
                 { // Scope for local variables
                     // Helper lambda to get the string for the countdown value
-                    auto get_countdown_string = [](int value, char* buffer, size_t buffer_size) {
-                        const char* str = "";
+                    auto get_countdown_string = [](int value) -> std::string {
                         if (value > 20) {
-                            snprintf(buffer, buffer_size, "%d", value);
-                            return;
+                            return std::to_string(value);
                         }
                         switch (value) {
-                            case 0: str = "ZERO"; break;
-                            case 1: str = "ONE"; break;
-                            case 2: str = "TWO"; break;
-                            case 3: str = "THREE"; break;
-                            case 4: str = "FOUR"; break;
-                            case 5: str = "FIVE"; break;
-                            case 6: str = "SIX"; break;
-                            case 7: str = "SEVEN"; break;
-                            case 8: str = "EIGHT"; break;
-                            case 9: str = "NINE"; break;
-                            case 10: str = "TEN"; break;
-                            case 11: str = "ELEVEN"; break;
-                            case 12: str = "TWELVE"; break;
-                            case 13: str = "THIRTEEN"; break;
-                            case 14: str = "FOURTEEN"; break;
-                            case 15: str = "FIFTEEN"; break;
-                            case 16: str = "SIXTEEN"; break;
-                            case 17: str = "SEVENTEEN"; break;
-                            case 18: str = "EIGHTEEN"; break;
-                            case 19: str = "NINETEEN"; break;
-                            case 20: str = "TWENTY"; break;
-                            default: str = ""; break;
+                            case 0: return "ZERO";
+                            case 1: return "ONE";
+                            case 2: return "TWO";
+                            case 3: return "THREE";
+                            case 4: return "FOUR";
+                            case 5: return "FIVE";
+                            case 6: return "SIX";
+                            case 7: return "SEVEN";
+                            case 8: return "EIGHT";
+                            case 9: return "NINE";
+                            case 10: return "TEN";
+                            case 11: return "ELEVEN";
+                            case 12: return "TWELVE";
+                            case 13: return "THIRTEEN";
+                            case 14: return "FOURTEEN";
+                            case 15: return "FIFTEEN";
+                            case 16: return "SIXTEEN";
+                            case 17: return "SEVENTEEN";
+                            case 18: return "EIGHTEEN";
+                            case 19: return "NINETEEN";
+                            case 20: return "TWENTY";
+                            default: return ""; // Should not happen for value >= 0
                         }
-                        strncpy(buffer, str, buffer_size);
-                        buffer[buffer_size - 1] = '\0';
                     };
 
                     // Helper lambda to format and display the countdown string
                     auto display_countdown = [&](int value) {
-                        char text_buffer[14];
-                        get_countdown_string(value, text_buffer, sizeof(text_buffer));
+                        std::string text_to_display = get_countdown_string(value);
 
-                        char display_buffer[14];
-                        memset(display_buffer, ' ', 13);
-                        display_buffer[13] = '\0';
-
-                        int text_len = strlen(text_buffer);
-                        int padding = (13 - text_len) / 2;
-                        if (padding < 0) padding = 0;
-
-                        strncpy(display_buffer + padding, text_buffer, 13 - padding);
+                        // Center the text on the 13-character display
+                        if (text_to_display.length() < 13) {
+                            int padding = (13 - text_to_display.length()) / 2;
+                            text_to_display = std::string(padding, ' ') + text_to_display;
+                            // Pad the rest to clear previous characters
+                            while (text_to_display.length() < 13) {
+                                text_to_display += " ";
+                            }
+                        } else if (text_to_display.length() > 13) {
+                            // Should not happen with current words, but as a safeguard
+                            text_to_display = text_to_display.substr(0, 13);
+                        }
 
                         // This command is assumed to always target the full row
-                        updateDisplaySegment(step.targetRow, -1, display_buffer);
+                        updateDisplaySegment(step.targetRow, -1, text_to_display);
                     };
 
                     // Validate the delay parameter. If it's invalid (e.g., negative), default to 1000ms.
@@ -1148,33 +1136,30 @@ void handleSequencer() {
                     advance_step = true;
                 } else {
                     if (millis() - track.lastScannerUpdate > (unsigned long)step.intParam2) {
-                        const char* visual = (step.stringParam[0] != '\0') ? step.stringParam : "#";
-                        int visual_len = strlen(visual);
-
-                        // --- FIX: Use a static buffer to prevent heap fragmentation ---
-                        static char scan_buffer[14];
-                        memset(scan_buffer, ' ', 13);
-                        scan_buffer[13] = '\0';
+                        std::string visual(step.stringParam);
+                        if (visual.empty()) visual = "#";
+                        int visual_len = visual.length();
+                        std::string scan_str(13, ' '); // 13 spaces
 
                         // Correctly place the visual without going out of bounds
-                        if (track.scannerPosition + visual_len <= 13) {
-                            memcpy(scan_buffer + track.scannerPosition, visual, visual_len);
-                        }
-                        updateDisplaySegment(step.targetRow, -1, scan_buffer);
+                        scan_str.replace(track.scannerPosition, visual_len, visual);
+                        updateDisplaySegment(step.targetRow, -1, scan_str);
 
                         if (track.scannerDirection) { // moving right
                             track.scannerPosition++;
+                            // Corrected boundary check: reverse when the *end* of the visual hits the edge
                             if (track.scannerPosition + visual_len > 13) {
-                                track.scannerPosition = 13 - visual_len;
-                                track.scannerDirection = false;
-                                track.scannerPosition--;
+                                track.scannerPosition = 13 - visual_len; // Clamp the position
+                                track.scannerDirection = false; // Reverse direction
+                                track.scannerPosition--; // Immediately step back to prevent stutter
                             }
                         } else { // moving left
                             track.scannerPosition--;
+                            // Corrected boundary check: reverse when the *start* of the visual hits the edge
                             if (track.scannerPosition < 0) {
-                                track.scannerPosition = 0;
-                                track.scannerDirection = true;
-                                track.scannerPosition++;
+                                track.scannerPosition = 0; // Clamp the position
+                                track.scannerDirection = true; // Reverse direction
+                                track.scannerPosition++; // Immediately step forward to prevent stutter
                             }
                         }
                         track.lastScannerUpdate = millis();
@@ -1195,11 +1180,7 @@ void handleSequencer() {
                 } else {
                     if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
                         track.typewriterIndex++;
-                        // --- FIX: Use a static buffer and strncpy to prevent heap fragmentation ---
-                        static char typewriter_buffer[14];
-                        strncpy(typewriter_buffer, step.stringParam, track.typewriterIndex);
-                        typewriter_buffer[track.typewriterIndex] = '\0';
-                        updateDisplaySegment(step.targetRow, step.targetSegment, typewriter_buffer);
+                        updateDisplaySegment(step.targetRow, step.targetSegment, std::string(step.stringParam).substr(0, track.typewriterIndex));
                         track.lastTypewriterUpdate = millis();
                     }
                 }
@@ -1216,15 +1197,17 @@ void handleSequencer() {
                     advance_step = true;
                 } else {
                     if (millis() - track.lastWipeUpdate > (unsigned long)step.intParam) {
-                        // --- FIX: Use a static buffer to prevent heap fragmentation ---
-                        static char wipe_buffer[14];
-                        memset(wipe_buffer, ' ', 13);
-                        wipe_buffer[13] = '\0';
-
-                        int len_to_copy = min((int)strlen(step.stringParam), track.wipeSegment);
-                        strncpy(wipe_buffer, step.stringParam, len_to_copy);
-
-                        updateDisplaySegment(step.targetRow, -1, wipe_buffer);
+                        std::string wipe_str = "             ";
+                        for(int j=0; j < track.wipeSegment; j++) {
+                            // --- FIX: Add bounds check to prevent reading past the end of the string ---
+                            if (j < (int)strlen(step.stringParam)) {
+                                wipe_str[j] = step.stringParam[j];
+                            }
+                        }
+                        updateDisplaySegment(step.targetRow, 0, wipe_str.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, wipe_str.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, wipe_str.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, wipe_str.substr(9,4));
                         track.wipeSegment++;
                         track.lastWipeUpdate = millis();
                     }
@@ -1247,15 +1230,12 @@ void handleSequencer() {
                     // Check for animation completion
                     if (animElapsed >= totalDuration) {
                         // Ensure the bar is 100% full at the end
-                        char final_bar[14];
-                        memset(final_bar, '|', 13);
-                        final_bar[13] = '\0';
-
+                        std::string final_bar = "|||||||||||||"; // Use '|' character
                         if (step.stringParam[0] != '\0') {
                             int text_len = strlen(step.stringParam);
                             int start_pos = (13 - text_len) / 2;
                             if (start_pos < 0) start_pos = 0;
-                            strncpy(final_bar + start_pos, step.stringParam, 13 - start_pos);
+                            final_bar.replace(start_pos, text_len, step.stringParam);
                         }
                         updateDisplaySegment(step.targetRow, -1, final_bar);
                         advance_step = true;
@@ -1270,11 +1250,9 @@ void handleSequencer() {
                         int lit_count = (int)(currentProgress * 13.0f);
                         if (lit_count > 13) lit_count = 13;
 
-                        char bar[14];
-                        memset(bar, ' ', 13);
-                        bar[13] = '\0';
+                        std::string bar = "             "; // Use spaces for the empty part
                         for (int j = 0; j < lit_count; j++) {
-                            bar[j] = '|';
+                            bar[j] = '|'; // Use '|' character
                         }
 
                         // Overlay the text if it exists
@@ -1282,7 +1260,7 @@ void handleSequencer() {
                             int text_len = strlen(step.stringParam);
                             int start_pos = (13 - text_len) / 2;
                             if (start_pos < 0) start_pos = 0;
-                            strncpy(bar + start_pos, step.stringParam, 13 - start_pos);
+                            bar.replace(start_pos, text_len, step.stringParam);
                         }
 
                         updateDisplaySegment(step.targetRow, -1, bar);
@@ -1293,48 +1271,42 @@ void handleSequencer() {
             case SEQ_CMD_RANDOM_FLICKER_TEXT:
                 if (!track.stepInitialized) {
                     if (step.stringParam[0] == '\0') {
-                        char currentManualText[14];
-                        getFullRowText(step.targetRow, currentManualText);
-
-                        bool is_blank = true;
-                        for(int j=0; j<13; j++) {
-                            if(currentManualText[j] != ' ') {
-                                is_blank = false;
-                                break;
-                            }
-                        }
-
-                        if (is_blank) {
+                        // If no string is provided, intelligently decide which text to use.
+                        // First, check if there's already manual text on the display for this row.
+                        std::string currentManualText = getFullRowText(step.targetRow);
+                        // Check if the string is empty or contains only whitespace.
+                        if (currentManualText.find_first_not_of(' ') == std::string::npos) {
+                            // The manual buffer is empty, so fall back to the actual clock time.
                             char dest_str[17], pres_str[17], last_str[17];
                             getFormattedTimeStrings(dest_str, pres_str, last_str);
                             const char* time_strings[] = {dest_str, pres_str, last_str};
-                            strncpy(track.flickerOriginalText, time_strings[step.targetRow], 13);
+                            track.flickerOriginalText = time_strings[step.targetRow];
                         } else {
-                            strncpy(track.flickerOriginalText, currentManualText, 13);
+                            // The manual buffer has content, so use that for the flicker effect.
+                            track.flickerOriginalText = currentManualText;
                         }
                     } else {
-                        strncpy(track.flickerOriginalText, step.stringParam, 13);
+                        // A string was explicitly provided in the command, so use it.
+                        track.flickerOriginalText = step.stringParam;
                     }
-                    track.flickerOriginalText[13] = '\0'; // Ensure null termination
                     track.lastFlickerUpdate = millis();
                     track.stepInitialized = true;
                 }
+                // --- FIX: Swapped intParam and intParam2 to be consistent with other commands ---
+                // intParam is now flicker speed, intParam2 is now duration.
                 if (commandElapsed >= (unsigned long)step.intParam2) {
+                    // Restore original text at the end
                     updateDisplaySegment(step.targetRow, step.targetSegment, track.flickerOriginalText);
                     advance_step = true;
                 } else {
                     if (millis() - track.lastFlickerUpdate > (unsigned long)step.intParam) {
-                        static char flicker_buffer[14];
-                        strncpy(flicker_buffer, track.flickerOriginalText, 13);
-                        flicker_buffer[13] = '\0';
-
-                        for (int j = 0; j < 13; ++j) {
-                            if (flicker_buffer[j] == '\0') break;
-                            if (random(100) < 30) {
-                                flicker_buffer[j] = (char)random(33, 126);
+                        std::string temp = track.flickerOriginalText;
+                        for (size_t j = 0; j < temp.length(); ++j) {
+                            if (random(100) < 30) { // 30% chance to flicker a character
+                                temp[j] = (char)random(33, 126);
                             }
                         }
-                        updateDisplaySegment(step.targetRow, step.targetSegment, flicker_buffer);
+                        updateDisplaySegment(step.targetRow, step.targetSegment, temp);
                         track.lastFlickerUpdate = millis();
                     }
                 }
@@ -1342,9 +1314,7 @@ void handleSequencer() {
 
             case SEQ_CMD_SCRAMBLE_TEXT:
                 if (!track.stepInitialized) {
-                    // Initialize the buffer with spaces.
-                    memset(track.scrambleBuffer, ' ', 13);
-                    track.scrambleBuffer[13] = '\0';
+                    track.scrambleCurrentText = std::string(strlen(step.stringParam), ' ');
                     track.scrambleCharIndex = 0;
                     track.lastScrambleUpdate = millis();
                     track.lastScrambleLockInTime = millis();
@@ -1358,8 +1328,9 @@ void handleSequencer() {
                 } else {
                     // Check if it's time to lock in the next character.
                     if (millis() - track.lastScrambleLockInTime >= (unsigned long)step.intParam2) {
+                        // --- FIX: Lock in the character before incrementing the index ---
                         if ((unsigned)track.scrambleCharIndex < strlen(step.stringParam)) {
-                            track.scrambleBuffer[track.scrambleCharIndex] = step.stringParam[track.scrambleCharIndex];
+                            track.scrambleCurrentText[track.scrambleCharIndex] = step.stringParam[track.scrambleCharIndex];
                         }
                         track.scrambleCharIndex++;
                         track.lastScrambleLockInTime = millis();
@@ -1367,14 +1338,13 @@ void handleSequencer() {
 
                     // Check if it's time to update the flickering characters.
                     if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
-                        // --- FIX: Use a temporary buffer on the stack to prevent heap fragmentation ---
-                        char temp_scramble_buffer[14];
-                        strcpy(temp_scramble_buffer, track.scrambleBuffer);
-
-                        for (size_t j = track.scrambleCharIndex; j < strlen(step.stringParam); ++j) {
-                            temp_scramble_buffer[j] = (char)random(33, 126);
+                        // Build the string to display, starting with the current locked-in state.
+                        std::string temp_scramble = track.scrambleCurrentText;
+                        // Scramble the characters that haven't been locked in yet.
+                        for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
+                            temp_scramble[j] = (char)random(33, 126);
                         }
-                        updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble_buffer);
+                        updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
                         track.lastScrambleUpdate = millis();
                     }
                 }
@@ -1392,16 +1362,12 @@ void handleSequencer() {
                 } else {
                     if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
                         track.typewriterIndex++;
-
-                        char text_buffer[14];
-                        memset(text_buffer, ' ', 13);
-                        text_buffer[13] = '\0';
-
-                        int len_to_copy = min(track.typewriterIndex, (int)strlen(step.stringParam));
-                        int start_pos = 13 - len_to_copy;
-                        strncpy(text_buffer + start_pos, step.stringParam, len_to_copy);
-
-                        updateDisplaySegment(step.targetRow, -1, text_buffer);
+                        std::string text = std::string(step.stringParam).substr(0, track.typewriterIndex);
+                        while(text.length() < 13) text = " " + text;
+                        updateDisplaySegment(step.targetRow, 0, text.substr(0,3));
+                        updateDisplaySegment(step.targetRow, 1, text.substr(3,2));
+                        updateDisplaySegment(step.targetRow, 2, text.substr(5,4));
+                        updateDisplaySegment(step.targetRow, 3, text.substr(9,4));
                         track.lastTypewriterUpdate = millis();
                     }
                 }
@@ -1454,8 +1420,7 @@ void handleSequencer() {
                 if (!track.stepInitialized) {
                     track.isWaitingForHAState = true;
                     track.haStateReceived = false;
-                    strncpy(track.haSensorTopic, step.stringParam, MAX_SEQ_STRING_LEN -1);
-                    track.haSensorTopic[MAX_SEQ_STRING_LEN - 1] = '\0';
+                    track.haSensorTopic = step.stringParam;
                     subscribeToTopic(track.haSensorTopic);
                     track.stepInitialized = true;
                 }
@@ -1470,15 +1435,27 @@ void handleSequencer() {
             // --- End of Sequence ---
             case SEQ_CMD_END:
             case SEQ_CMD_NONE:
-                // --- FIX: This is now just a simple cleanup for this track. ---
-                // The global cleanup is handled by the new logic at the end of handleSequencer().
-                track.reset();
+                { // New scope for local variable
+                    // This is a natural end to a sequence. Check if it's the very last track.
+                    bool wasLastTrack = true;
+                    for (int j = 0; j < NUM_SEQUENCER_TRACKS; j++) {
+                        if (i != j && sequencerTracks[j].isActive) {
+                            wasLastTrack = false;
+                            break;
+                        }
+                    }
+                    // If it was the last active track, now is the correct time to signal completion.
+                    if (wasLastTrack) {
+                        broadcastAnimationComplete();
+                    }
+                }
+                stopAndCleanupTrack(i);
                 needsDisplayUpdate = true;
                 break;
 
             default:
                 Log_printf(LOG_LEVEL_WARN, "SEQ: Track %d entered unknown command state %d. Aborting.", i, step.command);
-                track.reset();
+                stopAndCleanupTrack(i);
                 needsDisplayUpdate = true;
                 break;
         }
@@ -1490,36 +1467,9 @@ void handleSequencer() {
         }
     }
 
-    // --- FIX: Robust End-of-Animation Detection ---
-    // This logic reliably detects when the last active track has finished.
-    static bool wasAnimatingLastCycle = false;
-    bool isAnimatingThisCycle = false;
-
-    for (int i = 0; i < NUM_SEQUENCER_TRACKS; ++i) {
-        if (sequencerTracks[i].isActive) {
-            isAnimatingThisCycle = true;
-            break; // An active track was found, no need to check further.
-        }
-    }
-
-    // If we were animating on the previous cycle but are not animating on the current one,
-    // it means the animation has just completed.
-    if (wasAnimatingLastCycle && !isAnimatingThisCycle && !isTransitioningAnimation) {
-        doFinalAnimationCleanup();
-    }
-
-    // Update the state for the next iteration of the loop.
-    wasAnimatingLastCycle = isAnimatingThisCycle;
-
-
     if (needsDisplayUpdate) {
         updateNormalClockDisplay();
     }
-
-    // --- FIX: Yield CPU time to prevent task starvation ---
-    // A delay of 1 tick is enough to allow other tasks (like the network stack)
-    // to run, preventing crashes from memory allocation failures in mDNS, etc.
-    vTaskDelay(1);
 }
 
 /**
@@ -1531,45 +1481,60 @@ void handleSequencer() {
  * restoring the main display mode after the very last track has finished.
  * @param trackIndex The index of the track (0-2) to clean up.
  */
-/**
- * @brief Performs the final, global cleanup after any animation concludes.
- * @details This function is the single source of truth for post-animation cleanup.
- * It restores the display mode, restarts the mDNS service, and notifies the UI.
- * A static boolean guard prevents it from running more than once in the event of
- * overlapping calls, ensuring stability.
- */
-void doFinalAnimationCleanup() {
-    // Use a static boolean to ensure this cleanup logic only runs once,
-    // even if called multiple times in quick succession from different paths.
-    static bool cleanupInProgress = false;
-    if (cleanupInProgress) {
-        return;
+void stopAndCleanupTrack(int trackIndex) {
+    if (trackIndex < 0 || trackIndex >= NUM_SEQUENCER_TRACKS) return;
+
+    SequencerTrack& track = sequencerTracks[trackIndex];
+    DisplayRow* rows[] = {&destRow, &presRow, &lastRow};
+    DisplayRow& row = *rows[trackIndex];
+
+    // Restore the brightness to the default setting before resetting the track
+    uint8_t defaultBrightness = track.originalBrightness > 0 ? track.originalBrightness : currentSettings.brightness;
+    row.month.setBrightness(defaultBrightness);
+    row.day.setBrightness(defaultBrightness);
+    row.year.setBrightness(defaultBrightness);
+    row.time.setBrightness(defaultBrightness);
+
+    // --- FIX: Call the comprehensive reset() method ---
+    // This is more robust as it clears all state variables, including marquee text,
+    // effect flags, and step commands, preventing any state from bleeding into the next sequence.
+    track.reset();
+
+    Log_printf(LOG_LEVEL_INFO, "SEQ: Cleaned up and stopped track %d.", trackIndex);
+
+    // --- NEW: Check if this was the very last active track ---
+    bool anyOtherTrackActive = false;
+    for (int i = 0; i < NUM_SEQUENCER_TRACKS; ++i) {
+        if (sequencerTracks[i].isActive) {
+            anyOtherTrackActive = true;
+            break; // Found another active track, no need to check further
+        }
     }
-    cleanupInProgress = true;
 
-    if (currentAnimationType != ANIMATION_TYPE_MAX) {
-        Log_printf(LOG_LEVEL_INFO, "SEQ: Animation %d (%s) completed.", (int)currentAnimationType, animationTypeToString(currentAnimationType));
-        currentAnimationType = ANIMATION_TYPE_MAX;
+    // If no other tracks are active, restore the original display mode.
+    if (!anyOtherTrackActive) {
+        // --- NEW: Log the completion of the animation ---
+        if (currentAnimationType != ANIMATION_TYPE_MAX) {
+            Log_printf(LOG_LEVEL_INFO, "SEQ: Animation %d (%s) completed.", (int)currentAnimationType, animationTypeToString(currentAnimationType));
+            currentAnimationType = ANIMATION_TYPE_MAX; // Reset to invalid state
+        }
+
+        Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Cleaning up and restoring pre-animation display mode: %d", preAnimationDisplayMode);
+        comprehensiveAnimationCleanup(); // Full cleanup of all states
+        currentSettings.displayMode = preAnimationDisplayMode;
+        justFinishedAnimation = true; // --- FIX: Signal that an animation just completed
+        // The main loop will now handle updating the display according to the restored mode.
+        // NOTE: broadcastAnimationComplete() is now called from the SEQ_CMD_END handler
+        // to prevent premature completion signals when one sequence triggers another.
     }
-
-    Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Cleaning up and restoring pre-animation display mode: %d", preAnimationDisplayMode);
-    comprehensiveAnimationCleanup();
-    currentSettings.displayMode = preAnimationDisplayMode;
-    justFinishedAnimation = true;
-
-    // mDNS service is no longer stopped/restarted during animations.
-
-    // Broadcast completion to the UI now that we are certain the entire animation is done.
-    broadcastAnimationComplete();
-    cleanupInProgress = false;
 }
 
 void stopAllSequences() {
     Log_printf(LOG_LEVEL_INFO, "SEQ: Stopping all active sequences.");
     for (int i = 0; i < NUM_SEQUENCER_TRACKS; i++) {
+        // The cleanup function has its own guards, but checking isActive here is a good practice.
         if (sequencerTracks[i].isActive) {
-            sequencerTracks[i].reset();
-            Log_printf(LOG_LEVEL_INFO, "SEQ: Forcibly stopped track %d.", i);
+            stopAndCleanupTrack(i);
         }
     }
 }
@@ -1600,6 +1565,61 @@ void clearSequenceStep(SequenceStep& step) {
  * `clearSequenceStep` helper to safely clear the large `steps` array.
  * @param track The SequencerTrack object to clear.
  */
+void clearSequencerTrack(SequencerTrack& track) {
+    track.isActive = false;
+    track.currentStep = 0;
+    track.stepStartTime = 0;
+    track.stepInitialized = false;
+    track.trackStartTime = 0;
+    track.loopStartStep = -1;
+    track.loopCounter = 0;
+    track.isMarqueeActive = false;
+    track.marqueeText.clear();
+    track.marqueeScrollPosition = 0;
+    track.lastMarqueeScrollTime = 0;
+    track.isFading = false;
+    track.fadeStartTime = 0;
+    track.fadeDuration = 0;
+    track.isFadeIn = false;
+    for (int i = 0; i < 4; ++i) {
+        track.isPulsing[i] = false;
+        track.pulseEndTimes[i] = 0;
+        track.pulseStates[i] = false;
+        track.lastPulseToggle[i] = 0;
+        track.pulseInterval = 750;
+        track.isFlashing[i] = false;
+        track.flashEndTimes[i] = 0;
+        track.flashStates[i] = false;
+        track.lastFlashToggle[i] = 0;
+    }
+    track.countdownValue = 0;
+    track.countdownLastUpdate = 0;
+    track.scannerPosition = 0;
+    track.scannerDirection = true;
+    track.lastScannerUpdate = 0;
+    track.typewriterIndex = 0;
+    track.lastTypewriterUpdate = 0;
+    track.wipeSegment = 0;
+    track.lastWipeUpdate = 0;
+    track.barGraphPercentage = 0.0f;
+    track.lastBarGraphUpdate = 0;
+    track.barGraphStartTime = 0;
+    track.lastFlickerUpdate = 0;
+    track.flickerOriginalText.clear();
+    track.scrambleCharIndex = 0;
+    track.lastScrambleUpdate = 0;
+    track.lastScrambleLockInTime = 0;
+    track.scrambleCurrentText.clear();
+    track.crossfadePhase = 0;
+    track.isWaitingForHAState = false;
+    track.haSensorTopic.clear();
+    track.haStateReceived = false;
+
+    // Safely clear the steps array using the helper function.
+    for (int i = 0; i < MAX_SEQUENCE_STEPS; ++i) {
+        clearSequenceStep(track.steps[i]);
+    }
+}
 
 void runCrossfadeTest() {
     Log_printf(LOG_LEVEL_INFO, "SEQ_TEST: --- Running Crossfade Fix Test ---");
@@ -1680,9 +1700,6 @@ void triggerAnimation(AnimationType animType) {
     // with the new animation.
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
 
-    // --- FIX: Set the transition flag to prevent premature cleanup ---
-    isTransitioningAnimation = true;
-
     // --- FIX: Save the current display mode so it can be restored after the animation. ---
     preAnimationDisplayMode = currentSettings.displayMode;
     currentSettings.displayMode = -1; // Pause the main display loop
@@ -1727,19 +1744,16 @@ void triggerAnimation(AnimationType animType) {
     }
 
     // Static memory does not need to be manually deallocated.
-
-    // --- FIX: Clear the transition flag now that the new animation is active ---
-    isTransitioningAnimation = false;
 }
 
-void startSequencerMarquee(SequencerTrack& track, const char* text) {
-    if (text == nullptr || text[0] == '\0') {
+void startSequencerMarquee(SequencerTrack& track, const std::string& text) {
+    if (text.empty()) {
         track.isMarqueeActive = false;
         return;
     }
     track.isMarqueeActive = true;
-    // Safely construct the padded string for scrolling
-    snprintf(track.marqueeText, sizeof(track.marqueeText), "             %s             ", text);
+    // Add padding for a smooth scroll-on and scroll-off effect
+    track.marqueeText = "             " + text + "             ";
     track.marqueeScrollPosition = 0;
     track.lastMarqueeScrollTime = millis();
     Log_printf(LOG_LEVEL_INFO, "SEQ: Marquee started on track %d", track.steps[track.currentStep].targetRow);
@@ -1750,28 +1764,34 @@ void handleAllSequencerMarquees() {
         SequencerTrack& track = sequencerTracks[i];
 
         if (track.isActive && track.isMarqueeActive) {
-            if (millis() - track.lastMarqueeScrollTime > 120) {
+            // Use a fixed scroll speed for now. This could be extended to be a parameter.
+            if (millis() - track.lastMarqueeScrollTime > 120) { // 120ms scroll speed
                 track.marqueeScrollPosition++;
 
-                if ((unsigned)track.marqueeScrollPosition > strlen(track.marqueeText) - 13) {
+                // Check if the marquee has finished scrolling completely
+                if ((unsigned)track.marqueeScrollPosition > track.marqueeText.length() - 13) {
                     track.isMarqueeActive = false;
                     Log_printf(LOG_LEVEL_INFO, "SEQ: Marquee finished on track %d.", i);
 
+                    // --- FIX: Instead of leaving the display blank, center the original text ---
                     SequenceStep& step = track.steps[track.currentStep];
-                    char centeredText[14];
-                    memset(centeredText, ' ', 13);
-                    centeredText[13] = '\0';
-                    int text_len = strlen(step.stringParam);
-                    int padding = (13 - text_len) / 2;
-                    if (padding < 0) padding = 0;
-                    strncpy(centeredText + padding, step.stringParam, 13 - padding);
+                    std::string originalText = step.stringParam;
+                    std::string centeredText;
 
+                    if (originalText.length() < 13) {
+                        int padding = (13 - originalText.length()) / 2;
+                        centeredText = std::string(padding, ' ') + originalText;
+                        while (centeredText.length() < 13) {
+                            centeredText += " ";
+                        }
+                    } else {
+                        centeredText = originalText.substr(0, 13);
+                    }
                     updateDisplaySegment(i, -1, centeredText);
 
                 } else {
-                    char displayText[14];
-                    strncpy(displayText, track.marqueeText + track.marqueeScrollPosition, 13);
-                    displayText[13] = '\0';
+                    // Get the 13-character segment to display
+                    std::string displayText = track.marqueeText.substr(track.marqueeScrollPosition, 13);
                     updateDisplaySegment(i, -1, displayText);
                 }
                 track.lastMarqueeScrollTime = millis();

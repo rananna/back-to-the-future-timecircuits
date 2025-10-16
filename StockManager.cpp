@@ -1290,19 +1290,16 @@ String formatVolume(unsigned long volume) {
  * of information (e.g., price/change, high/low/volume).
  * @return A `String` containing the fully formatted text to be scrolled on the display.
  */
-void StockManager::getMarqueeLine(char* buffer, size_t bufferSize) {
+String StockManager::getMarqueeLine() {
     if (!_enabled) {
-        buffer[0] = '\0';
-        return;
+        return "";
     }
 
     xSemaphoreTake(_assets_mutex, portMAX_DELAY);
 
     if (_assets.empty()) {
-        strncpy(buffer, "ADD SYMBOLS IN UI", bufferSize - 1);
-        buffer[bufferSize - 1] = '\0';
         xSemaphoreGive(_assets_mutex);
-        return;
+        return "ADD SYMBOLS IN UI";
     }
 
     if (_current_asset_index >= _assets.size() || _current_asset_index < 0) {
@@ -1313,15 +1310,17 @@ void StockManager::getMarqueeLine(char* buffer, size_t bufferSize) {
     const Asset& current_asset = _assets[_current_asset_index];
 
     if (!current_asset.data_valid) {
+        String error_msg;
         if (!current_asset.error_reason.isEmpty()) {
-            snprintf(buffer, bufferSize, "%s %s", current_asset.symbol.c_str(), current_asset.error_reason.c_str());
+            error_msg = current_asset.symbol + " " + current_asset.error_reason;
         } else {
-            snprintf(buffer, bufferSize, "%s NO DATA", current_asset.symbol.c_str());
+            error_msg = current_asset.symbol + " NO DATA";
         }
         xSemaphoreGive(_assets_mutex);
-        return;
+        return error_msg;
     }
 
+    char buffer[128];
     String currency_symbol_str = getCurrencySymbol(current_asset.currency);
     const char* currency_symbol = currency_symbol_str.c_str();
 
@@ -1333,7 +1332,7 @@ void StockManager::getMarqueeLine(char* buffer, size_t bufferSize) {
             char price_buf[32];
             snprintf(price_buf, sizeof(price_buf), "%s%.2f", currency_symbol, current_asset.price);
 
-            snprintf(buffer, bufferSize, "%s %s %s",
+            snprintf(buffer, sizeof(buffer), "%s %s %s",
                      current_asset.symbol.c_str(),
                      price_buf,
                      change_str);
@@ -1346,7 +1345,7 @@ void StockManager::getMarqueeLine(char* buffer, size_t bufferSize) {
 
             String vol_str = formatVolume(current_asset.volume);
 
-            snprintf(buffer, bufferSize, "%s %s %s VOL %s",
+            snprintf(buffer, sizeof(buffer), "%s %s %s VOL %s",
                      current_asset.symbol.c_str(),
                      high_buf,
                      low_buf,
@@ -1356,12 +1355,13 @@ void StockManager::getMarqueeLine(char* buffer, size_t bufferSize) {
         default: {
             // Fallback to page 0 if index is out of bounds for some reason
             _current_page_index = 0;
-            snprintf(buffer, bufferSize, "INVALID PAGE");
+            snprintf(buffer, sizeof(buffer), "INVALID PAGE");
             break;
         }
     }
 
     xSemaphoreGive(_assets_mutex);
+    return String(buffer);
 }
 
 /**

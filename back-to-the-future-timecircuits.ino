@@ -164,6 +164,7 @@ bool attemptHardwareInit();
 void onHardwareInitialized();
 void checkDataFetchStatusTask(void* p);
 void wifiManagerTask(void *pvParameters);
+void updateDisplaySegment(int row, int segment, const std::string& text);
 
 // --- GLOBAL DATA STRUCTURES & SETTINGS ---
 
@@ -225,9 +226,9 @@ const int MAX_FETCH_FAILURES = 3;
 volatile int requestsCompleted = 0;
 int currentPageIndex = 0;
 bool isMessageOverrideActive = false;
-char overrideMessageLine1[128] = "";
-char overrideMessageLine2[128] = "";
-char overrideMessageLine3[128] = "";
+String overrideMessageLine1 = "";
+String overrideMessageLine2 = "";
+String overrideMessageLine3 = "";
 SemaphoreHandle_t xDisplayDataMutex;
 SemaphoreHandle_t xAnimationStartMutex;
 SemaphoreHandle_t xTimeLibMutex;
@@ -1498,13 +1499,6 @@ void loop() {
                                     // If an animation just finished, skip one display cycle
                                     // to ensure all cleanup is complete before redrawing.
                                     if (justFinishedAnimation) {
-                                        // --- FIX: Add a forced delay (cooldown) after an animation completes ---
-                                        // This gives critical background tasks (like WiFi/MQTT) a guaranteed
-                                        // time slice to run, preventing them from being starved by the main
-                                        // loop immediately starting another CPU-intensive operation, which was
-                                        // causing the low-level `esp_timer_create` crash.
-                                        Log_printf(LOG_LEVEL_DEBUG, "Post-animation cooldown: Skipping one loop cycle.");
-                                        vTaskDelay(50 / portTICK_PERIOD_MS); // 50ms cooldown
                                         justFinishedAnimation = false;
                                     } else {
                                         // No sequence is running. Proceed with the normal display logic.

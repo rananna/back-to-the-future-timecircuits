@@ -8,6 +8,16 @@
  * actually write to the displays.
  */
 
+/**
+ * @file DisplayManager.cpp
+ * @brief Manages the content displayed on the time circuits during normal operation.
+ * @details This module is responsible for rendering the standard clock display, as well
+ * as handling the logic for alternative display modes like the stock ticker, weather
+ * forecast, and data-driven marquee. It acts as a high-level controller for what
+ * should be shown, calling the lower-level functions in HardwareControl.cpp to
+ * actually write to the displays.
+ */
+
 #include "DebugLog.h"
 #include "DisplayManager.h"
 #include "DataManager.h"
@@ -17,34 +27,24 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
-#include <cstring> // For strlen, strcpy, etc.
 
 extern StockManager stockManager;
-// --- START: MODIFICATION - Use char arrays for override messages ---
-// Switched from Arduino String to char arrays to prevent heap fragmentation.
-extern char overrideMessageLine1[128];
-extern char overrideMessageLine2[128];
-extern char overrideMessageLine3[128];
-// --- END: MODIFICATION ---
+extern String overrideMessageLine1;
+extern String overrideMessageLine2;
+extern String overrideMessageLine3;
 
 // State management for override message scrolling
 static int overrideScrollPosition[3] = {0, 0, 0};
 static unsigned long lastOverrideScrollTime[3] = {0, 0, 0};
-// --- START: MODIFICATION - Use char arrays for previous override messages ---
-static char previousOverrideMessage[3][128] = {"", "", ""};
-// --- END: MODIFICATION ---
+static std::string previousOverrideMessage[3] = {"", "", ""};
 
 // Define and initialize the dirty flags and buffers for scrolling text
 bool isMarqueeBufferDirty = true;
 bool isWeatherBufferDirty = true;
 
-// --- START: MODIFICATION - Removed std::string buffers ---
-// These are no longer needed as we now use file-scoped static char arrays
-// inside the functions that require them.
-// std::string marqueeBuffer;
-// std::string marqueeOverrideBuffer;
-// --- END: MODIFICATION ---
+std::string marqueeBuffer;
 char weatherBuffer[512]; // Increased size for safety, changed to char array
+std::string marqueeOverrideBuffer;
 
 #include "HardwareControl.h"
 #include "AnimationManager.h" // For SequencerTrack struct
@@ -147,12 +147,52 @@ void resetWeatherFetchState() {
     initialFetchStartTime = 0;
 }
 
+// A struct to hold the state of a scrolling text segment.
+struct ScrollState {
+    int position = 0;
+    unsigned long lastScrollTime = 0;
+};
+
+// An array to hold the scroll state for each of the 4 segments of the weather display row.
+static ScrollState weatherScrollStates[4];
+
+/**
+ * @brief Manages the scrolling of a string within a fixed-width viewport.
+ * @param fullText The complete string to be scrolled.
+ * @param width The width of the display segment (viewport).
+ * @param state A reference to the ScrollState object for this segment.
+ * @param scrollSpeed The delay in milliseconds between scroll steps.
+ * @return A substring of the fullText representing the current viewport.
+ */
+String getScrolledViewport(const String& fullText, int width, ScrollState& state, unsigned long scrollSpeed) {
+    if (fullText.length() <= width) {
+        // If the text fits, reset the scroll position for the next long text and return.
+        state.position = 0;
+        return fullText;
+    }
+
+    // Pad the text with spaces for a smoother looping effect.
+    String paddedText = "  " + fullText + "  ";
+
+    // Update the scroll position based on the scroll speed.
+    if (millis() - state.lastScrollTime > scrollSpeed) {
+        state.lastScrollTime = millis();
+        state.position++;
+        // If we've scrolled past the end, loop back to the beginning.
+        if (state.position > paddedText.length() - width) {
+            state.position = 0;
+        }
+    }
+
+    return paddedText.substring(state.position, state.position + width);
+}
+
 // External declaration for the global stock data array.
 extern StockData stockData[3];
 
 // Global arrays to support manual text override via MQTT or API.
 bool weatherDataUpdated = false;
-char manualDisplayText[3][4][16];
+std::string manualDisplayText[3][4];
 bool isRowInManualMode[3] = {false, false, false};
 
 /**
@@ -252,19 +292,19 @@ void updateStockTickerDisplay() {
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         const unsigned long scrollSpeed = 250;
         const unsigned long pauseDuration = 250; // 0.25-second pause between tickers
-        static char stockMarqueeBuffer[512]; // Buffer for the full text
+        static char stockMarqueeBuffer[256]; // Buffer for the full text
 
         static bool isStatusMessage = false;
         // State machine for stock ticker display
         switch (stockState) {
             case SD_CONNECTING: {
-                static char statusMessage[64];
+                std::string statusMessage;
                 if (stockManager.getAssets().empty()) {
-                    strcpy(statusMessage, "ADD STOCKS IN UI");
+                    statusMessage = "ADD STOCKS IN UI";
                 } else if (!stockManager.isTimeSynchronized()) {
-                    strcpy(statusMessage, "CONNECTING...");
+                    statusMessage = "CONNECTING...";
                 } else if (stockManager.isFetching()) {
-                    strcpy(statusMessage, "LOADING STOCKS");
+                    statusMessage = "LOADING STOCKS";
                 } else if (stockManager.hasDataBeenUpdated() || stockManager.hasAnyValidData()) {
                     if (stockManager.hasDataBeenUpdated()) {
                         stockManager.clearDataUpdatedFlag();
@@ -273,12 +313,12 @@ void updateStockTickerDisplay() {
                     xSemaphoreGive(xDisplayDataMutex);
                     return;
                 } else {
-                    strcpy(statusMessage, "WAIT...");
+                    statusMessage = "WAIT...";
                 }
 
                 if (stockState == SD_CONNECTING) {
                     isStatusMessage = true;
-                    snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", statusMessage);
+                    snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", statusMessage.c_str());
                     stockScrollPosition = 0;
                     stockState = SD_SCROLLING;
                     lastStockUpdate = millis();
@@ -295,16 +335,10 @@ void updateStockTickerDisplay() {
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
 
-                // --- START: MODIFICATION - Use char buffer for marquee line ---
-                char marqueeLine[512];
-                stockManager.getMarqueeLine(marqueeLine, sizeof(marqueeLine));
-                // Convert to uppercase in place
-                for (int i = 0; marqueeLine[i]; i++) {
-                    marqueeLine[i] = toupper(marqueeLine[i]);
-                }
-                snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", marqueeLine);
-                // --- END: MODIFICATION ---
+                String marqueeLine = stockManager.getMarqueeLine();
+                marqueeLine.toUpperCase();
 
+                snprintf(stockMarqueeBuffer, sizeof(stockMarqueeBuffer), "             %s", marqueeLine.c_str());
                 stockScrollPosition = 0;
                 stockState = SD_SCROLLING;
                 lastStockUpdate = millis();
@@ -389,67 +423,50 @@ void displayOverrideMessage() {
             digitalWrite(LAST_AM_PIN, LOW);
             digitalWrite(LAST_PM_PIN, LOW);
 
-            // --- START: MODIFICATION - Use char arrays ---
-            char* messages[3] = {overrideMessageLine1, overrideMessageLine2, overrideMessageLine3};
-            // --- END: MODIFICATION ---
+            String messages[3] = {overrideMessageLine1, overrideMessageLine2, overrideMessageLine3};
             DisplayRow* rows[3] = {&destRow, &presRow, &lastRow};
             const unsigned long scrollSpeed = 250; // Milliseconds between scroll steps
 
             for (int i = 0; i < 3; i++) {
                 // Check if the message for this row has changed
-                if (strcmp(messages[i], previousOverrideMessage[i]) != 0) {
-                    strncpy(previousOverrideMessage[i], messages[i], sizeof(previousOverrideMessage[i]) - 1);
-                    previousOverrideMessage[i][sizeof(previousOverrideMessage[i]) - 1] = '\0';
+                if (messages[i].c_str() != previousOverrideMessage[i]) {
+                    previousOverrideMessage[i] = messages[i].c_str();
                     overrideScrollPosition[i] = 0; // Reset scroll position
                 }
 
-                // --- START: MODIFICATION - Use char buffers for all text manipulation ---
-                static char currentMessage[128];
-                static char output_buffer[14];
-                strncpy(currentMessage, messages[i], sizeof(currentMessage) - 1);
-                currentMessage[sizeof(currentMessage) - 1] = '\0';
+                String currentMessage = messages[i];
+                currentMessage.toUpperCase();
+                String output_buffer;
 
-                // Convert to uppercase
-                for (int j = 0; currentMessage[j]; j++) {
-                    currentMessage[j] = toupper(currentMessage[j]);
-                }
-
-                if (strlen(currentMessage) > 13) {
+                if (currentMessage.length() > 13) {
                     // --- Scrolling Marquee Logic ---
-                    static char padded_message[160]; // 128 + 2 spaces + 13 padding + null
-                    snprintf(padded_message, sizeof(padded_message), "  %s  ", currentMessage);
+                    String padded_message = "  " + currentMessage + "  ";
                     if (millis() - lastOverrideScrollTime[i] > scrollSpeed) {
                         lastOverrideScrollTime[i] = millis();
                         overrideScrollPosition[i]++;
-                        if (overrideScrollPosition[i] > strlen(padded_message) - 13) {
+                        if (overrideScrollPosition[i] > padded_message.length() - 13) {
                             overrideScrollPosition[i] = 0;
                         }
                     }
-                    strncpy(output_buffer, padded_message + overrideScrollPosition[i], 13);
-                    output_buffer[13] = '\0';
+                    output_buffer = padded_message.substring(overrideScrollPosition[i], overrideScrollPosition[i] + 13);
                 } else {
                     // --- Centered Static Text Logic ---
-                    int padding = (13 - strlen(currentMessage)) / 2;
-                    snprintf(output_buffer, sizeof(output_buffer), "%*s%s", padding, "", currentMessage);
-                    // Pad the rest with spaces
-                    for (int p = strlen(output_buffer); p < 13; p++) {
-                        output_buffer[p] = ' ';
+                    int padding = (13 - currentMessage.length()) / 2;
+                    output_buffer = "";
+                    for (int p = 0; p < padding; p++) {
+                        output_buffer += " ";
                     }
-                    output_buffer[13] = '\0';
+                    output_buffer += currentMessage;
+                    while (output_buffer.length() < 13) {
+                        output_buffer += " ";
+                    }
                 }
-                // --- END: MODIFICATION ---
 
                 // Split the 13-character buffer into the four display segments and print
-                char seg_month[4], seg_day[3], seg_year[5], seg_time[5];
-                strncpy(seg_month, output_buffer, 3); seg_month[3] = '\0';
-                strncpy(seg_day, output_buffer + 3, 2); seg_day[2] = '\0';
-                strncpy(seg_year, output_buffer + 5, 4); seg_year[4] = '\0';
-                strncpy(seg_time, output_buffer + 9, 4); seg_time[4] = '\0';
-
-                printToDisplay(rows[i]->month, seg_month, 1);
-                printToDisplay(rows[i]->day, seg_day, 2);
-                printToDisplay(rows[i]->year, seg_year);
-                printToDisplay(rows[i]->time, seg_time);
+                printToDisplay(rows[i]->month, output_buffer.substring(0, 3).c_str(), 1);
+                printToDisplay(rows[i]->day, output_buffer.substring(3, 5).c_str(), 2);
+                printToDisplay(rows[i]->year, output_buffer.substring(5, 9).c_str());
+                printToDisplay(rows[i]->time, output_buffer.substring(9, 13).c_str());
 
                 // Write the changes to the physical display row
                 rows[i]->month.writeDisplay();
@@ -465,7 +482,6 @@ void displayOverrideMessage() {
 #endif
 }
 
-
 /**
  * @brief Sets or clears manual text for a specific display segment or an entire row.
  * @details This is a key function for sequencer-based animations and external control.
@@ -476,7 +492,7 @@ void displayOverrideMessage() {
  * @param segment The target segment (0-3), or -1 to update the entire row at once.
  * @param text The text to display. An empty string clears the manual override for that segment.
  */
-void updateDisplaySegment(int row, int segment, const char* text) {
+void updateDisplaySegment(int row, int segment, const std::string& text) {
     if (row < 0 || row > 2) { // Invalid row
         return;
     }
@@ -484,34 +500,27 @@ void updateDisplaySegment(int row, int segment, const char* text) {
     if (segment == -1) {
         // A segment of -1 means we are updating the entire row, likely for a marquee.
         // The text is assumed to be 13 characters long.
-        char safe_text[14];
-        strncpy(safe_text, text, 13);
-        safe_text[13] = '\0';
-        // Pad with spaces if shorter than 13
-        for (int i = strlen(safe_text); i < 13; ++i) {
-            safe_text[i] = ' ';
+        std::string safe_text = text;
+        if (safe_text.length() > 13) {
+            safe_text = safe_text.substr(0, 13);
+        } else {
+            safe_text.append(13 - safe_text.length(), ' ');
         }
-        safe_text[13] = '\0';
 
-        strncpy(manualDisplayText[row][0], safe_text, 3);
-        manualDisplayText[row][0][3] = '\0';
-        strncpy(manualDisplayText[row][1], safe_text + 3, 2);
-        manualDisplayText[row][1][2] = '\0';
-        strncpy(manualDisplayText[row][2], safe_text + 5, 4);
-        manualDisplayText[row][2][4] = '\0';
-        strncpy(manualDisplayText[row][3], safe_text + 9, 4);
-        manualDisplayText[row][3][4] = '\0';
+        manualDisplayText[row][0] = safe_text.substr(0, 3);
+        manualDisplayText[row][1] = safe_text.substr(3, 2);
+        manualDisplayText[row][2] = safe_text.substr(5, 4);
+        manualDisplayText[row][3] = safe_text.substr(9, 4);
         isRowInManualMode[row] = true; // The whole row is now in manual mode.
 
     } else if (segment >= 0 && segment <= 3) {
         // This is for updating a single, specific segment.
-        strncpy(manualDisplayText[row][segment], text, 15);
-        manualDisplayText[row][segment][15] = '\0'; // Ensure null termination
+        manualDisplayText[row][segment] = text;
         // A row is in manual mode if any of its segments have text.
-        isRowInManualMode[row] = (strlen(manualDisplayText[row][0]) > 0) ||
-                                 (strlen(manualDisplayText[row][1]) > 0) ||
-                                 (strlen(manualDisplayText[row][2]) > 0) ||
-                                 (strlen(manualDisplayText[row][3]) > 0);
+        isRowInManualMode[row] = !manualDisplayText[row][0].empty() ||
+                                 !manualDisplayText[row][1].empty() ||
+                                 !manualDisplayText[row][2].empty() ||
+                                 !manualDisplayText[row][3].empty();
     } else {
         // An invalid segment was provided, so we do nothing.
         return;
@@ -533,7 +542,7 @@ void restoreDisplayRow(int row) {
 
     // Clear all manual text for the row
     for (int i = 0; i < 4; ++i) {
-        manualDisplayText[row][i][0] = '\0';
+        manualDisplayText[row][i].clear();
     }
 
     // Set the row back to normal clock mode
@@ -660,10 +669,10 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
                     printRow(destRow, dest_timeinfo, currentSettings.destinationYear, true, 0);
                 } else {
                     SequencerTrack& track = sequencerTracks[0];
-                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(destRow.month, "   ", 1); else printToDisplay(destRow.month, manualDisplayText[0][0], 1);
-                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(destRow.day, "  ", 2); else printToDisplay(destRow.day, manualDisplayText[0][1], 2);
-                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(destRow.year, "    "); else printToDisplay(destRow.year, manualDisplayText[0][2]);
-                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(destRow.time, "    "); else printToDisplay(destRow.time, manualDisplayText[0][3]);
+                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(destRow.month, "   ", 1); else printToDisplay(destRow.month, manualDisplayText[0][0].c_str(), 1);
+                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(destRow.day, "  ", 2); else printToDisplay(destRow.day, manualDisplayText[0][1].c_str(), 2);
+                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(destRow.year, "    "); else printToDisplay(destRow.year, manualDisplayText[0][2].c_str());
+                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(destRow.time, "    "); else printToDisplay(destRow.time, manualDisplayText[0][3].c_str());
                 }
                 destRow.month.writeDisplay(); destRow.day.writeDisplay(); destRow.year.writeDisplay(); destRow.time.writeDisplay();
             }
@@ -674,10 +683,10 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
                     printRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent, 1);
                 } else {
                     SequencerTrack& track = sequencerTracks[1];
-                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(presRow.month, "   ", 1); else printToDisplay(presRow.month, manualDisplayText[1][0], 1);
-                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(presRow.day, "  ", 2); else printToDisplay(presRow.day, manualDisplayText[1][1], 2);
-                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(presRow.year, "    "); else printToDisplay(presRow.year, manualDisplayText[1][2]);
-                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(presRow.time, "    "); else printToDisplay(presRow.time, manualDisplayText[1][3]);
+                    if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(presRow.month, "   ", 1); else printToDisplay(presRow.month, manualDisplayText[1][0].c_str(), 1);
+                    if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(presRow.day, "  ", 2); else printToDisplay(presRow.day, manualDisplayText[1][1].c_str(), 2);
+                    if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(presRow.year, "    "); else printToDisplay(presRow.year, manualDisplayText[1][2].c_str());
+                    if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(presRow.time, "    "); else printToDisplay(presRow.time, manualDisplayText[1][3].c_str());
                 }
                 presRow.month.writeDisplay(); presRow.day.writeDisplay(); presRow.year.writeDisplay(); presRow.time.writeDisplay();
             }
@@ -695,10 +704,10 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
                 printRow(lastRow, lastTimeDepartedInfo, currentSettings.lastTimeDepartedYear, true, 2);
             } else {
                 SequencerTrack& track = sequencerTracks[2];
-                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(lastRow.month, "   ", 1); else printToDisplay(lastRow.month, manualDisplayText[2][0], 1);
-                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(lastRow.day, "  ", 2); else printToDisplay(lastRow.day, manualDisplayText[2][1], 2);
-                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(lastRow.year, "    "); else printToDisplay(lastRow.year, manualDisplayText[2][2]);
-                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(lastRow.time, "    "); else printToDisplay(lastRow.time, manualDisplayText[2][3]);
+                if ((track.isPulsing[0] && !track.pulseStates[0]) || (track.isFlashing[0] && !track.flashStates[0])) printToDisplay(lastRow.month, "   ", 1); else printToDisplay(lastRow.month, manualDisplayText[2][0].c_str(), 1);
+                if ((track.isPulsing[1] && !track.pulseStates[1]) || (track.isFlashing[1] && !track.flashStates[1])) printToDisplay(lastRow.day, "  ", 2); else printToDisplay(lastRow.day, manualDisplayText[2][1].c_str(), 2);
+                if ((track.isPulsing[2] && !track.pulseStates[2]) || (track.isFlashing[2] && !track.flashStates[2])) printToDisplay(lastRow.year, "    "); else printToDisplay(lastRow.year, manualDisplayText[2][2].c_str());
+                if ((track.isPulsing[3] && !track.pulseStates[3]) || (track.isFlashing[3] && !track.flashStates[3])) printToDisplay(lastRow.time, "    "); else printToDisplay(lastRow.time, manualDisplayText[2][3].c_str());
             }
             lastRow.month.writeDisplay(); lastRow.day.writeDisplay(); lastRow.year.writeDisplay(); lastRow.time.writeDisplay();
         }
@@ -757,20 +766,18 @@ void handleWeatherDisplay() {
         const unsigned long errorRetryDelay = 10000; // 10 seconds
 
         if (!currentWeatherData.dataValid) {
-            // --- START: MODIFICATION - Use char buffers for error messages ---
-            static char message[128];
-            if (strlen(currentWeatherData.errorReason.c_str()) > 0) {
-                snprintf(message, sizeof(message), "WEATHER ERROR: %s", currentWeatherData.errorReason);
+            std::string message;
+            if (!currentWeatherData.errorReason.empty()) {
+                message = "WEATHER ERROR: " + currentWeatherData.errorReason;
             } else if (isFetchingWeather) {
-                strcpy(message, "FETCHING WEATHER DATA...");
+                message = "FETCHING WEATHER DATA...";
             } else {
-                strcpy(message, "WEATHER DATA UNAVAILABLE");
+                message = "WEATHER DATA UNAVAILABLE";
             }
-            // --- END: MODIFICATION ---
 
             if (weatherState != WD_ERROR) {
                 weatherState = WD_ERROR; // Use the error state for all non-valid data messages
-                snprintf(weatherBuffer, sizeof(weatherBuffer), "             %s", message);
+                snprintf(weatherBuffer, sizeof(weatherBuffer), "             %s", message.c_str());
                 for (int i = 0; weatherBuffer[i]; i++) weatherBuffer[i] = toupper(weatherBuffer[i]);
                 weatherScrollPosition = 0;
                 lastWeatherUpdate = millis();
@@ -857,7 +864,7 @@ void handleWeatherDisplay() {
                         if (weatherScrollPosition > strlen(weatherBuffer)) {
                             // After a delay, clear the error and try fetching data again
                             if (millis() - lastWeatherUpdate > errorRetryDelay) {
-                                weatherBuffer[0] = '\0'; // Clear reason
+                                currentWeatherData.errorReason = ""; // Clear reason
                                 weatherState = WD_START_PAGE;
                                 initialFetchTriggered = false; // Allow a new fetch
                             }
@@ -932,9 +939,9 @@ void handleWeatherDisplay() {
 
                                 // --- START: MODIFICATION - Use Weather Location Timezone for Sunrise/Sunset ---
                                 const char* weatherTz = nullptr;
-                                if (strlen(currentWeatherData.timezone.c_str()) > 0) {
+                                if (!currentWeatherData.timezone.empty()) {
                                     for (const auto& tzData : TZ_DATA) {
-                                        if (strcmp(currentWeatherData.timezone.c_str(), tzData.ianaTzName) == 0) {
+                                        if (currentWeatherData.timezone == tzData.ianaTzName) {
                                             weatherTz = tzData.tzString;
                                             break;
                                         }
@@ -1082,7 +1089,7 @@ void updateMarqueeDisplay() {
     updateNormalClockDisplay_internal(true, true, false);
 
     DisplayRow* targetRow = &lastRow;
-    static char marqueePageBuffer[512];
+    static char marqueePageBuffer[256];
 
     if (isMarqueeBufferDirty) {
         Log_printf(LOG_LEVEL_DEBUG, "Marquee buffer is dirty, forcing state to M_START_PAGE");
@@ -1097,14 +1104,7 @@ void updateMarqueeDisplay() {
     if (xSemaphoreTake(xDisplayDataMutex, portMAX_DELAY) == pdTRUE) {
         DataPoint point;
         if (currentSettings.numDataPoints > 0) {
-            // --- FIX: Prevent division by zero if numDataPoints becomes invalid ---
-            if (currentSettings.numDataPoints > 0) {
-                point = currentSettings.dataPoints[currentPageIndex % currentSettings.numDataPoints];
-            } else {
-                // This case should ideally not be reached, but as a safeguard:
-                xSemaphoreGive(xDisplayDataMutex);
-                return;
-            }
+            point = currentSettings.dataPoints[currentPageIndex];
         }
         const unsigned long scrollSpeed = point.scrollSpeed > 0 ? point.scrollSpeed : 150;
         const unsigned long pauseDuration = 250; // 0.25-second pause between pages
@@ -1121,29 +1121,31 @@ void updateMarqueeDisplay() {
                     xSemaphoreGive(xDisplayHardwareMutex);
                 }
 
-                // --- START: MODIFICATION - Use char buffers for marquee text assembly ---
-                static char fullText[512];
-                fullText[0] = '\0'; // Clear the buffer
-
+                std::string fullText;
                 if (currentSettings.numDataPoints == 0) {
-                    strcpy(fullText, "NO DATA PNTS");
+                    fullText = "NO DATA POINTS";
                 } else {
-                    const char* content_text = point.scrollingText.c_str();
+                    // --- Build the content string (simplified) ---
+                    // The MQTT callback now correctly populates `scrollingText` for all MQTT-based
+                    // sources, so we no longer need the complex switch-case. We can just use
+                    // `scrollingText` as the authoritative source for the marquee content.
+                    std::string content_text = point.scrollingText;
 
-                    if (strlen(point.prefixText.c_str()) > 0) {
-                        strncat(fullText, point.prefixText.c_str(), sizeof(fullText) - strlen(fullText) - 1);
+                    // --- Assemble the final string with prefix and suffix ---
+                    if (!point.prefixText.empty()) {
+                        fullText += point.prefixText;
                     }
-                    if (strlen(content_text) > 0) {
-                        if (strlen(fullText) > 0) strncat(fullText, " ", sizeof(fullText) - strlen(fullText) - 1);
-                        strncat(fullText, content_text, sizeof(fullText) - strlen(fullText) - 1);
+                    if (!content_text.empty()) {
+                        if (!fullText.empty()) fullText += " ";
+                        fullText += content_text;
                     }
-                    if (strlen(point.suffixText.c_str()) > 0) {
-                        if (strlen(fullText) > 0) strncat(fullText, " ", sizeof(fullText) - strlen(fullText) - 1);
-                        strncat(fullText, point.suffixText.c_str(), sizeof(fullText) - strlen(fullText) - 1);
+                    if (!point.suffixText.empty()) {
+                        if (!fullText.empty()) fullText += " ";
+                        fullText += point.suffixText;
                     }
                 }
 
-                if (strlen(fullText) == 0 && currentSettings.numDataPoints > 0) {
+                if (fullText.empty() && currentSettings.numDataPoints > 0) {
                     // This page has no content, so skip it immediately.
                     currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
                     marqueeState = M_START_PAGE; // Go back to the start state for the *next* page
@@ -1152,13 +1154,11 @@ void updateMarqueeDisplay() {
                 }
 
                 // Convert the entire marquee text to uppercase for readability
-                for (int i = 0; fullText[i]; i++) {
-                    fullText[i] = toupper(fullText[i]);
-                }
+                std::transform(fullText.begin(), fullText.end(), fullText.begin(),
+                               [](unsigned char c){ return std::toupper(c); });
 
                 // Build the full string for the current page, with padding for scrolling effect
-                snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", fullText);
-                // --- END: MODIFICATION ---
+                snprintf(marqueePageBuffer, sizeof(marqueePageBuffer), "             %s ", fullText.c_str());
                 marqueeScrollPosition = 0;
 
                 marqueeState = M_SCROLLING;
@@ -1215,11 +1215,8 @@ void updateMarqueeDisplay() {
             }
             case M_PAUSED: {
                 if (millis() - lastMarqueeStateChange > pauseDuration) {
-                    // --- FIX: Prevent division by zero ---
                     if (currentSettings.numDataPoints > 0) {
                         currentPageIndex = (currentPageIndex + 1) % currentSettings.numDataPoints;
-                    } else {
-                        currentPageIndex = 0;
                     }
                     marqueeState = M_START_PAGE;
                 }

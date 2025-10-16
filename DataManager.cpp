@@ -871,12 +871,6 @@ void fetchWeatherDataTask(void* p) {
     // This task is for routine, non-forced updates.
     // It uses the latitude and longitude stored in the current settings.
     WeatherTaskParams* params = new WeatherTaskParams{currentSettings.cityName, false, currentSettings.latitude, currentSettings.longitude};
-    if (params == nullptr) {
-        Log_printf(LOG_LEVEL_ERROR, "HEAP: Failed to allocate memory for WeatherTaskParams in fetchWeatherDataTask. Max Alloc: %u, Free: %u", ESP.getMaxAllocHeap(), ESP.getFreeHeap());
-        isFetchingWeather = false;
-        vTaskDelete(NULL);
-        return;
-    }
     fetchWeatherData(params);
     isFetchingWeather = false;
     vTaskDelete(NULL);

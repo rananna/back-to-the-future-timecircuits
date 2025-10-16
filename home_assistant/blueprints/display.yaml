@@ -1,30 +1,19 @@
 blueprint:
   name: "BTTF Time Circuits: Display"
   description: >-
-    # BTTF Time Circuits: General Purpose Display
-
-    This is a powerful and flexible blueprint for displaying information on your Time Circuits clock.
-    It can show static text (like a custom message) or dynamically display the state of any Home Assistant entity.
-
-    **Key Features:**
-    - Display static text or the state/attribute of an entity.
-    - Add custom prefixes and postfixes (e.g., "Temp: 25°C").
-    - Choose from a wide variety of visual effects (static, scrolling, pulse, flash, etc.).
-    - Play a built-in sound effect or stream audio from Home Assistant.
-    - Loop the visual effect and sound.
-    - Automatically restore the display to its previous state when finished.
+    A blueprint for displaying static text or an entity's state on the Time Circuits, with optional sound, volume, looping, and advanced effects.
   domain: script
   input:
     device:
       name: Time Circuits Device
-      description: The BTTF Time Circuits device to control. This is the only required input.
+      description: The BTTF Time Circuits device to control.
       selector:
         device:
           integration: bttf_time_circuits
 
     target_row:
       name: Target Row
-      description: "The display row(s) to show the message on. 'All Rows' will display the same message on all three rows."
+      description: "The display row(s) to show the message on."
       default: "TOP"
       selector:
         select:
@@ -36,7 +25,7 @@ blueprint:
 
     data_source:
       name: Data Source
-      description: "Choose the source of the text to display. This will show/hide the relevant options below."
+      description: "Choose whether to display a static text message or the state of a Home Assistant entity."
       default: "static"
       selector:
         select:
@@ -46,20 +35,20 @@ blueprint:
 
     text_to_display:
       name: "Text to Display"
-      description: "The static message to display. Supports Home Assistant templates. This is only used if 'Data Source' is 'Static Text'."
+      description: "The message to display. Supports templates."
       default: ""
       selector:
         text: {}
 
     entity_to_display:
       name: "Entity to Display"
-      description: "The entity whose state or attribute you want to display. This is only used if 'Data Source' is 'Home Assistant Entity'."
+      description: "The entity whose state or attribute you want to display."
       default: ""
       selector:
         entity: {}
     attribute_to_display:
       name: "Attribute to Display (Optional)"
-      description: "The specific attribute of the selected entity to display. Leave blank to use the entity's main state."
+      description: "The specific attribute to display. Leave blank to use the entity's main state."
       default: ""
       selector:
         text: {}
@@ -78,43 +67,43 @@ blueprint:
 
     effect:
       name: "Visual Effect"
-      description: "The visual effect to use for displaying the text."
+      description: "The visual effect to use for the message."
       default: "SET_TEXT"
       selector:
         select:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
             - { label: "Marquee (Scrolling Text)", value: "MARQUEE" }
-            - { label: "Pulse (2-second on/off cycle)", value: "PULSE" }
-            - { label: "Flash (Rapid blinking)", value: "FLASH" }
-            - { label: "Typewriter (Reveals text character by character)", value: "TYPEWRITER" }
-            - { label: "Scramble Text (Reveals text from random characters)", value: "SCRAMBLE_TEXT" }
-            - { label: "Random Flicker (Flickers text with random characters)", value: "RANDOM_FLICKER_TEXT" }
+            - { label: "Pulse (2-second cycle)", value: "PULSE" }
+            - { label: "Flash", value: "FLASH" }
+            - { label: "Typewriter", value: "TYPEWRITER" }
+            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
 
     duration:
       name: "Display Duration (s)"
-      description: "Total duration in seconds for the 'Set Text', 'Pulse', 'Flash', 'Typewriter', and 'Scramble' effects. This does not apply to the 'Marquee' or 'Random Flicker' effects."
+      description: "Total duration for the 'Set Text', 'Pulse', 'Flash', 'Typewriter', and 'Scramble' effects."
       default: 10
       selector:
         number: { min: 1, max: 60, unit_of_measurement: "s" }
 
     marquee_speed:
       name: "Marquee Speed (ms)"
-      description: "The scroll speed for the Marquee effect. Lower is faster. This only applies if 'Marquee' is selected."
+      description: "The scroll speed for the marquee effect. Lower is faster."
       default: 100
       selector:
         number: { min: 20, max: 1000, unit_of_measurement: "ms" }
 
     flicker_speed:
       name: "Random Flicker Speed (ms)"
-      description: "For the Random Flicker effect, this is the delay between screen updates. Lower is faster. This only applies if 'Random Flicker' is selected."
+      description: "For the Random Flicker effect, the delay between screen updates. Lower is faster."
       default: 50
       selector:
         number: { min: 20, max: 1000, unit_of_measurement: "ms" }
 
     audio_source:
       name: "Audio Source"
-      description: "Choose whether to play a sound with the visual effect. 'Built-in' sounds play concurrently with the visual effect. 'Streamed' audio plays after the visual effect starts."
+      description: "Choose whether to play a sound with the visual effect."
       default: "none"
       selector:
         select:
@@ -125,7 +114,7 @@ blueprint:
 
     sound_effect:
       name: "Sound Effect"
-      description: "A built-in sound effect to play from the device's internal storage. Only used if 'Built-in Sound Effect' is selected."
+      description: "A built-in sound effect to play from the device."
       default: "sys_beep.mp3"
       selector:
         select:
@@ -144,7 +133,7 @@ blueprint:
 
     media_file:
       name: "Media File"
-      description: "Audio file to stream from the Home Assistant media library. Click 'Pick Media' to select. Only used if 'Stream from Home Assistant' is selected."
+      description: "Audio file to stream from the Home Assistant media library. Click 'Pick Media' to select."
       default: ""
       selector:
         media: {}
@@ -158,14 +147,14 @@ blueprint:
 
     repeat:
       name: "Repeat Count"
-      description: "Number of times to repeat the visual effect. Built-in sounds will also repeat; streamed audio will only play once at the start."
+      description: "Number of times to repeat the alert. Built-in sounds will repeat; streamed audio will play once at the start."
       default: 1
       selector:
         number: { min: 1, max: 10, mode: box }
 
     restore_row:
       name: "Restore Row After Effect"
-      description: "If enabled, the display row will be restored to its previous state (e.g., showing the clock) after the effect (and any loops) completes."
+      description: "If enabled, the row will be restored to its previous state after the effect (and any loops) completes."
       default: true
       selector:
         boolean: {}

@@ -73,13 +73,6 @@ extern bool bootSequenceCompleted;
 extern volatile bool justFinishedAnimation;
 
 /**
- * @brief A volatile flag to signal that the system is currently transitioning between animations.
- * @details This prevents the animation cleanup logic from running prematurely when one
- * animation is stopped just before another one starts.
- */
-extern volatile bool isTransitioningAnimation;
-
-/**
  * @brief Stores the display mode that was active before an animation started.
  * @details This is used to restore the user's selected display mode (e.g., Clock, Weather)
  * after a global animation, like the one triggered on save, completes.
@@ -170,6 +163,7 @@ void clearSequenceStep(SequenceStep& step);
  * @brief Safely clears a sequencer track without allocating a temporary object on the stack.
  * @param track The SequencerTrack object to clear.
  */
+void clearSequencerTrack(SequencerTrack& track);
 
 /**
  * @brief Triggers a new animation sequence globally.
@@ -184,7 +178,7 @@ void triggerAnimation(AnimationType animType);
  * @param track The `SequencerTrack` to run the marquee on.
  * @param text The text to scroll.
  */
-void startSequencerMarquee(SequencerTrack& track, const char* text);
+void startSequencerMarquee(SequencerTrack& track, const std::string& text);
 
 /**
  * @brief Handles the continuous update of all active marquee effects.
@@ -213,9 +207,9 @@ void runCrossfadeTest();
 /**
  * @brief Retrieves the full 13-character text currently displayed on a row.
  * @param row The index of the row to read from (0-2).
- * @param buffer A character buffer to write the resulting string into. Must be at least 14 bytes.
+ * @return A std::string containing the text from the specified row.
  */
-void getFullRowText(int row, char* buffer);
+std::string getFullRowText(int row);
 /** @} */
 
 #endif // ANIMATION_MANAGER_H
