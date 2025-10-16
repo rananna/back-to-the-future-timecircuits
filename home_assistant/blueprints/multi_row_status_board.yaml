@@ -1,8 +1,9 @@
 blueprint:
   name: "BTTF Time Circuits: Multi-Row Status Board"
   description: >-
-    Display different text and effects on all three rows of the Time Circuits simultaneously.
-    Leave a row's text blank to ignore it.
+    A blueprint for displaying different information on all three rows of the Time Circuits simultaneously.
+    Each row can be configured with its own text, effect, and data source.
+    Supports a single, optional sound that plays at the beginning of the sequence.
   domain: script
   input:
     device:
@@ -12,86 +13,137 @@ blueprint:
         device:
           integration: bttf_time_circuits
 
+    # --- Top Row Inputs ---
     top_row_text:
-      name: "Top Row: Text"
-      description: "Text to display on the top row. Supports templates. Leave blank to ignore."
+      name: "[TOP ROW] Text"
+      description: "Text to display on the top row. Supports templates."
       default: ""
       selector:
         text: {}
     top_row_effect:
-      name: "Top Row: Effect"
+      name: "[TOP ROW] Visual Effect"
       description: "Visual effect for the top row."
       default: "SET_TEXT"
       selector:
         select:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
-            - { label: "Marquee (Scrolling)", value: "MARQUEE" }
-            - { label: "Pulse (2-second cycle)", value: "PULSE" }
+            - { label: "Marquee (Scrolling Text)", value: "MARQUEE" }
+            - { label: "Pulse", value: "PULSE" }
             - { label: "Flash", value: "FLASH" }
             - { label: "Typewriter", value: "TYPEWRITER" }
             - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
             - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
 
+    # --- Middle Row Inputs ---
     middle_row_text:
-      name: "Middle Row: Text"
-      description: "Text to display on the middle row. Supports templates. Leave blank to ignore."
+      name: "[MIDDLE ROW] Text"
+      description: "Text to display on the middle row. Supports templates."
       default: ""
       selector:
         text: {}
     middle_row_effect:
-      name: "Middle Row: Effect"
+      name: "[MIDDLE ROW] Visual Effect"
       description: "Visual effect for the middle row."
       default: "SET_TEXT"
       selector:
         select:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
-            - { label: "Marquee (Scrolling)", value: "MARQUEE" }
-            - { label: "Pulse (2-second cycle)", value: "PULSE" }
+            - { label: "Marquee (Scrolling Text)", value: "MARQUEE" }
+            - { label: "Pulse", value: "PULSE" }
             - { label: "Flash", value: "FLASH" }
             - { label: "Typewriter", value: "TYPEWRITER" }
             - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
             - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
 
+    # --- Bottom Row Inputs ---
     bottom_row_text:
-      name: "Bottom Row: Text"
-      description: "Text to display on the bottom row. Supports templates. Leave blank to ignore."
+      name: "[BOTTOM ROW] Text"
+      description: "Text to display on the bottom row. Supports templates."
       default: ""
       selector:
         text: {}
     bottom_row_effect:
-      name: "Bottom Row: Effect"
+      name: "[BOTTOM ROW] Visual Effect"
       description: "Visual effect for the bottom row."
       default: "SET_TEXT"
       selector:
         select:
           options:
             - { label: "Set Text (Static)", value: "SET_TEXT" }
-            - { label: "Marquee (Scrolling)", value: "MARQUEE" }
-            - { label: "Pulse (2-second cycle)", value: "PULSE" }
+            - { label: "Marquee (Scrolling Text)", value: "MARQUEE" }
+            - { label: "Pulse", value: "PULSE" }
             - { label: "Flash", value: "FLASH" }
             - { label: "Typewriter", value: "TYPEWRITER" }
             - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
             - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
 
+    # --- Common Effect Timings ---
     duration:
       name: "Display Duration (s)"
-      description: "Total duration for the effects. Note: All rows will use the same duration."
+      description: "Shared duration for 'Set Text', 'Pulse', and 'Flash' effects across all rows."
       default: 10
       selector:
-        number: { min: 1, max: 60, unit_of_measurement: "s" }
-
+        number: { min: 1, max: 300, unit_of_measurement: "s" }
     marquee_speed:
       name: "Marquee Speed (ms)"
-      description: "The scroll speed for any marquee effects. Lower is faster."
+      description: "Shared scroll speed for the marquee effect. Lower is faster."
       default: 100
       selector:
         number: { min: 20, max: 1000, unit_of_measurement: "ms" }
+    flicker_speed:
+      name: "Flicker Speed (ms)"
+      description: "Shared speed for the 'Random Flicker' effect. Lower is faster."
+      default: 50
+      selector:
+        number: { min: 10, max: 1000, unit_of_measurement: "ms" }
 
+    # --- Audio Inputs ---
+    audio_source:
+      name: "Audio Source"
+      description: "Choose whether to play a sound with the visual effect. Plays once at the start."
+      default: "none"
+      selector:
+        select:
+          options:
+            - { label: "None", value: "none" }
+            - { label: "Built-in Sound Effect", value: "builtin" }
+            - { label: "Stream from Home Assistant", value: "media" }
+    sound_effect:
+      name: "Sound Effect"
+      description: "A built-in sound effect to play from the device."
+      default: "sys_beep.mp3"
+      selector:
+        select:
+          options:
+            - { label: "System Beep", value: "sys_beep.mp3" }
+            - { label: "Arrival Chime", value: "arrival_chime.mp3" }
+            - { label: "Electric Sparks", value: "electric_sparks.mp3" }
+            - { label: "Engine Rev", value: "engine_rev.mp3" }
+            - { label: "Flux Capacitor Power On", value: "flux_capacitor_power_on.mp3" }
+            - { label: "Hum", value: "hum.mp3" }
+            - { label: "Keypad Beeps", value: "keypad_beeps.mp3" }
+            - { label: "Lock On", value: "lock_on.mp3" }
+            - { label: "Relay Activation", value: "relay_activation.mp3" }
+            - { label: "Time Travel", value: "time_travel.mp3" }
+    media_file:
+      name: "Media File"
+      description: "Audio file to stream from the Home Assistant media library."
+      default: ""
+      selector:
+        media: {}
+    volume:
+      name: Volume
+      description: "Set the volume for this specific alert (0-100)."
+      default: 80
+      selector:
+        number: { min: 0, max: 100, unit_of_measurement: "%" }
+
+    # --- Looping and Restore ---
     restore_rows:
-      name: "Restore Rows After Effect"
-      description: "If enabled, all active rows will be restored to their previous state after the effect completes."
+      name: "Restore All Rows After Effect"
+      description: "If enabled, all rows will be restored to their previous state after the effect completes."
       default: true
       selector:
         boolean: {}
@@ -100,74 +152,99 @@ mode: single
 
 variables:
   device: !input device
-  top_row_text: !input top_row_text
-  top_row_effect: !input top_row_effect
-  middle_row_text: !input middle_row_text
-  middle_row_effect: !input middle_row_effect
-  bottom_row_text: !input bottom_row_text
-  bottom_row_effect: !input bottom_row_effect
   duration: !input duration
   marquee_speed: !input marquee_speed
+  flicker_speed: !input flicker_speed
+  audio_source: !input audio_source
+  sound_effect: !input sound_effect
+  media_file: !input media_file
+  volume: !input volume
   restore_rows: !input restore_rows
+  rows_data:
+    - target: "TOP"
+      text: !input top_row_text
+      effect: !input top_row_effect
+    - target: "MIDDLE"
+      text: !input middle_row_text
+      effect: !input middle_row_effect
+    - target: "BOTTOM"
+      text: !input bottom_row_text
+      effect: !input bottom_row_effect
 
 sequence:
-  - variables:
-      device_id: "{{ (device_attr(device, 'identifiers') | list | last)[1] }}"
-
   - condition: template
-    value_template: >-
-      {{ device_id != none and (top_row_text != '' or middle_row_text != '' or bottom_row_text != '') }}
+    value_template: "{{ device != none }}"
+    error_message: "Please select a Time Circuits device to control."
 
   - service: mqtt.publish
     data:
-      topic: "bttf_time_circuits/{{ device_id }}/sequencer/command"
-      payload: >-
-        {%- macro generate_row_commands(effect, text, duration_val, speed) -%}
-          {%- set commands = [] -%}
-          {%- set self_blocking_effects = ['MARQUEE', 'PULSE', 'FLASH', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'RANDOM_FLICKER_TEXT'] -%}
-          {%- set duration_ms = (duration_val * 1000) | int -%}
-          {%- set text_len = text | length -%}
-          {%- set base_command = {'command': effect, 'targetSegment': -1, 'stringParam': text} -%}
+      topic: "bttf_time_circuits/{{ (device_attr(device, 'identifiers') | list | last)[1] }}/sequencer/command"
+      payload_template: >-
+        {%- macro generate_row_payload(row_data, dur, m_speed, f_speed, restore) -%}
+          {%- set ns = namespace(tracks=[]) -%}
+          {%- set blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'RANDOM_FLICKER_TEXT'] -%}
+          {%- set timed_effects = ['PULSE', 'FLASH'] -%}
 
-          {%- if effect == 'MARQUEE' -%}
-            {%- set visual_command = dict(base_command, intParam=speed | int) -%}
-          {%- elif effect == 'PULSE' -%}
-            {%- set visual_command = dict(base_command, intParam=1000, intParam2=duration_ms) -%}
-          {%- elif effect == 'FLASH' -%}
-            {%- set visual_command = dict(base_command, intParam2=duration_ms) -%}
-          {%- elif effect == 'TYPEWRITER' and text_len > 0 -%}
-            {%- set type_speed = (duration_ms / text_len) | int -%}
-            {%- set visual_command = dict(base_command, intParam=type_speed) -%}
-          {%- elif effect == 'SCRAMBLE_TEXT' and text_len > 0 -%}
-            {%- set scramble_speed = (duration_ms / text_len) | int -%}
-            {%- set visual_command = dict(base_command, intParam=50, intParam2=scramble_speed) -%}
-          {%- elif effect == 'RANDOM_FLICKER_TEXT' -%}
-            {%- set visual_command = dict(base_command, intParam=50, intParam2=duration_ms) -%}
-          {%- else -%}
-            {%- set visual_command = base_command -%}
-          {%- endif -%}
-          {%- set commands = commands + [visual_command] -%}
+          {%- for row in row_data -%}
+            {%- if row.text | default('') != '' -%}
+              {%- set core_commands = [] -%}
+              {# --- Build the main visual command --- #}
+              {%- set visual_command = {'command': row.effect, 'targetSegment': -1, 'stringParam': row.text} -%}
+              {%- if row.effect == 'MARQUEE' -%}
+                {%- set visual_command = dict(visual_command, intParam=m_speed | int) -%}
+              {%- elif row.effect == 'RANDOM_FLICKER_TEXT' -%}
+                {%- set visual_command = dict(visual_command, intParam=f_speed | int) -%}
+              {%- elif row.effect in timed_effects -%}
+                {%- set visual_command = dict(visual_command, intParam2=(dur * 1000) | int) -%}
+              {%- endif -%}
+              {%- set core_commands = core_commands + [visual_command] -%}
 
-          {%- if effect not in self_blocking_effects -%}
-            {%- set commands = commands + [{'command': 'WAIT', 'intParam': duration_ms}] -%}
-          {%- endif -%}
+              {# --- Add a WAIT for non-blocking/non-timed effects --- #}
+              {%- if row.effect not in blocking_effects and row.effect not in timed_effects -%}
+                {%- set wait_duration = (dur * 1000) | int -%}
+                {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
+              {%- endif -%}
 
-          {{- commands -}}
-        {%- endmacro -%}
-        {%- set ns = namespace(tracks=[]) -%}
-        {%- set rows = {
-          'TOP': {'text': top_row_text, 'effect': top_row_effect},
-          'MIDDLE': {'text': middle_row_text, 'effect': middle_row_effect},
-          'BOTTOM': {'text': bottom_row_text, 'effect': bottom_row_effect}
-        } -%}
-        {%- for row_name, row_data in rows.items() -%}
-          {%- if row_data.text | default('') != '' -%}
-            {%- set commands = fromjson(generate_row_commands(row_data.effect, row_data.text, duration, marquee_speed)) -%}
-            {%- if restore_rows -%}
-              {%- set commands = commands + [{'command': 'RESTORE_ROW'}] -%}
+              {# --- Add restore command if needed --- #}
+              {%- if restore -%}
+                {%- set core_commands = core_commands + [{'command': 'RESTORE_ROW'}] -%}
+              {%- endif -%}
+
+              {# --- Add sound to the first track only --- #}
+              {%- if loop.first and audio_source == 'builtin' -%}
+                {%- set device_volume = ((volume / 100) * 21) | round(0) | int -%}
+                {%- set sound_command = {'command': 'SOUND', 'stringParam': sound_effect, 'intParam': device_volume} -%}
+                {%- set core_commands = [sound_command] + core_commands -%}
+              {%- endif -%}
+
+              {%- set track_object = {'targetRow': row.target, 'commands': core_commands} -%}
+              {%- set ns.tracks = ns.tracks + [track_object] -%}
             {%- endif -%}
-            {%- set track = {'targetRow': row_name, 'commands': commands} -%}
-            {%- set ns.tracks = ns.tracks + [track] -%}
-          {%- endif -%}
-        {%- endfor -%}
-        {{- ns.tracks | to_json -}}
+          {%- endfor -%}
+
+          {# --- Return the raw JSON array --- #}
+          {{- ns.tracks | to_json -}}
+        {%- endmacro -%}
+        {{- generate_row_payload(rows_data, duration, marquee_speed, flicker_speed, restore_rows) -}}
+
+  - choose:
+      - conditions:
+          - "{{ audio_source == 'media' and media_file != '' }}"
+        sequence:
+          - variables:
+              media_player_entity: >
+                {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
+          - condition: template
+            value_template: "{{ media_player_entity != 'none' }}"
+            error_message: "Could not find a media_player entity for the selected device."
+          - service: media_player.volume_set
+            target:
+              entity_id: "{{ media_player_entity }}"
+            data:
+              volume_level: "{{ volume / 100 }}"
+          - service: media_player.play_media
+            target:
+              entity_id: "{{ media_player_entity }}"
+            data:
+              media_content_id: !input media_file
+              media_content_type: "audio/mpeg"
