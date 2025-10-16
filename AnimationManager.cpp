@@ -653,7 +653,7 @@ void resetDisplayToNormal() {
     for (int r = 0; r < NUM_SEQUENCER_TRACKS; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
-            manualDisplayText[r][s] = "";
+            manualDisplayText[r][s][0] = '\0';
         }
     }
 
@@ -675,7 +675,7 @@ static void comprehensiveAnimationCleanup() {
     for (int r = 0; r < NUM_SEQUENCER_TRACKS; ++r) {
         isRowInManualMode[r] = false;
         for (int s = 0; s < 4; ++s) {
-            manualDisplayText[r][s] = "";
+            manualDisplayText[r][s][0] = '\0';
         }
     }
 
@@ -710,10 +710,10 @@ void getFullRowText(int row, char* buffer) {
     }
     // Safely concatenate the text from all four segments into the buffer.
     snprintf(buffer, 14, "%s%s%s%s",
-             manualDisplayText[row][0].c_str(),
-             manualDisplayText[row][1].c_str(),
-             manualDisplayText[row][2].c_str(),
-             manualDisplayText[row][3].c_str());
+             manualDisplayText[row][0],
+             manualDisplayText[row][1],
+             manualDisplayText[row][2],
+             manualDisplayText[row][3]);
 }
 
 void handleSequencer() {
@@ -1507,7 +1507,7 @@ void handleSequencer() {
     }
 
     // Update the state for the next iteration of the loop.
-    wasAnimatingLastCycle = isAnimatingThisCycle;
+    wasAnimatingThisCycle = isAnimatingThisCycle;
 
 
     if (needsDisplayUpdate) {
