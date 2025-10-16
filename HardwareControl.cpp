@@ -102,7 +102,7 @@ void printToDisplay(Adafruit_AlphaNum4 &display, const char* text, int justifica
   }
 
   // Copy the input text to a temporary buffer, truncating to 4 characters.
-  char buffer[5];
+  static char buffer[5];
   strncpy(buffer, text, 4);
   buffer[4] = '\0';
 
