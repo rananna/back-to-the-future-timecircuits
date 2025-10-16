@@ -658,11 +658,11 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
 
             if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
                 time(&now_t);
-                setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-                tzset();
+                // setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+                // tzset();
                 localtime_r(&now_t, &dest_timeinfo);
-                setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                tzset();
+                // setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+                // tzset();
                 localtime_r(&now_t, &present_timeinfo);
                 xSemaphoreGive(xTimeLibMutex);
             }
