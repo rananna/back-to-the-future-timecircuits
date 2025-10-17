@@ -1,11 +1,11 @@
 blueprint:
-  name: "BTTF Time Circuits: Countdown Timer"
+  name: "BTTF Time Circuits: Multi-Row Status Board"
   description: >-
-    **Run a numeric countdown on the Time Circuits display.**
+    **Display different information on all three rows of the Time Circuits simultaneously.**
 
-    This blueprint allows you to start a countdown from a specified number.
-    When the countdown finishes, you can display custom text with a visual effect, play a sound, and loop the final effect.
-    It's perfect for alerts, timers, or just for fun.
+    This advanced blueprint lets you create a custom status board. Each row can be configured independently
+    with its own text and visual effect. You can also add a single sound that plays at the start of the sequence.
+    This is ideal for showing a summary of information, like weather, time, and notifications, all at once.
   domain: script
   input:
     device:
@@ -15,40 +15,16 @@ blueprint:
         device:
           integration: bttf_time_circuits
 
-    target_row:
-      name: Target Row
-      description: "Choose which display row(s) the countdown should appear on."
-      default: "TOP"
-      selector:
-        select:
-          options:
-            - { label: "Top Row (Destination Time)", value: "TOP" }
-            - { label: "Middle Row (Present Time)", value: "MIDDLE" }
-            - { label: "Bottom Row (Last Time Departed)", value: "BOTTOM" }
-            - { label: "All Rows", value: "ALL" }
-
-    start_number:
-      name: "Start Number"
-      description: "The number to begin counting down from (e.g., 10)."
-      default: 10
-      selector:
-        number: { min: 1, max: 9999 }
-    countdown_delay:
-      name: "Countdown Delay (ms)"
-      description: "The delay between each number change. 1000ms = 1 second."
-      default: 1000
-      selector:
-        number: { min: 50, max: 5000, unit_of_measurement: "ms" }
-
-    end_text:
-      name: "End Text"
-      description: "Optional: Text to display when the countdown reaches zero (e.g., 'LAUNCH'). Supports templates."
-      default: "LIFTOFF"
+    # --- Top Row Inputs ---
+    top_row_text:
+      name: "[TOP ROW] Text"
+      description: "Text to display on the top row. Supports templates. Leave blank to ignore this row."
+      default: ""
       selector:
         text: {}
-    end_text_effect:
-      name: "End Text Visual Effect"
-      description: "Choose the visual effect for the end text."
+    top_row_effect:
+      name: "[TOP ROW] Visual Effect"
+      description: "Visual effect for the top row."
       default: "SET_TEXT"
       selector:
         select:
@@ -60,29 +36,75 @@ blueprint:
             - { label: "Typewriter", value: "TYPEWRITER" }
             - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
             - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
-    end_text_duration:
-      name: "End Text Display Duration (s)"
-      description: "Set the display duration for 'Set Text', 'Pulse', and 'Flash' effects. Other effects run until the text is displayed."
-      default: 5
+
+    # --- Middle Row Inputs ---
+    middle_row_text:
+      name: "[MIDDLE ROW] Text"
+      description: "Text to display on the middle row. Supports templates. Leave blank to ignore this row."
+      default: ""
+      selector:
+        text: {}
+    middle_row_effect:
+      name: "[MIDDLE ROW] Visual Effect"
+      description: "Visual effect for the middle row."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - { label: "Set Text (Static)", value: "SET_TEXT" }
+            - { label: "Marquee (Scrolling Text)", value: "MARQUEE" }
+            - { label: "Pulse", value: "PULSE" }
+            - { label: "Flash", value: "FLASH" }
+            - { label: "Typewriter", value: "TYPEWRITER" }
+            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+
+    # --- Bottom Row Inputs ---
+    bottom_row_text:
+      name: "[BOTTOM ROW] Text"
+      description: "Text to display on the bottom row. Supports templates. Leave blank to ignore this row."
+      default: ""
+      selector:
+        text: {}
+    bottom_row_effect:
+      name: "[BOTTOM ROW] Visual Effect"
+      description: "Visual effect for the bottom row."
+      default: "SET_TEXT"
+      selector:
+        select:
+          options:
+            - { label: "Set Text (Static)", value: "SET_TEXT" }
+            - { label: "Marquee (Scrolling Text)", value: "MARQUEE" }
+            - { label: "Pulse", value: "PULSE" }
+            - { label: "Flash", value: "FLASH" }
+            - { label: "Typewriter", value: "TYPEWRITER" }
+            - { label: "Scramble Text", value: "SCRAMBLE_TEXT" }
+            - { label: "Random Flicker", value: "RANDOM_FLICKER_TEXT" }
+
+    # --- Common Effect Timings ---
+    duration:
+      name: "Display Duration (s)"
+      description: "Shared duration for 'Set Text', 'Pulse', and 'Flash' effects across all active rows."
+      default: 10
       selector:
         number: { min: 1, max: 300, unit_of_measurement: "s" }
-    end_text_marquee_speed:
-      name: "End Text Marquee Speed (ms)"
-      description: "Set the scroll speed for the marquee effect. Lower is faster."
+    marquee_speed:
+      name: "Marquee Speed (ms)"
+      description: "Shared scroll speed for the marquee effect on any row. Lower is faster."
       default: 100
       selector:
         number: { min: 20, max: 1000, unit_of_measurement: "ms" }
-    end_text_flicker_speed:
-      name: "End Text Flicker Speed (ms)"
-      description: "Set the speed for the 'Random Flicker' effect. Lower is faster."
+    flicker_speed:
+      name: "Flicker Speed (ms)"
+      description: "Shared speed for the 'Random Flicker' effect on any row. Lower is faster."
       default: 50
       selector:
         number: { min: 10, max: 1000, unit_of_measurement: "ms" }
 
-
+    # --- Audio Inputs ---
     audio_source:
-      name: "End Audio Source"
-      description: "Optional: Choose a sound to play when the countdown finishes."
+      name: "Audio Source"
+      description: "Optional: Choose a sound to play with the visual effect. Plays once at the start."
       default: "none"
       selector:
         select:
@@ -92,15 +114,14 @@ blueprint:
             - { label: "Built-in Sound Effect", value: "builtin" }
             - { label: "Stream from Home Assistant", value: "media" }
     sound_effect:
-      name: "End Sound Effect"
+      name: "Sound Effect"
       description: "Select a built-in sound effect to play from the device's SD card."
-      default: "arrival_chime.mp3"
+      default: "sys_beep.mp3"
       selector:
         select:
           options:
-            - { label: "Arrival Chime", value: "arrival_chime.mp3" }
             - { label: "System Beep", value: "sys_beep.mp3" }
-            - { label: "Acceleration", value: "ACCELERATION.mp3" }
+            - { label: "Arrival Chime", value: "arrival_chime.mp3" }
             - { label: "Electric Sparks", value: "electric_sparks.mp3" }
             - { label: "Engine Rev", value: "engine_rev.mp3" }
             - { label: "Flux Capacitor Power On", value: "flux_capacitor_power_on.mp3" }
@@ -110,27 +131,22 @@ blueprint:
             - { label: "Relay Activation", value: "relay_activation.mp3" }
             - { label: "Time Travel", value: "time_travel.mp3" }
     media_file:
-      name: "End Media File"
+      name: "Media File"
       description: "Select an audio file from your Home Assistant media library to stream to the device."
       default: ""
       selector:
         media: {}
     volume:
-      name: "End Audio Volume"
+      name: Volume
       description: "Set the volume for the sound effect or streamed media (0-100)."
       default: 80
       selector:
         number: { min: 0, max: 100, unit_of_measurement: "%" }
 
-    repeat_end_effect:
-      name: "Repeat End Effect"
-      description: "Number of times to repeat the end text and built-in sound. Streamed audio will not repeat."
-      default: 1
-      selector:
-        number: { min: 1, max: 10, mode: box }
-    restore_row:
-      name: "Restore Row After"
-      description: "If enabled, the display row will be restored to its previous state after the sequence completes."
+    # --- Looping and Restore ---
+    restore_rows:
+      name: "Restore All Rows After"
+      description: "If enabled, all active rows will be restored to their previous state after the sequence completes."
       default: true
       selector:
         boolean: {}
@@ -139,20 +155,25 @@ mode: single
 
 variables:
   device: !input device
-  target_row: !input target_row
-  start_number: !input start_number
-  countdown_delay: !input countdown_delay
-  end_text: !input end_text
-  end_text_effect: !input end_text_effect
-  end_text_duration: !input end_text_duration
-  end_text_marquee_speed: !input end_text_marquee_speed
-  end_text_flicker_speed: !input end_text_flicker_speed
+  duration: !input duration
+  marquee_speed: !input marquee_speed
+  flicker_speed: !input flicker_speed
   audio_source: !input audio_source
   sound_effect: !input sound_effect
   media_file: !input media_file
   volume: !input volume
-  repeat_end_effect: !input repeat_end_effect
-  restore_row: !input restore_row
+  restore_rows: !input restore_rows
+  # This creates a list of objects, where each object contains the configuration for a single row.
+  rows_data:
+    - target: "TOP"
+      text: !input top_row_text
+      effect: !input top_row_effect
+    - target: "MIDDLE"
+      text: !input middle_row_text
+      effect: !input middle_row_effect
+    - target: "BOTTOM"
+      text: !input bottom_row_text
+      effect: !input bottom_row_effect
 
 sequence:
   - condition: template
@@ -164,71 +185,59 @@ sequence:
       payload: >-
         {#-
           This macro constructs the JSON payload for the device's sequencer command.
-          It builds a series of commands for the countdown, end text, and optional sound,
-          then wraps them in a track structure targeting the selected display row(s).
+          It iterates through the 'rows_data' variable and generates a separate track
+          for each row that has text defined. This allows all three rows to animate in parallel.
         -#}
-        {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_dur, end_m_speed, end_f_speed, audio_src, sound, vol, repeat_count, restore) -%}
+        {%- macro generate_row_payload(row_data, dur, m_speed, f_speed, restore) -%}
           {%- set ns = namespace(tracks=[]) -%}
           {#- Define which effects are self-blocking (run until complete) vs. timed (run for a set duration). -#}
           {%- set blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'RANDOM_FLICKER_TEXT'] -%}
           {%- set timed_effects = ['PULSE', 'FLASH'] -%}
-          {%- set end_commands = [] -%}
 
-          {# --- 1. Build the end text command(s) --- #}
-          {%- if end_txt | default('') != "" -%}
-            {#- Create the base command with the selected effect and text. -#}
-            {%- set end_text_cmd = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
-            {#- Add effect-specific parameters. -#}
-            {%- if end_effect == 'MARQUEE' -%}
-              {%- set end_text_cmd = dict(end_text_cmd, intParam=end_m_speed | int) -%}
-            {%- elif end_effect == 'RANDOM_FLICKER_TEXT' -%}
-              {%- set end_text_cmd = dict(end_text_cmd, intParam=end_f_speed | int) -%}
-            {%- elif end_effect in timed_effects -%}
-              {%- set end_text_cmd = dict(end_text_cmd, intParam2=(end_dur * 1000) | int) -%}
+          {# --- 1. Loop through each row's configuration --- #}
+          {%- for row in row_data -%}
+            {#- Only generate a track if the text for the row is not empty. -#}
+            {%- if row.text | default('') != '' -%}
+              {%- set core_commands = [] -%}
+              {# --- 2. Build the main visual command for the current row --- #}
+              {%- set visual_command = {'command': row.effect, 'targetSegment': -1, 'stringParam': row.text} -%}
+              {#- Add effect-specific parameters. -#}
+              {%- if row.effect == 'MARQUEE' -%}
+                {%- set visual_command = dict(visual_command, intParam=m_speed | int) -%}
+              {%- elif row.effect == 'RANDOM_FLICKER_TEXT' -%}
+                {%- set visual_command = dict(visual_command, intParam=f_speed | int) -%}
+              {%- elif row.effect in timed_effects -%}
+                {%- set visual_command = dict(visual_command, intParam2=(dur * 1000) | int) -%}
+              {%- endif -%}
+              {%- set core_commands = core_commands + [visual_command] -%}
+
+              {# --- 3. For static effects, add a WAIT command to control how long it stays on screen. --- #}
+              {%- if row.effect not in blocking_effects and row.effect not in timed_effects -%}
+                {%- set wait_duration = (dur * 1000) | int -%}
+                {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
+              {%- endif -%}
+
+              {# --- 4. Add the restore command if requested --- #}
+              {%- if restore -%}
+                {%- set core_commands = core_commands + [{'command': 'RESTORE_ROW'}] -%}
+              {%- endif -%}
+
+              {# --- 5. Add sound to the very first track that gets generated --- #}
+              {%- if ns.tracks | length == 0 and audio_source == 'builtin' -%}
+                {%- set device_volume = ((volume / 100) * 21) | round(0) | int -%}
+                {%- set sound_command = {'command': 'SOUND', 'stringParam': sound_effect, 'intParam': device_volume} -%}
+                {%- set core_commands = [sound_command] + core_commands -%}
+              {%- endif -%}
+
+              {%- set track_object = {'targetRow': row.target, 'commands': core_commands} -%}
+              {%- set ns.tracks = ns.tracks + [track_object] -%}
             {%- endif -%}
-            {%- set end_commands = end_commands + [end_text_cmd] -%}
-            {#- For static effects like SET_TEXT, add a WAIT command to control how long it stays on screen. -#}
-            {%- if end_effect not in blocking_effects and end_effect not in timed_effects -%}
-              {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': (end_dur * 1000) | int}] -%}
-            {%- endif -%}
-          {%- endif -%}
-
-          {# --- 2. Create the main command list, starting with the countdown --- #}
-          {%- set final_commands = [{'command': 'COUNTDOWN', 'targetSegment': -1, 'intParam': start_num, 'intParam2': delay}] -%}
-
-          {# --- 3. Add the end text commands, wrapping in a loop if requested --- #}
-          {%- if end_commands | length > 0 -%}
-            {%- if (repeat_count | int) > 1 -%}
-              {%- set final_commands = final_commands + [{'command': 'LOOP_START', 'intParam': repeat_count | int}] + end_commands + [{'command': 'LOOP_END'}] -%}
-            {%- else -%}
-              {%- set final_commands = final_commands + end_commands -%}
-            {%- endif -%}
-          {%- endif -%}
-
-          {# --- 4. Add the restore command if requested --- #}
-          {%- if restore -%}
-            {%- set final_commands = final_commands + [{'command': 'RESTORE_ROW'}] -%}
-          {%- endif -%}
-
-          {# --- 5. Generate the final track objects for each target row --- #}
-          {%- set track_list = ['TOP', 'MIDDLE', 'BOTTOM'] if target == 'ALL' else [target] -%}
-          {%- for row in track_list -%}
-            {%- set current_commands = final_commands -%}
-            {#- Inject the built-in sound command. It plays *after* the countdown but *before* the end text. -#}
-            {#- We only add it to the first track to prevent it from playing multiple times for 'ALL' rows. -#}
-            {%- if loop.first and audio_src == 'builtin' -%}
-              {%- set device_volume = ((vol / 100) * 21) | round(0) | int -%}
-              {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
-              {%- set current_commands = [final_commands[0]] + [sound_command] + final_commands[1:] -%}
-            {%- endif -%}
-            {%- set track_object = {'targetRow': row, 'commands': current_commands} -%}
-            {%- set ns.tracks = ns.tracks + [track_object] -%}
           {%- endfor -%}
 
           {# --- 6. Return the raw JSON array of tracks --- #}
           {{- ns.tracks | to_json -}}
         {%- endmacro -%}
-        {{- generate_countdown_payload(target_row, start_number, countdown_delay, end_text, end_text_effect, end_text_duration, end_text_marquee_speed, end_text_flicker_speed, audio_source, sound_effect, volume, repeat_end_effect, restore_row) -}}
+        {{- generate_row_payload(rows_data, duration, marquee_speed, flicker_speed, restore_rows) -}}
 
   - choose:
       # This block handles streaming audio from Home Assistant.
@@ -248,9 +257,6 @@ sequence:
               entity_id: "{{ media_player_entity }}"
             data:
               volume_level: "{{ volume / 100 }}"
-          # Wait for the countdown to finish before playing the sound.
-          - delay:
-              seconds: "{{ (start_number * countdown_delay / 1000) | float(0) }}"
           # Play the selected media file.
           - service: media_player.play_media
             target:
