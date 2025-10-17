@@ -162,6 +162,9 @@ struct ClockSettings {
     int timeTravelAnimationInterval;    /**< DEPRECATED. Legacy animation setting. */
 };
 
+extern ClockSettings currentSettings;
+
+
 /** @brief Holds the fetched data for a single stock symbol. */
 struct StockData { std::string symbol; std::string price; std::string change_percent; bool dataValid = false; };
 
