@@ -1519,7 +1519,7 @@ void handleSequencerCommand(const std::string& payload) {
     // --- REFACTORED UNIFIED LOGIC ---
     // First, attempt to parse the payload as JSON using the static document.
     mqttJsonDoc.clear(); // Ensure the document is empty before parsing.
-    DeserializationError error = deserializeJson(mqttJsonDoc, payload);
+    DeserializationError error = deserializeJson(mqttJsonDoc, payload.c_str());
 
     if (error == DeserializationError::Ok) {
         // It's a valid JSON string.
