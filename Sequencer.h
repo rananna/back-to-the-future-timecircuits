@@ -55,7 +55,7 @@ enum SequenceCommand {
     SEQ_CMD_WIPE,               /**< (Blocking) Wipes a solid bar across the display. `intParam` is duration (ms). */
     SEQ_CMD_BAR_GRAPH,          /**< (Blocking) Draws an animated bar graph. `intParam` is start %, `intParam2` is duration (ms). */
     SEQ_CMD_RANDOM_FLICKER_TEXT,/**< (Blocking) Randomly flickers characters. `intParam` is speed (ms), `intParam2` is duration (ms). */
-    SEQ_CMD_SCRAMBLE_TEXT,      /**< (Blocking) Scrambles characters before revealing final text. `intParam` is speed, `intParam2` is lock-in speed. */
+    SEQ_CMD_SCRAMBLE_TEXT,      /**< (Blocking) Scrambles characters before revealing text. `intParam` is flicker speed (ms), `intParam2` is total duration (ms). */
     SEQ_CMD_SCROLL_IN,          /**< (Blocking) Scrolls text in from the side and centers it. `intParam` is speed (ms). */
     SEQ_CMD_CROSSFADE_TEXT,     /**< (Blocking) Fades from current text to new text. `intParam` is fade duration (ms). */
 
@@ -224,6 +224,7 @@ struct SequencerTrack {
     int scrambleCharIndex = 0;          /**< The index of the character currently being "locked in" for the scramble effect. */
     unsigned long lastScrambleUpdate = 0; /**< `millis()` timestamp of the last random character update. */
     unsigned long lastScrambleLockInTime = 0; /**< `millis()` timestamp of the last character reveal/lock-in. */
+    unsigned long scrambleLockInDelay = 0; /**< The calculated delay between each character lock-in. */
     std::string scrambleCurrentText;    /**< The string buffer holding the mix of scrambled and revealed text. */
 
     int crossfadePhase = 0;             /**< The current phase of the crossfade effect (0=inactive, 1=fading out, 2=fading in). */
@@ -292,6 +293,7 @@ struct SequencerTrack {
         scrambleCharIndex = 0;
         lastScrambleUpdate = 0;
         lastScrambleLockInTime = 0;
+        scrambleLockInDelay = 0;
         scrambleCurrentText.clear();
 
         crossfadePhase = 0;
