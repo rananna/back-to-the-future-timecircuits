@@ -1328,52 +1328,36 @@ void handleSequencer() {
 
                     if (!track.stepInitialized) {
                         track.scrambleCurrentText = std::string(text_to_scramble.length(), ' ');
-                        track.scrambleCharIndex = 0;
                         track.lastScrambleUpdate = millis();
-                        track.lastScrambleLockInTime = millis();
-                        // --- REFACTOR: Calculate lock-in delay based on total duration ---
-                        if (text_to_scramble.length() > 0) {
-                            // intParam is flicker speed, intParam2 is total duration
-                            track.scrambleLockInDelay = (step.intParam2 > 0) ? (unsigned long)step.intParam2 / text_to_scramble.length() : 100;
-                        } else {
-                            track.scrambleLockInDelay = 100; // Default if string is empty
-                        }
                         track.stepInitialized = true;
                     }
 
-                    // Overall animation completion check based on total duration (intParam2)
-                    if (commandElapsed >= (unsigned long)step.intParam2) {
-                        // Animation is complete, ensure final text is displayed and advance.
+                    unsigned long totalDuration = (unsigned long)step.intParam2;
+                    if (totalDuration == 0) totalDuration = 1; // Avoid division by zero
+
+                    // --- FIX: Reveal characters based on time elapsed, not a fixed delay ---
+                    float progress = (float)commandElapsed / (float)totalDuration;
+                    if (progress > 1.0f) progress = 1.0f;
+
+                    // Calculate how many characters should be revealed based on progress.
+                    int chars_to_reveal = (int)(progress * text_to_scramble.length());
+
+                    // Build the current state of the string.
+                    std::string temp_scramble = text_to_scramble.substr(0, chars_to_reveal);
+                    
+                    // Fill the rest with scrambled characters.
+                    for (int j = chars_to_reveal; j < (int)text_to_scramble.length(); ++j) {
+                        temp_scramble += (char)random(33, 126);
+                    }
+
+                    // Always update the display on every cycle for a smooth flicker.
+                    updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
+
+                    // Check for completion.
+                    if (commandElapsed >= totalDuration) {
+                        // Final update to ensure the correct text is shown.
                         updateDisplaySegment(step.targetRow, step.targetSegment, text_to_scramble);
                         advance_step = true;
-                    } else {
-                        bool needs_visual_update = false;
-
-                        // Check if it's time to lock in the next character based on the calculated delay.
-                        if (millis() - track.lastScrambleLockInTime >= track.scrambleLockInDelay) {
-                            if ((unsigned)track.scrambleCharIndex < text_to_scramble.length()) {
-                                track.scrambleCurrentText[track.scrambleCharIndex] = text_to_scramble[track.scrambleCharIndex];
-                                track.scrambleCharIndex++;
-                                track.lastScrambleLockInTime = millis();
-                                needs_visual_update = true; // Force a redraw because a character was revealed.
-                            }
-                        }
-
-                        // Check if it's time to update the flickering characters.
-                        if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
-                            needs_visual_update = true; // Force a redraw for the flicker effect.
-                        }
-
-                        // If a character was revealed OR it's time to flicker, update the display.
-                        if (needs_visual_update) {
-                            std::string temp_scramble = track.scrambleCurrentText;
-                            // Always re-scramble the non-revealed part on any update.
-                            for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
-                                temp_scramble[j] = (char)random(33, 126);
-                            }
-                            updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
-                            track.lastScrambleUpdate = millis(); // Reset flicker timer on any visual update.
-                        }
                     }
                 }
                 break;
