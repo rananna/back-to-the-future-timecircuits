@@ -1154,19 +1154,27 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_TYPEWRITER:
-                if (!track.stepInitialized) {
-                    track.typewriterIndex = 0;
-                    track.lastTypewriterUpdate = millis();
-                    updateDisplaySegment(step.targetRow, step.targetSegment, ""); // Clear segment first
-                    track.stepInitialized = true;
-                }
-                if ((unsigned)track.typewriterIndex >= strlen(step.stringParam)) {
-                    advance_step = true;
-                } else {
-                    if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
-                        track.typewriterIndex++;
-                        updateDisplaySegment(step.targetRow, step.targetSegment, std::string(step.stringParam).substr(0, track.typewriterIndex));
+                { // Scope for local variable
+                    std::string text_to_type = step.stringParam;
+                    // --- FIX: Truncate text to display width to prevent timing bugs ---
+                    if (text_to_type.length() > 13) {
+                        text_to_type = text_to_type.substr(0, 13);
+                    }
+
+                    if (!track.stepInitialized) {
+                        track.typewriterIndex = 0;
                         track.lastTypewriterUpdate = millis();
+                        updateDisplaySegment(step.targetRow, step.targetSegment, ""); // Clear segment first
+                        track.stepInitialized = true;
+                    }
+                    if ((unsigned)track.typewriterIndex >= text_to_type.length()) {
+                        advance_step = true;
+                    } else {
+                        if (millis() - track.lastTypewriterUpdate > (unsigned long)step.intParam) {
+                            track.typewriterIndex++;
+                            updateDisplaySegment(step.targetRow, step.targetSegment, text_to_type.substr(0, track.typewriterIndex));
+                            track.lastTypewriterUpdate = millis();
+                        }
                     }
                 }
                 break;
@@ -1296,39 +1304,46 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_SCRAMBLE_TEXT:
-                if (!track.stepInitialized) {
-                    track.scrambleCurrentText = std::string(strlen(step.stringParam), ' ');
-                    track.scrambleCharIndex = 0;
-                    track.lastScrambleUpdate = millis();
-                    track.lastScrambleLockInTime = millis();
-                    track.stepInitialized = true;
-                }
-
-                if ((unsigned)track.scrambleCharIndex >= strlen(step.stringParam)) {
-                    // Animation is complete, ensure final text is displayed and advance.
-                    updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
-                    advance_step = true;
-                } else {
-                    // Check if it's time to lock in the next character.
-                    if (millis() - track.lastScrambleLockInTime >= (unsigned long)step.intParam2) {
-                        // --- FIX: Lock in the character before incrementing the index ---
-                        if ((unsigned)track.scrambleCharIndex < strlen(step.stringParam)) {
-                            track.scrambleCurrentText[track.scrambleCharIndex] = step.stringParam[track.scrambleCharIndex];
-                        }
-                        track.scrambleCharIndex++;
-                        track.lastScrambleLockInTime = millis();
+                { // Scope for local variables
+                    std::string text_to_scramble = step.stringParam;
+                    // --- FIX: Truncate text to display width to prevent timing bugs ---
+                    if (text_to_scramble.length() > 13) {
+                        text_to_scramble = text_to_scramble.substr(0, 13);
                     }
 
-                    // Check if it's time to update the flickering characters.
-                    if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
-                        // Build the string to display, starting with the current locked-in state.
-                        std::string temp_scramble = track.scrambleCurrentText;
-                        // Scramble the characters that haven't been locked in yet.
-                        for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
-                            temp_scramble[j] = (char)random(33, 126);
-                        }
-                        updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
+                    if (!track.stepInitialized) {
+                        track.scrambleCurrentText = std::string(text_to_scramble.length(), ' ');
+                        track.scrambleCharIndex = 0;
                         track.lastScrambleUpdate = millis();
+                        track.lastScrambleLockInTime = millis();
+                        track.stepInitialized = true;
+                    }
+
+                    if ((unsigned)track.scrambleCharIndex >= text_to_scramble.length()) {
+                        // Animation is complete, ensure final text is displayed and advance.
+                        updateDisplaySegment(step.targetRow, step.targetSegment, text_to_scramble);
+                        advance_step = true;
+                    } else {
+                        // Check if it's time to lock in the next character.
+                        if (millis() - track.lastScrambleLockInTime >= (unsigned long)step.intParam2) {
+                            if ((unsigned)track.scrambleCharIndex < text_to_scramble.length()) {
+                                track.scrambleCurrentText[track.scrambleCharIndex] = text_to_scramble[track.scrambleCharIndex];
+                            }
+                            track.scrambleCharIndex++;
+                            track.lastScrambleLockInTime = millis();
+                        }
+
+                        // Check if it's time to update the flickering characters.
+                        if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
+                            // Build the string to display, starting with the current locked-in state.
+                            std::string temp_scramble = track.scrambleCurrentText;
+                            // Scramble the characters that haven't been locked in yet.
+                            for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
+                                temp_scramble[j] = (char)random(33, 126);
+                            }
+                            updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
+                            track.lastScrambleUpdate = millis();
+                        }
                     }
                 }
                 break;
