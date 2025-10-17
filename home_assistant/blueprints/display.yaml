@@ -208,12 +208,11 @@ variables:
 sequence:
   - condition: template
     value_template: "{{ device != none }}"
-    error_message: "Please select a Time Circuits device to control."
 
   - service: mqtt.publish
     data:
       topic: "bttf_time_circuits/{{ (device_attr(device, 'identifiers') | list | last)[1] }}/sequencer/command"
-      payload_template: >-
+      payload: >-
         {#-
           This macro constructs the JSON payload for the device's sequencer command.
           It builds a series of commands based on the selected text, effect, and sound,
@@ -268,7 +267,7 @@ sequence:
               {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
               {%- set current_commands = [sound_command] + current_commands -%}
             {%- endif -%}
-            {%- set track_object = {'target': row, 'steps': current_commands} -%}
+            {%- set track_object = {'targetRow': row, 'commands': current_commands} -%}
             {%- set ns.tracks = ns.tracks + [track_object] -%}
           {%- endfor -%}
 
@@ -289,7 +288,6 @@ sequence:
                 {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
           - condition: template
             value_template: "{{ media_player_entity != 'none' }}"
-            error_message: "Could not find a media_player entity for the selected device. Please ensure the integration is set up correctly."
           # Set the volume on the device's media player.
           - service: media_player.volume_set
             target:
