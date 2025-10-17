@@ -1513,7 +1513,7 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
 // This prevents heap fragmentation by reusing the same memory block for all
 // incoming MQTT JSON payloads, which is critical for long-term stability.
 // The size is increased to 2048 to accommodate complex, multi-track sequences.
-static StaticJsonDocument<2048> mqttJsonDoc;
+static StaticJsonDocument<3072> mqttJsonDoc;
 
 void handleSequencerCommand(const std::string& payload) {
     // --- REFACTORED UNIFIED LOGIC ---
