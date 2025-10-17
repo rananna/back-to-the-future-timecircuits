@@ -107,6 +107,7 @@ void publishRadioMetadata();
  */
 void startAudioStream(const char* url, bool is_tts, int volume = -1);
 void stopAudioStream(bool isTemporary = false);
+std::string parsePlaylist(const char* url);
 void handleSequencerCommand(const std::string& payload);
 void cleanupAudio(bool isPermanent);
 /** @} */

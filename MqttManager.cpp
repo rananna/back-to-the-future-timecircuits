@@ -67,6 +67,73 @@ void clearHaEntity(const char* component, const char* unique_id_suffix) {
 }
 
 /**
+ * @brief Parses a playlist URL to find the actual stream URL.
+ * @details This function fetches the content of a given URL and checks if it's
+ * an M3U or PLS playlist. If so, it parses the content to extract the first
+ * valid stream URL. If the URL is not a playlist or an error occurs, it returns
+ * the original URL.
+ * @param url The URL of the potential playlist.
+ * @return The resolved stream URL as a std::string.
+ */
+std::string parsePlaylist(const char* url) {
+    HTTPClient http;
+    std::string streamUrl = url; // Default to original URL
+
+    Log_printf(LOG_LEVEL_INFO, "Parsing playlist URL: %s", url);
+
+    http.begin(url);
+    int httpCode = http.GET();
+
+    if (httpCode > 0) {
+        if (httpCode == HTTP_CODE_OK) {
+            WiFiClient* stream = http.getStreamPtr();
+            if (stream) {
+                // Read the first line to check for playlist type
+                String firstLine = stream->readStringUntil('\n');
+                firstLine.trim();
+                Log_printf(LOG_LEVEL_DEBUG, "Playlist first line: '%s'", firstLine.c_str());
+
+                if (firstLine.equalsIgnoreCase("#EXTM3U")) {
+                    Log_printf(LOG_LEVEL_INFO, "M3U playlist detected.");
+                    // Find the first line that is not a comment
+                    while (stream->available()) {
+                        String line = stream->readStringUntil('\n');
+                        line.trim();
+                        if (line.length() > 0 && !line.startsWith("#")) {
+                            streamUrl = line.c_str();
+                            Log_printf(LOG_LEVEL_INFO, "Found M3U stream URL: %s", streamUrl.c_str());
+                            break; // Use the first valid URL
+                        }
+                    }
+                } else if (firstLine.equalsIgnoreCase("[playlist]")) {
+                    Log_printf(LOG_LEVEL_INFO, "PLS playlist detected.");
+                    // Find the line starting with "File1="
+                    while (stream->available()) {
+                        String line = stream->readStringUntil('\n');
+                        line.trim();
+                        if (line.toLowerCase().startsWith("file1=")) {
+                            streamUrl = line.substring(6).c_str();
+                            Log_printf(LOG_LEVEL_INFO, "Found PLS stream URL: %s", streamUrl.c_str());
+                            break; // Use the first file entry
+                        }
+                    }
+                } else {
+                    Log_printf(LOG_LEVEL_INFO, "URL is not a recognized playlist format. Using original URL.");
+                }
+            }
+        } else {
+            Log_printf(LOG_LEVEL_WARN, "Playlist fetch failed, HTTP code: %d", httpCode);
+        }
+    } else {
+        Log_printf(LOG_LEVEL_ERROR, "Playlist fetch failed, error: %s", http.errorToString(httpCode).c_str());
+    }
+
+    http.end();
+    return streamUrl;
+}
+
+
+/**
  * @brief Centralized helper to publish a Home Assistant discovery message.
  * @details This function constructs the topic, serializes the JSON payload,
  * and publishes the configuration message to the appropriate MQTT discovery topic.
@@ -1674,6 +1741,11 @@ void cleanupAudio(bool isPermanent) {
  */
 void startAudioStream(const char* url, bool is_tts, int volume) {
     Log_printf(LOG_LEVEL_INFO, "Request to start audio stream from URL: %s", url);
+
+    // --- START: MODIFICATION - Resolve playlist URL before starting stream ---
+    std::string resolvedUrl = parsePlaylist(url);
+    // --- END: MODIFICATION ---
+
     if (!hardwareInitialized) {
         Log_printf(LOG_LEVEL_WARN, "Hardware not initialized, cannot play audio.");
         if (!is_tts) broadcastRadioStatus(RADIO_STATUS_ERROR, "Hardware not ready");
@@ -1706,7 +1778,7 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
         audio.setVolume(currentSettings.notificationVolume);
     }
 
-    strncpy(currentSoundFile, url, MAX_FILENAME_LENGTH - 1);
+    strncpy(currentSoundFile, resolvedUrl.c_str(), MAX_FILENAME_LENGTH - 1);
     currentSoundFile[MAX_FILENAME_LENGTH - 1] = '\0';
     
     if (audio.connecttohost(currentSoundFile)) {
@@ -1721,7 +1793,7 @@ void startAudioStream(const char* url, bool is_tts, int volume) {
             // publishRadioMetadata();
         }
     } else {
-        Log_printf(LOG_LEVEL_ERROR, "Failed to connect to host for streaming: %s", url);
+        Log_printf(LOG_LEVEL_ERROR, "Failed to connect to host for streaming: %s", resolvedUrl.c_str());
         // Broadcast a specific error to the UI before running the generic cleanup.
         if (!is_tts) {
             broadcastRadioStatus(RADIO_STATUS_ERROR, "Failed to connect to host");
