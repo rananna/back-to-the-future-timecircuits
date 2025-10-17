@@ -95,7 +95,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
  * @param tracks A pointer to an array of three `SequencerTrack` objects to be populated.
  * @param json_string A standard string containing the sequence definition in JSON format.
  */
-void parseSequenceFromJson(SequencerTrack tracks[3], const JsonDocument& doc);
+void parseSequenceFromJson(SequencerTrack tracks[3], JsonDocument& doc);
 
 /**
  * @brief Helper function to convert an `AnimationType` enum value to its string representation.
