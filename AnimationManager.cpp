@@ -752,22 +752,28 @@ void handleSequencer() {
         // Handle Pulse and Flash Effects
         for (int s = 0; s < 4; s++) {
             if (track.isPulsing[s]) {
-                if (millis() > track.pulseEndTimes[s]) {
-                    track.isPulsing[s] = false;
-                    needsDisplayUpdate = true;
-                } else if (millis() - track.lastPulseToggle[s] > 750) {
+                // Check for toggling state (1s on, 1s off = 1000ms interval)
+                if (millis() - track.lastPulseToggle[s] > 1000) {
                     track.pulseStates[s] = !track.pulseStates[s];
                     track.lastPulseToggle[s] = millis();
                     needsDisplayUpdate = true;
                 }
+                // Check for effect completion
+                if (millis() >= track.pulseEndTimes[s]) {
+                    track.isPulsing[s] = false;
+                    needsDisplayUpdate = true;
+                }
             }
             if (track.isFlashing[s]) {
-                if (track.flashEndTimes[s] != 0 && millis() > track.flashEndTimes[s]) {
-                    track.isFlashing[s] = false;
-                    needsDisplayUpdate = true;
-                } else if (millis() - track.lastFlashToggle[s] > 75) {
+                // Check for toggling state (fast on/off)
+                if (millis() - track.lastFlashToggle[s] > 75) {
                     track.flashStates[s] = !track.flashStates[s];
                     track.lastFlashToggle[s] = millis();
+                    needsDisplayUpdate = true;
+                }
+                // Check for effect completion
+                if (track.flashEndTimes[s] != 0 && millis() >= track.flashEndTimes[s]) {
+                    track.isFlashing[s] = false;
                     needsDisplayUpdate = true;
                 }
             }
@@ -939,13 +945,13 @@ void handleSequencer() {
                     if (step.targetSegment == -1) { // Apply to all segments
                         for (int s = 0; s < 4; s++) {
                             track.isPulsing[s] = true;
-                            track.pulseEndTimes[s] = millis() + step.intParam;
+                            track.pulseEndTimes[s] = millis() + step.intParam2;
                             track.pulseStates[s] = true;
                             track.lastPulseToggle[s] = millis();
                         }
                     } else { // Apply to a single segment
                         track.isPulsing[step.targetSegment] = true;
-                        track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
+                        track.pulseEndTimes[step.targetSegment] = millis() + step.intParam2;
                         track.pulseStates[step.targetSegment] = true;
                         track.lastPulseToggle[step.targetSegment] = millis();
                     }
@@ -1115,40 +1121,47 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_SCANNER:
+                // --- FIX: Correctly interpret intParam for duration and intParam2 for speed ---
                 if (!track.stepInitialized) {
                     track.scannerPosition = 0;
-                    track.scannerDirection = true;
+                    track.scannerDirection = true; // true = right, false = left
                     track.lastScannerUpdate = millis();
                     track.stepInitialized = true;
                 }
+
+                // Check for total duration completion
                 if (commandElapsed >= (unsigned long)step.intParam) {
                     advance_step = true;
                 } else {
+                    // Check if it's time to move the scanner
                     if (millis() - track.lastScannerUpdate > (unsigned long)step.intParam2) {
-                        std::string visual(step.stringParam);
-                        if (visual.empty()) visual = "#";
+                        std::string visual = step.stringParam;
+                        if (visual.empty()) visual = "#"; // Default visual
                         int visual_len = visual.length();
-                        std::string scan_str(13, ' '); // 13 spaces
 
-                        // Correctly place the visual without going out of bounds
-                        scan_str.replace(track.scannerPosition, visual_len, visual);
+                        // Create a blank string to draw on
+                        std::string scan_str(13, ' ');
+
+                        // Safely place the visual onto the blank string
+                        if (track.scannerPosition >= 0 && track.scannerPosition + visual_len <= 13) {
+                            scan_str.replace(track.scannerPosition, visual_len, visual);
+                        }
+
+                        // Update the physical display
                         updateDisplaySegment(step.targetRow, -1, scan_str);
 
-                        if (track.scannerDirection) { // moving right
+                        // Update scanner position for the next frame
+                        if (track.scannerDirection) { // Moving right
                             track.scannerPosition++;
-                            // Corrected boundary check: reverse when the *end* of the visual hits the edge
                             if (track.scannerPosition + visual_len > 13) {
-                                track.scannerPosition = 13 - visual_len; // Clamp the position
-                                track.scannerDirection = false; // Reverse direction
-                                track.scannerPosition--; // Immediately step back to prevent stutter
+                                track.scannerDirection = false; // Change direction
+                                track.scannerPosition -= 2; // Step back to reverse smoothly
                             }
-                        } else { // moving left
+                        } else { // Moving left
                             track.scannerPosition--;
-                            // Corrected boundary check: reverse when the *start* of the visual hits the edge
                             if (track.scannerPosition < 0) {
-                                track.scannerPosition = 0; // Clamp the position
-                                track.scannerDirection = true; // Reverse direction
-                                track.scannerPosition++; // Immediately step forward to prevent stutter
+                                track.scannerDirection = true; // Change direction
+                                track.scannerPosition += 2; // Step forward to reverse smoothly
                             }
                         }
                         track.lastScannerUpdate = millis();
