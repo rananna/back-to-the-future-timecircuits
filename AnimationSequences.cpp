@@ -683,15 +683,6 @@ void generateGlitchyJumpCut(SequencerTrack tracks[3]) {
         }
     }
 
-    // --- FIX: Activate the newly parsed tracks ---
-    // After populating the tracks, we must explicitly activate them so the sequencer will run them.
-    for (int i = 0; i < 3; ++i) {
-        if (tracks[i].steps[0].command != SEQ_CMD_NONE) {
-            tracks[i].isActive = true;
-            tracks[i].trackStartTime = millis();
-            tracks[i].stepStartTime = millis();
-        }
-    }
 }
 
 /**
@@ -1084,6 +1075,20 @@ void parseSequenceFromJson(SequencerTrack tracks[3], JsonDocument& doc) {
     } else {
         // --- Handle Invalid Input ---
         Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Payload is not a valid JSON array or object.");
+        return; // Early exit if the JSON is not in a recognized format
+    }
+
+    // --- FIX: Activate the newly parsed tracks ---
+    // After populating the tracks, we must explicitly activate them so the sequencer will run them.
+    // This is the crucial step that was missing for JSON-defined sequences.
+    for (int i = 0; i < 3; ++i) {
+        if (tracks[i].steps[0].command != SEQ_CMD_NONE) {
+            tracks[i].isActive = true;
+            tracks[i].trackStartTime = millis();
+            tracks[i].stepStartTime = millis();
+            tracks[i].originalBrightness = currentSettings.brightness; // Store initial brightness
+            Log_printf(LOG_LEVEL_INFO, "SEQ_PARSE: Activating parsed track for row %d.", i);
+        }
     }
 }
 
