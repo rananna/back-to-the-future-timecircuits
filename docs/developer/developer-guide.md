@@ -175,7 +175,7 @@ It is critical to understand the difference between **blocking** and **non-block
 | :--- | :--- | :--- | :--- |
 | `SET_TEXT` | **(Non-Blocking)** Instantly displays static text on a segment or the full row. | `stringParam`, `targetSegment` (optional, default: -1) | `{"command":"SET_TEXT", "stringParam":"SYSTEM READY"}` |
 | `MARQUEE` | **(Blocking)** Scrolls text across the target row. After scrolling, it leaves the original text centered on the display. | `stringParam` | `{"command":"MARQUEE", "stringParam":"A VERY LONG MESSAGE"}` |
-| `SCRAMBLE_TEXT` | **(Blocking)** Reveals text one character at a time with a scrambling effect. | `stringParam`, `intParam` (flicker speed ms), `intParam2` (reveal delay ms) | `{"command":"SCRAMBLE_TEXT", "stringParam":"ACCESSING", "intParam":50, "intParam2":150}` |
+| `SCRAMBLE_TEXT` | **(Blocking)** Reveals text one character at a time with a scrambling effect. The reveal speed is determined by the total duration. | `stringParam`, `intParam` (flicker speed ms), `intParam2` (total duration ms) | `{"command":"SCRAMBLE_TEXT", "stringParam":"ACCESSING", "intParam":50, "intParam2":2000}` |
 | `TYPEWRITER` | **(Blocking)** Reveals text one character at a time, like a typewriter. | `stringParam`, `intParam` (delay ms) | `{"command":"TYPEWRITER", "stringParam":"LOADING...", "intParam":100}` |
 | `WIPE` | **(Blocking)** Reveals text with a wipe effect from left to right. | `stringParam`, `intParam` (delay ms) | `{"command":"WIPE", "stringParam":"AUTHORIZED", "intParam":75}` |
 | `SCROLL_IN` | **(Blocking)** Scrolls text in from the right and stops with the text justified to the right. | `stringParam`, `intParam` (delay ms) | `{"command":"SCROLL_IN", "stringParam":"WELCOME", "intParam":60}` |
