@@ -11,6 +11,7 @@
 #include "HardwareControl.h"
 #include "DisplayManager.h"
 #include "DebugLog.h"
+#include "EventManager.h"
 #include <Arduino.h>
 #include <string>
 #include <stdlib.h>
