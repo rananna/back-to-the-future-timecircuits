@@ -977,16 +977,19 @@ void handleSequencer() {
                     break;
                 }
                 if (!track.stepInitialized) {
+                    // --- FIX: Set the display text *before* starting the flash effect ---
+                    updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+
                     if (step.targetSegment == -1) { // Apply to all segments
                         for (int s = 0; s < 4; s++) {
                             track.isFlashing[s] = true;
-                            track.flashEndTimes[s] = (step.intParam == 0) ? 0 : millis() + step.intParam;
+                            track.flashEndTimes[s] = (step.intParam2 == 0) ? 0 : millis() + step.intParam2;
                             track.flashStates[s] = true;
                             track.lastFlashToggle[s] = millis();
                         }
                     } else { // Apply to a single segment
                         track.isFlashing[step.targetSegment] = true;
-                        track.flashEndTimes[step.targetSegment] = (step.intParam == 0) ? 0 : millis() + step.intParam;
+                        track.flashEndTimes[step.targetSegment] = (step.intParam2 == 0) ? 0 : millis() + step.intParam2;
                         track.flashStates[step.targetSegment] = true;
                         track.lastFlashToggle[step.targetSegment] = millis();
                     }
