@@ -157,6 +157,15 @@
     "disabled": true
   },
   {
+    "name": "Test Suite",
+    "payload": "Test Suite"
+  },
+  {
+    "name": "---",
+    "payload": "separator",
+    "disabled": true
+  },
+  {
     "name": "Randomize All",
     "payload": "Randomize All"
   }
