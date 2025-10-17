@@ -122,26 +122,62 @@ action:
 
 ### **Payload Structure: Custom JSON Sequences**
 
-To create a custom sequence, you send a JSON payload to the MQTT topic. The root of the payload is an object that must contain a `tracks` key. The value is an array `[]` of one or more *track objects*. Each track object defines a sequence of commands that will run on a specific display row. Because each track runs independently, you can use them to create parallel animations on different rows.
+To create a custom sequence, you send a JSON payload to the MQTT topic. The root of the payload can be one of two formats:
+
+1.  **Single Track**: A single JSON object `{}` that defines one sequence for one display row.
+2.  **Parallel Tracks**: A JSON array `[]` of multiple track objects. Each track in the array will run in parallel on its specified display row.
+
+> **⚠️ Important Rule for Parallel Tracks**
+> When you provide a JSON array to run multiple tracks in parallel, **each track object in the array must target a unique display row**. The sequencer runs each track concurrently, and targeting the same row from multiple tracks at once will cause a race condition, leading to visual glitches and unpredictable behavior.
+>
+> **Invalid Example (Two tracks in an array targeting "MIDDLE"):**
+> ```json
+> [
+>   {
+>     "targetRow": "MIDDLE",
+>     "commands": [
+>       { "command": "SET_TEXT", "stringParam": "OLD TEXT" },
+>       { "command": "WAIT", "intParam": 5000 }
+>     ]
+>   },
+>   {
+>     "targetRow": "MIDDLE",
+>     "commands": [
+>       { "command": "WAIT", "intParam": 5000 },
+>       { "command": "CROSSFADE_TEXT", "stringParam": "CROSSFADE OK", "intParam": 5000 }
+>     ]
+>   }
+> ]
+> ```
+>
+> If your goal is to run those commands sequentially on the same row, you must combine them into a **single track object**:
+>
+> **Corrected Example (One track with all commands):**
+> ```json
+> {
+>   "targetRow": "MIDDLE",
+>   "commands": [
+>     { "command": "SET_TEXT", "stringParam": "OLD TEXT" },
+>     { "command": "WAIT", "intParam": 5000 },
+>     { "command": "CROSSFADE_TEXT", "stringParam": "CROSSFADE OK", "intParam": 5000 }
+>   ]
+> }
+> ```
 
 A track object has the following structure:
 
 ```json
 {
-  "tracks": [
-    {
-      "targetRow": "TOP",
-      "commands": [
-        { "command": "SET_TEXT", "stringParam": "HELLO WORLD" },
-        { "command": "WAIT", "intParam": 2000 },
-        { "command": "CLEAR_SEGMENT", "targetSegment": -1 }
-      ]
-    }
+  "targetRow": "TOP",
+  "commands": [
+    { "command": "SET_TEXT", "stringParam": "HELLO WORLD" },
+    { "command": "WAIT", "intParam": 2000 },
+    { "command": "CLEAR_SEGMENT", "targetSegment": -1 }
   ]
 }
 ```
 
-*   `targetRow`: **(Required)** A number `0-2` or string `"TOP"`, `"MIDDLE"`, `"BOTTOM"` specifying the display row.
+*   `targetRow`: **(Required)** A number `0-2` or string `"TOP"`, `"MIDDLE"`, `"BOTTOM"` specifying the display row for this track.
 *   `commands`: **(Required)** An array of command objects that will be executed in order on the `targetRow`.
 
 ### **Command Reference**
