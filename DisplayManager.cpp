@@ -193,6 +193,7 @@ extern StockData stockData[3];
 // Global arrays to support manual text override via MQTT or API.
 bool weatherDataUpdated = false;
 std::string manualDisplayText[3][4];
+std::string preAnimationDisplayText[3][4];
 bool isRowInManualMode[3] = {false, false, false};
 
 /**

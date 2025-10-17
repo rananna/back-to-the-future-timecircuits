@@ -70,6 +70,14 @@ extern bool isRowInManualMode[3];
 extern std::string manualDisplayText[3][4];
 
 /**
+ * @brief Buffers to hold the display text from before an animation started.
+ * @details Indexed by [row][segment]. This is populated before a sequence begins
+ * and is used by `RESTORE_SEGMENT` and `RESTORE_ROW` to correctly restore
+ * the display to its previous state.
+ */
+extern std::string preAnimationDisplayText[3][4];
+
+/**
  * @brief A flag that is set to true when the Data Link configuration changes.
  * @details This signals `updateMarqueeDisplay` to rebuild the `marqueeBuffer` with the new content.
  */

@@ -1012,8 +1012,10 @@ static void parseSingleTrack(SequencerTrack tracks[3], const JsonObject& track_d
         SequenceCommand seq_cmd = SEQ_CMD_NONE;
         if (strcmp(cmd_str, "SET_TEXT") == 0) seq_cmd = SEQ_CMD_SET_TEXT;
         else if (strcmp(cmd_str, "CLEAR_SEGMENT") == 0) seq_cmd = SEQ_CMD_CLEAR_SEGMENT;
+        else if (strcmp(cmd_str, "RESTORE_SEGMENT") == 0) seq_cmd = SEQ_CMD_RESTORE_SEGMENT;
         else if (strcmp(cmd_str, "SET_BRIGHTNESS") == 0) seq_cmd = SEQ_CMD_SET_BRIGHTNESS;
         else if (strcmp(cmd_str, "RESTORE_ROW") == 0) seq_cmd = SEQ_CMD_RESTORE_ROW;
+        else if (strcmp(cmd_str, "CLEAR_ALL_ROWS") == 0) seq_cmd = SEQ_CMD_CLEAR_ALL_ROWS;
         else if (strcmp(cmd_str, "RESTORE_ALL_ROWS") == 0) seq_cmd = SEQ_CMD_RESTORE_ALL_ROWS;
         else if (strcmp(cmd_str, "WAIT") == 0) seq_cmd = SEQ_CMD_WAIT;
         else if (strcmp(cmd_str, "SOUND") == 0) seq_cmd = SEQ_CMD_SOUND;

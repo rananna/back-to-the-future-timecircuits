@@ -221,7 +221,9 @@ It is critical to understand the difference between **blocking** and **non-block
 | `SCANNER` | **(Blocking)** Creates a "Knight Rider" style scanning effect. | `stringParam` (character), `intParam` (duration ms), `intParam2` (speed ms) | `{"command":"SCANNER", "stringParam":"-", "intParam":10000, "intParam2":50}` |
 | `COUNTDOWN` | **(Blocking)** Displays a countdown. For numbers > 20, it shows digits. For 20-0, it spells out the word (e.g., "TWENTY"). | `intParam` (start number), `intParam2` (delay per number ms) | `{"command":"COUNTDOWN", "intParam":10, "intParam2":1000}` |
 | `CLEAR_SEGMENT` | **(Non-Blocking)** Clears the text from a specific segment or the entire row. | `targetSegment` (optional, default: -1) | `{"command":"CLEAR_SEGMENT", "targetSegment": 1}` |
+| `RESTORE_SEGMENT` | **(Non-Blocking)** Restores a single segment to its normal display state.<br>*(New in v1.3)* | `targetSegment` | `{"command":"RESTORE_SEGMENT", "targetSegment": 1}` |
 | `RESTORE_ROW` | **(Non-Blocking)** Restores the target row to its normal display (clock, weather, etc.). | (none) | `{"command":"RESTORE_ROW"}` |
+| `CLEAR_ALL_ROWS` | **(Non-Blocking)** Clears the text from all three display rows. | (none) | `{"command":"CLEAR_ALL_ROWS"}` |
 | `RESTORE_ALL_ROWS` | **(Non-Blocking)** Restores all three display rows to their normal function. | (none) | `{"command":"RESTORE_ALL_ROWS"}` |
 
 #### **Effects and Utility Commands**

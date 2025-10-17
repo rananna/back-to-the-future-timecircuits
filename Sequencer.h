@@ -41,6 +41,7 @@ enum SequenceCommand {
     // --- Display Control, Non-Blocking Commands ---
     SEQ_CMD_SET_TEXT,           /**< (Non-Blocking) Sets the text of a display segment. `stringParam` is the text. */
     SEQ_CMD_CLEAR_SEGMENT,      /**< (Non-Blocking) Clears a specific display segment or an entire row. */
+    SEQ_CMD_RESTORE_SEGMENT,    /**< (Non-Blocking) Restores a segment to its pre-animation display state. */
     SEQ_CMD_SET_BRIGHTNESS,     /**< (Non-Blocking) Sets the brightness of a display row. `intParam` is the brightness (0-15). */
     SEQ_CMD_RESTORE_ROW,        /**< (Non-Blocking) Restores a row to its pre-animation display state (e.g., clock, weather). */
 
@@ -66,6 +67,7 @@ enum SequenceCommand {
     SEQ_CMD_TRIGGER_ANIMATION,  /**< (Global) Stops all tracks and starts a new global animation. `intParam` is the `AnimationType`. */
     SEQ_CMD_MQTT_PUBLISH,       /**< (Non-Blocking) Publishes a message to an MQTT topic. `stringParam` is topic, `stringParam2` is payload. */
     SEQ_CMD_DISPLAY_HA_SENSOR,  /**< (Blocking) Fetches and displays a Home Assistant sensor value. `stringParam` is the entity_id. */
+    SEQ_CMD_CLEAR_ALL_ROWS,     /**< (Non-Blocking) Clears the text from all three display rows. */
     SEQ_CMD_RESTORE_ALL_ROWS    /**< (Non-Blocking) Restores all three rows to their pre-animation state. */
 };
 

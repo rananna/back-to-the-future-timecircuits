@@ -806,6 +806,18 @@ void handleSequencer() {
                 }
                 break;
 
+            case SEQ_CMD_RESTORE_SEGMENT:
+                if (!track.stepInitialized) {
+                    if (step.targetSegment >= 0 && step.targetSegment < 4) {
+                        updateDisplaySegment(step.targetRow, step.targetSegment, preAnimationDisplayText[step.targetRow][step.targetSegment]);
+                    } else {
+                        Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid targetSegment %d for RESTORE_SEGMENT.", step.targetSegment);
+                    }
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
             case SEQ_CMD_SET_BRIGHTNESS:
                 if (!track.stepInitialized) {
                     uint8_t brightness = (uint8_t)constrain(step.intParam, 0, 7);
@@ -821,7 +833,23 @@ void handleSequencer() {
 
             case SEQ_CMD_RESTORE_ROW:
                 if (!track.stepInitialized) {
-                    restoreDisplayRow(step.targetRow);
+                    if (step.targetRow >= 0 && step.targetRow < 3) {
+                        for (int s = 0; s < 4; ++s) {
+                            updateDisplaySegment(step.targetRow, s, preAnimationDisplayText[step.targetRow][s]);
+                        }
+                    } else {
+                        Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid targetRow %d for RESTORE_ROW.", step.targetRow);
+                    }
+                    track.stepInitialized = true;
+                    advance_step = true;
+                }
+                break;
+
+            case SEQ_CMD_CLEAR_ALL_ROWS:
+                if (!track.stepInitialized) {
+                    updateDisplaySegment(0, -1, "");
+                    updateDisplaySegment(1, -1, "");
+                    updateDisplaySegment(2, -1, "");
                     track.stepInitialized = true;
                     advance_step = true;
                 }
