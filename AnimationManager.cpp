@@ -1322,44 +1322,42 @@ void handleSequencer() {
             case SEQ_CMD_SCRAMBLE_TEXT:
                 { // Scope for local variables
                     std::string text_to_scramble = step.stringParam;
-                    // --- FIX: Truncate text to display width to prevent timing bugs ---
                     if (text_to_scramble.length() > 13) {
                         text_to_scramble = text_to_scramble.substr(0, 13);
                     }
 
                     if (!track.stepInitialized) {
                         track.scrambleCurrentText = std::string(text_to_scramble.length(), ' ');
-                        track.scrambleCharIndex = 0;
                         track.lastScrambleUpdate = millis();
-                        track.lastScrambleLockInTime = millis();
                         track.stepInitialized = true;
                     }
 
-                    if ((unsigned)track.scrambleCharIndex >= text_to_scramble.length()) {
-                        // Animation is complete, ensure final text is displayed and advance.
+                    unsigned long totalDuration = (unsigned long)step.intParam2;
+                    if (totalDuration == 0) totalDuration = 1; // Avoid division by zero
+
+                    // --- FIX: Reveal characters based on time elapsed, not a fixed delay ---
+                    float progress = (float)commandElapsed / (float)totalDuration;
+                    if (progress > 1.0f) progress = 1.0f;
+
+                    // Calculate how many characters should be revealed based on progress.
+                    int chars_to_reveal = (int)(progress * text_to_scramble.length());
+
+                    // Build the current state of the string.
+                    std::string temp_scramble = text_to_scramble.substr(0, chars_to_reveal);
+                    
+                    // Fill the rest with scrambled characters.
+                    for (int j = chars_to_reveal; j < (int)text_to_scramble.length(); ++j) {
+                        temp_scramble += (char)random(33, 126);
+                    }
+
+                    // Always update the display on every cycle for a smooth flicker.
+                    updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
+
+                    // Check for completion.
+                    if (commandElapsed >= totalDuration) {
+                        // Final update to ensure the correct text is shown.
                         updateDisplaySegment(step.targetRow, step.targetSegment, text_to_scramble);
                         advance_step = true;
-                    } else {
-                        // Check if it's time to lock in the next character.
-                        if (millis() - track.lastScrambleLockInTime >= (unsigned long)step.intParam2) {
-                            if ((unsigned)track.scrambleCharIndex < text_to_scramble.length()) {
-                                track.scrambleCurrentText[track.scrambleCharIndex] = text_to_scramble[track.scrambleCharIndex];
-                            }
-                            track.scrambleCharIndex++;
-                            track.lastScrambleLockInTime = millis();
-                        }
-
-                        // Check if it's time to update the flickering characters.
-                        if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
-                            // Build the string to display, starting with the current locked-in state.
-                            std::string temp_scramble = track.scrambleCurrentText;
-                            // Scramble the characters that haven't been locked in yet.
-                            for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
-                                temp_scramble[j] = (char)random(33, 126);
-                            }
-                            updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
-                            track.lastScrambleUpdate = millis();
-                        }
                     }
                 }
                 break;
