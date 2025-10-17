@@ -7,7 +7,7 @@ Welcome, time traveler! This guide provides everything you need to know to integ
 2. [Setup & Installation](#-setup--installation)
 3. [Understanding Blueprints, Scripts, and Automations](#-understanding-blueprints-scripts-and-automations)
 4. [Importing the Blueprints](#-importing-the-blueprints)
-5. [Blueprint Reference](#-blueprint-reference)
+5. [Available Blueprints](#-available-blueprints)
 6. [Core Entities & Controls](#-core-entities--controls)
 7. [Using the Media Player](#-using-the-media-player)
 8. [Sending Notifications](#-sending-notifications)
@@ -20,7 +20,7 @@ Welcome, time traveler! This guide provides everything you need to know to integ
 The custom component provides a rich, native Home Assistant experience:
 
 *   **Simple Setup**: Add the integration directly from the Home Assistant UI. No more YAML for setup!
-*   **Powerful Blueprints**: A set of pre-built blueprints to easily create custom animations and notifications without writing any code.
+*   **Powerful Blueprints**: A set of pre-built, well-documented blueprints to easily create custom animations and notifications without writing any code.
 *   **Unified Audio Control**: A single `media_player` entity for playing sound effects, streaming radio, and using Text-to-Speech (TTS).
 *   **Native Notifications**: A built-in `notify` service to easily send alerts and messages to the clock's display.
 *   **Seamless OTA Updates**: An `update` entity that tells you when new firmware is available and lets you install it with one click.
@@ -96,67 +96,39 @@ The easiest way to add the blueprints is by importing them directly from the pro
 
 Repeat the import process for each blueprint you wish to use.
 
-## 📖 Blueprint Reference
+## 📖 Available Blueprints
 
-This section is your comprehensive guide to the blueprints. You'll find detailed explanations of all available inputs, a complete list of visual and sound effects, and practical examples to help you build powerful automations.
+This section provides a high-level overview of the available blueprints. **For a complete list of all options, parameters, and detailed explanations, please refer to the comprehensive comments directly within each blueprint's YAML file.** The descriptions in the Home Assistant UI are powered by these comments and serve as the primary source of truth.
 
-### **The "Display" Blueprint**
-This is the most versatile blueprint. It replaces the old "Display Text" and "Display Entity" blueprints with a single, more powerful solution.
+---
 
-#### **Key Inputs**
-*   `Target Row`: Choose which row (or all rows) to display the message on.
-*   `Data Source`: The most important input!
-    *   `Static Text`: Lets you type a message directly. Supports templates.
-    *   `Home Assistant Entity`: Lets you display the state or an attribute of any entity.
-*   `Visual Effect`: Choose from a list of animations like `Set Text`, `Marquee`, `Pulse`, `Flash`, `Typewriter`, `Scramble Text`, or `Random Flicker`.
-*   `Display Duration`: **Crucial for `Set Text`**, `Pulse`, and `Flash` effects. It sets how long the effect stays on screen. For other effects like `Marquee` or `Typewriter`, the blueprint waits for them to finish automatically.
-*   `Audio Source`: Choose whether to play a sound.
-    *   `None`: No sound.
-    *   `Built-in Sound Effect`: Play a sound from the clock's internal memory.
-    *   `Stream from Home Assistant`: Stream an audio file from your HA media library.
-*   `Repeat Count`: Loop the visual effect and built-in sound. (Streamed audio only plays once at the beginning).
-*   `Restore Row After Effect`: When enabled, the display will return to its normal state after the effect is finished.
+### **1. Display**
+This is the most versatile blueprint for showing information on the clock. It's a powerful all-in-one tool that can display static text, the state of any Home Assistant entity, or a combination of both using templates.
 
-#### **Reference: Sound Effects**
-| Sound Effect File | Description |
-| :--- | :--- |
-| `ACCELERATION.mp3` | The sound of the DeLorean accelerating. |
-| `arrival_chime.mp3` | A pleasant chime, perfect for notifications. |
-| `electric_sparks.mp3`| Crackling electrical sounds. |
-| `engine_rev.mp3` | A powerful engine revving up. |
-| `flux_capacitor_power_on.mp3`| The hum and crackle of the Flux Capacitor activating. |
-| `hum.mp3` | A steady, low electronic hum. |
-| `keypad_beeps.mp3` | A sequence of beeps from the time circuit keypad. |
-| `lock_on.mp3` | A confirmation sound, as if a target is locked. |
-| `relay_activation.mp3`| The click-clack of multiple mechanical relays. |
-| `sys_beep.mp3` | A simple, single system beep. |
-| `time_travel.mp3` | The full, iconic time travel sequence sound effect. |
+*   **Use it for:**
+    *   Displaying the current temperature, humidity, or a stock price.
+    *   Showing a custom alert message like "GARAGE OPEN".
+    *   Announcing the currently playing song title.
 
-#### **Use Case: Weather Alert**
-This example displays the current temperature from a weather entity on the top row, with a "Temp: " prefix and a "°F" postfix. It uses the `Pulse` effect and plays a chime.
+---
 
-1.  **Create the Script:**
-    *   Go to **Settings > Automations & Scenes > Blueprints**.
-    *   Find the "BTTF Time Circuits: Display" blueprint and click **Create Script**.
-    *   Name it "Time Circuits Weather Update".
-    *   Configure the inputs:
-        *   `Target Row`: `Top`
-        *   `Data Source`: `Home Assistant Entity`
-        *   `Entity to Display`: Your weather sensor (e.g., `weather.home`)
-        *   `Attribute to Display`: `temperature`
-        *   `Prefix`: `Temp: `
-        *   `Postfix`: `°F`
-        *   `Visual Effect`: `Pulse`
-        *   `Display Duration (s)`: `10`
-        *   `Audio Source`: `Built-in Sound Effect`
-        *   `Sound Effect`: `arrival_chime.mp3`
-    *   Save the script.
+### **2. Countdown Timer**
+This blueprint runs a numeric countdown on one or more display rows. When the timer hits zero, it can trigger a follow-up visual effect and play a sound.
 
-2.  **Create the Automation:**
-    *   Create a new automation.
-    *   **Trigger:** Use a `Time Pattern` trigger to run every 30 minutes.
-    *   **Action:** Call the `script.time_circuits_weather_update` service.
-    *   Save the automation.
+*   **Use it for:**
+    *   A kitchen timer.
+    *   A visual countdown for a "launch" sequence.
+    *   A timer for a child's timeout or a game.
+
+---
+
+### **3. Multi-Row Status Board**
+This advanced blueprint allows you to control all three display rows independently and simultaneously. You can set a different message and visual effect for the top, middle, and bottom rows, creating a dense, information-rich display.
+
+*   **Use it for:**
+    *   Showing weather on top, time in the middle, and a stock price on the bottom.
+    *   Creating a "system status" screen with CPU temp, memory usage, and network speed.
+    *   Displaying a multi-line alert message.
 
 ---
 
