@@ -1347,23 +1347,32 @@ void handleSequencer() {
                         updateDisplaySegment(step.targetRow, step.targetSegment, text_to_scramble);
                         advance_step = true;
                     } else {
+                        bool needs_visual_update = false;
+
                         // Check if it's time to lock in the next character based on the calculated delay.
                         if (millis() - track.lastScrambleLockInTime >= track.scrambleLockInDelay) {
                             if ((unsigned)track.scrambleCharIndex < text_to_scramble.length()) {
                                 track.scrambleCurrentText[track.scrambleCharIndex] = text_to_scramble[track.scrambleCharIndex];
                                 track.scrambleCharIndex++;
                                 track.lastScrambleLockInTime = millis();
+                                needs_visual_update = true; // Force a redraw because a character was revealed.
                             }
                         }
 
-                        // Check if it's time to update the flickering characters based on flicker speed (intParam).
+                        // Check if it's time to update the flickering characters.
                         if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
+                            needs_visual_update = true; // Force a redraw for the flicker effect.
+                        }
+
+                        // If a character was revealed OR it's time to flicker, update the display.
+                        if (needs_visual_update) {
                             std::string temp_scramble = track.scrambleCurrentText;
+                            // Always re-scramble the non-revealed part on any update.
                             for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
                                 temp_scramble[j] = (char)random(33, 126);
                             }
                             updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
-                            track.lastScrambleUpdate = millis();
+                            track.lastScrambleUpdate = millis(); // Reset flicker timer on any visual update.
                         }
                     }
                 }
