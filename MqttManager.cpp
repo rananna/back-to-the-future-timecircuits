@@ -1512,12 +1512,13 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
 // --- NEW: Use a single, static JsonDocument for all MQTT parsing ---
 // This prevents heap fragmentation by reusing the same memory block for all
 // incoming MQTT JSON payloads, which is critical for long-term stability.
-// The size is increased to 4096 to accommodate complex, multi-track sequences.
-static JsonDocument mqttJsonDoc;
+// The size is increased to 2048 to accommodate complex, multi-track sequences.
+static StaticJsonDocument<2048> mqttJsonDoc;
 
 void handleSequencerCommand(const std::string& payload) {
     // --- REFACTORED UNIFIED LOGIC ---
     // First, attempt to parse the payload as JSON using the static document.
+    mqttJsonDoc.clear(); // Ensure the document is empty before parsing.
     DeserializationError error = deserializeJson(mqttJsonDoc, payload);
 
     if (error == DeserializationError::Ok) {
