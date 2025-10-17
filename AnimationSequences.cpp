@@ -970,97 +970,120 @@ void generateIntruderAlert(SequencerTrack tracks[3]) {
 }
 
 /**
- * @brief Parses a JSON string to dynamically create a multi-track animation sequence.
- * @details This function allows for the creation of complex, custom animations defined in
- * JSON format, which can be sent via MQTT or stored in `sequences.json`. It maps
- * string command names to their `SequenceCommand` enum counterparts and populates the
- * sequencer tracks accordingly.
- * @param tracks The array of three sequencer tracks to populate.
- * @param json_string A string containing the JSON definition of the sequence.
+ * @brief Helper function to parse a single JSON track definition object.
+ * @details This function contains the core logic for parsing a `JsonObject` that defines
+ * a single sequencer track and populating the corresponding `SequencerTrack` struct.
+ * It is called by the main `parseSequenceFromJson` function.
+ * @param tracks The array of three sequencer tracks.
+ * @param track_def The `JsonObject` containing the definition for one track.
  */
-void parseSequenceFromJson(SequencerTrack tracks[3], const JsonDocument& doc) {
+static void parseSingleTrack(SequencerTrack tracks[3], const JsonObject& track_def) {
+    int targetRow = -1;
+    // Determine the target row from either an integer or a string ("TOP", "MIDDLE", "BOTTOM")
+    if (track_def["targetRow"].is<int>()) {
+        targetRow = track_def["targetRow"].as<int>();
+    } else if (track_def["targetRow"].is<const char*>()) {
+        std::string rowStr = track_def["targetRow"].as<std::string>();
+        if (rowStr == "TOP") targetRow = 0;
+        else if (rowStr == "MIDDLE") targetRow = 1;
+        else if (rowStr == "BOTTOM") targetRow = 2;
+    }
 
-    JsonArray track_definitions = doc.as<JsonArray>();
-    if (track_definitions.isNull()) {
-        Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Payload is not a JSON array of track definitions.");
+    if (targetRow < 0 || targetRow > 2) {
+        Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Skipping track with invalid targetRow.");
         return;
     }
 
-    for (JsonObject track_def : track_definitions) {
-        int targetRow = -1;
-        if (track_def["targetRow"].is<int>()) {
-            targetRow = track_def["targetRow"].as<int>();
-        } else if (track_def["targetRow"].is<const char*>()) {
-            std::string rowStr = track_def["targetRow"].as<std::string>();
-            if (rowStr == "TOP") targetRow = 0;
-            else if (rowStr == "MIDDLE") targetRow = 1;
-            else if (rowStr == "BOTTOM") targetRow = 2;
-        }
+    // Do not overwrite an already active track
+    if (tracks[targetRow].isActive) {
+        Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Ignoring new sequence for row %d, one is already active.", targetRow);
+        return;
+    }
 
-        if (targetRow < 0 || targetRow > 2) {
-            Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Skipping track with invalid targetRow.");
+    JsonArray commands = track_def["commands"].as<JsonArray>();
+    if (commands.isNull()) {
+        Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Skipping track for row %d: missing 'commands' array.", targetRow);
+        return;
+    }
+
+    int step_idx = 0;
+    for (JsonObject command : commands) {
+        const char* cmd_str = command["command"];
+        if (!cmd_str) {
+            Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Skipping invalid command in track %d: missing 'command' key.", targetRow);
             continue;
         }
 
-        if (tracks[targetRow].isActive) {
-            Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Ignoring new sequence for row %d, one is already active.", targetRow);
+        // Map the command string to its enum value
+        SequenceCommand seq_cmd = SEQ_CMD_NONE;
+        if (strcmp(cmd_str, "SET_TEXT") == 0) seq_cmd = SEQ_CMD_SET_TEXT;
+        else if (strcmp(cmd_str, "CLEAR_SEGMENT") == 0) seq_cmd = SEQ_CMD_CLEAR_SEGMENT;
+        else if (strcmp(cmd_str, "SET_BRIGHTNESS") == 0) seq_cmd = SEQ_CMD_SET_BRIGHTNESS;
+        else if (strcmp(cmd_str, "RESTORE_ROW") == 0) seq_cmd = SEQ_CMD_RESTORE_ROW;
+        else if (strcmp(cmd_str, "RESTORE_ALL_ROWS") == 0) seq_cmd = SEQ_CMD_RESTORE_ALL_ROWS;
+        else if (strcmp(cmd_str, "WAIT") == 0) seq_cmd = SEQ_CMD_WAIT;
+        else if (strcmp(cmd_str, "SOUND") == 0) seq_cmd = SEQ_CMD_SOUND;
+        else if (strcmp(cmd_str, "LOOP_START") == 0) seq_cmd = SEQ_CMD_LOOP_START;
+        else if (strcmp(cmd_str, "LOOP_END") == 0) seq_cmd = SEQ_CMD_LOOP_END;
+        else if (strcmp(cmd_str, "FADE_IN") == 0) seq_cmd = SEQ_CMD_FADE_IN;
+        else if (strcmp(cmd_str, "FADE_OUT") == 0) seq_cmd = SEQ_CMD_FADE_OUT;
+        else if (strcmp(cmd_str, "PULSE") == 0) seq_cmd = SEQ_CMD_PULSE;
+        else if (strcmp(cmd_str, "FLASH") == 0) seq_cmd = SEQ_CMD_FLASH;
+        else if (strcmp(cmd_str, "MARQUEE") == 0) seq_cmd = SEQ_CMD_MARQUEE;
+        else if (strcmp(cmd_str, "COUNTDOWN") == 0) seq_cmd = SEQ_CMD_COUNTDOWN;
+        else if (strcmp(cmd_str, "SCANNER") == 0) seq_cmd = SEQ_CMD_SCANNER;
+        else if (strcmp(cmd_str, "TYPEWRITER") == 0) seq_cmd = SEQ_CMD_TYPEWRITER;
+        else if (strcmp(cmd_str, "WIPE") == 0) seq_cmd = SEQ_CMD_WIPE;
+        else if (strcmp(cmd_str, "SCROLL_IN") == 0) seq_cmd = SEQ_CMD_SCROLL_IN;
+        else if (strcmp(cmd_str, "CROSSFADE_TEXT") == 0) seq_cmd = SEQ_CMD_CROSSFADE_TEXT;
+        else if (strcmp(cmd_str, "RANDOM_FLICKER_TEXT") == 0) seq_cmd = SEQ_CMD_RANDOM_FLICKER_TEXT;
+        else if (strcmp(cmd_str, "SCRAMBLE_TEXT") == 0) seq_cmd = SEQ_CMD_SCRAMBLE_TEXT;
+        else if (strcmp(cmd_str, "BAR_GRAPH") == 0) seq_cmd = SEQ_CMD_BAR_GRAPH;
+        else if (strcmp(cmd_str, "TRIGGER_ANIMATION") == 0) seq_cmd = SEQ_CMD_TRIGGER_ANIMATION;
+        else if (strcmp(cmd_str, "MQTT_PUBLISH") == 0) seq_cmd = SEQ_CMD_MQTT_PUBLISH;
+        else if (strcmp(cmd_str, "DISPLAY_HA_SENSOR") == 0) seq_cmd = SEQ_CMD_DISPLAY_HA_SENSOR;
+        else {
+            Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Unknown sequencer command '%s' in track %d.", cmd_str, targetRow);
             continue;
         }
 
-        JsonArray commands = track_def["commands"].as<JsonArray>();
-        if (commands.isNull()) {
-            Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Skipping track for row %d: missing 'commands' array.", targetRow);
-            continue;
+        // Add the parsed step to the track
+        step_idx = add_step(tracks[targetRow], step_idx, seq_cmd, targetRow,
+            command["targetSegment"] | -1,
+            command["intParam"] | 0,
+            command["intParam2"] | 0,
+            command["stringParam"] | "",
+            command["stringParam2"] | ""
+        );
+    }
+}
+
+/**
+ * @brief Parses a JSON document to dynamically create a multi-track animation sequence.
+ * @details This is the main parsing function. It's designed to be robust and can handle
+ * a JSON payload where the root is either a `JsonArray` (for multi-track definitions)
+ * or a single `JsonObject` (for a single-track definition). This flexibility allows it
+ * to be used for both complex, hardcoded animations and simpler, single-track commands
+ * sent over MQTT.
+ * @param tracks The array of three sequencer tracks to populate.
+ * @param doc The `JsonDocument` containing the sequence definition.
+ */
+void parseSequenceFromJson(SequencerTrack tracks[3], const JsonDocument& doc) {
+    if (doc.is<JsonArray>()) {
+        // --- Handle Multi-Track Definitions ---
+        // The root of the JSON is an array of track objects.
+        Log_printf(LOG_LEVEL_DEBUG, "SEQ_PARSE: Root is a JsonArray. Parsing multiple tracks.");
+        for (JsonObject track_def : doc.as<JsonArray>()) {
+            parseSingleTrack(tracks, track_def);
         }
-
-        int step_idx = 0;
-        for (JsonObject command : commands) {
-            const char* cmd = command["command"];
-            if (!cmd) {
-                Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Skipping invalid command in track %d: missing 'command' key.", targetRow);
-                continue;
-            }
-
-            SequenceCommand seq_cmd = SEQ_CMD_NONE;
-            if (strcmp(cmd, "SET_TEXT") == 0) seq_cmd = SEQ_CMD_SET_TEXT;
-            else if (strcmp(cmd, "CLEAR_SEGMENT") == 0) seq_cmd = SEQ_CMD_CLEAR_SEGMENT;
-            else if (strcmp(cmd, "SET_BRIGHTNESS") == 0) seq_cmd = SEQ_CMD_SET_BRIGHTNESS;
-            else if (strcmp(cmd, "RESTORE_ROW") == 0) seq_cmd = SEQ_CMD_RESTORE_ROW;
-            else if (strcmp(cmd, "RESTORE_ALL_ROWS") == 0) seq_cmd = SEQ_CMD_RESTORE_ALL_ROWS;
-            else if (strcmp(cmd, "WAIT") == 0) seq_cmd = SEQ_CMD_WAIT;
-            else if (strcmp(cmd, "SOUND") == 0) seq_cmd = SEQ_CMD_SOUND;
-            else if (strcmp(cmd, "LOOP_START") == 0) seq_cmd = SEQ_CMD_LOOP_START;
-            else if (strcmp(cmd, "LOOP_END") == 0) seq_cmd = SEQ_CMD_LOOP_END;
-            else if (strcmp(cmd, "FADE_IN") == 0) seq_cmd = SEQ_CMD_FADE_IN;
-            else if (strcmp(cmd, "FADE_OUT") == 0) seq_cmd = SEQ_CMD_FADE_OUT;
-            else if (strcmp(cmd, "PULSE") == 0) seq_cmd = SEQ_CMD_PULSE;
-            else if (strcmp(cmd, "FLASH") == 0) seq_cmd = SEQ_CMD_FLASH;
-            else if (strcmp(cmd, "MARQUEE") == 0) seq_cmd = SEQ_CMD_MARQUEE;
-            else if (strcmp(cmd, "COUNTDOWN") == 0) seq_cmd = SEQ_CMD_COUNTDOWN;
-            else if (strcmp(cmd, "SCANNER") == 0) seq_cmd = SEQ_CMD_SCANNER;
-            else if (strcmp(cmd, "TYPEWRITER") == 0) seq_cmd = SEQ_CMD_TYPEWRITER;
-            else if (strcmp(cmd, "WIPE") == 0) seq_cmd = SEQ_CMD_WIPE;
-            else if (strcmp(cmd, "SCROLL_IN") == 0) seq_cmd = SEQ_CMD_SCROLL_IN;
-            else if (strcmp(cmd, "CROSSFADE_TEXT") == 0) seq_cmd = SEQ_CMD_CROSSFADE_TEXT;
-            else if (strcmp(cmd, "RANDOM_FLICKER_TEXT") == 0) seq_cmd = SEQ_CMD_RANDOM_FLICKER_TEXT;
-            else if (strcmp(cmd, "SCRAMBLE_TEXT") == 0) seq_cmd = SEQ_CMD_SCRAMBLE_TEXT;
-            else if (strcmp(cmd, "BAR_GRAPH") == 0) seq_cmd = SEQ_CMD_BAR_GRAPH;
-            else if (strcmp(cmd, "TRIGGER_ANIMATION") == 0) seq_cmd = SEQ_CMD_TRIGGER_ANIMATION;
-            else if (strcmp(cmd, "MQTT_PUBLISH") == 0) seq_cmd = SEQ_CMD_MQTT_PUBLISH;
-            else if (strcmp(cmd, "DISPLAY_HA_SENSOR") == 0) seq_cmd = SEQ_CMD_DISPLAY_HA_SENSOR;
-            else {
-                Log_printf(LOG_LEVEL_WARN, "SEQ_PARSE: Unknown sequencer command '%s' in track %d.", cmd, targetRow);
-                continue;
-            }
-
-            step_idx = add_step(tracks[targetRow], step_idx, seq_cmd, targetRow,
-                command["targetSegment"] | -1,
-                command["intParam"] | 0,
-                command["intParam2"] | 0,
-                command["stringParam"] | "",
-                command["stringParam2"] | ""
-            );
-        }
+    } else if (doc.is<JsonObject>()) {
+        // --- Handle Single-Track Definitions ---
+        // The root of the JSON is a single track object.
+        Log_printf(LOG_LEVEL_DEBUG, "SEQ_PARSE: Root is a JsonObject. Parsing single track.");
+        parseSingleTrack(tracks, doc.as<JsonObject>());
+    } else {
+        // --- Handle Invalid Input ---
+        Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Payload is not a valid JSON array or object.");
     }
 }
 
