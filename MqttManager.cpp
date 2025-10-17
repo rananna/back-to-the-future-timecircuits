@@ -1525,8 +1525,13 @@ void handleSequencerCommand(const std::string& payload) {
         // It's a valid JSON string.
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload.");
 
-        // The preAnimationDisplayMode logic has been moved into triggerAnimation
-        // to be handled consistently for all animation types.
+        // --- FIX: Manually save the display mode before running a JSON sequence ---
+        // This is the critical step that was missing. The triggerAnimation() function
+        // does this automatically for named animations, but for direct JSON payloads
+        // sent via MQTT, we need to do it here. This ensures that after the
+        // sequence completes, the system knows to return to the clock display.
+        preAnimationDisplayMode = currentSettings.displayMode;
+        currentSettings.displayMode = -1; // Set to an invalid mode to prevent clock updates
 
         // Pass the already-parsed document directly to the function.
         // This avoids a second, redundant parsing step.
