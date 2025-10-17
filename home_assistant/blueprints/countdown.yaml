@@ -175,7 +175,6 @@ sequence:
   # Condition: Ensure a device has been selected before proceeding.
   - condition: template
     value_template: "{{ device != none }}"
-    error_message: "You must select a Time Circuits device to control."
 
   # Action: Publish the generated sequencer command to the device via MQTT.
   - service: mqtt.publish
@@ -289,7 +288,6 @@ sequence:
           # Condition: Ensure the media_player entity was found.
           - condition: template
             value_template: "{{ media_player_entity != 'none' }}"
-            error_message: "Could not find the media_player entity for the selected device."
           # Set the volume on the device's media player before playing.
           - service: media_player.volume_set
             target:
