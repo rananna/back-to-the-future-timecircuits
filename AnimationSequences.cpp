@@ -1067,14 +1067,14 @@ void parseSequenceFromJson(SequencerTrack tracks[3], JsonDocument& doc) {
         // --- Handle Multi-Track Definitions ---
         // The root of the JSON is an array of track objects.
         Log_printf(LOG_LEVEL_DEBUG, "SEQ_PARSE: Root is a JsonArray. Parsing multiple tracks.");
-        for (JsonObject track_def : doc.to<JsonArray>()) {
+        for (JsonObject track_def : doc.as<JsonArray>()) {
             parseSingleTrack(tracks, track_def);
         }
     } else if (doc.is<JsonObject>()) {
         // --- Handle Single-Track Definitions ---
         // The root of the JSON is a single track object.
         Log_printf(LOG_LEVEL_DEBUG, "SEQ_PARSE: Root is a JsonObject. Parsing single track.");
-        parseSingleTrack(tracks, doc.to<JsonObject>());
+        parseSingleTrack(tracks, doc.as<JsonObject>());
     } else {
         // --- Handle Invalid Input ---
         Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Payload is not a valid JSON array or object.");
