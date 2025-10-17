@@ -1608,6 +1608,14 @@ void handleSequencerCommand(const std::string& payload) {
         // sent via MQTT, we need to do it here. This ensures that after the
         // sequence completes, the system knows to return to the clock display.
         preAnimationDisplayMode = currentSettings.displayMode;
+
+    // --- NEW: Save the current text of all display segments before starting the new animation ---
+    for (int r = 0; r < 3; ++r) {
+        for (int s = 0; s < 4; ++s) {
+            preAnimationDisplayText[r][s] = manualDisplayText[r][s];
+        }
+    }
+
         currentSettings.displayMode = -1; // Set to an invalid mode to prevent clock updates
 
         // Pass the already-parsed document directly to the function.
