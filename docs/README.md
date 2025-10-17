@@ -15,6 +15,7 @@ Learn how to configure your Time Circuits, integrate with smart home systems, an
 
 -   **[Web Interface Guide](user-guide/web-interface.md)**: A complete tour of the web UI for configuration.
 -   **[Home Assistant Integration Guide](user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant, including Blueprints and examples.
+-   **[MQTT Control Guide](user-guide/mqtt-control.md)**: Learn how to control your device directly using MQTT for advanced integrations.
 -   **[Sound System Guide](user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
 
 ## 3. Developer & Advanced Topics
