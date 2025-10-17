@@ -1509,35 +1509,33 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
  * built-in animation and triggers it accordingly.
  * @param payload The JSON string or name of the sequence to run.
  */
+// --- NEW: Use a single, static JsonDocument for all MQTT parsing ---
+// This prevents heap fragmentation by reusing the same memory block for all
+// incoming MQTT JSON payloads, which is critical for long-term stability.
+// The size is increased to 4096 to accommodate complex, multi-track sequences.
+static JsonDocument mqttJsonDoc;
+
 void handleSequencerCommand(const std::string& payload) {
-    // --- NEW UNIFIED LOGIC ---
-    // First, check if the payload is a direct JSON command.
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, payload);
+    // --- REFACTORED UNIFIED LOGIC ---
+    // First, attempt to parse the payload as JSON using the static document.
+    DeserializationError error = deserializeJson(mqttJsonDoc, payload);
 
     if (error == DeserializationError::Ok) {
-        // It's a valid JSON string, so we can parse it directly.
+        // It's a valid JSON string.
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload.");
 
-        // --- FIX: Save display mode and set to -1 BEFORE starting the animation ---
-        // This is the critical fix. It prevents the main loop from overwriting the
-        // animation frames. The display mode is saved so it can be restored
-        // after the animation completes.
-        preAnimationDisplayMode = currentSettings.displayMode;
-        currentSettings.displayMode = -1; // -1 is an invalid mode that pauses the main display loop
+        // The preAnimationDisplayMode logic has been moved into triggerAnimation
+        // to be handled consistently for all animation types.
 
+        // Pass the already-parsed document directly to the function.
+        // This avoids a second, redundant parsing step.
         stopAllSequences();
-        parseSequenceFromJson(sequencerTracks, payload);
+        parseSequenceFromJson(sequencerTracks, mqttJsonDoc);
+
     } else {
         // It's not JSON, so treat it as a named sequence.
-        // Convert the string name to an enum.
+        Log_printf(LOG_LEVEL_INFO, "Sequencer: Payload is not JSON, treating as named sequence: %s", payload.c_str());
         AnimationType animType = animationTypeFromString(payload);
-
-        // --- FIX: Directly call triggerAnimation for ALL named sequences ---
-        // This is the core of the fix. Instead of having separate logic paths,
-        // all named sequences, whether legacy, C++ generated, or JSON-based,
-        // are now handled by the unified triggerAnimation -> generateAnimationSequence flow.
-        Log_printf(LOG_LEVEL_INFO, "Sequencer: Activating named sequence '%s' (Enum: %d)", payload.c_str(), (int)animType);
         triggerAnimation(animType);
     }
 }

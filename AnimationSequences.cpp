@@ -978,14 +978,7 @@ void generateIntruderAlert(SequencerTrack tracks[3]) {
  * @param tracks The array of three sequencer tracks to populate.
  * @param json_string A string containing the JSON definition of the sequence.
  */
-void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string) {
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, json_string);
-
-    if (error) {
-        Log_printf(LOG_LEVEL_ERROR, "SEQ_PARSE: Failed to parse JSON sequence: %s", error.c_str());
-        return;
-    }
+void parseSequenceFromJson(SequencerTrack tracks[3], const JsonDocument& doc) {
 
     JsonArray track_definitions = doc.as<JsonArray>();
     if (track_definitions.isNull()) {
@@ -1357,33 +1350,67 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
     switch (animType) {
         // --- JSON-based Named Sequences ---
         case ANIMATION_TIME_TRAVEL:
-            parseSequenceFromJson(tracks, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":10000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 3000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":3000}, {"command": "SET_TEXT", "stringParam": "88 MPH"},{"command":"WAIT", "intParam":4000}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam2": 10000}]}])");
+            {
+                JsonDocument doc;
+                deserializeJson(doc, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":10000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 3000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":3000}, {"command": "SET_TEXT", "stringParam": "88 MPH"},{"command":"WAIT", "intParam":4000}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam2": 10000}]}])");
+                parseSequenceFromJson(tracks, doc);
+            }
             break;
         case ANIMATION_PARTY_MODE:
-            // --- FIX: Use intParam2 to set a 10s duration and make more dynamic ---
-            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP", "commands":[{"command":"SOUND", "stringParam":"party.mp3"},{"command":"SET_TEXT", "stringParam":"PARTY TIME!"}, {"command":"PULSE", "targetSegment":-1, "intParam": 250, "intParam2":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":100, "intParam2":10000, "stringParam": "DANCE"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LETS DANCE!"}, {"command":"PULSE", "targetSegment":-1, "intParam":250, "intParam2":10000}]}])");
+            {
+                JsonDocument doc;
+                deserializeJson(doc, R"([{"targetRow":"TOP", "commands":[{"command":"SOUND", "stringParam":"party.mp3"},{"command":"SET_TEXT", "stringParam":"PARTY TIME!"}, {"command":"PULSE", "targetSegment":-1, "intParam": 250, "intParam2":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":100, "intParam2":10000, "stringParam": "DANCE"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LETS DANCE!"}, {"command":"PULSE", "targetSegment":-1, "intParam":250, "intParam2":10000}]}])");
+                parseSequenceFromJson(tracks, doc);
+            }
             break;
         case ANIMATION_KNIGHT_RIDER:
-            parseSequenceFromJson(tracks, R"([{"targetRow":"TOP","commands":[{"command":"SOUND","stringParam":"hum.mp3"},{"command":"SET_TEXT","stringParam":"KNIGHT RIDER"},{"command":"PULSE","intParam2":10000}]},{"targetRow":"MIDDLE","commands":[{"command":"SCANNER","stringParam":"---","intParam":80,"intParam2":10000}]},{"targetRow":"BOTTOM","commands":[{"command":"SET_TEXT","stringParam":"PURSUIT MODE"},{"command":"PULSE","intParam2":10000}]}])");
+            {
+                JsonDocument doc;
+                deserializeJson(doc, R"([{"targetRow":"TOP","commands":[{"command":"SOUND","stringParam":"hum.mp3"},{"command":"SET_TEXT","stringParam":"KNIGHT RIDER"},{"command":"PULSE","intParam2":10000}]},{"targetRow":"MIDDLE","commands":[{"command":"SCANNER","stringParam":"---","intParam":80,"intParam2":10000}]},{"targetRow":"BOTTOM","commands":[{"command":"SET_TEXT","stringParam":"PURSUIT MODE"},{"command":"PULSE","intParam2":10000}]}])");
+                parseSequenceFromJson(tracks, doc);
+            }
             break;
         case ANIMATION_LOADING:
-            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3300}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":6600}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":3400}]}])");
+            {
+                JsonDocument doc;
+                deserializeJson(doc, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3300}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":6600}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":3400}]}])");
+                parseSequenceFromJson(tracks, doc);
+            }
             break;
         case ANIMATION_ERROR:
-            // --- FIX: Add a duration to MARQUEE and make more dynamic ---
-            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"SOUND", "stringParam":"error.mp3"}, {"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":2000}, {"command":"SET_TEXT", "stringParam":"ERROR"}, {"command":"PULSE", "intParam":500, "intParam2":8000}]}, {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION", "intParam2":10000}]}])");
+            {
+                JsonDocument doc;
+                deserializeJson(doc, R"([{"targetRow":0, "commands":[{"command":"SOUND", "stringParam":"error.mp3"}, {"command":"SCRAMBLE_TEXT", "stringParam":"ERROR", "intParam":100, "intParam2":2000}, {"command":"SET_TEXT", "stringParam":"ERROR"}, {"command":"PULSE", "intParam":500, "intParam2":8000}]}, {"targetRow":1, "commands":[{"command":"MARQUEE", "stringParam":"SYSTEM MALFUNCTION", "intParam2":10000}]}])");
+                parseSequenceFromJson(tracks, doc);
+            }
             break;
         case ANIMATION_FLUX_CHARGE:
-            parseSequenceFromJson(tracks, R"([{"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":5000}]}, {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam2":2000}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam2":2000}]}])");
+            {
+                JsonDocument doc;
+                deserializeJson(doc, R"([{"targetRow":2, "commands":[{"command":"SOUND", "stringParam":"flux_capacitor_power_on.mp3"}, {"command":"BAR_GRAPH", "stringParam":"CHARGE", "intParam":0, "intParam2":5000}]}, {"targetRow":0, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam2":2000}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3000}, {"command":"FLASH", "targetSegment":-1, "intParam2":2000}]}])");
+                parseSequenceFromJson(tracks, doc);
+            }
             break;
         case ANIMATION_TACHYONS:
-            parseSequenceFromJson(tracks, R"([{"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS ON", "intParam":150, "intParam2":250}, {"command":"SOUND", "stringParam":"hum.mp3"},{"command":"WAIT", "intParam":3000}]}])");
+            {
+                JsonDocument doc;
+                deserializeJson(doc, R"([{"targetRow":1, "commands":[{"command":"SCRAMBLE_TEXT", "stringParam":"TACHYONS ON", "intParam":150, "intParam2":250}, {"command":"SOUND", "stringParam":"hum.mp3"},{"command":"WAIT", "intParam":3000}]}])");
+                parseSequenceFromJson(tracks, doc);
+            }
             break;
         case ANIMATION_DATA_STREAM:
-            parseSequenceFromJson(tracks, R"([{"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}])");
+            {
+                JsonDocument doc;
+                deserializeJson(doc, R"([{"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}])");
+                parseSequenceFromJson(tracks, doc);
+            }
             break;
         case ANIMATION_WORMHOLE_COLLAPSE:
-            parseSequenceFromJson(tracks, R"([{"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "arrival_chime.mp3"}, {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "FADE_OUT", "intParam": 2000}]}, {"targetRow": 1, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 500}, {"command": "FADE_OUT", "intParam": 3000}]}, {"targetRow": 2, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 1000}, {"command": "FADE_OUT", "intParam": 3000}]}])");
+            {
+                JsonDocument doc;
+                deserializeJson(doc, R"([{"targetRow": 0, "commands": [{"command": "SOUND", "stringParam": "arrival_chime.mp3"}, {"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "FADE_OUT", "intParam": 2000}]}, {"targetRow": 1, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 500}, {"command": "FADE_OUT", "intParam": 3000}]}, {"targetRow": 2, "commands": [{"command": "RANDOM_FLICKER_TEXT", "intParam": 100, "intParam2": 3000}, {"command": "WAIT", "intParam": 1000}, {"command": "FADE_OUT", "intParam": 3000}]}])");
+                parseSequenceFromJson(tracks, doc);
+            }
             break;
 
         // Legacy C++ Generated Animations (for Randomize All)

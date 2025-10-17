@@ -11,6 +11,7 @@
 #define ANIMATION_SEQUENCES_H
 
 #include "Sequencer.h"
+#include <ArduinoJson.h>
 
 /**
  * @brief Enum to identify which built-in animation sequence to generate.
@@ -94,7 +95,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
  * @param tracks A pointer to an array of three `SequencerTrack` objects to be populated.
  * @param json_string A standard string containing the sequence definition in JSON format.
  */
-void parseSequenceFromJson(SequencerTrack tracks[3], const std::string& json_string);
+void parseSequenceFromJson(SequencerTrack tracks[3], const JsonDocument& doc);
 
 /**
  * @brief Helper function to convert an `AnimationType` enum value to its string representation.
