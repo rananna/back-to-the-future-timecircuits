@@ -7,6 +7,7 @@
  */
 
 #include <ArduinoJson.h>
+#include "AnimationTypes.h"
 #include "AnimationSequences.h"
 #include "HardwareControl.h"
 #include "DisplayManager.h"

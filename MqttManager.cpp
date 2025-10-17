@@ -17,6 +17,7 @@
 #include "web_server.h"
 #include "StockManager.h"
 #include <LittleFS.h>
+#include <HTTPClient.h>
 
 extern StockManager stockManager;
 #include "Audio.h"
@@ -58,6 +59,14 @@ int preAnimationDisplayMode = DMS_NORMAL_CLOCK; // Default to normal clock
  * @param component The HA component type (e.g., "sensor", "switch").
  * @param unique_id_suffix The unique part of the entity's ID.
  */
+/**
+ * @brief Gets the unique MQTT identifier for the device.
+ * @return A const char* pointing to the unique ID.
+ */
+const char* getMqttUniqueId() {
+    return MQTT_UNIQUE_ID;
+}
+
 void clearHaEntity(const char* component, const char* unique_id_suffix) {
     String object_id = String(MQTT_UNIQUE_ID) + "_" + unique_id_suffix;
     String topic = String(MQTT_BASE_TOPIC) + "/" + component + "/" + object_id + "/config";
@@ -111,7 +120,8 @@ std::string parsePlaylist(const char* url) {
                     while (stream->available()) {
                         String line = stream->readStringUntil('\n');
                         line.trim();
-                        if (line.toLowerCase().startsWith("file1=")) {
+                        line.toLowerCase();
+                        if (line.startsWith("file1=")) {
                             streamUrl = line.substring(6).c_str();
                             Log_printf(LOG_LEVEL_INFO, "Found PLS stream URL: %s", streamUrl.c_str());
                             break; // Use the first file entry
@@ -1580,7 +1590,7 @@ void publishMqttMessage(const std::string& topic, const std::string& payload) {
 // This prevents heap fragmentation by reusing the same memory block for all
 // incoming MQTT JSON payloads, which is critical for long-term stability.
 // The size is increased to 2048 to accommodate complex, multi-track sequences.
-static StaticJsonDocument<3072> mqttJsonDoc;
+static JsonDocument mqttJsonDoc;
 
 void handleSequencerCommand(const std::string& payload) {
     // --- REFACTORED UNIFIED LOGIC ---

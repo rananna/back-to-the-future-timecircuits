@@ -44,6 +44,7 @@ extern unsigned long lastHaDiscoveryPublish;    /**< `millis()` timestamp of the
 #define MQTT_BASE_TOPIC "homeassistant"     /**< The base topic for Home Assistant MQTT discovery. */
 #define MQTT_DEVICE_TYPE "bttf_time_circuits" /**< The device type identifier, must match the HA integration's DOMAIN. */
 extern char MQTT_UNIQUE_ID[21];             /**< The unique identifier for this device, typically derived from the MAC address. */
+const char* getMqttUniqueId();
 /** @} */
 
 
