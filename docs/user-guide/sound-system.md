@@ -86,7 +86,7 @@ The best place to find compatible streams is in public internet radio directorie
 ### What to Look For
 
 *   **Compatible Formats**: Look for stream URLs that end in `.mp3`, `.aac`, or have a port number (e.g., `http://123.45.67.89:8000/stream`).
-*   **Playlist Files (`.m3u`, `.pls`)**: Some stations provide a playlist file. You may need to open this file in a text editor to find the actual stream URL inside.
+*   **Playlist Files (`.m3u`, `.pls`)**: The firmware can automatically parse `.m3u` and `.pls` playlist files. Simply provide the URL to the playlist file, and the device will find and play the audio stream from within it.
 *   **HTTPS vs. HTTP**: The ESP32 has limited memory for handling secure connections. If a stream is available over both `http://` and `https://`, try the `http://` version first, as it is more likely to work reliably.
 
 ---

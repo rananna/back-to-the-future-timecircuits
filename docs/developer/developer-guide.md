@@ -336,3 +336,19 @@ This method is ideal for simple, declarative sequences that don't require comple
 2.  **Add JSON Case**: In `AnimationSequences.cpp`, add a `case` to the `switch` statement inside `generateAnimationSequence()`. In this case, call `parseSequenceFromJson(tracks, "...")` with your complete JSON sequence as a raw string literal.
 3.  **Add to `sequences.json`**: Add an entry for your new animation in `data/sequences.json`.
 4.  **Document**: Add the new animation to the `Built-in Animations` list in this guide.
+
+---
+
+## 🧪 Testing and Diagnostics
+
+The firmware includes a built-in diagnostic test suite to help developers and advanced users verify that the hardware and core software systems are functioning correctly.
+
+### The 'Test Suite' Animation
+
+*   **How to Run**: The test suite can be run like any other built-in animation. Select "Test Suite" from the animation dropdown in the Web UI, or send the payload `"Test Suite"` to the `.../sequencer/command` MQTT topic.
+*   **What it Tests**: This is a comprehensive, multi-track sequence designed to exercise all major components of the device simultaneously.
+    *   **Display Drivers**: It writes unique patterns to all three display rows to ensure the hardware is working.
+    *   **Sequencer Logic**: It runs a complex sequence with parallel tracks, blocking and non-blocking commands, and logic commands (e.g., `LOOP`) to validate the sequencer engine.
+    *   **Sound**: It plays a sound effect to confirm the audio hardware and filesystem are working.
+    *   **MQTT**: It publishes a test message to a debug topic (`.../debug/echo`) to verify MQTT connectivity.
+*   **Expected Outcome**: The test runs for approximately 10 seconds. Upon successful completion, all three display rows will show the message **`TESTS: PASS`**. If the device crashes, hangs, or does not display this message, it indicates a potential problem with one of the systems under test. Check the serial monitor output for more detailed error messages.
