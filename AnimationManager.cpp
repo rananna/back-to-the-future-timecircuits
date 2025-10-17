@@ -1322,7 +1322,6 @@ void handleSequencer() {
             case SEQ_CMD_SCRAMBLE_TEXT:
                 { // Scope for local variables
                     std::string text_to_scramble = step.stringParam;
-                    // --- FIX: Truncate text to display width to prevent timing bugs ---
                     if (text_to_scramble.length() > 13) {
                         text_to_scramble = text_to_scramble.substr(0, 13);
                     }
@@ -1332,28 +1331,34 @@ void handleSequencer() {
                         track.scrambleCharIndex = 0;
                         track.lastScrambleUpdate = millis();
                         track.lastScrambleLockInTime = millis();
+                        // --- REFACTOR: Calculate lock-in delay based on total duration ---
+                        if (text_to_scramble.length() > 0) {
+                            // intParam is flicker speed, intParam2 is total duration
+                            track.scrambleLockInDelay = (step.intParam2 > 0) ? (unsigned long)step.intParam2 / text_to_scramble.length() : 100;
+                        } else {
+                            track.scrambleLockInDelay = 100; // Default if string is empty
+                        }
                         track.stepInitialized = true;
                     }
 
-                    if ((unsigned)track.scrambleCharIndex >= text_to_scramble.length()) {
+                    // Overall animation completion check based on total duration (intParam2)
+                    if (commandElapsed >= (unsigned long)step.intParam2) {
                         // Animation is complete, ensure final text is displayed and advance.
                         updateDisplaySegment(step.targetRow, step.targetSegment, text_to_scramble);
                         advance_step = true;
                     } else {
-                        // Check if it's time to lock in the next character.
-                        if (millis() - track.lastScrambleLockInTime >= (unsigned long)step.intParam2) {
+                        // Check if it's time to lock in the next character based on the calculated delay.
+                        if (millis() - track.lastScrambleLockInTime >= track.scrambleLockInDelay) {
                             if ((unsigned)track.scrambleCharIndex < text_to_scramble.length()) {
                                 track.scrambleCurrentText[track.scrambleCharIndex] = text_to_scramble[track.scrambleCharIndex];
+                                track.scrambleCharIndex++;
+                                track.lastScrambleLockInTime = millis();
                             }
-                            track.scrambleCharIndex++;
-                            track.lastScrambleLockInTime = millis();
                         }
 
-                        // Check if it's time to update the flickering characters.
+                        // Check if it's time to update the flickering characters based on flicker speed (intParam).
                         if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
-                            // Build the string to display, starting with the current locked-in state.
                             std::string temp_scramble = track.scrambleCurrentText;
-                            // Scramble the characters that haven't been locked in yet.
                             for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
                                 temp_scramble[j] = (char)random(33, 126);
                             }
