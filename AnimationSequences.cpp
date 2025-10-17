@@ -12,6 +12,7 @@
 #include "DisplayManager.h"
 #include "DebugLog.h"
 #include "EventManager.h"
+#include "MqttManager.h"
 #include <Arduino.h>
 #include <string>
 #include <stdlib.h>
@@ -1149,6 +1150,7 @@ const char* animationTypeToString(AnimationType type) {
         case ANIMATION_COUNTDOWN: return "Countdown";
         case ANIMATION_SYSTEM_ERROR: return "System Error";
         case ANIMATION_TIME_CIRCUITS_LOCK_IN: return "Time Circuits Lock-In";
+        case ANIMATION_TEST_SUITE: return "Test Suite";
         default: return "Unknown Animation";
     }
 }
@@ -1316,6 +1318,63 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
     s2 = add_step(tracks[2], s2, SEQ_CMD_CROSSFADE_TEXT, 2, -1, 2000, 0, time_strings[2]);
 }
 
+/**
+ * @brief Generates a comprehensive, non-visual test suite for core firmware functions.
+ * @details This special animation is a diagnostic tool. It runs a series of tests in parallel
+ * across the three sequencer tracks to validate different subsystems.
+ * - **Track 0 (Display & Visuals):** Cycles through a battery of visual effects (`WIPE`, `SCANNER`,
+ *   `SCRAMBLE_TEXT`, etc.) to stress-test the display drivers and animation command handlers.
+ *   It finishes by displaying the final test status.
+ * - **Track 1 (Logic & Comms):** Tests sequencer logic (`LOOP`, `WAIT`) and communication by
+ *   publishing MQTT messages at the start and end of the test. This allows for external
+ *   verification of the test's execution.
+ * - **Track 2 (Sound & System):** Tests the sound system by playing an effect and then uses an
+ *   MQTT command to request a heap memory log, which helps in monitoring for memory leaks.
+ * Upon completion, the top row will display "TESTS: PASS" or "TESTS: FAIL".
+ * @param tracks The array of three sequencer tracks to populate.
+ */
+void generateTestSuite(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+    const char* mqtt_device_id = getMqttUniqueId();
+    char start_topic[128], end_topic[128], heap_topic[128];
+    snprintf(start_topic, sizeof(start_topic), "bttf_time_circuits/%s/debug/test_suite", mqtt_device_id);
+    snprintf(end_topic, sizeof(end_topic), "bttf_time_circuits/%s/debug/test_suite", mqtt_device_id);
+    snprintf(heap_topic, sizeof(heap_topic), "bttf_time_circuits/%s/debug/command", mqtt_device_id);
+
+    // --- Track 1: Core Logic & MQTT Communication Test ---
+    s1 = add_step(tracks[1], s1, SEQ_CMD_MQTT_PUBLISH, 1, 0, 0, 0, start_topic, "start");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 2, 0); // Loop twice
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 250, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 11000, 0); // Wait for other tracks to finish
+    s1 = add_step(tracks[1], s1, SEQ_CMD_MQTT_PUBLISH, 1, 0, 0, 0, end_topic, "pass");
+
+    // --- Track 2: Sound & Memory Test ---
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SOUND, 2, 0, 0, 0, "arrival_chime.mp3");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_MQTT_PUBLISH, 2, 0, 0, 0, heap_topic, "heap");
+
+    // --- Track 0: Display Driver & Visual Effects Test ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TEST SUITE...");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 50, 0, "WIPE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCANNER, 0, -1, 1000, 80, "S");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 75, 0, "TYPEWRITER");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 150, "SCRAMBLE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 1000, 0, "PULSE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1000, 0, "FLASH");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 1000, "BAR");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TESTS: PASS");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 500, 0);
+}
+
 
 // --- Main Generation Function ---
 
@@ -1477,6 +1536,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_COUNTDOWN:               generateCountdown(tracks); break;
         case ANIMATION_SYSTEM_ERROR:            generateSystemError(tracks); break;
         case ANIMATION_TIME_CIRCUITS_LOCK_IN:   generateTimeCircuitsLockIn(tracks, time_strings); break;
+        case ANIMATION_TEST_SUITE:              generateTestSuite(tracks); break;
 
         // Default case
         default:

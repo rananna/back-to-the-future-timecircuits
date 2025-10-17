@@ -56,6 +56,7 @@ enum AnimationType {
     ANIMATION_SYSTEM_ERROR,
     ANIMATION_TIME_CIRCUITS_LOCK_IN,
     ANIMATION_INTRUDER_ALERT,
+    ANIMATION_TEST_SUITE,
 
     // --- Named Sequences from UI (defined in sequences.json) ---
     ANIMATION_TIME_TRAVEL,
