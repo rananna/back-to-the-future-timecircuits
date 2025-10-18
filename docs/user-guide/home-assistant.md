@@ -132,6 +132,17 @@ This advanced blueprint allows you to control all three display rows independent
 
 ---
 
+### **New in Blueprints: Flexible Audio Output**
+All blueprints that support streaming audio from Home Assistant now include an **`Audio Output`** selector. This powerful feature allows you to route the sound to any `media_player` in your home, not just the Time Circuits clock's built-in speaker.
+
+*   **How it works:**
+    *   If you leave the `Audio Output` selector blank, audio will play on the Time Circuits device by default.
+    *   If you select a different speaker (e.g., a Google Home or Sonos), the sound will play there instead.
+
+*   **Example Use Case**: Run a countdown on the Time Circuits display, but have the final "LIFTOFF!" sound play on a loud speaker in your living room for maximum effect.
+
+---
+
 ## 🎮 Core Entities & Controls
 
 The integration creates a device with a rich set of entities. You can use these in your own automations if you prefer not to use the blueprints.
