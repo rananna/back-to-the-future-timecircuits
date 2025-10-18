@@ -126,9 +126,9 @@ void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings
     std::string pres_str = std::string(time_strings[1]).substr(0, num_chars);
     std::string last_str = std::string(time_strings[2]).substr(0, num_chars);
 
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, lock_in_interval, dest_str.c_str());
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, flicker_interval, lock_in_interval, pres_str.c_str());
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, lock_in_interval, last_str.c_str());
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, total_duration, dest_str.c_str());
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, flicker_interval, total_duration, pres_str.c_str());
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, flicker_interval, total_duration, last_str.c_str());
 }
 
 /**
