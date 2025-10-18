@@ -95,7 +95,7 @@ blueprint:
     # ----------------------------------------------------------------
     duration:
       name: "Display Duration (s)"
-      description: "Shared duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', and 'Typewriter' effects across all active rows. This ensures timed effects stay in sync."
+      description: "Shared duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', 'Typewriter', and 'Random Flicker' effects across all active rows. This ensures timed effects stay in sync."
       default: 10
       selector:
         number: { min: 1, max: 60, unit_of_measurement: "s" }
@@ -252,8 +252,8 @@ sequence:
               {%- endif -%}
               {%- set core_commands = core_commands + [visual_command] -%}
 
-              {# --- STEP 3: For static effects, add a WAIT command to control duration. --- #}
-              {%- if row.effect not in self_timing_effects and row.effect not in timed_effects and row.effect != 'TYPEWRITER' -%}
+              {# --- STEP 3: For static or non-blocking effects, add a WAIT command to control duration. --- #}
+              {%- if row.effect == 'RANDOM_FLICKER_TEXT' or (row.effect not in self_timing_effects and row.effect not in timed_effects and row.effect != 'TYPEWRITER') -%}
                 {%- set wait_duration = (dur * 1000) | int -%}
                 {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
               {%- endif -%}
