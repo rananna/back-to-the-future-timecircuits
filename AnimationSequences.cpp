@@ -69,22 +69,69 @@ static int add_intro_sound_steps(SequencerTrack& track, int step_idx) {
 // --- Individual Animation Generators ---
 
 /**
- * @brief Generates a complex, layered glitch effect with independent flickering on each row.
- * @details This animation uses three parallel tracks, one for each display row. Each track
- * runs its own loop, flickering its assigned row for a random duration and then waiting
- * for a random duration. This creates a chaotic, desynchronized flickering effect that
- * is much more visually interesting than a single-track random flicker.
+ * @brief Generates a dynamic, multi-stage random flicker and glitch animation.
+ * @details This function creates a complex, 10-second animation that evolves through
+ * several distinct phases to create a more visually interesting effect. It uses three
+ * parallel tracks to build from subtle flickers to a chaotic crescendo and finally
+ * a burnout phase.
+ * - **Phase 1 (0-2s):** Subtle, sparse flickers to build anticipation.
+ * - **Phase 2 (2-5s):** Builds chaos with faster, desynchronized glitch effects.
+ * - **Phase 3 (5-8s):** Peak intensity with high-energy, parallel flashes and scrambles.
+ * - **Phase 4 (8-10s):** A "burnout" phase where the effect sputters out.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateRandomFlicker(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
+    const char* glitch_chars = "!@#$()^&*";
+    const char* solid_block = "|||||||||||||";
 
-    // --- FIX: Run flicker for a fixed 10-second duration on all tracks ---
-    // This ensures a consistent animation length and simplifies the logic.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
+    // --- Phase 1: Subtle Introduction (0-2 seconds) ---
+    // Track 0: A few sparse flickers on the top row.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 500, 150, " . ' ");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1500, 0);
+
+    // Track 1: A delayed, sparse flicker on the bottom row.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 500, 150, " . ' ");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 500, 0);
+
+    // --- Phase 2: Building Chaos (2-5 seconds) ---
+    // Track 0: Wipes glitchy characters across the top row.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 100, 0, glitch_chars);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 1500, 80, glitch_chars);
+
+    // Track 1: Scrolls glitchy characters on the bottom row, opposite direction.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCROLL_IN, 2, -1, 100, 0, glitch_chars);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 1500, 80, glitch_chars);
+
+    // Track 2: Pulses the middle row with an alert-like message.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 2000, 0); // Wait for phase 1
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 1, -1, 3000, 1000, "SYSTEM FAULT");
+
+    // --- Phase 3: Peak Intensity (5-8 seconds) ---
+    // Track 0: Intense, solid block flickers on the top row.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 3000, 50, solid_block);
+
+    // Track 1: Rapid flashes on the bottom row.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 2, -1, 3000, 0);
+
+    // Track 2: Scrambles and reveals a critical error message on the middle row.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 200, "CRITICAL");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+
+    // --- Phase 4: Burnout (8-10 seconds) ---
+    // All tracks converge here after their 8-second mark.
+    // Clear top and bottom rows.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, -1, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_CLEAR_SEGMENT, 2, -1, 0, 0);
+
+    // Track 2: Hold the "CRITICAL" message, then fade it out.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "CRITICAL");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_OUT, 1, -1, 1000, 0);
 }
 
 /**
