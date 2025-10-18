@@ -71,10 +71,10 @@ blueprint:
             - { label: "Random Flicker (Flickers characters randomly)", value: "RANDOM_FLICKER_TEXT" }
     end_text_duration:
       name: "End Text Display Duration (s)"
-      description: "Set the display duration for 'Set Text', 'Pulse', and 'Flash' effects. Other effects are self-timing."
+      description: "Set the display duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', and 'Typewriter' effects. Other effects are self-timing."
       default: 5
       selector:
-        number: { min: 1, max: 300, unit_of_measurement: "s" }
+        number: { min: 1, max: 60, unit_of_measurement: "s" }
     end_text_marquee_speed:
       name: "End Text Marquee Speed (ms)"
       description: "Set the scroll speed for the marquee effect. Lower is faster."
@@ -129,6 +129,7 @@ blueprint:
     audio_output_player:
       name: "[Advanced] Audio Output Override"
       description: "Optional: Select a different media player for audio output. If left blank, the audio will play on the Time Circuits device itself."
+      default: ""
       selector:
         entity:
           domain: media_player
@@ -203,8 +204,8 @@ sequence:
             Define which effects are self-blocking (run until complete) vs. timed (run for a set duration).
             This determines whether we need to add a `WAIT` command.
           -#}
-          {%- set blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'RANDOM_FLICKER_TEXT'] -%}
-          {%- set timed_effects = ['PULSE', 'FLASH'] -%}
+          {%- set self_timing_effects = ['MARQUEE', 'RANDOM_FLICKER_TEXT'] -%}
+          {%- set timed_effects = ['PULSE', 'FLASH', 'SCRAMBLE_TEXT'] -%}
           {%- set end_commands = [] -%}
 
           {# --- STEP 1: Build the end text command(s) --- #}
@@ -216,9 +217,13 @@ sequence:
             {%- if end_effect == 'MARQUEE' -%}
               {%- set end_text_cmd = dict(end_text_cmd, intParam=end_m_speed | int) -%}
             {%- elif end_effect == 'RANDOM_FLICKER_TEXT' -%}
-              {%- set end_text_cmd = dict(end_text_cmd, intParam=end_f_speed | int) -%}
+              {%- set end_text_cmd = dict(end_text_cmd, intParam=end_f_speed | int, intParam2=(end_dur * 1000) | int) -%}
+            {%- elif end_effect == 'TYPEWRITER' -%}
+              {#- For Typewriter, calculate the delay per character to match the total duration. Min delay of 20ms. -#}
+              {%- set char_delay = ([((end_dur * 1000) / (end_txt | length)), 20] | max) | int -%}
+              {%- set end_text_cmd = dict(end_text_cmd, intParam=char_delay) -%}
             {%- elif end_effect in timed_effects -%}
-              {#- For timed effects like PULSE/FLASH, `intParam2` controls the total duration. -#}
+              {#- For timed effects, `intParam2` controls the total duration. -#}
               {%- set end_text_cmd = dict(end_text_cmd, intParam2=(end_dur * 1000) | int) -%}
             {%- endif -%}
             {%- set end_commands = end_commands + [end_text_cmd] -%}
@@ -227,7 +232,7 @@ sequence:
               For static effects like `SET_TEXT`, we must add a `WAIT` command to control
               how long the text stays on screen. Without this, it would be replaced instantly.
             -#}
-            {%- if end_effect not in blocking_effects and end_effect not in timed_effects -%}
+            {%- if end_effect not in self_timing_effects and end_effect not in timed_effects and end_effect != 'TYPEWRITER' -%}
               {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': (end_dur * 1000) | int}] -%}
             {%- endif -%}
           {%- endif -%}
@@ -315,4 +320,4 @@ sequence:
               entity_id: "{{ target_player }}"
             data:
               media_content_id: !input media_file
-              media_content_type: "audio/mpeg"
+              media_content_type: "music"

@@ -95,10 +95,10 @@ blueprint:
     # ----------------------------------------------------------------
     duration:
       name: "Display Duration (s)"
-      description: "Shared duration for 'Set Text', 'Pulse', and 'Flash' effects across all active rows. This ensures timed effects stay in sync."
+      description: "Shared duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', and 'Typewriter' effects across all active rows. This ensures timed effects stay in sync."
       default: 10
       selector:
-        number: { min: 1, max: 300, unit_of_measurement: "s" }
+        number: { min: 1, max: 60, unit_of_measurement: "s" }
     marquee_speed:
       name: "Marquee Speed (ms)"
       description: "Shared scroll speed for the marquee effect on any row. Lower is faster."
@@ -158,6 +158,7 @@ blueprint:
     audio_output_player:
       name: "[Advanced] Audio Output Override"
       description: "Optional: Select a different media player for audio output. If left blank, the audio will play on the Time Circuits device itself."
+      default: ""
       selector:
         entity:
           domain: media_player
@@ -225,8 +226,8 @@ sequence:
             Define which effects are self-blocking (run until complete) vs. timed (run for a set duration).
             This determines whether we need to add a `WAIT` command.
           -#}
-          {%- set blocking_effects = ['MARQUEE', 'TYPEWRITER', 'SCRAMBLE_TEXT', 'RANDOM_FLICKER_TEXT'] -%}
-          {%- set timed_effects = ['PULSE', 'FLASH'] -%}
+          {%- set self_timing_effects = ['MARQUEE', 'RANDOM_FLICKER_TEXT'] -%}
+          {%- set timed_effects = ['PULSE', 'FLASH', 'SCRAMBLE_TEXT'] -%}
 
           {# --- STEP 1: Loop through each row's configuration data --- #}
           {%- for row in row_data -%}
@@ -240,15 +241,19 @@ sequence:
               {%- if row.effect == 'MARQUEE' -%}
                 {%- set visual_command = dict(visual_command, intParam=m_speed | int) -%}
               {%- elif row.effect == 'RANDOM_FLICKER_TEXT' -%}
-                {%- set visual_command = dict(visual_command, intParam=f_speed | int) -%}
+                {%- set visual_command = dict(visual_command, intParam=f_speed | int, intParam2=(dur * 1000) | int) -%}
+              {%- elif row.effect == 'TYPEWRITER' -%}
+                {#- For Typewriter, calculate the delay per character to match the total duration. Min delay of 20ms. -#}
+                {%- set char_delay = ([((dur * 1000) / (row.text | length)), 20] | max) | int -%}
+                {%- set visual_command = dict(visual_command, intParam=char_delay) -%}
               {%- elif row.effect in timed_effects -%}
-                {#- Pulse and Flash use `intParam2` for their total duration. -#}
+                {#- For timed effects, `intParam2` controls the total duration. -#}
                 {%- set visual_command = dict(visual_command, intParam2=(dur * 1000) | int) -%}
               {%- endif -%}
               {%- set core_commands = core_commands + [visual_command] -%}
 
               {# --- STEP 3: For static effects, add a WAIT command to control duration. --- #}
-              {%- if row.effect not in blocking_effects and row.effect not in timed_effects -%}
+              {%- if row.effect not in self_timing_effects and row.effect not in timed_effects and row.effect != 'TYPEWRITER' -%}
                 {%- set wait_duration = (dur * 1000) | int -%}
                 {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
               {%- endif -%}
@@ -313,4 +318,4 @@ sequence:
               entity_id: "{{ target_player }}"
             data:
               media_content_id: !input media_file
-              media_content_type: "audio/mpeg"
+              media_content_type: "music"
