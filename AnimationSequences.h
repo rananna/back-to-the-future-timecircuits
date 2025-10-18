@@ -47,4 +47,7 @@ void parseSequenceFromJson(SequencerTrack tracks[3], JsonDocument& doc);
  */
 const char* animationTypeToString(AnimationType type);
 
+// Generator function for the Knight Rider animation
+void generateKnightRider(SequencerTrack tracks[3]);
+
 #endif // ANIMATION_SEQUENCES_H

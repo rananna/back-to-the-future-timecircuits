@@ -988,6 +988,70 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
  * sequential animation.
  * @param tracks The array of three sequencer tracks to populate.
  */
+/**
+ * @brief Generates a dynamic, multi-stage KITT-style scanner animation.
+ * @details This function creates a more engaging "Knight Rider" sequence that tells a story.
+ * It features an activation sequence, a dynamic scanning phase with scrolling status text,
+ * and a shutdown phase, using three parallel tracks for a rich visual experience.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
+void generateKnightRider(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // --- Stage 1: Activation (0-2 seconds) ---
+    // Play the iconic sound
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "hum.mp3");
+
+    // Top row: Display "KNIGHT RIDER"
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "KNIGHT RIDER");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FADE_IN, 0, -1, 1000, 0);
+
+    // Middle row: Display "K.I.T.T. ENGAGED"
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 500, 0); // Stagger the text
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "K.I.T.T. ENGAGED");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FADE_IN, 1, -1, 1000, 0);
+
+    // Bottom row: A quick visual flourish
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WIPE, 2, -1, 50, 0, "---");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_CLEAR_SEGMENT, 2, -1, 0, 0);
+
+    // Sync all tracks at the 2-second mark
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 350, 0);
+
+    // --- Stage 2: Dynamic Scanning (2-8 seconds) ---
+    // Top row: Scroll a longer status message
+    s0 = add_step(tracks[0], s0, SEQ_CMD_MARQUEE, 0, -1, 150, 6000, "AUTONOMOUS SURVEILLANCE MODE");
+
+    // Middle row: The iconic scanner
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 6000, 80, "---");
+
+    // Bottom row: Cycle through different status messages
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 3, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "SCANNING...");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "SEARCHING...");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
+
+    // --- Stage 3: Wind-down (8-10 seconds) ---
+    // Sync all tracks at the 8-second mark
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 0, 0);
+
+    // Fade out the scanner and text
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FADE_OUT, 0, -1, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FADE_OUT, 1, -1, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_OUT, 2, -1, 1000, 0);
+
+    // Display final message
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "STANDBY");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+}
+
 void generateIntruderAlert(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
@@ -1513,13 +1577,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
                 parseSequenceFromJson(tracks, doc);
             }
             break;
-        case ANIMATION_KNIGHT_RIDER:
-            {
-                JsonDocument doc;
-                deserializeJson(doc, R"([{"targetRow":"TOP","commands":[{"command":"SOUND","stringParam":"hum.mp3"},{"command":"SET_TEXT","stringParam":"KNIGHT RIDER"},{"command":"PULSE","intParam2":10000}]},{"targetRow":"MIDDLE","commands":[{"command":"SCANNER","stringParam":"---","intParam":80,"intParam2":10000}]},{"targetRow":"BOTTOM","commands":[{"command":"SET_TEXT","stringParam":"PURSUIT MODE"},{"command":"PULSE","intParam2":10000}]}])");
-                parseSequenceFromJson(tracks, doc);
-            }
-            break;
+        case ANIMATION_KNIGHT_RIDER:          generateKnightRider(tracks); break;
         case ANIMATION_LOADING:
             {
                 JsonDocument doc;
