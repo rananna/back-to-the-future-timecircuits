@@ -1052,6 +1052,52 @@ void generateKnightRider(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
 }
 
+/**
+ * @brief Generates a dynamic data stream animation with parallel effects.
+ * @details This function creates a multi-track, 10-second animation that tells a story
+ * of a data transfer process.
+ * - **Track 0 (Top Row):** Displays a fast-moving stream of random hexadecimal characters
+ *   to simulate a raw data feed.
+ * - **Track 1 (Middle Row):** Shows a sequence of status updates ("CONNECTING", "STREAMING",
+ *   "VERIFIED") that scramble and resolve, adding a high-tech feel.
+ * - **Track 2 (Bottom Row):** Features a `BAR_GRAPH` that fills up over the duration,
+ *   representing the progress of the data transfer, with "DATA LINK" overlaid.
+ * The parallel tracks create a visually rich and engaging data-themed animation.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
+void generateDataStream(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+    const char* hex_chars = "0123456789ABCDEF";
+
+    // --- Track 0: Raw Data Feed (Top Row) ---
+    // Loop 100 times, wiping a new set of random hex characters every 100ms.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 100, 0);
+    char random_hex[14];
+    for(int i=0; i<13; ++i) { random_hex[i] = hex_chars[random(16)]; }
+    random_hex[13] = '\0';
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 10, 0, random_hex);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 90, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+
+    // --- Track 1: Status Updates (Middle Row) ---
+    // Scramble "CONNECTING..." (2s)
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 150, "CONNECTING...");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0); // Hold for 1s
+    // Scramble "STREAMING..." (2s)
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 150, "STREAMING...");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 3000, 0); // Hold for 3s
+    // Scramble "VERIFIED" (1s)
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 125, "VERIFIED");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 2000, 0); // Pulse final status
+
+    // --- Track 2: Progress Bar (Bottom Row) ---
+    // A bar graph that fills up over 9.5 seconds.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 100, 9500, "DATA LINK");
+    // A final flash to signify completion.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 500, 0);
+}
+
 void generateIntruderAlert(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
@@ -1606,13 +1652,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
                 parseSequenceFromJson(tracks, doc);
             }
             break;
-        case ANIMATION_DATA_STREAM:
-            {
-                JsonDocument doc;
-                deserializeJson(doc, R"([{"targetRow":0, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":1, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}, {"targetRow":2, "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":50, "intParam2":10000}]}])");
-                parseSequenceFromJson(tracks, doc);
-            }
-            break;
+        case ANIMATION_DATA_STREAM:             generateDataStream(tracks); break;
         case ANIMATION_WORMHOLE_COLLAPSE:
             {
                 JsonDocument doc;
