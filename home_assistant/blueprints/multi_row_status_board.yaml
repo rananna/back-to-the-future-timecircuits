@@ -99,12 +99,6 @@ blueprint:
       default: 10
       selector:
         number: { min: 1, max: 60, unit_of_measurement: "s" }
-    marquee_speed:
-      name: "Marquee Speed (ms)"
-      description: "Shared scroll speed for the marquee effect on any row. Lower is faster."
-      default: 100
-      selector:
-        number: { min: 20, max: 1000, unit_of_measurement: "ms" }
     flicker_speed:
       name: "Flicker Speed (ms)"
       description: "Shared speed for the 'Random Flicker' effect on any row. Lower is faster."
@@ -178,7 +172,6 @@ variables:
   # --- Collect all user inputs into variables for easier use ---
   device: !input device
   duration: !input duration
-  marquee_speed: !input marquee_speed
   flicker_speed: !input flicker_speed
   audio_source: !input audio_source
   sound_effect: !input sound_effect
@@ -219,7 +212,7 @@ sequence:
           for each row that has text defined. This allows all three rows to animate in parallel.
           The final output is a JSON array of these track objects.
         -#}
-        {%- macro generate_row_payload(row_data, dur, m_speed, f_speed, restore) -%}
+        {%- macro generate_row_payload(row_data, dur, f_speed, restore) -%}
           {#- A namespace is used to hold the list of tracks as it's built. -#}
           {%- set ns = namespace(tracks=[]) -%}
           {#-
@@ -237,7 +230,11 @@ sequence:
                 This block determines the correct command sequence and parameters for the selected effect
                 based on the firmware's requirements.
               -#}
-              {%- if row.effect == 'RANDOM_FLICKER_TEXT' -%}
+              {%- if row.effect == 'SET_TEXT' -%}
+                {%- set core_commands = core_commands + [{'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': row.text}] -%}
+                {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': (dur * 1000)}] -%}
+
+              {%- elif row.effect == 'RANDOM_FLICKER_TEXT' -%}
                 {#- This is a non-blocking effect that requires two steps: set the text, then flicker it. -#}
                 {%- set set_text_cmd = {'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': row.text} -%}
                 {%- set flicker_cmd = {'command': 'RANDOM_FLICKER_TEXT', 'targetSegment': -1, 'stringParam': "", 'intParam': f_speed, 'intParam2': (dur * 1000)} -%}
@@ -251,29 +248,24 @@ sequence:
                 {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
                 {%- set core_commands = core_commands + [scramble_cmd, wait_cmd] -%}
 
-              {%- else -%}
-                {#- Logic for all other effects. -#}
-                {%- set self_timing_effects = ['MARQUEE', 'TYPEWRITER'] -%}
-                {%- set timed_effects = ['PULSE', 'FLASH'] -%}
-                {%- set visual_command = {'command': row.effect, 'targetSegment': -1, 'stringParam': row.text} -%}
+              {%- elif row.effect == 'TYPEWRITER' -%}
+                {#- This is a blocking effect. `intParam` is the delay per character. -#}
+                {%- set char_delay = ([((dur * 1000) / (row.text | length)), 20] | max) | int -%}
+                {%- set typewriter_cmd = {'command': 'TYPEWRITER', 'targetSegment': -1, 'stringParam': row.text, 'intParam': char_delay} -%}
+                {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
+                {%- set core_commands = core_commands + [typewriter_cmd, wait_cmd] -%}
 
-                {%- if row.effect == 'MARQUEE' -%}
-                  {%- set visual_command = dict(visual_command, intParam=m_speed | int) -%}
-                {%- elif row.effect == 'TYPEWRITER' -%}
-                  {%- set char_delay = ([((dur * 1000) / (row.text | length)), 20] | max) | int -%}
-                  {%- set typewriter_cmd = dict(visual_command, intParam=char_delay) -%}
-                  {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
-                  {%- set core_commands = core_commands + [typewriter_cmd, wait_cmd] -%}
-                {%- elif row.effect in timed_effects -%}
-                  {%- set visual_command = dict(visual_command, intParam2=(dur * 1000) | int) -%}
-                {%- endif -%}
-                {%- set core_commands = core_commands + [visual_command] -%}
+              {%- elif row.effect == 'MARQUEE' -%}
+                {#- This is a blocking effect. `intParam` is the scroll speed per step. -#}
+                {%- set scroll_distance = 13 + (row.text | length) -%}
+                {%- set scroll_speed = ([((dur * 1000) / scroll_distance), 20] | max) | int -%}
+                {%- set marquee_cmd = {'command': 'MARQUEE', 'targetSegment': -1, 'stringParam': row.text, 'intParam': scroll_speed} -%}
+                {%- set core_commands = core_commands + [marquee_cmd] -%}
 
-                {#- Add a WAIT command for any effect that isn't self-timing. -#}
-                {%- if row.effect not in self_timing_effects and row.effect not in timed_effects and row.effect != 'TYPEWRITER' -%}
-                  {%- set wait_duration = (dur * 1000) | int -%}
-                  {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
-                {%- endif -%}
+              {%- elif row.effect == 'PULSE' or row.effect == 'FLASH' -%}
+                {#- These are blocking effects. `intParam2` is the total duration. -#}
+                {%- set effect_cmd = {'command': row.effect, 'targetSegment': -1, 'stringParam': row.text, 'intParam2': (dur * 1000)} -%}
+                {%- set core_commands = core_commands + [effect_cmd] -%}
               {%- endif -%}
 
               {# --- STEP 4: Add the restore command if requested --- #}
@@ -304,7 +296,7 @@ sequence:
           {{- ns.tracks | to_json -}}
         {%- endmacro -%}
         {#- Call the macro with all the relevant inputs to generate the final payload. -#}
-        {{- generate_row_payload(rows_data, duration, marquee_speed, flicker_speed, restore_rows) -}}
+        {{- generate_row_payload(rows_data, duration, flicker_speed, restore_rows) -}}
 
   # Parallel Action: Handle streaming audio from Home Assistant.
   - choose:

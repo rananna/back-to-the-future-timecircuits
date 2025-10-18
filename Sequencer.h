@@ -186,6 +186,7 @@ struct SequencerTrack {
 
     // --- State for Marquee (Scrolling Text) Effect ---
     bool isMarqueeActive = false;       /**< True if a marquee effect is in progress. */
+    int marqueeSpeed = 120;             /**< The scroll speed in ms for this track's marquee. */
     std::string marqueeText;            /**< The full text being scrolled. */
     int marqueeScrollPosition = 0;      /**< The current horizontal scroll position. */
     unsigned long lastMarqueeScrollTime = 0; /**< `millis()` timestamp of the last scroll update. */
@@ -261,6 +262,7 @@ struct SequencerTrack {
         loopCounter = 0;
 
         isMarqueeActive = false;
+        marqueeSpeed = 120; // Default scroll speed
         marqueeText.clear();
         marqueeScrollPosition = 0;
         lastMarqueeScrollTime = 0;

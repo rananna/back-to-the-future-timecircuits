@@ -101,12 +101,6 @@ blueprint:
       default: 10
       selector:
         number: { min: 1, max: 60, unit_of_measurement: "s" }
-    marquee_speed:
-      name: "Marquee Speed (ms)"
-      description: "Set the scroll speed for the marquee effect. Lower is faster."
-      default: 100
-      selector:
-        number: { min: 20, max: 1000, unit_of_measurement: "ms" }
     flicker_speed:
       name: "Flicker Speed (ms)"
       description: "Set the speed for the 'Random Flicker' effect. Lower is faster."
@@ -198,7 +192,6 @@ variables:
   postfix: !input postfix
   effect: !input effect
   duration: !input duration
-  marquee_speed: !input marquee_speed
   flicker_speed: !input flicker_speed
   audio_source: !input audio_source
   sound_effect: !input sound_effect
@@ -257,7 +250,7 @@ sequence:
           then wraps them in a track structure targeting the selected display row(s).
           The final output is a JSON array of "track" objects.
         -#}
-        {%- macro generate_sequence_payload(target, effect_type, text, dur, m_speed, f_speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
+        {%- macro generate_sequence_payload(target, effect_type, text, dur, f_speed, restore, sound, sound_vol, repeat_count, audio_src) -%}
           {#- A namespace is used to hold the list of tracks as it's built. -#}
           {%- set ns = namespace(tracks=[]) -%}
           {%- set core_commands = [] -%}
@@ -270,7 +263,11 @@ sequence:
             This block determines the correct command sequence and parameters for the selected effect
             based on the firmware's requirements.
           -#}
-          {%- if effect_type == 'RANDOM_FLICKER_TEXT' -%}
+          {%- if effect_type == 'SET_TEXT' -%}
+            {%- set core_commands = core_commands + [{'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': text}] -%}
+            {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': (dur * 1000)}] -%}
+
+          {%- elif effect_type == 'RANDOM_FLICKER_TEXT' -%}
             {#- This is a non-blocking effect that requires two steps: set the text, then flicker it. -#}
             {%- set set_text_cmd = {'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': text} -%}
             {%- set flicker_cmd = {'command': 'RANDOM_FLICKER_TEXT', 'targetSegment': -1, 'stringParam': "", 'intParam': f_speed, 'intParam2': (dur * 1000)} -%}
@@ -284,29 +281,24 @@ sequence:
             {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
             {%- set core_commands = core_commands + [scramble_cmd, wait_cmd] -%}
 
-          {%- else -%}
-            {#- Logic for all other effects. -#}
-            {%- set self_timing_effects = ['MARQUEE', 'TYPEWRITER'] -%}
-            {%- set timed_effects = ['PULSE', 'FLASH'] -%}
-            {%- set visual_command = {'command': effect_type, 'targetSegment': -1, 'stringParam': text} -%}
+          {%- elif effect_type == 'TYPEWRITER' -%}
+            {#- This is a blocking effect. `intParam` is the delay per character. -#}
+            {%- set char_delay = ([((dur * 1000) / (text | length)), 20] | max) | int -%}
+            {%- set typewriter_cmd = {'command': 'TYPEWRITER', 'targetSegment': -1, 'stringParam': text, 'intParam': char_delay} -%}
+            {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
+            {%- set core_commands = core_commands + [typewriter_cmd, wait_cmd] -%}
 
-            {%- if effect_type == 'MARQUEE' -%}
-              {%- set visual_command = dict(visual_command, intParam=m_speed | int) -%}
-            {%- elif effect_type == 'TYPEWRITER' -%}
-              {%- set char_delay = ([((dur * 1000) / (text | length)), 20] | max) | int -%}
-              {%- set typewriter_cmd = dict(visual_command, intParam=char_delay) -%}
-              {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
-              {%- set core_commands = core_commands + [typewriter_cmd, wait_cmd] -%}
-            {%- elif effect_type in timed_effects -%}
-              {%- set visual_command = dict(visual_command, intParam2=(dur * 1000) | int) -%}
-            {%- endif -%}
-            {%- set core_commands = core_commands + [visual_command] -%}
+          {%- elif effect_type == 'MARQUEE' -%}
+            {#- This is a blocking effect. `intParam` is the scroll speed per step. -#}
+            {%- set scroll_distance = 13 + (text | length) -%}
+            {%- set scroll_speed = ([((dur * 1000) / scroll_distance), 20] | max) | int -%}
+            {%- set marquee_cmd = {'command': 'MARQUEE', 'targetSegment': -1, 'stringParam': text, 'intParam': scroll_speed} -%}
+            {%- set core_commands = core_commands + [marquee_cmd] -%}
 
-            {#- Add a WAIT command for any effect that isn't self-timing. -#}
-            {%- if effect_type not in self_timing_effects and effect_type not in timed_effects and effect_type != 'TYPEWRITER' -%}
-              {%- set wait_duration = (dur * 1000) | int -%}
-              {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
-            {%- endif -%}
+          {%- elif effect_type == 'PULSE' or effect_type == 'FLASH' -%}
+            {#- These are blocking effects. `intParam2` is the total duration. -#}
+            {%- set effect_cmd = {'command': effect_type, 'targetSegment': -1, 'stringParam': text, 'intParam2': (dur * 1000)} -%}
+            {%- set core_commands = core_commands + [effect_cmd] -%}
           {%- endif -%}
 
           {# --- STEP 3: Wrap the core commands in a loop if requested --- #}
@@ -346,7 +338,7 @@ sequence:
           {{- ns.tracks | to_json -}}
         {%- endmacro -%}
         {#- Call the macro with all the user inputs and the derived `final_text` to generate the payload. -#}
-        {{- generate_sequence_payload(target_row, effect, final_text, duration, marquee_speed, flicker_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
+        {{- generate_sequence_payload(target_row, effect, final_text, duration, flicker_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
 
   # Parallel Action: Handle streaming audio from Home Assistant.
   - choose:
