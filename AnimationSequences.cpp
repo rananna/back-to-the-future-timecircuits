@@ -1086,7 +1086,7 @@ void generateDataStream(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0); // Hold for 1s
     // Scramble "STREAMING..." (2s)
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 150, "STREAMING...");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 3000, 0); // Hold for 3s
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2000, 0); // Hold for 2s
     // Scramble "VERIFIED" (1s)
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 125, "VERIFIED");
     s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 2000, 0); // Pulse final status
