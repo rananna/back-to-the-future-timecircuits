@@ -1058,9 +1058,9 @@ void generateIntruderAlert(SequencerTrack tracks[3]) {
     // --- Track 0 (Top): Flashing Alert Text & Sound ---
     // Play the alarm sound immediately.
     s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "alarm.mp3");
-    // Set the text and make it flash for 10 seconds. A 500ms cycle (250 on, 250 off).
+    // Set the text and keep it visible for the entire 10-second animation.
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "INTRUDER ALERT");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 10000, 500);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 10000, 0);
 
     // --- Track 1 (Middle): Scanner ---
     // Run a scanner effect for 10 seconds.
