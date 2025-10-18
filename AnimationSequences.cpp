@@ -1071,25 +1071,29 @@ void generateDataStream(SequencerTrack tracks[3]) {
     const char* hex_chars = "0123456789ABCDEF";
 
     // --- Track 0: Raw Data Feed (Top Row) ---
-    // Loop 100 times, wiping a new set of random hex characters every 100ms.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 100, 0);
-    char random_hex[14];
-    for(int i=0; i<13; ++i) { random_hex[i] = hex_chars[random(16)]; }
-    random_hex[13] = '\0';
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 10, 0, random_hex);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 90, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    // A C++ loop generates 100 steps of random text, each displayed for 100ms, for a total of 10 seconds.
+    for (int i = 0; i < 100; i++) {
+        char random_hex[14];
+        for(int j=0; j<13; ++j) { random_hex[j] = hex_chars[random(16)]; }
+        random_hex[13] = '\0';
+        // Use SET_TEXT for an instantaneous update, better for a data stream effect.
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, random_hex);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    }
 
     // --- Track 1: Status Updates (Middle Row) ---
-    // Scramble "CONNECTING..." (2s)
+    // Scramble "CONNECTING..." (13 chars * 150ms = 1950ms)
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 150, "CONNECTING...");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0); // Hold for 1s
-    // Scramble "STREAMING..." (2s)
+    // Hold for 1200ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1200, 0);
+    // Scramble "STREAMING..." (12 chars * 150ms = 1800ms)
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 150, "STREAMING...");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2000, 0); // Hold for 2s
-    // Scramble "VERIFIED" (1s)
+    // Hold for 2050ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2050, 0);
+    // Scramble "VERIFIED" (8 chars * 125ms = 1000ms)
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 125, "VERIFIED");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 2000, 0); // Pulse final status
+    // Pulse final status for 2000ms. Total = 1950+1200+1800+2050+1000+2000 = 10000ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 2000, 0);
 
     // --- Track 2: Progress Bar (Bottom Row) ---
     // A bar graph that fills up over 9.5 seconds.
