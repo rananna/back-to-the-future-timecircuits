@@ -1318,16 +1318,20 @@ void generateSparkleReveal(SequencerTrack tracks[3], const char time_strings[3][
     // --- Track 0: Top Row ---
     // Start with a field of sparkles for 8 seconds
     s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 8000, 100, sparkles);
-    // Crossfade from the sparkles to the final text over 2 seconds
-    s0 = add_step(tracks[0], s0, SEQ_CMD_CROSSFADE_TEXT, 0, -1, 2000, 0, time_strings[0]);
+    // Fade out the sparkles over 1 second
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FADE_OUT, 0, -1, 1000, 0);
+    // Fade in the final text over 1 second
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FADE_IN, 0, -1, 1000, 0, time_strings[0]);
 
     // --- Track 1: Middle Row ---
     s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 8000, 100, sparkles);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_CROSSFADE_TEXT, 1, -1, 2000, 0, time_strings[1]);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FADE_OUT, 1, -1, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FADE_IN, 1, -1, 1000, 0, time_strings[1]);
 
     // --- Track 2: Bottom Row ---
     s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 8000, 100, sparkles);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_CROSSFADE_TEXT, 2, -1, 2000, 0, time_strings[2]);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_OUT, 2, -1, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_IN, 2, -1, 1000, 0, time_strings[2]);
 }
 
 /**
