@@ -186,6 +186,7 @@ struct SequencerTrack {
 
     // --- State for Marquee (Scrolling Text) Effect ---
     bool isMarqueeActive = false;       /**< True if a marquee effect is in progress. */
+    int marqueeSpeed = 120;             /**< The scroll speed in ms for this track's marquee. */
     std::string marqueeText;            /**< The full text being scrolled. */
     int marqueeScrollPosition = 0;      /**< The current horizontal scroll position. */
     unsigned long lastMarqueeScrollTime = 0; /**< `millis()` timestamp of the last scroll update. */
@@ -204,6 +205,7 @@ struct SequencerTrack {
 
     // --- State for Random Flicker Effect ---
     bool isFlickering = false;          /**< True if a random flicker effect is in progress. */
+    int flickerSpeed = 50;              /**< Delay in ms between flicker updates for this track. */
     unsigned long flickerEndTime = 0;   /**< `millis()` timestamp when the flicker effect should end. */
     unsigned long lastFlickerUpdate = 0;/**< `millis()` timestamp of the last character flicker. */
     std::string flickerOriginalText;    /**< The original text to restore after a flicker effect. */
@@ -260,6 +262,7 @@ struct SequencerTrack {
         loopCounter = 0;
 
         isMarqueeActive = false;
+        marqueeSpeed = 120; // Default scroll speed
         marqueeText.clear();
         marqueeScrollPosition = 0;
         lastMarqueeScrollTime = 0;
@@ -282,6 +285,7 @@ struct SequencerTrack {
         }
 
         isFlickering = false;
+        flickerSpeed = 50; // Default flicker speed
         flickerEndTime = 0;
         lastFlickerUpdate = 0;
         flickerOriginalText.clear();

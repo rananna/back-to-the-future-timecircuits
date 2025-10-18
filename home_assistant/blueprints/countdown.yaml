@@ -75,12 +75,6 @@ blueprint:
       default: 5
       selector:
         number: { min: 1, max: 60, unit_of_measurement: "s" }
-    end_text_marquee_speed:
-      name: "End Text Marquee Speed (ms)"
-      description: "Set the scroll speed for the marquee effect. Lower is faster."
-      default: 100
-      selector:
-        number: { min: 20, max: 1000, unit_of_measurement: "ms" }
     end_text_flicker_speed:
       name: "End Text Flicker Speed (ms)"
       description: "Set the speed for the 'Random Flicker' effect. Lower is faster."
@@ -169,7 +163,6 @@ variables:
   end_text: !input end_text
   end_text_effect: !input end_text_effect
   end_text_duration: !input end_text_duration
-  end_text_marquee_speed: !input end_text_marquee_speed
   end_text_flicker_speed: !input end_text_flicker_speed
   audio_source: !input audio_source
   sound_effect: !input sound_effect
@@ -196,44 +189,55 @@ sequence:
           then wraps them in a track structure targeting the selected display row(s).
           The final output is a JSON array of "track" objects.
         -#}
-        {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_dur, end_m_speed, end_f_speed, audio_src, sound, vol, repeat_count, restore) -%}
+        {%- macro generate_countdown_payload(target, start_num, delay, end_txt, end_effect, end_dur, end_f_speed, audio_src, sound, vol, repeat_count, restore) -%}
           {#- A namespace is used to hold the list of tracks as it's built. -#}
           {%- set ns = namespace(tracks=[]) -%}
 
-          {#-
-            Define which effects are self-blocking (run until complete) vs. timed (run for a set duration).
-            This determines whether we need to add a `WAIT` command.
-          -#}
-          {%- set self_timing_effects = ['MARQUEE', 'RANDOM_FLICKER_TEXT'] -%}
-          {%- set timed_effects = ['PULSE', 'FLASH', 'SCRAMBLE_TEXT'] -%}
           {%- set end_commands = [] -%}
 
           {# --- STEP 1: Build the end text command(s) --- #}
           {%- if end_txt | default('') != "" -%}
-            {#- Create the base command with the selected effect and text. `targetSegment: -1` means "apply to the whole row". -#}
-            {%- set end_text_cmd = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt} -%}
-
-            {#- Add effect-specific parameters based on the chosen effect. -#}
-            {%- if end_effect == 'MARQUEE' -%}
-              {%- set end_text_cmd = dict(end_text_cmd, intParam=end_m_speed | int) -%}
-            {%- elif end_effect == 'RANDOM_FLICKER_TEXT' -%}
-              {%- set end_text_cmd = dict(end_text_cmd, intParam=end_f_speed | int, intParam2=(end_dur * 1000) | int) -%}
-            {%- elif end_effect == 'TYPEWRITER' -%}
-              {#- For Typewriter, calculate the delay per character to match the total duration. Min delay of 20ms. -#}
-              {%- set char_delay = ([((end_dur * 1000) / (end_txt | length)), 20] | max) | int -%}
-              {%- set end_text_cmd = dict(end_text_cmd, intParam=char_delay) -%}
-            {%- elif end_effect in timed_effects -%}
-              {#- For timed effects, `intParam2` controls the total duration. -#}
-              {%- set end_text_cmd = dict(end_text_cmd, intParam2=(end_dur * 1000) | int) -%}
-            {%- endif -%}
-            {%- set end_commands = end_commands + [end_text_cmd] -%}
-
             {#-
-              For static or non-blocking effects, we must add a `WAIT` command to control
-              how long the text stays on screen.
+              BRANCHING LOGIC FOR EFFECTS
+              This block determines the correct command sequence and parameters for the selected effect
+              based on the firmware's requirements.
             -#}
-            {%- if end_effect == 'RANDOM_FLICKER_TEXT' or (end_effect not in self_timing_effects and end_effect not in timed_effects and end_effect != 'TYPEWRITER') -%}
-              {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': (end_dur * 1000) | int}] -%}
+            {%- if end_effect == 'SET_TEXT' -%}
+              {%- set end_commands = end_commands + [{'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': end_txt}] -%}
+              {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': (end_dur * 1000)}] -%}
+
+            {%- elif end_effect == 'RANDOM_FLICKER_TEXT' -%}
+              {#- This is a non-blocking effect that requires two steps: set the text, then flicker it. -#}
+              {%- set set_text_cmd = {'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': end_txt} -%}
+              {%- set flicker_cmd = {'command': 'RANDOM_FLICKER_TEXT', 'targetSegment': -1, 'stringParam': "", 'intParam': end_f_speed, 'intParam2': (end_dur * 1000)} -%}
+              {%- set wait_cmd = {'command': 'WAIT', 'intParam': (end_dur * 1000)} -%}
+              {%- set end_commands = end_commands + [set_text_cmd, flicker_cmd, wait_cmd] -%}
+
+            {%- elif end_effect == 'SCRAMBLE_TEXT' -%}
+              {#- This is a blocking effect. `intParam` is flicker speed, `intParam2` is lock-in speed per character. -#}
+              {%- set lock_in_delay = ([((end_dur * 1000) / (end_txt | length)), 20] | max) | int -%}
+              {%- set scramble_cmd = {'command': 'SCRAMBLE_TEXT', 'targetSegment': -1, 'stringParam': end_txt, 'intParam': 50, 'intParam2': lock_in_delay} -%}
+              {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
+              {%- set end_commands = end_commands + [scramble_cmd, wait_cmd] -%}
+
+            {%- elif end_effect == 'TYPEWRITER' -%}
+              {#- This is a blocking effect. `intParam` is the delay per character. -#}
+              {%- set char_delay = ([((end_dur * 1000) / (end_txt | length)), 20] | max) | int -%}
+              {%- set typewriter_cmd = {'command': 'TYPEWRITER', 'targetSegment': -1, 'stringParam': end_txt, 'intParam': char_delay} -%}
+              {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
+              {%- set end_commands = end_commands + [typewriter_cmd, wait_cmd] -%}
+
+            {%- elif end_effect == 'MARQUEE' -%}
+              {#- This is a blocking effect. `intParam` is the scroll speed per step. -#}
+              {%- set scroll_distance = 13 + (end_txt | length) -%}
+              {%- set scroll_speed = ([((end_dur * 1000) / scroll_distance), 20] | max) | int -%}
+              {%- set marquee_cmd = {'command': 'MARQUEE', 'targetSegment': -1, 'stringParam': end_txt, 'intParam': scroll_speed} -%}
+              {%- set end_commands = end_commands + [marquee_cmd] -%}
+
+            {%- elif end_effect == 'PULSE' or end_effect == 'FLASH' -%}
+              {#- These are blocking effects. `intParam2` is the total duration. -#}
+              {%- set effect_cmd = {'command': end_effect, 'targetSegment': -1, 'stringParam': end_txt, 'intParam2': (end_dur * 1000)} -%}
+              {%- set end_commands = end_commands + [effect_cmd] -%}
             {%- endif -%}
           {%- endif -%}
 
@@ -284,7 +288,7 @@ sequence:
           {{- ns.tracks | to_json -}}
         {%- endmacro -%}
         {#- Call the macro with all the user inputs to generate the final payload. -#}
-        {{- generate_countdown_payload(target_row, start_number, countdown_delay, end_text, end_text_effect, end_text_duration, end_text_marquee_speed, end_text_flicker_speed, audio_source, sound_effect, volume, repeat_end_effect, restore_row) -}}
+        {{- generate_countdown_payload(target_row, start_number, countdown_delay, end_text, end_text_effect, end_text_duration, end_text_flicker_speed, audio_source, sound_effect, volume, repeat_end_effect, restore_row) -}}
 
   # Parallel Action: Handle streaming audio from Home Assistant.
   - choose:

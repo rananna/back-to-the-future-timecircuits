@@ -17,7 +17,7 @@ bool bootSequenceCompleted = false;
 #include "AnimationSequences.h"
 
 // --- NEW: A global timeout for any single animation sequence track ---
-#define MAX_SEQUENCE_DURATION 15000 // 15 seconds
+#define MAX_SEQUENCE_DURATION 65000 // 65 seconds
 #include "DisplayManager.h"
 #include "MqttManager.h"
 
@@ -756,7 +756,7 @@ void handleSequencer() {
                 // Restore original text at the end
                 updateDisplaySegment(i, -1, track.flickerOriginalText);
                 needsDisplayUpdate = true;
-            } else if (millis() - track.lastFlickerUpdate > (unsigned long)track.steps[track.currentStep].intParam) {
+            } else if (millis() - track.lastFlickerUpdate > (unsigned long)track.flickerSpeed) {
                 std::string temp = track.flickerOriginalText;
                 for (size_t j = 0; j < temp.length(); ++j) {
                     if (random(100) < 30) { // 30% chance to flicker a character
@@ -1041,7 +1041,7 @@ void handleSequencer() {
             case SEQ_CMD_MARQUEE:
                 if (!track.stepInitialized) {
                     // This now correctly calls the marquee initialization function
-                    startSequencerMarquee(track, step.stringParam);
+                    startSequencerMarquee(track, step.stringParam, step.intParam);
                     track.stepInitialized = true;
                 }
                 // The marquee effect runs in the background via handleAllSequencerMarquees().
@@ -1289,6 +1289,7 @@ void handleSequencer() {
             case SEQ_CMD_RANDOM_FLICKER_TEXT:
                 if (!track.stepInitialized) {
                     track.isFlickering = true;
+                    track.flickerSpeed = step.intParam; // --- FIX: Store the speed correctly ---
                     track.flickerEndTime = millis() + step.intParam2;
                     track.lastFlickerUpdate = millis();
 
@@ -1677,12 +1678,13 @@ void triggerAnimation(AnimationType animType) {
     delete[] temp_tracks;
 }
 
-void startSequencerMarquee(SequencerTrack& track, const std::string& text) {
+void startSequencerMarquee(SequencerTrack& track, const std::string& text, int speed) {
     if (text.empty()) {
         track.isMarqueeActive = false;
         return;
     }
     track.isMarqueeActive = true;
+    track.marqueeSpeed = (speed > 0) ? speed : 120; // Use provided speed or default to 120ms
     // Add padding for a smooth scroll-on and scroll-off effect
     track.marqueeText = "             " + text + "             ";
     track.marqueeScrollPosition = 0;
@@ -1695,8 +1697,7 @@ void handleAllSequencerMarquees() {
         SequencerTrack& track = sequencerTracks[i];
 
         if (track.isActive && track.isMarqueeActive) {
-            // Use a fixed scroll speed for now. This could be extended to be a parameter.
-            if (millis() - track.lastMarqueeScrollTime > 120) { // 120ms scroll speed
+            if (millis() - track.lastMarqueeScrollTime > (unsigned long)track.marqueeSpeed) {
                 track.marqueeScrollPosition++;
 
                 // Check if the marquee has finished scrolling completely
