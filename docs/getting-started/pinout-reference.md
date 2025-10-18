@@ -25,9 +25,9 @@ The following pinout is the official, recommended configuration for this project
 | **Power (+5V)** | `5V` | Power | Connects to the VCC/VIN pin of all components. |
 | **Ground (GND)** | `GND` | Power | Connects all GND pins to a common ground rail. |
 
-## Pinout Configuration
+## Using Other ESP32 Models
 
-This project is designed **exclusively for the ESP32-S3** microcontroller. The pin assignments below are fixed and are defined as constants at the top of the `HardwareControl.h` firmware file.
-
-> [!WARNING]
-> Attempting to use a different model of ESP32 is not supported and will likely result in hardware conflicts or a non-functional build, as the pinout has been specifically chosen to work with the ESP32-S3's unique features and avoid conflicts with its native USB controller.
+> [!NOTE]
+> While the **ESP32-S3 is strongly recommended** for a trouble-free build, it is possible to use other ESP32 models (like the original ESP32-WROOM-32).
+>
+> If you choose to use a different board, you **must** review and change the pin assignments defined at the top of the `HardwareControl.h` firmware file. You will need to select pins that are safe to use on your specific board and do not conflict with other hardware functions (like ADC2 pins when WiFi is active). This is an advanced modification and is not recommended for beginners.

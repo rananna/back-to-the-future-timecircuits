@@ -4,22 +4,21 @@ Welcome to the official documentation for the Back to the Future Time Circuits R
 
 ## 1. Getting Started
 
-New to the project? These guides will walk you through building the hardware and installing the firmware.
+New to the project? This is the place to begin. This guide provides a complete, step-by-step path to building your own replica, from purchasing components to installing the firmware.
 
--   **[Hardware & Pinout Guide](getting-started/hardware.md)**: A list of required components and wiring diagrams.
--   **[Firmware Installation Guide](getting-started/installation.md)**: Step-by-step instructions for flashing the firmware.
+*   **[Start Here: The Getting Started Guide](./getting-started/README.md)**
 
 ## 2. User Guides
 
-Learn how to configure your Time Circuits, integrate with smart home systems, and use its features.
+Once your clock is built and running, these guides will help you master its features. Learn how to configure your Time Circuits, integrate with smart home systems, and use advanced capabilities.
 
--   **[Web Interface Guide](user-guide/web-interface.md)**: A complete tour of the web UI for configuration.
--   **[Home Assistant Integration Guide](user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant, including Blueprints and examples.
--   **[Sound System Guide](user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
+*   **[Web Interface Guide](user-guide/web-interface.md)**: A complete tour of the web UI for configuration.
+*   **[Home Assistant Integration Guide](user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant, including Blueprints and examples.
+*   **[Sound System Guide](user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
+*   **[Troubleshooting Guide](user-guide/troubleshooting.md)**: Solutions to common problems.
 
 ## 3. Developer & Advanced Topics
 
-Ready to dive deeper? These guides provide technical details about the firmware, APIs, and how to contribute.
+Ready to dive deeper? This guide provides technical details about the firmware, APIs, and how to contribute.
 
--   **[Developer Guide](developer/developer-guide.md)**: A technical deep-dive into the firmware architecture, development setup, and contribution guidelines.
--   **[Raw MQTT API Reference](developer/mqtt-api.md)**: A complete reference for the low-level MQTT API.
+*   **[Developer Guide](developer/developer-guide.md)**: A technical deep-dive into the firmware architecture, MQTT API, development setup, and contribution guidelines.
