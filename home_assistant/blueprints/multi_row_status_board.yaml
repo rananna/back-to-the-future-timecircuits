@@ -155,6 +155,13 @@ blueprint:
       default: ""
       selector:
         media: {}
+    media_player:
+      name: "Audio Output"
+      description: "Optional: Choose a speaker to play the streamed audio on. If left blank, it will default to the Time Circuits device's own speaker."
+      default: ""
+      selector:
+        entity:
+          domain: media_player
     volume:
       name: Volume
       description: "Set the volume for the sound effect or streamed media (0-100). The blueprint converts this to the device's native volume scale."
@@ -176,6 +183,7 @@ variables:
   audio_source: !input audio_source
   sound_effect: !input sound_effect
   media_file: !input media_file
+  media_player: !input media_player
   volume: !input volume
   restore_rows: !input restore_rows
 
@@ -231,14 +239,79 @@ sequence:
               {%- set visual_command = {'command': row.effect, 'targetSegment': -1, 'stringParam': row.text} -%}
               {#- Add effect-specific parameters based on the chosen effect. -#}
               {%- if row.effect == 'MARQUEE' -%}
-                {%- set visual_command = dict(visual_command, intParam=m_speed | int) -%}
+                {%- set visual_command = visual_command + {'intParam': m_speed | int} -%}
               {%- elif row.effect == 'RANDOM_FLICKER_TEXT' -%}
-                {%- set visual_command = dict(visual_command, intParam=f_speed | int) -%}
+                {%- set visual_command = visual_command + {'intParam': f_speed | int} -%}
               {%- elif row.effect in timed_effects -%}
                 {#- Pulse and Flash use `intParam2` for their total duration. -#}
-                {%- set visual_command = dict(visual_command, intParam2=(dur * 1000) | int) -%}
+                {%- set visual_command = visual_command + {'intParam2': (dur * 1000) | int} -%}
               {%- endif -%}
               {%- set core_commands = core_commands + [visual_command] -%}
+
+              {# --- STEP 3: For static effects, add a WAIT command to control duration. --- #}
+              {%- if row.effect not in blocking_effects and row.effect not in timed_effects -%}
+                {%- set wait_duration = (dur * 1000) | int -%}
+                {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
+              {%- endif -%}
+
+              {# --- STEP 4: Add the restore command if requested --- #}
+              {%- if restore -%}
+                {#- `RESTORE_ROW` tells the device to revert this specific row to its previous state. -#}
+                {%- set core_commands = core_commands + [{'command': 'RESTORE_ROW'}] -%}
+              {%- endif -%}
+
+              {# --- STEP 5: Add sound to the very first track that gets generated --- #}
+              {#- This ensures the sound only plays once, even if multiple rows are active. -#}
+              {%- if ns.tracks | length == 0 and audio_source == 'builtin' -%}
+                {#- Convert HA's 0-100 volume to the device's 0-21 scale. -#}
+                {%- set device_volume = ((volume / 100) * 21) | round(0) | int -%}
+                {%- set sound_command = {'command': 'SOUND', 'stringParam': sound_effect, 'intParam': device_volume} -%}
+                {#- Prepend the sound command so it plays at the beginning. -#}
+                {%- set core_commands = [sound_command] + core_commands -%}
+              {%- endif -%}
+
+              {#- Create the final track object with the target row and its list of commands. -#}
+              {%- set track_object = {'targetRow': row.target, 'commands': core_commands} -%}
+              {#- Add the completed track object to our list of tracks. -#}
+              {%- set ns.tracks = ns.tracks + [track_object] -%}
+            {%- endif -%}
+          {%- endfor -%}
+
+          {# --- STEP 6: Return the raw JSON array of tracks --- #}
+          {#- The `to_json` filter converts the Python list of dictionaries into a valid JSON string. -#}
+          {{- ns.tracks | to_json -}}
+        {%- endmacro -%}
+        {#- Call the macro with all the relevant inputs to generate the final payload. -#}
+        {{- generate_row_payload(rows_data, duration, marquee_speed, flicker_speed, restore_rows) -}}
+
+  # Parallel Action: Handle streaming audio from Home Assistant.
+  - choose:
+      # This entire block runs in parallel with the MQTT `publish` service call above.
+      - conditions:
+          # Only run this sequence if the user selected 'media' and provided a media file.
+          - "{{ audio_source == 'media' and media_file != '' }}"
+        sequence:
+          # Find the media_player entity to target for playback.
+          - variables:
+              # If the user selected a specific media_player, use that.
+              # Otherwise, find the media_player associated with the selected Time Circuits device.
+              target_media_player: >-
+                {{ media_player if media_player != "" else (device_entities(device) | select('startswith', 'media_player.') | first | default('none')) }}
+          # Condition: Ensure we have a valid media_player entity to target.
+          - condition: template
+            value_template: "{{ target_media_player != 'none' }}"
+          # Set the volume on the target media player before playing.
+          - service: media_player.volume_set
+            target:
+              entity_id: "{{ target_media_player }}"
+            data:
+              volume_level: "{{ volume / 100 }}"
+          # Play the selected media file from the HA media library. This plays immediately.
+          - service: media_player.play_media
+            target:
+              entity_id: "{{ target_media_player }}"
+            data:
+              media_content_id: !input media_fileommands = core_commands + [visual_command] -%}
 
               {# --- STEP 3: For static effects, add a WAIT command to control duration. --- #}
               {%- if row.effect not in blocking_effects and row.effect not in timed_effects -%}
