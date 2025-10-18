@@ -530,34 +530,38 @@ void generateFocusIn(SequencerTrack tracks[3], const char time_strings[3][17]) {
 
 /**
  * @brief Simulates a building and discharging electric surge.
- * @details This animation creates a sense of energy build-up. It starts with a slow
- * pulse on the top row, adds crackling flickers to the middle, and then culminates
- * in a bright, multi-row flash, simulating a discharge. The sequence repeats,
- * creating a rhythmic surge effect.
+ * @details This animation creates a complex, multi-track surge effect over 10 seconds.
+ * Track 0 (Top Row & Sound): Drives the main 'build-up and release' sequence. It plays
+ * a thunder sound, shows a 'SURGE LEVEL' bar graph filling up over 9 seconds, and
+ * culminates in an intense 1-second flash across all rows.
+ * Track 1 (Middle Row): Provides a continuous, chaotic energy effect using
+ * `RANDOM_FLICKER_TEXT` with crackling characters for the entire 10-second duration.
+ * Track 2 (Bottom Row): Pulses a "DANGER" message for the entire 10-second duration,
+ * adding to the sense of urgency.
  * @param tracks The array of three sequencer tracks to populate.
  * @param time_strings A 2D array containing the formatted time strings for each row.
  */
 void generateElectricSurge(SequencerTrack tracks[3], const char time_strings[3][17]) {
-    int s = 0;
-    s = add_intro_sound_steps(tracks[0], s);
+    int s0 = 0, s1 = 0, s2 = 0;
 
-    // Loop the entire surge sequence 4 times. Each loop is ~2.5s. Total ~10s.
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_START, 0, 0, 4, 0);
+    // --- Track 0 (Top Row & Sound): Main build-up and release driver ---
+    // Play a thunder sound to kick things off.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "thunder.mp3");
+    // Display a bar graph on the top row, filling up over 9 seconds.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 9000, "SURGE LEVEL");
+    // After the 9s build-up, trigger a powerful 1-second flash on ALL rows.
+    // Assuming FLASH is non-blocking, these will trigger in rapid succession.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 2, -1, 1000, 0);
 
-    // 1. Build-up phase (~1.5s)
-    s = add_step(tracks[0], s, SEQ_CMD_PULSE, 0, -1, 1500, 0, "ENERGY SURGE"); // Slow pulse on top
-    s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 1500, 100, "><"); // Crackles in middle
+    // --- Track 1 (Middle Row): Continuous chaotic energy ---
+    // A random flicker effect with crackling characters runs for the full 10 seconds.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 100, "!~-^.");
 
-    // 2. Discharge phase (~0.5s)
-    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 0, -1, 250, 0); // Bright flash on all rows
-    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 1, -1, 250, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_FLASH, 2, -1, 250, 0);
-
-    // 3. Dissipation and pause (~0.5s)
-    s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s = add_step(tracks[0], s, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0); // Reset for next loop
-
-    s = add_step(tracks[0], s, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    // --- Track 2 (Bottom Row): Pulsing warning message ---
+    // A "DANGER" message pulses for the full 10 seconds. A 2s cycle.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 2000, "DANGER");
 }
 
 /**
