@@ -122,10 +122,16 @@ blueprint:
             - { label: "Time Travel", value: "time_travel.mp3" }
     media_file:
       name: "End Media File"
-      description: "Select an audio file from your Home Assistant media library to stream to the device. This only applies if 'Stream from Home Assistant' is the selected audio source."
+      description: "Select an audio file from your Home Assistant media library to stream. This only applies if 'Stream from Home Assistant' is the selected audio source."
       default: ""
       selector:
         media: {}
+    audio_output_player:
+      name: "[Advanced] Audio Output Override"
+      description: "Optional: Select a different media player for audio output. If left blank, the audio will play on the Time Circuits device itself."
+      selector:
+        entity:
+          domain: media_player
     volume:
       name: "End Audio Volume"
       description: "Set the volume for the sound effect or streamed media (0-100). The blueprint converts this to the device's native volume scale."
@@ -167,6 +173,7 @@ variables:
   audio_source: !input audio_source
   sound_effect: !input sound_effect
   media_file: !input media_file
+  audio_output_player: !input audio_output_player
   volume: !input volume
   repeat_end_effect: !input repeat_end_effect
   restore_row: !input restore_row
@@ -179,7 +186,7 @@ sequence:
   # Action: Publish the generated sequencer command to the device via MQTT.
   - service: mqtt.publish
     data:
-      topic: "bttf_time_circuits/{{ (device_attr(device, 'identifiers') | list | last)[1] }}/sequencer/command"
+      topic: "bttf_time_circuits/{{ ((device_attr(device, 'identifiers') | list | last)[1]) | trim }}/sequencer/command"
       payload: >-
         {#-
           JINJA2 TEMPLATE LOGIC
@@ -281,17 +288,21 @@ sequence:
           # Only run this sequence if the user selected 'media' and provided a media file.
           - "{{ audio_source == 'media' and media_file != '' }}"
         sequence:
-          # Find the media_player entity associated with the selected Time Circuits device.
+          # Determine the target media_player. Use the override if provided, otherwise find the one from the device.
           - variables:
-              media_player_entity: >
-                {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
-          # Condition: Ensure the media_player entity was found.
+              target_player: >-
+                {% if audio_output_player is defined and audio_output_player != '' %}
+                  {{ audio_output_player }}
+                {% else %}
+                  {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
+                {% endif %}
+          # Condition: Ensure we have a valid media_player to target.
           - condition: template
-            value_template: "{{ media_player_entity != 'none' }}"
-          # Set the volume on the device's media player before playing.
+            value_template: "{{ target_player != 'none' }}"
+          # Set the volume on the target media player before playing.
           - service: media_player.volume_set
             target:
-              entity_id: "{{ media_player_entity }}"
+              entity_id: "{{ target_player }}"
             data:
               volume_level: "{{ volume / 100 }}"
           # CRITICAL: Wait for the countdown part of the sequence to finish before playing the sound.
@@ -301,7 +312,7 @@ sequence:
           # Play the selected media file from the HA media library.
           - service: media_player.play_media
             target:
-              entity_id: "{{ media_player_entity }}"
+              entity_id: "{{ target_player }}"
             data:
               media_content_id: !input media_file
               media_content_type: "audio/mpeg"

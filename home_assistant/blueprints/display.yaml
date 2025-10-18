@@ -147,10 +147,16 @@ blueprint:
             - { label: "Time Travel", value: "time_travel.mp3" }
     media_file:
       name: "Media File"
-      description: "Select an audio file from your Home Assistant media library to stream to the device. This only applies if 'Stream from Home Assistant' is the selected audio source."
+      description: "Select an audio file from your Home Assistant media library to stream. This only applies if 'Stream from Home Assistant' is the selected audio source."
       default: ""
       selector:
         media: {}
+    audio_output_player:
+      name: "[Advanced] Audio Output Override"
+      description: "Optional: Select a different media player for audio output. If left blank, the audio will play on the Time Circuits device itself."
+      selector:
+        entity:
+          domain: media_player
     volume:
       name: Volume
       description: "Set the volume for the sound effect or streamed media (0-100). The blueprint converts this to the device's native volume scale."
@@ -196,6 +202,7 @@ variables:
   audio_source: !input audio_source
   sound_effect: !input sound_effect
   media_file: !input media_file
+  audio_output_player: !input audio_output_player
   volume: !input volume
   repeat: !input repeat
   restore_row: !input restore_row
@@ -203,19 +210,26 @@ variables:
   # --- Logic to determine the final text to be displayed ---
   # This is the core logic that makes the blueprint dynamic.
   value_to_display: >-
-    {# If the user chose to display an entity and selected one... #}
-    {% if data_source == 'entity' and entity_to_display != "" %}
-      {# ...then check if they specified an attribute. #}
-      {% if attribute_to_display != "" %}
-        {# If yes, get the attribute's value. #}
-        {{ state_attr(entity_to_display, attribute_to_display) }}
-      {% else %}
-        {# If no, get the entity's main state. #}
-        {{ states(entity_to_display) }}
-      {% endif %}
-    {% else %}
-      {# Otherwise (if the source is 'static' or no entity was chosen), use the static text input. #}
+    {# If the user chose 'Static Text' as the source... #}
+    {% if data_source == 'static' %}
+      {# ...then simply use the static text input. #}
       {{ text_to_display }}
+    {# If the user chose 'Entity' as the source... #}
+    {% elif data_source == 'entity' %}
+      {# ...and they actually provided an entity... #}
+      {% if entity_to_display is defined and entity_to_display != '' %}
+        {# ...then check if they specified an attribute. #}
+        {% if attribute_to_display is defined and attribute_to_display != '' %}
+          {# If yes, get the attribute's value. #}
+          {{ state_attr(entity_to_display, attribute_to_display) }}
+        {% else %}
+          {# If no, get the entity's main state. #}
+          {{ states(entity_to_display) }}
+        {% endif %}
+      {% else %}
+        {# ...if they chose 'Entity' but didn't select one, default to an empty string to prevent errors. #}
+        {{ "" }}
+      {% endif %}
     {% endif %}
   # --- Construct the final string by adding the prefix and postfix ---
   final_text: "{{- prefix ~ (value_to_display | default('')) ~ postfix -}}"
@@ -228,7 +242,7 @@ sequence:
   # Action: Publish the generated sequencer command to the device via MQTT.
   - service: mqtt.publish
     data:
-      topic: "bttf_time_circuits/{{ (device_attr(device, 'identifiers') | list | last)[1] }}/sequencer/command"
+      topic: "bttf_time_circuits/{{ ((device_attr(device, 'identifiers') | list | last)[1]) | trim }}/sequencer/command"
       payload: >-
         {#-
           JINJA2 TEMPLATE LOGIC
@@ -318,24 +332,28 @@ sequence:
           # Only run this sequence if the user selected 'media' and provided a media file.
           - "{{ audio_source == 'media' and media_file != '' }}"
         sequence:
-          # Find the media_player entity associated with the selected Time Circuits device.
+          # Determine the target media_player. Use the override if provided, otherwise find the one from the device.
           - variables:
-              media_player_entity: >
-                {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
-          # Condition: Ensure the media_player entity was found.
+              target_player: >-
+                {% if audio_output_player is defined and audio_output_player != '' %}
+                  {{ audio_output_player }}
+                {% else %}
+                  {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
+                {% endif %}
+          # Condition: Ensure we have a valid media_player to target.
           - condition: template
-            value_template: "{{ media_player_entity != 'none' }}"
-          # Set the volume on the device's media player before playing.
+            value_template: "{{ target_player != 'none' }}"
+          # Set the volume on the target media player before playing.
           - service: media_player.volume_set
             target:
-              entity_id: "{{ media_player_entity }}"
+              entity_id: "{{ target_player }}"
             data:
               volume_level: "{{ volume / 100 }}"
           # Play the selected media file from the HA media library.
           # Unlike the countdown, this plays immediately.
           - service: media_player.play_media
             target:
-              entity_id: "{{ media_player_entity }}"
+              entity_id: "{{ target_player }}"
             data:
               media_content_id: !input media_file
               media_content_type: "audio/mpeg"

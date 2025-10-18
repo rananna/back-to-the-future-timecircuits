@@ -936,22 +936,27 @@ void handleSequencer() {
                     break;
                 }
                 if (!track.stepInitialized) {
+                    // --- FIX: Set the display text *before* starting the pulse effect, just like FLASH. ---
+                    updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+
                     if (step.targetSegment == -1) { // Apply to all segments
                         for (int s = 0; s < 4; s++) {
                             track.isPulsing[s] = true;
-                            track.pulseEndTimes[s] = millis() + step.intParam;
+                            // --- FIX: Use intParam2 for duration, to be consistent with FLASH and blueprints. ---
+                            track.pulseEndTimes[s] = millis() + step.intParam2;
                             track.pulseStates[s] = true;
                             track.lastPulseToggle[s] = millis();
                         }
                     } else { // Apply to a single segment
                         track.isPulsing[step.targetSegment] = true;
-                        track.pulseEndTimes[step.targetSegment] = millis() + step.intParam;
+                        // --- FIX: Use intParam2 for duration, to be consistent with FLASH and blueprints. ---
+                        track.pulseEndTimes[step.targetSegment] = millis() + step.intParam2;
                         track.pulseStates[step.targetSegment] = true;
                         track.lastPulseToggle[step.targetSegment] = millis();
                     }
                     track.stepInitialized = true;
                 } else {
-                    // --- FIX: This is now a blocking command. Check for completion. ---
+                    // This is a blocking command. Check for completion.
                     bool stillPulsing = false;
                     if (step.targetSegment == -1) {
                         for (int s = 0; s < 4; s++) {
