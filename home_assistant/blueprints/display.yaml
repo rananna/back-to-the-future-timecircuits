@@ -97,7 +97,7 @@ blueprint:
             - { label: "Random Flicker (Flickers characters randomly)", value: "RANDOM_FLICKER_TEXT" }
     duration:
       name: "Display Duration (s)"
-      description: "Set the display duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', and 'Typewriter' effects. Other effects are self-timing."
+      description: "Set the display duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', 'Typewriter', and 'Random Flicker' effects. Other effects are self-timing."
       default: 10
       selector:
         number: { min: 1, max: 60, unit_of_measurement: "s" }
@@ -286,12 +286,12 @@ sequence:
           {%- endif -%}
           {%- set core_commands = core_commands + [visual_command] -%}
 
-          {# --- STEP 2: For static effects, add a WAIT command to control duration. --- #}
+          {# --- STEP 2: For static or non-blocking effects, add a WAIT command to control duration. --- #}
           {#-
-            For static effects like `SET_TEXT`, we must add a `WAIT` command to control
-            how long the text stays on screen. Without this, it would be replaced instantly.
+            For static effects like `SET_TEXT` or non-blocking effects like `RANDOM_FLICKER_TEXT`,
+            we must add a `WAIT` command to control how long the track stays active.
           -#}
-          {%- if effect_type not in self_timing_effects and effect_type not in timed_effects and effect_type != 'TYPEWRITER' -%}
+          {%- if effect_type == 'RANDOM_FLICKER_TEXT' or (effect_type not in self_timing_effects and effect_type not in timed_effects and effect_type != 'TYPEWRITER') -%}
             {%- set wait_duration = (dur * 1000) | int -%}
             {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
           {%- endif -%}

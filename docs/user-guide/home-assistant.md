@@ -250,9 +250,10 @@ For ultimate control, you can publish directly to the clock's raw MQTT command t
     *   In an MQTT client like [MQTT Explorer](http://mqtt-explorer.com/), check the `bttf_time_circuits/YOUR_DEVICE_ID/status` topic. It should have a retained message of `online`. If not, check the MQTT settings in the clock's web UI.
 
 *   **Why does my text disappear immediately?**
-    This usually happens when using the `Set Text` effect in a blueprint. This command is **non-blocking**. The script sends the command and immediately moves on. If there are no more steps, the script ends and the display restores.
-    *   **Solution**: For non-blocking effects like `Set Text`, you **must** use the **`Display Duration`** input. This tells the blueprint to add a `WAIT` command, holding the text on-screen.
-    *   Effects like `Marquee`, `Pulse`, and `Countdown` are **blocking**; they have their own duration and do not require a separate `Display Duration`.
+    This usually happens when using a non-blocking effect like `Set Text` or `Random Flicker` without specifying a duration. The script sends the command and immediately finishes, so the display restores to its previous state.
+    *   **Solution**: For `Set Text` and `Random Flicker`, you **must** use the **`Display Duration`** input. This tells the blueprint to add a `WAIT` command, holding the effect on-screen for the specified time.
+    *   For other timed effects like `Pulse`, `Flash`, `Scramble Text`, and `Typewriter`, the **`Display Duration`** input directly controls the total time the effect will run.
+    *   Effects like `Marquee` and `Countdown` are self-timing and will run until they are complete.
 
 *   **Can I combine sensor data with my own text?**
     Absolutely! All text fields in the blueprints support Home Assistant templates. This lets you build rich, dynamic strings.

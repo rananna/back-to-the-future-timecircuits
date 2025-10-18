@@ -71,7 +71,7 @@ blueprint:
             - { label: "Random Flicker (Flickers characters randomly)", value: "RANDOM_FLICKER_TEXT" }
     end_text_duration:
       name: "End Text Display Duration (s)"
-      description: "Set the display duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', and 'Typewriter' effects. Other effects are self-timing."
+      description: "Set the display duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', 'Typewriter', and 'Random Flicker' effects. Other effects are self-timing."
       default: 5
       selector:
         number: { min: 1, max: 60, unit_of_measurement: "s" }
@@ -229,10 +229,10 @@ sequence:
             {%- set end_commands = end_commands + [end_text_cmd] -%}
 
             {#-
-              For static effects like `SET_TEXT`, we must add a `WAIT` command to control
-              how long the text stays on screen. Without this, it would be replaced instantly.
+              For static or non-blocking effects, we must add a `WAIT` command to control
+              how long the text stays on screen.
             -#}
-            {%- if end_effect not in self_timing_effects and end_effect not in timed_effects and end_effect != 'TYPEWRITER' -%}
+            {%- if end_effect == 'RANDOM_FLICKER_TEXT' or (end_effect not in self_timing_effects and end_effect not in timed_effects and end_effect != 'TYPEWRITER') -%}
               {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': (end_dur * 1000) | int}] -%}
             {%- endif -%}
           {%- endif -%}
