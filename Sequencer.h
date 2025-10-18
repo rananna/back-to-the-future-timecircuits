@@ -202,6 +202,12 @@ struct SequencerTrack {
     bool flashStates[4] = {false};      /**< The current on/off state of the flash visual for each segment. */
     unsigned long lastFlashToggle[4] = {0}; /**< `millis()` timestamp of the last on/off toggle for each segment. */
 
+    // --- State for Random Flicker Effect ---
+    bool isFlickering = false;          /**< True if a random flicker effect is in progress. */
+    unsigned long flickerEndTime = 0;   /**< `millis()` timestamp when the flicker effect should end. */
+    unsigned long lastFlickerUpdate = 0;/**< `millis()` timestamp of the last character flicker. */
+    std::string flickerOriginalText;    /**< The original text to restore after a flicker effect. */
+
     // --- State for High-Level Commands ---
     int countdownValue = 0;             /**< Current value for a `SEQ_CMD_COUNTDOWN`. */
     unsigned long countdownLastUpdate = 0; /**< `millis()` timestamp of the last countdown decrement. */
@@ -219,9 +225,6 @@ struct SequencerTrack {
     float barGraphPercentage = 0.0f;    /**< Current percentage for the `SEQ_CMD_BAR_GRAPH` effect. */
     unsigned long lastBarGraphUpdate = 0; /**< `millis()` timestamp of the last bar graph visual update. */
     unsigned long barGraphStartTime = 0;/**< `millis()` timestamp when the bar graph animation started. */
-
-    unsigned long lastFlickerUpdate = 0;/**< `millis()` timestamp of the last character flicker. */
-    std::string flickerOriginalText;    /**< The original text to restore after a flicker effect. */
 
     int scrambleCharIndex = 0;          /**< The index of the character currently being "locked in" for the scramble effect. */
     unsigned long lastScrambleUpdate = 0; /**< `millis()` timestamp of the last random character update. */
@@ -278,6 +281,11 @@ struct SequencerTrack {
             lastFlashToggle[i] = 0;
         }
 
+        isFlickering = false;
+        flickerEndTime = 0;
+        lastFlickerUpdate = 0;
+        flickerOriginalText.clear();
+
         countdownValue = 0;
         countdownLastUpdate = 0;
         scannerPosition = 0;
@@ -290,8 +298,6 @@ struct SequencerTrack {
         barGraphPercentage = 0.0f;
         lastBarGraphUpdate = 0;
         barGraphStartTime = 0;
-        lastFlickerUpdate = 0;
-        flickerOriginalText.clear();
         scrambleCharIndex = 0;
         lastScrambleUpdate = 0;
         lastScrambleLockInTime = 0;

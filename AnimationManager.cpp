@@ -750,6 +750,25 @@ void handleSequencer() {
         }
 
         // Handle Pulse and Flash Effects
+        if (track.isFlickering) {
+            if (millis() > track.flickerEndTime) {
+                track.isFlickering = false;
+                // Restore original text at the end
+                updateDisplaySegment(i, -1, track.flickerOriginalText);
+                needsDisplayUpdate = true;
+            } else if (millis() - track.lastFlickerUpdate > (unsigned long)track.steps[track.currentStep].intParam) {
+                std::string temp = track.flickerOriginalText;
+                for (size_t j = 0; j < temp.length(); ++j) {
+                    if (random(100) < 30) { // 30% chance to flicker a character
+                        temp[j] = (char)random(33, 126);
+                    }
+                }
+                updateDisplaySegment(i, -1, temp);
+                track.lastFlickerUpdate = millis();
+                needsDisplayUpdate = true;
+            }
+        }
+
         for (int s = 0; s < 4; s++) {
             if (track.isPulsing[s]) {
                 if (millis() > track.pulseEndTimes[s]) {
@@ -1269,6 +1288,10 @@ void handleSequencer() {
 
             case SEQ_CMD_RANDOM_FLICKER_TEXT:
                 if (!track.stepInitialized) {
+                    track.isFlickering = true;
+                    track.flickerEndTime = millis() + step.intParam2;
+                    track.lastFlickerUpdate = millis();
+
                     if (step.stringParam[0] == '\0') {
                         // If no string is provided, intelligently decide which text to use.
                         // First, check if there's already manual text on the display for this row.
@@ -1288,26 +1311,8 @@ void handleSequencer() {
                         // A string was explicitly provided in the command, so use it.
                         track.flickerOriginalText = step.stringParam;
                     }
-                    track.lastFlickerUpdate = millis();
                     track.stepInitialized = true;
-                }
-                // --- FIX: Swapped intParam and intParam2 to be consistent with other commands ---
-                // intParam is now flicker speed, intParam2 is now duration.
-                if (commandElapsed >= (unsigned long)step.intParam2) {
-                    // Restore original text at the end
-                    updateDisplaySegment(step.targetRow, step.targetSegment, track.flickerOriginalText);
-                    advance_step = true;
-                } else {
-                    if (millis() - track.lastFlickerUpdate > (unsigned long)step.intParam) {
-                        std::string temp = track.flickerOriginalText;
-                        for (size_t j = 0; j < temp.length(); ++j) {
-                            if (random(100) < 30) { // 30% chance to flicker a character
-                                temp[j] = (char)random(33, 126);
-                            }
-                        }
-                        updateDisplaySegment(step.targetRow, step.targetSegment, temp);
-                        track.lastFlickerUpdate = millis();
-                    }
+                    advance_step = true; // Non-blocking: advance immediately
                 }
                 break;
 
