@@ -1621,7 +1621,6 @@ void handleSequencerCommand(const std::string& payload) {
         // Pass the already-parsed document directly to the function.
         // This avoids a second, redundant parsing step.
         stopAllSequences();
-
         // --- FIX: Manually save the display mode before running a JSON sequence ---
         // This is the critical step that was missing. The triggerAnimation() function
         // does this automatically for named animations, but for direct JSON payloads
