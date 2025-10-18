@@ -221,7 +221,9 @@ sequence:
             {%- elif end_effect == 'TYPEWRITER' -%}
               {#- For Typewriter, calculate the delay per character to match the total duration. Min delay of 20ms. -#}
               {%- set char_delay = ([((end_dur * 1000) / (end_txt | length)), 20] | max) | int -%}
-              {%- set end_text_cmd = dict(end_text_cmd, intParam=char_delay) -%}
+              {%- set typewriter_cmd = dict(end_text_cmd, intParam=char_delay) -%}
+              {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
+              {%- set end_commands = end_commands + [typewriter_cmd, wait_cmd] -%}
             {%- elif end_effect in timed_effects -%}
               {#- For timed effects, `intParam2` controls the total duration. -#}
               {%- set end_text_cmd = dict(end_text_cmd, intParam2=(end_dur * 1000) | int) -%}
@@ -232,7 +234,7 @@ sequence:
               For static or non-blocking effects, we must add a `WAIT` command to control
               how long the text stays on screen.
             -#}
-            {%- if end_effect == 'RANDOM_FLICKER_TEXT' or (end_effect not in self_timing_effects and end_effect not in timed_effects and end_effect != 'TYPEWRITER') -%}
+            {%- if end_effect == 'RANDOM_FLICKER_TEXT' or (end_effect not in self_timing_effects and end_effect not in timed_effects) -%}
               {%- set end_commands = end_commands + [{'command': 'WAIT', 'intParam': (end_dur * 1000) | int}] -%}
             {%- endif -%}
           {%- endif -%}

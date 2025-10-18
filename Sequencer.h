@@ -204,6 +204,7 @@ struct SequencerTrack {
 
     // --- State for Random Flicker Effect ---
     bool isFlickering = false;          /**< True if a random flicker effect is in progress. */
+    int flickerSpeed = 50;              /**< Delay in ms between flicker updates for this track. */
     unsigned long flickerEndTime = 0;   /**< `millis()` timestamp when the flicker effect should end. */
     unsigned long lastFlickerUpdate = 0;/**< `millis()` timestamp of the last character flicker. */
     std::string flickerOriginalText;    /**< The original text to restore after a flicker effect. */
@@ -282,6 +283,7 @@ struct SequencerTrack {
         }
 
         isFlickering = false;
+        flickerSpeed = 50; // Default flicker speed
         flickerEndTime = 0;
         lastFlickerUpdate = 0;
         flickerOriginalText.clear();

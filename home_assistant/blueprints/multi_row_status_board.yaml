@@ -223,39 +223,57 @@ sequence:
           {#- A namespace is used to hold the list of tracks as it's built. -#}
           {%- set ns = namespace(tracks=[]) -%}
           {#-
-            Define which effects are self-blocking (run until complete) vs. timed (run for a set duration).
-            This determines whether we need to add a `WAIT` command.
+            Define which effects are self-timing, which are timed by the firmware,
+            and which require a manual WAIT command.
           -#}
-          {%- set self_timing_effects = ['MARQUEE', 'RANDOM_FLICKER_TEXT'] -%}
-          {%- set timed_effects = ['PULSE', 'FLASH', 'SCRAMBLE_TEXT'] -%}
-
           {# --- STEP 1: Loop through each row's configuration data --- #}
           {%- for row in row_data -%}
             {#- Only generate a track if the text for the current row is not empty. -#}
             {%- if row.text | default('') != '' -%}
               {%- set core_commands = [] -%}
 
-              {# --- STEP 2: Build the main visual command for the current row --- #}
-              {%- set visual_command = {'command': row.effect, 'targetSegment': -1, 'stringParam': row.text} -%}
-              {#- Add effect-specific parameters based on the chosen effect. -#}
-              {%- if row.effect == 'MARQUEE' -%}
-                {%- set visual_command = dict(visual_command, intParam=m_speed | int) -%}
-              {%- elif row.effect == 'RANDOM_FLICKER_TEXT' -%}
-                {%- set visual_command = dict(visual_command, intParam=f_speed | int, intParam2=(dur * 1000) | int) -%}
-              {%- elif row.effect == 'TYPEWRITER' -%}
-                {#- For Typewriter, calculate the delay per character to match the total duration. Min delay of 20ms. -#}
-                {%- set char_delay = ([((dur * 1000) / (row.text | length)), 20] | max) | int -%}
-                {%- set visual_command = dict(visual_command, intParam=char_delay) -%}
-              {%- elif row.effect in timed_effects -%}
-                {#- For timed effects, `intParam2` controls the total duration. -#}
-                {%- set visual_command = dict(visual_command, intParam2=(dur * 1000) | int) -%}
-              {%- endif -%}
-              {%- set core_commands = core_commands + [visual_command] -%}
+              {#-
+                BRANCHING LOGIC FOR EFFECTS
+                This block determines the correct command sequence and parameters for the selected effect
+                based on the firmware's requirements.
+              -#}
+              {%- if row.effect == 'RANDOM_FLICKER_TEXT' -%}
+                {#- This is a non-blocking effect that requires two steps: set the text, then flicker it. -#}
+                {%- set set_text_cmd = {'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': row.text} -%}
+                {%- set flicker_cmd = {'command': 'RANDOM_FLICKER_TEXT', 'targetSegment': -1, 'stringParam': "", 'intParam': f_speed, 'intParam2': (dur * 1000)} -%}
+                {%- set wait_cmd = {'command': 'WAIT', 'intParam': (dur * 1000)} -%}
+                {%- set core_commands = core_commands + [set_text_cmd, flicker_cmd, wait_cmd] -%}
 
-              {# --- STEP 3: For static or non-blocking effects, add a WAIT command to control duration. --- #}
-              {%- if row.effect == 'RANDOM_FLICKER_TEXT' or (row.effect not in self_timing_effects and row.effect not in timed_effects and row.effect != 'TYPEWRITER') -%}
-                {%- set wait_duration = (dur * 1000) | int -%}
-                {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
+              {%- elif row.effect == 'SCRAMBLE_TEXT' -%}
+                {#- This is a blocking effect. `intParam` is flicker speed, `intParam2` is lock-in speed per character. -#}
+                {%- set lock_in_delay = ([((dur * 1000) / (row.text | length)), 20] | max) | int -%}
+                {%- set scramble_cmd = {'command': 'SCRAMBLE_TEXT', 'targetSegment': -1, 'stringParam': row.text, 'intParam': 50, 'intParam2': lock_in_delay} -%}
+                {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
+                {%- set core_commands = core_commands + [scramble_cmd, wait_cmd] -%}
+
+              {%- else -%}
+                {#- Logic for all other effects. -#}
+                {%- set self_timing_effects = ['MARQUEE', 'TYPEWRITER'] -%}
+                {%- set timed_effects = ['PULSE', 'FLASH'] -%}
+                {%- set visual_command = {'command': row.effect, 'targetSegment': -1, 'stringParam': row.text} -%}
+
+                {%- if row.effect == 'MARQUEE' -%}
+                  {%- set visual_command = dict(visual_command, intParam=m_speed | int) -%}
+                {%- elif row.effect == 'TYPEWRITER' -%}
+                  {%- set char_delay = ([((dur * 1000) / (row.text | length)), 20] | max) | int -%}
+                  {%- set typewriter_cmd = dict(visual_command, intParam=char_delay) -%}
+                  {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
+                  {%- set core_commands = core_commands + [typewriter_cmd, wait_cmd] -%}
+                {%- elif row.effect in timed_effects -%}
+                  {%- set visual_command = dict(visual_command, intParam2=(dur * 1000) | int) -%}
+                {%- endif -%}
+                {%- set core_commands = core_commands + [visual_command] -%}
+
+                {#- Add a WAIT command for any effect that isn't self-timing. -#}
+                {%- if row.effect not in self_timing_effects and row.effect not in timed_effects and row.effect != 'TYPEWRITER' -%}
+                  {%- set wait_duration = (dur * 1000) | int -%}
+                  {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': wait_duration}] -%}
+                {%- endif -%}
               {%- endif -%}
 
               {# --- STEP 4: Add the restore command if requested --- #}

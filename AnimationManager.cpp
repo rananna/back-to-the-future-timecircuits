@@ -756,7 +756,7 @@ void handleSequencer() {
                 // Restore original text at the end
                 updateDisplaySegment(i, -1, track.flickerOriginalText);
                 needsDisplayUpdate = true;
-            } else if (millis() - track.lastFlickerUpdate > (unsigned long)track.steps[track.currentStep].intParam) {
+            } else if (millis() - track.lastFlickerUpdate > (unsigned long)track.flickerSpeed) {
                 std::string temp = track.flickerOriginalText;
                 for (size_t j = 0; j < temp.length(); ++j) {
                     if (random(100) < 30) { // 30% chance to flicker a character
@@ -1289,6 +1289,7 @@ void handleSequencer() {
             case SEQ_CMD_RANDOM_FLICKER_TEXT:
                 if (!track.stepInitialized) {
                     track.isFlickering = true;
+                    track.flickerSpeed = step.intParam; // --- FIX: Store the speed correctly ---
                     track.flickerEndTime = millis() + step.intParam2;
                     track.lastFlickerUpdate = millis();
 
