@@ -752,28 +752,22 @@ void handleSequencer() {
         // Handle Pulse and Flash Effects
         for (int s = 0; s < 4; s++) {
             if (track.isPulsing[s]) {
-                // Check for toggling state (1s on, 1s off = 1000ms interval)
-                if (millis() - track.lastPulseToggle[s] > 1000) {
+                if (millis() > track.pulseEndTimes[s]) {
+                    track.isPulsing[s] = false;
+                    needsDisplayUpdate = true;
+                } else if (millis() - track.lastPulseToggle[s] > 750) {
                     track.pulseStates[s] = !track.pulseStates[s];
                     track.lastPulseToggle[s] = millis();
                     needsDisplayUpdate = true;
                 }
-                // Check for effect completion
-                if (millis() >= track.pulseEndTimes[s]) {
-                    track.isPulsing[s] = false;
-                    needsDisplayUpdate = true;
-                }
             }
             if (track.isFlashing[s]) {
-                // Check for toggling state (fast on/off)
-                if (millis() - track.lastFlashToggle[s] > 75) {
+                if (track.flashEndTimes[s] != 0 && millis() > track.flashEndTimes[s]) {
+                    track.isFlashing[s] = false;
+                    needsDisplayUpdate = true;
+                } else if (millis() - track.lastFlashToggle[s] > 75) {
                     track.flashStates[s] = !track.flashStates[s];
                     track.lastFlashToggle[s] = millis();
-                    needsDisplayUpdate = true;
-                }
-                // Check for effect completion
-                if (track.flashEndTimes[s] != 0 && millis() >= track.flashEndTimes[s]) {
-                    track.isFlashing[s] = false;
                     needsDisplayUpdate = true;
                 }
             }
@@ -806,18 +800,6 @@ void handleSequencer() {
                 }
                 break;
 
-            case SEQ_CMD_RESTORE_SEGMENT:
-                if (!track.stepInitialized) {
-                    if (step.targetSegment >= 0 && step.targetSegment < 4) {
-                        updateDisplaySegment(step.targetRow, step.targetSegment, preAnimationDisplayText[step.targetRow][step.targetSegment]);
-                    } else {
-                        Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid targetSegment %d for RESTORE_SEGMENT.", step.targetSegment);
-                    }
-                    track.stepInitialized = true;
-                    advance_step = true;
-                }
-                break;
-
             case SEQ_CMD_SET_BRIGHTNESS:
                 if (!track.stepInitialized) {
                     uint8_t brightness = (uint8_t)constrain(step.intParam, 0, 7);
@@ -833,23 +815,7 @@ void handleSequencer() {
 
             case SEQ_CMD_RESTORE_ROW:
                 if (!track.stepInitialized) {
-                    if (step.targetRow >= 0 && step.targetRow < 3) {
-                        for (int s = 0; s < 4; ++s) {
-                            updateDisplaySegment(step.targetRow, s, preAnimationDisplayText[step.targetRow][s]);
-                        }
-                    } else {
-                        Log_printf(LOG_LEVEL_WARN, "SEQ: Invalid targetRow %d for RESTORE_ROW.", step.targetRow);
-                    }
-                    track.stepInitialized = true;
-                    advance_step = true;
-                }
-                break;
-
-            case SEQ_CMD_CLEAR_ALL_ROWS:
-                if (!track.stepInitialized) {
-                    updateDisplaySegment(0, -1, "");
-                    updateDisplaySegment(1, -1, "");
-                    updateDisplaySegment(2, -1, "");
+                    restoreDisplayRow(step.targetRow);
                     track.stepInitialized = true;
                     advance_step = true;
                 }
@@ -970,22 +936,27 @@ void handleSequencer() {
                     break;
                 }
                 if (!track.stepInitialized) {
+                    // --- FIX: Set the display text *before* starting the pulse effect, just like FLASH. ---
+                    updateDisplaySegment(step.targetRow, step.targetSegment, step.stringParam);
+
                     if (step.targetSegment == -1) { // Apply to all segments
                         for (int s = 0; s < 4; s++) {
                             track.isPulsing[s] = true;
+                            // --- FIX: Use intParam2 for duration, to be consistent with FLASH and blueprints. ---
                             track.pulseEndTimes[s] = millis() + step.intParam2;
                             track.pulseStates[s] = true;
                             track.lastPulseToggle[s] = millis();
                         }
                     } else { // Apply to a single segment
                         track.isPulsing[step.targetSegment] = true;
+                        // --- FIX: Use intParam2 for duration, to be consistent with FLASH and blueprints. ---
                         track.pulseEndTimes[step.targetSegment] = millis() + step.intParam2;
                         track.pulseStates[step.targetSegment] = true;
                         track.lastPulseToggle[step.targetSegment] = millis();
                     }
                     track.stepInitialized = true;
                 } else {
-                    // --- FIX: This is now a blocking command. Check for completion. ---
+                    // This is a blocking command. Check for completion.
                     bool stillPulsing = false;
                     if (step.targetSegment == -1) {
                         for (int s = 0; s < 4; s++) {
@@ -1149,47 +1120,40 @@ void handleSequencer() {
                 break;
 
             case SEQ_CMD_SCANNER:
-                // --- FIX: Correctly interpret intParam for duration and intParam2 for speed ---
                 if (!track.stepInitialized) {
                     track.scannerPosition = 0;
-                    track.scannerDirection = true; // true = right, false = left
+                    track.scannerDirection = true;
                     track.lastScannerUpdate = millis();
                     track.stepInitialized = true;
                 }
-
-                // Check for total duration completion
                 if (commandElapsed >= (unsigned long)step.intParam) {
                     advance_step = true;
                 } else {
-                    // Check if it's time to move the scanner
                     if (millis() - track.lastScannerUpdate > (unsigned long)step.intParam2) {
-                        std::string visual = step.stringParam;
-                        if (visual.empty()) visual = "#"; // Default visual
+                        std::string visual(step.stringParam);
+                        if (visual.empty()) visual = "#";
                         int visual_len = visual.length();
+                        std::string scan_str(13, ' '); // 13 spaces
 
-                        // Create a blank string to draw on
-                        std::string scan_str(13, ' ');
-
-                        // Safely place the visual onto the blank string
-                        if (track.scannerPosition >= 0 && track.scannerPosition + visual_len <= 13) {
-                            scan_str.replace(track.scannerPosition, visual_len, visual);
-                        }
-
-                        // Update the physical display
+                        // Correctly place the visual without going out of bounds
+                        scan_str.replace(track.scannerPosition, visual_len, visual);
                         updateDisplaySegment(step.targetRow, -1, scan_str);
 
-                        // Update scanner position for the next frame
-                        if (track.scannerDirection) { // Moving right
+                        if (track.scannerDirection) { // moving right
                             track.scannerPosition++;
+                            // Corrected boundary check: reverse when the *end* of the visual hits the edge
                             if (track.scannerPosition + visual_len > 13) {
-                                track.scannerDirection = false; // Change direction
-                                track.scannerPosition -= 2; // Step back to reverse smoothly
+                                track.scannerPosition = 13 - visual_len; // Clamp the position
+                                track.scannerDirection = false; // Reverse direction
+                                track.scannerPosition--; // Immediately step back to prevent stutter
                             }
-                        } else { // Moving left
+                        } else { // moving left
                             track.scannerPosition--;
+                            // Corrected boundary check: reverse when the *start* of the visual hits the edge
                             if (track.scannerPosition < 0) {
-                                track.scannerDirection = true; // Change direction
-                                track.scannerPosition += 2; // Step forward to reverse smoothly
+                                track.scannerPosition = 0; // Clamp the position
+                                track.scannerDirection = true; // Reverse direction
+                                track.scannerPosition++; // Immediately step forward to prevent stutter
                             }
                         }
                         track.lastScannerUpdate = millis();
@@ -1350,42 +1314,44 @@ void handleSequencer() {
             case SEQ_CMD_SCRAMBLE_TEXT:
                 { // Scope for local variables
                     std::string text_to_scramble = step.stringParam;
+                    // --- FIX: Truncate text to display width to prevent timing bugs ---
                     if (text_to_scramble.length() > 13) {
                         text_to_scramble = text_to_scramble.substr(0, 13);
                     }
 
                     if (!track.stepInitialized) {
                         track.scrambleCurrentText = std::string(text_to_scramble.length(), ' ');
+                        track.scrambleCharIndex = 0;
                         track.lastScrambleUpdate = millis();
+                        track.lastScrambleLockInTime = millis();
                         track.stepInitialized = true;
                     }
 
-                    unsigned long totalDuration = (unsigned long)step.intParam2;
-                    if (totalDuration == 0) totalDuration = 1; // Avoid division by zero
-
-                    // --- FIX: Reveal characters based on time elapsed, not a fixed delay ---
-                    float progress = (float)commandElapsed / (float)totalDuration;
-                    if (progress > 1.0f) progress = 1.0f;
-
-                    // Calculate how many characters should be revealed based on progress.
-                    int chars_to_reveal = (int)(progress * text_to_scramble.length());
-
-                    // Build the current state of the string.
-                    std::string temp_scramble = text_to_scramble.substr(0, chars_to_reveal);
-                    
-                    // Fill the rest with scrambled characters.
-                    for (int j = chars_to_reveal; j < (int)text_to_scramble.length(); ++j) {
-                        temp_scramble += (char)random(33, 126);
-                    }
-
-                    // Always update the display on every cycle for a smooth flicker.
-                    updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
-
-                    // Check for completion.
-                    if (commandElapsed >= totalDuration) {
-                        // Final update to ensure the correct text is shown.
+                    if ((unsigned)track.scrambleCharIndex >= text_to_scramble.length()) {
+                        // Animation is complete, ensure final text is displayed and advance.
                         updateDisplaySegment(step.targetRow, step.targetSegment, text_to_scramble);
                         advance_step = true;
+                    } else {
+                        // Check if it's time to lock in the next character.
+                        if (millis() - track.lastScrambleLockInTime >= (unsigned long)step.intParam2) {
+                            if ((unsigned)track.scrambleCharIndex < text_to_scramble.length()) {
+                                track.scrambleCurrentText[track.scrambleCharIndex] = text_to_scramble[track.scrambleCharIndex];
+                            }
+                            track.scrambleCharIndex++;
+                            track.lastScrambleLockInTime = millis();
+                        }
+
+                        // Check if it's time to update the flickering characters.
+                        if (millis() - track.lastScrambleUpdate >= (unsigned long)step.intParam) {
+                            // Build the string to display, starting with the current locked-in state.
+                            std::string temp_scramble = track.scrambleCurrentText;
+                            // Scramble the characters that haven't been locked in yet.
+                            for (size_t j = track.scrambleCharIndex; j < temp_scramble.length(); ++j) {
+                                temp_scramble[j] = (char)random(33, 126);
+                            }
+                            updateDisplaySegment(step.targetRow, step.targetSegment, temp_scramble);
+                            track.lastScrambleUpdate = millis();
+                        }
                     }
                 }
                 break;
