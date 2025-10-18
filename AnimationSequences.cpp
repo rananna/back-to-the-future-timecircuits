@@ -347,6 +347,10 @@ void generateWaveFlicker(SequencerTrack tracks[3]) {
 void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
+    const int flicker_interval = 50;
+    const int num_chars = 13;
+    const int total_duration = 8000;
+    const int lock_in_interval = total_duration / num_chars;
 
     // --- Track 1 (Middle): Progress Bar ---
     // Fills up over 9 seconds.
@@ -359,19 +363,11 @@ void generateCodeBreaker(SequencerTrack tracks[3], const char time_strings[3][17
     s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 4500, 0); // Pulse the final message
 
     // --- Track 0 (Top): The Code-Breaking Effect ---
-    // First, flicker random garbage text for 4.5 seconds.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 4500, 100, "!@#$%%^&*()_+-=");
-    // Then, scramble-reveal the first half of the destination time over 2.25 seconds.
-    std::string first_half = std::string(time_strings[0]).substr(0, 7);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 320, first_half.c_str());
-    // Finally, scramble-reveal the full destination time over the remaining 2.25 seconds.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 170, time_strings[0]);
-
-    // --- Final flash to celebrate breaking the code ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 2, -1, 500, 0);
+    // Scramble and slowly reveal the hidden code over 8 seconds.
+    std::string dest_str = std::string(time_strings[0]).substr(0, num_chars);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, flicker_interval, lock_in_interval, dest_str.c_str());
+    // Hold the revealed code for 2 seconds.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2000, 0);
 }
 
 /**
