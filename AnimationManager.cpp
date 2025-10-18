@@ -759,8 +759,9 @@ void handleSequencer() {
             } else if (millis() - track.lastFlickerUpdate > (unsigned long)track.flickerSpeed) {
                 std::string temp = track.flickerOriginalText;
                 for (size_t j = 0; j < temp.length(); ++j) {
-                    if (random(100) < 30) { // 30% chance to flicker a character
-                        temp[j] = (char)random(33, 126);
+                    // --- FIX: Only flicker non-space characters and use safer random generation ---
+                    if (temp[j] != ' ' && random(100) < 30) { // 30% chance to flicker a character
+                        temp[j] = (char)(random(126 - 33) + 33);
                     }
                 }
                 updateDisplaySegment(i, -1, temp);
