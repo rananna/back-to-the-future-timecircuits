@@ -867,26 +867,25 @@ void generateDigitalRain(SequencerTrack tracks[3]) {
  */
 void generateCountdown(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
+    const char* numbers[] = {"TEN", "NINE", "EIGHT", "SEVEN", "SIX", "FIVE", "FOUR", "THREE", "TWO", "ONE", "ZERO"};
+    const int num_count = sizeof(numbers) / sizeof(numbers[0]);
+    const int delay_per_number = 800; // ms
+    const int countdown_duration = num_count * delay_per_number; // 11 * 800 = 8800ms
 
     // --- Track 1 (Top): Progress Bar ---
-    // Fills up over 8 seconds, synchronized with the main countdown.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 8000);
+    // Fills up over the duration of the countdown.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 0, -1, 100, countdown_duration);
 
     // --- Track 2 (Bottom): Status Text ---
-    // Pulses "COUNTDOWN" for 8 seconds.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 8000, 0, "COUNTDOWN");
+    // Pulses "COUNTDOWN" for the duration.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, countdown_duration, 0, "COUNTDOWN");
 
     // --- Track 0 (Middle): The Main Countdown ---
-    // Display "9" through "1"
-    for (int i = 9; i > 0; i--) {
-        char num_str[2];
-        sprintf(num_str, "%d", i);
-        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, num_str);
-        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 800, 0); // 800ms per number
+    // Display "TEN" through "ZERO"
+    for (int i = 0; i < num_count; i++) {
+        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, numbers[i]);
+        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, delay_per_number, 0);
     }
-    // Display "0"
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "0");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 800, 0);
 
     // --- Liftoff Sequence ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "LIFTOFF!");
