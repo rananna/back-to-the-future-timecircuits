@@ -129,6 +129,7 @@ blueprint:
     audio_output_player:
       name: "[Advanced] Audio Output Override"
       description: "Optional: Select a different media player for audio output. If left blank, the audio will play on the Time Circuits device itself."
+      default: ""
       selector:
         entity:
           domain: media_player
@@ -315,4 +316,4 @@ sequence:
               entity_id: "{{ target_player }}"
             data:
               media_content_id: !input media_file
-              media_content_type: "audio/mpeg"
+              media_content_type: "music"
