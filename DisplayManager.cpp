@@ -502,8 +502,14 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
         return;
     }
 
-    if (segment == -1) {
-        // A segment of -1 means we are updating the entire row, likely for a marquee.
+    // --- FIX: When updating a single segment, do not clear the others. ---
+    // The previous logic for segment == -1 was clearing other segments
+    // unintentionally when only one segment was meant to be updated.
+    if (segment >= 0 && segment <= 3) {
+        // This is the correct logic for updating a single, specific segment.
+        manualDisplayText[row][segment] = text;
+    } else if (segment == -1) {
+        // This is for updating the entire row at once (e.g., for marquees).
         // The text is assumed to be 13 characters long.
         std::string safe_text = text;
         if (safe_text.length() > 13) {
@@ -511,25 +517,21 @@ void updateDisplaySegment(int row, int segment, const std::string& text) {
         } else {
             safe_text.append(13 - safe_text.length(), ' ');
         }
-
         manualDisplayText[row][0] = safe_text.substr(0, 3);
         manualDisplayText[row][1] = safe_text.substr(3, 2);
         manualDisplayText[row][2] = safe_text.substr(5, 4);
         manualDisplayText[row][3] = safe_text.substr(9, 4);
-        isRowInManualMode[row] = true; // The whole row is now in manual mode.
-
-    } else if (segment >= 0 && segment <= 3) {
-        // This is for updating a single, specific segment.
-        manualDisplayText[row][segment] = text;
-        // A row is in manual mode if any of its segments have text.
-        isRowInManualMode[row] = !manualDisplayText[row][0].empty() ||
-                                 !manualDisplayText[row][1].empty() ||
-                                 !manualDisplayText[row][2].empty() ||
-                                 !manualDisplayText[row][3].empty();
     } else {
         // An invalid segment was provided, so we do nothing.
         return;
     }
+
+    // A row is in manual mode if any of its segments have text, OR if the text for the whole row is empty.
+    // This ensures that clearing the last segment of a row correctly returns it to clock mode.
+    isRowInManualMode[row] = !manualDisplayText[row][0].empty() ||
+                             !manualDisplayText[row][1].empty() ||
+                             !manualDisplayText[row][2].empty() ||
+                             !manualDisplayText[row][3].empty();
 
     // After any manual update, we must redraw the clock display to show the changes.
     updateNormalClockDisplay();

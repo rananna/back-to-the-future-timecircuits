@@ -456,6 +456,15 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String payload = doc["payload"];
                 if (payload.length() > 0) {
                     Log_printf(LOG_LEVEL_INFO, "WebSocket: Run sequence command received.");
+                    // --- FIX: Manually save display state before running a web-initiated sequence ---
+                    // This mirrors the logic from MqttManager.cpp and ensures that RESTORE commands work.
+                    preAnimationDisplayMode = currentSettings.displayMode;
+                    currentSettings.displayMode = -1; // Prevent clock updates during animation
+                    for (int r = 0; r < 3; ++r) {
+                        for (int s = 0; s < 4; ++s) {
+                            preAnimationDisplayText[r][s] = manualDisplayText[r][s];
+                        }
+                    }
                     handleSequencerCommand(payload.c_str());
                 }
             } else if (action == "preview_animation") {
