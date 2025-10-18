@@ -589,38 +589,42 @@ void generateDigitCascade(SequencerTrack tracks[3], const char time_strings[3][1
 
 /**
  * @brief Simulates a plasma warm-up sequence with increasing intensity.
- * @details This animation creates a full-display "warm-up" effect.
- * It begins by fading in a `~*~*~` pattern on all rows. Then, it pulses this
- * pattern with increasing speed and intensity across two stages. The sequence
- * culminates in a bright, full-display flash, simulating a discharge of energy.
- * This multi-stage, parallel approach creates a much more dynamic and engaging
- * "warm-up" than a simple fade on a single row.
+ * @details This animation creates a visually engaging, four-stage "warm-up" effect that
+ * runs for the full 10-second duration.
+ * 1.  **Initial Instability (0-3s):** A chaotic energy effect using `RANDOM_FLICKER_TEXT`
+ *     on all three rows in parallel to represent unstable plasma.
+ * 2.  **Focusing Plasma (3-6s):** The chaotic energy coalesces into a stable string
+ *     ("PLASMA READY") using `SCRAMBLE_TEXT`.
+ * 3.  **Stable Pulse (6-9s):** The "PLASMA READY" text pulses, indicating a stable charge.
+ * 4.  **Discharge (9-10s):** A final, bright `FLASH` across all rows signifies the
+ *     completion of the warm-up sequence.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generatePlasmaWarmup(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
-    const char* plasma = "~*~*~*~*~*~*~";
+    const char* plasma_chars = "*~-.*~-.*~-.*";
+    const char* ready_text = "PLASMA READY";
 
-    // --- Stage 1: Fade in the plasma field ---
-    // All three rows fade in the plasma text over 2 seconds.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FADE_IN, 0, -1, 2000, 0, plasma);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_FADE_IN, 1, -1, 2000, 0, plasma);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_IN, 2, -1, 2000, 0, plasma);
+    // --- Stage 1: Initial Instability (3 seconds) ---
+    // All three rows show chaotic energy flickers in parallel.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 3000, 100, plasma_chars);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 3000, 100, plasma_chars);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 3000, 100, plasma_chars);
 
-    // --- Stage 2: Slow Pulse ---
-    // All three rows pulse together for 3 seconds.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 3000, 750); // 750ms pulse cycle
-    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 3000, 750);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 3000, 750);
+    // --- Stage 2: Focusing Plasma (3 seconds) ---
+    // All three rows scramble and resolve to the "PLASMA READY" text.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 3000, 50, ready_text);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 3000, 50, ready_text);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 3000, 50, ready_text);
 
-    // --- Stage 3: Fast Pulse ---
-    // All three rows pulse faster for 3 seconds.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 3000, 350); // 350ms pulse cycle
-    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 3000, 350);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 3000, 350);
+    // --- Stage 3: Stable Pulse (3 seconds) ---
+    // All three rows pulse the stable text. A 1000ms cycle (500 on, 500 off).
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 3000, 1000, ready_text);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 3000, 1000, ready_text);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 3000, 1000, ready_text);
 
-    // --- Stage 4: Discharge ---
+    // --- Stage 4: Discharge (1 second) ---
     // A final, bright flash on all rows.
     s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1000, 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 1000, 0);
