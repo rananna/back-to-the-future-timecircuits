@@ -160,7 +160,7 @@ void triggerAnimation(AnimationType animType);
  * @param track The `SequencerTrack` to run the marquee on.
  * @param text The text to scroll.
  */
-void startSequencerMarquee(SequencerTrack& track, const std::string& text);
+void startSequencerMarquee(SequencerTrack& track, const std::string& text, int speed);
 
 /**
  * @brief Handles the continuous update of all active marquee effects.
