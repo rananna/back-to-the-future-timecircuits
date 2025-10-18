@@ -36,10 +36,6 @@
     "payload": "Error"
   },
   {
-    "name": "Flux Capacitor Charge-Up",
-    "payload": "Flux Capacitor Charge-Up"
-  },
-  {
     "name": "Tachyons Detected",
     "payload": "Tachyons Detected"
   },
@@ -86,10 +82,6 @@
   {
     "name": "Tornado Flicker",
     "payload": "Tornado Flicker"
-  },
-  {
-    "name": "Capacitor Charge-Up",
-    "payload": "Capacitor Charge-Up"
   },
   {
     "name": "Digital Rain",
