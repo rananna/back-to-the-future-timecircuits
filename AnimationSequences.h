@@ -50,4 +50,7 @@ const char* animationTypeToString(AnimationType type);
 // Generator function for the Knight Rider animation
 void generateKnightRider(SequencerTrack tracks[3]);
 
+// Generator function for the Data Stream animation
+void generateDataStream(SequencerTrack tracks[3]);
+
 #endif // ANIMATION_SEQUENCES_H
