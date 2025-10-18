@@ -1042,10 +1042,26 @@ static void parseSingleTrack(SequencerTrack tracks[3], const JsonObject& track_d
             continue;
         }
 
+        int targetSegment = command["targetSegment"] | -1;
+        int intParam = command["intParam"] | 0;
+
+        // --- FIX: Allow intParam to be used for targetSegment for consistency ---
+        // If targetSegment wasn't explicitly set in the JSON, but the command is one
+        // that operates on a segment, use the value from intParam instead.
+        if (command["targetSegment"].isNull()) {
+            if (seq_cmd == SEQ_CMD_CLEAR_SEGMENT ||
+                seq_cmd == SEQ_CMD_RESTORE_SEGMENT ||
+                seq_cmd == SEQ_CMD_FLASH ||
+                seq_cmd == SEQ_CMD_PULSE)
+            {
+                targetSegment = intParam;
+            }
+        }
+
         // Add the parsed step to the track
         step_idx = add_step(tracks[targetRow], step_idx, seq_cmd, targetRow,
-            command["targetSegment"] | -1,
-            command["intParam"] | 0,
+            targetSegment,
+            intParam,
             command["intParam2"] | 0,
             command["stringParam"] | "",
             command["stringParam2"] | ""
