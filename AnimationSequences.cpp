@@ -80,29 +80,11 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     s0 = add_intro_sound_steps(tracks[0], s0);
 
-    // --- Track 0: Top Row Flicker ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 25, 0);
-    // Flicker for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100 + random(200), 50);
-    // Wait for a random duration between 100ms and 300ms
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100 + random(200), 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-
-    // --- Track 1: Middle Row Flicker ---
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 25, 0);
-    // Flicker for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 100 + random(200), 50);
-    // Wait for a random duration between 100ms and 300ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100 + random(200), 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
-
-    // --- Track 2: Bottom Row Flicker ---
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 25, 0);
-    // Flicker for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 100 + random(200), 50);
-    // Wait for a random duration between 100ms and 300ms
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100 + random(200), 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
+    // --- FIX: Run flicker for a fixed 10-second duration on all tracks ---
+    // This ensures a consistent animation length and simplifies the logic.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 10000, 50);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 10000, 50);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 10000, 50);
 }
 
 /**
