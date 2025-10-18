@@ -1656,6 +1656,11 @@ void triggerAnimation(AnimationType animType) {
     // Now that the new animation is prepared, stop all currently running tracks.
     stopAllSequences();
 
+    // --- FIX: Explicitly reset all tracks to guarantee a clean state ---
+    for (int i = 0; i < 3; ++i) {
+        sequencerTracks[i].reset();
+    }
+
     // Copy the steps from ALL generated tracks to the main sequencer tracks.
     for (int j = 0; j < 3; ++j) {
         // We don't need to call reset() here because stopAllSequences() already did.

@@ -257,7 +257,7 @@ struct SequencerTrack {
         stepStartTime = 0;
         stepInitialized = false;
         trackStartTime = 0;
-        duration = 0;
+       
 
         loopStartStep = -1;
         loopCounter = 0;

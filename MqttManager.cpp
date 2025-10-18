@@ -1602,33 +1602,26 @@ void handleSequencerCommand(const std::string& payload) {
         // It's a valid JSON string.
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload.");
 
-        // --- FIX: Manually save the display mode before running a JSON sequence ---
-        // This is the critical step that was missing. The triggerAnimation() function
-        // does this automatically for named animations, but for direct JSON payloads
-        // sent via MQTT, we need to do it here. This ensures that after the
-        // sequence completes, the system knows to return to the clock display.
-        preAnimationDisplayMode = currentSettings.displayMode;
-
-    // --- NEW: Save the current text of all display segments before starting the new animation ---
-    for (int r = 0; r < 3; ++r) {
-        for (int s = 0; s < 4; ++s) {
-            preAnimationDisplayText[r][s] = manualDisplayText[r][s];
-        }
-    }
-
-        currentSettings.displayMode = -1; // Set to an invalid mode to prevent clock updates
-
-        // Pass the already-parsed document directly to the function.
-        // This avoids a second, redundant parsing step.
+        // --- FIX: Stop any running sequence BEFORE saving state to prevent corruption ---
         stopAllSequences();
-        // --- FIX: Manually save the display mode before running a JSON sequence ---
-        // This is the critical step that was missing. The triggerAnimation() function
-        // does this automatically for named animations, but for direct JSON payloads
-        // sent via MQTT, we need to do it here. This ensures that after the
-        // sequence completes, the system knows to return to the clock display.
-        preAnimationDisplayMode = currentSettings.displayMode;
-        currentSettings.displayMode = -1; // Set to an invalid mode to prevent clock updates
 
+        // Save the current display state so it can be restored after the animation.
+        preAnimationDisplayMode = currentSettings.displayMode;
+        for (int r = 0; r < 3; ++r) {
+            for (int s = 0; s < 4; ++s) {
+                preAnimationDisplayText[r][s] = manualDisplayText[r][s];
+            }
+        }
+
+        // Set display mode to -1 to prevent the main clock loop from interfering.
+        currentSettings.displayMode = -1;
+
+        // --- FIX: Explicitly reset all tracks to guarantee a clean state ---
+        for (int i = 0; i < 3; ++i) {
+            sequencerTracks[i].reset();
+        }
+
+        // Parse the new sequence from the JSON payload.
         parseSequenceFromJson(sequencerTracks, mqttJsonDoc);
 
     } else {
