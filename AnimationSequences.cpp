@@ -1071,15 +1071,10 @@ void generateDataStream(SequencerTrack tracks[3]) {
     const char* hex_chars = "0123456789ABCDEF";
 
     // --- Track 0: Raw Data Feed (Top Row) ---
-    // A C++ loop generates 100 steps of random text, each displayed for 100ms, for a total of 10 seconds.
-    for (int i = 0; i < 100; i++) {
-        char random_hex[14];
-        for(int j=0; j<13; ++j) { random_hex[j] = hex_chars[random(16)]; }
-        random_hex[13] = '\0';
-        // Use SET_TEXT for an instantaneous update, better for a data stream effect.
-        s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, random_hex);
-        s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
-    }
+    // Use a single, long-running command to avoid exceeding MAX_SEQUENCE_STEPS.
+    // This command flickers random characters from the hex set for 10 seconds,
+    // with each new random string appearing every 100ms.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100, 10000, hex_chars);
 
     // --- Track 1: Status Updates (Middle Row) ---
     // Scramble "CONNECTING..." (13 chars * 150ms = 1950ms)
