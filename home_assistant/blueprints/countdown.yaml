@@ -209,14 +209,14 @@ sequence:
 
             {%- elif end_effect == 'SCRAMBLE_TEXT' -%}
               {#- This is a blocking effect. `intParam` is flicker speed, `intParam2` is lock-in speed per character. -#}
-              {%- set lock_in_delay = ([((end_dur * 1000) / (end_txt | length)), 20] | max) | int -%}
+              {%- set lock_in_delay = ([((end_dur * 1000) / (end_txt | length | max(1))), 20] | max) | int -%}
               {%- set scramble_cmd = {'command': 'SCRAMBLE_TEXT', 'targetSegment': -1, 'stringParam': end_txt, 'intParam': 50, 'intParam2': lock_in_delay} -%}
               {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
               {%- set end_commands = end_commands + [scramble_cmd, wait_cmd] -%}
 
             {%- elif end_effect == 'TYPEWRITER' -%}
               {#- This is a blocking effect. `intParam` is the delay per character. -#}
-              {%- set char_delay = ([((end_dur * 1000) / (end_txt | length)), 20] | max) | int -%}
+              {%- set char_delay = ([((end_dur * 1000) / (end_txt | length | max(1))), 20] | max) | int -%}
               {%- set typewriter_cmd = {'command': 'TYPEWRITER', 'targetSegment': -1, 'stringParam': end_txt, 'intParam': char_delay} -%}
               {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
               {%- set end_commands = end_commands + [typewriter_cmd, wait_cmd] -%}
@@ -264,8 +264,9 @@ sequence:
             {#-
               Inject the built-in sound command. It plays *after* the countdown but *before* the end text.
               We only add it to the first track (if `target` is 'ALL') to prevent it from playing multiple times.
+              Crucially, we only do this if there's an end_text to show, preventing sound without a visual.
             -#}
-            {%- if loop.first and audio_src == 'builtin' -%}
+            {%- if loop.first and audio_src == 'builtin' and end_txt | default('') != '' -%}
               {#- Convert HA's 0-100 volume to the device's 0-21 scale. -#}
               {%- set device_volume = ((vol / 100) * 21) | round(0) | int -%}
               {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
