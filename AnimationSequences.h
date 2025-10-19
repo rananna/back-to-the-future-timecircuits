@@ -53,4 +53,7 @@ void generateKnightRider(SequencerTrack tracks[3]);
 // Generator function for the Data Stream animation
 void generateDataStream(SequencerTrack tracks[3]);
 
+// Generator function for the Party Mode animation
+void generatePartyMode(SequencerTrack tracks[3]);
+
 #endif // ANIMATION_SEQUENCES_H

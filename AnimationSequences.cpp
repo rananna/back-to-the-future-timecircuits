@@ -1336,6 +1336,57 @@ const char* animationTypeToString(AnimationType type) {
 // --- Thematic C++ Animation Generators ---
 
 /**
+ * @brief Generates a dynamic, high-energy "Party Mode" animation.
+ * @details This function creates a multi-track, 10-second animation designed to be
+ * visually exciting and energetic. It uses three parallel tracks with randomized and
+ * synchronized effects to create a light-show feel.
+ * - **Track 0 (Top):** Cycles through different text messages like "PARTY" and "TIME"
+ *   with various wipe and flash effects.
+ * - **Track 1 (Middle):** Features a continuous, fast scanner effect as the core visual element.
+ * - **Track 2 (Bottom):** Uses rapid, randomized `RANDOM_FLICKER_TEXT` and `PULSE`
+ *   effects to create a dynamic, beat-like pattern.
+ * The combination of effects creates a vibrant and engaging animation perfect for "Party Mode".
+ * @param tracks The array of three sequencer tracks to populate.
+ */
+void generatePartyMode(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+    const char* solid_block = "|||||||||||||";
+
+    // --- Track 1: The core scanner beat ---
+    // A fast scanner runs for the entire 10-second duration.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 10000, 50, "---");
+
+    // --- Tracks 0 & 2: The light show ---
+    // Loop the main effects 5 times. Each loop is 2 seconds. Total 10s.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 5, 0);
+
+    // Wipe in "PARTY" and "TIME!"
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 50, 0, "PARTY");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WIPE, 2, -1, 50, 0, "TIME!");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 500, 0);
+
+    // Flash the text
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 500, 0);
+
+    // Clear and show a random flicker effect
+    s0 = add_step(tracks[0], s0, SEQ_CMD_CLEAR_SEGMENT, 0, -1, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_CLEAR_SEGMENT, 2, -1, 0, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 500, 50, solid_block);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 500, 50, solid_block);
+
+    // Final wait before loop repeats
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 500, 0);
+
+
+    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
+}
+
+/**
  * @brief Generates a lightning storm effect with intense, random flashes and crackles.
  * @details This animation uses three parallel tracks to create a chaotic and dynamic storm.
  * Track 0 produces the main, bright lightning bolts that flash across all rows.
@@ -1620,13 +1671,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
                 parseSequenceFromJson(tracks, doc);
             }
             break;
-        case ANIMATION_PARTY_MODE:
-            {
-                JsonDocument doc;
-                deserializeJson(doc, R"([{"targetRow":"TOP", "commands":[{"command":"SOUND", "stringParam":"party.mp3"},{"command":"SET_TEXT", "stringParam":"PARTY TIME!"}, {"command":"PULSE", "targetSegment":-1, "intParam": 250, "intParam2":10000}]}, {"targetRow":"MIDDLE", "commands":[{"command":"RANDOM_FLICKER_TEXT", "intParam":100, "intParam2":10000, "stringParam": "DANCE"}]}, {"targetRow":"BOTTOM", "commands":[{"command":"SET_TEXT", "stringParam":"LETS DANCE!"}, {"command":"PULSE", "targetSegment":-1, "intParam":250, "intParam2":10000}]}])");
-                parseSequenceFromJson(tracks, doc);
-            }
-            break;
+        case ANIMATION_PARTY_MODE:              generatePartyMode(tracks); break;
         case ANIMATION_KNIGHT_RIDER:          generateKnightRider(tracks); break;
         case ANIMATION_LOADING:
             {
