@@ -25,7 +25,15 @@ It is crucial for developers to understand that the firmware contains **two diff
 *   **Description**: This is the original animation system. It consists of C++ functions (e.g., `animateTornadoFlicker()`) that directly manipulate the display hardware in a loop.
 *   **Location**: The functions are defined in `HardwareControl.cpp` and are called from `handleStyledAnimation()` in `AnimationManager.cpp`.
 *   **Trigger**: These are triggered by setting the `currentSettings.animationStyle` enum and calling `startStyledAnimation()`. They are also exposed via string names in the MQTT `handleSequencerCommand` function for backward compatibility.
-*   **Use Case**: These animations are generally simpler, full-screen effects. No new development should use this system.
+*   **Use Case**: These animations are generally simpler, full-screen effects. **No new development should use this system.** It is less flexible, harder to debug, and will be deprecated in the future.
+
+The following animations are part of the legacy system:
+
+*   `Sequential Flicker`
+*   `Random Flicker`
+*   `Counting Up`
+*   `Wave Flicker`
+*   `Tornado Flicker`
 
 ### 2. Modern Sequencer System
 
@@ -36,31 +44,62 @@ It is crucial for developers to understand that the firmware contains **two diff
 
 ---
 
-## 🤖 MQTT API & Command Sequencer
+## 🤖 MQTT API Reference
 
-The MQTT API is the primary method for controlling the Time Circuits clock programmatically. It's divided into two main parts:
-1.  **Direct Command Topics**: For simple, one-off actions like setting brightness or rebooting.
-2.  **The Command Sequencer**: A powerful, scriptable engine for creating complex, multi-step animations.
+The MQTT API is the primary method for controlling the Time Circuits clock programmatically and monitoring its state.
 
-> **Topic Structure**
-> All topics follow the format: `bttf-time-circuits/YOUR_DEVICE_ID/COMMAND_NAME/command`.
-> You must replace `YOUR_DEVICE_ID` with the actual ID of your device (e.g., its MAC address).
+### Topic Structure
 
-### Direct Command Topics
+All topics follow a consistent structure. Replace `YOUR_DEVICE_ID` with the actual ID of your device (e.g., its MAC address).
+
+*   **Command Topics**: `bttf-time-circuits/YOUR_DEVICE_ID/COMMAND_NAME/command`
+    *   Used to **send instructions to** the device.
+*   **State Topics**: `bttf-time-circuits/YOUR_DEVICE_ID/STATE_NAME/state`
+    *   Used to **receive status updates from** the device.
+
+### State Topics
+
+These read-only topics allow you to monitor the device's status. They are updated in real-time.
+
+| State Name | Value Type | Description |
+| :--- | :--- | :--- |
+| `availability` | String | `online` or `offline`. Used for Home Assistant's availability feature. |
+| `device_name` | String | The friendly name of the device (e.g., "TimeCircuits-123456"). |
+| `device_ip` | String | The current IP address of the device. |
+| `device_mac` | String | The MAC address of the device. |
+| `device_version`| String | The current firmware version (e.g., "v2.1.0"). |
+| `display_mode` | String | The current operating mode. One of `"Normal Clock"`, `"Stock Ticker"`, `"Weather"`, `"Data Link"`. |
+| `brightness` | Number (0-7) | The current display brightness level. |
+| `volume` | Number (0-21) | The current audio volume level. |
+| `animation` | String | The name of the currently running animation, or `"none"`. |
+| `preset` | String | The name of the currently active preset. |
+| `radio_station`| String | The name of the currently playing favorite radio station. |
+| `dest_time` | String | The full "Destination Time" display string (e.g., "JAN 01 2025 12:00"). |
+| `pres_time` | String | The full "Present Time" display string. |
+| `last_time` | String | The full "Last Time Departed" display string. |
+
+### General Command Topics
 
 These topics provide direct control over specific settings and actions.
 
-| Command Name | Payload | Description |
+| Command Topic | Payload | Description |
 | :--- | :--- | :--- |
-| `display_mode` | String | Sets the main operating mode. Accepts `"Normal Clock"`, `"Stock Ticker"`, `"Weather"`, or `"Data Link"`. |
-| `brightness` | Number (0-7) | Sets the display brightness. |
-| `volume` | Number (0-21) | Sets the audio volume. |
-| `reboot_device` | `PRESS` | Reboots the ESP32. |
-| `force_ntp_sync` | `PRESS` | Manually forces a time sync with NTP servers. |
-| `play_sound` | String | Plays a built-in sound effect by its filename (e.g., `REMOTE.mp3`). |
-| `tts` | String (URL or JSON) | Plays audio from a URL. Can be a raw URL or a JSON object from Home Assistant's `tts.google_translate_say` service (`{"media_id": "URL"}`). |
+| `display/command` | String | Instantly displays a line of text on a specific row. Format: `"ROW:TEXT"`, where `ROW` is `TOP`, `MIDDLE`, or `BOTTOM`. Example: `"MIDDLE:HELLO WORLD"`. |
+| `display_mode/command` | String | Sets the main operating mode. Accepts `"Normal Clock"`, `"Stock Ticker"`, `"Weather"`, or `"Data Link"`. |
+| `brightness/command` | Number (0-7) | Sets the display brightness. |
+| `volume/command` | Number (0-21) | Sets the audio volume. |
+| `reboot_device/command`| `PRESS` | Reboots the ESP32. |
+| `force_ntp_sync/command`| `PRESS` | Manually forces a time sync with NTP servers. |
 
-### The Command Sequencer (`.../sequencer/command`)
+### Audio Command Topics
+
+| Command Topic | Payload | Description |
+| :--- | :--- | :--- |
+| `radio/command` | String | Controls the internet radio. Accepts `play_favorite_radio` or `stop_radio`. |
+| `sound/command` | String | Plays a built-in sound effect by its filename (e.g., `REMOTE.mp3`). |
+| `tts/command` | String (URL or JSON) | Plays audio from a URL. Can be a raw URL or a JSON object from Home Assistant's `tts.google_translate_say` service (`{"media_id": "URL"}`). |
+
+### Animation & Sequencer Commands
 
 The command sequencer is one of the most powerful features of the clock. You can script complex, multi-step, and even parallel animations.
 
@@ -122,21 +161,56 @@ This table details every command available in the sequencer.
 
 #### **Built-in Animations**
 
-The firmware includes a collection of pre-programmed animations that can be triggered by sending their name as a plain string payload to the `.../sequencer/command` MQTT topic. The names are case-sensitive and must match the `payload` values in `data/sequences.json`.
+The firmware includes a collection of pre-programmed animations that can be triggered by sending their name as a plain string payload to the `.../sequencer/command` MQTT topic.
+
+> **💡 Source of Truth**
+> The definitive list of user-selectable animations is defined in **`data/sequences.json`**. This file populates the animation dropdown in the web UI.
+
+All built-in animations are generated by C++ functions in **`AnimationSequences.cpp`**.
 
 *   **Example Payload**: `"Time Travel"`
-
-All built-in animations are defined and generated within **`AnimationSequences.cpp`**.
 
 | Animation Name | Description |
 | :--- | :--- |
 | `All Displays Random` | The classic BTTF effect. All three rows simultaneously scramble and lock in the current time. |
 | `Capacitor Charge-Up` | All three rows fill with a bar graph effect. |
+| `Character Scanline` | A horizontal bar scans down each display row, revealing the characters of the current time. |
+| `Code Breaker` | An effect where a stream of random characters quickly resolves to reveal the current time. |
+| `Countdown` | A standard numeric countdown from 5 on all rows. |
+| `Counting Up` | A standard numeric count-up to 5 on all rows. |
+| `Data Stream` | A "digital stream" of characters flows into place to form the current time. |
 | `Digital Rain` | All displays fill with continuously flickering random characters (Matrix-style). |
+| `Digit Cascade` | Digits cascade down from the top of each display segment to form the current time. |
+| `Electric Surge` | An intense, 10-second animation simulating a power surge with crackling text and bar graphs. |
+| `Error` | A simple error message display with a pulsing red light effect. |
+| `Fire Trails` | A flaming "wipe" effect that reveals the current time, inspired by the BTTF DeLorean's fire trails. |
+| `Flip-Disc Display` | Simulates an old-school flip-disc (or "solari") board revealing the current time. |
+| `Focus In` | A blur or "de-focus" effect that sharpens to reveal the current time. |
+| `Glitchy Jump-Cut` | A chaotic, desynchronized animation with multiple random glitch effects. |
+| `Interference Pattern` | Simulates a wavy signal interference pattern that resolves to the current time. |
 | `Intruder Alert` | A three-row alert with flashing text, a scanner, and pulsing lockdown message. |
+| `Knight Rider` | A multi-stage animation featuring the iconic Cylon/KITT scanner light. |
 | `Lightning` | A chaotic, multi-stage lightning storm effect with crackling sounds and intense, random flashes. |
+| `Loading` | A simple loading bar animation. |
+| `Party Mode` | A fun, colorful, looping animation with random text and effects. |
+| `Plasma Warm-Up` | A 10-second, multi-stage animation simulating a plasma energy system warming up. |
+| `Random Flicker` | A chaotic flicker of all display segments, eventually resolving to the current time. |
+| `Randomize All` | Triggers one of the other built-in animations at random. |
+| `Sequential Flicker` | Each display segment flickers on in a sequential "chase" pattern. |
+| `Sparkle Reveal` | A shimmering sparkle effect that fades in to reveal the current time. |
+| `Tachyons Detected` | A playful warning message with a pulsing effect. |
+| `Temporal Desync` | A glitchy, de-synchronized effect where display rows appear to be out of sync with each other. |
+| `Temporal Paradox` | A chaotic animation where the time appears to rapidly jump around before settling. |
+| `Test Suite` | A diagnostic animation that tests all hardware and sequencer commands. Displays "TESTS: PASS" on completion. |
 | `Time Circuits Lock-In` | A quick (2-second) version of the classic BTTF scramble and lock-in effect. |
 | `Time Travel` | A classic 88MPH sequence with a bar graph, marquee, and flashing lights. |
+| `Time Travel Tunnel` | A visual effect that simulates traveling through a vortex or tunnel. |
+| `Time Warp Streaks` | A fast-paced animation with horizontal streaks of light. |
+| `Timeline Skim` | The time rapidly "skims" forward or backward before settling on the current time. |
+| `Tornado Flicker` | A swirling, chaotic flicker pattern. |
+| `Wave Flicker` | A wave of light travels across the displays. |
+| `Waveform Collapse` | A data waveform is displayed, which then collapses to reveal the time. |
+| `Wormhole Collapse` | A visual effect simulating the collapse of a wormhole or vortex. |
 
 ---
 
