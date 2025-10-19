@@ -93,12 +93,6 @@ blueprint:
     # ----------------------------------------------------------------
     # --- Shared Effect Timing & Behavior
     # ----------------------------------------------------------------
-    duration:
-      name: "Display Duration (s)"
-      description: "Shared duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', 'Typewriter', and 'Random Flicker' effects across all active rows. This ensures timed effects stay in sync."
-      default: 10
-      selector:
-        number: { min: 1, max: 60, unit_of_measurement: "s" }
     flicker_speed:
       name: "Flicker Speed (ms)"
       description: "Shared speed for the 'Random Flicker' effect on any row. Lower is faster."
@@ -171,7 +165,7 @@ mode: single
 variables:
   # --- Collect all user inputs into variables for easier use ---
   device: !input device
-  duration: !input duration
+  duration: 10
   flicker_speed: !input flicker_speed
   audio_source: !input audio_source
   sound_effect: !input sound_effect

@@ -95,12 +95,6 @@ blueprint:
             - { label: "Typewriter (Reveals text character by character)", value: "TYPEWRITER" }
             - { label: "Scramble Text (Reveals text from a scramble)", value: "SCRAMBLE_TEXT" }
             - { label: "Random Flicker (Flickers characters randomly)", value: "RANDOM_FLICKER_TEXT" }
-    duration:
-      name: "Display Duration (s)"
-      description: "Set the display duration for 'Set Text', 'Pulse', 'Flash', 'Scramble', 'Typewriter', and 'Random Flicker' effects. Other effects are self-timing."
-      default: 10
-      selector:
-        number: { min: 1, max: 60, unit_of_measurement: "s" }
     flicker_speed:
       name: "Flicker Speed (ms)"
       description: "Set the speed for the 'Random Flicker' effect. Lower is faster."
@@ -191,7 +185,7 @@ variables:
   prefix: !input prefix
   postfix: !input postfix
   effect: !input effect
-  duration: !input duration
+  duration: 10
   flicker_speed: !input flicker_speed
   audio_source: !input audio_source
   sound_effect: !input sound_effect
