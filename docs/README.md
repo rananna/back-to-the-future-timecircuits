@@ -13,6 +13,7 @@ New to the project? This is the place to begin. This guide provides a complete, 
 Once your clock is built and running, these guides will help you master its features. Learn how to configure your Time Circuits, integrate with smart home systems, and use advanced capabilities.
 
 *   **[Web Interface Guide](user-guide/web-interface.md)**: A complete tour of the web UI for configuration.
+*   **[Animation Cookbook](user-guide/animation-cookbook.md)**: Learn how to create your own custom visual effects and animations.
 *   **[Home Assistant Integration Guide](user-guide/home-assistant.md)**: A detailed guide on integrating with Home Assistant, including Blueprints and examples.
 *   **[Sound System Guide](user-guide/sound-system.md)**: A guide to the sound system and Text-to-Speech features.
 *   **[Troubleshooting Guide](user-guide/troubleshooting.md)**: Solutions to common problems.
