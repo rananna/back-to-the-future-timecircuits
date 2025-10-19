@@ -1371,9 +1371,9 @@ void generatePartyMode(SequencerTrack tracks[3]) {
     s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 500, 0);
     s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 500, 0);
 
-    // Flicker the existing text
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 50, 500);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 50, 500);
+    // Pulse the existing text
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 250, 500);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 250, 500);
 
     // Final wait before loop repeats
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
