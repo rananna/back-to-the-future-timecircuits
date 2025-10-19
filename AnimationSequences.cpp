@@ -1350,38 +1350,16 @@ const char* animationTypeToString(AnimationType type) {
  */
 void generatePartyMode(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
-    const char* solid_block = "|||||||||||||";
 
-    // --- Track 1: The core scanner beat ---
-    // A fast scanner runs for the entire 10-second duration.
+    // Track 0 (Top): Pulse "PARTY" for 10 seconds.
+    // The pulse cycle is 2s (1s on, 1s off) by default.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 0, 10000, "PARTY");
+
+    // Track 1 (Middle): A fast scanner for 10 seconds.
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 10000, 50, "---");
 
-    // --- Tracks 0 & 2: The light show ---
-    // Loop the main effects 5 times. Each loop is 2 seconds. Total 10s.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 5, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 5, 0);
-
-    // Wipe in "PARTY" and "TIME!"
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 50, 0, "PARTY");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WIPE, 2, -1, 50, 0, "TIME!");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 500, 0);
-
-    // Flash the text
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 500, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 500, 0);
-
-    // Pulse the existing text
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 250, 500);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 250, 500);
-
-    // Final wait before loop repeats
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 500, 0);
-
-
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
+    // Track 2 (Bottom): Flash "TIME!" for 10 seconds.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 0, 10000, "TIME!");
 }
 
 /**
