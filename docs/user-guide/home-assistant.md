@@ -7,11 +7,11 @@ Welcome, time traveler! This guide provides everything you need to know to integ
 2. [Setup & Installation](#-setup--installation)
 3. [Understanding Blueprints, Scripts, and Automations](#-understanding-blueprints-scripts-and-automations)
 4. [Importing the Blueprints](#-importing-the-blueprints)
-5. [Available Blueprints](#-available-blueprints)
+5. [Available Blueprints: A Deep Dive](#-available-blueprints-a-deep-dive)
 6. [Core Entities & Controls](#-core-entities--controls)
 7. [Using the Media Player](#-using-the-media-player)
 8. [Sending Notifications](#-sending-notifications)
-9. [Advanced Control (MQTT)](#-advanced-control-mqtt)
+9. [Advanced Control: The Animation Sequencer](#-advanced-control-the-animation-sequencer)
 10. [Troubleshooting](#troubleshooting)
 
 ---
@@ -87,59 +87,104 @@ An **Automation** is the trigger that runs your script. It defines *when* you wa
 The easiest way to add the blueprints is by importing them directly from the project's GitHub repository. This ensures you always have the most up-to-date version.
 
 1.  **Navigate to Blueprints in Home Assistant**: Go to **Settings > Automations & Scenes** and select the **Blueprints** tab.
-2.  **Import a Blueprint**: Click the **Import Blueprint** button, paste one of the URLs below, and click **Preview Blueprint**, then **Import Blueprint**.
+2.  **Import a Blueprint**: Click the **Import Blueprint** button in the bottom right corner.
+3.  **Paste the URL**: In the dialog box, paste one of the URLs below into the "URL of the Blueprint to import" field.
+4.  **Preview and Import**: Click **Preview Blueprint**. Home Assistant will show you the details. If it looks correct, click **Import Blueprint**.
 
-3.  **Blueprint URLs (Copy and Paste)**:
-    *   **Display**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display.yaml`
-    *   **Countdown Timer**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/countdown.yaml`
-    *   **Multi-Row Status Board**: `https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/multi_row_status_board.yaml`
+You'll need to repeat this copy-paste process for each of the blueprints you want to use.
 
-Repeat the import process for each blueprint you wish to use.
-
-## 📖 Available Blueprints
-
-This section provides a high-level overview of the available blueprints. **For a complete list of all options, parameters, and detailed explanations, please refer to the comprehensive comments directly within each blueprint's YAML file.** The descriptions in the Home Assistant UI are powered by these comments and serve as the primary source of truth.
-
----
-
-### **1. Display**
-This is the most versatile blueprint for showing information on the clock. It's a powerful all-in-one tool that can display static text, the state of any Home Assistant entity, or a combination of both using templates.
-
-*   **Use it for:**
-    *   Displaying the current temperature, humidity, or a stock price.
-    *   Showing a custom alert message like "GARAGE OPEN".
-    *   Announcing the currently playing song title.
+#### **Blueprint URLs (Click to Copy)**
+*   **Display Blueprint:**
+    ```
+    https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display.yaml
+    ```
+*   **Countdown Timer Blueprint:**
+    ```
+    https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/countdown.yaml
+    ```
+*   **Multi-Row Status Board Blueprint:**
+    ```
+    https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/multi_row_status_board.yaml
+    ```
 
 ---
 
-### **2. Countdown Timer**
-This blueprint runs a numeric countdown on one or more display rows. When the timer hits zero, it can trigger a follow-up visual effect and play a sound.
+## 📖 Available Blueprints: A Deep Dive
 
-*   **Use it for:**
-    *   A kitchen timer.
-    *   A visual countdown for a "launch" sequence.
-    *   A timer for a child's timeout or a game.
+This section provides a detailed look at each blueprint to help you choose the right one for your automation. The descriptions in the Home Assistant UI are powered by the comments within each blueprint file and serve as the primary source of truth for all options.
 
 ---
 
-### **3. Multi-Row Status Board**
-This advanced blueprint allows you to control all three display rows independently and simultaneously. You can set a different message and visual effect for the top, middle, and bottom rows, creating a dense, information-rich display.
+### **1. Display Blueprint: The All-Rounder**
+This is the most versatile and commonly used blueprint. It's a powerful all-in-one tool for showing a single piece of information on a specific display row. It can display static text, the state of any Home Assistant entity, or a combination of both using templates.
 
-*   **Use it for:**
-    *   Showing weather on top, time in the middle, and a stock price on the bottom.
-    *   Creating a "system status" screen with CPU temp, memory usage, and network speed.
-    *   Displaying a multi-line alert message.
+#### **When to Use It:**
+*   You want to display a single, important piece of data (e.g., the outdoor temperature).
+*   You need to show a simple, custom alert message (e.g., "GARAGE DOOR OPEN").
+*   You want to announce the title of the currently playing song on a media player.
+
+#### **Key Features:**
+*   **Target a Specific Row**: Choose whether your message appears on the TOP, MIDDLE, or BOTTOM row.
+*   **Rich Visual Effects**: Select from a wide range of entry and exit animations (like `Marquee`, `Typewriter`, `Scramble Text`) to make your message stand out.
+*   **Timed Display**: Set a duration to keep the message on screen for a specific amount of time before it disappears.
+*   **Sound Effects**: Add an audible alert by playing a built-in or custom sound effect.
+
+#### **Example Use Case:**
+_"When my 3D printer finishes, show the message 'PRINT COMPLETE' on the top row with a chime sound for 5 minutes."_
+*   **Blueprint**: Display
+*   **Trigger**: `3D Printer State changes to 'finished'`
+*   **Text to Display**: `PRINT COMPLETE`
+*   **Display Row**: `TOP`
+*   **Display Duration**: `300` seconds
+*   **Sound Effect**: `arrival_chime.mp3`
 
 ---
 
-### **New in Blueprints: Flexible Audio Output**
-All blueprints that support streaming audio from Home Assistant now include an **`Audio Output`** selector. This powerful feature allows you to route the sound to any `media_player` in your home, not just the Time Circuits clock's built-in speaker.
+### **2. Countdown Timer Blueprint: The Specialist**
+This blueprint is designed for one specific task: running a numeric countdown on one or more display rows. When the timer hits zero, it can trigger a follow-up visual effect and play a sound for a grand finale.
 
-*   **How it works:**
-    *   If you leave the `Audio Output` selector blank, audio will play on the Time Circuits device by default.
-    *   If you select a different speaker (e.g., a Google Home or Sonos), the sound will play there instead.
+#### **When to Use It:**
+*   You need a visual kitchen timer.
+*   You want to create a dramatic "launch sequence" for an automation.
+*   You need a timer for a child's timeout or a game.
 
-*   **Example Use Case**: Run a countdown on the Time Circuits display, but have the final "LIFTOFF!" sound play on a loud speaker in your living room for maximum effect.
+#### **Key Features:**
+*   **Multi-Row Countdown**: Display the countdown on one, two, or all three rows simultaneously.
+*   **Customizable Finale**: When the countdown finishes, you can show a final message (e.g., "LIFTOFF!"), play a sound, or stream audio.
+*   **Flexible Audio**: Stream the finale sound to any speaker in your home, not just the clock's speaker.
+
+#### **Example Use Case:**
+_"Create a 10-second countdown for my 'Movie Time' scene. When it finishes, show 'ENJOY THE SHOW' and play a cinematic sound on my living room speakers."_
+*   **Blueprint**: Countdown Timer
+*   **Trigger**: `Button press for 'Movie Time'`
+*   **Countdown Duration**: `10` seconds
+*   **Completion Message**: `ENJOY THE SHOW`
+*   **Streamed Media**: `local/sounds/cinematic_hit.mp3`
+*   **Audio Output**: `media_player.living_room_speaker`
+
+---
+
+### **3. Multi-Row Status Board Blueprint: The Power User's Tool**
+This is the most advanced blueprint, allowing you to control all three display rows independently and simultaneously from a single script. You can set a different message and visual effect for the top, middle, and bottom rows, creating a dense, information-rich display.
+
+#### **When to Use It:**
+*   You want to build a custom "dashboard" screen showing multiple pieces of information at once (e.g., weather, time, and a stock price).
+*   You need to display a complex, multi-line alert message.
+*   You want to create advanced, parallel animation effects across all three rows.
+
+#### **Key Features:**
+*   **Independent Row Control**: Configure the text, effect, and duration for the TOP, MIDDLE, and BOTTOM rows separately.
+*   **Synchronized Animations**: All three rows animate in and out at the same time, creating a clean, professional look.
+*   **Single Script Simplicity**: Manage a complex, three-line display from a single, easy-to-use script.
+
+#### **Example Use Case:**
+_"Every morning at 8 AM, show a status screen: the weather forecast on top, the current date in the middle, and my portfolio value on the bottom. Hold for 1 minute."_
+*   **Blueprint**: Multi-Row Status Board
+*   **Trigger**: `Time is 8:00 AM`
+*   **Top Row Text**: `{{ states('weather.home') }}`
+*   **Middle Row Text**: `{{ now().strftime('%B %d') }}`
+*   **Bottom Row Text**: `TSLA: ${{ states('sensor.tsla_stock') }}`
+*   **Display Duration**: `60` seconds
 
 ---
 
@@ -232,14 +277,14 @@ This is the easiest way to display a temporary message. Use the built-in `notify
 
 ---
 
-## ⚙️ Advanced Control (MQTT)
+## ⚙️ Advanced Control: The Animation Sequencer
 
-For ultimate control, you can publish directly to the clock's raw MQTT command topic. This gives you access to the powerful **Command Sequencer**, which allows you to create custom, multi-step animations.
+For ultimate control, you can bypass the blueprints and publish directly to the clock's raw MQTT command topic. This gives you access to the powerful **Command Sequencer**, which allows you to create custom, multi-step animations from scratch.
 
 *   **Topic**: `bttf_time_circuits/DEVICE_ID/sequencer/command` (replace `DEVICE_ID` with your clock's ID)
 *   **Payload**: A string with the name of a built-in animation, or a JSON object for a custom sequence.
 
-> **This is an advanced feature.** For a complete guide on the sequencer, including all commands, parameters, and examples, please see the **[🤖 Developer Guide](../developer/developer-guide.md#command-sequencer-deep-dive)**.
+> **This is an advanced feature.** For a complete guide on the sequencer, including all commands, parameters, and delicious examples, please see our new **[🎬 Animation Cookbook](./animation-cookbook.md)**.
 
 ---
 
@@ -250,10 +295,8 @@ For ultimate control, you can publish directly to the clock's raw MQTT command t
     *   In an MQTT client like [MQTT Explorer](http://mqtt-explorer.com/), check the `bttf_time_circuits/YOUR_DEVICE_ID/status` topic. It should have a retained message of `online`. If not, check the MQTT settings in the clock's web UI.
 
 *   **Why does my text disappear immediately?**
-    This usually happens when using a non-blocking effect like `Set Text` or `Random Flicker` without specifying a duration. The script sends the command and immediately finishes, so the display restores to its previous state.
-    *   **Solution**: For `Set Text` and `Random Flicker`, you **must** use the **`Display Duration`** input. This tells the blueprint to add a `WAIT` command, holding the effect on-screen for the specified time.
-    *   For other timed effects like `Pulse`, `Flash`, `Scramble Text`, and `Typewriter`, the **`Display Duration`** input directly controls the total time the effect will run.
-    *   Effects like `Marquee` and `Countdown` are self-timing and will run until they are complete.
+    This usually happens when using a non-blocking effect like `Set Text` without specifying a duration. The script sends the command and immediately finishes, so the display restores to its previous state.
+    *   **Solution**: In the blueprints, you **must** use the **`Display Duration`** input for effects that aren't self-timing. This tells the blueprint to add a `WAIT` command, holding the effect on-screen for the specified time.
 
 *   **Can I combine sensor data with my own text?**
     Absolutely! All text fields in the blueprints support Home Assistant templates. This lets you build rich, dynamic strings.
