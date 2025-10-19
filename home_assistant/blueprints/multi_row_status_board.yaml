@@ -190,136 +190,155 @@ variables:
       effect: !input bottom_row_effect
 
 sequence:
-  # Condition: Ensure a device has been selected before proceeding.
-  - condition: template
-    value_template: "{{ device != none }}"
-
-  # Action: Publish the generated sequencer command to the device via MQTT.
-  - service: mqtt.publish
-    data:
-      topic: "bttf_time_circuits/{{ ((device_attr(device, 'identifiers') | list | last)[1]) | trim }}/sequencer/command"
-      payload: >-
-        {#-
-          JINJA2 TEMPLATE LOGIC
-          This template constructs the JSON payload for the device's sequencer command.
-          It iterates through the 'rows_data' variable defined above and generates a separate "track"
-          for each row that has text defined. This allows all three rows to animate in parallel.
-          The final output is a JSON array of these track objects.
-        -#}
-        {%- macro generate_row_payload(row_data, dur, f_speed, restore) -%}
-          {#- A namespace is used to hold the list of tracks as it's built. -#}
-          {%- set ns = namespace(tracks=[]) -%}
-          {#-
-            Define which effects are self-timing, which are timed by the firmware,
-            and which require a manual WAIT command.
-          -#}
-          {# --- STEP 1: Loop through each row's configuration data --- #}
-          {%- for row in row_data -%}
-            {#- Only generate a track if the text for the current row is not empty. -#}
-            {%- if row.text | default('') != '' -%}
-              {%- set core_commands = [] -%}
-
-              {#-
-                BRANCHING LOGIC FOR EFFECTS
-                This block determines the correct command sequence and parameters for the selected effect
-                based on the firmware's requirements.
-              -#}
-              {%- if row.effect == 'SET_TEXT' -%}
-                {%- set core_commands = core_commands + [{'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': row.text}] -%}
-                {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': (dur * 1000)}] -%}
-
-              {%- elif row.effect == 'RANDOM_FLICKER_TEXT' -%}
-                {#- This is a non-blocking effect that requires two steps: set the text, then flicker it. -#}
-                {%- set set_text_cmd = {'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': row.text} -%}
-                {%- set flicker_cmd = {'command': 'RANDOM_FLICKER_TEXT', 'targetSegment': -1, 'stringParam': "", 'intParam': f_speed, 'intParam2': (dur * 1000)} -%}
-                {%- set wait_cmd = {'command': 'WAIT', 'intParam': (dur * 1000)} -%}
-                {%- set core_commands = core_commands + [set_text_cmd, flicker_cmd, wait_cmd] -%}
-
-              {%- elif row.effect == 'SCRAMBLE_TEXT' -%}
-                {#- This is a blocking effect. `intParam` is flicker speed, `intParam2` is lock-in speed per character. -#}
-                {%- set lock_in_delay = ([((dur * 1000) / (row.text | length)), 20] | max) | int -%}
-                {%- set scramble_cmd = {'command': 'SCRAMBLE_TEXT', 'targetSegment': -1, 'stringParam': row.text, 'intParam': 50, 'intParam2': lock_in_delay} -%}
-                {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
-                {%- set core_commands = core_commands + [scramble_cmd, wait_cmd] -%}
-
-              {%- elif row.effect == 'TYPEWRITER' -%}
-                {#- This is a blocking effect. `intParam` is the delay per character. -#}
-                {%- set char_delay = ([((dur * 1000) / (row.text | length)), 20] | max) | int -%}
-                {%- set typewriter_cmd = {'command': 'TYPEWRITER', 'targetSegment': -1, 'stringParam': row.text, 'intParam': char_delay} -%}
-                {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
-                {%- set core_commands = core_commands + [typewriter_cmd, wait_cmd] -%}
-
-              {%- elif row.effect == 'MARQUEE' -%}
-                {#- This is a blocking effect. `intParam` is the scroll speed per step. -#}
-                {%- set scroll_distance = 13 + (row.text | length) -%}
-                {%- set scroll_speed = ([((dur * 1000) / scroll_distance), 20] | max) | int -%}
-                {%- set marquee_cmd = {'command': 'MARQUEE', 'targetSegment': -1, 'stringParam': row.text, 'intParam': scroll_speed} -%}
-                {%- set core_commands = core_commands + [marquee_cmd] -%}
-
-              {%- elif row.effect == 'PULSE' or row.effect == 'FLASH' -%}
-                {#- These are blocking effects. `intParam2` is the total duration. -#}
-                {%- set effect_cmd = {'command': row.effect, 'targetSegment': -1, 'stringParam': row.text, 'intParam2': (dur * 1000)} -%}
-                {%- set core_commands = core_commands + [effect_cmd] -%}
-              {%- endif -%}
-
-              {# --- STEP 4: Add the restore command if requested --- #}
-              {%- if restore -%}
-                {#- `RESTORE_ROW` tells the device to revert this specific row to its previous state. -#}
-                {%- set core_commands = core_commands + [{'command': 'RESTORE_ROW'}] -%}
-              {%- endif -%}
-
-              {# --- STEP 5: Add sound to the very first track that gets generated --- #}
-              {#- This ensures the sound only plays once, even if multiple rows are active. -#}
-              {%- if ns.tracks | length == 0 and audio_source == 'builtin' -%}
-                {#- Convert HA's 0-100 volume to the device's 0-21 scale. -#}
-                {%- set device_volume = ((volume / 100) * 21) | round(0) | int -%}
-                {%- set sound_command = {'command': 'SOUND', 'stringParam': sound_effect, 'intParam': device_volume} -%}
-                {#- Prepend the sound command so it plays at the beginning. -#}
-                {%- set core_commands = [sound_command] + core_commands -%}
-              {%- endif -%}
-
-              {#- Create the final track object with the target row and its list of commands. -#}
-              {%- set track_object = {'targetRow': row.target, 'commands': core_commands} -%}
-              {#- Add the completed track object to our list of tracks. -#}
-              {%- set ns.tracks = ns.tracks + [track_object] -%}
-            {%- endif -%}
-          {%- endfor -%}
-
-          {# --- STEP 6: Return the raw JSON array of tracks --- #}
-          {#- The `to_json` filter converts the Python list of dictionaries into a valid JSON string. -#}
-          {{- ns.tracks | to_json -}}
-        {%- endmacro -%}
-        {#- Call the macro with all the relevant inputs to generate the final payload. -#}
-        {{- generate_row_payload(rows_data, duration, flicker_speed, restore_rows) -}}
-
-  # Parallel Action: Handle streaming audio from Home Assistant.
   - choose:
-      # This entire block runs in parallel with the MQTT `publish` service call above.
+      # Condition 1: No device selected. Log a warning and stop.
       - conditions:
-          # Only run this sequence if the user selected 'media' and provided a media file.
-          - "{{ audio_source == 'media' and media_file != '' }}"
-        sequence:
-          # Determine the target media_player. Use the override if provided, otherwise find the one from the device.
-          - variables:
-              target_player: >-
-                {% if audio_output_player is defined and audio_output_player != '' %}
-                  {{ audio_output_player }}
-                {% else %}
-                  {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
-                {% endif %}
-          # Condition: Ensure we have a valid media_player to target.
           - condition: template
-            value_template: "{{ target_player != 'none' }}"
-          # Set the volume on the target media player before playing.
-          - service: media_player.volume_set
-            target:
-              entity_id: "{{ target_player }}"
+            value_template: "{{ device == none }}"
+        sequence:
+          - service: system_log.write
             data:
-              volume_level: "{{ volume / 100 }}"
-          # Play the selected media file from the HA media library. This plays immediately.
-          - service: media_player.play_media
-            target:
-              entity_id: "{{ target_player }}"
+              level: warning
+              message: "Time Circuits - Multi-Row Status Board: No device selected. Blueprint cannot run."
+
+      # Condition 2: No text provided for any row. Log a message and stop.
+      - conditions:
+          - condition: template
+            value_template: "{{ rows_data | map(attribute='text') | select('!=', '') | list | count == 0 }}"
+        sequence:
+          - service: system_log.write
             data:
-              media_content_id: !input media_file
-              media_content_type: "music"
+              level: info
+              message: "Time Circuits - Multi-Row Status Board: No text provided for any row. Halting execution."
+
+      # Default Action: All checks passed, run the main sequence.
+    default:
+      # Action: Publish the generated sequencer command to the device via MQTT.
+      - service: mqtt.publish
+        data:
+          topic: "bttf_time_circuits/{{ ((device_attr(device, 'identifiers') | list | last)[1]) | trim }}/sequencer/command"
+          payload: >-
+            {#-
+              JINJA2 TEMPLATE LOGIC
+              This template constructs the JSON payload for the device's sequencer command.
+              It iterates through the 'rows_data' variable defined above and generates a separate "track"
+              for each row that has text defined. This allows all three rows to animate in parallel.
+              The final output is a JSON array of these track objects.
+            -#}
+            {%- macro generate_row_payload(row_data, dur, f_speed, restore) -%}
+              {#- A namespace is used to hold the list of tracks as it's built. -#}
+              {%- set ns = namespace(tracks=[]) -%}
+              {#-
+                Define which effects are self-timing, which are timed by the firmware,
+                and which require a manual WAIT command.
+              -#}
+              {# --- STEP 1: Loop through each row's configuration data --- #}
+              {%- for row in row_data -%}
+                {#- Only generate a track if the text for the current row is not empty. -#}
+                {%- if row.text | default('') != '' -%}
+                  {%- set core_commands = [] -%}
+
+                  {#-
+                    BRANCHING LOGIC FOR EFFECTS
+                    This block determines the correct command sequence and parameters for the selected effect
+                    based on the firmware's requirements.
+                  -#}
+                  {%- if row.effect == 'SET_TEXT' -%}
+                    {%- set core_commands = core_commands + [{'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': row.text}] -%}
+                    {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': (dur * 1000)}] -%}
+
+                  {%- elif row.effect == 'RANDOM_FLICKER_TEXT' -%}
+                    {#- This is a non-blocking effect that requires two steps: set the text, then flicker it. -#}
+                    {%- set set_text_cmd = {'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': row.text} -%}
+                    {%- set flicker_cmd = {'command': 'RANDOM_FLICKER_TEXT', 'targetSegment': -1, 'stringParam': "", 'intParam': f_speed, 'intParam2': (dur * 1000)} -%}
+                    {%- set wait_cmd = {'command': 'WAIT', 'intParam': (dur * 1000)} -%}
+                    {%- set core_commands = core_commands + [set_text_cmd, flicker_cmd, wait_cmd] -%}
+
+                  {%- elif row.effect == 'SCRAMBLE_TEXT' -%}
+                    {#- This is a blocking effect. `intParam` is flicker speed, `intParam2` is lock-in speed per character. -#}
+                    {%- set lock_in_delay = ([((dur * 1000) / (row.text | length | max(1))), 20] | max) | int -%}
+                    {%- set scramble_cmd = {'command': 'SCRAMBLE_TEXT', 'targetSegment': -1, 'stringParam': row.text, 'intParam': 50, 'intParam2': lock_in_delay} -%}
+                    {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
+                    {%- set core_commands = core_commands + [scramble_cmd, wait_cmd] -%}
+
+                  {%- elif row.effect == 'TYPEWRITER' -%}
+                    {#- This is a blocking effect. `intParam` is the delay per character. -#}
+                    {%- set char_delay = ([((dur * 1000) / (row.text | length | max(1))), 20] | max) | int -%}
+                    {%- set typewriter_cmd = {'command': 'TYPEWRITER', 'targetSegment': -1, 'stringParam': row.text, 'intParam': char_delay} -%}
+                    {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
+                    {%- set core_commands = core_commands + [typewriter_cmd, wait_cmd] -%}
+
+                  {%- elif row.effect == 'MARQUEE' -%}
+                    {#- This is a blocking effect. `intParam` is the scroll speed per step. -#}
+                    {%- set scroll_distance = 13 + (row.text | length) -%}
+                    {%- set scroll_speed = ([((dur * 1000) / scroll_distance), 20] | max) | int -%}
+                    {%- set marquee_cmd = {'command': 'MARQUEE', 'targetSegment': -1, 'stringParam': row.text, 'intParam': scroll_speed} -%}
+                    {%- set core_commands = core_commands + [marquee_cmd] -%}
+
+                  {%- elif row.effect == 'PULSE' or row.effect == 'FLASH' -%}
+                    {#- These are blocking effects. `intParam2` is the total duration. -#}
+                    {%- set effect_cmd = {'command': row.effect, 'targetSegment': -1, 'stringParam': row.text, 'intParam2': (dur * 1000)} -%}
+                    {%- set core_commands = core_commands + [effect_cmd] -%}
+                  {%- endif -%}
+
+                  {# --- STEP 4: Add the restore command if requested --- #}
+                  {%- if restore -%}
+                    {#- `RESTORE_ROW` tells the device to revert this specific row to its previous state. -#}
+                    {%- set core_commands = core_commands + [{'command': 'RESTORE_ROW'}] -%}
+                  {%- endif -%}
+
+                  {# --- STEP 5: Add sound to the very first track that gets generated --- #}
+                  {#- This ensures the sound only plays once, even if multiple rows are active. -#}
+                  {%- if ns.tracks | length == 0 and audio_source == 'builtin' -%}
+                    {#- Convert HA's 0-100 volume to the device's 0-21 scale. -#}
+                    {%- set device_volume = ((volume / 100) * 21) | round(0) | int -%}
+                    {%- set sound_command = {'command': 'SOUND', 'stringParam': sound_effect, 'intParam': device_volume} -%}
+                    {#- Prepend the sound command so it plays at the beginning. -#}
+                    {%- set core_commands = [sound_command] + core_commands -%}
+                  {%- endif -%}
+
+                  {#- Create the final track object with the target row and its list of commands. -#}
+                  {%- set track_object = {'targetRow': row.target, 'commands': core_commands} -%}
+                  {#- Add the completed track object to our list of tracks. -#}
+                  {%- set ns.tracks = ns.tracks + [track_object] -%}
+                {%- endif -%}
+              {%- endfor -%}
+
+              {# --- STEP 6: Return the raw JSON array of tracks --- #}
+              {#- The `to_json` filter converts the Python list of dictionaries into a valid JSON string. -#}
+              {{- ns.tracks | to_json -}}
+            {%- endmacro -%}
+            {#- Call the macro with all the relevant inputs to generate the final payload. -#}
+            {{- generate_row_payload(rows_data, duration, flicker_speed, restore_rows) -}}
+
+      # Parallel Action: Handle streaming audio from Home Assistant.
+      - choose:
+          # This entire block runs in parallel with the MQTT `publish` service call above.
+          - conditions:
+              # Only run this sequence if the user selected 'media' and provided a media file.
+              - "{{ audio_source == 'media' and media_file != '' }}"
+            sequence:
+              # Determine the target media_player. Use the override if provided, otherwise find the one from the device.
+              - variables:
+                  target_player: >-
+                    {% if audio_output_player is defined and audio_output_player != '' %}
+                      {{ audio_output_player }}
+                    {% else %}
+                      {{ device_entities(device) | select('startswith', 'media_player.') | first | default('none') }}
+                    {% endif %}
+              # Condition: Ensure we have a valid media_player to target.
+              - condition: template
+                value_template: "{{ target_player != 'none' }}"
+              # Set the volume on the target media player before playing.
+              - service: media_player.volume_set
+                target:
+                  entity_id: "{{ target_player }}"
+                data:
+                  volume_level: "{{ volume / 100 }}"
+              # Play the selected media file from the HA media library. This plays immediately.
+              - service: media_player.play_media
+                target:
+                  entity_id: "{{ target_player }}"
+                data:
+                  media_content_id: !input media_file
+                  media_content_type: "music"
