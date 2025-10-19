@@ -775,7 +775,7 @@ void handleSequencer() {
                 if (millis() > track.pulseEndTimes[s]) {
                     track.isPulsing[s] = false;
                     needsDisplayUpdate = true;
-                } else if (millis() - track.lastPulseToggle[s] > 750) {
+                } else if (millis() - track.lastPulseToggle[s] > 1000) {
                     track.pulseStates[s] = !track.pulseStates[s];
                     track.lastPulseToggle[s] = millis();
                     needsDisplayUpdate = true;
