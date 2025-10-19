@@ -1071,10 +1071,8 @@ void generateDataStream(SequencerTrack tracks[3]) {
     const char* hex_chars = "0123456789ABCDEF";
 
     // --- Track 0: Raw Data Feed (Top Row) ---
-    // Use a single, long-running command to avoid exceeding MAX_SEQUENCE_STEPS.
-    // This command flickers random characters from the hex set for 10 seconds,
-    // with each new random string appearing every 100ms.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100, 10000, hex_chars);
+    // Flicker random hex characters for 9.5 seconds.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 100, 9500, hex_chars);
 
     // --- Track 1: Status Updates (Middle Row) ---
     // Scramble "CONNECTING..." (13 chars * 150ms = 1950ms)
@@ -1087,14 +1085,21 @@ void generateDataStream(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2050, 0);
     // Scramble "VERIFIED" (8 chars * 125ms = 1000ms)
     s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 125, "VERIFIED");
-    // Pulse final status for 2000ms. Total = 1950+1200+1800+2050+1000+2000 = 10000ms
-    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 2000, 0);
+    // Pulse final status for 1500ms. Total = 1950+1200+1800+2050+1000+1500 = 9500ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 1500, 0);
 
     // --- Track 2: Progress Bar (Bottom Row) ---
     // A bar graph that fills up over 9.5 seconds.
     s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 100, 9500, "DATA LINK");
-    // A final flash to signify completion.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 500, 0);
+
+    // --- Synchronization Barrier & Cleanup ---
+    // Add a final 500ms wait to all tracks to ensure they end at the same time.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 500, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 500, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 500, 0);
+
+    // Add a final cleanup command to the main track to restore the clock display.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RESTORE_ALL_ROWS, 0, 0, 0, 0);
 }
 
 void generateIntruderAlert(SequencerTrack tracks[3]) {
