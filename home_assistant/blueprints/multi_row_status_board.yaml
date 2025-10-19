@@ -189,30 +189,16 @@ variables:
       text: !input bottom_row_text
       effect: !input bottom_row_effect
 
+condition:
+  - condition: template
+    value_template: "{{ device != none }}"
+    error_message: "No device selected. Please select a Time Circuits device to control."
+  - condition: template
+    value_template: "{{ rows_data | map(attribute='text') | select('!=', '') | list | count > 0 }}"
+    error_message: "No text provided for any row. Please provide text for at least one row to run this blueprint."
+
 sequence:
-  - choose:
-      # Condition 1: No device selected. Log a warning and stop.
-      - conditions:
-          - condition: template
-            value_template: "{{ device == none }}"
-        sequence:
-          - service: system_log.write
-            data:
-              level: warning
-              message: "Time Circuits - Multi-Row Status Board: No device selected. Blueprint cannot run."
-
-      # Condition 2: No text provided for any row. Log a message and stop.
-      - conditions:
-          - condition: template
-            value_template: "{{ rows_data | map(attribute='text') | select('!=', '') | list | count == 0 }}"
-        sequence:
-          - service: system_log.write
-            data:
-              level: info
-              message: "Time Circuits - Multi-Row Status Board: No text provided for any row. Halting execution."
-
-      # Default Action: All checks passed, run the main sequence.
-    default:
+  - parallel:
       # Action: Publish the generated sequencer command to the device via MQTT.
       - service: mqtt.publish
         data:
@@ -225,7 +211,7 @@ sequence:
               for each row that has text defined. This allows all three rows to animate in parallel.
               The final output is a JSON array of these track objects.
             -#}
-            {%- macro generate_row_payload(row_data, dur, f_speed, restore) -%}
+            {%- macro generate_row_payload(row_data, dur, f_speed, restore, audio_src_local, sound_effect_local, volume_local) -%}
               {#- A namespace is used to hold the list of tracks as it's built. -#}
               {%- set ns = namespace(tracks=[]) -%}
               {#-
@@ -235,7 +221,7 @@ sequence:
               {# --- STEP 1: Loop through each row's configuration data --- #}
               {%- for row in row_data -%}
                 {#- Only generate a track if the text for the current row is not empty. -#}
-                {%- if row.text | default('') != '' -%}
+                {%- if row.text | default('') | trim != '' -%}
                   {%- set core_commands = [] -%}
 
                   {#-
@@ -289,10 +275,10 @@ sequence:
 
                   {# --- STEP 5: Add sound to the very first track that gets generated --- #}
                   {#- This ensures the sound only plays once, even if multiple rows are active. -#}
-                  {%- if ns.tracks | length == 0 and audio_source == 'builtin' -%}
+                  {%- if ns.tracks | length == 0 and audio_src_local == 'builtin' -%}
                     {#- Convert HA's 0-100 volume to the device's 0-21 scale. -#}
-                    {%- set device_volume = ((volume / 100) * 21) | round(0) | int -%}
-                    {%- set sound_command = {'command': 'SOUND', 'stringParam': sound_effect, 'intParam': device_volume} -%}
+                    {%- set device_volume = ((volume_local / 100) * 21) | round(0) | int -%}
+                    {%- set sound_command = {'command': 'SOUND', 'stringParam': sound_effect_local, 'intParam': device_volume} -%}
                     {#- Prepend the sound command so it plays at the beginning. -#}
                     {%- set core_commands = [sound_command] + core_commands -%}
                   {%- endif -%}
@@ -309,9 +295,9 @@ sequence:
               {{- ns.tracks | to_json -}}
             {%- endmacro -%}
             {#- Call the macro with all the relevant inputs to generate the final payload. -#}
-            {{- generate_row_payload(rows_data, duration, flicker_speed, restore_rows) -}}
+            {{- generate_row_payload(rows_data, duration, flicker_speed, restore_rows, audio_source, sound_effect, volume) -}}
 
-      # Parallel Action: Handle streaming audio from Home Assistant.
+      # Action: Handle streaming audio from Home Assistant.
       - choose:
           # This entire block runs in parallel with the MQTT `publish` service call above.
           - conditions:

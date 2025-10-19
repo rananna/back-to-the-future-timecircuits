@@ -227,30 +227,16 @@ variables:
       {{- '' -}}
     {%- endif -%}
 
+condition:
+  - condition: template
+    value_template: "{{ device != none }}"
+    error_message: "No device selected. Please select a Time Circuits device to control."
+  - condition: template
+    value_template: "{{ final_text | trim != '' }}"
+    error_message: "No text to display. The entity may be unavailable or the template may have returned an empty string."
+
 sequence:
-  - choose:
-      # Condition 1: No device selected. Log a warning and stop.
-      - conditions:
-          - condition: template
-            value_template: "{{ device == none }}"
-        sequence:
-          - service: system_log.write
-            data:
-              level: warning
-              message: "Time Circuits - Display: No device selected. Blueprint cannot run."
-
-      # Condition 2: No text to display. Log a message and stop.
-      - conditions:
-          - condition: template
-            value_template: "{{ final_text | trim == '' }}"
-        sequence:
-          - service: system_log.write
-            data:
-              level: info
-              message: "Time Circuits - Display: No text to display (or entity is unavailable). Halting execution."
-
-    # Default Action: All checks passed, run the main sequence.
-    default:
+  - parallel:
       # Action: Publish the generated sequencer command to the device via MQTT.
       - service: mqtt.publish
         data:
@@ -353,7 +339,7 @@ sequence:
             {#- Call the macro with all the user inputs and the derived `final_text` to generate the payload. -#}
             {{- generate_sequence_payload(target_row, effect, final_text, duration, flicker_speed, restore_row, sound_effect, volume, repeat, audio_source) -}}
 
-      # Parallel Action: Handle streaming audio from Home Assistant.
+      # Action: Handle streaming audio from Home Assistant.
       - choose:
           # This entire block runs in parallel with the MQTT `publish` service call above.
           - conditions:
