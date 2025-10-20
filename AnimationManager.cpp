@@ -26,10 +26,6 @@ AnimationType currentAnimationType = ANIMATION_TYPE_MAX; // Initialize to a know
 
 // --- NEW: Extern declaration to access the pre-animation display mode ---
 extern int preAnimationDisplayMode;
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 #include <WiFi.h>
 #include "web_server.h"
 #include <ArduinoJson.h>
