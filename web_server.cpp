@@ -591,7 +591,7 @@ void setupWebRoutes() {
   
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
     if (hardwareInitialized) {
-        playSound("/EASTER_EGG.mp3", false, -1);
+        runBootSequence();
     }
     request->send(200, "text/plain", "Great Scott!");
   });
