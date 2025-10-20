@@ -6,6 +6,10 @@ blueprint:
     This is a powerful, all-in-one blueprint for showing information on the display.
     You can write a custom message, show the state of any Home Assistant entity, and apply various visual effects.
     It also supports sound, looping, and restoring the display to its previous state.
+
+    **NOTE:** This blueprint builds its MQTT payload manually to ensure numeric entity states (e.g., "27.13")
+    are correctly sent as strings. This prevents Home Assistant's automatic type conversion from sending
+    them as numbers, which the target device cannot display.
   domain: script
   input:
     # ----------------------------------------------------------------
@@ -188,8 +192,9 @@ variables:
     {% endif %}
   # --- Construct the final string by adding the prefix and postfix ---
   final_text: >-
-    {%- if value_to_display | default('', true) | string | trim != '' -%}
-      {{- prefix ~ (value_to_display | default('')) ~ postfix -}}
+    {%- set value_str = value_to_display | string -%}
+    {%- if value_str is not none and value_str | trim != '' and value_str | lower != 'none' and value_str | lower != 'unknown' and value_str | lower != 'unavailable' -%}
+      {{- prefix ~ value_str ~ postfix -}}
     {%- else -%}
       {{- '' -}}
     {%- endif -%}
@@ -205,95 +210,98 @@ sequence:
       topic: "bttf_time_circuits/{{ ((device_attr(device, 'identifiers') | list | last)[1]) | trim }}/sequencer/command"
       payload: >-
         {#-
-          JINJA2 TEMPLATE LOGIC
-          This template constructs the JSON payload for the device's sequencer command.
-          It builds a series of commands based on the selected text, effect, and sound,
-          then wraps them in a track structure targeting the selected display row(s).
-          The final output is a JSON array of "track" objects.
+          JINJA2 TEMPLATE FOR MANUAL JSON GENERATION
+          This template constructs the JSON payload for the device's sequencer command MANUALLY
+          to ensure that all string parameters are correctly quoted, bypassing Home Assistant's
+          automatic type conversion which can incorrectly convert numeric strings to numbers.
         -#}
         {%- macro generate_sequence_payload(target, effect_type, text, dur, f_speed, sound, sound_vol, repeat_count) -%}
-          {#- A namespace is used to hold the list of tracks as it's built. -#}
-          {%- set ns = namespace(tracks=[]) -%}
+          {#-
+            STEP 1: Define the core sequence of commands based on the chosen effect.
+            Each command is a dictionary that will be converted to a JSON object string.
+          -#}
           {%- set core_commands = [] -%}
-          {#-
-            Define which effects are self-timing, which are timed by the firmware,
-            and which require a manual WAIT command.
-          -#}
-          {#-
-            BRANCHING LOGIC FOR EFFECTS
-            This block determines the correct command sequence and parameters for the selected effect
-            based on the firmware's requirements.
-          -#}
           {%- if effect_type == 'SET_TEXT' -%}
             {%- set core_commands = core_commands + [{'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': text}] -%}
             {%- set core_commands = core_commands + [{'command': 'WAIT', 'intParam': (dur * 1000)}] -%}
-
           {%- elif effect_type == 'RANDOM_FLICKER_TEXT' -%}
-            {#- This is a non-blocking effect that requires two steps: set the text, then flicker it. -#}
             {%- set set_text_cmd = {'command': 'SET_TEXT', 'targetSegment': -1, 'stringParam': text} -%}
             {%- set flicker_cmd = {'command': 'RANDOM_FLICKER_TEXT', 'targetSegment': -1, 'stringParam': "", 'intParam': f_speed, 'intParam2': (dur * 1000)} -%}
             {%- set wait_cmd = {'command': 'WAIT', 'intParam': (dur * 1000)} -%}
             {%- set core_commands = core_commands + [set_text_cmd, flicker_cmd, wait_cmd] -%}
-
           {%- elif effect_type == 'SCRAMBLE_TEXT' -%}
-            {#- This is a blocking effect. `intParam` is flicker speed, `intParam2` is lock-in speed per character. -#}
             {%- set lock_in_delay = ([((dur * 1000) / ([text | length, 1] | max)), 20] | max) | int -%}
             {%- set scramble_cmd = {'command': 'SCRAMBLE_TEXT', 'targetSegment': -1, 'stringParam': text, 'intParam': 50, 'intParam2': lock_in_delay} -%}
             {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
             {%- set core_commands = core_commands + [scramble_cmd, wait_cmd] -%}
-
           {%- elif effect_type == 'TYPEWRITER' -%}
-            {#- This is a blocking effect. `intParam` is the delay per character. -#}
             {%- set char_delay = ([((dur * 1000) / ([text | length, 1] | max)), 20] | max) | int -%}
             {%- set typewriter_cmd = {'command': 'TYPEWRITER', 'targetSegment': -1, 'stringParam': text, 'intParam': char_delay} -%}
             {%- set wait_cmd = {'command': 'WAIT', 'intParam': 1000} -%}
             {%- set core_commands = core_commands + [typewriter_cmd, wait_cmd] -%}
-
           {%- elif effect_type == 'MARQUEE' -%}
-            {#- This is a blocking effect. `intParam` is the scroll speed per step. -#}
             {%- set scroll_distance = 13 + (text | length) -%}
             {%- set scroll_speed = ([((dur * 1000) / scroll_distance), 20] | max) | int -%}
             {%- set marquee_cmd = {'command': 'MARQUEE', 'targetSegment': -1, 'stringParam': text, 'intParam': scroll_speed} -%}
             {%- set core_commands = core_commands + [marquee_cmd] -%}
-
           {%- elif effect_type == 'PULSE' or effect_type == 'FLASH' -%}
-            {#- These are blocking effects. `intParam2` is the total duration. -#}
             {%- set effect_cmd = {'command': effect_type, 'targetSegment': -1, 'stringParam': text, 'intParam2': (dur * 1000)} -%}
             {%- set core_commands = core_commands + [effect_cmd] -%}
           {%- endif -%}
 
-          {# --- STEP 3: Wrap the core commands in a loop if requested --- #}
+          {#- STEP 2: Wrap commands in a loop if requested -#}
           {%- if (repeat_count | int) > 1 -%}
             {%- set final_commands = [{'command': 'LOOP_START', 'intParam': repeat_count | int}] + core_commands + [{'command': 'LOOP_END'}] -%}
           {%- else -%}
             {%- set final_commands = core_commands -%}
           {%- endif -%}
 
-          {# --- STEP 4: Add the restore command --- #}
+          {#- STEP 3: Add the final restore command -#}
           {%- set final_commands = final_commands + [{'command': 'RESTORE_ROW'}] -%}
 
-          {# --- STEP 5: Generate the final track objects for each target row --- #}
-          {#- If 'ALL' is selected, create a list of all three rows. Otherwise, use the single selected row. -#}
+          {#- STEP 4: Determine target rows -#}
           {%- set track_list = ['TOP', 'MIDDLE', 'BOTTOM'] if target == 'ALL' else [target] -%}
+
+          {#-
+            STEP 5: Manually build the JSON string.
+            This is the crucial part that solves the number-vs-string issue.
+          -#}
+          [
           {%- for row in track_list -%}
             {%- set current_commands = final_commands -%}
-            {#-
-              Add the sound command to the beginning of the sequence.
-              We only add it to the first track (if `target` is 'ALL') to prevent it from playing multiple times.
-            -#}
+            {#- Add sound command to the first track only to prevent multiple plays -#}
             {%- if loop.first and sound != 'none' -%}
-              {#- Convert HA's 0-100 volume to the device's 0-21 scale. -#}
               {%- set device_volume = ((sound_vol / 100) * 21) | round(0) | int -%}
               {%- set sound_command = {'command': 'SOUND', 'stringParam': sound, 'intParam': device_volume} -%}
               {%- set current_commands = [sound_command] + current_commands -%}
             {%- endif -%}
-            {%- set track_object = {'targetRow': row, 'commands': current_commands} -%}
-            {%- set ns.tracks = ns.tracks + [track_object] -%}
+            {
+              "targetRow": "{{ row }}",
+              "commands": [
+                {%- for command in current_commands -%}
+                  {
+                    "command": "{{ command.command }}"
+                    {#- Iterate through potential parameters and add them to the JSON object -#}
+                    {%- for key, value in command.items() -%}
+                      {%- if key != 'command' -%}
+                        ,
+                        {#- THIS IS THE KEY FIX: Check if the value is a string. If so, wrap it in quotes. -#}
+                        {%- if key == 'stringParam' -%}
+                          "{{ key }}": "{{ value | string | replace('"', '\\"') }}"
+                        {#- Otherwise, it's a number, so don't wrap it in quotes. -#}
+                        {%- else -%}
+                          "{{ key }}": {{ value }}
+                        {%- endif -%}
+                      {%- endif -%}
+                    {%- endfor -%}
+                  }
+                  {{- "," if not loop.last else "" -}}
+                {%- endfor -%}
+              ]
+            }
+            {{- "," if not loop.last else "" -}}
           {%- endfor -%}
-
-          {# --- STEP 6: Return the raw JSON array of tracks --- #}
-          {#- The `to_json` filter converts the Python list of dictionaries into a valid JSON string. -#}
-          {{- ns.tracks | to_json -}}
+          ]
         {%- endmacro -%}
-        {#- Call the macro with all the user inputs and the derived `final_text` to generate the payload. -#}
+        {#- Call the macro to generate the final, manually-crafted JSON payload string. -#}
         {{- generate_sequence_payload(target_row, effect, final_text, duration, flicker_speed, sound_effect, volume, repeat) -}}

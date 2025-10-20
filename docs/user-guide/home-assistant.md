@@ -107,7 +107,7 @@ It's a versatile, all-in-one blueprint for showing information on the display. Y
 
 #### **Core Capabilities:**
 
-*   **Display Any Data**: Show a fixed, static message (e.g., "WELCOME HOME") or dynamically display the state of any Home Assistant entity (e.g., the current temperature from a sensor). You can even use templates to combine them (e.g., "Temp: {{ states('sensor.outside_temperature') }}°F").
+*   **Display Any Data**: Show a fixed, static message (e.g., "WELCOME HOME") or dynamically display the state of any Home Assistant entity (e.g., the current temperature from a sensor). The blueprint is robust enough to correctly handle numeric-only values (like `27.13`) without requiring a prefix or postfix. You can also use templates to combine data (e.g., "Temp: {{ states('sensor.outside_temperature') | round(1) }}°F").
 *   **Target a Specific Row**: Choose whether your message appears on the TOP, MIDDLE, BOTTOM, or all three rows simultaneously.
 *   **Rich Visual Effects**: Select from a wide range of animations (like `Marquee`, `Typewriter`, `Pulse`, `Flash`, and `Scramble Text`) to make your message stand out.
 *   **Sound Effects**: Add an audible alert by playing one of the device's built-in sound effects or by streaming any audio file from your Home Assistant media library.
