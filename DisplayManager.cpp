@@ -685,7 +685,7 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
             }
 
             if (updatePres) {
-                bool showDecimalForPresent = (millis() / 1000) % 2 == 0;
+                bool showDecimalForPresent = (millis() / 500) % 2 == 0;
                 if (!isRowInManualMode[1]) {
                     printRow(presRow, present_timeinfo, present_timeinfo.tm_year + 1900, showDecimalForPresent, 1);
                 } else {
