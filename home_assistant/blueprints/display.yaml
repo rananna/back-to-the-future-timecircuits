@@ -188,10 +188,15 @@ variables:
     {% endif %}
   # --- Construct the final string by adding the prefix and postfix ---
   final_text: >-
-    {%- if value_to_display | default('', true) | string | trim != '' -%}
-      {{- prefix ~ (value_to_display | default('')) ~ postfix -}}
+    {#-
+      This logic ensures that an entity's state is displayed correctly, even if it's a number like 0.
+      It also prevents printing only a prefix/postfix if the entity's state is empty or just whitespace.
+    -#}
+    {%- set value = value_to_display | default(none) -%}
+    {%- if value is not none and value | string | trim != "" -%}
+      {{- prefix ~ value ~ postfix -}}
     {%- else -%}
-      {{- '' -}}
+      {{- "" -}}
     {%- endif -%}
 
 sequence:
