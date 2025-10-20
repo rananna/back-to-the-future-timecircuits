@@ -209,6 +209,7 @@ extern bool rain_initialized;             /**< Flag to ensure the rain effect is
 extern TwoWire I2C_1;       /**< I2C bus instance for the top and middle display rows. */
 extern TwoWire I2C_2;       /**< I2C bus instance for the bottom display row. */
 extern DisplayRow destRow, presRow, lastRow; /**< The three main display row objects. */
+extern bool ledStates[6];   /**< Stores the state of the 6 AM/PM LEDs before an animation. */
 
 /**
  * @brief A FreeRTOS mutex to protect against concurrent access to I2C hardware.
@@ -243,6 +244,9 @@ extern SemaphoreHandle_t xSerialMutex;
  * @{
  */
 void safe_printf(const char *format, ...);
+void saveLedStates();
+void turnOffAllLeds();
+void restoreLedStates();
 bool setupPhysicalDisplay();
 void updateDisplayRow(DisplayRow& row, const struct tm& timeinfo, int year, bool showDecimal);
 void animateDisplayRowRandomly(DisplayRow& row);

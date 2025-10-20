@@ -69,8 +69,51 @@ void getFormattedTimeStrings(char* dest_str, char* pres_str, char* last_str) {
     snprintf(last_str, 17, "%3s%02d%04d%02d%02d", months[last_time_departed_info.tm_mon], last_time_departed_info.tm_mday, currentSettings.lastTimeDepartedYear, last_time_departed_info.tm_hour, last_time_departed_info.tm_min);
 }
 
+/**
+ * @brief Saves the current state of all AM/PM LEDs.
+ * @details Reads the digital state of each of the 6 LED pins and stores them in the
+ * global `ledStates` array. This should be called before starting an animation.
+ */
+void saveLedStates() {
+    ledStates[0] = digitalRead(DEST_AM_PIN);
+    ledStates[1] = digitalRead(DEST_PM_PIN);
+    ledStates[2] = digitalRead(PRES_AM_PIN);
+    ledStates[3] = digitalRead(PRES_PM_PIN);
+    ledStates[4] = digitalRead(LAST_AM_PIN);
+    ledStates[5] = digitalRead(LAST_PM_PIN);
+}
+
+/**
+ * @brief Turns off all AM/PM LEDs.
+ * @details Sets the digital state of all 6 LED pins to LOW, effectively turning them off.
+ * This is called after `saveLedStates()` at the start of an animation.
+ */
+void turnOffAllLeds() {
+    digitalWrite(DEST_AM_PIN, LOW);
+    digitalWrite(DEST_PM_PIN, LOW);
+    digitalWrite(PRES_AM_PIN, LOW);
+    digitalWrite(PRES_PM_PIN, LOW);
+    digitalWrite(LAST_AM_PIN, LOW);
+    digitalWrite(LAST_PM_PIN, LOW);
+}
+
+/**
+ * @brief Restores the saved state of all AM/PM LEDs.
+ * @details Writes the boolean values from the `ledStates` array back to their corresponding
+ * LED pins. This is called at the end of an animation to restore the previous state.
+ */
+void restoreLedStates() {
+    digitalWrite(DEST_AM_PIN, ledStates[0]);
+    digitalWrite(DEST_PM_PIN, ledStates[1]);
+    digitalWrite(PRES_AM_PIN, ledStates[2]);
+    digitalWrite(PRES_PM_PIN, ledStates[3]);
+    digitalWrite(LAST_AM_PIN, ledStates[4]);
+    digitalWrite(LAST_PM_PIN, ledStates[5]);
+}
+
 // --- GLOBAL HARDWARE OBJECTS (DEFINITIONS) ---
 #if ENABLE_HARDWARE
+bool ledStates[6];
 Raindrop raindrops[MAX_RAINDROPS];
 bool rain_initialized = false;
 TwoWire I2C_1 = TwoWire(0);
