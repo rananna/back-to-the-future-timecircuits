@@ -26,6 +26,10 @@ AnimationType currentAnimationType = ANIMATION_TYPE_MAX; // Initialize to a know
 
 // --- NEW: Extern declaration to access the pre-animation display mode ---
 extern int preAnimationDisplayMode;
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 #include <WiFi.h>
 #include "web_server.h"
 #include <ArduinoJson.h>
@@ -1503,7 +1507,10 @@ void handleSequencer() {
     }
 
     if (needsDisplayUpdate) {
-        updateNormalClockDisplay();
+        // --- FIX: Call the new, safe display function ---
+        // This function only writes the existing buffer to the hardware and has
+        // no clock logic, preventing it from turning on the AM/PM LEDs.
+        writeDisplayBuffer();
     }
 }
 
