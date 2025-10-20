@@ -1550,15 +1550,11 @@ void loop() {
                                     // to have full control of the display. The handleSequencer()
                                     // function will handle the necessary display updates.
                                 } else {
-                                    // --- FIX: Race Condition After Animation & During Transition ---
-                                    // If an animation just finished, or a new one is starting,
-                                    // skip one display cycle to ensure all cleanup is complete
-                                    // and prevent the main loop from overwriting the display.
-                                    if (justFinishedAnimation || isTransitioningAnimation) {
-                                        if (justFinishedAnimation) {
-                                            justFinishedAnimation = false; // Consume the flag
-                                        }
-                                        // If isTransitioning is true, we just wait for it to be cleared.
+                                    // --- FIX: Race Condition After Animation ---
+                                    // If an animation just finished, skip one display cycle
+                                    // to ensure all cleanup is complete before redrawing.
+                                    if (justFinishedAnimation) {
+                                        justFinishedAnimation = false;
                                     } else {
                                         // No sequence is running. Proceed with the normal display logic.
                                         updateDisplayState();
