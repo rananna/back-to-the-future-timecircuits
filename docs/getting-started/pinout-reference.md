@@ -31,3 +31,32 @@ The following pinout is the official, recommended configuration for this project
 > While the **ESP32-S3 is strongly recommended** for a trouble-free build, it is possible to use other ESP32 models (like the original ESP32-WROOM-32).
 >
 > If you choose to use a different board, you **must** review and change the pin assignments defined at the top of the `HardwareControl.h` firmware file. You will need to select pins that are safe to use on your specific board and do not conflict with other hardware functions (like ADC2 pins when WiFi is active). This is an advanced modification and is not recommended for beginners.
+
+## I2C Display Address Configuration
+
+> [!WARNING]
+> **This is the most critical step of the entire build.** The displays are split across two separate I2C buses. Each of the 8 displays on Bus 1 must have a unique address, and each of the 4 displays on Bus 2 must have a unique address. If the addresses are not set correctly, the displays will not work.
+
+Use the table below to carefully apply solder to the address jumpers for each display.
+
+### I2C Bus 1: Destination and Present Displays
+
+| Display Row | Display Purpose | Final I2C Address | Solder Bridge A2 (+4) | Solder Bridge A1 (+2) | Solder Bridge A0 (+1) |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Destination** | Month | **`0x70`** | No | No | No |
+| **Destination** | Day | **`0x71`** | No | No | **Yes** |
+| **Destination** | Year | **`0x72`** | No | **Yes** | No |
+| **Destination** | Time | **`0x73`** | No | **Yes** | **Yes** |
+| **Present** | Month | **`0x74`** | **Yes** | No | No |
+| **Present** | Day | **`0x75`** | **Yes** | No | **Yes** |
+| **Present** | Year | **`0x76`** | **Yes** | **Yes** | No |
+| **Present** | Time | **`0x77`** | **Yes** | **Yes** | **Yes** |
+
+### I2C Bus 2: Last Departed Displays
+
+| Display Row | Display Purpose | Final I2C Address | Solder Bridge A2 (+4) | Solder Bridge A1 (+2) | Solder Bridge A0 (+1) |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Last Departed** | Month | **`0x70`** | No | No | No |
+| **Last Departed** | Day | **`0x71`** | No | No | **Yes** |
+| **Last Departed** | Year | **`0x72`** | No | **Yes** | No |
+| **Last Departed** | Time | **`0x73`** | No | **Yes** | **Yes** |

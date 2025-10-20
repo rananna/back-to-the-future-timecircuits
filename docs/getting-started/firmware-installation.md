@@ -20,29 +20,7 @@ This project relies on several external libraries. Install the latest version of
 *   `PubSubClient` by Nick O'Leary
 *   `ESP32-audioI2S` by schreibfaul
 
-## 3. Configure I2C Display Addresses
-
-> [!WARNING]
-> **This is the most critical step of the entire build.** Each of the 12 display modules must have a unique I2C address. This is set by soldering the "address jumpers" on the back of each display's circuit board. If the addresses are not set correctly, the displays will not work.
-
-Use the table below to carefully apply solder to the address jumpers for each display.
-
-| Display Row | Display Purpose | Final I2C Address | Solder Bridge A2 (+4) | Solder Bridge A1 (+2) | Solder Bridge A0 (+1) |
-| :--- | :--- | :---: | :---: | :---: | :---: |
-| **Destination** | Month | **`0x70`** | No | No | No |
-| **Destination** | Day | **`0x71`** | No | No | **Yes** |
-| **Destination** | Year | **`0x72`** | No | **Yes** | No |
-| **Destination** | Time | **`0x73`** | No | **Yes** | **Yes** |
-| **Present** | Month | **`0x74`** | **Yes** | No | No |
-| **Present** | Day | **`0x75`** | **Yes** | No | **Yes** |
-| **Present** | Year | **`0x76`** | **Yes** | **Yes** | No |
-| **Present** | Time | **`0x77`** | **Yes** | **Yes** | **Yes** |
-| **Last Departed** | Month | **`0x70`** | No | No | No |
-| **Last Departed** | Day | **`0x71`** | No | No | **Yes** |
-| **Last Departed** | Year | **`0x72`** | No | **Yes** | No |
-| **Last Departed** | Time | **`0x73`** | No | **Yes** | **Yes** |
-
-## 4. Configure the Arduino IDE
+## 3. Configure the Arduino IDE
 
 Before uploading, you must configure two critical settings in the Arduino IDE's **Tools** menu.
 
@@ -65,7 +43,7 @@ The web interface and sound effects must be uploaded to the ESP32's internal fla
 
 ![A screenshot of the Arduino IDE's Tools menu, highlighting the "Partition Scheme" and "ESP32 LittleFS Data Upload" options.](../images/arduino-ide-tools-menu.png)
 
-## 5. Upload the Code and Data
+## 4. Upload the Code and Data
 
 Now you are ready to flash the firmware.
 
