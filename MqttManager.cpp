@@ -1606,6 +1606,8 @@ void handleSequencerCommand(const std::string& payload) {
         // --- FIX: Stop any running sequence BEFORE saving state to prevent corruption ---
         stopAllSequences();
 
+        saveLedStates();
+        turnOffAllLeds();
         // Save the current display state so it can be restored after the animation.
         preAnimationDisplayMode = currentSettings.displayMode;
         for (int r = 0; r < 3; ++r) {
