@@ -1651,6 +1651,8 @@ void runSequencerTest() {
 void triggerAnimation(AnimationType animType) {
     // This function is a full takeover. It replaces all running tracks
     // with the new animation.
+    saveLedStates();
+    turnOffAllLeds();
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
 
     // --- FIX: Save the current display mode so it can be restored after the animation. ---
@@ -1675,14 +1677,8 @@ void triggerAnimation(AnimationType animType) {
     // Generate the requested animation into the temporary heap-allocated tracks.
     generateAnimationSequence(animType, temp_tracks);
 
-    // --- FIX: The order of operations is critical to prevent a race condition.
-    // 1. Stop all sequences. This will restore LEDs to their pre-animation state.
-    // 2. Save the state of the now-restored LEDs.
-    // 3. Turn the LEDs off to prepare for the new animation.
+    // Now that the new animation is prepared, stop all currently running tracks.
     stopAllSequences();
-    saveLedStates();
-    turnOffAllLeds();
-
 
     // --- FIX: Explicitly reset all tracks to guarantee a clean state ---
     for (int i = 0; i < 3; ++i) {
