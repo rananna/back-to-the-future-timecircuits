@@ -104,7 +104,6 @@ struct SequencerTrack;
  */
 void updateNormalClockDisplay(bool updateDest = true, bool updatePres = true, bool updateLast = true);
 void updateNormalClockDisplay_internal(bool updateDest = true, bool updatePres = true, bool updateLast = true);
-void writeDisplayBuffer();
 void updateMarqueeDisplay();
 void handleWeatherDisplay();
 void displayOverrideMessage();

@@ -1503,10 +1503,7 @@ void handleSequencer() {
     }
 
     if (needsDisplayUpdate) {
-        // --- FIX: Call the new, safe display function ---
-        // This function only writes the existing buffer to the hardware and has
-        // no clock logic, preventing it from turning on the AM/PM LEDs.
-        writeDisplayBuffer();
+        updateNormalClockDisplay();
     }
 }
 
