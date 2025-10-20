@@ -101,6 +101,7 @@ void handleTemporalEcho();
  * @{
  */
 void runBootSequence();
+void runGreatScottSequence();
 void handleBootSequence();
 /** @} */
 

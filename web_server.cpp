@@ -591,7 +591,7 @@ void setupWebRoutes() {
   
   server.on("/api/greatScott", HTTP_POST, [](AsyncWebServerRequest *request){
     if (hardwareInitialized) {
-        runBootSequence();
+        runGreatScottSequence();
     }
     request->send(200, "text/plain", "Great Scott!");
   });
