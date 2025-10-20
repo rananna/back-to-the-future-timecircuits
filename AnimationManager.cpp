@@ -26,6 +26,10 @@ AnimationType currentAnimationType = ANIMATION_TYPE_MAX; // Initialize to a know
 
 // --- NEW: Extern declaration to access the pre-animation display mode ---
 extern int preAnimationDisplayMode;
+
+// --- NEW: A global flag to prevent a race condition when an animation is starting ---
+volatile bool isTransitioningAnimation = false;
+
 #include <WiFi.h>
 #include "web_server.h"
 #include <ArduinoJson.h>
@@ -1653,6 +1657,9 @@ void triggerAnimation(AnimationType animType) {
     // with the new animation.
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
 
+    // --- FIX: Set the transition flag to prevent the main loop from interfering ---
+    isTransitioningAnimation = true;
+
     // --- FIX: Save the current display mode so it can be restored after the animation. ---
     preAnimationDisplayMode = currentSettings.displayMode;
 
@@ -1710,6 +1717,9 @@ void triggerAnimation(AnimationType animType) {
 
     // --- FIX: Clean up the heap-allocated memory ---
     delete[] temp_tracks;
+
+    // --- FIX: Clear the transition flag now that the new animation is safely in place ---
+    isTransitioningAnimation = false;
 }
 
 void startSequencerMarquee(SequencerTrack& track, const std::string& text, int speed) {
