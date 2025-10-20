@@ -62,3 +62,177 @@ This tab contains a quick reference guide and a link to this official documentat
 The large **"Save and Engage Time Circuits"** button at the bottom of the page saves all changes. It is disabled by default and will only become active when you change a setting on any tab.
 
 Pressing this button sends all configurations to the device, saves them to memory, and triggers the `Time Circuits Lock-In` animation to confirm the new settings have been applied.
+
+### Advanced Data Display: MQTT Push and Home Assistant Push
+
+The **Data Link** feature allows your Time Circuits clock to display custom, real-time information from external systems. This is achieved using a technology called MQTT. You have two primary ways to use this feature: a direct "MQTT Push" method for general use, and an integrated "Home Assistant Push" method for seamless integration with Home Assistant.
+
+#### How It Works: The Basics of MQTT
+
+MQTT is a lightweight messaging protocol perfect for smart home devices. It works like a postal service for your network:
+-   A **Broker** is the central "post office."
+-   A **Topic** is a "mailing address" (e.g., `timecircuits/alerts`).
+-   A **Message** is the "letter" (e.g., `GARAGE DOOR OPEN`).
+
+Your clock can **subscribe** to a topic, and any message **published** to that topic will be displayed on the screen.
+
+---
+
+#### Method 1: Direct "MQTT Push"
+
+This is the direct, technical method for sending data to the clock from any MQTT-capable source, such as a custom script or another IoT platform.
+
+##### **Configuration**
+
+1.  **Navigate to the "Data Link" Tab** in the clock's web UI.
+2.  **Enable Data Link Marquee**: Toggle this switch ON.
+3.  **Configure a Data Point**:
+    *   **Data Source Type**: Select **MQTT**.
+    *   **MQTT Topic**: Enter a unique topic for the clock to listen to (e.g., `timecircuits/external/realtime_clock`).
+    *   **Prefix Text (Optional)**: Add text that will always appear before the message (e.g., `TIME IS NOW: `).
+4.  **Save Settings**: Click the **"Save and Engage Time Circuits"** button.
+
+##### **Practical Example: Real-Time Clock Python Script**
+
+This Python script publishes the current time to the topic we configured above.
+
+1.  **Install the necessary library**:
+    ```bash
+    pip install paho-mqtt
+    ```
+2.  **Create the script (`clock_publisher.py`)**:
+
+    ```python
+    import paho.mqtt.client as mqtt
+    import time
+    from datetime import datetime
+
+    # --- Configuration ---
+    MQTT_BROKER_HOST = "YOUR_MQTT_BROKER_IP"  # <-- IMPORTANT: CHANGE THIS
+    MQTT_BROKER_PORT = 1883
+    MQTT_TOPIC = "timecircuits/external/realtime_clock"
+
+    def connect_mqtt():
+        client = mqtt.Client(client_id="time_circuits_external_publisher")
+        try:
+            client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT)
+            print(f"Successfully connected to MQTT broker at {MQTT_BROKER_HOST}")
+            return client
+        except Exception as e:
+            print(f"Error connecting to MQTT broker: {e}")
+            return None
+
+    def publish_time(client):
+        current_time_str = datetime.now().strftime("%I:%M %p")
+        result = client.publish(MQTT_TOPIC, current_time_str)
+        if result.rc == mqtt.MQTT_ERR_SUCCESS:
+            print(f"Published message to '{MQTT_TOPIC}': '{current_time_str}'")
+        else:
+            print(f"Failed to publish message. Return code: {result.rc}")
+
+    if __name__ == "__main__":
+        mqtt_client = connect_mqtt()
+        if mqtt_client:
+            mqtt_client.loop_start()
+            try:
+                while True:
+                    publish_time(client)
+                    time.sleep(60) # Update every minute
+            except KeyboardInterrupt:
+                print("\nScript stopped.")
+            finally:
+                mqtt_client.loop_stop()
+                mqtt_client.disconnect()
+                print("Disconnected from MQTT broker.")
+    ```
+
+3.  **Run the script**:
+    ```bash
+    python clock_publisher.py
+    ```
+    **Result**: The clock will immediately display `TIME IS NOW: 10:56 AM` (or the current time), updating every minute.
+
+---
+
+#### Method 2: "Home Assistant Push"
+
+This is the recommended method for Home Assistant users. The integration manages all the MQTT details for you, providing simple `text` entities to control the display.
+
+##### **Configuration & Examples**
+
+1.  **Enable the Entity in Home Assistant**:
+    -   Go to **Settings > Devices & Services > Entities**.
+    -   Search for and enable the entity you want to use, for example: `text.time_circuits_data_point_1_marquee`.
+2.  **Use in an Automation**: The core of this method is the `text.set_value` service.
+
+##### **Example 1: Displaying a Live Sensor Value (Power Usage)**
+
+This automation displays the real-time power consumption from a smart plug.
+
+```yaml
+alias: 'Clock - Display Live TV Power'
+trigger:
+  - platform: state
+    entity_id: sensor.tv_smart_plug_power # Your power sensor
+action:
+  # Ensure the clock is in the correct display mode
+  - service: select.select_option
+    target:
+      entity_id: select.time_circuits_display_mode
+    data:
+      option: 'Data Link'
+  # Set the text value, with formatting
+  - service: text.set_value
+    target:
+      entity_id: text.time_circuits_data_point_1_marquee
+    data:
+      value: "TV POWER: {{ states('sensor.tv_smart_plug_power') | round(0) }} W"
+```
+**Result**: The clock will always show the current power usage, like `TV POWER: 125 W`.
+
+##### **Example 2: Dynamic Notification with Auto-Clear (Washing Machine)**
+
+This automation shows an alert when the laundry is done, and then automatically clears it after 15 minutes.
+
+```yaml
+alias: 'Clock - Washing Machine Finished Alert with Auto-Clear'
+trigger:
+  # Trigger when power drops below 5W for 2 minutes
+  - platform: numeric_state
+    entity_id: sensor.washing_machine_plug_power
+    below: 5
+    for:
+      minutes: 2
+action:
+  # Show the alert
+  - service: text.set_value
+    target:
+      entity_id: text.time_circuits_data_point_2_marquee
+    data:
+      value: 'LAUNDRY CYCLE COMPLETE'
+  # Make sure the display is active
+  - service: select.select_option
+    target:
+      entity_id: select.time_circuits_display_mode
+    data:
+      option: 'Data Link'
+
+  # Wait for 15 minutes
+  - delay:
+      minutes: 15
+
+  # Clear the text by sending an empty message
+  - service: text.set_value
+    target:
+      entity_id: text.time_circuits_data_point_2_marquee
+    data:
+      value: ''
+
+  # Return the clock to its normal display
+  - service: select.select_option
+    target:
+      entity_id: select.time_circuits_display_mode
+    data:
+      option: 'Normal Clock'
+```
+**Result**: A `LAUNDRY CYCLE COMPLETE` message scrolls for 15 minutes, then the display automatically reverts to the standard time.
