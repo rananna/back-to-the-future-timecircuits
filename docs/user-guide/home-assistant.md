@@ -4,15 +4,14 @@ Welcome, time traveler! This guide provides everything you need to know to integ
 
 ### **Table of Contents**
 1. [Features](#-features)
-2. [Setup & Installation](#-setup--installation)
+2. [Installation Guide](./home-assistant/installation.md)
 3. [Understanding Blueprints, Scripts, and Automations](#-understanding-blueprints-scripts-and-automations)
-4. [Importing the Blueprints](#-importing-the-blueprints)
-5. [Available Blueprints: A Deep Dive](#-available-blueprints-a-deep-dive)
-6. [Core Entities & Controls](#-core-entities--controls)
-7. [Using the Media Player](#-using-the-media-player)
-8. [Sending Notifications](#-sending-notifications)
-9. [Advanced Control: The Animation Sequencer](#-advanced-control-the-animation-sequencer)
-10. [Troubleshooting](#troubleshooting)
+4. [Available Blueprints: A Deep Dive](#-available-blueprints-a-deep-dive)
+5. [Core Entities & Controls](#-core-entities--controls)
+6. [Using the Media Player](#-using-the-media-player)
+7. [Sending Notifications](#-sending-notifications)
+8. [Advanced Control: The Animation Sequencer](#-advanced-control-the-animation-sequencer)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 ## ✨ Features
@@ -28,31 +27,9 @@ The custom component provides a rich, native Home Assistant experience:
 
 ---
 
-## 🛑 Prerequisites
+## 🚀 Installation
 
-*   A running Home Assistant instance.
-*   [HACS](https://hacs.xyz/) (Home Assistant Community Store) installed.
-*   **MQTT Broker Configured in Home Assistant**: You must have the MQTT integration set up and connected to your broker. The Time Circuits clock does not connect directly to HA, but to your MQTT broker.
-*   **Clock Connected to WiFi**: The Time Circuits Clock must be powered on and connected to your Wi-Fi network.
-*   **Clock Configured for MQTT**: In the clock's web UI, ensure the MQTT broker details are correctly configured under the **Connectivity** tab.
-
----
-
-## 🚀 Setup & Installation
-
-### **Step 1: Install the Custom Component via HACS**
-1.  In Home Assistant, navigate to **HACS > Integrations**.
-2.  Click **Explore & Download Repositories**.
-3.  Search for "Back to the Future Time Circuits" and install it.
-4.  Restart Home Assistant as prompted.
-
-### **Step 2: Add the Integration in Home Assistant**
-1.  Navigate to **Settings > Devices & Services**.
-2.  Click **Add Integration** and search for "**Back to the Future Time Circuits**".
-3.  You will be prompted for your clock's **Device ID**. You can find this in the clock's web interface under **System -> System Status**.
-4.  Click **Submit**.
-
-Your Time Circuits clock will now appear as a new device in Home Assistant, with all its entities automatically created and ready to use.
+For a complete, step-by-step guide on installing and configuring the Home Assistant integration, please see our dedicated **[🚀 Installation Guide](./home-assistant/installation.md)**.
 
 ---
 
@@ -82,35 +59,21 @@ An **Automation** is the trigger that runs your script. It defines *when* you wa
 
 ---
 
-## 📥 Importing the Blueprint
-
-The easiest way to add the blueprint is by importing it directly from the project's GitHub repository. This ensures you always have the most up-to-date version.
-
-1.  **Navigate to Blueprints in Home Assistant**: Go to **Settings > Automations & Scenes** and select the **Blueprints** tab.
-2.  **Import a Blueprint**: Click the **Import Blueprint** button in the bottom right corner.
-3.  **Paste the URL**: In the dialog box, paste the URL below into the "URL of the Blueprint to import" field.
-4.  **Preview and Import**: Click **Preview Blueprint**. Home Assistant will show you the details. If it looks correct, click **Import Blueprint**.
-
-#### **Blueprint URL (Click to Copy)**
-*   **Display Blueprint:**
-    ```
-    https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display.yaml
-    ```
-
----
-
 ## 📖 The Display Blueprint: Your All-in-One Tool
 
 To simplify the integration, all functionality has been consolidated into a single, powerful **Display Blueprint**. This is your central tool for creating any kind of visual alert or message on the Time Circuits clock.
 
 It's a versatile, all-in-one blueprint for showing information on the display. You can write a custom message, show the state of any Home Assistant entity, apply various visual effects, and add sound.
 
+> [!TIP]
+> You can always find the latest blueprint import URL in the official **[Installation Guide](./home-assistant/installation.md)**.
+
 #### **Core Capabilities:**
 
 *   **Display Any Data**: Show a fixed, static message (e.g., "WELCOME HOME") or dynamically display the state of any Home Assistant entity (e.g., the current temperature from a sensor). The blueprint is robust enough to correctly handle numeric-only values (like `27.13`) without requiring a prefix or postfix. You can also use templates to combine data (e.g., "Temp: {{ states('sensor.outside_temperature') | round(1) }}°F").
 *   **Target a Specific Row**: Choose whether your message appears on the TOP, MIDDLE, BOTTOM, or all three rows simultaneously.
-*   **Rich Visual Effects**: Select from a wide range of animations (like `Marquee`, `Typewriter`, `Pulse`, `Flash`, and `Scramble Text`) to make your message stand out.
-*   **Sound Effects**: Add an audible alert by playing one of the device's built-in sound effects or by streaming any audio file from your Home Assistant media library.
+*   **Rich Visual Effects**: Select from a wide range of animations (like `Marquee`, `Typewriter`, `Pulse`, `Flash`, `Scramble Text`, and `Random Flicker Text`) to make your message stand out. You can also fine-tune some effects with parameters like **Flicker Speed**.
+*   **Sound Effects**: Add an audible alert by playing one of the device's built-in sound effects or by streaming any audio file from your Home Assistant media library. The **Volume** can be adjusted.
 *   **Looping & Duration**: Repeat an effect multiple times or hold a static message on screen for a specific duration.
 *   **Automatic Cleanup**: After your message is finished, the blueprint can automatically restore the display to its previous state (e.g., the clock).
 
