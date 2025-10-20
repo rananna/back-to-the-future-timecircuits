@@ -82,109 +82,73 @@ An **Automation** is the trigger that runs your script. It defines *when* you wa
 
 ---
 
-## 📥 Importing the Blueprints
+## 📥 Importing the Blueprint
 
-The easiest way to add the blueprints is by importing them directly from the project's GitHub repository. This ensures you always have the most up-to-date version.
+The easiest way to add the blueprint is by importing it directly from the project's GitHub repository. This ensures you always have the most up-to-date version.
 
 1.  **Navigate to Blueprints in Home Assistant**: Go to **Settings > Automations & Scenes** and select the **Blueprints** tab.
 2.  **Import a Blueprint**: Click the **Import Blueprint** button in the bottom right corner.
-3.  **Paste the URL**: In the dialog box, paste one of the URLs below into the "URL of the Blueprint to import" field.
+3.  **Paste the URL**: In the dialog box, paste the URL below into the "URL of the Blueprint to import" field.
 4.  **Preview and Import**: Click **Preview Blueprint**. Home Assistant will show you the details. If it looks correct, click **Import Blueprint**.
 
-You'll need to repeat this copy-paste process for each of the blueprints you want to use.
-
-#### **Blueprint URLs (Click to Copy)**
+#### **Blueprint URL (Click to Copy)**
 *   **Display Blueprint:**
     ```
     https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/display.yaml
     ```
-*   **Countdown Timer Blueprint:**
-    ```
-    https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/countdown.yaml
-    ```
-*   **Multi-Row Status Board Blueprint:**
-    ```
-    https://github.com/rananna/back-to-the-future-timecircuits/blob/main/home_assistant/blueprints/multi_row_status_board.yaml
-    ```
 
 ---
 
-## 📖 Available Blueprints: A Deep Dive
+## 📖 The Display Blueprint: Your All-in-One Tool
 
-This section provides a detailed look at each blueprint to help you choose the right one for your automation. The descriptions in the Home Assistant UI are powered by the comments within each blueprint file and serve as the primary source of truth for all options.
+To simplify the integration, all functionality has been consolidated into a single, powerful **Display Blueprint**. This is your central tool for creating any kind of visual alert or message on the Time Circuits clock.
 
----
+It's a versatile, all-in-one blueprint for showing information on the display. You can write a custom message, show the state of any Home Assistant entity, apply various visual effects, and add sound.
 
-### **1. Display Blueprint: The All-Rounder**
-This is the most versatile and commonly used blueprint. It's a powerful all-in-one tool for showing a single piece of information on a specific display row. It can display static text, the state of any Home Assistant entity, or a combination of both using templates.
+#### **Core Capabilities:**
 
-#### **When to Use It:**
-*   You want to display a single, important piece of data (e.g., the outdoor temperature).
-*   You need to show a simple, custom alert message (e.g., "GARAGE DOOR OPEN").
-*   You want to announce the title of the currently playing song on a media player.
+*   **Display Any Data**: Show a fixed, static message (e.g., "WELCOME HOME") or dynamically display the state of any Home Assistant entity (e.g., the current temperature from a sensor). You can even use templates to combine them (e.g., "Temp: {{ states('sensor.outside_temperature') }}°F").
+*   **Target a Specific Row**: Choose whether your message appears on the TOP, MIDDLE, BOTTOM, or all three rows simultaneously.
+*   **Rich Visual Effects**: Select from a wide range of animations (like `Marquee`, `Typewriter`, `Pulse`, `Flash`, and `Scramble Text`) to make your message stand out.
+*   **Sound Effects**: Add an audible alert by playing one of the device's built-in sound effects or by streaming any audio file from your Home Assistant media library.
+*   **Looping & Duration**: Repeat an effect multiple times or hold a static message on screen for a specific duration.
+*   **Automatic Cleanup**: After your message is finished, the blueprint can automatically restore the display to its previous state (e.g., the clock).
 
-#### **Key Features:**
-*   **Target a Specific Row**: Choose whether your message appears on the TOP, MIDDLE, or BOTTOM row.
-*   **Rich Visual Effects**: Select from a wide range of entry and exit animations (like `Marquee`, `Typewriter`, `Scramble Text`) to make your message stand out.
-*   **Timed Display**: Set a duration to keep the message on screen for a specific amount of time before it disappears.
-*   **Sound Effects**: Add an audible alert by playing a built-in or custom sound effect.
+#### **How to...**
 
-#### **Example Use Case:**
-_"When my 3D printer finishes, show the message 'PRINT COMPLETE' on the top row with a chime sound for 5 minutes."_
-*   **Blueprint**: Display
-*   **Trigger**: `3D Printer State changes to 'finished'`
-*   **Text to Display**: `PRINT COMPLETE`
-*   **Display Row**: `TOP`
-*   **Display Duration**: `300` seconds
-*   **Sound Effect**: `arrival_chime.mp3`
+*   **...create a simple alert?**
+    *   **Data Source**: `Static Text`
+    *   **Text to Display**: `GARAGE DOOR OPEN`
+    *   **Effect**: `FLASH`
+    *   **Repeat**: `5`
+    *   **Sound Effect**: `sys_beep.mp3`
 
----
+*   **...display a sensor value?**
+    *   **Data Source**: `Home Assistant Entity`
+    *   **Entity to Display**: `sensor.living_room_humidity`
+    *   **Prefix**: `Humidity: `
+    *   **Postfix**: `%`
+    *   **Effect**: `SET_TEXT`
 
-### **2. Countdown Timer Blueprint: The Specialist**
-This blueprint is designed for one specific task: running a numeric countdown on one or more display rows. When the timer hits zero, it can trigger a follow-up visual effect and play a sound for a grand finale.
+*   **...create a multi-row status board?**
+    To display different information on each row at the same time, simply create three separate **Scripts** from the same Display blueprint.
+    1.  **Script 1**: Configure it for the **Top Row** (e.g., to show the weather).
+    2.  **Script 2**: Configure it for the **Middle Row** (e.g., to show the date).
+    3.  **Script 3**: Configure it for the **Bottom Row** (e.g., to show a stock price).
 
-#### **When to Use It:**
-*   You need a visual kitchen timer.
-*   You want to create a dramatic "launch sequence" for an automation.
-*   You need a timer for a child's timeout or a game.
+    Then, in a single **Automation**, use a `parallel` action to run all three scripts at the same time.
 
-#### **Key Features:**
-*   **Multi-Row Countdown**: Display the countdown on one, two, or all three rows simultaneously.
-*   **Customizable Finale**: When the countdown finishes, you can show a final message (e.g., "LIFTOFF!"), play a sound, or stream audio.
-*   **Flexible Audio**: Stream the finale sound to any speaker in your home, not just the clock's speaker.
+    ```yaml
+    # Example Automation Action
+    action:
+      - parallel:
+          - service: script.time_circuits_show_weather
+          - service: script.time_circuits_show_date
+          - service: script.time_circuits_show_stock
+    ```
 
-#### **Example Use Case:**
-_"Create a 10-second countdown for my 'Movie Time' scene. When it finishes, show 'ENJOY THE SHOW' and play a cinematic sound on my living room speakers."_
-*   **Blueprint**: Countdown Timer
-*   **Trigger**: `Button press for 'Movie Time'`
-*   **Countdown Duration**: `10` seconds
-*   **Completion Message**: `ENJOY THE SHOW`
-*   **Streamed Media**: `local/sounds/cinematic_hit.mp3`
-*   **Audio Output**: `media_player.living_room_speaker`
-
----
-
-### **3. Multi-Row Status Board Blueprint: The Power User's Tool**
-This is the most advanced blueprint, allowing you to control all three display rows independently and simultaneously from a single script. You can set a different message and visual effect for the top, middle, and bottom rows, creating a dense, information-rich display.
-
-#### **When to Use It:**
-*   You want to build a custom "dashboard" screen showing multiple pieces of information at once (e.g., weather, time, and a stock price).
-*   You need to display a complex, multi-line alert message.
-*   You want to create advanced, parallel animation effects across all three rows.
-
-#### **Key Features:**
-*   **Independent Row Control**: Configure the text, effect, and duration for the TOP, MIDDLE, and BOTTOM rows separately.
-*   **Synchronized Animations**: All three rows animate in and out at the same time, creating a clean, professional look.
-*   **Single Script Simplicity**: Manage a complex, three-line display from a single, easy-to-use script.
-
-#### **Example Use Case:**
-_"Every morning at 8 AM, show a status screen: the weather forecast on top, the current date in the middle, and my portfolio value on the bottom. Hold for 1 minute."_
-*   **Blueprint**: Multi-Row Status Board
-*   **Trigger**: `Time is 8:00 AM`
-*   **Top Row Text**: `{{ states('weather.home') }}`
-*   **Middle Row Text**: `{{ now().strftime('%B %d') }}`
-*   **Bottom Row Text**: `TSLA: ${{ states('sensor.tsla_stock') }}`
-*   **Display Duration**: `60` seconds
+*   **...create a countdown?**
+    While there is no dedicated "countdown" function, you can achieve a similar result using an automation with a `repeat` loop and the `display` blueprint. For most use cases, a simple timed alert is sufficient (e.g., show "TIMER DONE" after a delay).
 
 ---
 
