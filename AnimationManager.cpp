@@ -921,6 +921,8 @@ void handleSequencer() {
                         if (track.loopCounter > 0) {
                             // Jump back to the step *after* LOOP_START.
                             track.currentStep = track.loopStartStep;
+                            // --- FIX: Reset the track's timeout timer for the new iteration. ---
+                            track.trackStartTime = millis();
                         } else {
                             // Loop is finished.
                             track.loopStartStep = -1;
