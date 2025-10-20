@@ -214,7 +214,7 @@ async function applySettings(timecircuits, temporal, datalink) {
                 if (valueSpan) valueSpan.textContent = temporal[id];
             }
         });
-        ['timeTravelSoundToggle', 'displayFormat24h'].forEach(id => {
+        ['displayFormat24h'].forEach(id => {
             document.getElementById(id).checked = temporal[id];
         });
         // --- START: MODIFICATION - Set the sequence dropdown from settings ---
