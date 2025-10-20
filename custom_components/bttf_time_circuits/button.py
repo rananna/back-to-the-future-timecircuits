@@ -182,12 +182,11 @@ class BTTFTimeCircuitsFavoriteButton(BTTFTimeCircuitsEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """
-        Handle the button press by calling the media_player service.
+        Handle the button press by toggling the media_player state.
 
-        This finds the associated media_player entity for this device and
-        calls the `play_media` service with the specific content type and ID
-        that the media player knows how to interpret to play the favorite
-        radio station.
+        This finds the associated media_player entity for this device. If the
+        favorite radio station is currently playing, it calls the `media_stop`
+        service. Otherwise, it calls the `play_media` service to start it.
         """
         # Find the media_player entity associated with this device
         entity_registry = er.async_get(self.hass)
@@ -195,7 +194,32 @@ class BTTFTimeCircuitsFavoriteButton(BTTFTimeCircuitsEntity, ButtonEntity):
             "media_player", DOMAIN, f"{DOMAIN}_{self._device.device_id}_media_player"
         )
 
-        if media_player_entity_id:
+        if not media_player_entity_id:
+            return
+
+        # Get the current state of the media player
+        media_player_state = self.hass.states.get(media_player_entity_id)
+
+        # Check if the radio is currently playing the favorite station
+        is_playing_favorite = (
+            media_player_state is not None
+            and media_player_state.state == "playing"
+            and media_player_state.attributes.get("media_content_id")
+            == "Favorite Radio Station"
+            and media_player_state.attributes.get("media_content_type")
+            == MediaType.CHANNEL
+        )
+
+        if is_playing_favorite:
+            # If it's playing, stop it
+            await self.hass.services.async_call(
+                "media_player",
+                "media_stop",
+                {"entity_id": media_player_entity_id},
+                blocking=True,
+            )
+        else:
+            # If it's not playing, start it
             await self.hass.services.async_call(
                 "media_player",
                 "play_media",
