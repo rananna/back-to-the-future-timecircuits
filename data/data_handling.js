@@ -322,7 +322,6 @@ async function saveSettings() {
     settings.malfunctionFrequency = getIntValue('malfunctionFrequency', 0);
     settings.presetCycleInterval = getIntValue('presetCycleInterval', 10);
 
-    settings.timeTravelSoundToggle = getChecked('timeTravelSoundToggle');
     settings.displayFormat24h = getChecked('displayFormat24h');
 
     // Radio Settings
