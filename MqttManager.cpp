@@ -120,8 +120,9 @@ std::string parsePlaylist(const char* url) {
                     while (stream->available()) {
                         String line = stream->readStringUntil('\n');
                         line.trim();
-                        line.toLowerCase();
-                        if (line.startsWith("file1=")) {
+                        String line_lower = line;
+                        line_lower.toLowerCase();
+                        if (line_lower.startsWith("file1=")) {
                             streamUrl = line.substring(6).c_str();
                             Log_printf(LOG_LEVEL_INFO, "Found PLS stream URL: %s", streamUrl.c_str());
                             break; // Use the first file entry
