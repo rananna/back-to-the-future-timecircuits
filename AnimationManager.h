@@ -73,6 +73,15 @@ extern bool bootSequenceCompleted;
 extern volatile bool justFinishedAnimation;
 
 /**
+ * @brief A volatile flag to prevent a race condition during animation startup.
+ * @details This flag is set to `true` at the beginning of `triggerAnimation` and `false`
+ * at the end. The main loop will not perform any of its own display updates while this
+ * flag is true, giving the animation system exclusive control of the display hardware
+ * during the critical transition period.
+ */
+extern volatile bool isTransitioningAnimation;
+
+/**
  * @brief Stores the display mode that was active before an animation started.
  * @details This is used to restore the user's selected display mode (e.g., Clock, Weather)
  * after a global animation, like the one triggered on save, completes.
