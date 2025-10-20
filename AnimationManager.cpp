@@ -291,6 +291,8 @@ void runBootSequence() {
 void runGreatScottSequence() {
     Serial.println("BOOT_LOG: runGreatScottSequence() called.");
     if (bootState == BOOT_INACTIVE) {
+        saveLedStates();
+        turnOffAllLeds();
         blankAllDisplays(); // Immediately clear the display
         bootState = BOOT_SYSTEM_ACTIVATE; // Start from the cinematic part
         bootStateStartTime = millis();
@@ -572,6 +574,7 @@ void handleBootSequence() {
 
                 // Display the "WELCOME" message after a delay
                 if (elapsed > 2000) { // Show "WELCOME" after 2 seconds
+                    turnOffAllLeds();
                     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
                         printToDisplay(lastRow.year, " WEL");
                         printToDisplay(lastRow.time, "COME");
