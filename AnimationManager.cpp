@@ -275,6 +275,8 @@ void handleTemporalEcho() {
 // --- BOOT SEQUENCE ---
 
 void runBootSequence() {
+    saveLedStates();
+    turnOffAllLeds();
     Serial.println("BOOT_LOG: runBootSequence() called.");
     if (bootState == BOOT_INACTIVE) {
         blankAllDisplays(); // Immediately clear the display to prevent showing old data
@@ -624,6 +626,7 @@ void handleBootSequence() {
         case BOOT_COMPLETE:
             {
                 if (elapsed > 500) {
+                    restoreLedStates();
                     comprehensiveAnimationCleanup(); // Resets manual modes without forcing clock display
                     bootSequenceCompleted = true; // --- NEW: Signal that the boot sequence is done.
                     bootState = BOOT_INACTIVE;
@@ -649,6 +652,7 @@ void handleBootSequence() {
  * of all three time circuit rows.
  */
 void resetDisplayToNormal() {
+    restoreLedStates();
     // Clear any active override message flags
     isMessageOverrideActive = false;
 
@@ -673,6 +677,7 @@ void resetDisplayToNormal() {
  * in a previous state. It does NOT force a display redraw.
  */
 static void comprehensiveAnimationCleanup() {
+    restoreLedStates();
     // Reset all override and manual mode flags
     isMessageOverrideActive = false;
     for (int r = 0; r < 3; ++r) {
@@ -1643,6 +1648,8 @@ void runSequencerTest() {
 void triggerAnimation(AnimationType animType) {
     // This function is a full takeover. It replaces all running tracks
     // with the new animation.
+    saveLedStates();
+    turnOffAllLeds();
     Log_printf(LOG_LEVEL_INFO, "SEQ: Triggering new animation %d (%s). All current tracks will be replaced.", (int)animType, animationTypeToString(animType));
 
     // --- FIX: Save the current display mode so it can be restored after the animation. ---
