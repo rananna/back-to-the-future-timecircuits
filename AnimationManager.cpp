@@ -286,6 +286,18 @@ void runBootSequence() {
     }
 }
 
+void runGreatScottSequence() {
+    Serial.println("BOOT_LOG: runGreatScottSequence() called.");
+    if (bootState == BOOT_INACTIVE) {
+        blankAllDisplays(); // Immediately clear the display
+        bootState = BOOT_SYSTEM_ACTIVATE; // Start from the cinematic part
+        bootStateStartTime = millis();
+        Serial.println("BOOT_LOG: Great Scott sequence initiated.");
+    } else {
+        Serial.println("BOOT_LOG: Boot sequence already in progress. Call ignored.");
+    }
+}
+
 
 
 void handleBootSequence() {
