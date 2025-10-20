@@ -63,9 +63,9 @@ The large **"Save and Engage Time Circuits"** button at the bottom of the page s
 
 Pressing this button sends all configurations to the device, saves them to memory, and triggers the `Time Circuits Lock-In` animation to confirm the new settings have been applied.
 
-### Advanced Data Display: MQTT Push and Home Assistant Push
+### Advanced Data Display: MQTT Push
 
-The **Data Link** feature allows your Time Circuits clock to display custom, real-time information from external systems. This is achieved using a technology called MQTT. You have two primary ways to use this feature: a direct "MQTT Push" method for general use, and an integrated "Home Assistant Push" method for seamless integration with Home Assistant.
+The **Data Link** feature allows your Time Circuits clock to display custom, real-time information from external systems. This is achieved using a technology called MQTT.
 
 #### How It Works: The Basics of MQTT
 
@@ -78,7 +78,7 @@ Your clock can **subscribe** to a topic, and any message **published** to that t
 
 ---
 
-#### Method 1: Direct "MQTT Push"
+#### Direct "MQTT Push"
 
 This is the direct, technical method for sending data to the clock from any MQTT-capable source, such as a custom script or another IoT platform.
 
@@ -151,88 +151,3 @@ This Python script publishes the current time to the topic we configured above.
     python clock_publisher.py
     ```
     **Result**: The clock will immediately display `TIME IS NOW: 10:56 AM` (or the current time), updating every minute.
-
----
-
-#### Method 2: "Home Assistant Push"
-
-This is the recommended method for Home Assistant users. The integration manages all the MQTT details for you, providing simple `text` entities to control the display.
-
-##### **Configuration & Examples**
-
-1.  **Enable the Entity in Home Assistant**:
-    -   Go to **Settings > Devices & Services > Entities**.
-    -   Search for and enable the entity you want to use, for example: `text.time_circuits_data_point_1_marquee`.
-2.  **Use in an Automation**: The core of this method is the `text.set_value` service.
-
-##### **Example 1: Displaying a Live Sensor Value (Power Usage)**
-
-This automation displays the real-time power consumption from a smart plug.
-
-```yaml
-alias: 'Clock - Display Live TV Power'
-trigger:
-  - platform: state
-    entity_id: sensor.tv_smart_plug_power # Your power sensor
-action:
-  # Ensure the clock is in the correct display mode
-  - service: select.select_option
-    target:
-      entity_id: select.time_circuits_display_mode
-    data:
-      option: 'Data Link'
-  # Set the text value, with formatting
-  - service: text.set_value
-    target:
-      entity_id: text.time_circuits_data_point_1_marquee
-    data:
-      value: "TV POWER: {{ states('sensor.tv_smart_plug_power') | round(0) }} W"
-```
-**Result**: The clock will always show the current power usage, like `TV POWER: 125 W`.
-
-##### **Example 2: Dynamic Notification with Auto-Clear (Washing Machine)**
-
-This automation shows an alert when the laundry is done, and then automatically clears it after 15 minutes.
-
-```yaml
-alias: 'Clock - Washing Machine Finished Alert with Auto-Clear'
-trigger:
-  # Trigger when power drops below 5W for 2 minutes
-  - platform: numeric_state
-    entity_id: sensor.washing_machine_plug_power
-    below: 5
-    for:
-      minutes: 2
-action:
-  # Show the alert
-  - service: text.set_value
-    target:
-      entity_id: text.time_circuits_data_point_2_marquee
-    data:
-      value: 'LAUNDRY CYCLE COMPLETE'
-  # Make sure the display is active
-  - service: select.select_option
-    target:
-      entity_id: select.time_circuits_display_mode
-    data:
-      option: 'Data Link'
-
-  # Wait for 15 minutes
-  - delay:
-      minutes: 15
-
-  # Clear the text by sending an empty message
-  - service: text.set_value
-    target:
-      entity_id: text.time_circuits_data_point_2_marquee
-    data:
-      value: ''
-
-  # Return the clock to its normal display
-  - service: select.select_option
-    target:
-      entity_id: select.time_circuits_display_mode
-    data:
-      option: 'Normal Clock'
-```
-**Result**: A `LAUNDRY CYCLE COMPLETE` message scrolls for 15 minutes, then the display automatically reverts to the standard time.
