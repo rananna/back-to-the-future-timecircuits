@@ -2,7 +2,7 @@
 
 This tab provides a quick reference for the web UI and links to more comprehensive documentation.
 
-![Help Tab](https://raw.githubusercontent.com/rananna/back-to-the-future-timecircuits/main/docs/assets/web_ui_help.png)
+[Image: Help Tab]
 
 ---
 

@@ -2,7 +2,7 @@
 
 This tab manages all network-related settings, which are crucial for Home Assistant integration and keeping the "Present Time" display accurate.
 
-![Connectivity Tab](https://raw.githubusercontent.com/rananna/back-to-the-future-timecircuits/main/docs/assets/web_ui_connectivity.png)
+[Image: Connectivity Tab]
 
 ---
 

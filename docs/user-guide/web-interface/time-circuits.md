@@ -2,7 +2,7 @@
 
 This is the main screen for setting the time displays. It directly controls the "Destination Time" (top row) and "Last Time Departed" (bottom row) displays.
 
-![Time Circuits Tab](https://raw.githubusercontent.com/rananna/back-to-the-future-timecircuits/main/docs/assets/web_ui_time_circuits.png)
+[Image: Time Circuits Tab]
 
 ---
 

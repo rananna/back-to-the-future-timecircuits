@@ -2,7 +2,7 @@
 
 This tab unlocks advanced data display capabilities, allowing the clock to show real-time data from various internet sources. The three modes on this page—Stock Ticker, Live Weather, and Data Link—are mutually exclusive. Enabling one will disable the others.
 
-![Data Link Tab](https://raw.githubusercontent.com/rananna/back-to-the-future-timecircuits/main/docs/assets/web_ui_data_link.png)
+[Image: Data Link Tab]
 
 ---
 
