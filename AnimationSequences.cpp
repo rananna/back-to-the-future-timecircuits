@@ -960,7 +960,7 @@ void generateTimeCircuitsLockIn(SequencerTrack tracks[3], const char time_string
     int s0 = 0, s1 = 0, s2 = 0;
 
     // Use a relay sound for the "lock in" effect
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "relay_activation.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, -1, 0, "relay_activation.mp3");
 
     const int flicker_interval = 50; // ms for flicker effect refresh rate
     const int total_duration = 2000; // 2 seconds total animation time
