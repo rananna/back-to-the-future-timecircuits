@@ -1105,21 +1105,34 @@ void generateDataStream(SequencerTrack tracks[3]) {
 void generateIntruderAlert(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
 
-    // --- Track 0 (Top): Flashing Alert Text & Sound ---
-    // Play the alarm sound immediately.
+    // --- Phase 1: Initial Alert (0-2 seconds) ---
+    // Play the alarm sound and flash all displays for high impact.
     s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "alarm.mp3");
-    // Set the text and keep it visible for the entire 10-second animation.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "INTRUDER ALERT");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 10000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 2000, 0, "INTRUDER ALERT");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 2000, 0, "INTRUDER ALERT");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 2000, 0, "INTRUDER ALERT");
 
-    // --- Track 1 (Middle): Scanner ---
-    // Run a scanner effect for 10 seconds.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 10000, 80, "---");
+    // --- Phase 2: System Response (2-8 seconds) ---
+    // This phase runs for 6 seconds.
+    // Track 0 (Top): Scramble and reveal the status update.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 150, "LOCKDOWN INITIATED"); // Takes ~2s
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 4000, 1000); // Pulse the message
 
-    // --- Track 2 (Bottom): Pulsing Lockdown Message ---
-    // Set the text and make it pulse for 10 seconds. A 2s cycle (1s on, 1s off).
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "LOCKDOWN");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 2000);
+    // Track 1 (Middle): A scanner sweeps back and forth.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 6000, 80, "---");
+
+    // Track 2 (Bottom): A progress bar fills up.
+    s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 100, 6000, "SYSTEM SECURING");
+
+    // --- Phase 3: Lockdown Engaged (8-10 seconds) ---
+    // This phase runs for 2 seconds.
+    // A final flash to signify completion.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 2000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 2000, 0);
+
+    // Track 1 (Middle): Display the final lockdown message.
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "LOCKDOWN ENGAGED");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 2000, 500); // Pulse the final message
 }
 
 /**
