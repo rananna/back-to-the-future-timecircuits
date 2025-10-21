@@ -86,7 +86,7 @@ A **Blueprint** is a pre-made template. It contains all the logic for a specific
 #### **2. Scripts: The "What"**
 When you fill out a blueprint's form and save it, you create a **Script**. A Script is a specific, runnable action. It defines *what* you want to happen.
 
-*   **Example Script:** "Show the text 'INTRU DER ALERT' on all three rows, with a flashing effect and an alarm sound."
+*   **Example Script:** "Show the text 'INTRUDER ALERT' on all three rows, with a flashing effect and an alarm sound."
 
 You can run a script manually from the Home Assistant UI or call it from an automation.
 
@@ -148,46 +148,6 @@ It's a versatile, all-in-one blueprint for showing information on the display. Y
           - service: script.time_circuits_show_weather
           - service: script.time_circuits_show_date
           - service: script.time_circuits_show_stock
-    ```
-
-*   **...create a countdown?**
-    While there is no dedicated "countdown" function, you can achieve this with a simple automation that calls the Display blueprint in a loop.
-
-    1.  **Trigger**: Use any trigger you like (e.g., a button press).
-    2.  **Action**:
-        *   Use a `repeat` loop.
-        *   Inside the loop, use a `delay` of 1 second.
-        *   Call the `script` created from the Display blueprint to show the current countdown number.
-
-    Here is an example that counts down from 5 on the middle row:
-    ```yaml
-    # Example Automation for a 5-second countdown
-    trigger:
-      - platform: state
-        entity_id: input_boolean.start_countdown # A helper toggle to start it
-        to: "on"
-    action:
-      - repeat:
-          count: 5
-          sequence:
-            # This calls a script created from the Display blueprint
-            - service: script.time_circuits_display_countdown_number
-              data:
-                # The 'text_to_display' input of the blueprint is overridden here
-                text_to_display: "{{ 5 - repeat.index }}"
-                target_row: "MIDDLE"
-                # Optional: Make each number flash briefly
-                effect: "FLASH"
-                duration: 0.5 # Show each number for half a second
-            - delay: "00:00:01"
-      # After the loop, show a final message
-      - service: script.time_circuits_display_countdown_number
-        data:
-          text_to_display: "LIFTOFF!"
-          target_row: "ALL"
-          effect: "SCRAMBLE_TEXT"
-          duration: 3
-          sound_effect: "time_travel.mp3"
     ```
 
 ---
@@ -397,11 +357,12 @@ For ultimate control, you can bypass the blueprints and publish directly to the 
 *   **Entities are 'Unavailable'?**
     *   Check the clock's Wi-Fi connection.
     *   In an MQTT client like [MQTT Explorer](http://mqtt-explorer.com/), check the `bttf_time_circuits/YOUR_DEVICE_ID/status` topic. It should have a retained message of `online`. If not, check the MQTT settings in the clock's web UI.
-
+*   **Blueprint Fails with `TemplateSyntaxError: Missing input...` or similar?**
+    This often happens when an input is dynamically hidden in the UI (e.g., `text_to_display` is hidden if you select `Home Assistant Entity` as the data source). If a hidden input doesn't have a `default` value, Home Assistant can't render the template.
+    *   **Solution**: This is a bug in the blueprint itself. Please open an issue on the project's GitHub page. As a temporary workaround, you can edit the blueprint YAML, find the input mentioned in the error, and add `default: ""` to it.
 *   **Why does my text disappear immediately?**
-    This usually happens when using a non-blocking effect like `Set Text` without specifying a duration. The script sends the command and immediately finishes, so the display restores to its previous state.
-    *   **Solution**: In the blueprints, you **must** use the **`Display Duration`** input for effects that aren't self-timing. This tells the blueprint to add a `WAIT` command, holding the effect on-screen for the specified time.
-
+    This usually happens when using an effect like `SET_TEXT` or `RANDOM_FLICKER_TEXT` without a long enough duration. The script sends the command and finishes, and the blueprint is configured to restore the row to its previous state immediately.
+    *   **Solution**: The `duration` input for the Display blueprint is crucial for effects that are not self-blocking (like `MARQUEE` or `TYPEWRITER`). For static text or fast flickers, you must set a `duration` long enough for the message to be readable. This tells the blueprint to add a `WAIT` command, holding the text on-screen.
 *   **Can I combine sensor data with my own text?**
     Absolutely! All text fields in the blueprints support Home Assistant templates. This lets you build rich, dynamic strings.
     *Example for the "Display" blueprint's text field:*

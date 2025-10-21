@@ -59,9 +59,9 @@ The MQTT API is the primary method for controlling the Time Circuits clock progr
 
 All topics follow a consistent structure. Replace `YOUR_DEVICE_ID` with the actual ID of your device (e.g., its MAC address).
 
-*   **Command Topics**: `bttf-time-circuits/YOUR_DEVICE_ID/COMMAND_NAME/command`
+*   **Command Topics**: `bttf_time_circuits/YOUR_DEVICE_ID/COMMAND_NAME/command`
     *   Used to **send instructions to** the device.
-*   **State Topics**: `bttf-time-circuits/YOUR_DEVICE_ID/STATE_NAME/state`
+*   **State Topics**: `bttf_time_circuits/YOUR_DEVICE_ID/STATE_NAME/state`
     *   Used to **receive status updates from** the device.
 
 ### State Topics
@@ -110,7 +110,7 @@ These topics provide direct control over specific settings and actions.
 
 The command sequencer is one of the most powerful features of the clock. You can script complex, multi-step, and even parallel animations.
 
-*   **Topic**: `bttf-time-circuits/YOUR_DEVICE_ID/sequencer/command`
+*   **Topic**: `bttf_time_circuits/YOUR_DEVICE_ID/sequencer/command`
 *   **Payload**: A JSON object defining a sequence, or a string with a [Built-in Animation](#built-in-animations) name.
 
 #### **Payload Structure: Custom JSON Sequences**
