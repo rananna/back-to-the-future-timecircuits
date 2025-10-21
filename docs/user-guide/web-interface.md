@@ -21,39 +21,132 @@ Once connected to your network, you can access the web UI by navigating to **`ht
 The web interface is organized into six tabs for managing all aspects of your clock.
 
 ### **Time Circuits**
-This is the main screen for setting the time displays.
-*   **Destination Time**: Set the year and time zone for the top display row.
-*   **Last Time Departed & Presets**: Control the bottom display row by selecting movie-based presets or creating your own custom dates.
-*   **Automatic Cycling**: Set an interval (in minutes) for the clock to automatically cycle through the presets (`0` disables).
+This is the main screen for setting the time displays. It directly controls the "Destination Time" (top row) and "Last Time Departed" (bottom row) displays.
+
+#### **Destination Time & Year**
+This section controls the *top* display row.
+- **Time Zone**: Use this dropdown to select the time zone for the destination time. This is useful for accurately setting times in different parts of the world.
+- **YEAR**: Enter the four-digit destination year. The clock will instantly update the header display to reflect this year, using the current month, day, and time.
+
+#### **Last Time Departed & Presets**
+This section controls the *bottom* display row.
+
+- **Static Time Display**: The text at the top of this section shows the full date and time that is currently set for the "Last Time Departed" display.
+
+- **Famous & Custom Time Jumps**: This dropdown contains a list of dates from the movies and any custom presets you have saved. Selecting an option from this list will immediately update the "Last Time Departed" display.
+
+- **Add/Edit Presets**: This form allows you to create, edit, and delete your own custom presets.
+    - **To add a new preset**: Fill in the "Preset Name," "Date," and "Time" fields and click **"Add to Presets"**.
+    - **To edit a preset**: Select a custom preset from the dropdown. The form will populate with its details. Make your changes and click **"Update Preset"**.
+    - **To delete a preset**: Select a custom preset from the dropdown and click **"Delete Selected Preset"**.
+    - **To create a new one after editing**: Click **"+ Create New Preset"** to clear the form.
+
+- **Cycle Presets Every (min, 0=Off)**: This slider sets an interval in minutes for the clock to automatically cycle through all available presets (both famous and custom). Setting it to `0` disables this feature.
 
 ### **Temporal Controls**
-This tab controls the clock's automatic behaviors and visual effects.
-*   **Sleep Schedule**: Set a daily schedule to automatically turn the displays off and on.
-*   **Display**: Adjust brightness and toggle 24-hour format.
-*   **Animation Sequences**: Select and run any of the built-in, multi-track cinematic animations.
-*   **Sound**: Control the master volume and enable/disable time travel sound effects.
-*   **Favorite Radio**: Configure and play your favorite internet radio stream.
+This tab controls the clock's automatic behaviors, visual effects, and sound system.
+
+#### **Departure/Arrival (Sleep) Times**
+This feature allows you to set a daily schedule for the clock to "depart" (enter a low-power sleep mode) and "arrive" (wake up and resume normal operation).
+- **Departure Time**: The time the displays will turn off.
+- **Arrival Time**: The time the displays will turn back on.
+- **Awake Time Visualizer**: The horizontal bar provides a 24-hour visual representation of the schedule. The lighter portion shows the "awake" time, and the darker portion shows the "sleep" time.
+
+#### **Display**
+- **Display Brightness**: A slider to control the brightness of the LED displays, from `0` (off) to `7` (max).
+- **24 Hour Format**: A toggle to switch the "Present Time" display between 12-hour (AM/PM) and 24-hour format.
+
+#### **Animation Sequences**
+- **Sequence Dropdown**: Select one of the many built-in cinematic animation sequences.
+- **Run Button**: Immediately triggers the selected animation sequence. This is a great way to preview the effects.
+
+#### **Sound**
+- **Volume**: A master slider to control the volume of all sound effects and the internet radio.
+- **Favorite Internet Radio Station**:
+    - **Station Name**: A friendly name for your favorite station (e.g., "80s Hits").
+    - **Station URL**: The direct streaming URL for the radio station.
+    - **Play/Stop Button**: Starts or stops playback of the configured radio station.
+    - **Status Display**: Shows the current state of the radio player (e.g., "Playing," "Stopped," "Connecting...").
 
 ### **Connectivity**
-This tab manages all network-related settings.
-*   **MQTT Broker**: Configure the connection to your MQTT broker, which is required for Home Assistant integration and the "Data Link" features.
-*   **Present Time (NTP)**: Set your local time zone.
+This tab manages all network-related settings, which are crucial for Home Assistant integration and keeping the "Present Time" display accurate.
+
+#### **MQTT Broker Settings**
+MQTT is the communication protocol used to connect your clock to Home Assistant and other smart home systems.
+- **MQTT Broker Address**: The IP address or hostname of your MQTT broker (e.g., `192.168.1.100`).
+- **MQTT Port**: The port for the MQTT broker, which is typically `1883`.
+- **MQTT Username (optional)**: The username for your MQTT broker, if required.
+- **MQTT Password (optional)**: The password for your MQTT broker, if required.
+
+#### **Present Time & NTP**
+This section controls the *middle* display row.
+- **Time Synchronized**: Indicates whether the clock has successfully synchronized its time with an internet time server.
+- **Time Zone**: Select your local time zone from the dropdown to ensure the "Present Time" is accurate.
+- **Calibrate Present Time**: Manually triggers a time synchronization with an internet (NTP) server.
 
 ### **Data Link**
-This tab unlocks advanced data display capabilities.
-*   **Stock Ticker**: Shows real-time stock prices. Requires a free API key from [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs).
-*   **Live Weather**: Shows the current weather for a specified city.
-*   **Data Link**: For advanced users, this allows the clock to display custom data pushed from an MQTT broker.
+This tab unlocks advanced data display capabilities, allowing the clock to show real-time data from various internet sources. The three modes on this page—Stock Ticker, Live Weather, and Data Link—are mutually exclusive. Enabling one will disable the others.
+
+#### **Stock Market Ticker Mode**
+When enabled, this mode turns the clock into a real-time stock and cryptocurrency ticker.
+- **Enable Stock Ticker Mode**: A toggle to activate this mode.
+- **Financial Modeling Prep API Key**: A free API key from [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs) is required.
+- **Refresh Interval**: Sets how often (in minutes) the clock fetches updated stock data. A guidance message will appear to help you choose an interval that stays within the API's free tier limits.
+- **Tracked Symbols**: This list shows all the stock or crypto symbols you are currently tracking. You can drag and drop to reorder them.
+- **Add Asset**: Enter a stock symbol (e.g., `AAPL`), crypto symbol (e.g., `BTC-USD`), or index (e.g., `^GSPC`) and click **"Add"**.
+- **Check Button**: Opens a new browser tab with the raw API data for the entered symbol, which is useful for debugging.
+
+#### **Live Weather Display**
+When enabled, this mode displays current and forecasted weather information.
+- **Enable Live Weather**: A toggle to activate this mode.
+- **City Name**: Enter the name of the city for the weather forecast. Click **"Lookup"** to validate the name and get its geographic coordinates. If multiple locations are found, a modal will appear for you to choose the correct one.
+- **Latitude/Longitude**: These fields are automatically populated by the "Lookup" process.
+- **Use Metric Units**: A toggle to switch between Fahrenheit/mph and Celsius/km/h.
+- **Weather Display**: Shows a real-time overview of the current weather, today's forecast, and tomorrow's forecast.
+- **Hourly Forecast**: A horizontally scrolling view of the forecast for the next several hours.
+- **Refresh Button**: Manually triggers a refresh of the weather data.
+
+#### **Data Link Configuration**
+This is an advanced mode for displaying custom data from an MQTT broker.
+- **Enable Data Link Marquee**: A toggle to activate this mode.
+- **Number of Data Points**: A slider to select how many independent data points you want to configure (up to 5).
+- **Data Point Configuration**: Each data point has its own set of controls:
+    - **Data Source**:
+        - **MQTT Push**: The clock will listen on the specified MQTT topic for messages to display.
+        - **Static Text**: The clock will display the fixed text entered in the "Scrolling Text" field.
+    - **MQTT Topic**: The MQTT topic the clock should subscribe to for this data point.
+    - **Prefix/Suffix Text**: Optional text that will be added before or after the message received from MQTT.
+    - **Scrolling Text**: The static text to be displayed if the Data Source is set to "Static Text."
+    - **Scroll Speed**: Controls the speed of the marquee text.
+    - **Clear/Duplicate Buttons**: Actions to clear the fields of a data point or duplicate it to a new one.
 
 ### **System**
 This tab provides device status and system-level actions.
-*   **System Status**: View WiFi signal strength, free memory, and uptime.
-*   **Firmware Update**: Update the device's software over the air (OTA).
-*   **UI Theme**: Customize the look of the web interface.
-*   **Device Actions**: Trigger a "Great Scott!" animation or reset all settings to their factory defaults.
+
+#### **System Status**
+This section provides a real-time snapshot of the device's health and status.
+- **Free Memory**: The amount of available RAM on the device.
+- **Wi-Fi Signal**: The signal strength of the Wi-Fi connection (RSSI), measured in dBm.
+- **Device Uptime**: How long the device has been running since its last reboot.
+- **Home Assistant Custom ID**: The unique identifier for the device, which is also used as its MQTT client ID.
+
+#### **Firmware Update (OTA)**
+This allows you to update the device's software over the air (OTA) without needing to connect it to a computer.
+- **File Input**: Click to select the new firmware (`.bin`) file from your computer.
+- **Upload and Update Firmware Button**: Starts the update process. A progress bar will show the upload status. The device will automatically reboot upon successful completion.
+
+#### **UI Theme**
+Customize the look of this web interface by choosing one of the available themes. The change is applied instantly.
+
+#### **Device Actions**
+- **Great Scott! Button**: Triggers the "Great Scott!" animation sequence on the clock.
+- **Reset All Settings to Default Button**: A factory reset option. This will erase all your custom settings and restore the device to its original configuration. A confirmation pop-up will appear before the reset is performed.
 
 ### **Help**
-This tab contains a quick reference guide and a link to this official documentation site.
+This tab provides a quick reference for the web UI and links to more comprehensive documentation.
+
+- **Project Documentation**: This section provides a link to the main project documentation on GitHub, where you can find detailed information on hardware, software, and troubleshooting.
+- **Web UI Guide**: This section contains a condensed version of this guide, providing a quick overview of each tab and a table of the available animation sequences and their descriptions.
 
 ---
 
