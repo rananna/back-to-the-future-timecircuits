@@ -20,8 +20,6 @@ Once your clock is built and running, these guides will help you master its feat
 
 ## 3. Developer & Advanced Topics
 
-Ready to dive deeper? These guides provide technical details about the firmware, APIs, and how to contribute.
+Ready to dive deeper? This guide provides technical details about the firmware, APIs, and how to contribute.
 
-*   **[Developer Guide](developer/developer-guide.md)**: A technical deep-dive into the firmware architecture and contribution guidelines.
-*   **[MQTT API Reference](developer/mqtt-api.md)**: A complete reference for all MQTT topics, commands, and the animation sequencer.
-*   **[Frontend Guide](developer/frontend-guide.md)**: A guide to the web UI's architecture and how to add new settings.
+*   **[Developer Guide](developer/developer-guide.md)**: A technical deep-dive into the firmware architecture, MQTT API, and contribution guidelines.
