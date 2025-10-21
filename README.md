@@ -14,13 +14,26 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 
 ## Features
 
--   **Screen-Accurate Replica**: A true-to-the-movies design with a cinematic, multi-stage boot sequence with synchronized sound effects.
--   **Powerful Animation Engine**: A flexible, built-in sequencer that allows you to create complex, multi-track animations.
--   **Full Smart Home Integration**: Native Home Assistant support with powerful Blueprints, a unified `media_player` entity, a `notify` service, and one-click firmware updates.
--   **Integrated Audio System**: Onboard speaker and dedicated audio chip for crisp playback of sound effects and streamed audio.
--   **Dynamic Data Displays**: Display real-time stock quotes, live weather forecasts, or custom messages.
--   **Comprehensive Web Interface**: An easy-to-use, mobile-friendly web UI for configuration and control.
--   **Modern Tech Stack**: Built on a fully asynchronous, non-blocking architecture using an ESP32 with Over-the-Air (OTA) firmware updates.
+-   **Screen-Accurate Replica**: A true-to-the-movies design that captures the look and feel of the original, complete with a cinematic, multi-stage boot sequence and synchronized sound effects.
+
+-   **Powerful Multi-Track Animation Sequencer**: A flexible, built-in sequencer that allows you to create and run complex, multi-track animations in parallel. Animate individual displays or coordinate all three for stunning visual effects, all controlled via MQTT or the web UI.
+
+-   **Deep Home Assistant Integration**:
+    -   **Powerful Blueprints**: A rich collection of pre-built automations for alerts, countdowns, and custom displays that make smart home integration a breeze.
+    -   **Unified Media Player**: A single `media_player` entity that seamlessly handles sound effects, text-to-speech (TTS), and streamed internet radio.
+    -   **Notify Service**: A `notify` service that lets you send any text directly to the displays from your automations.
+    -   **One-Click Firmware Updates**: Update to the latest firmware directly from the Home Assistant UI.
+
+-   **Dynamic Data Display Modes**:
+    -   **Stock Ticker**: A scrolling marquee that displays near real-time stock quotes from a provider of your choice.
+    -   **Weather Station**: A multi-page display that shows current weather conditions, forecasts, and sunrise/sunset times.
+    -   **Custom Marquee**: Display any custom scrolling text message.
+
+-   **Integrated Audio System**: An onboard speaker and dedicated audio chip deliver crisp, high-quality playback of built-in sound effects, streamed internet radio, or audio from your Home Assistant media library.
+
+-   **Comprehensive Web UI**: An easy-to-use, mobile-friendly web interface for initial setup, configuration, and direct control of the device.
+
+-   **Modern & Robust Tech Stack**: Built on a fully asynchronous, non-blocking architecture using an ESP32 for maximum performance, with support for Over-the-Air (OTA) firmware updates.
 
 ---
 ## 💬 Community & Support
