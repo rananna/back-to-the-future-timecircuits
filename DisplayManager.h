@@ -138,6 +138,14 @@ void updateDisplaySegment(int row, int segment, const std::string& text);
  * @param row The row to restore (0-2).
  */
 void restoreDisplayRow(int row);
+
+/**
+ * @brief Calculates and caches the UTC offsets for the present and destination timezones.
+ * @details This function is called infrequently (on startup, settings change, or hourly)
+ * to perform the expensive, memory-unsafe `setenv` calls. The calculated offsets
+ * are then used by the high-frequency display loop for safe time calculations.
+ */
+void updateTimezoneOffsets();
 /** @} */
 
 #endif // DISPLAY_MANAGER_H
