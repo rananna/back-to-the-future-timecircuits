@@ -45,7 +45,7 @@ Keeping our documentation in sync with our code is critical. Our documentation i
 -   **Update Docs with Code**: All pull requests that introduce or change a feature, API, or user-facing behavior **must** include corresponding documentation updates in the same PR.
 -   **Where to Document**:
     -   The **[Central Documentation Hub](docs/README.md)** is the starting point for all documentation. If you add a new document, link it from here.
-    -   **User-facing features** or configuration changes belong in the relevant file within `docs/user-guide/`. For Home Assistant changes, update `docs/user-guide/home-assistant.md`.
+    -   **User-facing features** or configuration changes belong in the relevant file within the `docs/user-guide/` directory. For Home Assistant changes, update the consolidated **[Home Assistant Integration Guide](docs/user-guide/home-assistant.md)**.
     -   **Technical details**, architecture changes, or API modifications belong in the consolidated **[Developer Guide](docs/developer/developer-guide.md)**.
 -   **Clarity and Conciseness**: Write clearly and simply. Avoid jargon where possible.
 -   **Check for Broken Links**: Please ensure that all links in the documentation are up-to-date and working correctly.
