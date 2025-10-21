@@ -12,6 +12,9 @@ This document provides a deeper look into the project's architecture, code struc
     *   [General Command Topics](#general-command-topics)
     *   [Audio Command Topics](#audio-command-topics)
     *   [Animation & Sequencer Commands](#animation--sequencer-commands)
+*   [Built-in Animations](#-built-in-animations)
+    *   [C++ Generated Animations](#c-generated-animations)
+    *   [JSON-Defined Animations](#json-defined-animations)
 *   [Frontend Web Interface Guide](#-frontend-web-interface-guide)
     *   [File Structure](#file-structure)
     *   [How to Add a New UI Setting](#how-to-add-a-new-ui-setting)
@@ -111,7 +114,7 @@ These topics provide direct control over specific settings and actions.
 The command sequencer is one of the most powerful features of the clock. You can script complex, multi-step, and even parallel animations.
 
 *   **Topic**: `bttf_time_circuits/YOUR_DEVICE_ID/sequencer/command`
-*   **Payload**: A JSON object defining a sequence, or a string with a [Built-in Animation](#built-in-animations) name.
+*   **Payload**: A JSON object defining a sequence, or a string with a [Built-in Animation](#-built-in-animations) name.
 
 #### **Payload Structure: Custom JSON Sequences**
 
@@ -146,25 +149,94 @@ This table details every command available in the sequencer.
 | Command | Description & Parameters |
 | :--- | :--- |
 | `SET_TEXT` | **(Non-Blocking)** Instantly displays static text.<br/>`stringParam`: Text to display.<br/>`targetSegment`: (Optional) `0`-`3` or `-1` for full row. |
-| `MARQUEE` | **(Blocking)** Scrolls text across the target row.<br/>`stringParam`: Text to scroll. |
+| `SET_BRIGHTNESS` | **(Non-Blocking)** Sets the brightness for the target row.<br/>`intParam`: Brightness level (0-15). |
+| `CLEAR_SEGMENT` | **(Non-Blocking)** Clears text from a segment or the full row.<br/>`targetSegment`: `0`-`3` or `-1` for full row. |
+| `RESTORE_SEGMENT` | **(Non-Blocking)** Restores a segment to its pre-animation state.<br/>`targetSegment`: `0`-`3`. |
+| `RESTORE_ROW` | **(Non-Blocking)** Restores the target row to its normal display state. |
+| `CLEAR_ALL_ROWS` | **(Non-Blocking)** Clears the text from all three display rows. |
+| `RESTORE_ALL_ROWS` | **(Non-Blocking)** Restores all three rows to their normal display state. |
+| `MARQUEE` | **(Blocking)** Scrolls text across the target row.<br/>`stringParam`: Text to scroll.<br/>`intParam`: Speed (ms). |
 | `SCRAMBLE_TEXT` | **(Blocking)** Reveals text with a scrambling effect.<br/>`stringParam`: Final text.<br/>`intParam`: Flicker speed (ms).<br/>`intParam2`: Total duration (ms). |
 | `TYPEWRITER` | **(Blocking)** Reveals text one character at a time.<br/>`stringParam`: Text to type.<br/>`intParam`: Delay between characters (ms). |
 | `WIPE` | **(Blocking)** Reveals text with a wipe effect.<br/>`stringParam`: Text to wipe.<br/>`intParam`: Delay between characters (ms). |
-| `CROSSFADE_TEXT`| **(Blocking)** Fades from the current text to new text.<br/>`stringParam`: New text to display.<br/>`intParam`: Duration of the fade (ms). |
+| `SCROLL_IN`| **(Blocking)** Scrolls text in from the side and stops.<br/>`stringParam`: Text to scroll.<br/>`intParam`: Speed (ms). |
+| `CROSSFADE_TEXT`| **(Blocking)** Fades from the current text to new text.<br/>`stringParam`: New text.<br/>`intParam`: Duration of the fade (ms). |
 | `BAR_GRAPH` | **(Blocking)** Displays a "charging" bar.<br/>`stringParam`: (Optional) Text label to overlay.<br/>`intParam`: Starting percentage (0-100).<br/>`intParam2`: Duration to fill the bar (ms). |
-| `SCANNER` | **(Blocking)** Creates a "Knight Rider" style scanning light.<br/>`stringParam`: Character for the scanner light.<br/>`intParam`: Total duration of the effect (ms).<br/>`intParam2`: Delay between steps (ms). |
-| `COUNTDOWN` | **(Blocking)** Displays a numeric countdown.<br/>`intParam`: Number to start from.<br/>`intParam2`: Delay between each number (ms). |
-| `CLEAR_SEGMENT` | **(Non-Blocking)** Clears text from a segment or the full row.<br/>`targetSegment`: (Optional) `0`-`3` or `-1` for full row. |
-| `RESTORE_ROW` | **(Non-Blocking)** Restores the target row to its normal display state (clock, etc.). |
+| `SCANNER` | **(Blocking)** Creates a "Knight Rider" style scanning light.<br/>`intParam`: Total duration (ms).<br/>`intParam2`: Delay between steps (ms). |
+| `RANDOM_FLICKER_TEXT` | **(Blocking)** Flickers random characters.<br/>`stringParam`: (Optional) Character set to use.<br/>`intParam`: Flicker speed (ms).<br/>`intParam2`: Total duration (ms). |
+| `COUNTDOWN` | **(Blocking)** Displays a numeric countdown.<br/>`intParam`: Number to start from. |
 | `FADE_IN` | **(Blocking)** Fades the display in from black.<br/>`intParam`: Duration of the fade (ms). |
+| `FADE_OUT` | **(Blocking)** Fades the display out to black.<br/>`intParam`: Duration of the fade (ms). |
 | `PULSE` | **(Blocking)** Makes a segment or row blink slowly.<br/>`intParam2`: Total duration of the effect (ms).<br/>`targetSegment`: (Optional) `0`-`3` or `-1` for full row. |
 | `FLASH` | **(Blocking)** Makes a segment or row flash rapidly.<br/>`intParam2`: Total duration of the effect (ms).<br/>`targetSegment`: (Optional) `0`-`3` or `-1` for full row. |
 | `SOUND` | **(Non-Blocking)** Plays a sound effect from the device's filesystem.<br/>`stringParam`: Full path to the sound file (e.g., `/sys_beep.mp3`). |
 | `WAIT` | **(Blocking)** Pauses the current animation track.<br/>`intParam`: Duration of the pause (ms). |
 | `LOOP_START` | **(Non-Blocking)** Marks the beginning of a loop.<br/>`intParam`: Number of times to repeat the loop. |
 | `LOOP_END` | **(Non-Blocking)** Marks the end of a loop block. |
+| `TRIGGER_ANIMATION`| **(Global)** Stops all tracks and starts a new global built-in animation.<br/>`intParam`: The `AnimationType` enum value. |
 | `MQTT_PUBLISH` | **(Non-Blocking)** Publishes a message to an MQTT topic.<br/>`stringParam`: MQTT topic.<br/>`stringParam2`: Payload to publish. |
 | `DISPLAY_HA_SENSOR`| **(Blocking)** Displays the value of a Home Assistant sensor.<br/>`stringParam`: The `entity_id` of the sensor. |
+
+---
+
+## 🎨 Built-in Animations
+
+You can trigger any of the built-in animations by sending its name as a string payload to the `.../sequencer/command` MQTT topic.
+
+### C++ Generated Animations
+These animations are generated by dedicated C++ functions in the firmware, allowing for dynamic and complex multi-track effects.
+
+| Animation Name | Description |
+| :--- | :--- |
+| `All Displays Random` | All three rows scramble and resolve to the correct time in parallel. |
+| `Capacitor Charge-Up`| Simulates a capacitor charging with a bar graph, crackling energy, and a final flash. |
+| `Character Scanline` | Reveals text with a typewriter effect, accompanied by a synchronized scanner light. |
+| `Code Breaker` | A code-cracking sequence with a scrambling text reveal and a progress bar. |
+| `Counting Up` | A number rapidly counts up on the middle row with a synchronized progress bar. |
+| `Countdown` | A 10-second countdown with a progress bar and status text. |
+| `Data Stream` | Simulates a data transfer with a scrolling hex feed, status updates, and a progress bar. |
+| `Digital Rain` | A "Matrix"-style digital rain effect with multiple layers of falling characters. |
+| `Digit Cascade` | Reveals each row's text in parallel with a typewriter effect. |
+| `Electric Surge` | Simulates a building and discharging electric surge with parallel effects. |
+| `Fire Trails` | Wipes the time text onto all three displays in parallel. |
+| `Flip-Disc Display` | Simulates a mechanical flip-disc display with varied, parallel wipes. |
+| `Flux Capacitor Overload`| A rapid, chaotic pulsing effect on all three rows. |
+| `Focus In` | Reveals each row's text sequentially with a scramble effect. |
+| `Glitchy Jump-Cut` | A chaotic, desynchronized glitch effect that is randomly generated on each run. |
+| `Interference Pattern`| Creates a visual conflict with opposing wipe effects and a pulsing center row. |
+| `Intruder Alert` | A multi-track alert sequence with flashing text, a scanner, and a progress bar. |
+| `Knight Rider` | A multi-stage KITT-style sequence with activation, scanning, and shutdown phases. |
+| `Lightning` | A chaotic lightning storm with intense, random flashes and crackles. |
+| `Party Mode` | An energetic sequence with pulsing text, a fast scanner, and flashing lights. |
+| `Plasma Warm-Up` | A multi-stage system activation sequence, from ignition to stabilization. |
+| `Random Flicker` | A dynamic, multi-stage random flicker and glitch animation. |
+| `Randomize All` | Triggers one of the other C++ generated animations at random. |
+| `Scanner` | A classic KITT-style scanner that sweeps across all three rows. |
+| `Sequential Flicker` | Reveals the time, one segment at a time, across all rows. |
+| `Sparkle Reveal` | A twinkling starfield effect that smoothly resolves into the final time text. |
+| `System Boot` | A multi-stage system boot-up sequence with diagnostics and loading bars. |
+| `System Error` | Displays a scrambled "ERROR" message with a "SYSTEM MALFUNCTION" marquee. |
+| `Temporal Desync` | Creates a feeling of temporal instability with conflicting, parallel timelines. |
+| `Temporal Paradox` | A chaotic animation with conflicting past, present, and future timelines. |
+| `Test Suite` | A diagnostic tool that tests all major hardware and software subsystems. |
+| `Time Circuits Lock-In`| The iconic effect where all displays scramble and rapidly resolve to the correct time. |
+| `Time Travel` | A multi-stage sequence that tells the story of a time jump, from power-up to arrival. |
+| `Time Travel Tunnel` | Simulates traveling through a time tunnel by scrolling text in rapidly. |
+| `Timeline Skim` | Simulates rapidly cycling through time by scrambling through random date strings. |
+| `Time Warp Streaks` | Simulates a time warp with high-speed, multi-directional streaks of random dates. |
+| `Tornado Flicker` | A multi-stage animation of a tornado forming, intensifying, and dissipating. |
+| `Wave Flicker` | A dynamic wave effect with patterns moving in opposite directions. |
+| `Waveform Collapse` | A symmetrical animation of a waveform collapsing and expanding. |
+
+### JSON-Defined Animations
+These animations are defined as JSON strings within the firmware. They are typically simpler, single-purpose effects.
+
+| Animation Name | Description |
+| :--- | :--- |
+| `Error` | A simple error message with a sound and a marquee. |
+| `Flux Capacitor Charge-Up`| A basic charge-up sequence using a bar graph and flashes. |
+| `Tachyons Detected` | A simple text scramble that reveals "TACHYONS ON". |
+| `Wormhole Collapse` | A random flicker effect on all rows that fades out. |
 
 ---
 
@@ -202,7 +274,7 @@ The best way to contribute new visual effects is by using the modern sequencer s
 
 1.  **Define Enum**: Add a new `SEQ_CMD_...` to the `SequenceCommand` enum in `Sequencer.h`.
 2.  **Implement Logic**: Add a `case` to the `switch` statement in `handleSequencer()` in `AnimationManager.cpp` to implement your command's logic.
-3.  **Document**: Add the new command to the `Command Reference` section of the [MQTT API Guide](./mqtt-api.md).
+3.  **Document**: Add the new command to the `Command Reference` section in this guide.
 
 ### Adding a New Built-in Named Animation
 

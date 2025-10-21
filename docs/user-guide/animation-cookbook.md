@@ -2,7 +2,7 @@
 
 Welcome to the Animation Cookbook! This guide is for advanced users who want to move beyond the built-in animations and create their own custom sequences from scratch. Here, you'll learn the secrets of the **Command Sequencer**, the powerful engine that drives all the complex animations in the Time Circuits firmware.
 
-This guide assumes you have a working knowledge of MQTT and JSON. For a complete reference of all available MQTT topics and sequencer commands, please see the **[🤖 MQTT API Reference](../developer/mqtt-api.md)**.
+This guide assumes you have a working knowledge of MQTT and JSON. For a complete reference of all available MQTT topics and sequencer commands, please see the **[🤖 MQTT API Reference](../developer/developer-guide.md#-mqtt-api-reference)**.
 
 ## Core Concept: The Sequencer
 
@@ -55,7 +55,7 @@ This is a **single-track** sequence. We send a JSON object.
 *   `"targetRow": "MIDDLE"`: Specifies that all commands in this sequence will run on the middle display row.
 *   `"command": "SET_TEXT"`: Instantly displays the text from `stringParam`.
 *   `"command": "WAIT"`: Pauses the sequence for 3000ms.
-*   `"command": "FLASH"`: A blocking command that flashes the current text on the row for 2000ms.
+*   `"command": "FLASH"`: A blocking command that flashes the current text on the row for a total duration of 2000ms, specified by `intParam2`.
 *   `"command": "RESTORE_ROW"`: Clears the custom text and restores the row to its normal state (e.g., the clock).
 
 ---
@@ -117,7 +117,8 @@ This is a **parallel-track** sequence. We send a JSON **array** of track objects
     "commands": [
       {
         "command": "MARQUEE",
-        "stringParam": "SYSTEM ALERT"
+        "stringParam": "SYSTEM ALERT",
+        "intParam": 120
       },
       {
         "command": "RESTORE_ROW"
@@ -131,13 +132,13 @@ This is a **parallel-track** sequence. We send a JSON **array** of track objects
 *   **The Root is an Array `[]`**: This tells the sequencer to run the enclosed track objects in parallel.
 *   **Track 1 (Top Row)**:
     *   It starts by playing a `SOUND` effect. This is a non-blocking command, so the animation continues immediately.
-    *   It then flashes the word "WARNING" for 5 seconds.
+    *   It then flashes the word "WARNING" for a duration of 5 seconds (`intParam2`).
 *   **Track 2 (Middle Row)**:
-    *   It runs a `BAR_GRAPH` that takes 4 seconds to fill.
+    *   It runs a `BAR_GRAPH` that takes 4 seconds (`intParam2`) to fill.
     *   We add a 1-second `WAIT` at the end to ensure this track also lasts for 5 seconds, keeping it synchronized with the top row.
 *   **Track 3 (Bottom Row)**:
-    *   It runs a `MARQUEE` effect. This is a blocking command that will run to completion. For our text, this will take approximately 5 seconds.
-*   **Synchronization**: The `FLASH` and `BAR_GRAPH` commands are timed to last for a similar duration. The `MARQUEE` command will also run for about the same time. This keeps the overall animation feeling cohesive. All three tracks finish at roughly the same time and then restore their respective rows.
+    *   It runs a `MARQUEE` effect. We've set the speed (`intParam`) to 120ms per step. For a short string like "SYSTEM ALERT", this will take roughly 5 seconds to scroll completely across and off the screen.
+*   **Synchronization**: The `FLASH` and `BAR_GRAPH` commands are explicitly timed to last for a similar duration. The `MARQUEE` speed is adjusted to match. This keeps the overall animation feeling cohesive. All three tracks finish at roughly the same time and then restore their respective rows.
 
 ---
 

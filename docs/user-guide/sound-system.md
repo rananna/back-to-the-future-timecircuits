@@ -23,7 +23,7 @@ You can play any of the built-in sound effects by calling the `media_player.play
   target:
     entity_id: media_player.bttf_time_circuits
   data:
-    media_content_id: "electric_sparks.mp3"
+    media_content_id: "alarm.mp3"
     media_content_type: "music"
 ```
 
@@ -58,15 +58,21 @@ The following sound files are pre-loaded on the device and can be used with the 
 
 | Filename | Description |
 | :--- | :--- |
+| `alarm.mp3` | A loud, urgent alarm sound. |
 | `arrival_chime.mp3`| The gentle chime that plays upon arrival. |
+| `CONFIRM_ON.mp3` | A positive confirmation beep. |
 | `electric_sparks.mp3`| Generic electrical sounds, used in many animations. |
 | `engine_rev.mp3` | The sound of the DeLorean's engine revving. |
+| `error.mp3` | A system error or failure sound. |
 | `flux_capacitor_power_on.mp3`| The distinctive hum of the Flux Capacitor powering up. |
 | `hum.mp3` | A low, steady electrical hum. |
 | `keypad_beeps.mp3`| The sound of the keypad being used to enter a date. |
 | `lock_on.mp3` | A confirmation beep. |
 | `relay_activation.mp3`| The sound of relays clicking on. |
+| `SLEEP_ON.mp3` | A sound indicating the device is entering sleep mode. |
 | `sys_beep.mp3` | A simple system beep. |
+| `thunder.mp3` | The rumble of distant thunder. |
+| `thunder_close.mp3` | A loud, nearby thunder clap. |
 | `time_travel.mp3` | The main, iconic time travel sound effect. |
 
 ---
@@ -94,4 +100,4 @@ The best place to find compatible streams is in public internet radio directorie
 
 For users not using Home Assistant or for more advanced scripting, you can control the sound system by publishing directly to the device's raw MQTT topics.
 
-**➡️ For a complete list of audio topics and their payloads, please see the [Raw MQTT Topics API Reference](../developer/mqtt-api.md#audio--tts-topics).**
+**➡️ For a complete list of audio topics and their payloads, please see the [Audio Command Topics](../developer/developer-guide.md#audio-command-topics) section in the Developer Guide.**
