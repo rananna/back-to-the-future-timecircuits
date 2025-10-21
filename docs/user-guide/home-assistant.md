@@ -5,9 +5,9 @@ Welcome, time traveler! This guide provides everything you need to know to integ
 ### **Table of Contents**
 1. [Features](#-features)
 2. [Installation Guide](./home-assistant/installation.md)
-3. [Understanding Blueprints, Scripts, and Automations](#-understanding-blueprints-scripts-and-automations)
-4. [Available Blueprints: A Deep Dive](#-available-blueprints-a-deep-dive)
-5. [Core Entities & Controls](#-core-entities--controls)
+3. [Core Entities & Controls](#-core-entities--controls)
+4. [Understanding Blueprints, Scripts, and Automations](#-understanding-blueprints-scripts-and-automations)
+5. [Available Blueprints: A Deep Dive](#-available-blueprints-a-deep-dive)
 6. [Using the Media Player](#-using-the-media-player)
 7. [Sending Notifications](#-sending-notifications)
 8. [Advanced Control: The Animation Sequencer](#-advanced-control-the-animation-sequencer)
@@ -59,7 +59,7 @@ An **Automation** is the trigger that runs your script. It defines *when* you wa
 
 ---
 
-## 📖 The Display Blueprint: Your All-in-One Tool
+## 📖 The Display Blueprint: Your Universal Tool for Alerts & Effects
 
 To simplify the integration, all functionality has been consolidated into a single, powerful **Display Blueprint**. This is your central tool for creating any kind of visual alert or message on the Time Circuits clock.
 
@@ -111,7 +111,44 @@ It's a versatile, all-in-one blueprint for showing information on the display. Y
     ```
 
 *   **...create a countdown?**
-    While there is no dedicated "countdown" function, you can achieve a similar result using an automation with a `repeat` loop and the `display` blueprint. For most use cases, a simple timed alert is sufficient (e.g., show "TIMER DONE" after a delay).
+    While there is no dedicated "countdown" function, you can achieve this with a simple automation that calls the Display blueprint in a loop.
+
+    1.  **Trigger**: Use any trigger you like (e.g., a button press).
+    2.  **Action**:
+        *   Use a `repeat` loop.
+        *   Inside the loop, use a `delay` of 1 second.
+        *   Call the `script` created from the Display blueprint to show the current countdown number.
+
+    Here is an example that counts down from 5 on the middle row:
+    ```yaml
+    # Example Automation for a 5-second countdown
+    trigger:
+      - platform: state
+        entity_id: input_boolean.start_countdown # A helper toggle to start it
+        to: "on"
+    action:
+      - repeat:
+          count: 5
+          sequence:
+            # This calls a script created from the Display blueprint
+            - service: script.time_circuits_display_countdown_number
+              data:
+                # The 'text_to_display' input of the blueprint is overridden here
+                text_to_display: "{{ 5 - repeat.index }}"
+                target_row: "MIDDLE"
+                # Optional: Make each number flash briefly
+                effect: "FLASH"
+                duration: 0.5 # Show each number for half a second
+            - delay: "00:00:01"
+      # After the loop, show a final message
+      - service: script.time_circuits_display_countdown_number
+        data:
+          text_to_display: "LIFTOFF!"
+          target_row: "ALL"
+          effect: "SCRAMBLE_TEXT"
+          duration: 3
+          sound_effect: "time_travel.mp3"
+    ```
 
 ---
 
@@ -136,6 +173,21 @@ The integration creates a device with a rich set of entities. You can use these 
 | **Button** | `Factory Reset` | Resets all device settings to their defaults. |
 | **Button** | `Refresh Weather Data` | Manually fetches the latest data for the weather display mode. |
 | **Sensor** | `Status` | Monitors the clock's current state (e.g., `Idle`, `Animating`) and has useful attributes like `free_heap` and `wifi_rssi`. |
+| **Text** | `Destination Year` | Manually sets the text for the Destination Year display segment. |
+| **Text** | `Destination Month` | Manually sets the text for the Destination Month display segment. |
+| **Text** | `Destination Day` | Manually sets the text for the Destination Day display segment. |
+| **Text** | `Destination Time` | Manually sets the text for the Destination Time display segment. |
+| **Text** | `Present Year` | Manually sets the text for the Present Year display segment. |
+| **Text** | `Present Month` | Manually sets the text for the Present Month display segment. |
+| **Text** | `Present Day` | Manually sets the text for the Present Day display segment. |
+| **Text** | `Present Time` | Manually sets the text for the Present Time display segment. |
+| **Text** | `Last Departed Year` | Manually sets the text for the Last Departed Year display segment. |
+| **Text** | `Last Departed Month` | Manually sets the text for the Last Departed Month display segment. |
+| **Text** | `Last Departed Day` | Manually sets the text for the Last Departed Day display segment. |
+| **Text** | `Last Departed Time` | Manually sets the text for the Last Departed Time display segment. |
+| **Text** | `Override Line 1` | Manually sets the text for the entire top row (Destination Time). |
+| **Text** | `Override Line 2` | Manually sets the text for the entire middle row (Present Time). |
+| **Text** | `Override Line 3` | Manually sets the text for the entire bottom row (Last Time Departed). |
 | **Update** | `Firmware` | Notifies you when a new firmware version is available and allows for one-click OTA updates. |
 
 ---
