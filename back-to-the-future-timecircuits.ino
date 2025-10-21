@@ -452,6 +452,8 @@ void applySettingsFromJson(const JsonObject& obj) {
 
     validateAndSet("destinationYear", currentSettings.destinationYear, 0, 9999);
     validateAndSet("destinationTimezoneIndex", currentSettings.destinationTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
+    validateAndSet("presentTimezoneIndex", currentSettings.presentTimezoneIndex, 0, NUM_TIMEZONE_OPTIONS - 1);
+    updateTimezoneOffsets(); // Recalculate offsets if the timezone changed
     validateAndSet("lastTimeDepartedYear", currentSettings.lastTimeDepartedYear, 0, 9999);
     validateAndSet("lastTimeDepartedMonth", currentSettings.lastTimeDepartedMonth, 1, 12);
     validateAndSet("lastTimeDepartedDay", currentSettings.lastTimeDepartedDay, 1, 31);
@@ -1143,6 +1145,8 @@ void setup() {
     tzset();
     Log_printf(LOG_LEVEL_INFO, "Timezone configured.");
 
+    // updateTimezoneOffsets(); // This will be called from the loop once NTP is synced.
+
     setupMqtt();
     Log_printf(LOG_LEVEL_INFO, "MQTT setup initiated.");
 
@@ -1494,6 +1498,14 @@ void loop() {
             // --- END: MODIFICATION ---
 
             static unsigned long lastNtpUpdate = 0;
+            static unsigned long lastOffsetUpdate = 0;
+
+            // --- New: Hourly check for timezone offset updates (for DST) ---
+            if (timeSynchronized && millis() - lastOffsetUpdate > 3600000) {
+                updateTimezoneOffsets();
+                lastOffsetUpdate = millis();
+            }
+
             if (ntpSyncRequested || (!timeSynchronized && millis() > NTP_INITIAL_SYNC_DELAY) || (timeSynchronized && millis() - lastNtpUpdate > 3600000)) {
                 if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
                     bool syncSuccess = false;
@@ -1513,7 +1525,17 @@ void loop() {
                     }
                     lastNtpUpdate = millis();
                     ntpSyncRequested = false;
-                    xSemaphoreGive(xTimeLibMutex);
+
+                    // --- New: Update offsets after a successful sync ---
+                    if (syncSuccess) {
+                        // We must give the mutex here because updateTimezoneOffsets takes it again.
+                        xSemaphoreGive(xTimeLibMutex);
+                        updateTimezoneOffsets();
+                        lastOffsetUpdate = millis(); // Reset the hourly timer
+                    } else {
+                        // If sync failed, we still need to give the mutex.
+                        xSemaphoreGive(xTimeLibMutex);
+                    }
                 }
             }
             static unsigned long lastHaStateUpdate = 0;

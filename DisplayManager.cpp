@@ -50,6 +50,12 @@ std::string marqueeOverrideBuffer;
 #include "AnimationManager.h" // For SequencerTrack struct
 #include <cmath> // For std::isnan and std::isinf
 
+// --- Timezone Offset Caching ---
+// These variables store the calculated UTC offsets to avoid calling the memory-unsafe
+// `setenv` function in the high-frequency display loop.
+static long present_tz_offset_seconds = 0;
+static long dest_tz_offset_seconds = 0;
+
 // Forward declaration for the timeout handler in the main .ino file
 void handleWeatherTimeout();
 
@@ -409,6 +415,51 @@ void updateStockTickerDisplay() {
 }
 
 /**
+ * @brief Safely calculates and caches the UTC offsets for the configured timezones.
+ * @details This is the key function for the memory-safe timezone fix. It is called
+ * very infrequently. It temporarily sets the system timezone to calculate the offset
+ * from UTC for both the 'Present' and 'Destination' timezones, storing the results
+ * in static variables. This avoids calling the problematic `setenv` function in any
+ * high-frequency loops.
+ */
+void updateTimezoneOffsets() {
+    if (!timeSynchronized) {
+        Log_printf(LOG_LEVEL_WARN, "Cannot update timezone offsets: NTP time not synchronized yet.");
+        return;
+    }
+
+    Log_printf(LOG_LEVEL_INFO, "Recalculating and caching timezone offsets...");
+
+    if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
+        time_t now_utc;
+        time(&now_utc);
+        struct tm timeinfo_utc;
+        gmtime_r(&now_utc, &timeinfo_utc);
+
+        // --- Calculate Present Timezone Offset ---
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+        struct tm timeinfo_local;
+        localtime_r(&now_utc, &timeinfo_local);
+        present_tz_offset_seconds = mktime(&timeinfo_local) - timegm(&timeinfo_utc);
+
+        // --- Calculate Destination Timezone Offset ---
+        setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
+        tzset();
+        localtime_r(&now_utc, &timeinfo_local); // Recalculate with the new TZ
+        dest_tz_offset_seconds = mktime(&timeinfo_local) - timegm(&timeinfo_utc);
+
+        // --- IMPORTANT: Restore original timezone ---
+        setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
+        tzset();
+
+        xSemaphoreGive(xTimeLibMutex);
+    }
+
+    Log_printf(LOG_LEVEL_INFO, "Timezone offsets cached: Present=%ld, Destination=%ld", present_tz_offset_seconds, dest_tz_offset_seconds);
+}
+
+/**
  * @brief Displays a high-priority, persistent override message on all three rows.
  * @details This function is used for critical alerts or messages sent via MQTT/API.
  * It takes precedence over all other display modes. It supports both static, centered
@@ -656,19 +707,21 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
 
     if (xSemaphoreTake(xDisplayHardwareMutex, portMAX_DELAY) == pdTRUE) {
         if (timeSynchronized) {
-            time_t now_t;
+            // --- MEMORY-SAFE TIME CALCULATION ---
+            // This is the core of the fix. Instead of changing the system timezone in this
+            // high-frequency loop, we get the current UTC time and simply add the pre-calculated,
+            // cached offsets. This is extremely fast and allocates no memory.
+            time_t now_utc = time(nullptr);
+            time_t present_time_t = now_utc + present_tz_offset_seconds;
+            time_t dest_time_t = now_utc + dest_tz_offset_seconds;
+
             struct tm dest_timeinfo, present_timeinfo;
 
-            if (xSemaphoreTake(xTimeLibMutex, portMAX_DELAY) == pdTRUE) {
-                time(&now_t);
-                // setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
-                // tzset();
-                localtime_r(&now_t, &dest_timeinfo);
-                // setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
-                // tzset();
-                localtime_r(&now_t, &present_timeinfo);
-                xSemaphoreGive(xTimeLibMutex);
-            }
+            // --- Simplified Time Calculation ---
+            // The `gmtime_r` function correctly interprets a `time_t` as a UTC value
+            // and converts it to a `struct tm`. The previous complex logic was unnecessary.
+            gmtime_r(&dest_time_t, &dest_timeinfo);
+            gmtime_r(&present_time_t, &present_timeinfo);
 
             if (updateDest) {
                 dest_timeinfo.tm_year = currentSettings.destinationYear - 1900;
