@@ -217,6 +217,7 @@ extern bool ledStates[6];   /**< Stores the state of the 6 AM/PM LEDs before an 
  * garbled I2C commands and potential crashes.
  */
 extern SemaphoreHandle_t xDisplayHardwareMutex;
+extern bool isSequencerActive;
 
 /**
  * @brief A FreeRTOS mutex to protect the underlying time library.
