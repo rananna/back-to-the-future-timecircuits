@@ -1349,6 +1349,58 @@ const char* animationTypeToString(AnimationType type) {
 // --- Thematic C++ Animation Generators ---
 
 /**
+ * @brief Generates a dynamic, multi-stage time travel sequence.
+ * @details This function creates an engaging, 10-second animation that tells the story of a
+ * time jump through four distinct, parallel phases.
+ * 1.  **Power Up (0-2s):** A bar graph fills on the top row, the middle row flickers with
+ *     instability, and the bottom row pulses "INITIATING". A power-up sound plays.
+ * 2.  **Acceleration (2-5s):** The top row displays "ACCELERATING", the middle row shows a
+ *     fast scanner effect, and the bottom row counts up to "88 MPH". An engine sound plays.
+ * 3.  **Time Warp (5-9s):** All three rows engage in a chaotic, high-energy visual sequence
+ *     with rapid flickers, scrolling text, and flashes, accompanied by the iconic time
+ *     travel sound effect.
+ * 4.  **Arrival (9-10s):** A final, bright flash across all displays reveals the new time,
+ *     accompanied by the arrival chime, signifying the completion of the jump.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
+void generateTimeTravel(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+
+    // --- Phase 1: Power Up (0-2 seconds) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "flux_capacitor_power_on.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 2000, "POWER UP");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 2000, 80, "*'.");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 2000, 500, "INITIATING");
+
+    // --- Phase 2: Acceleration (2-5 seconds) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "engine_rev.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "ACCELERATING");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 3000, 250);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 3000, 40, "---");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "40 MPH");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "65 MPH");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "88 MPH");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+
+
+    // --- Phase 3: Time Warp (5-9 seconds) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "time_travel.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 20, 0, "|||||||||||||"); // 13 chars * 20ms = 260ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 3740, 40, "!@#$%^&*"); // 260ms + 3740ms = 4000ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_MARQUEE, 1, -1, 30, 4000, "TIME JUMP IN PROGRESS");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 4000, 0);
+
+
+    // --- Phase 4: Arrival (9-10 seconds) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "arrival_chime.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 1000, 0);
+}
+
+/**
  * @brief Generates a dynamic, high-energy "Party Mode" animation.
  * @details This function creates a multi-track, 10-second animation designed to be
  * visually exciting and energetic. It uses three parallel tracks with randomized and
@@ -1654,13 +1706,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
     // --- FIX: A correct switch statement with all cases and a proper default ---
     switch (animType) {
         // --- JSON-based Named Sequences ---
-        case ANIMATION_TIME_TRAVEL:
-            {
-                JsonDocument doc;
-                deserializeJson(doc, R"([{"targetRow": "TOP", "commands": [{"command": "SOUND", "stringParam":"time_travel.mp3"}, {"command": "BAR_GRAPH", "stringParam":"ACCELERATING", "intParam":0, "intParam2":10000}]}, {"targetRow": "MIDDLE", "commands": [{"command": "SET_TEXT", "stringParam":"TIME TRAVEL"}, {"command": "WAIT", "intParam": 3000}, {"command":"SET_TEXT", "stringParam":"ACTIVATED"}, {"command":"WAIT", "intParam":3000}, {"command": "SET_TEXT", "stringParam": "88 MPH"},{"command":"WAIT", "intParam":4000}]}, {"targetRow": "BOTTOM", "commands": [{"command": "FLASH", "targetSegment": -1, "intParam2": 10000}]}])");
-                parseSequenceFromJson(tracks, doc);
-            }
-            break;
+        case ANIMATION_TIME_TRAVEL:             generateTimeTravel(tracks); break;
         case ANIMATION_PARTY_MODE:              generatePartyMode(tracks); break;
         case ANIMATION_KNIGHT_RIDER:          generateKnightRider(tracks); break;
         case ANIMATION_LOADING:

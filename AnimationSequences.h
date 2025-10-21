@@ -56,4 +56,7 @@ void generateDataStream(SequencerTrack tracks[3]);
 // Generator function for the Party Mode animation
 void generatePartyMode(SequencerTrack tracks[3]);
 
+// Generator function for the Time Travel animation
+void generateTimeTravel(SequencerTrack tracks[3]);
+
 #endif // ANIMATION_SEQUENCES_H
