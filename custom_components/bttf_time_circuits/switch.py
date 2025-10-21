@@ -49,11 +49,6 @@ SWITCHES: tuple[BTTFTimeCircuitsSwitchEntityDescription, ...] = (
         name="24h Format",
         icon="mdi:clock-time-twelve-outline",
     ),
-    BTTFTimeCircuitsSwitchEntityDescription(
-        key="sound_toggle",
-        name="Time Travel Sounds",
-        icon="mdi:volume-high",
-    ),
 )
 
 
