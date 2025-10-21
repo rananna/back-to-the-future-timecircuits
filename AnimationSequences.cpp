@@ -1053,6 +1053,45 @@ void generateKnightRider(SequencerTrack tracks[3]) {
 }
 
 /**
+ * @brief Generates a dynamic "System Boot" animation with parallel effects.
+ * @details This function creates a multi-track, 10-second animation that tells a story
+ * of a system booting up.
+ * - **Track 0 (Top Row):** Displays status messages for each phase of the boot sequence.
+ * - **Track 1 (Middle Row):** Shows progress bars and welcome messages.
+ * - **Track 2 (Bottom Row):** Cycles through subsystem checks.
+ * @param tracks The array of three sequencer tracks to populate.
+ */
+void generateSystemBoot(SequencerTrack tracks[3]) {
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+
+    // --- Phase 1: Diagnostics (0-3 seconds) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "DIAGNOSTICS...");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 3000, 0); // Hold the text
+    s1 = add_step(tracks[1], s1, SEQ_CMD_BAR_GRAPH, 1, -1, 100, 3000, "SYSTEM CHECK");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "CPU... OK");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "MEM... OK");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "WIFI... OK");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
+
+    // --- Phase 2: System Loading (3-7 seconds, duration 4s) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 150, "LOADING KERNEL"); // ~2.1s
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1900, 0); // Total 4s
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 4000, 80, "---");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_BAR_GRAPH, 2, -1, 100, 4000, "LOADING MODULES");
+
+    // --- Phase 3: Boot Complete (7-10 seconds, duration 3s) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "SYSTEM ONLINE");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 3000, 1000);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "WELCOME");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 3000, 500);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 3000, 0);
+}
+
+
+/**
  * @brief Generates a dynamic data stream animation with parallel effects.
  * @details This function creates a multi-track, 10-second animation that tells a story
  * of a data transfer process.
@@ -1303,7 +1342,7 @@ const char* animationTypeToString(AnimationType type) {
         case ANIMATION_TIME_TRAVEL: return "Time Travel";
         case ANIMATION_PARTY_MODE: return "Party Mode";
         case ANIMATION_KNIGHT_RIDER: return "Knight Rider";
-        case ANIMATION_LOADING: return "Loading";
+        case ANIMATION_LOADING: return "System Boot";
         case ANIMATION_ERROR: return "Error";
         case ANIMATION_FLUX_CHARGE: return "Flux Capacitor Charge-Up";
         case ANIMATION_TACHYONS: return "Tachyons Detected";
@@ -1709,13 +1748,7 @@ void generateAnimationSequence(AnimationType animType, SequencerTrack tracks[3])
         case ANIMATION_TIME_TRAVEL:             generateTimeTravel(tracks); break;
         case ANIMATION_PARTY_MODE:              generatePartyMode(tracks); break;
         case ANIMATION_KNIGHT_RIDER:          generateKnightRider(tracks); break;
-        case ANIMATION_LOADING:
-            {
-                JsonDocument doc;
-                deserializeJson(doc, R"([{"targetRow":0, "commands":[{"command":"SET_TEXT", "stringParam":"FLUX CAPACITOR"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":1, "commands":[{"command":"WAIT", "intParam":3300}, {"command":"SET_TEXT", "stringParam":"TIME CIRCUITS"}, {"command":"WAIT", "intParam":3300}]}, {"targetRow":2, "commands":[{"command":"WAIT", "intParam":6600}, {"command":"SET_TEXT", "stringParam":"SYSTEMS ONLINE"}, {"command":"WAIT", "intParam":3400}]}])");
-                parseSequenceFromJson(tracks, doc);
-            }
-            break;
+        case ANIMATION_LOADING:                 generateSystemBoot(tracks); break;
         case ANIMATION_ERROR:
             {
                 JsonDocument doc;
