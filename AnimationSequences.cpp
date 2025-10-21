@@ -135,23 +135,50 @@ void generateRandomFlicker(SequencerTrack tracks[3]) {
 }
 
 /**
- * @brief Generates a "tornado" effect where a flicker moves across segments and rows.
+ * @brief Generates a dynamic, multi-stage "tornado" animation over 10 seconds.
+ * @details This function creates a compelling, multi-track animation that tells the story of
+ * a tornado forming, intensifying, and dissipating.
+ * - **Phase 1: Formation (0-2s):** A `SCANNER` effect on the middle row simulates the initial
+ *   funnel, while the top and bottom rows show faint flickers like distant clouds gathering.
+ * - **Phase 2: Building Intensity (2-5s):** The funnel builds. The middle `SCANNER` widens,
+ *   while the top and bottom rows use `WIPE` and `MARQUEE` to show debris being pulled in.
+ * - **Phase 3: Peak Fury (5-8s):** The tornado is at full strength. All three rows display
+ *   intense, chaotic `RANDOM_FLICKER_TEXT` and `FLASH` effects to simulate the destructive vortex.
+ * - **Phase 4: Dissipation (8-10s):** The storm weakens. The chaotic effects are replaced with
+ *   a `SCRAMBLE_TEXT` that resolves to "DANGER PASSED", followed by a `FADE_OUT`.
  * @param tracks The array of three sequencer tracks to populate.
  */
 void generateTornadoFlicker(SequencerTrack tracks[3]) {
-    int s = 0;
-    s = add_intro_sound_steps(tracks[0], s);
-    // Loop 22 times. Each loop takes 450ms (3 * 100ms flicker + 3 * 50ms wait).
-    // 22 * 450ms = 9900ms ~= 10s.
-    // Use i % 4 to keep the tornado effect cycling across the 4 display segments.
-    for (int i = 0; i < 22; i++) {
-        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, i % 4, 100, 50);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
-        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, i % 4, 100, 50);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
-        s = add_step(tracks[0], s, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, i % 4, 100, 50);
-        s = add_step(tracks[0], s, SEQ_CMD_WAIT, 0, 0, 50, 0);
-    }
+    int s0 = 0, s1 = 0, s2 = 0;
+    s0 = add_intro_sound_steps(tracks[0], s0);
+    const char* debris1 = ".'. '.. .";
+    const char* debris2 = "*`. ``. `";
+    const char* full_flicker = "|||||||||||||";
+
+    // --- Phase 1: Formation (0-2 seconds) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 2000, 150, debris1);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 2000, 80, "-");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 2000, 150, debris2);
+
+    // --- Phase 2: Building Intensity (2-5 seconds, duration 3s) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 100, 0, debris1);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1700, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 3000, 60, "---");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_MARQUEE, 2, -1, 100, 3000, debris2);
+
+    // --- Phase 3: Peak Fury (5-8 seconds, duration 3s) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 3000, 50, full_flicker);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 3000, 0, "WHOOSH");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 3000, 50, full_flicker);
+
+    // --- Phase 4: Dissipation (8-10 seconds, duration 2s) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 100, "DANGER");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 100, "PASSED");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_OUT, 2, -1, 2000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 700, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 700, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FADE_OUT, 0, -1, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FADE_OUT, 1, -1, 1000, 0);
 }
 
 /**
