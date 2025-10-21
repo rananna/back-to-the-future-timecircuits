@@ -124,7 +124,7 @@ This is a complete list of all commands available in the sequencer.
 | `FADE_IN` | **(Blocking)** Fades the display in from black.<br/>`intParam`: Duration of the fade (ms). |
 | `PULSE` | **(Blocking)** Makes a segment or row blink slowly.<br/>`intParam2`: Total duration of the effect (ms).<br/>`targetSegment`: (Optional) `0`-`3` or `-1` for full row. |
 | `FLASH` | **(Blocking)** Makes a segment or row flash rapidly.<br/>`intParam2`: Total duration of the effect (ms).<br/>`targetSegment`: (Optional) `0`-`3` or `-1` for full row. |
-| `SOUND` | **(Non-Blocking)** Plays a sound effect from the device's filesystem.<br/>`stringParam`: Full path to the sound file (e.g., `/REMOTE.mp3`). |
+| `SOUND` | **(Non-Blocking)** Plays a sound effect from the device's filesystem.<br/>`stringParam`: Full path to the sound file (e.g., `/sys_beep.mp3`). |
 | `WAIT` | **(Blocking)** Pauses the current animation track.<br/>`intParam`: Duration of the pause (ms). |
 | `LOOP_START` | **(Non-Blocking)** Marks the beginning of a loop.<br/>`intParam`: Number of times to repeat the loop. |
 | `LOOP_END` | **(Non-Blocking)** Marks the end of a loop block. |
@@ -191,7 +191,7 @@ This recipe creates a 10-second alert. It plays a siren sound, shows a "WARNING"
   {
     "targetRow": "TOP",
     "commands": [
-      { "command": "SOUND", "stringParam": "/siren.mp3" },
+      { "command": "SOUND", "stringParam": "/alarm.mp3" },
       { "command": "SET_TEXT", "stringParam": "WARNING" },
       { "command": "WAIT", "intParam": 10000 },
       { "command": "RESTORE_ROW" }

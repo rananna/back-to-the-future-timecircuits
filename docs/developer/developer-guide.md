@@ -96,7 +96,7 @@ These topics provide direct control over specific settings and actions.
 | Command Topic | Payload | Description |
 | :--- | :--- | :--- |
 | `radio/command` | String | Controls the internet radio. Accepts `play_favorite_radio` or `stop_radio`. |
-| `sound/command` | String | Plays a built-in sound effect by its filename (e.g., `REMOTE.mp3`). |
+| `sound/command` | String | Plays a built-in sound effect by its filename (e.g., `sys_beep.mp3`). |
 | `tts/command` | String (URL or JSON) | Plays audio from a URL. Can be a raw URL or a JSON object from Home Assistant's `tts.google_translate_say` service (`{"media_id": "URL"}`). |
 
 ### Animation & Sequencer Commands
@@ -152,7 +152,7 @@ This table details every command available in the sequencer.
 | `FADE_IN` | **(Blocking)** Fades the display in from black.<br/>`intParam`: Duration of the fade (ms). |
 | `PULSE` | **(Blocking)** Makes a segment or row blink slowly.<br/>`intParam2`: Total duration of the effect (ms).<br/>`targetSegment`: (Optional) `0`-`3` or `-1` for full row. |
 | `FLASH` | **(Blocking)** Makes a segment or row flash rapidly.<br/>`intParam2`: Total duration of the effect (ms).<br/>`targetSegment`: (Optional) `0`-`3` or `-1` for full row. |
-| `SOUND` | **(Non-Blocking)** Plays a sound effect from the device's filesystem.<br/>`stringParam`: Full path to the sound file (e.g., `/REMOTE.mp3`). |
+| `SOUND` | **(Non-Blocking)** Plays a sound effect from the device's filesystem.<br/>`stringParam`: Full path to the sound file (e.g., `/sys_beep.mp3`). |
 | `WAIT` | **(Blocking)** Pauses the current animation track.<br/>`intParam`: Duration of the pause (ms). |
 | `LOOP_START` | **(Non-Blocking)** Marks the beginning of a loop.<br/>`intParam`: Number of times to repeat the loop. |
 | `LOOP_END` | **(Non-Blocking)** Marks the end of a loop block. |
