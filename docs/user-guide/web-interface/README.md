@@ -1,13 +1,24 @@
 # Web Interface Guide
 
-The web interface is organized into six tabs for managing all aspects of your clock. This guide provides a complete tour of the web UI for configuration.
+The primary way to configure your Time Circuits clock is through its built-in web interface. This guide provides a complete tour of the UI, explaining every tab and every setting.
 
-* **[Time Circuits Tab](./time-circuits.md)**
-* **[Temporal Controls Tab](./temporal-controls.md)**
-* **[Connectivity Tab](./connectivity.md)**
-* **[Data Link Tab](./data-link.md)**
-* **[System Tab](./system.md)**
-* **[Help Tab](./help.md)**
+## Accessing the Web Interface
+
+You can access the web interface in two ways:
+
+1.  **Using the mDNS/Bonjour Address**: If your computer supports it, simply navigate to `http://timecircuits.local` in your web browser.
+2.  **Using the IP Address**: Find the clock's IP address from your router's device list and enter that into your web browser (e.g., `http://192.168.1.123`).
+
+## The Tabbed Layout
+
+The web interface is organized into six tabs for managing all aspects of your clock:
+
+*   **[Time Circuits](./time-circuits.md)**: Control the Destination and Last Time Departed displays and manage presets.
+*   **[Temporal Controls](./temporal-controls.md)**: Configure sleep schedules, display brightness, animation sequences, and the sound system.
+*   **[Connectivity](./connectivity.md)**: Manage network settings, including MQTT for Home Assistant integration and NTP for time synchronization.
+*   **[Data Link](./data-link.md)**: Display external data from stocks, weather, or custom MQTT topics.
+*   **[System](./system.md)**: View system status, perform firmware updates, and change the UI theme.
+*   **[Help](./help.md)**: An in-app quick reference guide.
 
 ---
 
