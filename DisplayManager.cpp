@@ -441,13 +441,13 @@ void updateTimezoneOffsets() {
         tzset();
         struct tm timeinfo_local;
         localtime_r(&now_utc, &timeinfo_local);
-        present_tz_offset_seconds = mktime(&timeinfo_local) - timegm(&timeinfo_utc);
+        present_tz_offset_seconds = timegm(&timeinfo_local) - timegm(&timeinfo_utc);
 
         // --- Calculate Destination Timezone Offset ---
         setenv("TZ", TZ_DATA[currentSettings.destinationTimezoneIndex].tzString, 1);
         tzset();
         localtime_r(&now_utc, &timeinfo_local); // Recalculate with the new TZ
-        dest_tz_offset_seconds = mktime(&timeinfo_local) - timegm(&timeinfo_utc);
+        dest_tz_offset_seconds = timegm(&timeinfo_local) - timegm(&timeinfo_utc);
 
         // --- IMPORTANT: Restore original timezone ---
         setenv("TZ", TZ_DATA[currentSettings.presentTimezoneIndex].tzString, 1);
