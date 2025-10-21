@@ -14,18 +14,13 @@ This isn't just a clock; it's a meticulously crafted, open-source project that b
 
 ## Features
 
--   **Screen-Accurate Replica**: A true-to-the-movies design with three rows of 14-segment displays, iconic AM/PM indicators, and a cinematic, multi-stage boot sequence with synchronized sound effects.
--   **Powerful Animation Engine**: A flexible, built-in sequencer that allows you to create complex, multi-track animations with over 25 different commands. Trigger one of the many built-in animations or create your own.
--   **Full Smart Home Integration**: Go beyond a simple clock with native Home Assistant support. The custom integration creates a rich set of entities to control every aspect of the device. Key features include:
-    -   **Powerful Blueprints** that let you create complex automations with zero code.
-    -   A unified **`media_player`** entity to play sounds, stream internet radio, and use Text-to-Speech (TTS).
-    -   A built-in **`notify`** service to easily send messages and alerts to the display.
-    -   An **`update`** entity for one-click, in-app firmware updates.
-    -   Dozens of other controls for brightness, volume, display modes, and more.
--   **Integrated Audio System**: Features an onboard speaker and dedicated audio chip for crisp playback of sound effects and streamed audio.
--   **Dynamic Data Displays**: Go beyond time and display real-time stock quotes, live weather forecasts from a custom API, or your own custom messages using the "Data Link" marquee mode.
--   **Comprehensive Web Interface**: An easy-to-use, mobile-friendly web UI for configuration, preset management, sound control, and triggering animations.
--   **Modern Tech Stack**: Built on a fully asynchronous, non-blocking architecture using an ESP32, with support for Over-the-Air (OTA) firmware updates directly from the web interface or Home Assistant.
+-   **Screen-Accurate Replica**: A true-to-the-movies design with a cinematic, multi-stage boot sequence with synchronized sound effects.
+-   **Powerful Animation Engine**: A flexible, built-in sequencer that allows you to create complex, multi-track animations.
+-   **Full Smart Home Integration**: Native Home Assistant support with powerful Blueprints, a unified `media_player` entity, a `notify` service, and one-click firmware updates.
+-   **Integrated Audio System**: Onboard speaker and dedicated audio chip for crisp playback of sound effects and streamed audio.
+-   **Dynamic Data Displays**: Display real-time stock quotes, live weather forecasts, or custom messages.
+-   **Comprehensive Web Interface**: An easy-to-use, mobile-friendly web UI for configuration and control.
+-   **Modern Tech Stack**: Built on a fully asynchronous, non-blocking architecture using an ESP32 with Over-the-Air (OTA) firmware updates.
 
 ---
 ## 💬 Community & Support
@@ -34,7 +29,6 @@ Have a question, found a bug, or have a great idea for a new feature? We'd love 
 
 -   **Report a Bug:** If you've found a bug, please [open an issue](https://github.com/rananna/back-to-the-future-timecircuits/issues/new?template=bug_report.md) and provide as much detail as possible.
 -   **Request a Feature:** If you have an idea for a new feature, please [open an issue](https://github.com/rananna/back-to-the-future-timecircuits/issues/new?template=feature_request.md) to start a discussion.
--   **Ask a Question:** For general questions and support, please [start a discussion](https://github.com/rananna/back-to-the-future-timecircuits/discussions) on our community forum.
 
 ---
 ## 🤝 Contributing
