@@ -2,7 +2,7 @@
 
 This tab controls the clock's automatic behaviors, visual effects, and sound system.
 
-![Temporal Controls Tab](https://raw.githubusercontent.com/rananna/back-to-the-future-timecircuits/main/docs/assets/web_ui_temporal_controls.png)
+[Image: Temporal Controls Tab]
 
 ---
 

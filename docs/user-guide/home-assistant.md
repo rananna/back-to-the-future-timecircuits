@@ -42,6 +42,8 @@ This section provides a detailed, step-by-step walkthrough for installing and co
 
 ### Step 1: Install the Custom Component via HACS
 
+[Image: HACS Installation]
+
 1.  In Home Assistant, navigate to **HACS > Integrations**.
 2.  Click **Explore & Download Repositories**.
 3.  Search for "Back to the Future Time Circuits" and install it.
@@ -49,10 +51,14 @@ This section provides a detailed, step-by-step walkthrough for installing and co
 
 ### Step 2: Add the Integration in Home Assistant
 
+[Image: Add Integration Dialog]
+
 1.  Navigate to **Settings > Devices & Services**.
 2.  Click **Add Integration** and search for "**Back to the Future Time Circuits**".
 3.  You will be prompted for your clock's **Device ID**. You can find this in the clock's web interface under **System -> System Status**.
 4.  Click **Submit**.
+
+[Image: Home Assistant Device View]
 
 Your Time Circuits clock will now appear as a new device in Home Assistant, with all its entities automatically created and ready to use.
 

@@ -11,6 +11,8 @@ You can access the web interface in two ways:
 
 ## The Tabbed Layout
 
+[Image: Web Interface Screenshot]
+
 The web interface is organized into six tabs for managing all aspects of your clock:
 
 *   **[Time Circuits](./time-circuits.md)**: Control the Destination and Last Time Departed displays and manage presets.

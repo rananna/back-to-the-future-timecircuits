@@ -2,7 +2,7 @@
 
 This tab provides device status and system-level actions.
 
-![System Tab](https://raw.githubusercontent.com/rananna/back-to-the-future-timecircuits/main/docs/assets/web_ui_system.png)
+[Image: System Tab]
 
 ---
 
