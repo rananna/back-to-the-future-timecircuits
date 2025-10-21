@@ -1549,7 +1549,7 @@ void generateTestSuite(SequencerTrack tracks[3]) {
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 2, 0); // Loop twice
     s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 250, 0);
     s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 11000, 0); // Wait for other tracks to finish
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 14000, 0); // Wait for other tracks to finish
     s1 = add_step(tracks[1], s1, SEQ_CMD_MQTT_PUBLISH, 1, 0, 0, 0, end_topic, "pass");
 
     // --- Track 2: Sound & Memory Test ---
@@ -1559,23 +1559,24 @@ void generateTestSuite(SequencerTrack tracks[3]) {
 
     // --- Track 0: Display Driver & Visual Effects Test ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TEST SUITE...");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1500, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 50, 0, "WIPE");
     s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCANNER, 0, -1, 1000, 80, "S");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 75, 0, "TYPEWRITER");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 150, "SCRAMBLE");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 1000, 0, "PULSE");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WIPE, 0, -1, 50, 0, "WIPE"); // 4 * 50 = 200ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 800, 0); // Total = 1000ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCANNER, 0, -1, 1500, 80, "S"); // Total = 1500ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_TYPEWRITER, 0, -1, 75, 0, "TYPEWRITER"); // 10 * 75 = 750ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 250, 0); // Total = 1000ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 187, "SCRAMBLE"); // 8 * 187 ~= 1500ms
+    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 5000, 0, "PULSE");
     s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1000, 0, "FLASH");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 1000, "BAR");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_BAR_GRAPH, 0, -1, 100, 2000, "BAR"); // Total = 2000ms
+
+    // --- Final Status Display ---
     s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "TESTS: PASS");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 500, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "TESTS: PASS");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "TESTS: PASS");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1000, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1000, 0);
 }
 
 
