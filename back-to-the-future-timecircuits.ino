@@ -316,6 +316,7 @@ AnimationType animationTypeFromString(const std::string& name) {
     if (name == "Flip-Disc Display") return ANIMATION_FLIP_DISC_DISPLAY;
     if (name == "Interference Pattern") return ANIMATION_INTERFERENCE_PATTERN;
     if (name == "Randomize All") return ANIMATION_RANDOMIZE_ALL;
+    if (name == "Test Suite") return ANIMATION_TEST_SUITE;
 
     // Default fallback if the name is not recognized
     return ANIMATION_RANDOMIZE_ALL;
