@@ -1478,37 +1478,60 @@ void generatePartyMode(SequencerTrack tracks[3]) {
 void generateLightning(SequencerTrack tracks[3]) {
     int s0 = 0, s1 = 0, s2 = 0;
     const char* solid_block = "|||||||||||||";
+    const char* crackle_chars = "'.`~";
 
-    // --- Track 0: Main Lightning Bolts & Thunder ---
-    // Loop for ~9.5 seconds. Each loop is a strike (100ms) + sound + variable pause (300-800ms).
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_START, 0, 0, 15, 0);
-    // Big, intense flash across all rows simultaneously.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 100, 0, solid_block);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 1, -1, 100, 0, solid_block);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 2, -1, 100, 0, solid_block);
-    // Play a random thunder sound with each main strike.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, (random(2) == 0) ? "thunder.mp3" : "thunder_close.mp3");
-    // Wait for a random duration before the next big strike.
-    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 300 + random(500), 0);
-    s0 = add_step(tracks[0], s0, SEQ_CMD_LOOP_END, 0, 0, 0, 0);
+    // --- Phase 1: Build-up (0-2 seconds) ---
+    // Distant, faint flickers on top and middle rows to build anticipation.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1000, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 200, 100, crackle_chars);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 800, 0);
 
-    // --- Track 1: Background Sheet Lightning (Random Characters) ---
-    // Loop for ~10 seconds with rapid, faint flickers. More frequent loop.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 50, 0);
-    // Flicker a random row for a short duration with chaotic characters.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, random(3), -1, 75, 50, "*.-_\\|/");
-    // Wait for a random, short duration.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 50 + random(150), 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1500, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 300, 150, ".");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 200, 0);
 
-    // --- Track 2: Crackling Energy (Different Random Characters) ---
-    // Loop for ~10 seconds with localized, sharp flickers. More frequent loop.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_START, 2, 0, 60, 0);
-    // Flicker a random segment on a random row with different chaotic characters.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, random(3), random(4), 50, 25, "~.'");
-    // Wait for a random, very short duration.
-    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 75 + random(75), 0);
-    s2 = add_step(tracks[2], s2, SEQ_CMD_LOOP_END, 2, 0, 0, 0);
+    // Track 2 is idle for this phase
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2000, 0);
+
+    // --- Phase 2: Rising Storm (2-5 seconds, duration 3s) ---
+    // More frequent flashes, sheet lightning, and thunder.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "thunder.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 150, 0, solid_block);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 850, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 2000, 80, solid_block);
+
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 3000, 100, crackle_chars);
+
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 200, 0, solid_block);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2800, 0);
+
+    // --- Phase 3: Climax (5-8 seconds, duration 3s) ---
+    // Coordinated, intense, multi-strike climax with loud thunder.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "thunder_close.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 200, 0, solid_block);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 100, 0);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 300, 0, solid_block);
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 2400, 0);
+
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 200, 0, solid_block);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 100, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 300, 0, solid_block);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 2400, 0);
+
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 200, 0, solid_block);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 100, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 300, 0, solid_block);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 2400, 0);
+
+    // --- Phase 4: Aftermath (8-10 seconds, duration 2s) ---
+    // The storm fades out with a few last flickers and a final fade to black.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FADE_OUT, 0, -1, 2000, 0);
+
+    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 500, 150, ".");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 500, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FADE_OUT, 1, -1, 1000, 0);
+
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FADE_OUT, 2, -1, 2000, 0);
 }
 
 /**
