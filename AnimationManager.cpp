@@ -1557,6 +1557,7 @@ void stopAndCleanupTrack(int trackIndex) {
         Log_printf(LOG_LEVEL_INFO, "SEQ: All tracks finished. Cleaning up and restoring pre-animation display mode: %d", preAnimationDisplayMode);
         comprehensiveAnimationCleanup(); // Full cleanup of all states
         currentSettings.displayMode = preAnimationDisplayMode;
+        isSequencerActive = false;
         justFinishedAnimation = true; // --- FIX: Signal that an animation just completed
         // The main loop will now handle updating the display according to the restored mode.
         // NOTE: broadcastAnimationComplete() is now called from the SEQ_CMD_END handler
@@ -1658,6 +1659,7 @@ void triggerAnimation(AnimationType animType) {
 
     // --- NEW: Store the current animation type for logging completion ---
     currentAnimationType = animType;
+    isSequencerActive = true;
 
     // --- FIX: Allocate temp_tracks on the heap to prevent stack overflow ---
     // The SequencerTrack struct is very large (approx 5.5KB), so creating an

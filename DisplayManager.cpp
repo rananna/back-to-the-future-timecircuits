@@ -616,7 +616,7 @@ void updateNormalClockDisplay_internal(bool updateDest, bool updatePres, bool up
             case 2: am_pin = LAST_AM_PIN; pm_pin = LAST_PM_PIN; break;
         }
 
-        if (am_pin != -1 && pm_pin != -1) {
+        if (am_pin != -1 && pm_pin != -1 && !isSequencerActive) {
             if (ampm_char == 'A') {
                 digitalWrite(am_pin, HIGH);
                 digitalWrite(pm_pin, LOW);

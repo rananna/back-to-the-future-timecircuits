@@ -1621,6 +1621,7 @@ void handleSequencerCommand(const std::string& payload) {
 
         // Set display mode to -1 to prevent the main clock loop from interfering.
         currentSettings.displayMode = -1;
+        isSequencerActive = true;
 
         // --- FIX: Explicitly reset all tracks to guarantee a clean state ---
         for (int i = 0; i < 3; ++i) {

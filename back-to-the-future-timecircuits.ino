@@ -193,6 +193,7 @@ bool isAnimating = false;
 unsigned long animationStartTime = 0;
 unsigned long lastAnimationFrameTime = 0;
 AnimationPhase currentPhase = ANIM_INACTIVE;
+bool isSequencerActive = false;
 bool isStyledAnimating = false;
 unsigned long styledAnimationStartTime = 0;
 AnimationPhase currentStyledPhase = ANIM_INACTIVE;
