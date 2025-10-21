@@ -7,6 +7,7 @@ This guide provides all the necessary steps to build, wire, and flash the firmwa
 2. [Wiring & Schematics](#-wiring--schematics)
 3. [3D Printed Case & Assembly](#-3d-printed-case--assembly)
 4. [Software Installation](#-software-installation)
+5. [First Boot & Configuration](#-first-boot--configuration)
 
 ---
 
@@ -47,9 +48,18 @@ A 3D printed enclosure is highly recommended for a professional finish.
 
 ---
 ## 💾 Software Installation
-The software installation process involves six key steps, from setting up the Arduino IDE to uploading the final firmware. Follow the steps below in order.
+The software installation process is broken down into four main parts: downloading the code, setting up your environment, flashing the firmware, and initial device configuration. Follow these steps in order.
 
-<br>
+### **Part 1: Download the Project Files**
+
+1.  **Go to the GitHub Repository**:
+    *   Navigate to the main project page: [https://github.com/rananna/back-to-the-future-timecircuits](https://github.com/rananna/back-to-the-future-timecircuits)
+2.  **Download the Code**:
+    *   Click the green **`< > Code`** button.
+    *   Select **`Download ZIP`**.
+    *   Unzip the downloaded file to a location on your computer where you keep your Arduino projects.
+
+### **Part 2: Set Up Your Environment**
 
 <details>
 <summary><b>Step 1: Install Arduino IDE and ESP32 Core</b></summary>
@@ -81,7 +91,26 @@ This project relies on several external libraries that can be installed directly
 </details>
 
 <details>
-<summary><b>Step 3: Set I2C Display Addresses</b></summary>
+<summary><b>Step 3: Install the Filesystem Uploader Plugin</b></summary>
+
+> [!WARNING]
+> **Critical Step: Install Uploader Plugin**
+> The web interface and sound effects will not work unless the contents of the `data` folder are uploaded to the ESP32's filesystem. This requires a special uploader plugin for the Arduino IDE.
+>
+> 1.  **Download the Correct Plugin**:
+>     *   **For Arduino IDE v2.x (Recommended)**: Download the `arduino-littlefs-upload` plugin from its [official releases page](https://github.com/earlephilhower/arduino-littlefs-upload/releases).
+>     *   **For Arduino IDE v1.x**: Download the `ESP32FS` plugin from its [official repository](https://github.com/me-no-dev/arduino-esp32fs-plugin).
+>
+> 2.  **Install the Plugin**:
+>     *   Follow the installation instructions provided on the respective download pages to add the plugin to your Arduino IDE.
+>     *   **Restart the Arduino IDE** after installing the plugin to ensure it is loaded correctly.
+
+</details>
+
+### **Part 3: Flash the Firmware**
+
+<details>
+<summary><b>Step 1: Set I2C Display Addresses</b></summary>
 
 > [!WARNING]
 > **Critical Step: Address Configuration**
@@ -112,55 +141,54 @@ This project relies on several external libraries that can be installed directly
 </details>
 
 <details>
-<summary><b>Step 4: Set Partition Scheme</b></summary>
+<summary><b>Step 2: Configure Arduino IDE and Upload</b></summary>
 
-> [!WARNING]
-> **Critical Step: Partition Scheme**
-> A custom partition scheme is required to allocate enough space for the web interface and sound files. The `partitions.csv` file, which defines this layout, is included in the repository.
->
-> 1.  **Confirm File Location**:
->     *   The `partitions.csv` file **must** be in the same folder as the main `back-to-the-future-timecircuits.ino` file. The Arduino IDE will not detect it otherwise.
->
-> 2.  **Select Custom Scheme**:
->     *   Restart the Arduino IDE to ensure it detects the new file.
->     *   Navigate to **Tools > Partition Scheme**.
->     *   Select **"Custom (partitions.csv)"** from the dropdown menu.
->
->     > [!IMPORTANT]
->     > If the "Custom (partitions.csv)" option is not visible, it means the IDE was not able to find the `partitions.csv` file. Ensure the file is in the same directory as the `.ino` file and that you have restarted the IDE.
->
->     > 💡 **What this does**: This custom layout creates a large `littlefs` partition (aliased as `spiffs` for compatibility), which provides over 10MB of space for web files and sounds. It also allocates two large partitions for the main application, enabling robust Over-the-Air (OTA) updates.
+1.  **Open the Project**:
+    *   Open the `back-to-the-future-timecircuits.ino` file in the Arduino IDE.
 
-</details>
+2.  **Configure Board Settings**:
+    *   Navigate to the **Tools** menu and configure the following:
+        *   **Board**: Select your specific ESP32-S3 board model.
+        *   **Port**: Select the COM port your ESP32 is connected to.
+        *   **Partition Scheme**: Select **"Custom (partitions.csv)"**.
 
-<details>
-<summary><b>Step 5: Upload Files to Filesystem</b></summary>
+    > [!IMPORTANT]
+    > If the "Custom (partitions.csv)" option is not visible, it means the IDE did not find the `partitions.csv` file. Ensure the file is in the same directory as the `.ino` file and that you have restarted the IDE.
 
-> [!WARNING]
-> **Critical Step: Upload Data Files**
-> The web interface and sound effects will not work unless the contents of the `data` folder are uploaded to the ESP32's filesystem. This requires a special uploader plugin for the Arduino IDE.
->
-> 1.  **Install the Uploader Plugin**:
->     *   **For Arduino IDE v2.x (Recommended)**: Download the `arduino-littlefs-upload` plugin from its [official releases page](https://github.com/earlephilhower/arduino-littlefs-upload/releases).
->     *   **For Arduino IDE v1.x**: Download the `ESP32FS` plugin from its [official repository](https://github.com/me-no-dev/arduino-esp32fs-plugin).
->     *   Follow the installation instructions provided on the respective download pages to add the plugin to your Arduino IDE.
->
-> 2.  **Upload the Data**:
->     *   Ensure the `data` folder is present in the same directory as your main `.ino` file.
->     *   Restart the Arduino IDE after installing the plugin.
->     *   In the IDE, navigate to **Tools > ESP32 LittleFS Data Upload** (the exact name may vary slightly).
->     *   The IDE will then build and upload the filesystem image.
->
-> > ***Image Placeholder:*** *A screenshot of the Arduino IDE's Tools menu, highlighting the "Partition Scheme" and "ESP32 LittleFS Data Upload" options.*
+3.  **Upload the Filesystem**:
+    *   Navigate to **Tools > ESP32 LittleFS Data Upload** (the exact name may vary).
+    *   This will build and upload the `data` folder to the ESP32.
+
+4.  **Upload the Main Firmware**:
+    *   Click the **Upload** button (the arrow icon) to flash the main firmware.
+
+> ***Image Placeholder:*** *A screenshot of the Arduino IDE's Tools menu, highlighting the "Partition Scheme" and "ESP32 LittleFS Data Upload" options.*
 
 </details>
 
-<details>
-<summary><b>Step 6: Upload the Main Code</b></summary>
+---
 
-*   With all the prerequisites in place, you can now upload the main firmware.
-*   Open the `back-to-the-future-timecircuits.ino` file in the Arduino IDE.
-*   Select your ESP32 board model and the correct COM port from the **Tools** menu.
-*   Click the **Upload** button to flash the firmware.
+## 🎉 First Boot & Configuration
 
-</details>
+After successfully flashing the firmware and filesystem, the device is ready for its first boot.
+
+1.  **Power On**:
+    *   Connect the ESP32 to your 5V power supply.
+    *   On the very first boot, the device will start in **Wi-Fi configuration mode**.
+
+2.  **Connect to the Setup Hotspot**:
+    *   On your computer or smartphone, search for available Wi-Fi networks.
+    *   Connect to the network named **`TimeCircuits-Setup`**.
+
+3.  **Configure Wi-Fi**:
+    *   Once connected, a captive portal page should open automatically in your web browser. If it doesn't, open a browser and navigate to `http://192.168.4.1`.
+    *   On this page, select your home Wi-Fi network from the list, enter your password, and click **Save**.
+
+4.  **Device Restart**:
+    *   The device will save your credentials and restart. After a few moments, it will automatically connect to your home Wi-Fi network.
+
+5.  **Access the Web Interface**:
+    *   Once connected, the device's IP address will be displayed on the "Present Time" row.
+    *   Enter this IP address into your web browser to access the main Time Circuits web interface.
+
+**Congratulations! Your Time Circuits display is now fully operational.**
