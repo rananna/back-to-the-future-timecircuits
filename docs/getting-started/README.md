@@ -6,10 +6,13 @@ Welcome to the Time Circuits project! This guide provides a complete, step-by-st
 
 Building and maintaining your Time Circuits clock involves three main stages.
 
-### **Step 1: The Build & Installation**
+### **Step 1: The Build**
 This is the main hardware and software phase, where you'll gather your components, assemble the physical device, and flash the firmware for the first time.
 
-*   **[Comprehensive Installation Guide](./installation.md)**: A complete, all-in-one guide that covers the Bill of Materials, 3D printing, wiring, and initial firmware installation.
+*   **[Bill of Materials](./bill-of-materials.md)**: A complete list of all the components you'll need.
+*   **[Wiring Guide](./wiring.md)**: A guide to wiring all the components together.
+*   **[Assembly Guide](./assembly.md)**: A guide to assembling the 3D printed case.
+*   **[Firmware Installation](./firmware-installation.md)**: A guide to installing the firmware.
 
 ### **Step 2: The Setup**
 This is the final configuration phase, where you'll connect the clock to your network and learn how to use it.
