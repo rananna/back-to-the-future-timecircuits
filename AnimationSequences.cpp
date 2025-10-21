@@ -461,24 +461,35 @@ void generateCharacterScanline(SequencerTrack tracks[3], const char time_strings
  */
 void generateTemporalParadox(SequencerTrack tracks[3], const char time_strings[3][17]) {
     int s0 = 0, s1 = 0, s2 = 0;
-    s0 = add_intro_sound_steps(tracks[0], s0);
 
-    // --- Track 0 (Top): A conflicting time from the past ---
-    s0 = add_step(tracks[0], s0, SEQ_CMD_SET_TEXT, 0, -1, 0, 0, "JAN 01 1885 1200");
-    s0 = add_step(tracks[0], s0, SEQ_CMD_PULSE, 0, -1, 10000, 0); // Pulse it for the duration
+    // --- Phase 1: Instability (0-3 seconds) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "hum.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_RANDOM_FLICKER_TEXT, 0, -1, 3000, 80, "!@#$()^&*");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_PULSE, 1, -1, 3000, 500, "PARADOX DETECTED");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_RANDOM_FLICKER_TEXT, 2, -1, 3000, 80, "!@#$()^&*");
 
-    // --- Track 2 (Bottom): A conflicting time from the future ---
-    s2 = add_step(tracks[2], s2, SEQ_CMD_SET_TEXT, 2, -1, 0, 0, "OCT 26 2085 0429");
-    s2 = add_step(tracks[2], s2, SEQ_CMD_PULSE, 2, -1, 10000, 0); // Pulse it for the duration
+    // --- Phase 2: Timeline Collision (3-7 seconds) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "error.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_MARQUEE, 0, -1, 80, 4000, "JAN 01 1885 1200");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCANNER, 1, -1, 4000, 50, "---");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_MARQUEE, 2, -1, 80, 4000, "OCT 26 2085 0429");
 
-    // --- Track 1 (Middle): The paradox instability ---
-    // Flicker rapidly between "ERROR" and the correct time. Loop to fill the duration.
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_START, 1, 0, 25, 0);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, "ERROR");
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_SET_TEXT, 1, -1, 0, 0, time_strings[1]);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_RANDOM_FLICKER_TEXT, 1, -1, 200, 50);
-    s1 = add_step(tracks[1], s1, SEQ_CMD_LOOP_END, 1, 0, 0, 0);
+    // --- Phase 3: Attempted Resolution (7-9 seconds) ---
+    // Scramble and reveal the text quickly, then hold it. Total duration: 2000ms.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "relay_activation.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SCRAMBLE_TEXT, 0, -1, 50, 10, time_strings[0]); // ~130ms
+    s1 = add_step(tracks[1], s1, SEQ_CMD_SCRAMBLE_TEXT, 1, -1, 50, 10, time_strings[1]); // ~130ms
+    s2 = add_step(tracks[2], s2, SEQ_CMD_SCRAMBLE_TEXT, 2, -1, 50, 10, time_strings[2]); // ~130ms
+    // Wait for the remainder of the 2-second phase.
+    s0 = add_step(tracks[0], s0, SEQ_CMD_WAIT, 0, 0, 1870, 0);
+    s1 = add_step(tracks[1], s1, SEQ_CMD_WAIT, 1, 0, 1870, 0);
+    s2 = add_step(tracks[2], s2, SEQ_CMD_WAIT, 2, 0, 1870, 0);
+
+    // --- Phase 4: Collapse (9-10 seconds) ---
+    s0 = add_step(tracks[0], s0, SEQ_CMD_SOUND, 0, 0, 0, 0, "time_travel_fail.mp3");
+    s0 = add_step(tracks[0], s0, SEQ_CMD_FLASH, 0, -1, 1000, 0, "TIMELINE ERROR");
+    s1 = add_step(tracks[1], s1, SEQ_CMD_FLASH, 1, -1, 1000, 0, "TIMELINE ERROR");
+    s2 = add_step(tracks[2], s2, SEQ_CMD_FLASH, 2, -1, 1000, 0, "TIMELINE ERROR");
 }
 
 /**
