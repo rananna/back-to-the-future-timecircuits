@@ -18,7 +18,7 @@ This is the main hardware and software phase, where you'll gather your component
 This is the final configuration phase, where you'll connect the clock to your network and learn how to use it.
 
 *   **[First-Time WiFi Setup](./wifi-setup.md)**: Learn how to connect your new clock to your home WiFi network.
-*   **[Web Interface Guide](../user-guide/web-interface.md)**: Take a complete tour of the web UI to configure all your clock's settings and features.
+*   **[Web Interface Guide](../user-guide/web-interface-guide.md)**: Take a complete tour of the web UI to configure all your clock's settings and features.
 
 ### **Step 3: Updating**
 This guide shows you how to update your device's firmware and web interface after the initial setup.
