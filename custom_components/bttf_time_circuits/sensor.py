@@ -52,7 +52,6 @@ SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
         key="dest_month",
         name="Destination Month",
         icon="mdi:calendar",
-        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="dest_day",
@@ -75,7 +74,6 @@ SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
         key="pres_month",
         name="Present Month",
         icon="mdi:calendar",
-        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="pres_day",
@@ -98,7 +96,6 @@ SENSORS: tuple[BTTFTimeCircuitsSensorEntityDescription, ...] = (
         key="last_month",
         name="Last Departed Month",
         icon="mdi:calendar",
-        value_type="int",
     ),
     BTTFTimeCircuitsSensorEntityDescription(
         key="last_day",

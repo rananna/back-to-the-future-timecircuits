@@ -1,0 +1,135 @@
+# Describes the services for the bttf_time_circuits integration.
+set_status_display:
+  name: Set Status Display
+  description: "Sets the text of any of the 12 display segments."
+  fields:
+    destination_month:
+      name: Destination Month
+      description: "The destination month text."
+      selector:
+        text:
+    destination_day:
+      name: Destination Day
+      description: "The destination day text."
+      selector:
+        text:
+    destination_year:
+      name: Destination Year
+      description: "The destination year text."
+      selector:
+        text:
+    destination_time:
+      name: Destination Time
+      description: "The destination time text."
+      selector:
+        text:
+    present_month:
+      name: Present Month
+      description: "The present month text."
+      selector:
+        text:
+    present_day:
+      name: Present Day
+      description: "The present day text."
+      selector:
+        text:
+    present_year:
+      name: Present Year
+      description: "The present year text."
+      selector:
+        text:
+    present_time:
+      name: Present Time
+      description: "The present time text."
+      selector:
+        text:
+    last_departed_month:
+      name: Last Departed Month
+      description: "The last departed month text."
+      selector:
+        text:
+    last_departed_day:
+      name: Last Departed Day
+      description: "The last departed day text."
+      selector:
+        text:
+    last_departed_year:
+      name: Last Departed Year
+      description: "The last departed year text."
+      selector:
+        text:
+    last_departed_time:
+      name: Last Departed Time
+      description: "The last departed time text."
+      selector:
+        text:
+
+run_sequence:
+  name: Run Sequence
+  description: "Runs a sequence of commands on the device."
+  fields:
+    sequence:
+      name: Sequence
+      description: "A list of commands to execute."
+      required: true
+      selector:
+        object:
+    target_row:
+      name: Target Row
+      description: "The display row to target."
+      selector:
+        number:
+          min: 0
+          max: 2
+
+favorite_radio_station:
+  name: Favorite Radio Station
+  description: "Plays the favorite radio station."
+
+clear_favorite_radio_stations:
+  name: Clear Favorite Radio Stations
+  description: "Clears the favorite radio stations."
+
+set_destination_time:
+  name: Set Destination Time
+  description: "Sets the destination time."
+  fields:
+    datetime:
+      name: Datetime
+      description: "The date and time to set."
+      required: true
+      selector:
+        datetime:
+
+set_present_time:
+  name: Set Present Time
+  description: "Sets the present time."
+  fields:
+    datetime:
+      name: Datetime
+      description: "The date and time to set."
+      required: true
+      selector:
+        datetime:
+
+set_last_departed_time:
+  name: Set Last Departed Time
+  description: "Sets the last departed time."
+  fields:
+    datetime:
+      name: Datetime
+      description: "The date and time to set."
+      required: true
+      selector:
+        datetime:
+
+time_travel:
+  name: Time Travel
+  description: "Initiates a time travel sequence."
+  fields:
+    datetime:
+      name: Datetime
+      description: "The destination date and time."
+      required: true
+      selector:
+        datetime:

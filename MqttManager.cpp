@@ -508,8 +508,9 @@ void publishTimeDisplayEntitiesDiscovery() {
             discoveryDoc["command_topic"] = device_base_topic + "/" + id_suffix + "/command";
             discoveryDoc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
             discoveryDoc["icon"] = "mdi:form-textbox";
+            discoveryDoc["value_template"] = "{{ value }}";
             publishDiscoveryMessage(discoveryDoc, "text");
-            discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon");
+            discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("value_template");
         }
     }
 }
@@ -549,8 +550,16 @@ void publishDataPointSwitchesDiscovery() {
         discoveryDoc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         discoveryDoc["icon"] = "mdi:toggle-switch";
         discoveryDoc["entity_category"] = "config";
+
+        // Add device trigger information
+        discoveryDoc["automation_type"] = "trigger";
+        discoveryDoc["topic"] = device_base_topic + "/events";
+        discoveryDoc["type"] = "turned_on";
+        discoveryDoc["subtype"] = id_suffix;
+
         publishDiscoveryMessage(discoveryDoc, "switch");
         discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+        discoveryDoc.remove("automation_type"); discoveryDoc.remove("topic"); discoveryDoc.remove("type"); discoveryDoc.remove("subtype");
     }
 }
 
@@ -569,8 +578,9 @@ void publishDataPointMarqueesDiscovery() {
         discoveryDoc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         discoveryDoc["icon"] = "mdi:text-box-outline";
         discoveryDoc["entity_category"] = "config";
+            discoveryDoc["value_template"] = "{{ value }}";
         publishDiscoveryMessage(discoveryDoc, "text");
-        discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+            discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category"); discoveryDoc.remove("value_template");
     }
 }
 
@@ -632,8 +642,16 @@ void publishSwitchConfigsDiscovery() {
         discoveryDoc["state_topic"] = device_base_topic + "/" + cfg[0] + "/state";
         discoveryDoc["icon"] = cfg[2];
         discoveryDoc["entity_category"] = "config";
+
+        // Add device trigger information
+        discoveryDoc["automation_type"] = "trigger";
+        discoveryDoc["topic"] = device_base_topic + "/events";
+        discoveryDoc["type"] = "turned_on";
+        discoveryDoc["subtype"] = cfg[0];
+
         publishDiscoveryMessage(discoveryDoc, "switch");
         discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+        discoveryDoc.remove("automation_type"); discoveryDoc.remove("topic"); discoveryDoc.remove("type"); discoveryDoc.remove("subtype");
     }
 }
     
@@ -658,8 +676,16 @@ void publishButtonConfigsDiscovery() {
         discoveryDoc["payload_press"] = "PRESS";
         discoveryDoc["icon"] = cfg[2];
         discoveryDoc["entity_category"] = "config";
+
+        // Add device trigger information
+        discoveryDoc["automation_type"] = "trigger";
+        discoveryDoc["topic"] = device_base_topic + "/events";
+        discoveryDoc["type"] = "button_press";
+        discoveryDoc["subtype"] = cfg[0];
+
         publishDiscoveryMessage(discoveryDoc, "button");
         discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("payload_press"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+        discoveryDoc.remove("automation_type"); discoveryDoc.remove("topic"); discoveryDoc.remove("type"); discoveryDoc.remove("subtype");
     }
 }
 
@@ -676,8 +702,16 @@ void publishSequencerButtonDiscovery() {
     discoveryDoc["payload_press"] = "PRESS";
     discoveryDoc["icon"] = "mdi:movie-play-outline";
     discoveryDoc["entity_category"] = "config";
+
+    // Add device trigger information
+    discoveryDoc["automation_type"] = "trigger";
+    discoveryDoc["topic"] = device_base_topic + "/events";
+    discoveryDoc["type"] = "button_press";
+    discoveryDoc["subtype"] = "sequencer";
+
     publishDiscoveryMessage(discoveryDoc, "button");
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("payload_press"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+    discoveryDoc.remove("automation_type"); discoveryDoc.remove("topic"); discoveryDoc.remove("type"); discoveryDoc.remove("subtype");
 }
     
 /**
@@ -693,8 +727,16 @@ void publishTemporalEchoSwitchDiscovery() {
     discoveryDoc["state_topic"] = device_base_topic + "/temporal_echo/state";
     discoveryDoc["icon"] = "mdi:ghost";
     discoveryDoc["entity_category"] = "config";
+
+    // Add device trigger information
+    discoveryDoc["automation_type"] = "trigger";
+    discoveryDoc["topic"] = device_base_topic + "/events";
+    discoveryDoc["type"] = "turned_on";
+    discoveryDoc["subtype"] = "temporal_echo";
+
     publishDiscoveryMessage(discoveryDoc, "switch");
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+    discoveryDoc.remove("automation_type"); discoveryDoc.remove("topic"); discoveryDoc.remove("type"); discoveryDoc.remove("subtype");
 }
 
 /**
@@ -733,8 +775,16 @@ void publishOverrideSwitchDiscovery() {
     discoveryDoc["state_topic"] = device_base_topic + "/override_switch/state";
     discoveryDoc["icon"] = "mdi:message-cog";
     discoveryDoc["entity_category"] = "config";
+
+    // Add device trigger information
+    discoveryDoc["automation_type"] = "trigger";
+    discoveryDoc["topic"] = device_base_topic + "/events";
+    discoveryDoc["type"] = "turned_on";
+    discoveryDoc["subtype"] = "override_switch";
+
     publishDiscoveryMessage(discoveryDoc, "switch");
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+    discoveryDoc.remove("automation_type"); discoveryDoc.remove("topic"); discoveryDoc.remove("type"); discoveryDoc.remove("subtype");
 }
 
 /**
@@ -759,8 +809,9 @@ void publishOverrideLineTextEntitiesDiscovery() {
         discoveryDoc["state_topic"] = device_base_topic + "/" + id_suffix + "/state";
         discoveryDoc["icon"] = "mdi:message-draw";
         discoveryDoc["entity_category"] = "config";
+        discoveryDoc["value_template"] = "{{ value }}";
         publishDiscoveryMessage(discoveryDoc, "text");
-        discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+        discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("state_topic"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category"); discoveryDoc.remove("value_template");
     }
 }
 
@@ -878,8 +929,16 @@ void publishWeatherEntitiesDiscovery() {
     discoveryDoc["payload_press"] = "PRESS";
     discoveryDoc["icon"] = "mdi:refresh";
     discoveryDoc["entity_category"] = "config";
+
+    // Add device trigger information
+    discoveryDoc["automation_type"] = "trigger";
+    discoveryDoc["topic"] = device_base_topic + "/events";
+    discoveryDoc["type"] = "button_press";
+    discoveryDoc["subtype"] = "weather_refresh";
+
     publishDiscoveryMessage(discoveryDoc, "button");
     discoveryDoc.remove("name"); discoveryDoc.remove("unique_id"); discoveryDoc.remove("object_id"); discoveryDoc.remove("command_topic"); discoveryDoc.remove("payload_press"); discoveryDoc.remove("icon"); discoveryDoc.remove("entity_category");
+    discoveryDoc.remove("automation_type"); discoveryDoc.remove("topic"); discoveryDoc.remove("type"); discoveryDoc.remove("subtype");
 }
 
 /**
