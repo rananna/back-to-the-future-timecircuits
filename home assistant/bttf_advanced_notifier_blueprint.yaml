@@ -1,0 +1,52 @@
+# home-assistant/bttf_advanced_notifier.yaml
+blueprint:
+  name: BTTF - Advanced Notifier
+  description: Displays a temporary message on the Time Circuits with an optional sound.
+  domain: automation
+  input:
+    time_circuits_device:
+      name: Time Circuits Display
+      selector:
+        device:
+          integration: mqtt
+          manufacturer: "Doc Brown Industries"
+    message:
+      name: Message
+      description: "The text to display. Use '\\n' for new lines (e.g., LINE 1\\nLINE 2\\nLINE 3)."
+      selector:
+        text:
+          multiline: true
+    duration:
+      name: Display Duration (seconds)
+      description: How long the message should be displayed before the clock returns to normal.
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 3600
+          unit_of_measurement: seconds
+    sound_effect:
+      name: Sound Effect
+      default: "None"
+      selector:
+        select:
+          options: ["None", "CONFIRM_ON", "ARRIVAL_THUD", "EASTER_EGG"]
+
+mode: single
+trigger: []
+action:
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/run_sequence/command"
+      payload_template: >-
+        {% set lines = message.split('\n') %}
+        text(dest,,{{ lines[0] | default('') }});
+        text(pres,,{{ lines[1] | default('') }});
+        text(last,,{{ lines[2] | default('') }});
+        sound({{ sound_effect if sound_effect != 'None' else '' }});
+  - delay:
+      seconds: "{{ duration }}"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
+      payload: "OFF"

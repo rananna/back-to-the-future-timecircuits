@@ -1,0 +1,37 @@
+blueprint:
+  name: BTTF Time Circuits - Radio Streamer
+  description: >-
+    Starts or stops an internet radio stream on the Time Circuits clock.
+  domain: automation
+  input:
+    time_circuits_device:
+      name: Time Circuits Display
+      selector:
+        device:
+          integration: mqtt
+          manufacturer: "Doc Brown Industries"
+    radio_command:
+      name: Radio Command
+      description: The URL of the live radio stream, or "stop" to end streaming.
+      selector:
+        text:
+
+action:
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
+      payload: "ON"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/dest_month/command"
+      payload: "RADIO"
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/radio/command"
+      payload: !input radio_command
+  - delay:
+      seconds: 5 # Gives the clock time to connect to the stream
+  - service: mqtt.publish
+    data:
+      topic: "bttf-clock/{{ device_attr(time_circuits_device, 'identifiers')[0][1] }}/override/command"
+      payload: "OFF"
