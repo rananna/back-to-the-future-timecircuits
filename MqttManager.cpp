@@ -18,6 +18,7 @@
 #include "StockManager.h"
 #include <LittleFS.h>
 #include <HTTPClient.h>
+#include <freertos/task.h> // For vTaskDelay
 
 extern StockManager stockManager;
 #include "Audio.h"
@@ -184,14 +185,14 @@ void publishDiscoveryMessage(JsonDocument& doc, const char* component) {
             }
             // Log a warning that the buffer is full and we are retrying.
             Log_printf(LOG_LEVEL_WARN, "HA Discovery: Publish buffer for %s is full. Retrying in 100ms...", object_id.c_str());
-            delay(100);
+            vTaskDelay(pdMS_TO_TICKS(100));
             mqttClient.loop(); // Allow the client to process outgoing messages
         }
 
         if (published) {
             // After a successful publish, give the client time to send the message.
             mqttClient.loop();
-            delay(75); // A short delay to help ensure message delivery
+            vTaskDelay(pdMS_TO_TICKS(75)); // A short delay to help ensure message delivery
         } else {
             // Log a critical error if the message could not be sent within the timeout.
             Log_printf(LOG_LEVEL_ERROR, "CRITICAL: HA Discovery for %s failed after %lums. Broker unresponsive?", object_id.c_str(), publish_timeout);
@@ -1089,7 +1090,7 @@ void reconnectMqtt() {
   if (currentSettings.mqttBroker.empty()) return;
   
   Log_printf(LOG_LEVEL_INFO, "Attempting to connect to MQTT broker: %s...", currentSettings.mqttBroker.c_str());
-  delay(100); 
+  vTaskDelay(pdMS_TO_TICKS(100));
 
   String clientId = MQTT_UNIQUE_ID;
   String availability_topic = String(MQTT_DEVICE_TYPE) + "/" + MQTT_UNIQUE_ID + "/status";
@@ -1107,7 +1108,7 @@ void reconnectMqtt() {
     Log_printf(LOG_LEVEL_INFO, "SUCCESS! MQTT client connected.");
     // It's crucial to delay and call loop() here to allow the client to process the CONNACK from the broker.
     // Without this, the first publish will likely fail as the client is not yet ready.
-    delay(250);
+    vTaskDelay(pdMS_TO_TICKS(250));
     mqttClient.loop();
     
     mqttClient.publish(availability_topic.c_str(), "online", true);
@@ -1157,7 +1158,7 @@ void reconnectMqtt() {
     // before we flood the outgoing buffer with all of the state messages. This prevents the
     // client from blocking and causing a keep-alive timeout (ERR: 128).
     Log_printf(LOG_LEVEL_INFO, "MQTT: All topics subscribed. Pausing for 1 second before publishing all states...");
-    delay(1000);
+    vTaskDelay(pdMS_TO_TICKS(1000));
     mqttClient.loop(); // Process incoming ACKs during the delay
 
     publishAllHaStates();
@@ -1175,7 +1176,7 @@ void reconnectMqtt() {
       case 5:  error_str = "Not authorized."; break;
     }
     Log_printf(LOG_LEVEL_ERROR, "MQTT connection FAILED! rc=%d (%s)", mqttClient.state(), error_str);
-    delay(100); 
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 

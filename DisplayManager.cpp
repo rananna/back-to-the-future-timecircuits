@@ -26,6 +26,7 @@
 #include "StockManager.h"
 #include <string>
 #include <algorithm>
+#include <freertos/task.h> // For vTaskDelay
 #include <cctype>
 
 extern StockManager stockManager;
@@ -226,7 +227,7 @@ void showTemporaryMessage(const char* month, const char* day, const char* year, 
         lastRow.time.writeDisplay();
         xSemaphoreGive(xDisplayHardwareMutex);
     }
-    delay(duration);
+    vTaskDelay(pdMS_TO_TICKS(duration));
 #endif
 }
 
