@@ -1165,9 +1165,18 @@ void setup() {
             type = "filesystem";
         }
         Log_printf(LOG_LEVEL_INFO, "OTA Update Start: %s", type.c_str());
+        // --- FIX: Disable watchdog for OTA update ---
+        // The flash writing process can be slow and block the main loop. Disabling the
+        // watchdog prevents it from incorrectly assuming the device has frozen and
+        // triggering a reboot in the middle of the update.
+        Log_printf(LOG_LEVEL_INFO, "Disabling watchdog for OTA update...");
+        esp_task_wdt_delete(NULL);
     });
     ArduinoOTA.onEnd([]() {
         Log_printf(LOG_LEVEL_INFO, "OTA Update End");
+        // Re-enable the watchdog timer now that the OTA process is complete.
+        Log_printf(LOG_LEVEL_INFO, "Re-enabling watchdog after successful OTA.");
+        esp_task_wdt_add(NULL);
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
         Log_printf(LOG_LEVEL_DEBUG, "OTA Progress: %u%%", (progress / (total / 100)));
@@ -1180,6 +1189,9 @@ void setup() {
         else if (error == OTA_RECEIVE_ERROR) error_str = "Receive Failed";
         else if (error == OTA_END_ERROR) error_str = "End Failed";
         Log_printf(LOG_LEVEL_ERROR, "OTA Error[%u]: %s", error, error_str);
+        // Re-enable the watchdog timer even if the OTA process failed.
+        Log_printf(LOG_LEVEL_INFO, "Re-enabling watchdog after failed OTA.");
+        esp_task_wdt_add(NULL);
     });
     ArduinoOTA.begin();
 
