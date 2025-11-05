@@ -192,7 +192,6 @@ void generateAllDisplaysRandom(SequencerTrack tracks[3], const char time_strings
     const int flicker_interval = 50; // ms for flicker effect refresh rate
     const int total_duration = 10000; // 10 seconds total animation time
     const int num_chars = 13; // Standard display width
-    const int lock_in_interval = total_duration / num_chars; // ms per character reveal
 
     // --- FIX: Store substrings in local variables to guarantee pointer validity ---
     // Although the temporary from substr() should live long enough, this is safer.
