@@ -339,20 +339,18 @@ void handleBootSequence() {
                 playSound("/hum.mp3", false, 15);
                 stateActionCompleted = true;
             }
-            if (elapsed > BOOT_AWAIT_HUM_DURATION) {
-                bootState = BOOT_START;
+            // --- FIX: Combine BOOT_AWAIT_HUM and BOOT_START ---
+            // The message now persists for the full 10s + 1s duration.
+            if (elapsed > BOOT_AWAIT_HUM_DURATION + 1000) {
+                bootState = BOOT_SYSTEM_ACTIVATE;
                 bootStateStartTime = millis();
             }
             break;
         case BOOT_START:
-            if (!stateActionCompleted) {
-                // Text display logic moved to BOOT_AWAIT_HUM
-                stateActionCompleted = true;
-            }
-            if (elapsed > 1000) {
-                bootState = BOOT_SYSTEM_ACTIVATE;
-                bootStateStartTime = millis();
-            }
+            // This state is now merged into BOOT_AWAIT_HUM and can be removed or left empty.
+            // For safety, we'll just transition out of it immediately if we ever land here.
+            bootState = BOOT_SYSTEM_ACTIVATE;
+            bootStateStartTime = millis();
             break;
         case BOOT_SYSTEM_ACTIVATE:
             {
