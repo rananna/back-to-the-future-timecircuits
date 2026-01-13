@@ -1663,14 +1663,11 @@ void handleSequencerCommand(const std::string& payload) {
         // It's a valid JSON string.
         Log_printf(LOG_LEVEL_INFO, "Sequencer: Processing direct JSON payload.");
 
-        // --- FIX: The order of operations is critical to prevent a race condition.
-        // 1. Stop all sequences. This will restore LEDs to their pre-animation state.
-        // 2. Save the state of the now-restored LEDs.
-        // 3. Turn the LEDs off to prepare for the new animation.
+        // --- FIX: Stop any running sequence BEFORE saving state to prevent corruption ---
         stopAllSequences();
+
         saveLedStates();
         turnOffAllLeds();
-
         // Save the current display state so it can be restored after the animation.
         preAnimationDisplayMode = currentSettings.displayMode;
         for (int r = 0; r < 3; ++r) {
